@@ -3,7 +3,7 @@ import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import { BN } from '../sdk';
 import {
-	Admin,
+	AdminClient,
 	PRICE_PRECISION,
 	calculateReservePrice,
 	calculateTradeSlippage,
@@ -17,7 +17,6 @@ import {
 
 import { liquidityBook } from './liquidityBook';
 
-import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
 import {
 	createPriceFeed,
 	mockUSDCMint,
@@ -166,9 +165,9 @@ describe('AMM Curve', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	const clearingHouse = new Admin({
+	const driftClient = new AdminClient({
 		connection,
 		wallet: provider.wallet,
 		programID: chProgram.programId,
@@ -189,14 +188,14 @@ describe('AMM Curve', () => {
 	const usdcAmount = new BN(1000 * 10 ** 6);
 	const solPositionInitialValue = usdcAmount;
 
-	let userAccount: ClearingHouseUser;
+	let userAccount: User;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
 		solUsdOracle = await createPriceFeed({
 			oracleProgram: anchor.workspace.Pyth,
@@ -204,28 +203,28 @@ describe('AMM Curve', () => {
 		});
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		const kSqrtNorm = normAssetAmount(kSqrt, initialSOLPriceBN);
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			solUsdOracle,
 			kSqrtNorm,
 			kSqrtNorm,
 			periodicity,
 			initialSOLPriceBN
 		);
-		await clearingHouse.initializeUserAccount();
-		userAccount = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		await driftClient.initializeUserAccount();
+		userAccount = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
 		await userAccount.subscribe();
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 		await userAccount.unsubscribe();
 	});
 
 	const showBook = (marketIndex) => {
-		const market = clearingHouse.getPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const currentMark = calculateReservePrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
@@ -259,11 +258,11 @@ describe('AMM Curve', () => {
 	};
 
 	it('After Deposit', async () => {
-		await clearingHouse.deposit(usdcAmount, 0, userUSDCAccount.publicKey);
+		await driftClient.deposit(usdcAmount, 0, userUSDCAccount.publicKey);
 	});
 
 	it('After Position Taken', async () => {
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			solPositionInitialValue,
 			marketIndex
@@ -272,7 +271,7 @@ describe('AMM Curve', () => {
 		const avgSlippageCenter = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * PRICE_PRECISION.toNumber()),
-			clearingHouse.getPerpMarketAccount(0)
+			driftClient.getPerpMarketAccount(0)
 		)[0];
 		showBook(marketIndex);
 
@@ -281,16 +280,16 @@ describe('AMM Curve', () => {
 		);
 
 		const [_direction, tradeSize, _] = calculateTargetPriceTrade(
-			clearingHouse.getPerpMarketAccount(marketIndex),
+			driftClient.getPerpMarketAccount(marketIndex),
 			targetPriceUp
 		);
 
-		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
+		await driftClient.moveAmmToPrice(marketIndex, targetPriceUp);
 
 		const avgSlippage25PctOut = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * PRICE_PRECISION.toNumber()),
-			clearingHouse.getPerpMarketAccount(0)
+			driftClient.getPerpMarketAccount(0)
 		)[0];
 
 		showBook(marketIndex);

@@ -12,7 +12,7 @@ import {
 	SpotBalanceType,
 	ZERO,
 	getLimitOrderParams,
-	ClearingHouse,
+	DriftClient,
 	OraclePriceData,
 	OracleGuardRails,
 	BASE_PRECISION,
@@ -21,8 +21,8 @@ import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
 
 import {
-	Admin,
-	ClearingHouseUser,
+	AdminClient,
+	User,
 	// PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
@@ -51,14 +51,14 @@ import {
 
 async function depositToFeePoolFromIF(
 	amount: number,
-	clearingHouse: Admin,
+	driftClient: AdminClient,
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
 
 	// // send $50 to market from IF
 	try {
-		const txSig00 = await clearingHouse.depositIntoPerpMarketFeePool(
+		const txSig00 = await driftClient.depositIntoPerpMarketFeePool(
 			0,
 			ifAmount,
 			userUSDCAccount.publicKey
@@ -72,11 +72,11 @@ async function depositToFeePoolFromIF(
 }
 
 async function iterClosePosition(
-	clearingHouse: ClearingHouse,
+	driftClient: DriftClient,
 	marketIndex: number,
 	oraclePriceData: OraclePriceData
 ) {
-	let userPosition = clearingHouse.getUser().getUserPosition(marketIndex);
+	let userPosition = driftClient.getUser().getUserPosition(marketIndex);
 	let posDirection;
 	let limitPrice: BN;
 
@@ -107,17 +107,17 @@ async function iterClosePosition(
 			price: limitPrice,
 			immediateOrCancel: true,
 		});
-		const txClose = await clearingHouse.placeAndTakePerpOrder(closeOrderParams);
+		const txClose = await driftClient.placeAndTakePerpOrder(closeOrderParams);
 		console.log(
 			'tx logs',
 			(
-				await clearingHouse.connection.getTransaction(txClose, {
+				await driftClient.connection.getTransaction(txClose, {
 					commitment: 'confirmed',
 				})
 			).meta.logMessages
 		);
-		await clearingHouse.fetchAccounts();
-		userPosition = clearingHouse.getUser().getUserPosition(marketIndex);
+		await driftClient.fetchAccounts();
+		userPosition = driftClient.getUser().getUserPosition(marketIndex);
 		console.log(
 			'userPosition.baseAssetAmount: ',
 			userPosition.baseAssetAmount.toString()
@@ -129,9 +129,9 @@ describe('repeg and spread amm', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -179,7 +179,7 @@ describe('repeg and spread amm', () => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -192,15 +192,15 @@ describe('repeg and spread amm', () => {
 			oracleInfos: oracleInfos,
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updatePerpAuctionDuration(0);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.updatePerpAuctionDuration(0);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		// BTC
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			btcUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -210,13 +210,13 @@ describe('repeg and spread amm', () => {
 			500,
 			250
 		);
-		await clearingHouse.updatePerpMarketBaseSpread(0, 250);
-		await clearingHouse.updatePerpMarketCurveUpdateIntensity(0, 100);
+		await driftClient.updatePerpMarketBaseSpread(0, 250);
+		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		// for (let i = 1; i <= 4; i++) {
 		// 	// init more markets
 		// 	const thisUsd = mockOracles[i];
-		// 	await clearingHouse.initializeMarket(
+		// 	await driftClient.initializeMarket(
 		// 		thisUsd,
 		// 		ammInitialBaseAssetAmount,
 		// 		ammInitialQuoteAssetAmount,
@@ -226,19 +226,19 @@ describe('repeg and spread amm', () => {
 		// 		1000,
 		// 		201
 		// 	);
-		// 	await clearingHouse.updatePerpMarketBaseSpread(new BN(i), 2000);
-		// 	await clearingHouse.updatePerpMarketCurveUpdateIntensity(new BN(i), 100);
+		// 	await driftClient.updatePerpMarketBaseSpread(new BN(i), 2000);
+		// 	await driftClient.updatePerpMarketCurveUpdateIntensity(new BN(i), 100);
 		// }
 
 		const [, _userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
+			await driftClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -257,10 +257,10 @@ describe('repeg and spread amm', () => {
 			useForLiquidations: false,
 		};
 
-		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
+		await driftClient.fetchAccounts();
+		const state = driftClient.getStateAccount();
 
 		assert(
 			JSON.stringify(oracleGuardRails) ===
@@ -274,23 +274,23 @@ describe('repeg and spread amm', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		const clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		const driftClientUser = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftClientUser.subscribe();
 
-		await depositToFeePoolFromIF(0.001, clearingHouse, userUSDCAccount);
+		await depositToFeePoolFromIF(0.001, driftClient, userUSDCAccount);
 
-		// await clearingHouse.closePosition(new BN(0));
-		const txSig0 = await clearingHouse.placeAndTakePerpOrder(orderParams);
+		// await driftClient.closePosition(new BN(0));
+		const txSig0 = await driftClient.placeAndTakePerpOrder(orderParams);
 
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig0, { commitment: 'confirmed' }))
 				.meta.logMessages
 		);
-		await depositToFeePoolFromIF(50, clearingHouse, userUSDCAccount);
+		await depositToFeePoolFromIF(50, driftClient, userUSDCAccount);
 
 		// old oracle price: 21966
 		await setFeedPrice(anchor.workspace.Pyth, 19790, btcUsd);
@@ -301,7 +301,7 @@ describe('repeg and spread amm', () => {
 			anchor.workspace.Pyth,
 			btcUsd
 		);
-		const market0 = clearingHouse.getPerpMarketAccount(0);
+		const market0 = driftClient.getPerpMarketAccount(0);
 		console.log(
 			'market0.amm.totalFeeMinusDistributions:',
 			market0.amm.totalFeeMinusDistributions.toNumber() /
@@ -410,7 +410,7 @@ describe('repeg and spread amm', () => {
 		console.log(convertToNumber(oraclePriceData.price), midPrice);
 		console.log(
 			'getSpotMarketAssetValue:',
-			clearingHouseUser.getSpotMarketAssetValue().toString()
+			driftClientUser.getSpotMarketAssetValue().toString()
 		);
 
 		const effectiveLeverage = calculateEffectiveLeverage(
@@ -435,7 +435,7 @@ describe('repeg and spread amm', () => {
 		assert(Math.min(inventoryScale, 10) == 10);
 
 		try {
-			const txSig = await clearingHouse.updateAMMs([marketIndex]);
+			const txSig = await driftClient.updateAMMs([marketIndex]);
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -445,7 +445,7 @@ describe('repeg and spread amm', () => {
 			console.error(e);
 		}
 
-		const market = clearingHouse.getPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(
 			market.amm,
 			oraclePriceData,
@@ -491,28 +491,26 @@ describe('repeg and spread amm', () => {
 		console.log(bAR1.toString(), '==', market.amm.baseAssetReserve.toString());
 		assert(bAR1.eq(market.amm.baseAssetReserve));
 
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 		console.log(
-			clearingHouse
-				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.toString()
+			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
 		);
 		console.log(
-			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toString()
+			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.toString()
 		);
 		assert(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(
 					new BN(-0.1931 * BASE_PRECISION.toNumber())
 				)
 		);
 		// assert(
-		// 	clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
+		// 	driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
 		// 		'4229493402'
 		// ); // $4229.49
 
-		let userPosition = clearingHouse.getUser().getUserPosition(marketIndex);
+		let userPosition = driftClient.getUser().getUserPosition(marketIndex);
 
 		assert(market.amm.maxSlippageRatio == 50);
 		const limitPrice = oraclePriceData.price
@@ -530,16 +528,14 @@ describe('repeg and spread amm', () => {
 				price: limitPrice,
 				immediateOrCancel: true,
 			});
-			const txClose = await clearingHouse.placeAndTakePerpOrder(
-				closeOrderParams
-			);
+			const txClose = await driftClient.placeAndTakePerpOrder(closeOrderParams);
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txClose, { commitment: 'confirmed' }))
 					.meta.logMessages
 			);
-			await clearingHouse.fetchAccounts();
-			userPosition = clearingHouse.getUser().getUserPosition(marketIndex);
+			await driftClient.fetchAccounts();
+			userPosition = driftClient.getUser().getUserPosition(marketIndex);
 			console.log(
 				'userPosition.baseAssetAmount: ',
 				userPosition.baseAssetAmount.toString()
@@ -547,34 +543,32 @@ describe('repeg and spread amm', () => {
 		}
 
 		console.log(
-			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toString()
+			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.toString()
 		);
 		console.log(
-			clearingHouse
-				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.toString()
+			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
 		);
 		assert(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.toString() == '0'
 		);
 		// assert(
-		// 	clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
+		// 	driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
 		// 		'203455312'
 		// ); // $203.45
 
 		assert(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString() == '0'
 		);
 
 		console.log(
 			'getSpotMarketAssetValue:',
-			clearingHouseUser.getSpotMarketAssetValue().toString()
+			driftClientUser.getSpotMarketAssetValue().toString()
 		);
-		const spotMarketAccount0 = clearingHouse.getSpotMarketAccount(0);
+		const spotMarketAccount0 = driftClient.getSpotMarketAccount(0);
 
 		const feePoolBalance0 = getTokenAmount(
 			market.amm.feePool.scaledBalance,
@@ -591,40 +585,38 @@ describe('repeg and spread amm', () => {
 		console.log('usdcAmount:', usdcAmount.toString());
 		console.log(
 			'getSpotMarketAssetValue:',
-			clearingHouseUser.getSpotMarketAssetValue().toString()
+			driftClientUser.getSpotMarketAssetValue().toString()
 		);
 		console.log('feePoolBalance0:', feePoolBalance0.toString());
 		console.log('pnlPoolBalance0:', pnlPoolBalance0.toString());
 
-		await clearingHouse.settlePNL(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		await driftClient.settlePNL(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			marketIndex
 		);
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 		console.log(
-			clearingHouse
-				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.toString()
+			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
 		);
 		console.log(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
 		// assert(
-		// 	clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
+		// 	driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
 		// 		'157582183'
 		// ); // $157.58
 		assert(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString() == '0'
 		);
 
-		await depositToFeePoolFromIF(157.476328, clearingHouse, userUSDCAccount);
+		await depositToFeePoolFromIF(157.476328, driftClient, userUSDCAccount);
 
-		const market1 = clearingHouse.getPerpMarketAccount(0);
+		const market1 = driftClient.getPerpMarketAccount(0);
 		console.log(
 			'after fee pool deposit totalFeeMinusDistributions:',
 			market1.amm.totalFeeMinusDistributions.toString()
@@ -632,7 +624,7 @@ describe('repeg and spread amm', () => {
 
 		assert(!market1.amm.totalFeeMinusDistributions.eq(ZERO));
 
-		const spotMarketAccount = clearingHouse.getSpotMarketAccount(0);
+		const spotMarketAccount = driftClient.getSpotMarketAccount(0);
 
 		const revPoolBalance = getTokenAmount(
 			spotMarketAccount.revenuePool.scaledBalance,
@@ -655,21 +647,21 @@ describe('repeg and spread amm', () => {
 		console.log('usdcAmount:', usdcAmount.toString());
 		console.log(
 			'getSpotMarketAssetValue:',
-			clearingHouseUser.getSpotMarketAssetValue().toString()
+			driftClientUser.getSpotMarketAssetValue().toString()
 		);
 		console.log('revPoolBalance:', revPoolBalance.toString());
 		console.log('feePoolBalance:', feePoolBalance.toString());
 		console.log('pnlPoolBalance:', pnlPoolBalance.toString());
 
-		// assert(clearingHouseUser.getSpotMarketAssetValue().eq(new BN('10000000000'))); // remainder is of debt is for fees for revenue pool
-		await clearingHouseUser.unsubscribe();
+		// assert(driftClientUser.getSpotMarketAssetValue().eq(new BN('10000000000'))); // remainder is of debt is for fees for revenue pool
+		await driftClientUser.unsubscribe();
 	});
 
 	it('5 users, 15 trades, single market, user net win, check invariants', async () => {
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
-		const clearingHouseOld = clearingHouse;
+		const driftClientOld = driftClient;
 
-		const [_userUSDCAccounts, _user_keys, clearingHouses, _userAccountInfos] =
+		const [_userUSDCAccounts, _user_keys, driftClients, _userAccountInfos] =
 			await initUserAccounts(
 				5,
 				usdcMint,
@@ -697,7 +689,7 @@ describe('repeg and spread amm', () => {
 				btcUsd
 			);
 
-			const market0 = clearingHouse.getPerpMarketAccount(0);
+			const market0 = driftClient.getPerpMarketAccount(0);
 			const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 			const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 			const longSpread = calculateSpread(
@@ -733,25 +725,25 @@ describe('repeg and spread amm', () => {
 				baseAssetAmount: new BN(tradeSize),
 			});
 
-			await clearingHouses[count % 5].placeAndTakePerpOrder(orderParams);
+			await driftClients[count % 5].placeAndTakePerpOrder(orderParams);
 			count += 1;
 		}
 
 		let allUserCollateral = 0;
 		let allUserUnsettledPnl = 0;
 
-		const clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		const driftClientUser = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftClientUser.subscribe();
 		const userCollateral = convertToNumber(
-			clearingHouseUser.getSpotMarketAssetValue(),
+			driftClientUser.getSpotMarketAssetValue(),
 			QUOTE_PRECISION
 		);
 
 		const userUnsettledPnl = convertToNumber(
-			clearingHouseUser
+			driftClientUser
 				.getUserAccount()
 				.perpPositions.reduce((unsettledPnl, position) => {
 					return unsettledPnl.add(
@@ -773,15 +765,15 @@ describe('repeg and spread amm', () => {
 			userUnsettledPnl,
 			'(unsettled)'
 		);
-		await clearingHouseUser.unsubscribe();
+		await driftClientUser.unsubscribe();
 
 		const oraclePriceData1 = await getOraclePriceData(
 			anchor.workspace.Pyth,
 			btcUsd
 		);
 
-		for (let i = 0; i < clearingHouses.length; i++) {
-			const pos = clearingHouses[i].getUserAccount().perpPositions[0];
+		for (let i = 0; i < driftClients.length; i++) {
+			const pos = driftClients[i].getUserAccount().perpPositions[0];
 			console.log(
 				'user',
 				i,
@@ -789,23 +781,23 @@ describe('repeg and spread amm', () => {
 				pos.baseAssetAmount.toString()
 			);
 			if (!pos.baseAssetAmount.eq(ZERO)) {
-				// await clearingHouses[i].closePosition(new BN(0));
-				await iterClosePosition(clearingHouses[i], 0, oraclePriceData1);
-				await clearingHouses[i].settlePNL(
-					await clearingHouses[i].getUserAccountPublicKey(),
-					clearingHouses[i].getUserAccount(),
+				// await driftClients[i].closePosition(new BN(0));
+				await iterClosePosition(driftClients[i], 0, oraclePriceData1);
+				await driftClients[i].settlePNL(
+					await driftClients[i].getUserAccountPublicKey(),
+					driftClients[i].getUserAccount(),
 					0
 				);
 			}
 
-			const clearingHouseI = clearingHouses[i];
-			const clearingHouseUserI = _userAccountInfos[i];
+			const driftClientI = driftClients[i];
+			const driftClientUserI = _userAccountInfos[i];
 			const userCollateral = convertToNumber(
-				clearingHouseUserI.getSpotMarketAssetValue(),
+				driftClientUserI.getSpotMarketAssetValue(),
 				QUOTE_PRECISION
 			);
 
-			const unsettledPnl = clearingHouseUserI
+			const unsettledPnl = driftClientUserI
 				.getUserAccount()
 				.perpPositions.reduce((unsettledPnl, position) => {
 					return unsettledPnl.add(
@@ -826,11 +818,11 @@ describe('repeg and spread amm', () => {
 				userUnsettledPnl,
 				'(unsettled)'
 			);
-			await clearingHouseI.unsubscribe();
-			await clearingHouseUserI.unsubscribe();
+			await driftClientI.unsubscribe();
+			await driftClientUserI.unsubscribe();
 		}
 
-		const market0 = clearingHouseOld.getPerpMarketAccount(0);
+		const market0 = driftClientOld.getPerpMarketAccount(0);
 
 		console.log('total Fees:', market0.amm.totalFee.toString());
 		console.log(
@@ -838,7 +830,7 @@ describe('repeg and spread amm', () => {
 			market0.amm.totalFeeMinusDistributions.toString()
 		);
 
-		const spotMarketAccount = clearingHouseOld.getSpotMarketAccount(
+		const spotMarketAccount = driftClientOld.getSpotMarketAccount(
 			QUOTE_SPOT_MARKET_INDEX
 		);
 

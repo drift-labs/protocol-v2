@@ -1,20 +1,20 @@
 import { PublicKey } from '@solana/web3.js';
 import { SerumV3FulfillmentConfigAccount } from '../types';
-import { ClearingHouse } from '../clearingHouse';
+import { DriftClient } from '../driftClient';
 
 export class SerumFulfillmentConfigMap {
-	clearingHouse: ClearingHouse;
+	driftClient: DriftClient;
 	map = new Map<number, SerumV3FulfillmentConfigAccount>();
 
-	public constructor(clearingHouse: ClearingHouse) {
-		this.clearingHouse = clearingHouse;
+	public constructor(driftClient: DriftClient) {
+		this.driftClient = driftClient;
 	}
 
 	public async add(
 		marketIndex: number,
 		serumMarketAddress: PublicKey
 	): Promise<void> {
-		const account = await this.clearingHouse.getSerumV3FulfillmentConfig(
+		const account = await this.driftClient.getSerumV3FulfillmentConfig(
 			serumMarketAddress
 		);
 		this.map.set(marketIndex, account);

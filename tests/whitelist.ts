@@ -7,7 +7,7 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
-import { Admin, PRICE_PRECISION } from '../sdk/src';
+import { AdminClient, PRICE_PRECISION } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -20,9 +20,9 @@ describe('whitelist', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 
 	let userAccountPublicKey: PublicKey;
 
@@ -49,7 +49,7 @@ describe('whitelist', () => {
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -62,11 +62,11 @@ describe('whitelist', () => {
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
 		});
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -85,24 +85,24 @@ describe('whitelist', () => {
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 	});
 
 	it('Assert whitelist mint null', async () => {
-		const state = clearingHouse.getStateAccount();
+		const state = driftClient.getStateAccount();
 		assert(state.whitelistMint.equals(PublicKey.default));
 	});
 
 	it('enable whitelist mint', async () => {
-		await clearingHouse.updateWhitelistMint(whitelistMint.publicKey);
-		const state = clearingHouse.getStateAccount();
+		await driftClient.updateWhitelistMint(whitelistMint.publicKey);
+		const state = driftClient.getStateAccount();
 		console.assert(state.whitelistMint.equals(whitelistMint.publicKey));
 	});
 
 	it('block initialize user', async () => {
 		try {
 			[, userAccountPublicKey] =
-				await clearingHouse.initializeUserAccountAndDepositCollateral(
+				await driftClient.initializeUserAccountAndDepositCollateral(
 					usdcAmount,
 					userUSDCAccount.publicKey
 				);
@@ -126,12 +126,12 @@ describe('whitelist', () => {
 			1
 		);
 		[, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
+			await driftClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
 
-		const user: any = await clearingHouse.program.account.user.fetch(
+		const user: any = await driftClient.program.account.user.fetch(
 			userAccountPublicKey
 		);
 
@@ -139,8 +139,8 @@ describe('whitelist', () => {
 	});
 
 	it('disable whitelist mint', async () => {
-		await clearingHouse.updateWhitelistMint(PublicKey.default);
-		const state = clearingHouse.getStateAccount();
+		await driftClient.updateWhitelistMint(PublicKey.default);
+		const state = driftClient.getStateAccount();
 		console.assert(state.whitelistMint.equals(PublicKey.default));
 	});
 });

@@ -4,7 +4,7 @@ import {
 	BN,
 	calculateAskPrice,
 	calculateBidPrice,
-	ClearingHouse,
+	DriftClient,
 	convertToNumber,
 	isAuctionComplete,
 	isOrderExpired,
@@ -1021,17 +1021,17 @@ export class DLOB {
 
 	public printTopOfOrderLists(
 		sdkConfig: any,
-		clearingHouse: ClearingHouse,
+		driftClient: DriftClient,
 		slotSubscriber: SlotSubscriber,
 		marketIndex: number,
 		marketType: MarketType
 	) {
 		if (isVariant(marketType, 'perp')) {
-			const market = clearingHouse.getPerpMarketAccount(marketIndex);
+			const market = driftClient.getPerpMarketAccount(marketIndex);
 
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
-				clearingHouse.getOracleDataForPerpMarket(marketIndex);
+				driftClient.getOracleDataForPerpMarket(marketIndex);
 			const fallbackAsk = calculateAskPrice(market, oraclePriceData);
 			const fallbackBid = calculateBidPrice(market, oraclePriceData);
 
@@ -1077,7 +1077,7 @@ export class DLOB {
 		} else if (isVariant(marketType, 'spot')) {
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
-				clearingHouse.getOracleDataForPerpMarket(marketIndex);
+				driftClient.getOracleDataForPerpMarket(marketIndex);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,

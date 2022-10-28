@@ -1,13 +1,13 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, ClearingHouseUser, OracleSource, Wallet } from '../sdk';
+import { BN, User, OracleSource, Wallet } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
 import * as web3 from '@solana/web3.js';
 
 import {
-	Admin,
+	AdminClient,
 	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -47,7 +47,7 @@ async function createNewUser(
 		wallet.publicKey
 	);
 
-	const clearingHouse = new Admin({
+	const driftClient = new AdminClient({
 		connection: provider.connection,
 		wallet: wallet,
 		programID: program.programId,
@@ -59,25 +59,25 @@ async function createNewUser(
 		spotMarketIndexes: [0],
 		oracleInfos,
 	});
-	await clearingHouse.subscribe();
+	await driftClient.subscribe();
 
 	if (walletFlag) {
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 	}
 
-	await clearingHouse.initializeUserAccountAndDepositCollateral(
+	await driftClient.initializeUserAccountAndDepositCollateral(
 		usdcAmount,
 		usdcAta.publicKey
 	);
 
-	const clearingHouseUser = new ClearingHouseUser({
-		clearingHouse,
-		userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+	const driftClientUser = new User({
+		driftClient,
+		userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 	});
-	clearingHouseUser.subscribe();
+	driftClientUser.subscribe();
 
-	return [clearingHouse, clearingHouseUser];
+	return [driftClient, driftClientUser];
 }
 
 describe('liquidity providing', () => {
@@ -87,7 +87,7 @@ describe('liquidity providing', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
 	// ammInvariant == k == x * y
 	const ammInitialBaseAssetReserve = new BN(300).mul(new BN(1e13));
@@ -103,15 +103,15 @@ describe('liquidity providing', () => {
 
 	const usdcAmount = new BN(1_000_000_000 * 1e6);
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
 	let usdcMint: web3.Keypair;
 
-	let clearingHouseUser: ClearingHouseUser;
-	let traderClearingHouse: Admin;
-	let traderClearingHouseUser: ClearingHouseUser;
+	let driftClientUser: User;
+	let traderDriftClient: AdminClient;
+	let traderDriftClientUser: User;
 
 	let solusdc;
 	let solusdc2;
@@ -125,7 +125,7 @@ describe('liquidity providing', () => {
 			{ publicKey: solusdc, source: OracleSource.PYTH },
 			{ publicKey: solusdc2, source: OracleSource.PYTH },
 		];
-		[clearingHouse, clearingHouseUser] = await createNewUser(
+		[driftClient, driftClientUser] = await createNewUser(
 			chProgram,
 			provider,
 			usdcMint,
@@ -134,15 +134,15 @@ describe('liquidity providing', () => {
 			provider.wallet
 		);
 		// used for trading / taking on baa
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			solusdc,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			new BN(60 * 60)
 		);
-		await clearingHouse.updateLpCooldownTime(new BN(0));
-		await clearingHouse.updatePerpMarketMaxFillReserveFraction(0, 1);
-		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
+		await driftClient.updateLpCooldownTime(new BN(0));
+		await driftClient.updatePerpMarketMaxFillReserveFraction(0, 1);
+		await driftClient.updatePerpMarketStepSizeAndTickSize(
 			0,
 			new BN(1),
 			new BN(1)
@@ -160,18 +160,18 @@ describe('liquidity providing', () => {
 			},
 			useForLiquidations: true,
 		};
-		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
 		// second market -- used for funding ..
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			solusdc2,
 			stableAmmInitialBaseAssetReserve,
 			stableAmmInitialQuoteAssetReserve,
 			new BN(0)
 		);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
-		[traderClearingHouse, traderClearingHouseUser] = await createNewUser(
+		[traderDriftClient, traderDriftClientUser] = await createNewUser(
 			chProgram,
 			provider,
 			usdcMint,
@@ -184,18 +184,18 @@ describe('liquidity providing', () => {
 	after(async () => {
 		await eventSubscriber.unsubscribe();
 
-		await clearingHouse.unsubscribe();
-		await clearingHouseUser.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftClientUser.unsubscribe();
 
-		await traderClearingHouse.unsubscribe();
-		await traderClearingHouseUser.unsubscribe();
+		await traderDriftClient.unsubscribe();
+		await traderDriftClientUser.unsubscribe();
 	});
 
 	it('lp trades with short', async () => {
-		let market = clearingHouse.getPerpMarketAccount(0);
+		let market = driftClient.getPerpMarketAccount(0);
 
 		console.log('adding liquidity...');
-		const _sig = await clearingHouse.addPerpLpShares(
+		const _sig = await driftClient.addPerpLpShares(
 			new BN(100 * 1e13),
 			market.marketIndex
 		);
@@ -203,14 +203,14 @@ describe('liquidity providing', () => {
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
 		const tradeSize = new BN(40 * 1e13);
-		const _txsig = await traderClearingHouse.openPosition(
+		const _txsig = await traderDriftClient.openPosition(
 			PositionDirection.LONG,
 			tradeSize,
 			market.marketIndex
 		);
 
-		await traderClearingHouse.fetchAccounts();
-		const position = traderClearingHouse.getUserAccount().perpPositions[0];
+		await traderDriftClient.fetchAccounts();
+		const position = traderDriftClient.getUserAccount().perpPositions[0];
 		console.log(
 			'trader position:',
 			position.baseAssetAmount.toString(),
@@ -219,7 +219,7 @@ describe('liquidity providing', () => {
 		assert(position.baseAssetAmount.gt(ZERO));
 
 		// settle says the lp would take on a short
-		const lpPosition = clearingHouseUser.getSettledLPPosition(0)[0];
+		const lpPosition = driftClientUser.getSettledLPPosition(0)[0];
 		console.log(
 			'sdk settled lp position:',
 			lpPosition.baseAssetAmount.toString(),
@@ -229,16 +229,16 @@ describe('liquidity providing', () => {
 		assert(lpPosition.quoteAssetAmount.gt(ZERO));
 
 		// lp trades a big long
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			tradeSize,
 			market.marketIndex
 		);
-		await clearingHouse.fetchAccounts();
-		await clearingHouseUser.fetchAccounts();
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
 
 		// lp now has a long
-		const newLpPosition = clearingHouseUser.getUserAccount().perpPositions[0];
+		const newLpPosition = driftClientUser.getUserAccount().perpPositions[0];
 		console.log(
 			'lp position:',
 			newLpPosition.baseAssetAmount.toString(),
@@ -248,7 +248,7 @@ describe('liquidity providing', () => {
 		assert(newLpPosition.quoteAssetAmount.lt(ZERO));
 		// is still an lp
 		assert(newLpPosition.lpShares.gt(ZERO));
-		market = clearingHouse.getPerpMarketAccount(0);
+		market = driftClient.getPerpMarketAccount(0);
 
 		console.log('done!');
 	});

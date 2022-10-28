@@ -5,7 +5,7 @@ import { BASE_PRECISION, BN } from '../sdk';
 import { Program } from '@project-serum/anchor';
 import { getTokenAccount } from '@project-serum/common';
 
-import { Admin, PRICE_PRECISION, PositionDirection } from '../sdk/src';
+import { AdminClient, PRICE_PRECISION, PositionDirection } from '../sdk/src';
 
 import {
 	mockOracle,
@@ -18,9 +18,9 @@ describe('admin withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -41,7 +41,7 @@ describe('admin withdraw', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -53,49 +53,49 @@ describe('admin withdraw', () => {
 			spotMarketIndexes: [0],
 			userStats: true,
 		});
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
 
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
 		const marketIndex = new BN(0);
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION.mul(new BN(5)),
 			marketIndex
 		);
 
-		await clearingHouse.settlePNL(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		await driftClient.settlePNL(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			marketIndex
 		);
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 	});
 
 	it('Try to withdraw too much', async () => {
 		const withdrawAmount = fee.div(new BN(2)).add(new BN(1));
 		try {
-			await clearingHouse.withdrawFromMarketToInsuranceVault(
+			await driftClient.withdrawFromMarketToInsuranceVault(
 				new BN(0),
 				withdrawAmount,
 				userUSDCAccount.publicKey
@@ -107,12 +107,12 @@ describe('admin withdraw', () => {
 	});
 
 	it('Withdraw Fees', async () => {
-		const withdrawAmount = clearingHouse
+		const withdrawAmount = driftClient
 			.getUserStats()
 			.getAccount()
 			.fees.totalFeePaid.div(new BN(2));
-		const state = await clearingHouse.getStateAccount();
-		await clearingHouse.withdrawFromMarketToInsuranceVault(
+		const state = await driftClient.getStateAccount();
+		await driftClient.withdrawFromMarketToInsuranceVault(
 			new BN(0),
 			withdrawAmount,
 			state.insuranceVault
@@ -125,11 +125,11 @@ describe('admin withdraw', () => {
 	});
 
 	it('Withdraw From Insurance Vault', async () => {
-		const withdrawAmount = clearingHouse
+		const withdrawAmount = driftClient
 			.getUserStats()
 			.getAccount()
 			.fees.totalFeePaid.div(new BN(4));
-		await clearingHouse.withdrawFromInsuranceVault(
+		await driftClient.withdrawFromInsuranceVault(
 			withdrawAmount,
 			userUSDCAccount.publicKey
 		);
@@ -141,30 +141,30 @@ describe('admin withdraw', () => {
 	});
 
 	it('Withdraw From Insurance Vault to amm', async () => {
-		const withdrawAmount = clearingHouse
+		const withdrawAmount = driftClient
 			.getUserStats()
 			.getAccount()
 			.fees.totalFeePaid.div(new BN(4));
 
-		let market = clearingHouse.getPerpMarketAccount(0);
+		let market = driftClient.getPerpMarketAccount(0);
 		assert(
 			market.amm.totalFee.eq(
-				clearingHouse.getUserStats().getAccount().fees.totalFeePaid
+				driftClient.getUserStats().getAccount().fees.totalFeePaid
 			)
 		);
 
-		await clearingHouse.withdrawFromInsuranceVaultToMarket(
+		await driftClient.withdrawFromInsuranceVaultToMarket(
 			new BN(0),
 			withdrawAmount
 		);
 
 		const collateralVaultTokenAccount = await getTokenAccount(
 			provider,
-			clearingHouse.getQuoteSpotMarketAccount().vault
+			driftClient.getQuoteSpotMarketAccount().vault
 		);
 		assert(collateralVaultTokenAccount.amount.eq(new BN(9998750)));
 
-		market = clearingHouse.getPerpMarketAccount(0);
+		market = driftClient.getPerpMarketAccount(0);
 
 		// deposits go entirely to distributions for sym-funding/repeg/k-adjustments
 		console.log(market.amm.totalFee.toString());

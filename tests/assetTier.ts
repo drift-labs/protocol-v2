@@ -6,9 +6,9 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey, Keypair } from '@solana/web3.js';
 
 import {
-	Admin,
+	AdminClient,
 	BN,
-	ClearingHouse,
+	DriftClient,
 	EventSubscriber,
 	ZERO,
 	// SPOT_MARKET_RATE_PRECISION,
@@ -45,9 +45,9 @@ describe('asset tiers', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -59,10 +59,10 @@ describe('asset tiers', () => {
 	let dogeOracle: PublicKey;
 	const usdcAmount = new BN(1000000 * 10 ** 6); //1M
 
-	let secondUserClearingHouse: ClearingHouse;
-	let secondUserClearingHouseWSOLAccount: PublicKey;
-	let secondUserClearingHouseUSDCAccount: PublicKey;
-	let secondUserClearingHouseDogeAccount: PublicKey;
+	let secondUserDriftClient: DriftClient;
+	let secondUserDriftClientWSOLAccount: PublicKey;
+	let secondUserDriftClientUSDCAccount: PublicKey;
+	let secondUserDriftClientDogeAccount: PublicKey;
 	let secondUserKeyPair: Keypair;
 
 	const solAmount = new BN(10000 * 10 ** 9);
@@ -79,7 +79,7 @@ describe('asset tiers', () => {
 		solOracle = await mockOracle(22500); // a future we all need to believe in
 		dogeOracle = await mockOracle(0.05);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -98,19 +98,15 @@ describe('asset tiers', () => {
 			userStats: true,
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await initializeSolSpotMarket(clearingHouse, solOracle);
-		await initializeSolSpotMarket(
-			clearingHouse,
-			dogeOracle,
-			dogeMint.publicKey
-		);
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(driftClient, solOracle);
+		await initializeSolSpotMarket(driftClient, dogeOracle, dogeMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			solOracle,
 			AMM_RESERVE_PRECISION,
 			AMM_RESERVE_PRECISION,
@@ -119,14 +115,14 @@ describe('asset tiers', () => {
 			undefined,
 			1000
 		);
-		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
-		await clearingHouse.updatePerpMarketBaseSpread(0, 2000);
-		await clearingHouse.updatePerpMarketCurveUpdateIntensity(0, 100);
+		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await driftClient.updatePerpMarketBaseSpread(0, 2000);
+		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		const subAccountId = 0;
 		const name = 'BIGZ';
-		await clearingHouse.initializeUserAccount(subAccountId, name);
-		await clearingHouse.deposit(
+		await driftClient.initializeUserAccount(subAccountId, name);
+		await driftClient.deposit(
 			// $10k
 			QUOTE_PRECISION.mul(new BN(10000)),
 			QUOTE_SPOT_MARKET_INDEX,
@@ -134,9 +130,9 @@ describe('asset tiers', () => {
 		);
 
 		[
-			secondUserClearingHouse,
-			secondUserClearingHouseWSOLAccount,
-			secondUserClearingHouseUSDCAccount,
+			secondUserDriftClient,
+			secondUserDriftClientWSOLAccount,
+			secondUserDriftClientUSDCAccount,
 			secondUserKeyPair,
 		] = await createUserWithUSDCAndWSOLAccount(
 			provider,
@@ -158,55 +154,55 @@ describe('asset tiers', () => {
 			]
 		);
 
-		secondUserClearingHouseDogeAccount = await createUSDCAccountForUser(
+		secondUserDriftClientDogeAccount = await createUSDCAccountForUser(
 			provider,
 			secondUserKeyPair,
 			dogeMint,
 			usdcAmount
 		);
 
-		secondUserClearingHouse.subscribe();
+		secondUserDriftClient.subscribe();
 
 		const marketIndex = 1;
-		const txSig = await secondUserClearingHouse.deposit(
+		const txSig = await secondUserDriftClient.deposit(
 			solAmount,
 			marketIndex,
-			secondUserClearingHouseWSOLAccount
+			secondUserDriftClientWSOLAccount
 		);
 		await printTxLogs(connection, txSig);
 
-		const txSig2 = await secondUserClearingHouse.deposit(
+		const txSig2 = await secondUserDriftClient.deposit(
 			usdcAmount,
 			2,
-			secondUserClearingHouseDogeAccount
+			secondUserDriftClientDogeAccount
 		);
 		await printTxLogs(connection, txSig2);
 	});
 
 	after(async () => {
 		await eventSubscriber.unsubscribe();
-		await clearingHouse.unsubscribe();
-		await secondUserClearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
+		await secondUserDriftClient.unsubscribe();
 	});
 
 	it('fail trying to borrow protected asset', async () => {
 		const usdcBorrowAmount = QUOTE_PRECISION;
 
-		const quoteMarket = clearingHouse.getSpotMarketAccount(0);
+		const quoteMarket = driftClient.getSpotMarketAccount(0);
 		assert(isVariant(quoteMarket.assetTier, 'collateral'));
 
-		await clearingHouse.updateSpotMarketAssetTier(0, AssetTier.PROTECTED);
-		await clearingHouse.fetchAccounts();
+		await driftClient.updateSpotMarketAssetTier(0, AssetTier.PROTECTED);
+		await driftClient.fetchAccounts();
 
-		const quoteMarketAfter = clearingHouse.getSpotMarketAccount(0);
+		const quoteMarketAfter = driftClient.getSpotMarketAccount(0);
 		assert(isVariant(quoteMarketAfter.assetTier, 'protected'));
 		console.log('updateSpotMarketAssetTier for USDC to PROTECTED');
 
 		try {
-			const txSig = await secondUserClearingHouse.withdraw(
+			const txSig = await secondUserDriftClient.withdraw(
 				usdcBorrowAmount,
 				0,
-				secondUserClearingHouseUSDCAccount,
+				secondUserDriftClientUSDCAccount,
 				false
 			);
 			await printTxLogs(connection, txSig);
@@ -218,18 +214,17 @@ describe('asset tiers', () => {
 		}
 
 		console.log('updateSpotMarketAssetTier for USDC back to COLLATERAL');
-		await clearingHouse.updateSpotMarketAssetTier(0, AssetTier.COLLATERAL);
+		await driftClient.updateSpotMarketAssetTier(0, AssetTier.COLLATERAL);
 
-		await secondUserClearingHouse.fetchAccounts();
+		await secondUserDriftClient.fetchAccounts();
 
-		const quoteMarketAfterAgain =
-			secondUserClearingHouse.getSpotMarketAccount(0);
+		const quoteMarketAfterAgain = secondUserDriftClient.getSpotMarketAccount(0);
 		assert(isVariant(quoteMarketAfterAgain.assetTier, 'collateral'));
 		console.log('USDC tier:', quoteMarketAfterAgain.assetTier);
 
 		// make doge isolated asset
 		try {
-			await clearingHouse.updateSpotMarketMarginWeights(
+			await driftClient.updateSpotMarketMarginWeights(
 				2,
 				0,
 				1,
@@ -237,32 +232,32 @@ describe('asset tiers', () => {
 				SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(10)).div(new BN(9)).toNumber()
 			);
 
-			await clearingHouse.updateSpotMarketAssetTier(2, AssetTier.ISOLATED);
+			await driftClient.updateSpotMarketAssetTier(2, AssetTier.ISOLATED);
 		} catch (e) {
 			console.error(e);
 		}
-		await clearingHouse.fetchAccounts();
-		await secondUserClearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
+		await secondUserDriftClient.fetchAccounts();
 		console.log('updateSpotMarketAssetTier for DOGE to isolated');
-		const dogeMarketAfter = secondUserClearingHouse.getSpotMarketAccount(2);
+		const dogeMarketAfter = secondUserDriftClient.getSpotMarketAccount(2);
 		assert(isVariant(dogeMarketAfter.assetTier, 'isolated'));
 		console.log('DOGE asset tier:', dogeMarketAfter.assetTier);
 
-		const txSig = await secondUserClearingHouse.withdraw(
+		const txSig = await secondUserDriftClient.withdraw(
 			new BN(1),
 			2,
-			secondUserClearingHouseDogeAccount,
+			secondUserDriftClientDogeAccount,
 			false
 		);
 		await printTxLogs(connection, txSig);
 
-		await secondUserClearingHouse.fetchAccounts();
+		await secondUserDriftClient.fetchAccounts();
 
 		try {
-			const txSig = await secondUserClearingHouse.withdraw(
+			const txSig = await secondUserDriftClient.withdraw(
 				usdcBorrowAmount,
 				0,
-				secondUserClearingHouseUSDCAccount,
+				secondUserDriftClientUSDCAccount,
 				false
 			);
 			await printTxLogs(connection, txSig);
@@ -275,21 +270,21 @@ describe('asset tiers', () => {
 		}
 
 		// make doge CROSS
-		await clearingHouse.updateSpotMarketAssetTier(2, AssetTier.CROSS);
-		const dogeMarketAfterAgain = clearingHouse.getSpotMarketAccount(2);
+		await driftClient.updateSpotMarketAssetTier(2, AssetTier.CROSS);
+		const dogeMarketAfterAgain = driftClient.getSpotMarketAccount(2);
 		assert(isVariant(dogeMarketAfterAgain.assetTier, 'cross'));
 
-		await secondUserClearingHouse.fetchAccounts();
+		await secondUserDriftClient.fetchAccounts();
 		const scQuoteMarketAfterAgain =
-			secondUserClearingHouse.getSpotMarketAccount(0);
+			secondUserDriftClient.getSpotMarketAccount(0);
 		assert(isVariant(scQuoteMarketAfterAgain.assetTier, 'collateral'));
 		console.log('USDC asset tier:', scQuoteMarketAfterAgain.assetTier);
 
 		try {
-			const txSig2 = await secondUserClearingHouse.withdraw(
+			const txSig2 = await secondUserDriftClient.withdraw(
 				QUOTE_PRECISION,
 				0,
-				secondUserClearingHouseUSDCAccount,
+				secondUserDriftClientUSDCAccount,
 				false
 			);
 			await printTxLogs(connection, txSig2);

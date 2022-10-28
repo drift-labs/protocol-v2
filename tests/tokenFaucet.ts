@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 import { Program } from '@project-serum/anchor';
-import { Admin, TokenFaucet } from '../sdk/src';
+import { AdminClient, TokenFaucet } from '../sdk/src';
 import { BN } from '../sdk';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
@@ -19,13 +19,13 @@ describe('token faucet', () => {
 
 	let token: Token;
 
-	const chProgram = anchor.workspace.ClearingHouse as Program;
-	let clearingHouse: Admin;
+	const chProgram = anchor.workspace.Drift as Program;
+	let driftClient: AdminClient;
 
 	const amount = new BN(10 * 10 ** 6);
 
 	before(async () => {
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -50,7 +50,7 @@ describe('token faucet', () => {
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 	});
 
 	it('Initialize State', async () => {
@@ -94,10 +94,10 @@ describe('token faucet', () => {
 	it('initialize user for dev net', async () => {
 		const state: any = await tokenFaucet.fetchState();
 
-		await clearingHouse.initialize(state.mint, false);
-		await clearingHouse.subscribe();
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.initializeUserAccountForDevnet(
+		await driftClient.initialize(state.mint, false);
+		await driftClient.subscribe();
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.initializeUserAccountForDevnet(
 			0,
 			'crisp',
 			0,
@@ -105,7 +105,7 @@ describe('token faucet', () => {
 			amount
 		);
 
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(amount));
+		assert(driftClient.getQuoteAssetTokenAmount().eq(amount));
 	});
 
 	it('transfer mint authority back', async () => {

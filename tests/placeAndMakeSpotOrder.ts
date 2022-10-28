@@ -6,12 +6,12 @@ import { Program } from '@project-serum/anchor';
 import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 import {
-	Admin,
+	AdminClient,
 	BN,
 	PRICE_PRECISION,
-	ClearingHouse,
+	DriftClient,
 	PositionDirection,
-	ClearingHouseUser,
+	User,
 	Wallet,
 	EventSubscriber,
 	BASE_PRECISION,
@@ -36,10 +36,10 @@ describe('place and make spot order', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let makerClearingHouse: Admin;
-	let makerClearingHouseUser: ClearingHouseUser;
+	let makerDriftClient: AdminClient;
+	let makerDriftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -63,7 +63,7 @@ describe('place and make spot order', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		makerClearingHouse = new Admin({
+		makerDriftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -75,30 +75,30 @@ describe('place and make spot order', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await makerClearingHouse.initialize(usdcMint.publicKey, true);
-		await makerClearingHouse.subscribe();
-		await initializeQuoteSpotMarket(makerClearingHouse, usdcMint.publicKey);
-		await initializeSolSpotMarket(makerClearingHouse, solUsd);
-		await makerClearingHouse.updatePerpAuctionDuration(new BN(0));
+		await makerDriftClient.initialize(usdcMint.publicKey, true);
+		await makerDriftClient.subscribe();
+		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(makerDriftClient, solUsd);
+		await makerDriftClient.updatePerpAuctionDuration(new BN(0));
 
-		await makerClearingHouse.initializeUserAccountAndDepositCollateral(
+		await makerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
 		const oneSol = new BN(LAMPORTS_PER_SOL);
-		await makerClearingHouse.deposit(oneSol, 1, provider.wallet.publicKey);
+		await makerDriftClient.deposit(oneSol, 1, provider.wallet.publicKey);
 
-		makerClearingHouseUser = new ClearingHouseUser({
-			clearingHouse: makerClearingHouse,
-			userAccountPublicKey: await makerClearingHouse.getUserAccountPublicKey(),
+		makerDriftClientUser = new User({
+			driftClient: makerDriftClient,
+			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
 		});
-		await makerClearingHouseUser.subscribe();
+		await makerDriftClientUser.subscribe();
 	});
 
 	after(async () => {
-		await makerClearingHouse.unsubscribe();
-		await makerClearingHouseUser.unsubscribe();
+		await makerDriftClient.unsubscribe();
+		await makerDriftClientUser.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -113,7 +113,7 @@ describe('place and make spot order', () => {
 			provider,
 			keypair.publicKey
 		);
-		const takerClearingHouse = new ClearingHouse({
+		const takerDriftClient = new DriftClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -126,16 +126,16 @@ describe('place and make spot order', () => {
 			oracleInfos,
 			userStats: true,
 		});
-		await takerClearingHouse.subscribe();
-		await takerClearingHouse.initializeUserAccountAndDepositCollateral(
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const takerClearingHouseUser = new ClearingHouseUser({
-			clearingHouse: takerClearingHouse,
-			userAccountPublicKey: await takerClearingHouse.getUserAccountPublicKey(),
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
 		});
-		await takerClearingHouseUser.subscribe();
+		await takerDriftClientUser.subscribe();
 
 		const marketIndex = 1;
 		const baseAssetAmount = BASE_PRECISION;
@@ -147,9 +147,9 @@ describe('place and make spot order', () => {
 			userOrderId: 1,
 			postOnly: false,
 		});
-		await takerClearingHouse.placeSpotOrder(takerOrderParams);
-		await takerClearingHouseUser.fetchAccounts();
-		const order = takerClearingHouseUser.getOrderByUserOrderId(1);
+		await takerDriftClient.placeSpotOrder(takerOrderParams);
+		await takerDriftClientUser.fetchAccounts();
+		const order = takerDriftClientUser.getOrderByUserOrderId(1);
 		assert(!order.postOnly);
 
 		const makerOrderParams = getLimitOrderParams({
@@ -162,29 +162,29 @@ describe('place and make spot order', () => {
 			immediateOrCancel: true,
 		});
 
-		const txSig = await makerClearingHouse.placeAndMakeSpotOrder(
+		const txSig = await makerDriftClient.placeAndMakeSpotOrder(
 			makerOrderParams,
 			{
-				taker: await takerClearingHouse.getUserAccountPublicKey(),
-				order: takerClearingHouse.getOrderByUserId(1),
-				takerUserAccount: takerClearingHouse.getUserAccount(),
-				takerStats: takerClearingHouse.getUserStatsAccountPublicKey(),
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				order: takerDriftClient.getOrderByUserId(1),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 			}
 		);
 
 		await printTxLogs(connection, txSig);
 
-		const makerUSDCAmount = makerClearingHouse.getQuoteAssetTokenAmount();
-		const makerSolAmount = makerClearingHouse.getTokenAmount(1);
+		const makerUSDCAmount = makerDriftClient.getQuoteAssetTokenAmount();
+		const makerSolAmount = makerDriftClient.getTokenAmount(1);
 		assert(makerUSDCAmount.eq(new BN(140008000)));
 		assert(makerSolAmount.eq(new BN(0)));
 
-		const takerUSDCAmount = takerClearingHouse.getQuoteAssetTokenAmount();
-		const takerSolAmount = takerClearingHouse.getTokenAmount(1);
+		const takerUSDCAmount = takerDriftClient.getQuoteAssetTokenAmount();
+		const takerSolAmount = takerDriftClient.getTokenAmount(1);
 		assert(takerUSDCAmount.eq(new BN(59960000)));
 		assert(takerSolAmount.eq(new BN(1000000000)));
 
-		await takerClearingHouseUser.unsubscribe();
-		await takerClearingHouse.unsubscribe();
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
 	});
 });
