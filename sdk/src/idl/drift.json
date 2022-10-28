@@ -4654,6 +4654,18 @@
             "type": "u128"
           },
           {
+            "name": "clawbackUser",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "clawbackUserPayment",
+            "type": {
+              "option": "u128"
+            }
+          },
+          {
             "name": "cumulativeFundingRateDelta",
             "type": "i128"
           }
