@@ -1650,6 +1650,8 @@ pub fn resolve_perp_bankruptcy(
             market_index,
             if_payment,
             pnl: loss,
+            clawback_user: None,
+            clawback_user_payment: None,
             cumulative_funding_rate_delta,
         },
         ..LiquidationRecord::default()

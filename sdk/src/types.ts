@@ -361,6 +361,9 @@ export type LiquidatePerpPnlForDepositRecord = {
 export type PerpBankruptcyRecord = {
 	marketIndex: number;
 	pnl: BN;
+	ifPayment: BN;
+	clawbackUser: PublicKey | null;
+	clawbackUserPayment: BN | null;
 	cumulativeFundingRateDelta: BN;
 };
 
