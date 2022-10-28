@@ -89,8 +89,8 @@ import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	calculateReservePrice,
-	ClearingHouse,
-	ClearingHouseUser,
+	DriftClient,
+	User,
 	initialize,
 	Markets,
 	PositionDirection,
@@ -141,19 +141,19 @@ const main = async () => {
 		wallet.publicKey.toString()
 	);
 
-	// Set up the Drift Clearing House
-	const clearingHousePublicKey = new PublicKey(
+	// Set up the Drift Client
+	const driftClientPublicKey = new PublicKey(
 		sdkConfig.CLEARING_HOUSE_PROGRAM_ID
 	);
-	const clearingHouse = ClearingHouse.from(
+	const driftClient = DriftClient.from(
 		connection,
 		provider.wallet,
-		clearingHousePublicKey
+		driftClientPublicKey
 	);
-	await clearingHouse.subscribe();
+	await driftClient.subscribe();
 
 	// Set up Clearing House user client
-	const user = ClearingHouseUser.from(clearingHouse, wallet.publicKey);
+	const user = User.from(driftClient, wallet.publicKey);
 
 	//// Check if clearing house account exists for the current wallet
 	const userAccountExists = await user.exists();
@@ -161,7 +161,7 @@ const main = async () => {
 	if (!userAccountExists) {
 		//// Create a Clearing House account by Depositing some USDC ($10,000 in this case)
 		const depositAmount = new BN(10000).mul(QUOTE_PRECISION);
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			depositAmount,
 			await getTokenAddress(
 				usdcTokenAddress.toString(),
@@ -178,7 +178,7 @@ const main = async () => {
 	);
 
 	const currentMarketPrice = calculateReservePrice(
-		clearingHouse.getMarket(solMarketInfo.marketIndex)
+		driftClient.getMarket(solMarketInfo.marketIndex)
 	);
 
 	const formattedPrice = convertToNumber(currentMarketPrice, PRICE_PRECISION);
@@ -186,7 +186,7 @@ const main = async () => {
 	console.log(`Current Market Price is $${formattedPrice}`);
 
 	// Estimate the slippage for a $5000 LONG trade
-	const solMarketAccount = clearingHouse.getMarket(solMarketInfo.marketIndex);
+	const solMarketAccount = driftClient.getMarket(solMarketInfo.marketIndex);
 
 	const slippage = convertToNumber(
 		calculateTradeSlippage(
@@ -202,7 +202,7 @@ const main = async () => {
 	);
 
 	// Make a $5000 LONG trade
-	await clearingHouse.openPosition(
+	await driftClient.openPosition(
 		PositionDirection.LONG,
 		new BN(5000).mul(QUOTE_PRECISION),
 		solMarketInfo.marketIndex
@@ -210,14 +210,14 @@ const main = async () => {
 	console.log(`LONGED $5000 worth of SOL`);
 
 	// Reduce the position by $2000
-	await clearingHouse.openPosition(
+	await driftClient.openPosition(
 		PositionDirection.SHORT,
 		new BN(2000).mul(QUOTE_PRECISION),
 		solMarketInfo.marketIndex
 	);
 
 	// Close the rest of the position
-	await clearingHouse.closePosition(solMarketInfo.marketIndex);
+	await driftClient.closePosition(solMarketInfo.marketIndex);
 };
 
 main();

@@ -5,13 +5,7 @@ const colors = require('colors');
 import os from 'os';
 import fs from 'fs';
 import log from 'loglevel';
-import {
-	Admin,
-	ClearingHouseUser,
-	initialize,
-	Markets,
-	Wallet,
-} from '@drift-labs/sdk';
+import { Admin, User, initialize, Markets, Wallet } from '@drift-labs/sdk';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { BN } from '@drift-labs/sdk';
 import {
@@ -73,9 +67,9 @@ async function wrapActionInAdminSubscribeUnsubscribe(
 	action: (admin: Admin) => Promise<void>
 ): Promise<void> {
 	const admin = adminFromOptions(options);
-	log.info(`ClearingHouse subscribing`);
+	log.info(`DriftClient subscribing`);
 	await admin.subscribe();
-	log.info(`ClearingHouse subscribed`);
+	log.info(`DriftClient subscribed`);
 
 	try {
 		await action(admin);
@@ -83,40 +77,37 @@ async function wrapActionInAdminSubscribeUnsubscribe(
 		log.error(e);
 	}
 
-	log.info(`ClearingHouse unsubscribing`);
+	log.info(`DriftClient unsubscribing`);
 	await admin.unsubscribe();
-	log.info(`ClearingHouse unsubscribed`);
+	log.info(`DriftClient unsubscribed`);
 }
 
 async function wrapActionInUserSubscribeUnsubscribe(
 	options: OptionValues,
-	action: (user: ClearingHouseUser) => Promise<void>
+	action: (user: User) => Promise<void>
 ): Promise<void> {
 	const admin = adminFromOptions(options);
-	log.info(`ClearingHouse subscribing`);
+	log.info(`DriftClient subscribing`);
 	await admin.subscribe();
-	log.info(`ClearingHouse subscribed`);
-	const clearingHouseUser = ClearingHouseUser.from(
-		admin,
-		admin.wallet.publicKey
-	);
+	log.info(`DriftClient subscribed`);
+	const driftUser = User.from(admin, admin.wallet.publicKey);
 	log.info(`User subscribing`);
-	await clearingHouseUser.subscribe();
+	await driftUser.subscribe();
 	log.info(`User subscribed`);
 
 	try {
-		await action(clearingHouseUser);
+		await action(driftUser);
 	} catch (e) {
 		log.error(e);
 	}
 
 	log.info(`User unsubscribing`);
-	await clearingHouseUser.unsubscribe();
+	await driftUser.unsubscribe();
 	log.info(`User unsubscribed`);
 
-	log.info(`ClearingHouse unsubscribing`);
+	log.info(`DriftClient unsubscribing`);
 	await admin.unsubscribe();
-	log.info(`ClearingHouse unsubscribed`);
+	log.info(`DriftClient unsubscribed`);
 }
 
 function logError(msg: string) {
@@ -149,7 +140,7 @@ commandWithDefaultOption('initialize')
 					log.info(`collateralMint: ${collateralMint}`);
 					log.info(`adminControlsPrices: ${adminControlsPrices}`);
 					const collateralMintPublicKey = new PublicKey(collateralMint);
-					log.info(`ClearingHouse initializing`);
+					log.info(`DriftClient initializing`);
 					await admin.initialize(collateralMintPublicKey, adminControlsPrices);
 				}
 			);
@@ -457,25 +448,22 @@ commandWithDefaultOption('reset-oracle-twap')
 commandWithDefaultOption('deposit')
 	.argument('<amount>', 'The amount to deposit')
 	.action(async (amount, options: OptionValues) => {
-		await wrapActionInUserSubscribeUnsubscribe(
-			options,
-			async (user: ClearingHouseUser) => {
-				log.info(`amount: ${amount}`);
-				amount = new BN(amount);
+		await wrapActionInUserSubscribeUnsubscribe(options, async (user: User) => {
+			log.info(`amount: ${amount}`);
+			amount = new BN(amount);
 
-				const associatedTokenPublicKey = await Token.getAssociatedTokenAddress(
-					ASSOCIATED_TOKEN_PROGRAM_ID,
-					TOKEN_PROGRAM_ID,
-					user.clearingHouse.getStateAccount().collateralMint,
-					user.authority
-				);
+			const associatedTokenPublicKey = await Token.getAssociatedTokenAddress(
+				ASSOCIATED_TOKEN_PROGRAM_ID,
+				TOKEN_PROGRAM_ID,
+				user.driftClient.getStateAccount().collateralMint,
+				user.authority
+			);
 
-				await user.clearingHouse.depositCollateral(
-					amount,
-					associatedTokenPublicKey
-				);
-			}
-		);
+			await user.driftClient.depositCollateral(
+				amount,
+				associatedTokenPublicKey
+			);
+		});
 	});
 
 function getConfigFileDir(): string {

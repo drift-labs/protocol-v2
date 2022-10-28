@@ -7,8 +7,8 @@ import {
 	OracleSource,
 	Wallet,
 	MarketStatus,
-	Admin,
-	ClearingHouse,
+	AdminClient,
+	DriftClient,
 	PositionDirection,
 } from '../sdk/src';
 
@@ -27,11 +27,11 @@ describe('round in favor', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
 	let usdcMint;
 
-	let primaryClearingHouse: Admin;
+	let primaryDriftClient: AdminClient;
 
 	// ammInvariant == k == x * y
 	const ammInitialQuoteAssetReserve = new anchor.BN(
@@ -56,7 +56,7 @@ describe('round in favor', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		primaryClearingHouse = new Admin({
+		primaryDriftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -68,26 +68,26 @@ describe('round in favor', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
-		await primaryClearingHouse.subscribe();
+		await primaryDriftClient.initialize(usdcMint.publicKey, true);
+		await primaryDriftClient.subscribe();
 
-		await initializeQuoteSpotMarket(primaryClearingHouse, usdcMint.publicKey);
-		await primaryClearingHouse.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(primaryDriftClient, usdcMint.publicKey);
+		await primaryDriftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await primaryClearingHouse.initializePerpMarket(
+		await primaryDriftClient.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
 			new BN(63000000000)
 		);
-		await primaryClearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await primaryDriftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 	});
 
 	after(async () => {
-		await primaryClearingHouse.unsubscribe();
+		await primaryDriftClient.unsubscribe();
 	});
 
 	it('short', async () => {
@@ -100,7 +100,7 @@ describe('round in favor', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse({
+		const driftClient = new DriftClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -112,12 +112,12 @@ describe('round in favor', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await clearingHouse.subscribe();
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = new BN(789640);
@@ -126,26 +126,24 @@ describe('round in favor', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTakePerpOrder(orderParams);
+		await driftClient.placeAndTakePerpOrder(orderParams);
 
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
+		assert(driftClient.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
-		await clearingHouse.fetchAccounts();
-		await clearingHouse.closePosition(marketIndex);
+		await driftClient.fetchAccounts();
+		await driftClient.closePosition(marketIndex);
 
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 
 		console.log(
-			clearingHouse
-				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.toString()
+			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
 		);
 		assert(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteAssetAmount.eq(new BN(-88262))
 		);
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 	});
 
 	it('long', async () => {
@@ -158,7 +156,7 @@ describe('round in favor', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse({
+		const driftClient = new DriftClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -170,13 +168,13 @@ describe('round in favor', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await clearingHouse.subscribe();
+		await driftClient.subscribe();
 
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = new BN(789566);
@@ -185,23 +183,21 @@ describe('round in favor', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTakePerpOrder(orderParams);
+		await driftClient.placeAndTakePerpOrder(orderParams);
 
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
+		assert(driftClient.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
-		await clearingHouse.closePosition(marketIndex);
-		await clearingHouse.fetchAccounts();
+		await driftClient.closePosition(marketIndex);
+		await driftClient.fetchAccounts();
 
 		console.log(
-			clearingHouse
-				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.toString()
+			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
 		);
 		assert(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteAssetAmount.eq(new BN(-88268))
 		);
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 	});
 });

@@ -3,7 +3,7 @@ import { Program } from '@project-serum/anchor';
 import { assert } from 'chai';
 
 import {
-	Admin,
+	AdminClient,
 	ExchangeStatus,
 	OracleGuardRails,
 	OracleSource,
@@ -27,16 +27,16 @@ describe('admin', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 
 	let usdcMint;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -48,18 +48,18 @@ describe('admin', () => {
 			spotMarketIndexes: [0],
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
-		await clearingHouse.fetchAccounts();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
+		await driftClient.fetchAccounts();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
-		await clearingHouse.fetchAccounts();
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await driftClient.fetchAccounts();
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			solUsd,
 			new BN(1000),
 			new BN(1000),
@@ -68,62 +68,62 @@ describe('admin', () => {
 	});
 
 	it('checks market name', async () => {
-		const market = clearingHouse.getPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		const name = decodeName(market.name);
 		assert(name == DEFAULT_MARKET_NAME);
 
 		const newName = 'Glory t0 the DAmm';
-		await clearingHouse.updatePerpMarketName(0, newName);
+		await driftClient.updatePerpMarketName(0, newName);
 
-		await clearingHouse.fetchAccounts();
-		const newMarket = clearingHouse.getPerpMarketAccount(0);
+		await driftClient.fetchAccounts();
+		const newMarket = driftClient.getPerpMarketAccount(0);
 		assert(decodeName(newMarket.name) == newName);
 	});
 
 	it('Update lp cooldown time', async () => {
-		await clearingHouse.updateLpCooldownTime(new BN(420));
-		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getStateAccount().lpCooldownTime.eq(new BN(420)));
+		await driftClient.updateLpCooldownTime(new BN(420));
+		await driftClient.fetchAccounts();
+		assert(driftClient.getStateAccount().lpCooldownTime.eq(new BN(420)));
 	});
 
 	it('Update Amm Jit', async () => {
-		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 0);
+		await driftClient.fetchAccounts();
+		assert(driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 0);
 
-		await clearingHouse.updateAmmJitIntensity(0, 100);
-		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 100);
+		await driftClient.updateAmmJitIntensity(0, 100);
+		await driftClient.fetchAccounts();
+		assert(driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 100);
 
-		await clearingHouse.updateAmmJitIntensity(0, 50);
-		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 50);
+		await driftClient.updateAmmJitIntensity(0, 50);
+		await driftClient.fetchAccounts();
+		assert(driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 50);
 	});
 
 	it('Update Margin Ratio', async () => {
 		const marginRatioInitial = 3000;
 		const marginRatioMaintenance = 1000;
 
-		await clearingHouse.updatePerpMarketMarginRatio(
+		await driftClient.updatePerpMarketMarginRatio(
 			0,
 			marginRatioInitial,
 			marginRatioMaintenance
 		);
 
-		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getPerpMarketAccount(0);
+		await driftClient.fetchAccounts();
+		const market = driftClient.getPerpMarketAccount(0);
 
 		assert(market.marginRatioInitial === marginRatioInitial);
 		assert(market.marginRatioMaintenance === marginRatioMaintenance);
 	});
 
 	it('Update perp fee structure', async () => {
-		const newFeeStructure = clearingHouse.getStateAccount().perpFeeStructure;
+		const newFeeStructure = driftClient.getStateAccount().perpFeeStructure;
 		newFeeStructure.flatFillerFee = new BN(0);
 
-		await clearingHouse.updatePerpFeeStructure(newFeeStructure);
+		await driftClient.updatePerpFeeStructure(newFeeStructure);
 
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
+		await driftClient.fetchAccounts();
+		const state = driftClient.getStateAccount();
 
 		assert(
 			JSON.stringify(newFeeStructure) === JSON.stringify(state.perpFeeStructure)
@@ -131,13 +131,13 @@ describe('admin', () => {
 	});
 
 	it('Update spot fee structure', async () => {
-		const newFeeStructure = clearingHouse.getStateAccount().spotFeeStructure;
+		const newFeeStructure = driftClient.getStateAccount().spotFeeStructure;
 		newFeeStructure.flatFillerFee = new BN(1);
 
-		await clearingHouse.updateSpotFeeStructure(newFeeStructure);
+		await driftClient.updateSpotFeeStructure(newFeeStructure);
 
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
+		await driftClient.fetchAccounts();
+		const state = driftClient.getStateAccount();
 
 		assert(
 			JSON.stringify(newFeeStructure) === JSON.stringify(state.spotFeeStructure)
@@ -159,10 +159,10 @@ describe('admin', () => {
 			useForLiquidations: false,
 		};
 
-		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
+		await driftClient.fetchAccounts();
+		const state = driftClient.getStateAccount();
 
 		assert(
 			JSON.stringify(oracleGuardRails) ===
@@ -173,10 +173,10 @@ describe('admin', () => {
 	it('Update protocol mint', async () => {
 		const mint = new PublicKey('2fvh6hkCYfpNqke9N48x6HcrW92uZVU3QSiXZX4A5L27');
 
-		await clearingHouse.updateDiscountMint(mint);
+		await driftClient.updateDiscountMint(mint);
 
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
+		await driftClient.fetchAccounts();
+		const state = driftClient.getStateAccount();
 
 		assert(state.discountMint.equals(mint));
 	});
@@ -184,10 +184,10 @@ describe('admin', () => {
 	// it('Update max deposit', async () => {
 	// 	const maxDeposit = new BN(10);
 
-	// 	await clearingHouse.updateMaxDeposit(maxDeposit);
+	// 	await driftClient.updateMaxDeposit(maxDeposit);
 
-	// 	await clearingHouse.fetchAccounts();
-	// 	const state = clearingHouse.getStateAccount();
+	// 	await driftClient.fetchAccounts();
+	// 	const state = driftClient.getStateAccount();
 
 	// 	assert(state.maxDeposit.eq(maxDeposit));
 	// });
@@ -196,10 +196,10 @@ describe('admin', () => {
 		const newOracle = PublicKey.default;
 		const newOracleSource = OracleSource.QUOTE_ASSET;
 
-		await clearingHouse.updatePerpMarketOracle(0, newOracle, newOracleSource);
+		await driftClient.updatePerpMarketOracle(0, newOracle, newOracleSource);
 
-		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getPerpMarketAccount(0);
+		await driftClient.fetchAccounts();
+		const market = driftClient.getPerpMarketAccount(0);
 		assert(market.amm.oracle.equals(PublicKey.default));
 		assert(
 			JSON.stringify(market.amm.oracleSource) ===
@@ -211,59 +211,59 @@ describe('admin', () => {
 		const stepSize = new BN(2);
 		const tickSize = new BN(2);
 
-		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
+		await driftClient.updatePerpMarketStepSizeAndTickSize(
 			0,
 			stepSize,
 			tickSize
 		);
 
-		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getPerpMarketAccount(0);
+		await driftClient.fetchAccounts();
+		const market = driftClient.getPerpMarketAccount(0);
 		assert(market.amm.orderStepSize.eq(stepSize));
 		assert(market.amm.orderTickSize.eq(tickSize));
 	});
 
 	it('Pause liq', async () => {
-		await clearingHouse.updateExchangeStatus(ExchangeStatus.LIQPAUSED);
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
+		await driftClient.updateExchangeStatus(ExchangeStatus.LIQPAUSED);
+		await driftClient.fetchAccounts();
+		const state = driftClient.getStateAccount();
 		assert(isVariant(state.exchangeStatus, 'liqPaused'));
 
 		console.log('paused liq!');
 		// unpause
-		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
-		await clearingHouse.fetchAccounts();
-		const state2 = clearingHouse.getStateAccount();
+		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
+		await driftClient.fetchAccounts();
+		const state2 = driftClient.getStateAccount();
 		assert(isVariant(state2.exchangeStatus, 'active'));
 		console.log('unpaused liq!');
 	});
 
 	it('Pause amm', async () => {
-		await clearingHouse.updateExchangeStatus(ExchangeStatus.AMMPAUSED);
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
+		await driftClient.updateExchangeStatus(ExchangeStatus.AMMPAUSED);
+		await driftClient.fetchAccounts();
+		const state = driftClient.getStateAccount();
 		assert(isVariant(state.exchangeStatus, 'ammPaused'));
 
 		console.log('paused amm!');
 		// unpause
-		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
-		await clearingHouse.fetchAccounts();
-		const state2 = clearingHouse.getStateAccount();
+		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
+		await driftClient.fetchAccounts();
+		const state2 = driftClient.getStateAccount();
 		assert(isVariant(state2.exchangeStatus, 'active'));
 		console.log('unpaused amm!');
 	});
 
 	it('Pause funding', async () => {
-		await clearingHouse.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
+		await driftClient.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
+		await driftClient.fetchAccounts();
+		const state = driftClient.getStateAccount();
 		assert(isVariant(state.exchangeStatus, 'fundingPaused'));
 
 		console.log('paused funding!');
 		// unpause
-		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
-		await clearingHouse.fetchAccounts();
-		const state2 = clearingHouse.getStateAccount();
+		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
+		await driftClient.fetchAccounts();
+		const state2 = driftClient.getStateAccount();
 		assert(isVariant(state2.exchangeStatus, 'active'));
 		console.log('unpaused funding!');
 	});
@@ -271,15 +271,15 @@ describe('admin', () => {
 	it('Update admin', async () => {
 		const newAdminKey = PublicKey.default;
 
-		await clearingHouse.updateAdmin(newAdminKey);
+		await driftClient.updateAdmin(newAdminKey);
 
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
+		await driftClient.fetchAccounts();
+		const state = driftClient.getStateAccount();
 
 		assert(state.admin.equals(newAdminKey));
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 	});
 });

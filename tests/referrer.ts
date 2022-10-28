@@ -6,11 +6,11 @@ import { Program } from '@project-serum/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
-	Admin,
+	AdminClient,
 	BN,
 	OracleSource,
 	EventSubscriber,
-	ClearingHouse,
+	DriftClient,
 	Wallet,
 	PRICE_PRECISION,
 } from '../sdk/src';
@@ -37,15 +37,15 @@ describe('referrer', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let referrerClearingHouse: Admin;
+	let referrerDriftClient: AdminClient;
 
 	let refereeKeyPair: Keypair;
-	let refereeClearingHouse: ClearingHouse;
+	let refereeDriftClient: DriftClient;
 	let refereeUSDCAccount: Keypair;
 
-	let fillerClearingHouse: ClearingHouse;
+	let fillerDriftClient: DriftClient;
 
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
@@ -84,7 +84,7 @@ describe('referrer', () => {
 				source: OracleSource.PYTH,
 			},
 		];
-		referrerClearingHouse = new Admin({
+		referrerDriftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -98,13 +98,13 @@ describe('referrer', () => {
 			userStats: true,
 		});
 
-		await referrerClearingHouse.initialize(usdcMint.publicKey, true);
-		await referrerClearingHouse.subscribe();
-		await referrerClearingHouse.updatePerpAuctionDuration(0);
+		await referrerDriftClient.initialize(usdcMint.publicKey, true);
+		await referrerDriftClient.subscribe();
+		await referrerDriftClient.updatePerpAuctionDuration(0);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await referrerClearingHouse.initializePerpMarket(
+		await referrerDriftClient.initializePerpMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -112,9 +112,9 @@ describe('referrer', () => {
 			new BN(100).mul(PEG_PRECISION)
 		);
 
-		await initializeQuoteSpotMarket(referrerClearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(referrerDriftClient, usdcMint.publicKey);
 
-		await referrerClearingHouse.initializeUserAccountAndDepositCollateral(
+		await referrerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			referrerUSDCAccount.publicKey
 		);
@@ -127,7 +127,7 @@ describe('referrer', () => {
 			refereeKeyPair.publicKey
 		);
 
-		refereeClearingHouse = new ClearingHouse({
+		refereeDriftClient = new DriftClient({
 			connection,
 			wallet: new Wallet(refereeKeyPair),
 			programID: chProgram.programId,
@@ -140,9 +140,9 @@ describe('referrer', () => {
 			oracleInfos,
 			userStats: true,
 		});
-		await refereeClearingHouse.subscribe();
+		await refereeDriftClient.subscribe();
 
-		[fillerClearingHouse] = await createUserWithUSDCAccount(
+		[fillerDriftClient] = await createUserWithUSDCAccount(
 			provider,
 			usdcMint,
 			chProgram,
@@ -154,15 +154,15 @@ describe('referrer', () => {
 	});
 
 	after(async () => {
-		await referrerClearingHouse.unsubscribe();
-		await refereeClearingHouse.unsubscribe();
-		await fillerClearingHouse.unsubscribe();
+		await referrerDriftClient.unsubscribe();
+		await refereeDriftClient.unsubscribe();
+		await fillerDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('initialize with referrer', async () => {
 		const [txSig] =
-			await refereeClearingHouse.initializeUserAccountAndDepositCollateral(
+			await refereeDriftClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				refereeUSDCAccount.publicKey,
 				0,
@@ -170,8 +170,8 @@ describe('referrer', () => {
 				'crisp',
 				undefined,
 				{
-					referrer: await referrerClearingHouse.getUserAccountPublicKey(),
-					referrerStats: referrerClearingHouse.getUserStatsAccountPublicKey(),
+					referrer: await referrerDriftClient.getUserAccountPublicKey(),
+					referrerStats: referrerDriftClient.getUserStatsAccountPublicKey(),
 				}
 			);
 
@@ -180,23 +180,23 @@ describe('referrer', () => {
 		const newUserRecord = eventSubscriber.getEventsArray('NewUserRecord')[0];
 		assert(newUserRecord.referrer.equals(provider.wallet.publicKey));
 
-		await refereeClearingHouse.fetchAccounts();
-		const refereeStats = refereeClearingHouse.getUserStats().getAccount();
+		await refereeDriftClient.fetchAccounts();
+		const refereeStats = refereeDriftClient.getUserStats().getAccount();
 		assert(refereeStats.referrer.equals(provider.wallet.publicKey));
 
-		const referrerStats = referrerClearingHouse.getUserStats().getAccount();
+		const referrerStats = referrerDriftClient.getUserStats().getAccount();
 		assert(referrerStats.isReferrer == true);
 	});
 
 	it('fill order', async () => {
-		const txSig = await refereeClearingHouse.placeAndTakePerpOrder(
+		const txSig = await refereeDriftClient.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				baseAssetAmount: BASE_PRECISION,
 				direction: PositionDirection.LONG,
 				marketIndex: 0,
 			}),
 			undefined,
-			refereeClearingHouse.getUserStats().getReferrerInfo()
+			refereeDriftClient.getUserStats().getReferrerInfo()
 		);
 
 		await eventSubscriber.awaitTx(txSig);
@@ -205,30 +205,30 @@ describe('referrer', () => {
 		assert(eventRecord.takerFee.eq(new BN(95001)));
 		assert(eventRecord.referrerReward === 15000);
 
-		await referrerClearingHouse.fetchAccounts();
-		const referrerStats = referrerClearingHouse.getUserStats().getAccount();
+		await referrerDriftClient.fetchAccounts();
+		const referrerStats = referrerDriftClient.getUserStats().getAccount();
 		assert(referrerStats.fees.totalReferrerReward.eq(new BN(15000)));
 
-		const referrerPosition = referrerClearingHouse.getUser().getUserAccount()
+		const referrerPosition = referrerDriftClient.getUser().getUserAccount()
 			.perpPositions[0];
 		assert(referrerPosition.quoteAssetAmount.eq(new BN(15000)));
 
-		const refereeStats = refereeClearingHouse.getUserStats().getAccount();
+		const refereeStats = refereeDriftClient.getUserStats().getAccount();
 		assert(refereeStats.fees.totalRefereeDiscount.eq(new BN(5000)));
 
-		await refereeClearingHouse.placeAndTakePerpOrder(
+		await refereeDriftClient.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				baseAssetAmount: BASE_PRECISION,
 				direction: PositionDirection.SHORT,
 				marketIndex: 0,
 			}),
 			undefined,
-			refereeClearingHouse.getUserStats().getReferrerInfo()
+			refereeDriftClient.getUserStats().getReferrerInfo()
 		);
 	});
 
 	it('withdraw', async () => {
-		const txSig = await refereeClearingHouse.withdraw(
+		const txSig = await refereeDriftClient.withdraw(
 			usdcAmount.div(new BN(2)),
 			0,
 			refereeUSDCAccount.publicKey

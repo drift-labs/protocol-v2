@@ -1,10 +1,10 @@
 import {
-	ClearingHouse,
+	DriftClient,
 	getUserStatsAccountPublicKey,
 	OrderRecord,
 	UserStatsAccount,
-	ClearingHouseUserStats,
-	ClearingHouseUserStatsAccountSubscriptionConfig,
+	UserStats,
+	UserStatsSubscriptionConfig,
 	bulkPollingUserStatsSubscribe,
 } from '..';
 import { ProgramAccount } from '@project-serum/anchor';
@@ -14,25 +14,25 @@ import { UserMap } from './userMap';
 
 export class UserStatsMap {
 	/**
-	 * map from authority pubkey to ClearingHouseUserStats
+	 * map from authority pubkey to UserStats
 	 */
-	private userStatsMap = new Map<string, ClearingHouseUserStats>();
-	private clearingHouse: ClearingHouse;
-	private accountSubscription: ClearingHouseUserStatsAccountSubscriptionConfig;
+	private userStatsMap = new Map<string, UserStats>();
+	private driftClient: DriftClient;
+	private accountSubscription: UserStatsSubscriptionConfig;
 
 	constructor(
-		clearingHouse: ClearingHouse,
-		accountSubscription: ClearingHouseUserStatsAccountSubscriptionConfig
+		driftClient: DriftClient,
+		accountSubscription: UserStatsSubscriptionConfig
 	) {
-		this.clearingHouse = clearingHouse;
+		this.driftClient = driftClient;
 		this.accountSubscription = accountSubscription;
 	}
 
 	public async fetchAllUserStats() {
-		const userStatArray: ClearingHouseUserStats[] = [];
+		const userStatArray: UserStats[] = [];
 
 		const programUserAccounts =
-			(await this.clearingHouse.program.account.userStats.all()) as ProgramAccount<UserStatsAccount>[];
+			(await this.driftClient.program.account.userStats.all()) as ProgramAccount<UserStatsAccount>[];
 
 		for (const programUserAccount of programUserAccounts) {
 			const userStat: UserStatsAccount = programUserAccount.account;
@@ -40,10 +40,10 @@ export class UserStatsMap {
 				continue;
 			}
 
-			const chUserStat = new ClearingHouseUserStats({
-				clearingHouse: this.clearingHouse,
+			const chUserStat = new UserStats({
+				driftClient: this.driftClient,
 				userStatsAccountPublicKey: getUserStatsAccountPublicKey(
-					this.clearingHouse.program.programId,
+					this.driftClient.program.programId,
 					userStat.authority
 				),
 				accountSubscription: this.accountSubscription,
@@ -67,10 +67,10 @@ export class UserStatsMap {
 	}
 
 	public async addUserStat(authority: PublicKey) {
-		const userStat = new ClearingHouseUserStats({
-			clearingHouse: this.clearingHouse,
+		const userStat = new UserStats({
+			driftClient: this.driftClient,
 			userStatsAccountPublicKey: getUserStatsAccountPublicKey(
-				this.clearingHouse.program.programId,
+				this.driftClient.program.programId,
 				authority
 			),
 			accountSubscription: this.accountSubscription,
@@ -91,20 +91,18 @@ export class UserStatsMap {
 		return this.userStatsMap.has(authorityPublicKey);
 	}
 
-	public get(authorityPublicKey: string): ClearingHouseUserStats {
+	public get(authorityPublicKey: string): UserStats {
 		return this.userStatsMap.get(authorityPublicKey);
 	}
 
-	public async mustGet(
-		authorityPublicKey: string
-	): Promise<ClearingHouseUserStats> {
+	public async mustGet(authorityPublicKey: string): Promise<UserStats> {
 		if (!this.has(authorityPublicKey)) {
 			await this.addUserStat(new PublicKey(authorityPublicKey));
 		}
 		return this.get(authorityPublicKey);
 	}
 
-	public values(): IterableIterator<ClearingHouseUserStats> {
+	public values(): IterableIterator<UserStats> {
 		return this.userStatsMap.values();
 	}
 }

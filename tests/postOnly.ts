@@ -6,12 +6,12 @@ import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 
 import {
-	Admin,
+	AdminClient,
 	BN,
 	PRICE_PRECISION,
-	ClearingHouse,
+	DriftClient,
 	PositionDirection,
-	ClearingHouseUser,
+	User,
 	Wallet,
 	EventSubscriber,
 	MarketStatus,
@@ -40,10 +40,10 @@ describe('post only', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let fillerClearingHouse: Admin;
-	let fillerClearingHouseUser: ClearingHouseUser;
+	let fillerDriftClient: AdminClient;
+	let fillerDriftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -76,7 +76,7 @@ describe('post only', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		fillerClearingHouse = new Admin({
+		fillerDriftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -88,37 +88,37 @@ describe('post only', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
-		await fillerClearingHouse.subscribe();
-		await initializeQuoteSpotMarket(fillerClearingHouse, usdcMint.publicKey);
-		await fillerClearingHouse.updatePerpAuctionDuration(new BN(0));
+		await fillerDriftClient.initialize(usdcMint.publicKey, true);
+		await fillerDriftClient.subscribe();
+		await initializeQuoteSpotMarket(fillerDriftClient, usdcMint.publicKey);
+		await fillerDriftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await fillerClearingHouse.initializePerpMarket(
+		await fillerDriftClient.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
-		await fillerClearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await fillerDriftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await fillerClearingHouse.updatePerpMarketBaseSpread(0, 500);
+		await fillerDriftClient.updatePerpMarketBaseSpread(0, 500);
 
-		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
+		await fillerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		fillerClearingHouseUser = new ClearingHouseUser({
-			clearingHouse: fillerClearingHouse,
-			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		fillerDriftClientUser = new User({
+			driftClient: fillerDriftClient,
+			userAccountPublicKey: await fillerDriftClient.getUserAccountPublicKey(),
 		});
-		await fillerClearingHouseUser.subscribe();
+		await fillerDriftClientUser.subscribe();
 	});
 
 	beforeEach(async () => {
-		await fillerClearingHouse.moveAmmPrice(
+		await fillerDriftClient.moveAmmPrice(
 			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
@@ -127,8 +127,8 @@ describe('post only', () => {
 	});
 
 	after(async () => {
-		await fillerClearingHouse.unsubscribe();
-		await fillerClearingHouseUser.unsubscribe();
+		await fillerDriftClient.unsubscribe();
+		await fillerDriftClientUser.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -142,7 +142,7 @@ describe('post only', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse({
+		const driftClient = new DriftClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -155,21 +155,21 @@ describe('post only', () => {
 			oracleInfos,
 			userStats: true,
 		});
-		await clearingHouse.subscribe();
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		const driftClientUser = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const reservePrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex),
+			driftClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 		const makerOrderParams = getLimitOrderParams({
@@ -180,43 +180,41 @@ describe('post only', () => {
 			userOrderId: 1,
 			postOnly: true,
 		});
-		await clearingHouse.placePerpOrder(makerOrderParams);
-		await clearingHouseUser.fetchAccounts();
-		const order = clearingHouseUser.getOrderByUserOrderId(1);
+		await driftClient.placePerpOrder(makerOrderParams);
+		await driftClientUser.fetchAccounts();
+		const order = driftClientUser.getOrderByUserOrderId(1);
 
 		assert(order.postOnly);
 		const newOraclePrice = 0.98;
 		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
-		await fillerClearingHouse.moveAmmToPrice(
+		await fillerDriftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 
-		await fillerClearingHouse.fillPerpOrder(
-			await clearingHouseUser.getUserAccountPublicKey(),
-			clearingHouseUser.getUserAccount(),
+		await fillerDriftClient.fillPerpOrder(
+			await driftClientUser.getUserAccountPublicKey(),
+			driftClientUser.getUserAccount(),
 			order
 		);
 
-		await clearingHouse.fetchAccounts();
-		await clearingHouseUser.fetchAccounts();
-		const position = clearingHouseUser.getUserPosition(marketIndex);
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+		const position = driftClientUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
 		console.log(position.quoteBreakEvenAmount.toString());
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
-		assert(
-			clearingHouse.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO)
-		);
+		assert(driftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
+		assert(driftClient.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO));
 
-		await fillerClearingHouse.fetchAccounts();
+		await fillerDriftClient.fetchAccounts();
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(ZERO));
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(19507)));
 
-		await clearingHouse.unsubscribe();
-		await clearingHouseUser.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftClientUser.unsubscribe();
 	});
 
 	it('short', async () => {
@@ -229,7 +227,7 @@ describe('post only', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse({
+		const driftClient = new DriftClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -242,21 +240,21 @@ describe('post only', () => {
 			oracleInfos,
 			userStats: true,
 		});
-		await clearingHouse.subscribe();
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		const driftClientUser = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const reservePrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex),
+			driftClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 		const makerOrderParams = getLimitOrderParams({
@@ -267,43 +265,41 @@ describe('post only', () => {
 			userOrderId: 1,
 			postOnly: true,
 		});
-		await clearingHouse.placePerpOrder(makerOrderParams);
-		await clearingHouseUser.fetchAccounts();
-		const order = clearingHouseUser.getOrderByUserOrderId(1);
+		await driftClient.placePerpOrder(makerOrderParams);
+		await driftClientUser.fetchAccounts();
+		const order = driftClientUser.getOrderByUserOrderId(1);
 
 		assert(order.postOnly);
 
 		const newOraclePrice = 1.02;
 		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
-		await fillerClearingHouse.moveAmmToPrice(
+		await fillerDriftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 
-		await fillerClearingHouse.fillPerpOrder(
-			await clearingHouseUser.getUserAccountPublicKey(),
-			clearingHouseUser.getUserAccount(),
+		await fillerDriftClient.fillPerpOrder(
+			await driftClientUser.getUserAccountPublicKey(),
+			driftClientUser.getUserAccount(),
 			order
 		);
 
-		await clearingHouse.fetchAccounts();
-		await clearingHouseUser.fetchAccounts();
-		const position = clearingHouseUser.getUserPosition(marketIndex);
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+		const position = driftClientUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
 		assert(position.quoteBreakEvenAmount.eq(new BN(1000000)));
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
-		assert(
-			clearingHouse.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO)
-		);
+		assert(driftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
+		assert(driftClient.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO));
 
-		await fillerClearingHouse.fetchAccounts();
+		await fillerDriftClient.fetchAccounts();
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(new BN(0)));
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(19492)));
 
-		await clearingHouse.unsubscribe();
-		await clearingHouseUser.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftClientUser.unsubscribe();
 	});
 });

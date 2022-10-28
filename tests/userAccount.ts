@@ -12,8 +12,8 @@ import {
 import { Keypair } from '@solana/web3.js';
 import { assert } from 'chai';
 import {
-	Admin,
-	ClearingHouseUser,
+	AdminClient,
+	User,
 	PEG_PRECISION,
 	MAX_LEVERAGE,
 	PositionDirection,
@@ -34,9 +34,9 @@ describe('User Account', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse;
+	let driftClient;
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 9).mul(
 		new BN(10 ** 5)
@@ -53,7 +53,7 @@ describe('User Account', () => {
 	const initialSOLPrice = 50;
 
 	const usdcAmount = new BN(20 * 10 ** 6);
-	let userAccount: ClearingHouseUser;
+	let userAccount: User;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -66,7 +66,7 @@ describe('User Account', () => {
 			expo: -10,
 		});
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -78,33 +78,33 @@ describe('User Account', () => {
 			spotMarketIndexes: [0],
 			oracleInfos: [{ publicKey: solUsdOracle, source: OracleSource.PYTH }],
 		});
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(0);
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(0);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			solUsdOracle,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
 			new BN(initialSOLPrice).mul(PEG_PRECISION)
 		);
-		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await clearingHouse.initializeUserAccount();
-		userAccount = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		await driftClient.initializeUserAccount();
+		userAccount = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
 		await userAccount.subscribe();
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 		await userAccount.unsubscribe();
 	});
 
@@ -177,7 +177,7 @@ describe('User Account', () => {
 	});
 
 	it('After Deposit', async () => {
-		await clearingHouse.deposit(
+		await driftClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
@@ -201,18 +201,18 @@ describe('User Account', () => {
 	});
 
 	it('After Position Taken', async () => {
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION,
 			marketIndex
 		);
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 		await userAccount.fetchAccounts();
 		const perpPosition = userAccount.getUserPosition(marketIndex);
 
-		const market = clearingHouse.getPerpMarketAccount(perpPosition.marketIndex);
+		const market = driftClient.getPerpMarketAccount(perpPosition.marketIndex);
 
-		const oraclePrice = clearingHouse.getOracleDataForPerpMarket(
+		const oraclePrice = driftClient.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice = calculatePrice(
@@ -232,10 +232,10 @@ describe('User Account', () => {
 		);
 		await sleep(5000);
 
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
 		console.log('oracleP2:', oracleP2.price);
-		const oraclePrice2 = clearingHouse.getOracleDataForPerpMarket(
+		const oraclePrice2 = driftClient.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice2 = calculateReservePrice(market, oraclePrice);
@@ -281,16 +281,16 @@ describe('User Account', () => {
 	});
 
 	it('After Position Price Moves', async () => {
-		await clearingHouse.moveAmmPrice(
+		await driftClient.moveAmmPrice(
 			marketIndex,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10))
 		);
 		const perpPosition = userAccount.getUserPosition(marketIndex);
 
-		const market = clearingHouse.getPerpMarketAccount(perpPosition.marketIndex);
+		const market = driftClient.getPerpMarketAccount(perpPosition.marketIndex);
 
-		const oraclePrice = clearingHouse.getOracleDataForPerpMarket(
+		const oraclePrice = driftClient.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice = calculatePrice(
@@ -311,10 +311,10 @@ describe('User Account', () => {
 		);
 		await sleep(5000);
 
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
 		console.log('oracleP2:', oracleP2.price);
-		const oraclePrice2 = clearingHouse.getOracleDataForPerpMarket(
+		const oraclePrice2 = driftClient.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice2 = calculateReservePrice(market, oraclePrice);
@@ -341,7 +341,7 @@ describe('User Account', () => {
 		);
 	});
 	it('Close Position', async () => {
-		await clearingHouse.closePosition(marketIndex);
+		await driftClient.closePosition(marketIndex);
 
 		const expectedBuyingPower = new BN(124472365);
 		const expectedFreeCollateral = new BN(24894473);

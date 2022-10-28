@@ -20,13 +20,13 @@ import { assert } from 'chai';
 import buffer from 'buffer';
 import { BN, Wallet, OraclePriceData, OracleInfo } from '../sdk';
 import {
-	Admin,
+	AdminClient,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
-	ClearingHouse,
-	ClearingHouseUser,
+	DriftClient,
+	User,
 	OracleSource,
 } from '../sdk/src';
 
@@ -204,15 +204,15 @@ export async function createUSDCAccountForUser(
 	return userUSDCAccount.publicKey;
 }
 
-export async function initializeAndSubscribeClearingHouse(
+export async function initializeAndSubscribeDriftClient(
 	connection: Connection,
 	program: Program,
 	userKeyPair: Keypair,
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
-): Promise<ClearingHouse> {
-	const clearingHouse = new ClearingHouse({
+): Promise<DriftClient> {
+	const driftClient = new DriftClient({
 		connection,
 		wallet: new Wallet(userKeyPair),
 		programID: program.programId,
@@ -224,9 +224,9 @@ export async function initializeAndSubscribeClearingHouse(
 		spotMarketIndexes: bankIndexes,
 		oracleInfos,
 	});
-	await clearingHouse.subscribe();
-	await clearingHouse.initializeUserAccount();
-	return clearingHouse;
+	await driftClient.subscribe();
+	await driftClient.initializeUserAccount();
+	return driftClient;
 }
 
 export async function createUserWithUSDCAccount(
@@ -237,7 +237,7 @@ export async function createUserWithUSDCAccount(
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
-): Promise<[ClearingHouse, PublicKey, Keypair]> {
+): Promise<[DriftClient, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
 	const usdcAccount = await createUSDCAccountForUser(
 		provider,
@@ -245,7 +245,7 @@ export async function createUserWithUSDCAccount(
 		usdcMint,
 		usdcAmount
 	);
-	const clearingHouse = await initializeAndSubscribeClearingHouse(
+	const driftClient = await initializeAndSubscribeDriftClient(
 		provider.connection,
 		chProgram,
 		userKeyPair,
@@ -254,7 +254,7 @@ export async function createUserWithUSDCAccount(
 		oracleInfos
 	);
 
-	return [clearingHouse, usdcAccount, userKeyPair];
+	return [driftClient, usdcAccount, userKeyPair];
 }
 
 export async function createWSolTokenAccountForUser(
@@ -286,7 +286,7 @@ export async function createUserWithUSDCAndWSOLAccount(
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
-): Promise<[ClearingHouse, PublicKey, PublicKey, Keypair]> {
+): Promise<[DriftClient, PublicKey, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
 	const solAccount = await createWSolTokenAccountForUser(
 		provider,
@@ -299,7 +299,7 @@ export async function createUserWithUSDCAndWSOLAccount(
 		usdcMint,
 		usdcAmount
 	);
-	const clearingHouse = await initializeAndSubscribeClearingHouse(
+	const driftClient = await initializeAndSubscribeDriftClient(
 		provider.connection,
 		chProgram,
 		userKeyPair,
@@ -308,7 +308,7 @@ export async function createUserWithUSDCAndWSOLAccount(
 		oracleInfos
 	);
 
-	return [clearingHouse, solAccount, usdcAccount, userKeyPair];
+	return [driftClient, solAccount, usdcAccount, userKeyPair];
 }
 
 export async function printTxLogs(
@@ -364,7 +364,7 @@ export async function initUserAccounts(
 ) {
 	const user_keys = [];
 	const userUSDCAccounts = [];
-	const clearingHouses = [];
+	const driftClients = [];
 	const userAccountInfos = [];
 
 	let userAccountPublicKey: PublicKey;
@@ -383,9 +383,9 @@ export async function initUserAccounts(
 			ownerWallet.publicKey
 		);
 
-		const chProgram = anchor.workspace.ClearingHouse as anchor.Program; // this.program-ify
+		const chProgram = anchor.workspace.Drift as anchor.Program; // this.program-ify
 
-		const clearingHouse1 = new ClearingHouse({
+		const driftClient1 = new DriftClient({
 			connection: provider.connection,
 			//@ts-ignore
 			wallet: ownerWallet,
@@ -399,25 +399,25 @@ export async function initUserAccounts(
 			oracleInfos,
 		});
 
-		// await clearingHouse1.initialize(usdcMint.publicKey, false);
-		await clearingHouse1.subscribe();
+		// await driftClient1.initialize(usdcMint.publicKey, false);
+		await driftClient1.subscribe();
 
 		userUSDCAccounts.push(newUserAcct);
-		clearingHouses.push(clearingHouse1);
+		driftClients.push(driftClient1);
 		// var last_idx = userUSDCAccounts.length - 1;
 
 		// try {
 		[, userAccountPublicKey] =
-			await clearingHouse1.initializeUserAccountAndDepositCollateral(
+			await driftClient1.initializeUserAccountAndDepositCollateral(
 				// marketPublicKey,
 				usdcAmount,
 				newUserAcct.publicKey
 			);
 
 		// const userAccount = 0;
-		const userAccount = new ClearingHouseUser({
-			clearingHouse: clearingHouse1,
-			userAccountPublicKey: await clearingHouse1.getUserAccountPublicKey(),
+		const userAccount = new User({
+			driftClient: driftClient1,
+			userAccountPublicKey: await driftClient1.getUserAccountPublicKey(),
 		});
 		await userAccount.subscribe();
 
@@ -429,7 +429,7 @@ export async function initUserAccounts(
 
 		user_keys.push(userAccountPublicKey);
 	}
-	return [userUSDCAccounts, user_keys, clearingHouses, userAccountInfos];
+	return [userUSDCAccounts, user_keys, driftClients, userAccountInfos];
 }
 
 const empty32Buffer = buffer.Buffer.alloc(32);
@@ -768,7 +768,7 @@ export async function getTokenAmountAsBN(
 }
 
 export async function initializeQuoteSpotMarket(
-	admin: Admin,
+	admin: AdminClient,
 	usdcMint: PublicKey
 ): Promise<void> {
 	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
@@ -803,7 +803,7 @@ export async function initializeQuoteSpotMarket(
 }
 
 export async function initializeSolSpotMarket(
-	admin: Admin,
+	admin: AdminClient,
 	solOracle: PublicKey,
 	solMint = NATIVE_MINT
 ): Promise<string> {

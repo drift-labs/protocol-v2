@@ -6,7 +6,7 @@ import {
 	getUserAccountPublicKey,
 	isVariant,
 	QUOTE_SPOT_MARKET_INDEX,
-	Admin,
+	AdminClient,
 	BN,
 	EventSubscriber,
 	fetchUserAccounts,
@@ -27,9 +27,9 @@ describe('subaccounts', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -45,7 +45,7 @@ describe('subaccounts', () => {
 		const marketIndexes = [0];
 		const spotMarketIndexes = [0];
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -58,26 +58,26 @@ describe('subaccounts', () => {
 			userStats: true,
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('Initialize first account', async () => {
 		const subAccountId = 0;
 		const name = 'CRISP';
-		await clearingHouse.initializeUserAccount(subAccountId, name);
-		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getUserAccount().subAccountId === subAccountId);
-		assert(decodeName(clearingHouse.getUserAccount().name) === name);
+		await driftClient.initializeUserAccount(subAccountId, name);
+		await driftClient.fetchAccounts();
+		assert(driftClient.getUserAccount().subAccountId === subAccountId);
+		assert(decodeName(driftClient.getUserAccount().name) === name);
 
-		const userStats = clearingHouse.getUserStats().getAccount();
+		const userStats = driftClient.getUserStats().getAccount();
 
 		assert(userStats.numberOfSubAccounts === 1);
 	});
@@ -85,14 +85,14 @@ describe('subaccounts', () => {
 	it('Initialize second account', async () => {
 		const subAccountId = 1;
 		const name = 'LIL PERP';
-		await clearingHouse.initializeUserAccount(1, name);
-		await clearingHouse.addUser(1);
-		await clearingHouse.switchActiveUser(1);
+		await driftClient.initializeUserAccount(1, name);
+		await driftClient.addUser(1);
+		await driftClient.switchActiveUser(1);
 
-		assert(clearingHouse.getUserAccount().subAccountId === subAccountId);
-		assert(decodeName(clearingHouse.getUserAccount().name) === name);
+		assert(driftClient.getUserAccount().subAccountId === subAccountId);
+		assert(decodeName(driftClient.getUserAccount().name) === name);
 
-		const userStats = clearingHouse.getUserStats().getAccount();
+		const userStats = driftClient.getUserStats().getAccount();
 
 		assert(userStats.numberOfSubAccounts === 2);
 		console.log(userStats.maxSubAccountId.toString());
@@ -110,20 +110,20 @@ describe('subaccounts', () => {
 	});
 
 	it('Deposit and transfer between accounts', async () => {
-		await clearingHouse.deposit(
+		await driftClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			usdcAccount.publicKey
 		);
-		const txSig = await clearingHouse.transferDeposit(
+		const txSig = await driftClient.transferDeposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			1,
 			0
 		);
-		await clearingHouse.switchActiveUser(0);
+		await driftClient.switchActiveUser(0);
 
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
+		assert(driftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
 
 		await eventSubscriber.awaitTx(txSig);
 		const depositRecords = eventSubscriber.getEventsArray('DepositRecord');
@@ -150,45 +150,45 @@ describe('subaccounts', () => {
 	it('Update user name', async () => {
 		const subAccountId = 0;
 		const name = 'lil perp v2';
-		await clearingHouse.updateUserName(name, subAccountId);
+		await driftClient.updateUserName(name, subAccountId);
 
-		await clearingHouse.fetchAccounts();
-		assert(decodeName(clearingHouse.getUserAccount().name) === name);
+		await driftClient.fetchAccounts();
+		assert(decodeName(driftClient.getUserAccount().name) === name);
 	});
 
 	it('Update custom margin ratio', async () => {
 		const subAccountId = 0;
 		const customMarginRatio = MARGIN_PRECISION.toNumber() * 2;
-		await clearingHouse.updateUserCustomMarginRatio(
+		await driftClient.updateUserCustomMarginRatio(
 			customMarginRatio,
 			subAccountId
 		);
 
-		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getUserAccount().maxMarginRatio === customMarginRatio);
+		await driftClient.fetchAccounts();
+		assert(driftClient.getUserAccount().maxMarginRatio === customMarginRatio);
 	});
 
 	it('Update delegate', async () => {
 		const delegateKeyPair = await createFundedKeyPair(connection);
-		await clearingHouse.updateUserDelegate(delegateKeyPair.publicKey);
+		await driftClient.updateUserDelegate(delegateKeyPair.publicKey);
 
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 		assert(
-			clearingHouse.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
+			driftClient.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
 		);
 
 		const delegateUserAccount = (
-			await clearingHouse.getUserAccountsForDelegate(delegateKeyPair.publicKey)
+			await driftClient.getUserAccountsForDelegate(delegateKeyPair.publicKey)
 		)[0];
 		assert(delegateUserAccount.delegate.equals(delegateKeyPair.publicKey));
 	});
 
 	it('delete user', async () => {
-		await clearingHouse.switchActiveUser(1);
+		await driftClient.switchActiveUser(1);
 
 		let deleteFailed = false;
 		try {
-			const txSig = await clearingHouse.deleteUser(0);
+			const txSig = await driftClient.deleteUser(0);
 			await printTxLogs(connection, txSig);
 		} catch (e) {
 			assert(e.toString().includes('UserCantBeDeleted'));
@@ -197,6 +197,6 @@ describe('subaccounts', () => {
 
 		assert(deleteFailed);
 
-		await clearingHouse.deleteUser(1);
+		await driftClient.deleteUser(1);
 	});
 });

@@ -9,8 +9,8 @@ import {
 	ZERO,
 	OracleGuardRails,
 	ContractTier,
-	Admin,
-	ClearingHouse,
+	AdminClient,
+	DriftClient,
 	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -38,9 +38,9 @@ describe('liquidate perp and lp', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -49,7 +49,7 @@ describe('liquidate perp and lp', () => {
 
 	const liquidatorKeyPair = new Keypair();
 	let liquidatorUSDCAccount: Keypair;
-	let liquidatorClearingHouse: ClearingHouse;
+	let liquidatorDriftClient: DriftClient;
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
@@ -69,7 +69,7 @@ describe('liquidate perp and lp', () => {
 
 		const oracle = await mockOracle(1);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -87,38 +87,38 @@ describe('liquidate perp and lp', () => {
 			],
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			oracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
 
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			new BN(175).mul(BASE_PRECISION).div(new BN(10)), // 25 SOL
 			0,
 			new BN(0)
 		);
 
-		const txSig = await clearingHouse.addPerpLpShares(nLpShares, 0);
+		const txSig = await driftClient.addPerpLpShares(nLpShares, 0);
 		await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
-			await clearingHouse.placePerpOrder(
+			await driftClient.placePerpOrder(
 				getLimitOrderParams({
 					baseAssetAmount: BASE_PRECISION,
 					marketIndex: 0,
@@ -135,7 +135,7 @@ describe('liquidate perp and lp', () => {
 			provider,
 			liquidatorKeyPair.publicKey
 		);
-		liquidatorClearingHouse = new ClearingHouse({
+		liquidatorDriftClient = new DriftClient({
 			connection,
 			wallet: new Wallet(liquidatorKeyPair),
 			programID: chProgram.programId,
@@ -152,26 +152,26 @@ describe('liquidate perp and lp', () => {
 				},
 			],
 		});
-		await liquidatorClearingHouse.subscribe();
+		await liquidatorDriftClient.subscribe();
 
-		await liquidatorClearingHouse.initializeUserAccountAndDepositCollateral(
+		await liquidatorDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			liquidatorUSDCAccount.publicKey
 		);
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
-		await liquidatorClearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
+		await liquidatorDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
 		const marketIndex = 0;
-		const lpShares = clearingHouse.getUserAccount().perpPositions[0].lpShares;
+		const lpShares = driftClient.getUserAccount().perpPositions[0].lpShares;
 		assert(lpShares.eq(nLpShares));
 
-		const oracle = clearingHouse.getPerpMarketAccount(0).amm.oracle;
+		const oracle = driftClient.getPerpMarketAccount(0).amm.oracle;
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
 
 		const oracleGuardRails: OracleGuardRails = {
@@ -188,11 +188,11 @@ describe('liquidate perp and lp', () => {
 			useForLiquidations: false,
 		};
 
-		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
-		const txSig = await liquidatorClearingHouse.liquidatePerp(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		const txSig = await liquidatorDriftClient.liquidatePerp(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			0,
 			new BN(175).mul(BASE_PRECISION).div(new BN(10))
 		);
@@ -200,26 +200,24 @@ describe('liquidate perp and lp', () => {
 		await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
-			assert(
-				isVariant(clearingHouse.getUserAccount().orders[i].status, 'init')
-			);
+			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
 		}
 
 		assert(
-			liquidatorClearingHouse
+			liquidatorDriftClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
 		);
 
-		assert(clearingHouse.getUserAccount().isBeingLiquidated);
-		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
+		assert(driftClient.getUserAccount().isBeingLiquidated);
+		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 
 		// try to add liq when being liquidated -- should fail
 		try {
-			await clearingHouse.addPerpLpShares(nLpShares, 0);
+			await driftClient.addPerpLpShares(nLpShares, 0);
 			assert(false);
 		} catch (err) {
-			assert(err.message.includes('0x17d6'));
+			assert(err.message.includes('0x17e5'));
 		}
 
 		const liquidationRecord =
@@ -242,36 +240,34 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
 
-		await liquidatorClearingHouse.liquidatePerpPnlForDeposit(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		await liquidatorDriftClient.liquidatePerpPnlForDeposit(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			0,
 			0,
-			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount
+			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount
 		);
 
-		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getUserAccount().isBankrupt);
-		console.log(
-			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount
-		);
+		await driftClient.fetchAccounts();
+		assert(driftClient.getUserAccount().isBankrupt);
+		console.log(driftClient.getUserAccount().perpPositions[0].quoteAssetAmount);
 		assert(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteAssetAmount.eq(new BN(-5785008))
 		);
 
 		// try to add liq when bankrupt -- should fail
 		try {
-			await clearingHouse.addPerpLpShares(nLpShares, 0);
+			await driftClient.addPerpLpShares(nLpShares, 0);
 			assert(false);
 		} catch (err) {
 			// cant add when bankrupt
-			assert(err.message.includes('0x17de'));
+			assert(err.message.includes('0x17ed'));
 		}
 
-		await clearingHouse.updatePerpMarketContractTier(0, ContractTier.A);
-		const tx1 = await clearingHouse.updatePerpMarketMaxImbalances(
+		await driftClient.updatePerpMarketContractTier(0, ContractTier.A);
+		const tx1 = await driftClient.updatePerpMarketMaxImbalances(
 			marketIndex,
 			new BN(40000).mul(QUOTE_PRECISION),
 			QUOTE_PRECISION,
@@ -279,9 +275,9 @@ describe('liquidate perp and lp', () => {
 		);
 		await printTxLogs(connection, tx1);
 
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 		const marketBeforeBankruptcy =
-			clearingHouse.getPerpMarketAccount(marketIndex);
+			driftClient.getPerpMarketAccount(marketIndex);
 		assert(
 			marketBeforeBankruptcy.insuranceClaim.revenueWithdrawSinceLastSettle.eq(
 				ZERO
@@ -296,16 +292,15 @@ describe('liquidate perp and lp', () => {
 			)
 		);
 		assert(marketBeforeBankruptcy.amm.cumulativeSocialLoss.eq(ZERO));
-		await liquidatorClearingHouse.resolvePerpBankruptcy(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		await liquidatorDriftClient.resolvePerpBankruptcy(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			0
 		);
 
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 		// all social loss
-		const marketAfterBankruptcy =
-			clearingHouse.getPerpMarketAccount(marketIndex);
+		const marketAfterBankruptcy = driftClient.getPerpMarketAccount(marketIndex);
 		assert(
 			marketAfterBankruptcy.insuranceClaim.revenueWithdrawSinceLastSettle.eq(
 				ZERO
@@ -317,12 +312,12 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785008)));
 
-		assert(!clearingHouse.getUserAccount().isBankrupt);
-		assert(!clearingHouse.getUserAccount().isBeingLiquidated);
+		assert(!driftClient.getUserAccount().isBankrupt);
+		assert(!driftClient.getUserAccount().isBeingLiquidated);
 		assert(
-			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
+			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
 		);
-		assert(clearingHouse.getUserAccount().perpPositions[0].lpShares.eq(ZERO));
+		assert(driftClient.getUserAccount().perpPositions[0].lpShares.eq(ZERO));
 
 		const perpBankruptcyRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
@@ -338,7 +333,7 @@ describe('liquidate perp and lp', () => {
 			)
 		);
 
-		const market = clearingHouse.getPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		assert(market.amm.cumulativeFundingRateLong.eq(new BN(330571000)));
 		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-330571000)));
 	});
