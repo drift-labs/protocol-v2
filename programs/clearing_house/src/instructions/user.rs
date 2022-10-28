@@ -7,7 +7,7 @@ use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
+    get_maker_and_maker_stats, get_optional_user_and_user_stats, get_serum_fulfillment_accounts,
     get_spot_market_vaults, get_whitelist_token, load_maps, AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
@@ -63,7 +63,7 @@ pub fn handle_initialize_user(
 
     // Only try to add referrer if it is the first user
     if user_stats.number_of_sub_accounts == 1 {
-        let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+        let (referrer, referrer_stats) = get_optional_user_and_user_stats(remaining_accounts_iter)?;
         let referrer = if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
             let referrer = load!(referrer)?;
             let mut referrer_stats = load_mut!(referrer_stats)?;
@@ -801,7 +801,7 @@ pub fn handle_place_and_take_perp_order<'info>(
         None => (None, None),
     };
 
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let (referrer, referrer_stats) = get_optional_user_and_user_stats(remaining_accounts_iter)?;
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
@@ -887,7 +887,7 @@ pub fn handle_place_and_make_perp_order<'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let (referrer, referrer_stats) = get_optional_user_and_user_stats(remaining_accounts_iter)?;
 
     if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
         msg!("place_and_make must use IOC post only limit order");
@@ -1020,7 +1020,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         None => (None, None),
     };
 
-    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let (_referrer, _referrer_stats) = get_optional_user_and_user_stats(remaining_accounts_iter)?;
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
@@ -1135,7 +1135,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         None,
     )?;
 
-    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let (_referrer, _referrer_stats) = get_optional_user_and_user_stats(remaining_accounts_iter)?;
 
     if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
         msg!("place_and_make must use IOC post only limit order");

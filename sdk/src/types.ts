@@ -780,6 +780,12 @@ export type TakerInfo = {
 	order: Order;
 };
 
+export type DeleverUserInfo = {
+	user: PublicKey;
+	userStats: PublicKey;
+	userAccount: UserAccount;
+};
+
 export type ReferrerInfo = {
 	referrer: PublicKey;
 	referrerStats: PublicKey;

@@ -24,6 +24,7 @@ import {
 	MarketType,
 	SerumV3FulfillmentConfigAccount,
 	isVariant,
+	DeleverUserInfo,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -3095,14 +3096,16 @@ export class ClearingHouse {
 	public async resolvePerpBankruptcy(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		marketIndex: number
+		marketIndex: number,
+		deleverUserInfo?: DeleverUserInfo
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getResolvePerpBankruptcyIx(
 					userAccountPublicKey,
 					userAccount,
-					marketIndex
+					marketIndex,
+					deleverUserInfo
 				)
 			),
 			[],
@@ -3114,7 +3117,8 @@ export class ClearingHouse {
 	public async getResolvePerpBankruptcyIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		marketIndex: number
+		marketIndex: number,
+		deleverUserInfo?: DeleverUserInfo
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -3124,19 +3128,35 @@ export class ClearingHouse {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 		const liquidatorStatsPublicKey = await this.getUserStatsAccountPublicKey();
 
+		const userAccounts = [this.getUserAccount(), userAccount];
+		if (deleverUserInfo !== undefined) {
+			userAccounts.push(deleverUserInfo.userAccount);
+		}
+
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(), userAccount],
+			userAccounts,
 			writablePerpMarketIndexes: [marketIndex],
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
 
+		if (deleverUserInfo) {
+			remainingAccounts.push({
+				pubkey: deleverUserInfo.user,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: deleverUserInfo.userStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
-		const deleveraging = false; // todo
 
 		return await this.program.instruction.resolvePerpBankruptcy(
 			QUOTE_SPOT_MARKET_INDEX,
 			marketIndex,
-			deleveraging,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),

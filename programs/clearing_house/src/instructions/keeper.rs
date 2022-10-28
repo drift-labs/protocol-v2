@@ -4,7 +4,7 @@ use anchor_spl::token::{Token, TokenAccount};
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
+    get_maker_and_maker_stats, get_optional_user_and_user_stats, get_serum_fulfillment_accounts,
     get_spot_market_vaults, load_maps, AccountMaps,
 };
 use crate::load_mut;
@@ -88,7 +88,7 @@ fn fill_order(
         None => (None, None),
     };
 
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let (referrer, referrer_stats) = get_optional_user_and_user_stats(remaining_accounts_iter)?;
 
     controller::repeg::update_amm(
         market_index,
@@ -196,7 +196,7 @@ fn fill_spot_order(
         None => (None, None),
     };
 
-    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let (_referrer, _referrer_stats) = get_optional_user_and_user_stats(remaining_accounts_iter)?;
 
     let mut serum_fulfillment_params = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
@@ -817,7 +817,6 @@ pub fn handle_resolve_perp_bankruptcy(
     ctx: Context<ResolveBankruptcy>,
     quote_spot_market_index: u16,
     market_index: u16,
-    _deleveraging: bool,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -837,12 +836,15 @@ pub fn handle_resolve_perp_bankruptcy(
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
-    // let (delevered_user, _delevered_user_stats) = if deleveraging {
-    //         let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-    //         (Some(user), Some(user_stats))
-    // } else {
-    //     (None, None)
-    // };
+    let (delever_user_loader, _) = get_optional_user_and_user_stats(remaining_accounts_iter)?;
+    let (mut delever_user, delever_user_key) = match delever_user_loader.as_ref() {
+        Some(delever_user_loader) => {
+            let delevered_user_key = delever_user_loader.key();
+            let delevered_user = load_mut!(delever_user_loader)?;
+            (Some(delevered_user), Some(delevered_user_key))
+        }
+        None => (None, None),
+    };
 
     let user = &mut load_mut!(ctx.accounts.user)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
@@ -884,8 +886,8 @@ pub fn handle_resolve_perp_bankruptcy(
         market_index,
         user,
         &user_key,
-        None,
-        None,
+        delever_user.as_deref_mut(),
+        delever_user_key.as_ref(),
         liquidator,
         &liquidator_key,
         &perp_market_map,
