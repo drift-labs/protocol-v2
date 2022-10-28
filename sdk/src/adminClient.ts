@@ -81,7 +81,8 @@ export class AdminClient extends DriftClient {
 		maintenanceLiabilityWeight: number,
 		imfFactor = 0,
 		liquidatorFee = 0,
-		activeStatus = true
+		activeStatus = true,
+		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
 		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
 		const spotMarket = await getSpotMarketPublicKey(
@@ -99,6 +100,7 @@ export class AdminClient extends DriftClient {
 			spotMarketIndex
 		);
 
+		const nameBuffer = encodeName(name);
 		const initializeTx = await this.program.transaction.initializeSpotMarket(
 			optimalUtilization,
 			optimalRate,
@@ -111,6 +113,7 @@ export class AdminClient extends DriftClient {
 			imfFactor,
 			liquidatorFee,
 			activeStatus,
+			nameBuffer,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

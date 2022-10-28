@@ -1949,6 +1949,15 @@
         {
           "name": "activeStatus",
           "type": "bool"
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     },
@@ -3833,6 +3842,15 @@
           {
             "name": "vault",
             "type": "publicKey"
+          },
+          {
+            "name": "name",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
             "name": "historicalOracleData",
