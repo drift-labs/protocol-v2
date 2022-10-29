@@ -354,6 +354,7 @@ pub struct AMM {
     pub short_intensity_volume: u64,
     pub last_trade_ts: i64,
     pub mark_std: u64,
+    pub oracle_std: u64,
     pub last_mark_price_twap_ts: i64,
     pub base_spread: u32,
     pub max_spread: u32,

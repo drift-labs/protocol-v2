@@ -602,6 +602,7 @@ pub fn handle_initialize_perp_market(
             quote_break_even_amount_short: 0,
             max_open_interest: 0,
             mark_std: 0,
+            oracle_std: 0,
             volume_24h: 0,
             long_intensity_count: 0,
             long_intensity_volume: 0,
