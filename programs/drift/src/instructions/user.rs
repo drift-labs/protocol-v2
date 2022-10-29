@@ -167,6 +167,12 @@ pub fn handle_deposit(
     let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?.clone();
 
+    validate!(
+        !matches!(spot_market.status, MarketStatus::Initialized),
+        ErrorCode::MarketBeingInitialized,
+        "Market is being initialized"
+    )?;
+
     controller::spot_balance::update_spot_market_cumulative_interest(
         spot_market,
         Some(oracle_price_data),
