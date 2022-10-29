@@ -200,7 +200,7 @@ describe('post only', () => {
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
-		const position = driftClientUser.getUserPosition(marketIndex);
+		const position = driftClientUser.getPerpPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
 		console.log(position.quoteBreakEvenAmount.toString());
 		assert(driftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
@@ -286,7 +286,7 @@ describe('post only', () => {
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
-		const position = driftClientUser.getUserPosition(marketIndex);
+		const position = driftClientUser.getPerpPosition(marketIndex);
 		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
 		assert(position.quoteBreakEvenAmount.eq(new BN(1000000)));
 		assert(driftClient.getQuoteAssetTokenAmount().eq(usdcAmount));

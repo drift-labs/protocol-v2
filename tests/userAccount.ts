@@ -208,7 +208,7 @@ describe('User Account', () => {
 		);
 		await driftClient.fetchAccounts();
 		await userAccount.fetchAccounts();
-		const perpPosition = userAccount.getUserPosition(marketIndex);
+		const perpPosition = userAccount.getPerpPosition(marketIndex);
 
 		const market = driftClient.getPerpMarketAccount(perpPosition.marketIndex);
 
@@ -286,7 +286,7 @@ describe('User Account', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10))
 		);
-		const perpPosition = userAccount.getUserPosition(marketIndex);
+		const perpPosition = userAccount.getPerpPosition(marketIndex);
 
 		const market = driftClient.getPerpMarketAccount(perpPosition.marketIndex);
 
