@@ -355,15 +355,13 @@ pub fn handle_withdraw(
             amount
         };
 
-        let spot_position = user.force_get_spot_position_mut(market_index)?;
-
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         // prevents withdraw when limits hit
         controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits(
             amount as u128,
             &SpotBalanceType::Borrow,
             spot_market,
-            spot_position,
+            user,
         )?;
 
         amount
@@ -492,14 +490,12 @@ pub fn handle_transfer_deposit(
             spot_market.market_index
         )?;
 
-        let from_spot_position = from_user.force_get_spot_position_mut(spot_market.market_index)?;
-
         // prevents withdraw when limits hit
         controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits(
             amount as u128,
             &SpotBalanceType::Borrow,
             spot_market,
-            from_spot_position,
+            from_user,
         )?;
     }
 
