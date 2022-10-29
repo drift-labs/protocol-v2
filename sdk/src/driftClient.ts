@@ -2688,7 +2688,7 @@ export class DriftClient {
 		marketIndex: number,
 		limitPrice?: BN
 	): Promise<TransactionSignature> {
-		const userPosition = this.getUser().getUserPosition(marketIndex);
+		const userPosition = this.getUser().getPerpPosition(marketIndex);
 		if (!userPosition) {
 			throw Error(`No position in market ${marketIndex.toString()}`);
 		}
