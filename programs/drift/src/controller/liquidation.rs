@@ -1741,8 +1741,12 @@ pub fn resolve_perp_bankruptcy(
             market_index,
             if_payment,
             pnl: loss,
-            clawback_user: clawback_user_key,
-            clawback_user_payment: Some(clawback_user_payment.unsigned_abs()),
+            clawback_user: clawback_user_key.map(|x| *x),
+            clawback_user_payment: if clawback_user_payment == 0 {
+                None
+            } else {
+                Some(clawback_user_payment.unsigned_abs())
+            },
             cumulative_funding_rate_delta,
         },
         ..LiquidationRecord::default()
