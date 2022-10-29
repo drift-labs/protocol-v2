@@ -1614,108 +1614,110 @@ pub fn resolve_perp_bankruptcy(
     let mut delever_user_payment: i128 = 0;
     // socialize loss
     if loss_to_socialize < 0 {
+        let mut market = perp_market_map.get_ref_mut(&market_index)?;
+
+        let cost_per_base = loss_to_socialize
+            .abs()
+            .safe_mul(BASE_PRECISION_I128)?
+            .safe_div(
+                market
+                    .amm
+                    .base_asset_amount_long
+                    .safe_add(market.amm.base_asset_amount_short.abs())?,
+            )?;
+
+        if cost_per_base
+            <= market
+                .amm
+                .order_tick_size
+                .cast::<i128>()?
+                .safe_mul(MAX_FUNDING_SOCIAL_LOSS_MULT)?
+            || market.amm.order_tick_size == 0
         {
-            let mut market = perp_market_map.get_ref_mut(&market_index)?;
+            cumulative_funding_rate_delta =
+                calculate_funding_rate_deltas_to_resolve_bankruptcy(loss_to_socialize, &market)?;
 
-            let cost_per_base = loss_to_socialize
-                .abs()
-                .safe_mul(BASE_PRECISION_I128)?
-                .safe_div(
-                    market
-                        .amm
-                        .base_asset_amount_long
-                        .safe_add(market.amm.base_asset_amount_short.abs())?,
+            let perp_position = bankrupt_user.force_get_perp_position_mut(market_index)?;
+            update_quote_asset_amount(
+                perp_position,
+                &mut market,
+                -perp_position.quote_asset_amount,
+            )?;
+
+            market.amm.cumulative_social_loss = market
+                .amm
+                .cumulative_social_loss
+                .safe_add(loss_to_socialize)?;
+
+            market.amm.cumulative_funding_rate_long = market
+                .amm
+                .cumulative_funding_rate_long
+                .safe_add(cumulative_funding_rate_delta)?;
+
+            market.amm.cumulative_funding_rate_short = market
+                .amm
+                .cumulative_funding_rate_short
+                .safe_sub(cumulative_funding_rate_delta)?;
+        } else {
+            delever_user_payment = if let Some(delever_user) = delever_user {
+                let free_collateral = calculate_free_collateral(
+                    delever_user,
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    MarginRequirementType::Maintenance,
                 )?;
 
-            if cost_per_base
-                <= market
-                    .amm
-                    .order_tick_size
-                    .cast::<i128>()?
-                    .safe_mul(MAX_FUNDING_SOCIAL_LOSS_MULT)?
-                || market.amm.order_tick_size == 0
-            {
-                cumulative_funding_rate_delta =
-                    calculate_funding_rate_deltas_to_resolve_bankruptcy(
+                if free_collateral > 0 {
+                    let deleverage_user_position =
+                        delever_user.get_perp_position_mut(market_index).unwrap();
+                    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+                    let deleverage_user_stats = DeleverageUserStats {
+                        base_asset_amount: deleverage_user_position.base_asset_amount,
+                        quote_asset_amount: deleverage_user_position.quote_asset_amount,
+                        quote_break_even_amount: deleverage_user_position.quote_break_even_amount,
+                        free_collateral,
+                    };
+
+                    let deleverage_user_payment = calculate_perp_market_deleverage_payment(
                         loss_to_socialize,
+                        deleverage_user_stats,
                         &market,
+                        oracle_price_data.price,
+                    )?;
+                    let bankrupt_perp_position =
+                        bankrupt_user.force_get_perp_position_mut(market_index)?;
+
+                    validate!(
+                        deleverage_user_payment >= 0
+                            && bankrupt_perp_position.quote_asset_amount < 0,
+                        ErrorCode::DefaultError,
+                        "Deleverage User Payment to resolve bankruptcy mismatched"
                     )?;
 
-                let perp_position = bankrupt_user.force_get_perp_position_mut(market_index)?;
-                update_quote_asset_amount(
-                    perp_position,
-                    &mut market,
-                    -perp_position.quote_asset_amount,
-                )?;
-
-                market.amm.cumulative_social_loss = market
-                    .amm
-                    .cumulative_social_loss
-                    .safe_add(loss_to_socialize)?;
-
-                market.amm.cumulative_funding_rate_long =
-                    market
-                        .amm
-                        .cumulative_funding_rate_long
-                        .safe_add(cumulative_funding_rate_delta)?;
-
-                market.amm.cumulative_funding_rate_short = market
-                    .amm
-                    .cumulative_funding_rate_short
-                    .safe_sub(cumulative_funding_rate_delta)?;
-            } else {
-                delever_user_payment = if let Some(delever_user) = delever_user {
-                    let mut market = perp_market_map.get_ref_mut(&market_index)?;
-                    let free_collateral = calculate_free_collateral(
-                        delever_user,
-                        perp_market_map,
-                        spot_market_map,
-                        oracle_map,
-                        MarginRequirementType::Maintenance,
+                    update_quote_asset_amount(
+                        bankrupt_perp_position,
+                        &mut market,
+                        deleverage_user_payment.cast()?,
                     )?;
 
-                    if free_collateral > 0 {
-                        let deleverage_user_position =
-                            delever_user.get_perp_position_mut(market_index).unwrap();
-                        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+                    let delever_perp_position =
+                        delever_user.force_get_perp_position_mut(market_index)?;
 
-                        let deleverage_user_stats = DeleverageUserStats {
-                            base_asset_amount: deleverage_user_position.base_asset_amount,
-                            quote_asset_amount: deleverage_user_position.quote_asset_amount,
-                            quote_break_even_amount: deleverage_user_position
-                                .quote_break_even_amount,
-                            free_collateral,
-                        };
+                    update_quote_asset_and_break_even_amount(
+                        delever_perp_position,
+                        &mut market,
+                        -deleverage_user_payment.cast()?,
+                    )?;
 
-                        let deleverage_user_payment = calculate_perp_market_deleverage_payment(
-                            loss_to_socialize,
-                            deleverage_user_stats,
-                            &market,
-                            oracle_price_data.price,
-                        )?;
-                        let perp_position =
-                            bankrupt_user.force_get_perp_position_mut(market_index)?;
-
-                        validate!(
-                            deleverage_user_payment >= 0 && perp_position.quote_asset_amount < 0,
-                            ErrorCode::DefaultError,
-                            "Deleverage User Payment to resolve bankruptcy mismatched"
-                        )?;
-
-                        update_quote_asset_amount(
-                            perp_position,
-                            &mut market,
-                            deleverage_user_payment.cast()?,
-                        )?;
-
-                        deleverage_user_payment
-                    } else {
-                        0
-                    }
+                    deleverage_user_payment
                 } else {
                     0
-                };
-            }
+                }
+            } else {
+                0
+            };
         }
     }
 

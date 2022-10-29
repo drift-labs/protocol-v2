@@ -451,7 +451,7 @@ mod auto_deleveraging {
                 base_asset_amount_short: 0,
                 ..AMM::default()
             },
-            number_of_users: 0,
+            number_of_users: 1,
             ..PerpMarket::default()
         };
 
@@ -498,6 +498,7 @@ mod auto_deleveraging {
                 base_asset_amount_short: 0,
                 ..AMM::default()
             },
+            number_of_users: 2,
             ..PerpMarket::default()
         };
 
