@@ -1741,7 +1741,7 @@ pub fn resolve_perp_bankruptcy(
             market_index,
             if_payment,
             pnl: loss,
-            clawback_user: clawback_user_key.map(|x| *x),
+            clawback_user: clawback_user_key.copied(),
             clawback_user_payment: if clawback_user_payment == 0 {
                 None
             } else {
