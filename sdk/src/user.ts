@@ -8,6 +8,7 @@ import {
 	Order,
 	UserAccount,
 	PerpPosition,
+	SpotPosition,
 } from './types';
 import { calculateEntryPrice } from './math/position';
 import {
@@ -125,12 +126,23 @@ export class User {
 	}
 
 	/**
-	 * Gets the user's current position for a given market. If the user has no position returns undefined
+	 * Gets the user's current position for a given perp market. If the user has no position returns undefined
 	 * @param marketIndex
-	 * @returns userPosition
+	 * @returns userPerpPosition
 	 */
-	public getUserPosition(marketIndex: number): PerpPosition | undefined {
+	public getPerpPosition(marketIndex: number): PerpPosition | undefined {
 		return this.getUserAccount().perpPositions.find(
+			(position) => position.marketIndex === marketIndex
+		);
+	}
+
+	/**
+	 * Gets the user's current position for a given spot market. If the user has no position returns undefined
+	 * @param marketIndex
+	 * @returns userSpotPosition
+	 */
+	public getSpotPosition(marketIndex: number): SpotPosition | undefined {
+		return this.getUserAccount().spotPositions.find(
 			(position) => position.marketIndex === marketIndex
 		);
 	}
@@ -197,7 +209,7 @@ export class User {
 	 * @returns : open asks
 	 */
 	public getPerpBidAsks(marketIndex: number): [BN, BN] {
-		const position = this.getUserPosition(marketIndex);
+		const position = this.getPerpPosition(marketIndex);
 
 		const [lpOpenBids, lpOpenAsks] = this.getLPBidAsks(marketIndex);
 
@@ -213,7 +225,7 @@ export class User {
 	 * @returns : lp open asks
 	 */
 	public getLPBidAsks(marketIndex: number): [BN, BN] {
-		const position = this.getUserPosition(marketIndex);
+		const position = this.getPerpPosition(marketIndex);
 		if (position === undefined || position.lpShares.eq(ZERO)) {
 			return [ZERO, ZERO];
 		}
@@ -242,7 +254,7 @@ export class User {
 	 * @returns : pnl from settle
 	 */
 	public getSettledLPPosition(marketIndex: number): [PerpPosition, BN, BN] {
-		const _position = this.getUserPosition(marketIndex);
+		const _position = this.getPerpPosition(marketIndex);
 		const position = this.getClonedPosition(_position);
 
 		if (position.lpShares.eq(ZERO)) {
@@ -841,7 +853,7 @@ export class User {
 		oraclePriceData: OraclePriceData
 	): BN {
 		const userPosition =
-			this.getUserPosition(marketIndex) || this.getEmptyPosition(marketIndex);
+			this.getPerpPosition(marketIndex) || this.getEmptyPosition(marketIndex);
 		const market = this.driftClient.getPerpMarketAccount(
 			userPosition.marketIndex
 		);
@@ -1081,7 +1093,7 @@ export class User {
 			this.getTotalPerpPositionValueExcludingMarket(perpPosition.marketIndex);
 
 		const currentPerpPosition =
-			this.getUserPosition(perpPosition.marketIndex) ||
+			this.getPerpPosition(perpPosition.marketIndex) ||
 			this.getEmptyPosition(perpPosition.marketIndex);
 
 		const currentPerpPositionBaseSize = currentPerpPosition.baseAssetAmount;
@@ -1245,7 +1257,7 @@ export class User {
 		closeQuoteAmount: BN
 	): BN {
 		const currentPosition =
-			this.getUserPosition(positionMarketIndex) ||
+			this.getPerpPosition(positionMarketIndex) ||
 			this.getEmptyPosition(positionMarketIndex);
 
 		const closeBaseAmount = currentPosition.baseAssetAmount
@@ -1292,7 +1304,7 @@ export class User {
 		tradeSide: PositionDirection
 	): BN {
 		const currentPosition =
-			this.getUserPosition(targetMarketIndex) ||
+			this.getPerpPosition(targetMarketIndex) ||
 			this.getEmptyPosition(targetMarketIndex);
 
 		const targetSide = isVariant(tradeSide, 'short') ? 'short' : 'long';
@@ -1378,7 +1390,7 @@ export class User {
 		includeOpenOrders = true
 	): BN {
 		const currentPosition =
-			this.getUserPosition(targetMarketIndex) ||
+			this.getPerpPosition(targetMarketIndex) ||
 			this.getEmptyPosition(targetMarketIndex);
 
 		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
@@ -1531,7 +1543,7 @@ export class User {
 		includeOpenOrders?: boolean
 	): BN {
 		const currentPerpPosition =
-			this.getUserPosition(marketToIgnore) ||
+			this.getPerpPosition(marketToIgnore) ||
 			this.getEmptyPosition(marketToIgnore);
 
 		const oracleData = this.getOracleDataForPerpMarket(marketToIgnore);
