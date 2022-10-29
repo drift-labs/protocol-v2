@@ -331,7 +331,7 @@ describe('liquidity providing', () => {
 		await driftClient.cancelOrders();
 
 		await driftClient.fetchAccounts();
-		const position3 = driftClientUser.getUserPosition(0);
+		const position3 = driftClientUser.getPerpPosition(0);
 		assert(position3.openOrders == 0);
 		assert(position3.openAsks.eq(ZERO));
 		assert(position3.openBids.eq(ZERO));
@@ -341,7 +341,7 @@ describe('liquidity providing', () => {
 		assert(newInitMarginReq.eq(new BN(8283999)));
 
 		// ensure margin calcs didnt modify user position
-		const _position = driftClientUser.getUserPosition(0);
+		const _position = driftClientUser.getPerpPosition(0);
 		assert(_position.openAsks.eq(ZERO));
 		assert(_position.openBids.eq(ZERO));
 
@@ -1227,7 +1227,7 @@ describe('liquidity providing', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		const position = driftClientUser.getUserPosition(0);
+		const position = driftClientUser.getPerpPosition(0);
 		assert(position.lpShares.eq(ZERO));
 	});
 	return;

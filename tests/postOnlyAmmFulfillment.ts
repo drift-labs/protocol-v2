@@ -235,7 +235,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
-		const position = driftClientUser.getUserPosition(marketIndex);
+		const position = driftClientUser.getPerpPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
 		console.log(position.quoteAssetAmount.toString());
 		console.log(position.quoteBreakEvenAmount.toString());
@@ -302,7 +302,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 
 		await fillerDriftClientUser.fetchAccounts();
 
-		const positionMaker = fillerDriftClientUser.getUserPosition(marketIndex);
+		const positionMaker = fillerDriftClientUser.getPerpPosition(marketIndex);
 		console.log(positionMaker);
 		assert(positionMaker.baseAssetAmount.eq(new BN(-500000000)));
 		console.log(positionMaker.quoteAssetAmount.toString());

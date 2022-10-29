@@ -95,6 +95,7 @@ pub fn handle_initialize_spot_market(
     imf_factor: u32,
     liquidator_fee: u32,
     active_status: bool,
+    name: [u8; 32],
 ) -> Result<()> {
     let state = &mut ctx.accounts.state;
     let spot_market_pubkey = ctx.accounts.spot_market.key();
@@ -205,6 +206,7 @@ pub fn handle_initialize_spot_market(
         } else {
             MarketStatus::Initialized
         },
+        name,
         asset_tier: if spot_market_index == QUOTE_SPOT_MARKET_INDEX {
             AssetTier::Collateral
         } else {
@@ -1293,6 +1295,15 @@ pub fn handle_update_perp_market_name(
 ) -> Result<()> {
     let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
     perp_market.name = name;
+    Ok(())
+}
+
+pub fn handle_update_spot_market_name(
+    ctx: Context<AdminUpdateSpotMarket>,
+    name: [u8; 32],
+) -> Result<()> {
+    let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
+    spot_market.name = name;
     Ok(())
 }
 

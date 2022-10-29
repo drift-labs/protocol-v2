@@ -401,6 +401,7 @@ pub mod drift {
         imf_factor: u32,
         liquidator_fee: u32,
         active_status: bool,
+        name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_spot_market(
             ctx,
@@ -415,6 +416,7 @@ pub mod drift {
             imf_factor,
             liquidator_fee,
             active_status,
+            name,
         )
     }
 
@@ -651,6 +653,13 @@ pub mod drift {
         orders_enabled: bool,
     ) -> Result<()> {
         handle_update_spot_market_orders_enabled(ctx, orders_enabled)
+    }
+
+    pub fn update_spot_market_name(
+        ctx: Context<AdminUpdateSpotMarket>,
+        name: [u8; 32],
+    ) -> Result<()> {
+        handle_update_spot_market_name(ctx, name)
     }
 
     pub fn update_perp_market_status(

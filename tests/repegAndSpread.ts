@@ -76,7 +76,7 @@ async function iterClosePosition(
 	marketIndex: number,
 	oraclePriceData: OraclePriceData
 ) {
-	let userPosition = driftClient.getUser().getUserPosition(marketIndex);
+	let userPosition = driftClient.getUser().getPerpPosition(marketIndex);
 	let posDirection;
 	let limitPrice: BN;
 
@@ -117,7 +117,7 @@ async function iterClosePosition(
 			).meta.logMessages
 		);
 		await driftClient.fetchAccounts();
-		userPosition = driftClient.getUser().getUserPosition(marketIndex);
+		userPosition = driftClient.getUser().getPerpPosition(marketIndex);
 		console.log(
 			'userPosition.baseAssetAmount: ',
 			userPosition.baseAssetAmount.toString()
@@ -510,7 +510,7 @@ describe('repeg and spread amm', () => {
 		// 		'4229493402'
 		// ); // $4229.49
 
-		let userPosition = driftClient.getUser().getUserPosition(marketIndex);
+		let userPosition = driftClient.getUser().getPerpPosition(marketIndex);
 
 		assert(market.amm.maxSlippageRatio == 50);
 		const limitPrice = oraclePriceData.price
@@ -535,7 +535,7 @@ describe('repeg and spread amm', () => {
 					.meta.logMessages
 			);
 			await driftClient.fetchAccounts();
-			userPosition = driftClient.getUser().getUserPosition(marketIndex);
+			userPosition = driftClient.getUser().getPerpPosition(marketIndex);
 			console.log(
 				'userPosition.baseAssetAmount: ',
 				userPosition.baseAssetAmount.toString()

@@ -16,7 +16,7 @@ pub fn validate_margin(
         return Err(ErrorCode::InvalidMarginRatio);
     }
 
-    if margin_ratio_initial < margin_ratio_maintenance {
+    if margin_ratio_initial <= margin_ratio_maintenance {
         return Err(ErrorCode::InvalidMarginRatio);
     }
 

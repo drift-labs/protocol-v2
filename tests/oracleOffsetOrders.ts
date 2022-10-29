@@ -192,7 +192,7 @@ describe('oracle offset', () => {
 		);
 
 		await driftClientUser.fetchAccounts();
-		const position = driftClientUser.getUserPosition(marketIndex);
+		const position = driftClientUser.getPerpPosition(marketIndex);
 		const breakEvenPrice = calculateBreakEvenPrice(position);
 		const entryPrice = calculateEntryPrice(position);
 		assert(breakEvenPrice.eq(new BN(910003)));
@@ -270,7 +270,7 @@ describe('oracle offset', () => {
 		);
 
 		await driftClientUser.fetchAccounts();
-		const position = driftClientUser.getUserPosition(marketIndex);
+		const position = driftClientUser.getPerpPosition(marketIndex);
 		const breakEvenPrice = calculateBreakEvenPrice(position);
 		console.log(breakEvenPrice.toString());
 		const expectedEntryPrice = new BN(950000);
@@ -349,7 +349,7 @@ describe('oracle offset', () => {
 		);
 
 		await driftClientUser.fetchAccounts();
-		const position = driftClientUser.getUserPosition(marketIndex);
+		const position = driftClientUser.getPerpPosition(marketIndex);
 		const breakEvenPrice = calculateBreakEvenPrice(position);
 		const entryPrice = calculateEntryPrice(position);
 		console.log(breakEvenPrice.toString());
@@ -428,7 +428,7 @@ describe('oracle offset', () => {
 		);
 
 		await driftClientUser.fetchAccounts();
-		const position = driftClientUser.getUserPosition(marketIndex);
+		const position = driftClientUser.getPerpPosition(marketIndex);
 		const entryPrice = calculateBreakEvenPrice(position);
 		console.log(entryPrice.toString());
 		const expectedEntryPrice = PRICE_PRECISION.add(priceOffset);

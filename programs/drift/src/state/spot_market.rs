@@ -27,6 +27,7 @@ pub struct SpotMarket {
     pub oracle: Pubkey,
     pub mint: Pubkey,
     pub vault: Pubkey,
+    pub name: [u8; 32], // 256 bits
     pub historical_oracle_data: HistoricalOracleData,
     pub historical_index_data: HistoricalIndexData,
     pub revenue_pool: PoolBalance,  // in base asset

@@ -373,9 +373,9 @@ describe('orders', () => {
 		const orderId = 2;
 		await driftClientUser.fetchAccounts();
 		assert(
-			driftClientUser.getUserPosition(marketIndex).openBids.eq(baseAssetAmount)
+			driftClientUser.getPerpPosition(marketIndex).openBids.eq(baseAssetAmount)
 		);
-		assert(driftClientUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
 
 		let order = driftClientUser.getOrder(orderId);
 		await fillerDriftClient.fillPerpOrder(
@@ -404,8 +404,8 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
-		assert(driftClientUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
 
 		order = driftClientUser.getUserAccount().orders[orderIndex.toString()];
 
@@ -495,8 +495,8 @@ describe('orders', () => {
 		const orderId = 3;
 		const orderIndex = new BN(0);
 		await driftClientUser.fetchAccounts();
-		assert(driftClientUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
-		assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
 		let order = driftClientUser.getOrder(orderId);
 		await fillerDriftClient.triggerOrder(
@@ -544,8 +544,8 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		assert(driftClientUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
-		assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
 		order = driftClientUser.getUserAccount().orders[orderIndex.toString()];
 
@@ -642,10 +642,10 @@ describe('orders', () => {
 
 		assert(
 			driftClientUser
-				.getUserPosition(marketIndex)
+				.getPerpPosition(marketIndex)
 				.openAsks.eq(baseAssetAmount.neg())
 		);
-		assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
 		assert(amountToFill.eq(ZERO));
 
@@ -655,7 +655,7 @@ describe('orders', () => {
 
 		await driftClientUser.fetchAccounts();
 		const baseAssetAmountBefore =
-			driftClientUser.getUserPosition(marketIndex).baseAssetAmount;
+			driftClientUser.getPerpPosition(marketIndex).baseAssetAmount;
 		order = driftClientUser.getOrder(orderId);
 		console.log(order);
 		await fillerDriftClient.fillPerpOrder(
@@ -668,7 +668,7 @@ describe('orders', () => {
 
 		await driftClient.cancelOrder(orderId);
 		const baseAssetAmountAfter =
-			driftClientUser.getUserPosition(marketIndex).baseAssetAmount;
+			driftClientUser.getPerpPosition(marketIndex).baseAssetAmount;
 		assert(baseAssetAmountBefore.eq(baseAssetAmountAfter));
 	});
 
@@ -719,10 +719,10 @@ describe('orders', () => {
 
 		assert(
 			driftClientUser
-				.getUserPosition(marketIndex)
+				.getPerpPosition(marketIndex)
 				.openAsks.eq(baseAssetAmount.neg())
 		);
-		assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
 		console.log(amountToFill.toString());
 
@@ -764,10 +764,10 @@ describe('orders', () => {
 
 		assert(
 			driftClientUser
-				.getUserPosition(marketIndex)
+				.getPerpPosition(marketIndex)
 				.openAsks.eq(baseAssetAmount.sub(order2.baseAssetAmountFilled).neg())
 		);
-		assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
 		const amountToFill2 = calculateBaseAssetAmountForAmmToFulfill(
 			order2,
@@ -853,10 +853,10 @@ describe('orders', () => {
 		);
 		assert(
 			driftClientUser
-				.getUserPosition(marketIndex)
+				.getPerpPosition(marketIndex)
 				.openAsks.eq(standardizedBaseAssetAmount.neg())
 		);
-		assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
 		console.log(amountToFill);
 
@@ -870,8 +870,8 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		assert(driftClientUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
-		assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
 		const order1 = driftClientUser.getUserAccount().orders[0];
 		const newMarket1 = driftClient.getPerpMarketAccount(marketIndex);
@@ -896,7 +896,7 @@ describe('orders', () => {
 	it('When in Max leverage short, fill limit long order to reduce to ZERO', async () => {
 		//todo, partial fill wont work on order too large
 		const userLeverage0 = driftClientUser.getLeverage();
-		const prePosition = driftClientUser.getUserPosition(marketIndex);
+		const prePosition = driftClientUser.getPerpPosition(marketIndex);
 
 		console.log(
 			'user initial leverage:',
@@ -975,9 +975,9 @@ describe('orders', () => {
 		const newMarketPriceMove = driftClient.getPerpMarketAccount(marketIndex);
 		const newMarkPricePriceMove = calculateReservePrice(newMarketPriceMove);
 
-		assert(driftClientUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
 		assert(
-			driftClientUser.getUserPosition(marketIndex).openBids.eq(baseAssetAmount)
+			driftClientUser.getPerpPosition(marketIndex).openBids.eq(baseAssetAmount)
 		);
 
 		const userLeveragePriceMove = driftClientUser.getLeverage();
@@ -1019,10 +1019,10 @@ describe('orders', () => {
 		const newMarkPrice1 = calculateReservePrice(newMarket1); // 0 liquidity at current mark price
 
 		const userLeverage = driftClientUser.getLeverage();
-		const postPosition = driftClientUser.getUserPosition(marketIndex);
+		const postPosition = driftClientUser.getPerpPosition(marketIndex);
 
-		assert(driftClientUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
-		assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
 		console.log(
 			'FILLED:',
@@ -1045,7 +1045,7 @@ describe('orders', () => {
 		// assert(userNetGain.lte(ZERO)); // ensure no funny business
 		assert(userLeverage.eq(ZERO));
 		assert(postPosition.baseAssetAmount.eq(ZERO));
-		assert(driftClientUser.getUserPosition(marketIndex).openOrders == 0);
+		assert(driftClientUser.getPerpPosition(marketIndex).openOrders == 0);
 		// await driftClient.closePosition(marketIndex);
 		// await driftClient.cancelOrder(orderId);
 	});
@@ -1058,7 +1058,7 @@ describe('orders', () => {
 			convertToNumber(userLeverage0, TEN_THOUSAND)
 		);
 
-		assert(driftClientUser.getUserPosition(marketIndex).openOrders == 0);
+		assert(driftClientUser.getPerpPosition(marketIndex).openOrders == 0);
 		const direction = PositionDirection.LONG;
 
 		const market = driftClient.getPerpMarketAccount(marketIndex);
@@ -1122,15 +1122,15 @@ describe('orders', () => {
 			0
 		);
 
-		assert(driftClientUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
 
 		console.log(
-			driftClientUser.getUserPosition(marketIndex).openBids.toString(),
+			driftClientUser.getPerpPosition(marketIndex).openBids.toString(),
 			'vs',
 			baseAssetAmount.toString()
 		);
 		assert(
-			driftClientUser.getUserPosition(marketIndex).openBids.eq(baseAssetAmount)
+			driftClientUser.getPerpPosition(marketIndex).openBids.eq(baseAssetAmount)
 		);
 
 		console.log(amountToFill);
@@ -1170,8 +1170,8 @@ describe('orders', () => {
 			'\n'
 		);
 
-		assert(driftClientUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
-		assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 	});
 
 	it('When in Max leverage long, fill limit short order to flip to max leverage short', async () => {
@@ -1179,7 +1179,7 @@ describe('orders', () => {
 		// (using linear assumptions since it is smaller base amt)
 
 		const userLeverage0 = driftClientUser.getLeverage();
-		const prePosition = driftClientUser.getUserPosition(marketIndex);
+		const prePosition = driftClientUser.getPerpPosition(marketIndex);
 
 		console.log(
 			'user initial leverage:',
@@ -1250,15 +1250,15 @@ describe('orders', () => {
 		);
 		console.log(amountToFill.toString());
 		console.log(
-			driftClientUser.getUserPosition(marketIndex).openAsks.toString()
+			driftClientUser.getPerpPosition(marketIndex).openAsks.toString()
 		);
 
 		assert(
 			driftClientUser
-				.getUserPosition(marketIndex)
+				.getPerpPosition(marketIndex)
 				.openAsks.eq(baseAssetAmount.neg())
 		);
-		assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
@@ -1311,13 +1311,13 @@ describe('orders', () => {
 		const userTPV = driftClientUser.getTotalPerpPositionValue();
 
 		const userLeverage = driftClientUser.getLeverage();
-		const postPosition = driftClientUser.getUserPosition(marketIndex);
+		const postPosition = driftClientUser.getPerpPosition(marketIndex);
 
 		// console.log(
-		// 	driftClientUser.getUserPosition(marketIndex).openAsks.toString()
+		// 	driftClientUser.getPerpPosition(marketIndex).openAsks.toString()
 		// );
-		// assert(driftClientUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
-		// assert(driftClientUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		// assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
+		// assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
 		console.log(
 			'FILLED:',
@@ -1376,7 +1376,7 @@ describe('orders', () => {
 		const price = new BN('1330000').add(PRICE_PRECISION.div(new BN(40)));
 
 		await driftClientUser.fetchAccounts();
-		const prePosition = driftClientUser.getUserPosition(marketIndex);
+		const prePosition = driftClientUser.getPerpPosition(marketIndex);
 		console.log(prePosition);
 		assert(prePosition.baseAssetAmount.eq(ZERO)); // no existing position
 
@@ -1417,7 +1417,7 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const postPosition = driftClientUser.getUserPosition(marketIndex);
+		const postPosition = driftClientUser.getPerpPosition(marketIndex);
 		console.log(
 			'User position: ',
 			convertToNumber(new BN(0), AMM_RESERVE_PRECISION),

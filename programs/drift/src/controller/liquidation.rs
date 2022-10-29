@@ -1519,8 +1519,8 @@ pub fn resolve_perp_bankruptcy(
     market_index: u16,
     bankrupt_user: &mut User,
     bankrupt_user_key: &Pubkey,
-    delever_user: Option<&mut User>,
-    delever_user_key: Option<&Pubkey>,
+    clawback_user: Option<&mut User>,
+    clawback_user_key: Option<&Pubkey>,
     liquidator: &mut User,
     liquidator_key: &Pubkey,
     perp_market_map: &PerpMarketMap,
@@ -1611,7 +1611,7 @@ pub fn resolve_perp_bankruptcy(
 
     // must socialise losses among users in market
     let mut cumulative_funding_rate_delta: i128 = 0;
-    let mut delever_user_payment: i128 = 0;
+    let mut clawback_user_payment: i128 = 0;
     // socialize loss
     if loss_to_socialize < 0 {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -1659,9 +1659,9 @@ pub fn resolve_perp_bankruptcy(
                 .cumulative_funding_rate_short
                 .safe_sub(cumulative_funding_rate_delta)?;
         } else {
-            delever_user_payment = if let Some(delever_user) = delever_user {
+            clawback_user_payment = if let Some(clawback_user) = clawback_user {
                 let free_collateral = calculate_free_collateral(
-                    delever_user,
+                    clawback_user,
                     perp_market_map,
                     spot_market_map,
                     oracle_map,
@@ -1669,18 +1669,18 @@ pub fn resolve_perp_bankruptcy(
                 )?;
 
                 if free_collateral > 0 {
-                    let deleverage_user_position =
-                        delever_user.get_perp_position_mut(market_index).unwrap();
+                    let clawback_user_position =
+                        clawback_user.get_perp_position_mut(market_index).unwrap();
                     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
                     let deleverage_user_stats = DeleverageUserStats {
-                        base_asset_amount: deleverage_user_position.base_asset_amount,
-                        quote_asset_amount: deleverage_user_position.quote_asset_amount,
-                        quote_break_even_amount: deleverage_user_position.quote_break_even_amount,
+                        base_asset_amount: clawback_user_position.base_asset_amount,
+                        quote_asset_amount: clawback_user_position.quote_asset_amount,
+                        quote_break_even_amount: clawback_user_position.quote_break_even_amount,
                         free_collateral,
                     };
 
-                    let deleverage_user_payment = calculate_perp_market_deleverage_payment(
+                    let clawback_user_payment = calculate_perp_market_deleverage_payment(
                         loss_to_socialize,
                         deleverage_user_stats,
                         &market,
@@ -1690,8 +1690,7 @@ pub fn resolve_perp_bankruptcy(
                         bankrupt_user.force_get_perp_position_mut(market_index)?;
 
                     validate!(
-                        deleverage_user_payment >= 0
-                            && bankrupt_perp_position.quote_asset_amount < 0,
+                        clawback_user_payment >= 0 && bankrupt_perp_position.quote_asset_amount < 0,
                         ErrorCode::DefaultError,
                         "Deleverage User Payment to resolve bankruptcy mismatched"
                     )?;
@@ -1699,19 +1698,19 @@ pub fn resolve_perp_bankruptcy(
                     update_quote_asset_amount(
                         bankrupt_perp_position,
                         &mut market,
-                        deleverage_user_payment.cast()?,
+                        clawback_user_payment.cast()?,
                     )?;
 
                     let delever_perp_position =
-                        delever_user.force_get_perp_position_mut(market_index)?;
+                        clawback_user.force_get_perp_position_mut(market_index)?;
 
                     update_quote_asset_and_break_even_amount(
                         delever_perp_position,
                         &mut market,
-                        -deleverage_user_payment.cast()?,
+                        -clawback_user_payment.cast()?,
                     )?;
 
-                    deleverage_user_payment
+                    clawback_user_payment
                 } else {
                     0
                 }
@@ -1742,8 +1741,8 @@ pub fn resolve_perp_bankruptcy(
             market_index,
             if_payment,
             pnl: loss,
-            delever_user_key: delever_user_key.copied(),
-            delever_user_payment: Some(delever_user_payment.unsigned_abs()),
+            clawback_user: clawback_user_key,
+            clawback_user_payment: Some(clawback_user_payment.unsigned_abs()),
             cumulative_funding_rate_delta,
         },
         ..LiquidationRecord::default()

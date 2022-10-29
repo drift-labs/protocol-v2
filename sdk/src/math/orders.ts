@@ -21,7 +21,7 @@ export function isOrderRiskIncreasing(user: User, order: Order): boolean {
 	}
 
 	const position =
-		user.getUserPosition(order.marketIndex) ||
+		user.getPerpPosition(order.marketIndex) ||
 		user.getEmptyPosition(order.marketIndex);
 
 	// if no position exists, it's risk increasing
@@ -62,7 +62,7 @@ export function isOrderRiskIncreasingInSameDirection(
 	}
 
 	const position =
-		user.getUserPosition(order.marketIndex) ||
+		user.getPerpPosition(order.marketIndex) ||
 		user.getEmptyPosition(order.marketIndex);
 
 	// if no position exists, it's risk increasing
@@ -92,7 +92,7 @@ export function isOrderReduceOnly(user: User, order: Order): boolean {
 	}
 
 	const position =
-		user.getUserPosition(order.marketIndex) ||
+		user.getPerpPosition(order.marketIndex) ||
 		user.getEmptyPosition(order.marketIndex);
 
 	// if position is long and order is long
