@@ -547,6 +547,24 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
+	public async updateSpotMarketName(
+		spotMarketIndex: number,
+		name: string
+	): Promise<TransactionSignature> {
+		const nameBuffer = encodeName(name);
+
+		return await this.program.rpc.updateSpotMarketName(nameBuffer, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				spotMarket: await getSpotMarketPublicKey(
+					this.program.programId,
+					spotMarketIndex
+				),
+			},
+		});
+	}
+
 	public async updatePerpMarketMaxSpread(
 		perpMarketIndex: number,
 		maxSpread: number
@@ -1178,7 +1196,7 @@ export class AdminClient extends DriftClient {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					perpMarket: await getSpotMarketPublicKey(
+					spotMarket: await getSpotMarketPublicKey(
 						this.program.programId,
 						spotMarketIndex
 					),

@@ -2897,6 +2897,37 @@
       ]
     },
     {
+      "name": "updateSpotMarketName",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketStatus",
       "accounts": [
         {
@@ -7182,8 +7213,8 @@
     },
     {
       "code": 6007,
-      "name": "MarketIndexNotInitialized",
-      "msg": "Market Index Not Initialized"
+      "name": "MarketDelisted",
+      "msg": "Market Delisted"
     },
     {
       "code": 6008,
@@ -8209,6 +8240,11 @@
       "code": 6212,
       "name": "SpotOrdersDisabled",
       "msg": "SpotOrdersDisabled"
+    },
+    {
+      "code": 6213,
+      "name": "MarketBeingInitialized",
+      "msg": "Market Being Initialized"
     }
   ]
 }
