@@ -1614,26 +1614,35 @@ pub fn resolve_perp_bankruptcy(
     let mut clawback_user_payment: i128 = 0;
     // socialize loss
     if loss_to_socialize < 0 {
-        let mut market = perp_market_map.get_ref_mut(&market_index)?;
+        let market = perp_market_map.get_ref_mut(&market_index)?;
 
-        let cost_per_base = loss_to_socialize
-            .abs()
-            .safe_mul(BASE_PRECISION_I128)?
-            .safe_div(
-                market
-                    .amm
-                    .base_asset_amount_long
-                    .safe_add(market.amm.base_asset_amount_short.abs())?,
-            )?;
+        let total_base = market
+            .amm
+            .base_asset_amount_long
+            .safe_add(market.amm.base_asset_amount_short.abs())?;
 
-        if cost_per_base
-            <= market
-                .amm
-                .order_tick_size
-                .cast::<i128>()?
-                .safe_mul(MAX_FUNDING_SOCIAL_LOSS_MULT)?
-            || market.amm.order_tick_size == 0
+        let cost_per_base = if total_base > 0 {
+            loss_to_socialize
+                .abs()
+                .safe_mul(BASE_PRECISION_I128)?
+                .safe_div(total_base)?
+        } else {
+            0
+        };
+
+        let order_tick_size = market.amm.order_tick_size;
+
+        drop(market);
+
+        if total_base > 0
+            && (cost_per_base
+                <= order_tick_size
+                    .cast::<i128>()?
+                    .safe_mul(MAX_FUNDING_SOCIAL_LOSS_MULT)?
+                || order_tick_size == 0)
         {
+            msg!("bankruptcy resolution with funding rates");
+            let mut market = perp_market_map.get_ref_mut(&market_index)?;
             cumulative_funding_rate_delta =
                 calculate_funding_rate_deltas_to_resolve_bankruptcy(loss_to_socialize, &market)?;
 
@@ -1659,16 +1668,23 @@ pub fn resolve_perp_bankruptcy(
                 .cumulative_funding_rate_short
                 .safe_sub(cumulative_funding_rate_delta)?;
         } else {
+            msg!("bankruptcy resolution with clawback");
+
             clawback_user_payment = if let Some(clawback_user) = clawback_user {
-                let free_collateral = calculate_free_collateral(
+                let clawback_user_free_collateral = calculate_free_collateral(
                     clawback_user,
                     perp_market_map,
                     spot_market_map,
                     oracle_map,
                     MarginRequirementType::Maintenance,
                 )?;
+                msg!(
+                    "clawback_user_free_collateral={}",
+                    clawback_user_free_collateral
+                );
 
-                if free_collateral > 0 {
+                if clawback_user_free_collateral > 0 {
+                    let mut market = perp_market_map.get_ref_mut(&market_index)?;
                     let clawback_user_position =
                         clawback_user.get_perp_position_mut(market_index).unwrap();
                     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
@@ -1677,7 +1693,7 @@ pub fn resolve_perp_bankruptcy(
                         base_asset_amount: clawback_user_position.base_asset_amount,
                         quote_asset_amount: clawback_user_position.quote_asset_amount,
                         quote_break_even_amount: clawback_user_position.quote_break_even_amount,
-                        free_collateral,
+                        free_collateral: clawback_user_free_collateral,
                     };
 
                     let clawback_user_payment = calculate_perp_market_deleverage_payment(
@@ -1717,6 +1733,7 @@ pub fn resolve_perp_bankruptcy(
             } else {
                 0
             };
+            msg!("clawback_user_payment={}", clawback_user_payment);
         }
     }
 
