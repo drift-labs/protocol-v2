@@ -247,7 +247,7 @@ pub enum OrderActionExplanation {
     OraclePriceBreachedLimitPrice,
     MarketOrderFilledToLimitPrice,
     OrderExpired,
-    CanceledForLiquidation,
+    Liquidation,
     OrderFilledWithAMM,
     OrderFilledWithAMMJit,
     OrderFilledWithMatch,
@@ -335,6 +335,7 @@ pub struct LiquidatePerpRecord {
     pub fill_record_id: u64,
     pub user_order_id: u32,
     pub liquidator_order_id: u32,
+    pub liquidator_fee: u64,
     pub if_fee: u64,
 }
 

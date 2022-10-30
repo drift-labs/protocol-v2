@@ -4579,6 +4579,10 @@
             "type": "u32"
           },
           {
+            "name": "liquidatorFee",
+            "type": "u64"
+          },
+          {
             "name": "ifFee",
             "type": "u64"
           }
@@ -5875,7 +5879,7 @@
             "name": "OrderExpired"
           },
           {
-            "name": "CanceledForLiquidation"
+            "name": "Liquidation"
           },
           {
             "name": "OrderFilledWithAMM"

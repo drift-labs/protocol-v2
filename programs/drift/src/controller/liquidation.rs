@@ -41,8 +41,8 @@ use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::state::events::{
     LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
-    LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderActionExplanation,
-    PerpBankruptcyRecord, SpotBankruptcyRecord,
+    LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction, OrderActionExplanation,
+    OrderActionRecord, OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord,
 };
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
@@ -50,7 +50,7 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
-use crate::state::user::{User, UserStats};
+use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::validate;
 
 #[cfg(test)]
@@ -155,7 +155,7 @@ pub fn liquidate_perp(
         oracle_map,
         now,
         slot,
-        OrderActionExplanation::CanceledForLiquidation,
+        OrderActionExplanation::Liquidation,
         None,
         None,
         None,
@@ -292,84 +292,92 @@ pub fn liquidate_perp(
         perp_market_map.get_ref(&market_index)?.amm.order_step_size,
     )?;
 
-    let liquidation_multiplier = calculate_liquidation_multiplier(
-        liquidation_fee,
-        if user.perp_positions[position_index].base_asset_amount > 0 {
-            LiquidationMultiplierType::Discount // Sell at discount if user is long
-        } else {
-            LiquidationMultiplierType::Premium // premium if user is short
-        },
-    )?;
-
     // Make sure liquidator enters at better than limit price
     if let Some(limit_price) = limit_price {
-        let liquidation_price = oracle_price
-            .cast::<u128>()?
-            .safe_mul(liquidation_multiplier.cast()?)?
-            .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
-            .cast::<u64>()?;
-
         match user.perp_positions[position_index].get_direction() {
             PositionDirection::Long => validate!(
-                liquidation_price <= limit_price.cast()?,
+                oracle_price <= limit_price.cast()?,
                 ErrorCode::LiquidationDoesntSatisfyLimitPrice,
-                "limit price ({}) > liquidation price ({})",
+                "limit price ({}) > oracle price ({})",
                 limit_price,
-                liquidation_price
+                oracle_price
             )?,
             PositionDirection::Short => validate!(
-                liquidation_price >= limit_price.cast()?,
+                oracle_price >= limit_price.cast()?,
                 ErrorCode::LiquidationDoesntSatisfyLimitPrice,
-                "limit price ({}) < liquidation price ({})",
+                "limit price ({}) < oracle price ({})",
                 limit_price,
-                liquidation_price
+                oracle_price
             )?,
         }
     }
 
     let base_asset_value =
-        calculate_base_asset_value_with_oracle_price(base_asset_amount.cast()?, oracle_price)?;
-    let quote_asset_amount = base_asset_value
-        .safe_mul(liquidation_multiplier.cast()?)?
+        calculate_base_asset_value_with_oracle_price(base_asset_amount.cast()?, oracle_price)?
+            .cast::<u64>()?;
+
+    let liquidator_fee = -base_asset_value
+        .cast::<u128>()?
+        .safe_mul(liquidation_fee.cast()?)?
         .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
-        .cast::<u64>()?;
+        .cast::<i64>()?;
 
     let if_fee = -base_asset_value
+        .cast::<u128>()?
         .safe_mul(if_liquidation_fee.cast()?)?
         .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
         .cast::<i64>()?;
 
-    user_stats.update_taker_volume_30d(quote_asset_amount, now)?;
-    liquidator_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+    user_stats.update_taker_volume_30d(base_asset_value, now)?;
+    liquidator_stats.update_maker_volume_30d(base_asset_value, now)?;
 
     let user_position_delta = get_position_delta_for_fill(
         base_asset_amount,
-        quote_asset_amount,
+        base_asset_value,
         user.perp_positions[position_index].get_direction_to_close(),
     )?;
 
     let liquidator_position_delta = get_position_delta_for_fill(
         base_asset_amount,
-        quote_asset_amount,
+        base_asset_value,
         user.perp_positions[position_index].get_direction(),
     )?;
 
-    {
+    let (
+        user_existing_position_direction,
+        user_position_direction_to_close,
+        liquidator_existing_position_direction,
+    ) = {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let user_position = user.get_perp_position_mut(market_index).unwrap();
+        let user_existing_position_direction = user_position.get_direction();
+        let user_position_direction_to_close = user_position.get_direction_to_close();
         update_position_and_market(user_position, &mut market, &user_position_delta)?;
+        update_quote_asset_and_break_even_amount(user_position, &mut market, liquidator_fee)?;
         update_quote_asset_and_break_even_amount(user_position, &mut market, if_fee)?;
 
         let liquidator_position = liquidator
             .force_get_perp_position_mut(market_index)
             .unwrap();
+        let liquidator_existing_position_direction = liquidator_position.get_direction();
         update_position_and_market(liquidator_position, &mut market, &liquidator_position_delta)?;
+        update_quote_asset_and_break_even_amount(
+            liquidator_position,
+            &mut market,
+            -liquidator_fee,
+        )?;
 
         market.amm.total_liquidation_fee = market
             .amm
             .total_liquidation_fee
             .safe_add(if_fee.unsigned_abs().cast()?)?;
+
+        (
+            user_existing_position_direction,
+            user_position_direction_to_close,
+            liquidator_existing_position_direction,
+        )
     };
 
     if base_asset_amount >= base_asset_amount_to_cover_margin_shortage {
@@ -387,13 +395,96 @@ pub fn liquidate_perp(
         "Liquidator doesnt have enough collateral to take over perp position"
     )?;
 
-    // Increment ids so users can make order records off chain
+    // get ids for order fills
     let user_order_id = get_then_update_id!(user, next_order_id);
     let liquidator_order_id = get_then_update_id!(liquidator, next_order_id);
     let fill_record_id = {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
         get_then_update_id!(market, next_fill_record_id)
     };
+
+    let user_order = Order {
+        slot,
+        base_asset_amount,
+        order_id: user_order_id,
+        market_index,
+        status: OrderStatus::Open,
+        order_type: OrderType::Market,
+        market_type: MarketType::Perp,
+        direction: user_position_direction_to_close,
+        existing_position_direction: user_existing_position_direction,
+        ..Order::default()
+    };
+
+    emit!(OrderRecord {
+        ts: now,
+        user: *user_key,
+        order: user_order
+    });
+
+    let liquidator_order = Order {
+        slot,
+        price: if let Some(price) = limit_price {
+            price
+        } else {
+            0
+        },
+        base_asset_amount,
+        order_id: liquidator_order_id,
+        market_index,
+        status: OrderStatus::Open,
+        order_type: if limit_price.is_some() {
+            OrderType::Limit
+        } else {
+            OrderType::Market
+        },
+        market_type: MarketType::Perp,
+        direction: user_existing_position_direction,
+        existing_position_direction: liquidator_existing_position_direction,
+        ..Order::default()
+    };
+
+    emit!(OrderRecord {
+        ts: now,
+        user: *liquidator_key,
+        order: liquidator_order
+    });
+
+    let fill_record = OrderActionRecord {
+        ts: now,
+        action: OrderAction::Fill,
+        action_explanation: OrderActionExplanation::Liquidation,
+        market_index,
+        market_type: MarketType::Perp,
+        filler: None,
+        filler_reward: None,
+        fill_record_id: Some(fill_record_id),
+        base_asset_amount_filled: Some(base_asset_amount),
+        quote_asset_amount_filled: Some(base_asset_value),
+        taker_fee: Some(
+            liquidator_fee
+                .unsigned_abs()
+                .safe_add(if_fee.unsigned_abs())?,
+        ),
+        maker_fee: Some(liquidator_fee),
+        referrer_reward: None,
+        quote_asset_amount_surplus: None,
+        spot_fulfillment_method_fee: None,
+        taker: Some(*user_key),
+        taker_order_id: Some(user_order_id),
+        taker_order_direction: Some(user_position_direction_to_close),
+        taker_order_base_asset_amount: Some(base_asset_amount),
+        taker_order_cumulative_base_asset_amount_filled: Some(base_asset_amount),
+        taker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value),
+        maker: Some(*liquidator_key),
+        maker_order_id: Some(liquidator_order_id),
+        maker_order_direction: Some(user_existing_position_direction),
+        maker_order_base_asset_amount: Some(base_asset_amount),
+        maker_order_cumulative_base_asset_amount_filled: Some(base_asset_amount),
+        maker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value),
+        oracle_price,
+    };
+    emit!(fill_record);
 
     emit!(LiquidationRecord {
         ts: now,
@@ -414,6 +505,7 @@ pub fn liquidate_perp(
             user_order_id,
             liquidator_order_id,
             fill_record_id,
+            liquidator_fee: liquidator_fee.abs().cast()?,
             if_fee: if_fee.abs().cast()?,
         },
         ..LiquidationRecord::default()
@@ -588,7 +680,7 @@ pub fn liquidate_spot(
         oracle_map,
         now,
         slot,
-        OrderActionExplanation::CanceledForLiquidation,
+        OrderActionExplanation::Liquidation,
         None,
         None,
         None,
@@ -962,7 +1054,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         oracle_map,
         now,
         slot,
-        OrderActionExplanation::CanceledForLiquidation,
+        OrderActionExplanation::Liquidation,
         None,
         None,
         None,
@@ -1318,7 +1410,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         oracle_map,
         now,
         slot,
-        OrderActionExplanation::CanceledForLiquidation,
+        OrderActionExplanation::Liquidation,
         None,
         None,
         None,

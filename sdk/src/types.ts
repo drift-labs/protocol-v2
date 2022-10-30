@@ -327,6 +327,7 @@ export type LiquidatePerpRecord = {
 	userOrderId: BN;
 	liquidatorOrderId: BN;
 	fillRecordId: BN;
+	liquidatorFee: BN;
 	ifFee: BN;
 };
 
