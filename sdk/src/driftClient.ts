@@ -420,8 +420,9 @@ export class DriftClient {
 
 		const tx = new Transaction();
 		if (subAccountId === 0) {
-			// not the safest assumption, can explicitly check if user stats account exists if it causes problems
-			tx.add(await this.getInitializeUserStatsIx());
+			if (!this.getUserStatsAccountPublicKey()) {
+				tx.add(await this.getInitializeUserStatsIx());
+			}
 		}
 		tx.add(initializeUserAccountIx);
 		const { txSig } = await this.txSender.send(tx, [], this.opts);
