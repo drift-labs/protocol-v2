@@ -1146,7 +1146,11 @@ export class DriftClient {
 				  );
 
 		if (subAccountId === 0) {
-			tx.add(await this.getInitializeUserStatsIx());
+			if (
+				!(await this.checkIfAccountExists(this.getUserStatsAccountPublicKey()))
+			) {
+				tx.add(await this.getInitializeUserStatsIx());
+			}
 		}
 		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 
@@ -1205,7 +1209,11 @@ export class DriftClient {
 		const tx = new Transaction().add(createAssociatedAccountIx).add(mintToIx);
 
 		if (subAccountId === 0) {
-			tx.add(await this.getInitializeUserStatsIx());
+			if (
+				!(await this.checkIfAccountExists(this.getUserStatsAccountPublicKey()))
+			) {
+				tx.add(await this.getInitializeUserStatsIx());
+			}
 		}
 		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 
