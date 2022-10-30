@@ -34,7 +34,8 @@ export class ContractTier {
 	static readonly A = { a: {} };
 	static readonly B = { b: {} };
 	static readonly C = { c: {} };
-	static readonly Speculative = { speculative: {} };
+	static readonly SPECULATIVE = { speculative: {} };
+	static readonly ISOLATED = { isolated: {} };
 }
 
 export class AssetTier {
@@ -189,6 +190,7 @@ export type DepositRecord = {
 	marketWithdrawBalance: BN;
 	marketCumulativeDepositInterest: BN;
 	marketCumulativeBorrowInterest: BN;
+	depositRecordId: BN;
 	transferUser?: PublicKey;
 };
 
@@ -359,6 +361,9 @@ export type LiquidatePerpPnlForDepositRecord = {
 export type PerpBankruptcyRecord = {
 	marketIndex: number;
 	pnl: BN;
+	ifPayment: BN;
+	clawbackUser: PublicKey | null;
+	clawbackUserPayment: BN | null;
 	cumulativeFundingRateDelta: BN;
 };
 
@@ -366,6 +371,7 @@ export type SpotBankruptcyRecord = {
 	marketIndex: number;
 	borrowAmount: BN;
 	cumulativeDepositInterestDelta: BN;
+	ifPayment: BN;
 };
 
 export type SettlePnlRecord = {
@@ -440,6 +446,7 @@ export type StateAccount = {
 export type PerpMarketAccount = {
 	status: MarketStatus;
 	contractType: ContractType;
+	contractTier: ContractTier;
 	expiryTs: BN;
 	expiryPrice: BN;
 	marketIndex: number;
@@ -451,6 +458,8 @@ export type PerpMarketAccount = {
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
 	nextFillRecordId: BN;
+	nextFundingRateRecordId: BN;
+	nextCurveRecordId: BN;
 	pnlPool: PoolBalance;
 	liquidatorFee: number;
 	ifLiquidationFee: number;
@@ -538,12 +547,15 @@ export type SpotMarketAccount = {
 	depositTokenTwap: BN;
 	borrowTokenTwap: BN;
 	utilizationTwap: BN;
+	nextDepositRecordId: BN;
 
 	orderStepSize: BN;
 	orderTickSize: BN;
 	nextFillRecordId: BN;
 	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
+
+	ordersEnabled: boolean;
 };
 
 export type PoolBalance = {
@@ -560,6 +572,7 @@ export type AMM = {
 	lastMarkPriceTwap: BN;
 	lastMarkPriceTwap5min: BN;
 	lastMarkPriceTwapTs: BN;
+	lastTradeTs: BN;
 
 	oracle: PublicKey;
 	oracleSource: OracleSource;
@@ -573,7 +586,11 @@ export type AMM = {
 	pegMultiplier: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
-	cumulativeFundingRateLp: BN;
+	last24hAvgFundingRate: BN;
+	lastFundingRateShort: BN;
+	lastFundingRateLong: BN;
+
+	totalLiquidationFee: BN;
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
@@ -590,11 +607,13 @@ export type AMM = {
 	baseAssetAmountShort: BN;
 	quoteAssetAmount: BN;
 	terminalQuoteAssetReserve: BN;
+	concentrationCoef: BN;
 	feePool: PoolBalance;
 	totalExchangeFee: BN;
 	totalMmFee: BN;
 	netRevenueSinceLastFunding: BN;
 	lastUpdateSlot: BN;
+	lastOracleNormalisedPrice: BN;
 	lastOracleValid: boolean;
 	lastBidPriceTwap: BN;
 	lastAskPriceTwap: BN;
@@ -606,9 +625,29 @@ export type AMM = {
 	quoteAssetAmountPerLp: BN;
 
 	ammJitIntensity: number;
+	maxOpenInterest: BN;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;
 	cumulativeSocialLoss: BN;
+
+	quoteBreakEvenAmountLong: BN;
+	quoteBreakEvenAmountShort: BN;
+	quoteEntryAmountLong: BN;
+	quoteEntryAmountShort: BN;
+
+	markStd: BN;
+	longIntensityCount: number;
+	longIntensityVolume: BN;
+	shortIntensityCount: number;
+	shortIntensityVolume: BN;
+	volume24h: BN;
+	minOrderSize: BN;
+	maxPositionSize: BN;
+
+	bidBaseAssetReserve: BN;
+	bidQuoteAssetReserve: BN;
+	askBaseAssetReserve: BN;
+	askQuoteAssetReserve: BN;
 };
 
 // # User Account Types
@@ -669,6 +708,7 @@ export type UserAccount = {
 	settledPerpPnl: BN;
 	totalDeposits: BN;
 	totalWithdraws: BN;
+	cumulativePerpFunding: BN;
 };
 
 export type SpotPosition = {

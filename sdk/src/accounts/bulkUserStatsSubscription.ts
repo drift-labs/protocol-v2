@@ -1,4 +1,4 @@
-import { ClearingHouseUserStats } from '../clearingHouseUserStats';
+import { UserStats } from '../userStats';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { PollingUserStatsAccountSubscriber } from './pollingUserStatsAccountSubscriber';
 
@@ -7,7 +7,7 @@ import { PollingUserStatsAccountSubscriber } from './pollingUserStatsAccountSubs
  * @param accountLoader
  */
 export async function bulkPollingUserStatsSubscribe(
-	userStats: ClearingHouseUserStats[],
+	userStats: UserStats[],
 	accountLoader: BulkAccountLoader
 ): Promise<void> {
 	if (userStats.length === 0) {

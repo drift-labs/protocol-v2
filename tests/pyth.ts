@@ -23,16 +23,16 @@ import {
 	PositionDirection,
 	convertToNumber,
 	MarketStatus,
-	Admin,
+	AdminClient,
 	PRICE_PRECISION,
 	FUNDING_RATE_BUFFER_PRECISION,
-	ClearingHouse,
-	ClearingHouseUser,
+	DriftClient,
+	User,
 	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
 
 async function updateFundingRateHelper(
-	clearingHouse: ClearingHouse,
+	driftClient: DriftClient,
 	marketIndex: number,
 	priceFeedAddress: PublicKey,
 	prices: Array<number>
@@ -43,7 +43,7 @@ async function updateFundingRateHelper(
 		const newprice = prices[i];
 		setFeedPrice(anchor.workspace.Pyth, newprice, priceFeedAddress);
 
-		const marketData0 = clearingHouse.getPerpMarketAccount(marketIndex);
+		const marketData0 = driftClient.getPerpMarketAccount(marketIndex);
 		const ammAccountState0 = marketData0.amm;
 		const oraclePx0 = await getFeedData(
 			anchor.workspace.Pyth,
@@ -80,7 +80,7 @@ async function updateFundingRateHelper(
 		const cumulativeFundingRateShortOld =
 			ammAccountState0.cumulativeFundingRateShort;
 		try {
-			const _tx = await clearingHouse.updateFundingRate(
+			const _tx = await driftClient.updateFundingRate(
 				marketIndex,
 				priceFeedAddress
 			);
@@ -90,7 +90,7 @@ async function updateFundingRateHelper(
 
 		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
-		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
+		const marketData = driftClient.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.amm.fundingPeriod;
 
@@ -164,10 +164,10 @@ describe('pyth-oracle', () => {
 	anchor.setProvider(provider);
 	const program = anchor.workspace.Pyth;
 
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
-	let clearingHouse2: ClearingHouse;
+	let driftClient: AdminClient;
+	let driftClient2: DriftClient;
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -177,8 +177,8 @@ describe('pyth-oracle', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	let userAccount: ClearingHouseUser;
-	let userAccount2: ClearingHouseUser;
+	let userAccount: User;
+	let userAccount2: User;
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
@@ -186,7 +186,7 @@ describe('pyth-oracle', () => {
 		const price = 50000;
 		await mockOracle(price, -6);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -197,33 +197,33 @@ describe('pyth-oracle', () => {
 			perpMarketIndexes: [0, 1],
 			spotMarketIndexes: [0],
 		});
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
-		await clearingHouse.initializeUserAccount();
-		userAccount = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		await driftClient.initializeUserAccount();
+		userAccount = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
 		await userAccount.subscribe();
 
-		await clearingHouse.deposit(
+		await driftClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
-		const [_userUSDCAccounts, _user_keys, clearingHouses, userAccountInfos] =
+		const [_userUSDCAccounts, _user_keys, driftClients, userAccountInfos] =
 			await initUserAccounts(1, usdcMint, usdcAmount, provider, [0, 1], [0]);
 
-		clearingHouse2 = clearingHouses[0];
+		driftClient2 = driftClients[0];
 		userAccount2 = userAccountInfos[0];
 
-		// await clearingHouse.depositCollateral(
+		// await driftClient.depositCollateral(
 		// 	await userAccount2.getPublicKey(),
 		// 	usdcAmount,
 		// 	userUSDCAccounts[1].publicKey
@@ -231,10 +231,10 @@ describe('pyth-oracle', () => {
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 		await userAccount.unsubscribe();
 
-		await clearingHouse2.unsubscribe();
+		await driftClient2.unsubscribe();
 		await userAccount2.unsubscribe();
 	});
 
@@ -259,21 +259,18 @@ describe('pyth-oracle', () => {
 		const periodicity = new BN(0); // 1 HOUR
 		const marketIndex = 0;
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
 			new BN(39.99 * PEG_PRECISION.toNumber())
 		);
-		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await updateFundingRateHelper(
-			clearingHouse,
-			marketIndex,
-			priceFeedAddress,
-			[42]
-		);
+		await updateFundingRateHelper(driftClient, marketIndex, priceFeedAddress, [
+			42,
+		]);
 	});
 
 	it('oracle/vamm: funding rate calc2 0hour periodicity', async () => {
@@ -281,25 +278,22 @@ describe('pyth-oracle', () => {
 		const periodicity = new BN(0);
 		const marketIndex = 1;
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
 			new BN(41.7 * PEG_PRECISION.toNumber())
 		);
-		await clearingHouse.updatePerpMarketStatus(
-			marketIndex,
-			MarketStatus.ACTIVE
-		);
+		await driftClient.updatePerpMarketStatus(marketIndex, MarketStatus.ACTIVE);
 
-		// await clearingHouse.moveAmmToPrice(
+		// await driftClient.moveAmmToPrice(
 		// 	marketIndex,
 		// 	new BN(41.5 * PRICE_PRECISION.toNumber())
 		// );
 
 		await updateFundingRateHelper(
-			clearingHouse,
+			driftClient,
 			marketIndex,
 			priceFeedAddress,
 			[41.501, 41.499]
@@ -309,7 +303,7 @@ describe('pyth-oracle', () => {
 	it('oracle/vamm: asym funding rate calc 0hour periodicity', async () => {
 		const marketIndex = 1;
 
-		// await clearingHouse.moveAmmToPrice(
+		// await driftClient.moveAmmToPrice(
 		// 	marketIndex,
 		// 	new BN(41.5 * PRICE_PRECISION.toNumber())
 		// );
@@ -317,37 +311,37 @@ describe('pyth-oracle', () => {
 		console.log(
 			'PRICE',
 			convertToNumber(
-				calculateReservePrice(clearingHouse.getPerpMarketAccount(marketIndex))
+				calculateReservePrice(driftClient.getPerpMarketAccount(marketIndex))
 			)
 		);
 
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION,
 			marketIndex
 		);
 
-		await clearingHouse2.openPosition(
+		await driftClient2.openPosition(
 			PositionDirection.SHORT,
 			BASE_PRECISION.div(new BN(100)),
 			marketIndex
 		);
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 
-		const market = clearingHouse.getPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 
 		console.log('PRICE AFTER', convertToNumber(calculateReservePrice(market)));
 
 		await updateFundingRateHelper(
-			clearingHouse,
+			driftClient,
 			marketIndex,
 			market.amm.oracle,
 			[43.501, 44.499]
 		);
 		await sleep(1000);
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 
-		const marketNew = clearingHouse.getPerpMarketAccount(marketIndex);
+		const marketNew = driftClient.getPerpMarketAccount(marketIndex);
 
 		console.log(
 			'lastOraclePriceTwap before:',

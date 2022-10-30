@@ -6,12 +6,12 @@ import { Program } from '@project-serum/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
-	Admin,
+	AdminClient,
 	BN,
 	PRICE_PRECISION,
-	ClearingHouse,
+	DriftClient,
 	PositionDirection,
-	ClearingHouseUser,
+	User,
 	Wallet,
 	OrderAction,
 	getMarketOrderParams,
@@ -43,10 +43,10 @@ describe('stop limit', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
-	let clearingHouseUser: ClearingHouseUser;
+	let driftClient: AdminClient;
+	let driftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -71,8 +71,8 @@ describe('stop limit', () => {
 
 	const fillerKeyPair = new Keypair();
 	let fillerUSDCAccount: Keypair;
-	let fillerClearingHouse: ClearingHouse;
-	let fillerUser: ClearingHouseUser;
+	let fillerDriftClient: DriftClient;
+	let fillerUser: User;
 
 	const marketIndex = 0;
 	let solUsd;
@@ -98,7 +98,7 @@ describe('stop limit', () => {
 			},
 		];
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -110,41 +110,41 @@ describe('stop limit', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
-		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
 			periodicity,
 			new BN(60000000) // btc-ish price level
 		);
-		await clearingHouse.updatePerpMarketStatus(1, MarketStatus.ACTIVE);
+		await driftClient.updatePerpMarketStatus(1, MarketStatus.ACTIVE);
 
 		[, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
+			await driftClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
 
-		clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		driftClientUser = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftClientUser.subscribe();
 
 		discountMint = await Token.createMint(
 			connection,
@@ -156,7 +156,7 @@ describe('stop limit', () => {
 			TOKEN_PROGRAM_ID
 		);
 
-		await clearingHouse.updateDiscountMint(discountMint.publicKey);
+		await driftClient.updateDiscountMint(discountMint.publicKey);
 
 		discountTokenAccount = await discountMint.getOrCreateAssociatedAccountInfo(
 			provider.wallet.publicKey
@@ -177,7 +177,7 @@ describe('stop limit', () => {
 			provider,
 			fillerKeyPair.publicKey
 		);
-		fillerClearingHouse = new ClearingHouse({
+		fillerDriftClient = new DriftClient({
 			connection,
 			wallet: new Wallet(fillerKeyPair),
 			programID: chProgram.programId,
@@ -189,25 +189,25 @@ describe('stop limit', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await fillerClearingHouse.subscribe();
+		await fillerDriftClient.subscribe();
 
-		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
+		await fillerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			fillerUSDCAccount.publicKey
 		);
 
-		fillerUser = new ClearingHouseUser({
-			clearingHouse: fillerClearingHouse,
-			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		fillerUser = new User({
+			driftClient: fillerDriftClient,
+			userAccountPublicKey: await fillerDriftClient.getUserAccountPublicKey(),
 		});
 		await fillerUser.subscribe();
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
-		await clearingHouseUser.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftClientUser.unsubscribe();
 		await fillerUser.unsubscribe();
-		await fillerClearingHouse.unsubscribe();
+		await fillerDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -218,7 +218,7 @@ describe('stop limit', () => {
 		const limitPrice = PRICE_PRECISION;
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 
-		await clearingHouse.placeAndTakePerpOrder(
+		await driftClient.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.LONG,
@@ -235,30 +235,30 @@ describe('stop limit', () => {
 			triggerCondition,
 		});
 
-		await clearingHouse.placePerpOrder(orderParams);
+		await driftClient.placePerpOrder(orderParams);
 		const orderId = 2;
 		const orderIndex = new BN(0);
-		await clearingHouseUser.fetchAccounts();
-		let order = clearingHouseUser.getOrder(orderId);
+		await driftClientUser.fetchAccounts();
+		let order = driftClientUser.getOrder(orderId);
 
 		await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
-		await clearingHouse.triggerOrder(
+		await driftClient.triggerOrder(
 			userAccountPublicKey,
-			clearingHouseUser.getUserAccount(),
+			driftClientUser.getUserAccount(),
 			order
 		);
 
-		await fillerClearingHouse.fillPerpOrder(
+		await fillerDriftClient.fillPerpOrder(
 			userAccountPublicKey,
-			clearingHouseUser.getUserAccount(),
+			driftClientUser.getUserAccount(),
 			order
 		);
 
-		await clearingHouse.fetchAccounts();
-		await clearingHouseUser.fetchAccounts();
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		order = clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
+		order = driftClientUser.getUserAccount().orders[orderIndex.toString()];
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
@@ -266,7 +266,7 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = clearingHouseUser.getUserAccount().perpPositions[0];
+		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
@@ -287,9 +287,7 @@ describe('stop limit', () => {
 		assert(orderRecord.takerOrderId === expectedOrderId);
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
 		assert(
-			orderRecord.taker.equals(
-				await clearingHouseUser.getUserAccountPublicKey()
-			)
+			orderRecord.taker.equals(await driftClientUser.getUserAccountPublicKey())
 		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
@@ -304,7 +302,7 @@ describe('stop limit', () => {
 		const limitPrice = PRICE_PRECISION;
 		const triggerCondition = OrderTriggerCondition.BELOW;
 
-		await clearingHouse.placeAndTakePerpOrder(
+		await driftClient.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.SHORT,
@@ -321,29 +319,29 @@ describe('stop limit', () => {
 			triggerCondition,
 		});
 
-		await clearingHouse.placePerpOrder(orderParams);
+		await driftClient.placePerpOrder(orderParams);
 		const orderId = 4;
 		const orderIndex = new BN(0);
-		let order = clearingHouseUser.getOrder(orderId);
+		let order = driftClientUser.getOrder(orderId);
 
 		await setFeedPrice(anchor.workspace.Pyth, 0.99, solUsd);
-		await clearingHouse.triggerOrder(
+		await driftClient.triggerOrder(
 			userAccountPublicKey,
-			clearingHouseUser.getUserAccount(),
+			driftClientUser.getUserAccount(),
 			order
 		);
 
-		await fillerClearingHouse.fillPerpOrder(
+		await fillerDriftClient.fillPerpOrder(
 			userAccountPublicKey,
-			clearingHouseUser.getUserAccount(),
+			driftClientUser.getUserAccount(),
 			order
 		);
 
-		await clearingHouse.fetchAccounts();
-		await clearingHouseUser.fetchAccounts();
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		order = clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
+		order = driftClientUser.getUserAccount().orders[orderIndex.toString()];
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
@@ -351,7 +349,7 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = clearingHouseUser.getUserAccount().perpPositions[0];
+		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
@@ -367,9 +365,7 @@ describe('stop limit', () => {
 		assert(orderRecord.takerOrderId === expectedOrderId);
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
 		assert(
-			orderRecord.taker.equals(
-				await clearingHouseUser.getUserAccountPublicKey()
-			)
+			orderRecord.taker.equals(await driftClientUser.getUserAccountPublicKey())
 		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
