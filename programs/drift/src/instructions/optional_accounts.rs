@@ -74,7 +74,7 @@ pub fn get_maker_and_maker_stats<'a>(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn get_referrer_and_referrer_stats<'a>(
+pub fn get_optional_user_and_user_stats<'a>(
     account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
 ) -> DriftResult<(
     Option<AccountLoader<'a, User>>,

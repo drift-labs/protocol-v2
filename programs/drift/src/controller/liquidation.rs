@@ -3,6 +3,8 @@ use std::ops::{Deref, DerefMut};
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
+use crate::math::margin::calculate_free_collateral;
+
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders;
@@ -21,7 +23,10 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::Cast;
-use crate::math::constants::{LIQUIDATION_FEE_PRECISION_U128, SPOT_WEIGHT_PRECISION};
+use crate::math::constants::{
+    BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION_U128, MAX_FUNDING_SOCIAL_LOSS_MULT,
+    SPOT_WEIGHT_PRECISION,
+};
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
@@ -29,7 +34,7 @@ use crate::math::liquidation::{
     calculate_funding_rate_deltas_to_resolve_bankruptcy,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
-    LiquidationMultiplierType,
+    calculate_perp_market_deleverage_payment, DeleverageUserStats, LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
@@ -1512,8 +1517,10 @@ pub fn set_being_liquidated_and_get_liquidation_id(user: &mut User) -> DriftResu
 
 pub fn resolve_perp_bankruptcy(
     market_index: u16,
-    user: &mut User,
-    user_key: &Pubkey,
+    bankrupt_user: &mut User,
+    bankrupt_user_key: &Pubkey,
+    clawback_user: Option<&mut User>,
+    clawback_user_key: Option<&Pubkey>,
     liquidator: &mut User,
     liquidator_key: &Pubkey,
     perp_market_map: &PerpMarketMap,
@@ -1523,7 +1530,7 @@ pub fn resolve_perp_bankruptcy(
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
     validate!(
-        user.is_bankrupt,
+        bankrupt_user.is_bankrupt,
         ErrorCode::UserNotBankrupt,
         "user not bankrupt",
     )?;
@@ -1540,7 +1547,7 @@ pub fn resolve_perp_bankruptcy(
         "liquidator bankrupt",
     )?;
 
-    user.get_perp_position(market_index).map_err(|e| {
+    bankrupt_user.get_perp_position(market_index).map_err(|e| {
         msg!(
             "User does not have a position for perp market {}",
             market_index
@@ -1548,7 +1555,7 @@ pub fn resolve_perp_bankruptcy(
         e
     })?;
 
-    let loss = user
+    let loss = bankrupt_user
         .get_perp_position(market_index)
         .unwrap()
         .quote_asset_amount
@@ -1562,7 +1569,7 @@ pub fn resolve_perp_bankruptcy(
 
     let (margin_requirement, total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
-            user,
+            bankrupt_user,
             perp_market_map,
             MarginRequirementType::Maintenance,
             spot_market_map,
@@ -1596,16 +1603,50 @@ pub fn resolve_perp_bankruptcy(
 
     let loss_to_socialize = loss.safe_add(if_payment.cast::<i128>()?)?;
 
-    let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
-        loss_to_socialize,
-        perp_market_map.get_ref(&market_index)?.deref(),
+    validate!(
+        loss_to_socialize <= 0,
+        ErrorCode::DefaultError,
+        "IF Payment to resolve bankruptcy exceeded bankrupcy loss"
     )?;
 
+    // must socialise losses among users in market
+    let mut cumulative_funding_rate_delta: i128 = 0;
+    let mut clawback_user_payment: i128 = 0;
     // socialize loss
     if loss_to_socialize < 0 {
+        let market = perp_market_map.get_ref_mut(&market_index)?;
+
+        let total_base = market
+            .amm
+            .base_asset_amount_long
+            .safe_add(market.amm.base_asset_amount_short.abs())?;
+
+        let cost_per_base = if total_base > 0 {
+            loss_to_socialize
+                .abs()
+                .safe_mul(BASE_PRECISION_I128)?
+                .safe_div(total_base)?
+        } else {
+            0
+        };
+
+        let order_tick_size = market.amm.order_tick_size;
+
+        drop(market);
+
+        if total_base > 0
+            && (cost_per_base
+                <= order_tick_size
+                    .cast::<i128>()?
+                    .safe_mul(MAX_FUNDING_SOCIAL_LOSS_MULT)?
+                || order_tick_size == 0)
         {
+            msg!("bankruptcy resolution with funding rates");
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
-            let perp_position = user.force_get_perp_position_mut(market_index)?;
+            cumulative_funding_rate_delta =
+                calculate_funding_rate_deltas_to_resolve_bankruptcy(loss_to_socialize, &market)?;
+
+            let perp_position = bankrupt_user.force_get_perp_position_mut(market_index)?;
             update_quote_asset_amount(
                 perp_position,
                 &mut market,
@@ -1626,22 +1667,89 @@ pub fn resolve_perp_bankruptcy(
                 .amm
                 .cumulative_funding_rate_short
                 .safe_sub(cumulative_funding_rate_delta)?;
+        } else {
+            msg!("bankruptcy resolution with clawback");
+
+            clawback_user_payment = if let Some(clawback_user) = clawback_user {
+                let clawback_user_free_collateral = calculate_free_collateral(
+                    clawback_user,
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    MarginRequirementType::Maintenance,
+                )?;
+                msg!(
+                    "clawback_user_free_collateral={}",
+                    clawback_user_free_collateral
+                );
+
+                if clawback_user_free_collateral > 0 {
+                    let mut market = perp_market_map.get_ref_mut(&market_index)?;
+                    let clawback_user_position =
+                        clawback_user.get_perp_position_mut(market_index).unwrap();
+                    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+                    let deleverage_user_stats = DeleverageUserStats {
+                        base_asset_amount: clawback_user_position.base_asset_amount,
+                        quote_asset_amount: clawback_user_position.quote_asset_amount,
+                        quote_break_even_amount: clawback_user_position.quote_break_even_amount,
+                        free_collateral: clawback_user_free_collateral,
+                    };
+
+                    let clawback_user_payment = calculate_perp_market_deleverage_payment(
+                        loss_to_socialize,
+                        deleverage_user_stats,
+                        &market,
+                        oracle_price_data.price,
+                    )?;
+                    let bankrupt_perp_position =
+                        bankrupt_user.force_get_perp_position_mut(market_index)?;
+
+                    validate!(
+                        clawback_user_payment >= 0 && bankrupt_perp_position.quote_asset_amount < 0,
+                        ErrorCode::DefaultError,
+                        "Deleverage User Payment to resolve bankruptcy mismatched"
+                    )?;
+
+                    update_quote_asset_amount(
+                        bankrupt_perp_position,
+                        &mut market,
+                        clawback_user_payment.cast()?,
+                    )?;
+
+                    let delever_perp_position =
+                        clawback_user.force_get_perp_position_mut(market_index)?;
+
+                    update_quote_asset_and_break_even_amount(
+                        delever_perp_position,
+                        &mut market,
+                        -clawback_user_payment.cast()?,
+                    )?;
+
+                    clawback_user_payment
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+            msg!("clawback_user_payment={}", clawback_user_payment);
         }
     }
 
     // exit bankruptcy
-    if !is_user_bankrupt(user) {
-        user.is_bankrupt = false;
-        user.is_being_liquidated = false;
+    if !is_user_bankrupt(bankrupt_user) {
+        bankrupt_user.is_bankrupt = false;
+        bankrupt_user.is_being_liquidated = false;
     }
 
-    let liquidation_id = user.next_liquidation_id.safe_sub(1)?;
+    let liquidation_id = bankrupt_user.next_liquidation_id.safe_sub(1)?;
 
     emit!(LiquidationRecord {
         ts: now,
         liquidation_id,
         liquidation_type: LiquidationType::PerpBankruptcy,
-        user: *user_key,
+        user: *bankrupt_user_key,
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
@@ -1650,8 +1758,12 @@ pub fn resolve_perp_bankruptcy(
             market_index,
             if_payment,
             pnl: loss,
-            clawback_user: None,
-            clawback_user_payment: None,
+            clawback_user: clawback_user_key.copied(),
+            clawback_user_payment: if clawback_user_payment == 0 {
+                None
+            } else {
+                Some(clawback_user_payment.unsigned_abs())
+            },
             cumulative_funding_rate_delta,
         },
         ..LiquidationRecord::default()

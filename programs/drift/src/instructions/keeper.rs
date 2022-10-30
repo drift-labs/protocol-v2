@@ -4,7 +4,7 @@ use anchor_spl::token::{Token, TokenAccount};
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
+    get_maker_and_maker_stats, get_optional_user_and_user_stats, get_serum_fulfillment_accounts,
     get_spot_market_vaults, load_maps, AccountMaps,
 };
 use crate::load_mut;
@@ -88,7 +88,7 @@ fn fill_order(
         None => (None, None),
     };
 
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let (referrer, referrer_stats) = get_optional_user_and_user_stats(remaining_accounts_iter)?;
 
     controller::repeg::update_amm(
         market_index,
@@ -196,7 +196,7 @@ fn fill_spot_order(
         None => (None, None),
     };
 
-    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let (_referrer, _referrer_stats) = get_optional_user_and_user_stats(remaining_accounts_iter)?;
 
     let mut serum_fulfillment_params = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
@@ -834,6 +834,18 @@ pub fn handle_resolve_perp_bankruptcy(
         ErrorCode::InvalidSpotMarketAccount
     )?;
 
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+    let (delever_user_loader, _) = get_optional_user_and_user_stats(remaining_accounts_iter)?;
+    let (mut delever_user, delever_user_key) = match delever_user_loader.as_ref() {
+        Some(delever_user_loader) => {
+            let delevered_user_key = delever_user_loader.key();
+            let delevered_user = load_mut!(delever_user_loader)?;
+            (Some(delevered_user), Some(delevered_user_key))
+        }
+        None => (None, None),
+    };
+
     let user = &mut load_mut!(ctx.accounts.user)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
     let state = &ctx.accounts.state;
@@ -843,7 +855,7 @@ pub fn handle_resolve_perp_bankruptcy(
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts_iter,
         &get_writable_perp_market_set(market_index),
         &get_writable_spot_market_set(quote_spot_market_index),
         clock.slot,
@@ -874,6 +886,8 @@ pub fn handle_resolve_perp_bankruptcy(
         market_index,
         user,
         &user_key,
+        delever_user.as_deref_mut(),
+        delever_user_key.as_ref(),
         liquidator,
         &liquidator_key,
         &perp_market_map,

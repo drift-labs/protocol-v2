@@ -2468,7 +2468,7 @@ pub mod delisting_test {
                 );
                 assert_eq!(
                     liquidator.perp_positions[0].quote_asset_amount,
-                    // market.amm.quote_asset_amount_short
+                    // market.amm.quote_break_even_amount_short
                     97000000000 + 23250001000
                 );
 
@@ -2700,6 +2700,8 @@ pub mod delisting_test {
                 0,
                 &mut shorter,
                 &maker_key,
+                None,
+                None,
                 &mut liquidator,
                 &liq_key,
                 &market_map,

@@ -634,12 +634,13 @@ pub fn calculate_free_collateral(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
+    margin_type: MarginRequirementType,
 ) -> DriftResult<i128> {
     let (margin_requirement, total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
-            MarginRequirementType::Initial,
+            margin_type,
             spot_market_map,
             oracle_map,
             None,
@@ -655,10 +656,15 @@ pub fn calculate_max_withdrawable_amount(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
-    let free_collateral =
-        calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?
-            .max(0)
-            .cast::<u128>()?;
+    let free_collateral = calculate_free_collateral(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginRequirementType::Initial,
+    )?
+    .max(0)
+    .cast::<u128>()?;
 
     let spot_market = &mut spot_market_map.get_ref(&market_index)?;
 

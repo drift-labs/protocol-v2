@@ -8246,5 +8246,8 @@
       "name": "MarketBeingInitialized",
       "msg": "Market Being Initialized"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "jAEeKs9twxAJmXZHqS2p459xW7FMDjoyvuqthRo9qGS"
+  }
 }

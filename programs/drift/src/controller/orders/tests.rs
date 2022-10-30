@@ -38,7 +38,6 @@ pub mod fulfill_order_with_maker_order {
     };
     use crate::state::perp_market::PerpMarket;
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
-
     use crate::test_utils::{get_orders, get_positions};
 
     use super::*;
@@ -4819,8 +4818,7 @@ pub mod fulfill_spot_order_with_match {
 pub mod fulfill_spot_order {
     use std::str::FromStr;
 
-    use anchor_lang::prelude::{AccountLoader, Clock};
-
+    use super::*;
     use crate::controller::orders::fill_spot_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -4836,8 +4834,8 @@ pub mod fulfill_spot_order {
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
-
-    use super::*;
+    use anchor_lang::prelude::AccountLoader;
+    use anchor_lang::prelude::Clock;
 
     // Add back if we check free collateral in fill again
     // #[test]

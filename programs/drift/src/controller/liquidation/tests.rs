@@ -2688,9 +2688,10 @@ pub mod resolve_perp_bankruptcy {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         FUNDING_RATE_PRECISION_I128, FUNDING_RATE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        PEG_PRECISION, PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -2817,6 +2818,8 @@ pub mod resolve_perp_bankruptcy {
             0,
             &mut user,
             &user_key,
+            None,
+            None,
             &mut liquidator,
             &liquidator_key,
             &market_map,
@@ -2905,6 +2908,378 @@ pub mod resolve_perp_bankruptcy {
         }
 
         assert_eq!(expected_affected_short_user, affected_short_user);
+    }
+
+    #[test]
+    pub fn successful_resolve_perp_bankruptcy_clawback_no_base() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 10000000,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+                // base_asset_amount_long: 5 * BASE_PRECISION_I128,
+                // base_asset_amount_short: -5 * BASE_PRECISION_I128,
+                // base_asset_amount_with_amm: BASE_PRECISION_I128,
+                oracle: oracle_price_key,
+                cumulative_funding_rate_long: 0,
+                cumulative_funding_rate_short: 0,
+
+                ..AMM::default()
+            },
+            unrealized_pnl_initial_asset_weight: 0,
+            unrealized_pnl_maintenance_asset_weight: 100 * SPOT_WEIGHT_PRECISION, //todo: required to be 100 for this to work
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            number_of_users: 2,
+            ..PerpMarket::default()
+        };
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        let mut user = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: 0,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: [SpotPosition::default(); 8],
+            is_bankrupt: true,
+            is_being_liquidated: false,
+            next_liquidation_id: 2,
+            ..User::default()
+        };
+
+        let mut clawback_user = User {
+            orders: get_orders(Order { ..Order::default() }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: 0,
+                quote_asset_amount: 100 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 0,
+                quote_break_even_amount: 0,
+                open_orders: 0,
+                open_bids: 0,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 50 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            is_bankrupt: true,
+            is_being_liquidated: false,
+            next_liquidation_id: 2,
+            ..User::default()
+        };
+
+        let mut liquidator = User {
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let user_key = Pubkey::default();
+        let clawback_user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+
+        let mut expected_user = user;
+        expected_user.is_being_liquidated = false;
+        expected_user.is_bankrupt = false;
+        expected_user.perp_positions[0].quote_asset_amount = 0;
+
+        let mut expected_market = market;
+        // expected_market.amm.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
+        // expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
+        // expected_market.amm.cumulative_social_loss = -100000000;
+        // expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
+        expected_market.number_of_users = 1;
+
+        assert_eq!(
+            clawback_user
+                .force_get_perp_position_mut(0)
+                .unwrap()
+                .quote_asset_amount,
+            100 * QUOTE_PRECISION_I64
+        );
+        resolve_perp_bankruptcy(
+            0,
+            &mut user,
+            &user_key,
+            Some(&mut clawback_user),
+            Some(&clawback_user_key),
+            &mut liquidator,
+            &liquidator_key,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(
+            clawback_user
+                .force_get_perp_position_mut(0)
+                .unwrap()
+                .quote_asset_amount,
+            0
+        );
+        assert_eq!(expected_user, user);
+        // assert_eq!(expected_market, market_map.get_ref(&0).unwrap().clone());
+
+        let mut expected_affected_clawback_user = clawback_user;
+        expected_affected_clawback_user.perp_positions[0].quote_asset_amount = 0;
+
+        {
+            let mut market = market_map.get_ref_mut(&0).unwrap();
+            settle_funding_payment(&mut clawback_user, &Pubkey::default(), &mut market, now)
+                .unwrap()
+        }
+
+        assert_eq!(expected_affected_clawback_user, clawback_user);
+    }
+
+    #[test]
+    pub fn successful_resolve_perp_bankruptcy_clawback_with_base() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 10000000,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+                base_asset_amount_long: 5 * BASE_PRECISION_I128,
+                // base_asset_amount_short: -5 * BASE_PRECISION_I128,
+                base_asset_amount_with_amm: 5 * BASE_PRECISION_I128,
+                oracle: oracle_price_key,
+                cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
+                cumulative_funding_rate_short: 1000 * FUNDING_RATE_PRECISION_I128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+                    ..HistoricalOracleData::default()
+                },
+                order_tick_size: ((PRICE_PRECISION / 1000) as u64),
+
+                ..AMM::default()
+            },
+            market_index: 0,
+            unrealized_pnl_initial_asset_weight: 0,
+            unrealized_pnl_maintenance_asset_weight: 100 * SPOT_WEIGHT_PRECISION, //todo: required to be 100 for this to work
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            number_of_users: 2,
+            ..PerpMarket::default()
+        };
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        let mut user = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: 0,
+                quote_asset_amount: -1243 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: [SpotPosition::default(); 8],
+            is_bankrupt: true,
+            is_being_liquidated: false,
+            next_liquidation_id: 2,
+            ..User::default()
+        };
+
+        let mut clawback_user = User {
+            orders: get_orders(Order { ..Order::default() }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: (2 * BASE_PRECISION_I64) + 9508342,
+                quote_asset_amount: -1389,
+                quote_entry_amount: 0,
+                quote_break_even_amount: 0,
+                open_orders: 0,
+                open_bids: 0,
+                last_cumulative_funding_rate: (1000 * FUNDING_RATE_PRECISION_I128 - 12420) as i64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 50 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            is_bankrupt: false,
+            is_being_liquidated: false,
+            next_liquidation_id: 2,
+            ..User::default()
+        };
+
+        let mut liquidator = User {
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let user_key = Pubkey::default();
+        let clawback_user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+
+        let mut expected_user = user;
+        expected_user.is_being_liquidated = false;
+        expected_user.is_bankrupt = false;
+        expected_user.perp_positions[0].quote_asset_amount = 0;
+
+        let mut expected_market = market;
+        // expected_market.amm.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
+        // expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
+        // expected_market.amm.cumulative_social_loss = -100000000;
+        // expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
+        expected_market.number_of_users = 1;
+
+        // assert_eq!(
+        //     clawback_user
+        //         .force_get_perp_position_mut(0)
+        //         .unwrap()
+        //         .quote_asset_amount,
+        //     -100 * QUOTE_PRECISION_I64
+        // );
+        resolve_perp_bankruptcy(
+            0,
+            &mut user,
+            &user_key,
+            Some(&mut clawback_user),
+            Some(&clawback_user_key),
+            &mut liquidator,
+            &liquidator_key,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(
+            clawback_user
+                .force_get_perp_position_mut(0)
+                .unwrap()
+                .quote_asset_amount,
+            -621501389 // $-621
+        );
+        assert_eq!(
+            clawback_user
+                .force_get_perp_position_mut(0)
+                .unwrap()
+                .quote_break_even_amount,
+            -621500000 // $-621
+        );
     }
 }
 
