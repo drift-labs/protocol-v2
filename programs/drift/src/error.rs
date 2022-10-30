@@ -19,8 +19,8 @@ pub enum ErrorCode {
     MaxNumberOfPositions,
     #[msg("Admin Controls Prices Disabled")]
     AdminControlsPricesDisabled,
-    #[msg("Market Index Not Initialized")]
-    MarketIndexNotInitialized,
+    #[msg("Market Delisted")]
+    MarketDelisted,
     #[msg("Market Index Already Initialized")]
     MarketIndexAlreadyInitialized,
     #[msg("User Account And User Positions Account Mismatch")]
@@ -431,6 +431,8 @@ pub enum ErrorCode {
     UnsupportedSpotMarket,
     #[msg("SpotOrdersDisabled")]
     SpotOrdersDisabled,
+    #[msg("Market Being Initialized")]
+    MarketBeingInitialized,
 }
 
 #[macro_export]

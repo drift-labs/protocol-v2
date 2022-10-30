@@ -138,6 +138,12 @@ pub fn place_perp_order(
     let force_reduce_only = market.is_reduce_only()?;
 
     validate!(
+        !matches!(market.status, MarketStatus::Initialized),
+        ErrorCode::MarketBeingInitialized,
+        "Market is being initialized"
+    )?;
+
+    validate!(
         market.is_active(now)?,
         ErrorCode::MarketPlaceOrderPaused,
         "Market is in settlement mode",
@@ -2344,6 +2350,12 @@ pub fn place_spot_order(
     let market_index = params.market_index;
     let spot_market = &spot_market_map.get_ref(&market_index)?;
     let force_reduce_only = spot_market.is_reduce_only()?;
+
+    validate!(
+        !matches!(spot_market.status, MarketStatus::Initialized),
+        ErrorCode::MarketBeingInitialized,
+        "Market is being initialized"
+    )?;
 
     let spot_position_index = user
         .get_spot_position_index(market_index)

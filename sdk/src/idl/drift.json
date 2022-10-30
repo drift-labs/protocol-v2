@@ -7213,8 +7213,8 @@
     },
     {
       "code": 6007,
-      "name": "MarketIndexNotInitialized",
-      "msg": "Market Index Not Initialized"
+      "name": "MarketDelisted",
+      "msg": "Market Delisted"
     },
     {
       "code": 6008,
@@ -8240,6 +8240,11 @@
       "code": 6212,
       "name": "SpotOrdersDisabled",
       "msg": "SpotOrdersDisabled"
+    },
+    {
+      "code": 6213,
+      "name": "MarketBeingInitialized",
+      "msg": "Market Being Initialized"
     }
   ],
   "metadata": {

@@ -29,7 +29,7 @@ pub fn is_stats_for_user(
 
 pub fn market_valid(market: &AccountLoader<PerpMarket>) -> anchor_lang::Result<()> {
     if market.load()?.status == MarketStatus::Delisted {
-        return Err(ErrorCode::MarketIndexNotInitialized.into());
+        return Err(ErrorCode::MarketDelisted.into());
     }
     Ok(())
 }
