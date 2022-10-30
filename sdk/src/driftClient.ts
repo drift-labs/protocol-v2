@@ -420,7 +420,9 @@ export class DriftClient {
 
 		const tx = new Transaction();
 		if (subAccountId === 0) {
-			if (!this.getUserStatsAccountPublicKey()) {
+			if (
+				!(await this.checkIfAccountExists(this.getUserStatsAccountPublicKey()))
+			) {
 				tx.add(await this.getInitializeUserStatsIx());
 			}
 		}
