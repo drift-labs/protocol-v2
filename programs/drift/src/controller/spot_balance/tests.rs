@@ -233,7 +233,7 @@ fn test_daily_withdraw_limits() {
 
     // tiny whale who will grow
     let mut whale = User {
-        total_deposits: 0,
+        total_deposits: 50 * 100 * QUOTE_PRECISION_U64,
         total_withdraws: 0,
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 1,
@@ -247,6 +247,8 @@ fn test_daily_withdraw_limits() {
 
     sol_spot_market.optimal_borrow_rate = SPOT_RATE_PRECISION_U32 / 5; //20% APR
     sol_spot_market.max_borrow_rate = SPOT_RATE_PRECISION_U32; //100% APR
+    assert_eq!(whale.spot_positions[1].market_index, 1);
+    assert_eq!(whale.spot_positions[1].scaled_balance, 50000000000);
 
     update_spot_balances_and_cumulative_deposits_with_limits(
         QUOTE_PRECISION * 50,
@@ -256,14 +258,14 @@ fn test_daily_withdraw_limits() {
     )
     .unwrap();
 
-    assert_eq!(whale.total_deposits, 0);
+    assert_eq!(whale.total_deposits, 5000000000);
     assert_eq!(whale.total_withdraws, 0);
-
-    assert_eq!(whale.spot_positions[0].market_index, 1);
-    assert_eq!(whale.spot_positions[1].market_index, 0);
-    assert_eq!(whale.spot_positions[1].scaled_balance, 50000000001);
+    assert_eq!(whale.spot_positions[0].market_index, 0);
+    assert_eq!(whale.spot_positions[0].scaled_balance, 50000000001);
+    assert_eq!(whale.spot_positions[1].market_index, 1);
+    assert_eq!(whale.spot_positions[1].scaled_balance, 50000000000);
     assert_eq!(
-        whale.spot_positions[1].balance_type,
+        whale.spot_positions[0].balance_type,
         SpotBalanceType::Borrow
     );
     assert_eq!(user.spot_positions[1].scaled_balance, 0);
@@ -554,7 +556,7 @@ fn check_fee_collection() {
     let _spot_market_map = SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
     let mut spot_positions = [SpotPosition::default(); 8];
-    spot_positions[0] = SpotPosition {
+    spot_positions[1] = SpotPosition {
         market_index: 1,
         balance_type: SpotBalanceType::Deposit,
         scaled_balance: SPOT_BALANCE_PRECISION_U64,
