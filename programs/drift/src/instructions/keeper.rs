@@ -908,6 +908,16 @@ pub fn handle_resolve_perp_bankruptcy(
         )?;
     }
 
+    {
+        let spot_market = &mut spot_market_map.get_ref_mut(&quote_spot_market_index)?;
+        // reload the spot market vault balance so it's up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
+        )?;
+    }
+
     Ok(())
 }
 
@@ -992,6 +1002,16 @@ pub fn handle_resolve_spot_bankruptcy(
             ctx.accounts.insurance_fund_vault.amount > 0,
             ErrorCode::InvalidIFDetected,
             "insurance_fund_vault.amount must remain > 0"
+        )?;
+    }
+
+    {
+        let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+        // reload the spot market vault balance so it's up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
         )?;
     }
 
