@@ -18,6 +18,10 @@ export const TEN_MILLION = TEN_THOUSAND.mul(TEN_THOUSAND);
 
 export const MAX_LEVERAGE = new BN(5);
 
+export const PERCENTAGE_PRECISION_EXP = new BN(6);
+export const PERCENTAGE_PRECISION = new BN(10).pow(PERCENTAGE_PRECISION_EXP);
+export const CONCENTRATION_PRECISION = PERCENTAGE_PRECISION;
+
 export const QUOTE_PRECISION_EXP = new BN(6);
 export const FUNDING_RATE_BUFFER_PRECISION_EXP = new BN(3);
 export const PRICE_PRECISION_EXP = new BN(6);

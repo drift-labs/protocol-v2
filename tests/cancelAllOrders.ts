@@ -5,7 +5,7 @@ import {
 	getLimitOrderParams,
 	isVariant,
 	OracleSource,
-	Admin,
+	AdminClient,
 	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -29,9 +29,9 @@ describe('cancel all orders', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -55,7 +55,7 @@ describe('cancel all orders', () => {
 
 		const oracle = await mockOracle(1);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -73,35 +73,35 @@ describe('cancel all orders', () => {
 			],
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			oracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
 
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('cancel all orders', async () => {
 		for (let i = 0; i < 32; i++) {
-			await clearingHouse.placePerpOrder(
+			await driftClient.placePerpOrder(
 				getLimitOrderParams({
 					baseAssetAmount: BASE_PRECISION,
 					marketIndex: 0,
@@ -111,14 +111,12 @@ describe('cancel all orders', () => {
 			);
 		}
 
-		const txSig = await clearingHouse.cancelOrders(null, null, null);
+		const txSig = await driftClient.cancelOrders(null, null, null);
 
 		await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
-			assert(
-				isVariant(clearingHouse.getUserAccount().orders[i].status, 'init')
-			);
+			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
 		}
 	});
 });

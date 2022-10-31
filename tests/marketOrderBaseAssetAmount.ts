@@ -6,7 +6,7 @@ import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { Admin, PositionDirection, EventSubscriber } from '../sdk/src';
+import { AdminClient, PositionDirection, EventSubscriber } from '../sdk/src';
 
 import {
 	mockUSDCMint,
@@ -16,13 +16,13 @@ import {
 	printTxLogs,
 } from './testHelpers';
 
-describe('clearing_house', () => {
+describe('market orders', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -55,7 +55,7 @@ describe('clearing_house', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -69,15 +69,15 @@ describe('clearing_house', () => {
 			userStats: true,
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -85,14 +85,14 @@ describe('clearing_house', () => {
 		);
 
 		[, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
+			await driftClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -104,57 +104,55 @@ describe('clearing_house', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTakePerpOrder(orderParams);
-		const txSig = await clearingHouse.settlePNL(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		await driftClient.placeAndTakePerpOrder(orderParams);
+		const txSig = await driftClient.settlePNL(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			marketIndex
 		);
 		await printTxLogs(connection, txSig);
 
 		console.log(
-			clearingHouse.getQuoteAssetTokenAmount().toString(),
-			clearingHouse
+			driftClient.getQuoteAssetTokenAmount().toString(),
+			driftClient
 				.getUserStats()
 				.getAccountAndSlot()
 				.data.fees.totalFeePaid.toString(),
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9951998)));
+		assert(driftClient.getQuoteAssetTokenAmount().eq(new BN(9951998)));
 		assert(
-			clearingHouse
+			driftClient
 				.getUserStats()
 				.getAccountAndSlot()
 				.data.fees.totalFeePaid.eq(new BN(48001))
 		);
 
 		console.log(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteEntryAmount.eq(new BN(-48000001))
 		);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.eq(new BN(-48048002))
 		);
-		console.log(
-			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount
-		);
+		console.log(driftClient.getUserAccount().perpPositions[0].baseAssetAmount);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(baseAssetAmount)
 		);
 
-		const market = clearingHouse.getPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(48000000000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(48000000000)));
 		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
@@ -178,49 +176,49 @@ describe('clearing_house', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		const txSig = await clearingHouse.placeAndTakePerpOrder(orderParams);
+		const txSig = await driftClient.placeAndTakePerpOrder(orderParams);
 		await printTxLogs(connection, txSig);
 
-		await clearingHouse.settlePNL(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		await driftClient.settlePNL(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			marketIndex
 		);
 
 		console.log(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteEntryAmount.eq(new BN(-24000001))
 		);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.eq(new BN(-24048001))
 		);
 		console.log(
-			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toNumber()
+			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.toNumber()
 		);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(new BN(24000000000))
 		);
 
-		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9927998)));
+		console.log(driftClient.getQuoteAssetTokenAmount().toString());
+		assert.ok(driftClient.getQuoteAssetTokenAmount().eq(new BN(9927998)));
 		assert(
-			clearingHouse
+			driftClient
 				.getUserStats()
 				.getAccount()
 				.fees.totalFeePaid.eq(new BN(72001))
 		);
 
-		const market = clearingHouse.getPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		console.log(market.amm.baseAssetAmountWithAmm.toString());
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(24000000000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(24000000000)));
@@ -247,45 +245,45 @@ describe('clearing_house', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTakePerpOrder(orderParams);
-		await clearingHouse.settlePNL(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		await driftClient.placeAndTakePerpOrder(orderParams);
+		await driftClient.settlePNL(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			marketIndex
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9879998)));
+		assert.ok(driftClient.getQuoteAssetTokenAmount().eq(new BN(9879998)));
 		assert(
-			clearingHouse
+			driftClient
 				.getUserStats()
 				.getAccount()
 				.fees.totalFeePaid.eq(new BN(120001))
 		);
 		console.log(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteEntryAmount.eq(new BN(24000000))
 		);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.eq(new BN(24048000))
 		);
 		console.log(
-			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toString()
+			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.toString()
 		);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(new BN(-24000000000))
 		);
 
-		const market = clearingHouse.getPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-24000000000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(ZERO));
 		assert.ok(market.amm.baseAssetAmountShort.eq(new BN(-24000000000)));
@@ -313,39 +311,39 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			reduceOnly: true,
 		});
-		await clearingHouse.placeAndTakePerpOrder(orderParams);
-		await clearingHouse.settlePNL(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		await driftClient.placeAndTakePerpOrder(orderParams);
+		await driftClient.settlePNL(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			marketIndex
 		);
 
 		console.log(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.eq(new BN(0))
 		);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(new BN(0))
 		);
 
-		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855998)));
+		console.log(driftClient.getQuoteAssetTokenAmount().toString());
+		assert.ok(driftClient.getQuoteAssetTokenAmount().eq(new BN(9855998)));
 		assert(
-			clearingHouse
+			driftClient
 				.getUserStats()
 				.getAccount()
 				.fees.totalFeePaid.eq(new BN(144001))
 		);
 
-		const market = clearingHouse.getPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(0)));
 		assert.ok(market.amm.totalFee.eq(new BN(144001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));

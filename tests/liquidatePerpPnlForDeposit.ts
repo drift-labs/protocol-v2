@@ -10,8 +10,8 @@ import {
 	BN,
 	OracleSource,
 	ZERO,
-	Admin,
-	ClearingHouse,
+	AdminClient,
+	DriftClient,
 	findComputeUnitConsumption,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -39,9 +39,9 @@ describe('liquidate perp pnl for deposit', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -49,8 +49,8 @@ describe('liquidate perp pnl for deposit', () => {
 	let userUSDCAccount;
 	let userWSOLAccount;
 
-	let liquidatorClearingHouse: ClearingHouse;
-	let liquidatorClearingHouseWSOLAccount: PublicKey;
+	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClientWSOLAccount: PublicKey;
 
 	let solOracle: PublicKey;
 
@@ -77,7 +77,7 @@ describe('liquidate perp pnl for deposit', () => {
 
 		solOracle = await mockOracle(1);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -95,23 +95,23 @@ describe('liquidate perp pnl for deposit', () => {
 			],
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await initializeSolSpotMarket(clearingHouse, solOracle);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(driftClient, solOracle);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializePerpMarket(
+		await driftClient.initializePerpMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
 
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -130,9 +130,9 @@ describe('liquidate perp pnl for deposit', () => {
 			useForLiquidations: false,
 		};
 
-		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			new BN(10).mul(BASE_PRECISION),
 			0,
@@ -140,16 +140,16 @@ describe('liquidate perp pnl for deposit', () => {
 		);
 
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, solOracle);
-		await clearingHouse.moveAmmToPrice(
+		await driftClient.moveAmmToPrice(
 			0,
 			new BN(1).mul(PRICE_PRECISION).div(new BN(10))
 		);
 
-		const txSig = await clearingHouse.closePosition(0);
+		const txSig = await driftClient.closePosition(0);
 		printTxLogs(connection, txSig);
 
 		const solAmount = new BN(1 * 10 ** 9);
-		[liquidatorClearingHouse, liquidatorClearingHouseWSOLAccount] =
+		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount] =
 			await createUserWithUSDCAndWSOLAccount(
 				provider,
 				usdcMint,
@@ -165,37 +165,37 @@ describe('liquidate perp pnl for deposit', () => {
 					},
 				]
 			);
-		await liquidatorClearingHouse.subscribe();
+		await liquidatorDriftClient.subscribe();
 
 		const spotMarketIndex = 1;
-		await liquidatorClearingHouse.deposit(
+		await liquidatorDriftClient.deposit(
 			solAmount,
 			spotMarketIndex,
-			liquidatorClearingHouseWSOLAccount
+			liquidatorDriftClientWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
-		await clearingHouse.withdraw(solBorrow, 1, userWSOLAccount);
+		await driftClient.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
-		await liquidatorClearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
+		await liquidatorDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
 		await setFeedPrice(anchor.workspace.Pyth, 50, solOracle);
 
-		const txSig = await liquidatorClearingHouse.liquidatePerpPnlForDeposit(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		const txSig = await liquidatorDriftClient.liquidatePerpPnlForDeposit(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			0,
 			0,
 			usdcAmount.mul(new BN(100))
 		);
 
 		const computeUnits = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
+			driftClient.program.programId,
 			connection,
 			txSig,
 			'confirmed'
@@ -207,10 +207,10 @@ describe('liquidate perp pnl for deposit', () => {
 				.logMessages
 		);
 
-		assert(clearingHouse.getUserAccount().isBeingLiquidated);
-		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
+		assert(driftClient.getUserAccount().isBeingLiquidated);
+		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
-			clearingHouse.getUserAccount().spotPositions[0].scaledBalance.eq(ZERO)
+			driftClient.getUserAccount().spotPositions[0].scaledBalance.eq(ZERO)
 		);
 
 		const liquidationRecord =
