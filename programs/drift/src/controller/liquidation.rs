@@ -1603,30 +1603,33 @@ pub fn resolve_perp_bankruptcy(
 
     // socialize loss
     if loss_to_socialize < 0 {
-        {
-            let mut market = perp_market_map.get_ref_mut(&market_index)?;
-            let perp_position = user.force_get_perp_position_mut(market_index)?;
-            update_quote_asset_amount(
-                perp_position,
-                &mut market,
-                -perp_position.quote_asset_amount,
-            )?;
+        let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-            market.amm.cumulative_social_loss = market
-                .amm
-                .cumulative_social_loss
-                .safe_add(loss_to_socialize)?;
+        market.amm.cumulative_social_loss = market
+            .amm
+            .cumulative_social_loss
+            .safe_add(loss_to_socialize)?;
 
-            market.amm.cumulative_funding_rate_long = market
-                .amm
-                .cumulative_funding_rate_long
-                .safe_add(cumulative_funding_rate_delta)?;
+        market.amm.cumulative_funding_rate_long = market
+            .amm
+            .cumulative_funding_rate_long
+            .safe_add(cumulative_funding_rate_delta)?;
 
-            market.amm.cumulative_funding_rate_short = market
-                .amm
-                .cumulative_funding_rate_short
-                .safe_sub(cumulative_funding_rate_delta)?;
-        }
+        market.amm.cumulative_funding_rate_short = market
+            .amm
+            .cumulative_funding_rate_short
+            .safe_sub(cumulative_funding_rate_delta)?;
+    }
+
+    // clear bad debt
+    {
+        let mut market = perp_market_map.get_ref_mut(&market_index)?;
+        let perp_position = user.get_perp_position_mut(market_index).unwrap();
+        update_quote_asset_amount(
+            perp_position,
+            &mut market,
+            -perp_position.quote_asset_amount,
+        )?;
     }
 
     // exit bankruptcy
