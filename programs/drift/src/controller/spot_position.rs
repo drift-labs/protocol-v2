@@ -158,31 +158,43 @@ pub fn transfer_spot_position_deposit(
         "transfer market indexes arent equal",
     )?;
 
-    update_spot_balances_and_cumulative_deposits(
-        token_amount.unsigned_abs(),
-        if token_amount > 0 {
-            &SpotBalanceType::Borrow
-        } else {
-            &SpotBalanceType::Deposit
-        },
-        spot_market,
-        from_spot_position,
-        false,
-        None,
-    )?;
+    if token_amount < 0 {
+        update_spot_balances_and_cumulative_deposits(
+            token_amount.unsigned_abs(),
+            &SpotBalanceType::Deposit,
+            spot_market,
+            from_spot_position,
+            false,
+            None,
+        )?;
 
-    update_spot_balances_and_cumulative_deposits(
-        token_amount.unsigned_abs(),
-        if token_amount > 0 {
-            &SpotBalanceType::Deposit
-        } else {
-            &SpotBalanceType::Borrow
-        },
-        spot_market,
-        to_spot_position,
-        false,
-        None,
-    )?;
+        update_spot_balances_and_cumulative_deposits(
+            token_amount.unsigned_abs(),
+            &SpotBalanceType::Borrow,
+            spot_market,
+            to_spot_position,
+            false,
+            None,
+        )?;
+    } else {
+        update_spot_balances_and_cumulative_deposits(
+            token_amount.unsigned_abs(),
+            &SpotBalanceType::Deposit,
+            spot_market,
+            to_spot_position,
+            false,
+            None,
+        )?;
+
+        update_spot_balances_and_cumulative_deposits(
+            token_amount.unsigned_abs(),
+            &SpotBalanceType::Borrow,
+            spot_market,
+            from_spot_position,
+            false,
+            None,
+        )?;
+    }
 
     Ok(())
 }

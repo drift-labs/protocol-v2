@@ -574,7 +574,7 @@ pub mod liquidate_perp {
         );
         assert_eq!(user.perp_positions[0].quote_asset_amount, -101000000);
         assert_eq!(user.perp_positions[0].quote_entry_amount, -75000000);
-        assert_eq!(user.perp_positions[0].quote_break_even_amount, -75500000);
+        assert_eq!(user.perp_positions[0].quote_break_even_amount, -76000000);
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
@@ -718,7 +718,7 @@ pub mod liquidate_perp {
         assert_eq!(user.perp_positions[0].base_asset_amount, 200000000);
         assert_eq!(user.perp_positions[0].quote_asset_amount, -23600000);
         assert_eq!(user.perp_positions[0].quote_entry_amount, -20000000);
-        assert_eq!(user.perp_positions[0].quote_break_even_amount, -21800000);
+        assert_eq!(user.perp_positions[0].quote_break_even_amount, -23600000);
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
@@ -3043,6 +3043,7 @@ pub mod resolve_spot_bankruptcy {
         expected_spot_market.borrow_balance = 0;
         expected_spot_market.cumulative_deposit_interest =
             9 * SPOT_CUMULATIVE_INTEREST_PRECISION / 10;
+        expected_spot_market.next_deposit_record_id = 1;
 
         resolve_spot_bankruptcy(
             0,

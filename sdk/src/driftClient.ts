@@ -230,11 +230,11 @@ export class DriftClient {
 	}
 
 	public async subscribe(): Promise<boolean> {
-		const subscribePromises = this.subscribeUsers().concat(
+		let subscribePromises = this.subscribeUsers().concat(
 			this.accountSubscriber.subscribe()
 		);
 		if (this.userStats !== undefined) {
-			subscribePromises.concat(this.userStats.subscribe());
+			subscribePromises = subscribePromises.concat(this.userStats.subscribe());
 		}
 		this.isSubscribed = (await Promise.all(subscribePromises)).reduce(
 			(success, prevSuccess) => success && prevSuccess
@@ -250,21 +250,23 @@ export class DriftClient {
 	 *	Forces the accountSubscriber to fetch account updates from rpc
 	 */
 	public async fetchAccounts(): Promise<void> {
-		const promises = [...this.users.values()]
+		let promises = [...this.users.values()]
 			.map((user) => user.fetchAccounts())
 			.concat(this.accountSubscriber.fetch());
 		if (this.userStats) {
-			promises.concat(this.userStats.fetchAccounts());
+			promises = promises.concat(this.userStats.fetchAccounts());
 		}
 		await Promise.all(promises);
 	}
 
 	public async unsubscribe(): Promise<void> {
-		const unsubscribePromises = this.unsubscribeUsers().concat(
+		let unsubscribePromises = this.unsubscribeUsers().concat(
 			this.accountSubscriber.unsubscribe()
 		);
 		if (this.userStats !== undefined) {
-			unsubscribePromises.concat(this.userStats.unsubscribe());
+			unsubscribePromises = unsubscribePromises.concat(
+				this.userStats.unsubscribe()
+			);
 		}
 		await Promise.all(unsubscribePromises);
 		this.isSubscribed = false;
@@ -378,11 +380,28 @@ export class DriftClient {
 
 		if (this.isSubscribed) {
 			await Promise.all(this.unsubscribeUsers());
+
+			if (this.userStats) {
+				await this.userStats.unsubscribe();
+
+				this.userStats = new UserStats({
+					driftClient: this,
+					userStatsAccountPublicKey: getUserStatsAccountPublicKey(
+						this.program.programId,
+						this.authority
+					),
+					accountSubscription: this.userAccountSubscriptionConfig,
+				});
+			}
 		}
 		this.users.clear();
 		this.createUsers(subAccountIds, this.userAccountSubscriptionConfig);
 		if (this.isSubscribed) {
 			await Promise.all(this.subscribeUsers());
+
+			if (this.userStats) {
+				await this.userStats.subscribe();
+			}
 		}
 
 		this.activeSubAccountId = activeSubAccountId;

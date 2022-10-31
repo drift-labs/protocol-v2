@@ -239,6 +239,32 @@ describe('liquidate perp and lp', () => {
 			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(1750000))
 		);
 		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
+		assert(liquidationRecord.liquidatePerp.ifFee.eq(new BN(17500)));
+		assert(liquidationRecord.liquidatePerp.liquidatorFee.eq(new BN(0)));
+
+		const fillRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		assert(isVariant(fillRecord.action, 'fill'));
+		assert(fillRecord.marketIndex === 0);
+		assert(isVariant(fillRecord.marketType, 'perp'));
+		assert(fillRecord.baseAssetAmountFilled.eq(new BN(17500000000)));
+		assert(fillRecord.quoteAssetAmountFilled.eq(new BN(1750000)));
+		assert(fillRecord.takerOrderBaseAssetAmount.eq(new BN(17500000000)));
+		assert(
+			fillRecord.takerOrderCumulativeBaseAssetAmountFilled.eq(
+				new BN(17500000000)
+			)
+		);
+		assert(fillRecord.takerFee.eq(new BN(17500)));
+		assert(isVariant(fillRecord.takerOrderDirection, 'short'));
+		assert(fillRecord.makerOrderBaseAssetAmount.eq(new BN(17500000000)));
+		assert(
+			fillRecord.makerOrderCumulativeBaseAssetAmountFilled.eq(
+				new BN(17500000000)
+			)
+		);
+		console.log(fillRecord.makerFee.toString());
+		assert(fillRecord.makerFee.eq(new BN(ZERO)));
+		assert(isVariant(fillRecord.makerOrderDirection, 'long'));
 
 		await liquidatorDriftClient.liquidatePerpPnlForDeposit(
 			await driftClient.getUserAccountPublicKey(),
@@ -336,5 +362,15 @@ describe('liquidate perp and lp', () => {
 		const market = driftClient.getPerpMarketAccount(0);
 		assert(market.amm.cumulativeFundingRateLong.eq(new BN(330571000)));
 		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-330571000)));
+
+		const settlePnlRecord =
+			eventSubscriber.getEventsArray('SettlePnlRecord')[0];
+
+		assert(
+			settlePnlRecord.user.equals(await driftClient.getUserAccountPublicKey())
+		);
+		assert(settlePnlRecord.marketIndex === 0);
+		assert(settlePnlRecord.pnl.eq(perpBankruptcyRecord.perpBankruptcy.pnl));
+		assert(isVariant(settlePnlRecord.explanation, 'bankruptcy'));
 	});
 });
