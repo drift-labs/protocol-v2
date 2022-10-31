@@ -46,20 +46,14 @@ export class PollingUserStatsAccountSubscriber
 
 		await this.addToAccountLoader();
 
-		let subscriptionSucceeded = false;
-		let retries = 0;
-		while (!subscriptionSucceeded && retries < 5) {
-			await this.fetchIfUnloaded();
-			subscriptionSucceeded = this.didSubscriptionSucceed();
-			retries++;
-		}
+		await this.fetchIfUnloaded();
 
-		if (subscriptionSucceeded) {
+		if (this.doAccountsExist()) {
 			this.eventEmitter.emit('update');
 		}
 
-		this.isSubscribed = subscriptionSucceeded;
-		return subscriptionSucceeded;
+		this.isSubscribed = true;
+		return true;
 	}
 
 	async addToAccountLoader(): Promise<void> {
@@ -126,7 +120,7 @@ export class PollingUserStatsAccountSubscriber
 		}
 	}
 
-	didSubscriptionSucceed(): boolean {
+	doAccountsExist(): boolean {
 		let success = true;
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			if (!this[accountToPoll.key]) {
