@@ -961,6 +961,12 @@ pub fn liquidate_borrow_for_perp_pnl(
             base_asset_amount
         )?;
 
+        validate!(
+            !user_position.is_lp(),
+            ErrorCode::InvalidPerpPositionToLiquidate,
+            "user is an lp. must call liquidate_perp first"
+        )?;
+
         let pnl = user_position.quote_asset_amount.cast::<i128>()?;
 
         validate!(
@@ -1363,6 +1369,12 @@ pub fn liquidate_perp_pnl_for_deposit(
             ErrorCode::InvalidPerpPositionToLiquidate,
             "Cant have open perp position (base_asset_amount: {})",
             base_asset_amount
+        )?;
+
+        validate!(
+            !user_position.is_lp(),
+            ErrorCode::InvalidPerpPositionToLiquidate,
+            "user is an lp. must call liquidate_perp first"
         )?;
 
         let unsettled_pnl = user_position.quote_asset_amount.cast::<i128>()?;
