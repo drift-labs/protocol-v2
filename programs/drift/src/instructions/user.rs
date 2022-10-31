@@ -27,7 +27,8 @@ use crate::print_error;
 use crate::safe_decrement;
 use crate::safe_increment;
 use crate::state::events::{
-    DepositDirection, DepositRecord, LPAction, LPRecord, NewUserRecord, OrderActionExplanation,
+    DepositDirection, DepositExplanation, DepositRecord, LPAction, LPRecord, NewUserRecord,
+    OrderActionExplanation,
 };
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
@@ -256,7 +257,7 @@ pub fn handle_deposit(
         deposit_record_id,
         user_authority: user.authority,
         user: user_key,
-        direction: DepositDirection::DEPOSIT,
+        direction: DepositDirection::Deposit,
         amount,
         oracle_price,
         market_deposit_balance: spot_market.deposit_balance,
@@ -266,6 +267,7 @@ pub fn handle_deposit(
         total_deposits_after,
         total_withdraws_after,
         market_index,
+        explanation: DepositExplanation::None,
         transfer_user: None,
     };
     emit!(deposit_record);
@@ -397,7 +399,7 @@ pub fn handle_withdraw(
         deposit_record_id,
         user_authority: user.authority,
         user: user_key,
-        direction: DepositDirection::WITHDRAW,
+        direction: DepositDirection::Withdraw,
         oracle_price,
         amount,
         market_index,
@@ -407,6 +409,7 @@ pub fn handle_withdraw(
         market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
         total_deposits_after: user.total_deposits,
         total_withdraws_after: user.total_withdraws,
+        explanation: DepositExplanation::None,
         transfer_user: None,
     };
     emit!(deposit_record);
@@ -544,7 +547,7 @@ pub fn handle_transfer_deposit(
             deposit_record_id,
             user_authority: *authority_key,
             user: from_user_key,
-            direction: DepositDirection::WITHDRAW,
+            direction: DepositDirection::Withdraw,
             amount,
             oracle_price,
             market_index,
@@ -554,6 +557,7 @@ pub fn handle_transfer_deposit(
             market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
             total_deposits_after: from_user.total_deposits,
             total_withdraws_after: from_user.total_withdraws,
+            explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
         };
         emit!(deposit_record);
@@ -588,7 +592,7 @@ pub fn handle_transfer_deposit(
             deposit_record_id,
             user_authority: *authority_key,
             user: to_user_key,
-            direction: DepositDirection::DEPOSIT,
+            direction: DepositDirection::Deposit,
             amount,
             oracle_price,
             market_index,
@@ -598,6 +602,7 @@ pub fn handle_transfer_deposit(
             market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
             total_deposits_after,
             total_withdraws_after,
+            explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
         };
         emit!(deposit_record);

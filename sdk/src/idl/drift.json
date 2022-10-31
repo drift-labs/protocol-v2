@@ -4579,6 +4579,10 @@
             "type": "u32"
           },
           {
+            "name": "liquidatorFee",
+            "type": "u64"
+          },
+          {
             "name": "ifFee",
             "type": "u64"
           }
@@ -5818,15 +5822,38 @@
       }
     },
     {
+      "name": "DepositExplanation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "Transfer"
+          },
+          {
+            "name": "Liquidatee"
+          },
+          {
+            "name": "Liquidator"
+          },
+          {
+            "name": "Bankruptcy"
+          }
+        ]
+      }
+    },
+    {
       "name": "DepositDirection",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "DEPOSIT"
+            "name": "Deposit"
           },
           {
-            "name": "WITHDRAW"
+            "name": "Withdraw"
           }
         ]
       }
@@ -5875,7 +5902,7 @@
             "name": "OrderExpired"
           },
           {
-            "name": "CanceledForLiquidation"
+            "name": "Liquidation"
           },
           {
             "name": "OrderFilledWithAMM"
@@ -5934,6 +5961,29 @@
           },
           {
             "name": "SpotBankruptcy"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SettlePnlExplanation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "ExpiredPosition"
+          },
+          {
+            "name": "Liquidatee"
+          },
+          {
+            "name": "Liquidator"
+          },
+          {
+            "name": "Bankruptcy"
           }
         ]
       }
@@ -6357,6 +6407,13 @@
         {
           "name": "totalWithdrawsAfter",
           "type": "u64",
+          "index": false
+        },
+        {
+          "name": "explanation",
+          "type": {
+            "defined": "DepositExplanation"
+          },
           "index": false
         },
         {
@@ -7048,6 +7105,13 @@
         {
           "name": "settlePrice",
           "type": "i64",
+          "index": false
+        },
+        {
+          "name": "explanation",
+          "type": {
+            "defined": "SettlePnlExplanation"
+          },
           "index": false
         }
       ]

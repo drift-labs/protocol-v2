@@ -17,7 +17,7 @@ use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
-use crate::state::events::{OrderActionExplanation, SettlePnlRecord};
+use crate::state::events::{OrderActionExplanation, SettlePnlExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -166,6 +166,7 @@ pub fn settle_pnl(
         quote_asset_amount_after,
         quote_entry_amount,
         settle_price: oracle_price,
+        explanation: SettlePnlExplanation::None,
     });
 
     Ok(())
@@ -310,6 +311,7 @@ pub fn settle_expired_position(
         quote_asset_amount_after,
         quote_entry_amount,
         settle_price: perp_market.expiry_price,
+        explanation: SettlePnlExplanation::ExpiredPosition,
     });
 
     validate!(
