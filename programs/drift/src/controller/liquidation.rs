@@ -12,14 +12,17 @@ use crate::controller::position::{
 };
 use crate::controller::repeg::update_amm_and_check_validity;
 use crate::controller::spot_balance::{
-    update_revenue_pool_balances, update_spot_market_and_check_validity,
+    update_revenue_pool_balances, update_spot_balances, update_spot_market_and_check_validity,
+    update_spot_market_cumulative_interest,
 };
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
 use crate::error::{DriftResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::Cast;
-use crate::math::constants::{LIQUIDATION_FEE_PRECISION_U128, SPOT_WEIGHT_PRECISION};
+use crate::math::constants::{
+    LIQUIDATION_FEE_PRECISION_U128, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
+};
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
@@ -1881,11 +1884,11 @@ pub fn resolve_perp_bankruptcy(
     // subtract 1 from available insurance_fund_vault_balance so deposits in insurance vault always remains >= 1
 
     let if_payment = {
-        let mut market = perp_market_map.get_ref_mut(&market_index)?;
-        let max_insurance_withdraw = market
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
+        let max_insurance_withdraw = perp_market
             .insurance_claim
             .quote_max_insurance
-            .safe_sub(market.insurance_claim.quote_settled_insurance)?
+            .safe_sub(perp_market.insurance_claim.quote_settled_insurance)?
             .cast::<u128>()?;
 
         let if_payment = loss
@@ -1893,10 +1896,23 @@ pub fn resolve_perp_bankruptcy(
             .min(insurance_fund_vault_balance.saturating_sub(1).cast()?)
             .min(max_insurance_withdraw);
 
-        market.insurance_claim.quote_settled_insurance = market
+        perp_market.insurance_claim.quote_settled_insurance = perp_market
             .insurance_claim
             .quote_settled_insurance
             .safe_add(if_payment.cast()?)?;
+
+        // move if payment to pnl pool
+        let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        update_spot_market_cumulative_interest(spot_market, Some(oracle_price_data), now)?;
+
+        update_spot_balances(
+            if_payment,
+            &SpotBalanceType::Deposit,
+            spot_market,
+            &mut perp_market.pnl_pool,
+            false,
+        )?;
 
         if_payment
     };
