@@ -2691,6 +2691,9 @@ pub mod resolve_perp_bankruptcy {
         PEG_PRECISION, PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
         SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::math::margin::{
+        calculate_margin_requirement_and_total_collateral, MarginRequirementType,
+    };
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -3125,10 +3128,10 @@ pub mod resolve_perp_bankruptcy {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                base_asset_amount_long: 5 * BASE_PRECISION_I128,
+                quote_asset_amount: -(1243 + 1389) * QUOTE_PRECISION_I128,
+                base_asset_amount_long: 2 * BASE_PRECISION_I128 + 9508342,
                 // base_asset_amount_short: -5 * BASE_PRECISION_I128,
-                base_asset_amount_with_amm: 5 * BASE_PRECISION_I128,
+                base_asset_amount_with_amm: 2 * BASE_PRECISION_I128 + 9508342,
                 oracle: oracle_price_key,
                 cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
                 cumulative_funding_rate_short: 1000 * FUNDING_RATE_PRECISION_I128,
@@ -3202,7 +3205,7 @@ pub mod resolve_perp_bankruptcy {
                 quote_break_even_amount: 0,
                 open_orders: 0,
                 open_bids: 0,
-                last_cumulative_funding_rate: (1000 * FUNDING_RATE_PRECISION_I128 - 12420) as i64,
+                last_cumulative_funding_rate: (1000 * FUNDING_RATE_PRECISION_I128) as i64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -3237,19 +3240,7 @@ pub mod resolve_perp_bankruptcy {
         expected_user.perp_positions[0].quote_asset_amount = 0;
 
         let mut expected_market = market;
-        // expected_market.amm.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
-        // expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
-        // expected_market.amm.cumulative_social_loss = -100000000;
-        // expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
         expected_market.number_of_users = 1;
-
-        // assert_eq!(
-        //     clawback_user
-        //         .force_get_perp_position_mut(0)
-        //         .unwrap()
-        //         .quote_asset_amount,
-        //     -100 * QUOTE_PRECISION_I64
-        // );
         resolve_perp_bankruptcy(
             0,
             &mut user,
@@ -3265,21 +3256,91 @@ pub mod resolve_perp_bankruptcy {
             0,
         )
         .unwrap();
+        // assert_eq!(0, 1);
 
         assert_eq!(
             clawback_user
                 .force_get_perp_position_mut(0)
                 .unwrap()
                 .quote_asset_amount,
-            -621501389 // $-621
+            -1243001389 // $-1243
         );
         assert_eq!(
             clawback_user
                 .force_get_perp_position_mut(0)
                 .unwrap()
                 .quote_break_even_amount,
-            -621500000 // $-621
+            -1243000000 // $-1243
         );
+
+        assert!(!user.is_bankrupt);
+        assert!(!user.is_being_liquidated);
+        let bankrupt_user_pos_after = user.force_get_perp_position_mut(0).unwrap();
+
+        assert_eq!(
+            bankrupt_user_pos_after.quote_asset_amount,
+            0 // $-621
+        );
+        assert_eq!(
+            bankrupt_user_pos_after.open_orders,
+            1 // not cancelled.. assumed to have been cancelled in liq
+        );
+        assert_eq!(bankrupt_user_pos_after.quote_break_even_amount, -100000000);
+
+        assert_eq!(
+            expected_market.amm.quote_asset_amount,
+            market.amm.quote_asset_amount
+        );
+        assert_eq!(
+            expected_market.amm.quote_break_even_amount_long,
+            market.amm.quote_break_even_amount_long
+        );
+        assert_eq!(
+            expected_market.amm.quote_break_even_amount_short,
+            market.amm.quote_break_even_amount_short
+        );
+
+        let (_, b_total_collateral, _b_margin_requirement_plus_buffer, _) =
+            calculate_margin_requirement_and_total_collateral(
+                &user,
+                &market_map,
+                MarginRequirementType::Maintenance,
+                &spot_market_map,
+                &mut oracle_map,
+                Some(1),
+            )
+            .unwrap();
+
+        let (_, c_total_collateral, _c_margin_requirement_plus_buffer, _) =
+            calculate_margin_requirement_and_total_collateral(
+                &clawback_user,
+                &market_map,
+                MarginRequirementType::Maintenance,
+                &spot_market_map,
+                &mut oracle_map,
+                Some(1),
+            )
+            .unwrap();
+
+        assert_eq!(c_total_collateral, -992050555);
+        assert_eq!(b_total_collateral, 0);
+
+        // try to resolve for clawback_user
+        assert!(resolve_perp_bankruptcy(
+            0,
+            &mut clawback_user,
+            &user_key,
+            None,
+            None,
+            &mut liquidator,
+            &liquidator_key,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            0,
+        )
+        .is_err());
     }
 }
 

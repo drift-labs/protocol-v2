@@ -400,10 +400,15 @@ pub fn calculate_perp_market_deleverage_payment(
     } else if user_pnl_per_base == mean_pnl_per_base && user_pnl_per_base > 0 {
         msg!("user pays loss_to_socialize / N users");
 
-        loss_to_socialize
-            .abs()
-            .safe_div(market.number_of_users.cast()?)?
-            .max(1)
+        // more than 2, split
+        if market.number_of_users > 2 {
+            loss_to_socialize
+                .abs()
+                .safe_div(market.number_of_users.cast()?)?
+                .max(1)
+        } else {
+            loss_to_socialize.abs()
+        }
     } else if (mean_long_pnl_per_base > mean_short_pnl_per_base
         && deleverage_user_stats.base_asset_amount < 0)
         || (mean_long_pnl_per_base < mean_short_pnl_per_base
