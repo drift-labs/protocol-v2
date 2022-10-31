@@ -586,6 +586,24 @@ export class DriftClient {
 		);
 	}
 
+	public async getUserAccountsForAuthority(
+		authority: PublicKey
+	): Promise<UserAccount[]> {
+		const programAccounts = await this.program.account.user.all([
+			{
+				memcmp: {
+					offset: 8,
+					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
+					bytes: bs58.encode(authority.toBuffer()),
+				},
+			},
+		]);
+
+		return programAccounts.map(
+			(programAccount) => programAccount.account as UserAccount
+		);
+	}
+
 	public async deleteUser(subAccountId = 0): Promise<TransactionSignature> {
 		const userAccountPublicKey = getUserAccountPublicKeySync(
 			this.program.programId,
