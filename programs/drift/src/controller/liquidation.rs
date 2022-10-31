@@ -1731,10 +1731,7 @@ pub fn resolve_perp_bankruptcy(
     if loss_to_socialize < 0 {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-        market.amm.cumulative_social_loss = market
-            .amm
-            .cumulative_social_loss
-            .safe_add(loss_to_socialize)?;
+        market.amm.total_social_loss = market.amm.total_social_loss.safe_add(loss_to_socialize)?;
 
         market.amm.cumulative_funding_rate_long = market
             .amm
@@ -1750,9 +1747,15 @@ pub fn resolve_perp_bankruptcy(
     // clear bad debt
     {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
-        let perp_position = user.get_perp_position_mut(market_index).unwrap();
-        let quote_asset_amount = perp_position.quote_asset_amount;
-        update_quote_asset_amount(perp_position, &mut market, -quote_asset_amount)?;
+        let position_index = user.force_get_spot_position_index(market_index)?;
+        let quote_asset_amount = user.perp_positions[position_index].quote_asset_amount;
+        update_quote_asset_amount(
+            &mut user.perp_positions[position_index],
+            &mut market,
+            -quote_asset_amount,
+        )?;
+
+        user.increment_total_socialized_loss(quote_asset_amount.unsigned_abs())?;
     }
 
     // exit bankruptcy
@@ -1864,6 +1867,13 @@ pub fn resolve_spot_bankruptcy(
 
     {
         let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
+        let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
+        let quote_social_loss = borrow_amount
+            .safe_mul(oracle_price.cast()?)?
+            .safe_div(spot_market.get_precision().cast()?)?
+            .cast::<u64>()?;
+        user.increment_total_socialized_loss(quote_social_loss)?;
+
         let spot_position = user.get_spot_position_mut(market_index).unwrap();
         update_spot_balances_and_cumulative_deposits(
             borrow_amount,
@@ -1877,6 +1887,14 @@ pub fn resolve_spot_bankruptcy(
         spot_market.cumulative_deposit_interest = spot_market
             .cumulative_deposit_interest
             .safe_sub(cumulative_deposit_interest_delta)?;
+
+        spot_market.total_social_loss = spot_market
+            .total_social_loss
+            .safe_add(borrow_amount.cast()?)?;
+
+        spot_market.total_quote_social_loss = spot_market
+            .total_quote_social_loss
+            .safe_add(quote_social_loss.cast()?)?;
     }
 
     // exit bankruptcy

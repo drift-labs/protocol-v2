@@ -236,6 +236,8 @@ pub fn handle_initialize_spot_market(
         utilization_twap: 0, // todo: use for dynamic interest / additional guards
         cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        total_social_loss: 0,
+        total_quote_social_loss: 0,
         last_interest_ts: now,
         last_twap_ts: now,
         initial_asset_weight,
@@ -547,7 +549,7 @@ pub fn handle_initialize_perp_market(
             bid_quote_asset_reserve: amm_quote_asset_reserve,
             cumulative_funding_rate_long: 0,
             cumulative_funding_rate_short: 0,
-            cumulative_social_loss: 0,
+            total_social_loss: 0,
             last_funding_rate: 0,
             last_funding_rate_long: 0,
             last_funding_rate_short: 0,
