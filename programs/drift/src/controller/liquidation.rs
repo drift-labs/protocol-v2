@@ -799,7 +799,7 @@ pub fn liquidate_spot(
             &mut liability_market,
             user.get_spot_position_mut(liability_market_index).unwrap(),
             false,
-            None,
+            Some(liability_transfer.safe_sub(if_fee)?),
         )?;
 
         update_revenue_pool_balances(if_fee, &SpotBalanceType::Deposit, &mut liability_market)?;
@@ -812,7 +812,7 @@ pub fn liquidate_spot(
                 .get_spot_position_mut(liability_market_index)
                 .unwrap(),
             false,
-            None,
+            Some(liability_transfer),
         )?;
     }
 
@@ -825,7 +825,7 @@ pub fn liquidate_spot(
             &mut asset_market,
             liquidator.force_get_spot_position_mut(asset_market_index)?,
             false,
-            None,
+            Some(asset_transfer),
         )?;
 
         update_spot_balances_and_cumulative_deposits(
@@ -834,7 +834,7 @@ pub fn liquidate_spot(
             &mut asset_market,
             user.force_get_spot_position_mut(asset_market_index)?,
             false,
-            None,
+            Some(asset_transfer),
         )?;
     }
 
@@ -1175,7 +1175,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             &mut liability_market,
             user.force_get_spot_position_mut(liability_market_index)?,
             false,
-            None,
+            Some(liability_transfer),
         )?;
 
         update_spot_balances_and_cumulative_deposits(
@@ -1184,7 +1184,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             &mut liability_market,
             liquidator.force_get_spot_position_mut(liability_market_index)?,
             false,
-            None,
+            Some(liability_transfer),
         )?;
     }
 
@@ -1535,7 +1535,7 @@ pub fn liquidate_perp_pnl_for_deposit(
                 .get_spot_position_mut(asset_market_index)
                 .unwrap(),
             false,
-            None,
+            Some(asset_transfer),
         )?;
 
         update_spot_balances_and_cumulative_deposits(
@@ -1544,7 +1544,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             &mut asset_market,
             user.get_spot_position_mut(asset_market_index).unwrap(),
             false,
-            None,
+            Some(asset_transfer),
         )?;
     }
 
