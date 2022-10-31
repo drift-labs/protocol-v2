@@ -420,8 +420,11 @@ export class DriftClient {
 
 		const tx = new Transaction();
 		if (subAccountId === 0) {
-			// not the safest assumption, can explicitly check if user stats account exists if it causes problems
-			tx.add(await this.getInitializeUserStatsIx());
+			if (
+				!(await this.checkIfAccountExists(this.getUserStatsAccountPublicKey()))
+			) {
+				tx.add(await this.getInitializeUserStatsIx());
+			}
 		}
 		tx.add(initializeUserAccountIx);
 		const { txSig } = await this.txSender.send(tx, [], this.opts);
@@ -1143,7 +1146,11 @@ export class DriftClient {
 				  );
 
 		if (subAccountId === 0) {
-			tx.add(await this.getInitializeUserStatsIx());
+			if (
+				!(await this.checkIfAccountExists(this.getUserStatsAccountPublicKey()))
+			) {
+				tx.add(await this.getInitializeUserStatsIx());
+			}
 		}
 		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 
@@ -1202,7 +1209,11 @@ export class DriftClient {
 		const tx = new Transaction().add(createAssociatedAccountIx).add(mintToIx);
 
 		if (subAccountId === 0) {
-			tx.add(await this.getInitializeUserStatsIx());
+			if (
+				!(await this.checkIfAccountExists(this.getUserStatsAccountPublicKey()))
+			) {
+				tx.add(await this.getInitializeUserStatsIx());
+			}
 		}
 		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 

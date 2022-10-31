@@ -389,6 +389,7 @@ export type SpotBankruptcyRecord = {
 	marketIndex: number;
 	borrowAmount: BN;
 	cumulativeDepositInterestDelta: BN;
+	ifPayment: BN;
 };
 
 export type SettlePnlRecord = {
