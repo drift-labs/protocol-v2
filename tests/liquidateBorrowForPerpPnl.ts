@@ -289,7 +289,7 @@ describe('liquidate borrow for perp pnl', () => {
 		assert(liquidatorDepositRecord.marketIndex === 1);
 		assert(isVariant(liquidatorDepositRecord.explanation, 'liquidator'));
 
-		// user gets positive pnl
+		// user settles positive pnl
 		const userSettlePnlRecord =
 			eventSubscriber.getEventsArray('SettlePnlRecord')[0];
 		assert(
@@ -300,7 +300,7 @@ describe('liquidate borrow for perp pnl', () => {
 		assert(userSettlePnlRecord.marketIndex === 0);
 		assert(
 			userSettlePnlRecord.pnl.eq(
-				liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.neg()
+				liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer
 			)
 		);
 		assert(isVariant(userSettlePnlRecord.explanation, 'liquidatee'));

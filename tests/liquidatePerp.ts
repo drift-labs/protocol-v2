@@ -370,9 +370,7 @@ describe('liquidate perp and lp', () => {
 			settlePnlRecord.user.equals(await driftClient.getUserAccountPublicKey())
 		);
 		assert(settlePnlRecord.marketIndex === 0);
-		assert(
-			settlePnlRecord.pnl.eq(perpBankruptcyRecord.perpBankruptcy.pnl.neg())
-		);
+		assert(settlePnlRecord.pnl.eq(perpBankruptcyRecord.perpBankruptcy.pnl));
 		assert(isVariant(settlePnlRecord.explanation, 'bankruptcy'));
 	});
 });
