@@ -22,7 +22,6 @@ import {
 	StateAccount,
 	isMarketOrder,
 	isLimitOrder,
-	hasLimitPrice,
 	getOptionalLimitPrice,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
@@ -804,8 +803,11 @@ export class DLOB {
 			bidNode
 		);
 
-		// If order doesn't have limit price, cant be maker
-		if (!hasLimitPrice(makerNode.order, slot)) {
+		// If maker is market order and auction is complete, cant be maker
+		if (
+			isMarketOrder(makerNode.order) &&
+			isAuctionComplete(makerNode.order, slot)
+		) {
 			return {
 				crossingNodes: [],
 				exhaustedSide: makerSide,
