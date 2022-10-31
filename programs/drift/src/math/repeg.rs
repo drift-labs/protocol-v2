@@ -358,12 +358,14 @@ pub fn adjust_amm(
                 .peg_multiplier
                 .safe_add(budget_delta_peg_magnitude)
                 .unwrap_or(u128::MAX)
-        } else {
+        } else if market.amm.peg_multiplier > budget_delta_peg_magnitude {
             market
                 .amm
                 .peg_multiplier
                 .safe_sub(budget_delta_peg_magnitude)
-                .unwrap_or(1)
+                .unwrap()
+        } else {
+            1
         };
 
         cost = calculate_repeg_cost(&market_clone.amm, new_peg)?;
