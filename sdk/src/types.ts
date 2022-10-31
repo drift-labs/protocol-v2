@@ -146,7 +146,7 @@ export class DepositExplanation {
 
 export class SettlePnlExplanation {
 	static readonly NONE = { none: {} };
-	static readonly ExpiredPosition = { expiredPosition: {} };
+	static readonly EXPIRED_POSITION = { expiredPosition: {} };
 	static readonly LIQUIDATEE = { liquidatee: {} };
 	static readonly LIQUIDATOR = { liquidator: {} };
 	static readonly BANKRUPTCY = { bankruptcy: {} };
