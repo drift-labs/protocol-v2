@@ -5822,15 +5822,38 @@
       }
     },
     {
+      "name": "DepositExplanation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "Transfer"
+          },
+          {
+            "name": "Liquidatee"
+          },
+          {
+            "name": "Liquidator"
+          },
+          {
+            "name": "Bankruptcy"
+          }
+        ]
+      }
+    },
+    {
       "name": "DepositDirection",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "DEPOSIT"
+            "name": "Deposit"
           },
           {
-            "name": "WITHDRAW"
+            "name": "Withdraw"
           }
         ]
       }
@@ -5938,6 +5961,29 @@
           },
           {
             "name": "SpotBankruptcy"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SettlePnlExplanation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "ExpiredPosition"
+          },
+          {
+            "name": "Liquidatee"
+          },
+          {
+            "name": "Liquidator"
+          },
+          {
+            "name": "Bankruptcy"
           }
         ]
       }
@@ -6361,6 +6407,13 @@
         {
           "name": "totalWithdrawsAfter",
           "type": "u64",
+          "index": false
+        },
+        {
+          "name": "explanation",
+          "type": {
+            "defined": "DepositExplanation"
+          },
           "index": false
         },
         {
@@ -7052,6 +7105,13 @@
         {
           "name": "settlePrice",
           "type": "i64",
+          "index": false
+        },
+        {
+          "name": "explanation",
+          "type": {
+            "defined": "SettlePnlExplanation"
+          },
           "index": false
         }
       ]

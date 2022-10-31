@@ -217,6 +217,91 @@ describe('liquidate spot', () => {
 				liquidationRecord.liquidateSpot.liabilityTransfer.div(new BN(100))
 			)
 		);
+
+		// when user has debt paid off
+		const userDepositRecord =
+			eventSubscriber.getEventsArray('DepositRecord')[3];
+		assert(userDepositRecord.userAuthority.equals(driftClient.authority));
+		assert(
+			userDepositRecord.user.equals(await driftClient.getUserAccountPublicKey())
+		);
+		assert(isVariant(userDepositRecord.direction, 'deposit'));
+		assert(userDepositRecord.depositRecordId.eq(new BN(3)));
+		assert(
+			userDepositRecord.amount.eq(
+				liquidationRecord.liquidateSpot.liabilityTransfer.sub(
+					liquidationRecord.liquidateSpot.ifFee
+				)
+			)
+		);
+		assert(userDepositRecord.marketIndex === 1);
+		assert(isVariant(userDepositRecord.explanation, 'liquidatee'));
+
+		// when liquidator takes on borrow
+		const liquidatorWithdrawRecord =
+			eventSubscriber.getEventsArray('DepositRecord')[2];
+		assert(
+			liquidatorWithdrawRecord.userAuthority.equals(
+				liquidatorDriftClient.authority
+			)
+		);
+		assert(
+			liquidatorWithdrawRecord.user.equals(
+				await liquidatorDriftClient.getUserAccountPublicKey()
+			)
+		);
+		assert(isVariant(liquidatorWithdrawRecord.direction, 'withdraw'));
+		assert(liquidatorWithdrawRecord.depositRecordId.eq(new BN(4)));
+		assert(
+			liquidatorWithdrawRecord.amount.eq(
+				liquidationRecord.liquidateSpot.liabilityTransfer
+			)
+		);
+		assert(liquidatorWithdrawRecord.marketIndex === 1);
+		assert(isVariant(liquidatorWithdrawRecord.explanation, 'liquidator'));
+
+		// when the user has their asset withdrawn
+		const userWithdrawRecord =
+			eventSubscriber.getEventsArray('DepositRecord')[1];
+		assert(userWithdrawRecord.userAuthority.equals(driftClient.authority));
+		assert(
+			userWithdrawRecord.user.equals(
+				await driftClient.getUserAccountPublicKey()
+			)
+		);
+		assert(isVariant(userWithdrawRecord.direction, 'withdraw'));
+		assert(userWithdrawRecord.depositRecordId.eq(new BN(2)));
+		assert(
+			userWithdrawRecord.amount.eq(
+				liquidationRecord.liquidateSpot.assetTransfer
+			)
+		);
+		assert(userWithdrawRecord.marketIndex === 0);
+		assert(isVariant(userWithdrawRecord.explanation, 'liquidatee'));
+
+		// when the liquidator receives asset
+		const liquidatorDepositRecord =
+			eventSubscriber.getEventsArray('DepositRecord')[0];
+		assert(
+			liquidatorDepositRecord.userAuthority.equals(
+				liquidatorDriftClient.authority
+			)
+		);
+		assert(
+			liquidatorDepositRecord.user.equals(
+				await liquidatorDriftClient.getUserAccountPublicKey()
+			)
+		);
+		assert(isVariant(liquidatorDepositRecord.direction, 'deposit'));
+		assert(liquidatorDepositRecord.depositRecordId.eq(new BN(3)));
+		assert(
+			liquidatorDepositRecord.amount.eq(
+				liquidationRecord.liquidateSpot.assetTransfer
+			)
+		);
+		assert(liquidatorDepositRecord.marketIndex === 0);
+		assert(isVariant(liquidatorDepositRecord.explanation, 'liquidator'));
+
 		await driftClient.fetchAccounts();
 		const spotMarket = driftClient.getSpotMarketAccount(0);
 		const spotMarket1 = driftClient.getSpotMarketAccount(1);

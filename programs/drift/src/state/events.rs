@@ -34,7 +34,24 @@ pub struct DepositRecord {
     pub market_cumulative_borrow_interest: u128,
     pub total_deposits_after: u64,
     pub total_withdraws_after: u64,
+    pub explanation: DepositExplanation,
     pub transfer_user: Option<Pubkey>,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub enum DepositExplanation {
+    None,
+    Transfer,
+    Liquidatee,
+    Liquidator,
+    Bankruptcy,
+}
+
+impl Default for DepositExplanation {
+    // UpOnly
+    fn default() -> Self {
+        DepositExplanation::None
+    }
 }
 
 #[event]
@@ -52,14 +69,14 @@ pub struct SpotInterestRecord {
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum DepositDirection {
-    DEPOSIT,
-    WITHDRAW,
+    Deposit,
+    Withdraw,
 }
 
 impl Default for DepositDirection {
     // UpOnly
     fn default() -> Self {
-        DepositDirection::DEPOSIT
+        DepositDirection::Deposit
     }
 }
 
@@ -399,6 +416,23 @@ pub struct SettlePnlRecord {
     pub quote_asset_amount_after: i64,
     pub quote_entry_amount: i64,
     pub settle_price: i64,
+    pub explanation: SettlePnlExplanation,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub enum SettlePnlExplanation {
+    None,
+    ExpiredPosition,
+    Liquidatee,
+    Liquidator,
+    Bankruptcy,
+}
+
+impl Default for SettlePnlExplanation {
+    // UpOnly
+    fn default() -> Self {
+        SettlePnlExplanation::None
+    }
 }
 
 #[event]

@@ -136,6 +136,22 @@ export class SpotFulfillmentStatus {
 	static readonly DISABLED = { disabled: {} };
 }
 
+export class DepositExplanation {
+	static readonly NONE = { none: {} };
+	static readonly TRANSFER = { transfer: {} };
+	static readonly LIQUIDATEE = { liquidatee: {} };
+	static readonly LIQUIDATOR = { liquidator: {} };
+	static readonly BANKRUPTCY = { bankruptcy: {} };
+}
+
+export class SettlePnlExplanation {
+	static readonly NONE = { none: {} };
+	static readonly ExpiredPosition = { expiredPosition: {} };
+	static readonly LIQUIDATEE = { liquidatee: {} };
+	static readonly LIQUIDATOR = { liquidator: {} };
+	static readonly BANKRUPTCY = { bankruptcy: {} };
+}
+
 export function isVariant(object: unknown, type: string) {
 	return object.hasOwnProperty(type);
 }
@@ -191,6 +207,7 @@ export type DepositRecord = {
 	marketCumulativeDepositInterest: BN;
 	marketCumulativeBorrowInterest: BN;
 	depositRecordId: BN;
+	explanation: DepositExplanation;
 	transferUser?: PublicKey;
 };
 
@@ -383,6 +400,7 @@ export type SettlePnlRecord = {
 	quoteAssetAmountAfter: BN;
 	quoteEntryAmount: BN;
 	settlePrice: BN;
+	explanation: SettlePnlExplanation;
 };
 
 export type OrderRecord = {
