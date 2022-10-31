@@ -433,6 +433,8 @@ pub enum ErrorCode {
     SpotOrdersDisabled,
     #[msg("Market Being Initialized")]
     MarketBeingInitialized,
+    #[msg("Invalid Sub Account Id")]
+    InvalidUserSubAccountId,
 }
 
 #[macro_export]

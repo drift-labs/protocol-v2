@@ -4424,7 +4424,7 @@
             "type": "u16"
           },
           {
-            "name": "maxSubAccountId",
+            "name": "numberOfSubAccountsCreated",
             "type": "u16"
           },
           {
@@ -8291,6 +8291,11 @@
       "code": 6213,
       "name": "MarketBeingInitialized",
       "msg": "Market Being Initialized"
+    },
+    {
+      "code": 6214,
+      "name": "InvalidUserSubAccountId",
+      "msg": "Invalid Sub Account Id"
     }
   ]
 }

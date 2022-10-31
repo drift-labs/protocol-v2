@@ -689,7 +689,7 @@ export type PerpPosition = {
 
 export type UserStatsAccount = {
 	numberOfSubAccounts: number;
-	maxSubAccountId: number;
+	numberOfSubAccountsCreated: number;
 	makerVolume30D: BN;
 	takerVolume30D: BN;
 	fillerVolume30D: BN;
