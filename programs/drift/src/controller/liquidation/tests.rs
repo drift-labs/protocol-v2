@@ -3043,7 +3043,6 @@ pub mod resolve_spot_bankruptcy {
         expected_spot_market.borrow_balance = 0;
         expected_spot_market.cumulative_deposit_interest =
             9 * SPOT_CUMULATIVE_INTEREST_PRECISION / 10;
-        expected_spot_market.next_deposit_record_id = 1;
 
         resolve_spot_bankruptcy(
             0,

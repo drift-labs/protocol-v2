@@ -5831,15 +5831,6 @@
           },
           {
             "name": "Transfer"
-          },
-          {
-            "name": "Liquidatee"
-          },
-          {
-            "name": "Liquidator"
-          },
-          {
-            "name": "Bankruptcy"
           }
         ]
       }
@@ -5975,15 +5966,6 @@
           },
           {
             "name": "ExpiredPosition"
-          },
-          {
-            "name": "Liquidatee"
-          },
-          {
-            "name": "Liquidator"
-          },
-          {
-            "name": "Bankruptcy"
           }
         ]
       }

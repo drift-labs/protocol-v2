@@ -42,9 +42,6 @@ pub struct DepositRecord {
 pub enum DepositExplanation {
     None,
     Transfer,
-    Liquidatee,
-    Liquidator,
-    Bankruptcy,
 }
 
 impl Default for DepositExplanation {
@@ -423,9 +420,6 @@ pub struct SettlePnlRecord {
 pub enum SettlePnlExplanation {
     None,
     ExpiredPosition,
-    Liquidatee,
-    Liquidator,
-    Bankruptcy,
 }
 
 impl Default for SettlePnlExplanation {

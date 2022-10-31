@@ -41,10 +41,9 @@ use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_am
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::state::events::{
-    DepositDirection, DepositExplanation, DepositRecord, LiquidateBorrowForPerpPnlRecord,
-    LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord, LiquidateSpotRecord, LiquidationRecord,
-    LiquidationType, OrderAction, OrderActionExplanation, OrderActionRecord, OrderRecord,
-    PerpBankruptcyRecord, SettlePnlExplanation, SettlePnlRecord, SpotBankruptcyRecord,
+    LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
+    LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction, OrderActionExplanation,
+    OrderActionRecord, OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord,
 };
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
@@ -803,27 +802,6 @@ pub fn liquidate_spot(
             None,
         )?;
 
-        let deposit_record_id = get_then_update_id!(liability_market, next_deposit_record_id);
-        let user_deposit_record = DepositRecord {
-            ts: now,
-            user_authority: user.authority,
-            user: *user_key,
-            direction: DepositDirection::Deposit,
-            deposit_record_id,
-            amount: liability_transfer.safe_sub(if_fee)?.cast()?,
-            market_index: liability_market_index,
-            oracle_price: liability_price,
-            market_deposit_balance: liability_market.deposit_balance,
-            market_withdraw_balance: liability_market.borrow_balance,
-            market_cumulative_deposit_interest: liability_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: liability_market.cumulative_borrow_interest,
-            total_deposits_after: user.total_deposits,
-            total_withdraws_after: user.total_withdraws,
-            explanation: DepositExplanation::Liquidatee,
-            transfer_user: None,
-        };
-        emit!(user_deposit_record);
-
         update_revenue_pool_balances(if_fee, &SpotBalanceType::Deposit, &mut liability_market)?;
 
         update_spot_balances_and_cumulative_deposits(
@@ -836,27 +814,6 @@ pub fn liquidate_spot(
             false,
             None,
         )?;
-
-        let deposit_record_id = get_then_update_id!(liability_market, next_deposit_record_id);
-        let liquidator_deposit_record = DepositRecord {
-            ts: now,
-            user_authority: liquidator.authority,
-            user: *liquidator_key,
-            direction: DepositDirection::Withdraw,
-            deposit_record_id,
-            amount: liability_transfer.cast()?,
-            market_index: liability_market_index,
-            oracle_price: liability_price,
-            market_deposit_balance: liability_market.deposit_balance,
-            market_withdraw_balance: liability_market.borrow_balance,
-            market_cumulative_deposit_interest: liability_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: liability_market.cumulative_borrow_interest,
-            total_deposits_after: liquidator.total_deposits,
-            total_withdraws_after: liquidator.total_withdraws,
-            explanation: DepositExplanation::Liquidator,
-            transfer_user: None,
-        };
-        emit!(liquidator_deposit_record);
     }
 
     {
@@ -871,27 +828,6 @@ pub fn liquidate_spot(
             None,
         )?;
 
-        let deposit_record_id = get_then_update_id!(asset_market, next_deposit_record_id);
-        let liquidator_deposit_record = DepositRecord {
-            ts: now,
-            user_authority: liquidator.authority,
-            user: *liquidator_key,
-            direction: DepositDirection::Deposit,
-            deposit_record_id,
-            amount: asset_transfer.cast()?,
-            market_index: asset_market_index,
-            oracle_price: asset_price,
-            market_deposit_balance: asset_market.deposit_balance,
-            market_withdraw_balance: asset_market.borrow_balance,
-            market_cumulative_deposit_interest: asset_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: asset_market.cumulative_borrow_interest,
-            total_deposits_after: liquidator.total_deposits,
-            total_withdraws_after: liquidator.total_withdraws,
-            explanation: DepositExplanation::Liquidator,
-            transfer_user: None,
-        };
-        emit!(liquidator_deposit_record);
-
         update_spot_balances_and_cumulative_deposits(
             asset_transfer,
             &SpotBalanceType::Borrow,
@@ -900,27 +836,6 @@ pub fn liquidate_spot(
             false,
             None,
         )?;
-
-        let deposit_record_id = get_then_update_id!(asset_market, next_deposit_record_id);
-        let user_deposit_record = DepositRecord {
-            ts: now,
-            user_authority: user.authority,
-            user: *user_key,
-            direction: DepositDirection::Withdraw,
-            deposit_record_id,
-            amount: asset_transfer.cast()?,
-            market_index: asset_market_index,
-            oracle_price: asset_price,
-            market_deposit_balance: asset_market.deposit_balance,
-            market_withdraw_balance: asset_market.borrow_balance,
-            market_cumulative_deposit_interest: asset_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: asset_market.cumulative_borrow_interest,
-            total_deposits_after: user.total_deposits,
-            total_withdraws_after: user.total_withdraws,
-            explanation: DepositExplanation::Liquidatee,
-            transfer_user: None,
-        };
-        emit!(user_deposit_record);
     }
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
@@ -1269,27 +1184,6 @@ pub fn liquidate_borrow_for_perp_pnl(
             None,
         )?;
 
-        let deposit_record_id = get_then_update_id!(liability_market, next_deposit_record_id);
-        let user_deposit_record = DepositRecord {
-            ts: now,
-            user_authority: user.authority,
-            user: *user_key,
-            direction: DepositDirection::Deposit,
-            deposit_record_id,
-            amount: liability_transfer.cast()?,
-            market_index: liability_market_index,
-            oracle_price: liability_price,
-            market_deposit_balance: liability_market.deposit_balance,
-            market_withdraw_balance: liability_market.borrow_balance,
-            market_cumulative_deposit_interest: liability_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: liability_market.cumulative_borrow_interest,
-            total_deposits_after: user.total_deposits,
-            total_withdraws_after: user.total_withdraws,
-            explanation: DepositExplanation::Liquidatee,
-            transfer_user: None,
-        };
-        emit!(user_deposit_record);
-
         update_spot_balances_and_cumulative_deposits(
             liability_transfer,
             &SpotBalanceType::Borrow,
@@ -1298,50 +1192,15 @@ pub fn liquidate_borrow_for_perp_pnl(
             false,
             None,
         )?;
-
-        let deposit_record_id = get_then_update_id!(liability_market, next_deposit_record_id);
-        let user_deposit_record = DepositRecord {
-            ts: now,
-            user_authority: liquidator.authority,
-            user: *liquidator_key,
-            direction: DepositDirection::Withdraw,
-            deposit_record_id,
-            amount: liability_transfer.cast()?,
-            market_index: liability_market_index,
-            oracle_price: liability_price,
-            market_deposit_balance: liability_market.deposit_balance,
-            market_withdraw_balance: liability_market.borrow_balance,
-            market_cumulative_deposit_interest: liability_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: liability_market.cumulative_borrow_interest,
-            total_deposits_after: liquidator.total_deposits,
-            total_withdraws_after: liquidator.total_withdraws,
-            explanation: DepositExplanation::Liquidator,
-            transfer_user: None,
-        };
-        emit!(user_deposit_record);
     }
 
     {
         let mut market = perp_market_map.get_ref_mut(&perp_market_index)?;
-        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
         let liquidator_position = liquidator.force_get_perp_position_mut(perp_market_index)?;
         update_quote_asset_amount(liquidator_position, &mut market, pnl_transfer.cast()?)?;
 
         let user_position = user.get_perp_position_mut(perp_market_index)?;
         update_quote_asset_amount(user_position, &mut market, -pnl_transfer.cast()?)?;
-
-        let user_settle_pnl_record = SettlePnlRecord {
-            ts: now,
-            user: *user_key,
-            market_index: perp_market_index,
-            pnl: pnl_transfer.cast()?,
-            base_asset_amount: user_position.base_asset_amount,
-            quote_asset_amount_after: user_position.quote_asset_amount,
-            quote_entry_amount: user_position.quote_entry_amount,
-            settle_price: oracle_price,
-            explanation: SettlePnlExplanation::Liquidatee,
-        };
-        emit!(user_settle_pnl_record);
     }
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
@@ -1691,27 +1550,6 @@ pub fn liquidate_perp_pnl_for_deposit(
             None,
         )?;
 
-        let deposit_record_id = get_then_update_id!(asset_market, next_deposit_record_id);
-        let user_deposit_record = DepositRecord {
-            ts: now,
-            user_authority: liquidator.authority,
-            user: *liquidator_key,
-            direction: DepositDirection::Deposit,
-            deposit_record_id,
-            amount: asset_transfer.cast()?,
-            market_index: asset_market_index,
-            oracle_price: asset_price,
-            market_deposit_balance: asset_market.deposit_balance,
-            market_withdraw_balance: asset_market.borrow_balance,
-            market_cumulative_deposit_interest: asset_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: asset_market.cumulative_borrow_interest,
-            total_deposits_after: liquidator.total_deposits,
-            total_withdraws_after: liquidator.total_withdraws,
-            explanation: DepositExplanation::Liquidator,
-            transfer_user: None,
-        };
-        emit!(user_deposit_record);
-
         update_spot_balances_and_cumulative_deposits(
             asset_transfer,
             &SpotBalanceType::Borrow,
@@ -1720,50 +1558,15 @@ pub fn liquidate_perp_pnl_for_deposit(
             false,
             None,
         )?;
-
-        let deposit_record_id = get_then_update_id!(asset_market, next_deposit_record_id);
-        let user_deposit_record = DepositRecord {
-            ts: now,
-            user_authority: user.authority,
-            user: *user_key,
-            direction: DepositDirection::Withdraw,
-            deposit_record_id,
-            amount: asset_transfer.cast()?,
-            market_index: asset_market_index,
-            oracle_price: asset_price,
-            market_deposit_balance: asset_market.deposit_balance,
-            market_withdraw_balance: asset_market.borrow_balance,
-            market_cumulative_deposit_interest: asset_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: asset_market.cumulative_borrow_interest,
-            total_deposits_after: user.total_deposits,
-            total_withdraws_after: user.total_withdraws,
-            explanation: DepositExplanation::Liquidatee,
-            transfer_user: None,
-        };
-        emit!(user_deposit_record);
     }
 
     {
         let mut perp_market = perp_market_map.get_ref_mut(&perp_market_index)?;
-        let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
         let liquidator_position = liquidator.force_get_perp_position_mut(perp_market_index)?;
         update_quote_asset_amount(liquidator_position, &mut perp_market, -pnl_transfer.cast()?)?;
 
         let user_position = user.get_perp_position_mut(perp_market_index)?;
         update_quote_asset_amount(user_position, &mut perp_market, pnl_transfer.cast()?)?;
-
-        let user_settle_pnl_record = SettlePnlRecord {
-            ts: now,
-            user: *user_key,
-            market_index: perp_market_index,
-            pnl: -pnl_transfer.cast()?,
-            base_asset_amount: user_position.base_asset_amount,
-            quote_asset_amount_after: user_position.quote_asset_amount,
-            quote_entry_amount: user_position.quote_entry_amount,
-            settle_price: oracle_price,
-            explanation: SettlePnlExplanation::Liquidatee,
-        };
-        emit!(user_settle_pnl_record);
     }
 
     if pnl_transfer >= pnl_transfer_to_cover_margin_shortage {
@@ -1950,20 +1753,6 @@ pub fn resolve_perp_bankruptcy(
         let perp_position = user.get_perp_position_mut(market_index).unwrap();
         let quote_asset_amount = perp_position.quote_asset_amount;
         update_quote_asset_amount(perp_position, &mut market, -quote_asset_amount)?;
-
-        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-        let user_settle_pnl_record = SettlePnlRecord {
-            ts: now,
-            user: *user_key,
-            market_index,
-            pnl: quote_asset_amount.cast()?,
-            base_asset_amount: perp_position.base_asset_amount,
-            quote_asset_amount_after: perp_position.quote_asset_amount,
-            quote_entry_amount: perp_position.quote_entry_amount,
-            settle_price: oracle_price,
-            explanation: SettlePnlExplanation::Bankruptcy,
-        };
-        emit!(user_settle_pnl_record);
     }
 
     // exit bankruptcy
@@ -2084,28 +1873,6 @@ pub fn resolve_spot_bankruptcy(
             false,
             None,
         )?;
-
-        let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
-        let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
-        let user_deposit_record = DepositRecord {
-            ts: now,
-            user_authority: user.authority,
-            user: *user_key,
-            direction: DepositDirection::Deposit,
-            deposit_record_id,
-            amount: borrow_amount.cast()?,
-            market_index,
-            oracle_price,
-            market_deposit_balance: spot_market.deposit_balance,
-            market_withdraw_balance: spot_market.borrow_balance,
-            market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
-            total_deposits_after: user.total_deposits,
-            total_withdraws_after: user.total_withdraws,
-            explanation: DepositExplanation::Bankruptcy,
-            transfer_user: None,
-        };
-        emit!(user_deposit_record);
 
         spot_market.cumulative_deposit_interest = spot_market
             .cumulative_deposit_interest

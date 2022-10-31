@@ -243,59 +243,5 @@ describe('liquidate perp pnl for deposit', () => {
 				new BN(10000000)
 			)
 		);
-
-		// when the user has their asset withdrawn
-		const userWithdrawRecord =
-			eventSubscriber.getEventsArray('DepositRecord')[0];
-		assert(userWithdrawRecord.userAuthority.equals(driftClient.authority));
-		assert(
-			userWithdrawRecord.user.equals(
-				await driftClient.getUserAccountPublicKey()
-			)
-		);
-		assert(isVariant(userWithdrawRecord.direction, 'withdraw'));
-		assert(userWithdrawRecord.depositRecordId.eq(new BN(3)));
-		assert(
-			userWithdrawRecord.amount.eq(
-				liquidationRecord.liquidatePerpPnlForDeposit.assetTransfer
-			)
-		);
-		assert(userWithdrawRecord.marketIndex === 0);
-		assert(isVariant(userWithdrawRecord.explanation, 'liquidatee'));
-
-		// when the liquidator receives deposit
-		const liquidatorDepositRecord =
-			eventSubscriber.getEventsArray('DepositRecord')[1];
-		assert(
-			liquidatorDepositRecord.userAuthority.equals(
-				liquidatorDriftClient.authority
-			)
-		);
-		assert(
-			liquidatorDepositRecord.user.equals(
-				await liquidatorDriftClient.getUserAccountPublicKey()
-			)
-		);
-		assert(isVariant(liquidatorDepositRecord.direction, 'deposit'));
-		assert(liquidatorDepositRecord.depositRecordId.eq(new BN(2)));
-		assert(
-			liquidatorDepositRecord.amount.eq(
-				liquidationRecord.liquidatePerpPnlForDeposit.assetTransfer
-			)
-		);
-		assert(liquidatorDepositRecord.marketIndex === 0);
-		assert(isVariant(liquidatorDepositRecord.explanation, 'liquidator'));
-
-		// user settles negative pnl
-		const userSettlePnlRecord =
-			eventSubscriber.getEventsArray('SettlePnlRecord')[0];
-		assert(
-			userSettlePnlRecord.user.equals(
-				await driftClient.getUserAccountPublicKey()
-			)
-		);
-		assert(userSettlePnlRecord.marketIndex === 0);
-		assert(userSettlePnlRecord.pnl.eq(new BN(-9011005)));
-		assert(isVariant(userSettlePnlRecord.explanation, 'liquidatee'));
 	});
 });
