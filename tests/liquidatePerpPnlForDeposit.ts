@@ -246,7 +246,7 @@ describe('liquidate perp pnl for deposit', () => {
 
 		// when the user has their asset withdrawn
 		const userWithdrawRecord =
-			eventSubscriber.getEventsArray('DepositRecord')[1];
+			eventSubscriber.getEventsArray('DepositRecord')[0];
 		assert(userWithdrawRecord.userAuthority.equals(driftClient.authority));
 		assert(
 			userWithdrawRecord.user.equals(
@@ -254,7 +254,7 @@ describe('liquidate perp pnl for deposit', () => {
 			)
 		);
 		assert(isVariant(userWithdrawRecord.direction, 'withdraw'));
-		assert(userWithdrawRecord.depositRecordId.eq(new BN(2)));
+		assert(userWithdrawRecord.depositRecordId.eq(new BN(3)));
 		assert(
 			userWithdrawRecord.amount.eq(
 				liquidationRecord.liquidatePerpPnlForDeposit.assetTransfer
@@ -265,7 +265,7 @@ describe('liquidate perp pnl for deposit', () => {
 
 		// when the liquidator receives deposit
 		const liquidatorDepositRecord =
-			eventSubscriber.getEventsArray('DepositRecord')[0];
+			eventSubscriber.getEventsArray('DepositRecord')[1];
 		assert(
 			liquidatorDepositRecord.userAuthority.equals(
 				liquidatorDriftClient.authority
@@ -277,7 +277,7 @@ describe('liquidate perp pnl for deposit', () => {
 			)
 		);
 		assert(isVariant(liquidatorDepositRecord.direction, 'deposit'));
-		assert(liquidatorDepositRecord.depositRecordId.eq(new BN(3)));
+		assert(liquidatorDepositRecord.depositRecordId.eq(new BN(2)));
 		assert(
 			liquidatorDepositRecord.amount.eq(
 				liquidationRecord.liquidatePerpPnlForDeposit.assetTransfer

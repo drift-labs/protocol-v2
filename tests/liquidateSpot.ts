@@ -262,7 +262,7 @@ describe('liquidate spot', () => {
 
 		// when the user has their asset withdrawn
 		const userWithdrawRecord =
-			eventSubscriber.getEventsArray('DepositRecord')[1];
+			eventSubscriber.getEventsArray('DepositRecord')[0];
 		assert(userWithdrawRecord.userAuthority.equals(driftClient.authority));
 		assert(
 			userWithdrawRecord.user.equals(
@@ -270,7 +270,7 @@ describe('liquidate spot', () => {
 			)
 		);
 		assert(isVariant(userWithdrawRecord.direction, 'withdraw'));
-		assert(userWithdrawRecord.depositRecordId.eq(new BN(2)));
+		assert(userWithdrawRecord.depositRecordId.eq(new BN(3)));
 		assert(
 			userWithdrawRecord.amount.eq(
 				liquidationRecord.liquidateSpot.assetTransfer
@@ -281,7 +281,7 @@ describe('liquidate spot', () => {
 
 		// when the liquidator receives asset
 		const liquidatorDepositRecord =
-			eventSubscriber.getEventsArray('DepositRecord')[0];
+			eventSubscriber.getEventsArray('DepositRecord')[1];
 		assert(
 			liquidatorDepositRecord.userAuthority.equals(
 				liquidatorDriftClient.authority
@@ -293,7 +293,7 @@ describe('liquidate spot', () => {
 			)
 		);
 		assert(isVariant(liquidatorDepositRecord.direction, 'deposit'));
-		assert(liquidatorDepositRecord.depositRecordId.eq(new BN(3)));
+		assert(liquidatorDepositRecord.depositRecordId.eq(new BN(2)));
 		assert(
 			liquidatorDepositRecord.amount.eq(
 				liquidationRecord.liquidateSpot.assetTransfer
