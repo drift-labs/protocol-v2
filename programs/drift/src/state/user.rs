@@ -68,7 +68,10 @@ pub struct User {
 
 impl User {
     pub fn is_being_liquidated(&self) -> bool {
-        self.status == UserStatus::BeingLiquidated
+        matches!(
+            self.status,
+            UserStatus::BeingLiquidated | UserStatus::Bankrupt
+        )
     }
 
     pub fn is_bankrupt(&self) -> bool {

@@ -9,6 +9,7 @@ import {
 	UserAccount,
 	PerpPosition,
 	SpotPosition,
+	isOneOfVariant,
 } from './types';
 import { calculateEntryPrice } from './math/position';
 import {
@@ -1037,6 +1038,17 @@ export class User {
 		const maintenanceRequirement =
 			this.getMaintenanceMarginRequirement(liquidationBuffer);
 		return totalCollateral.lt(maintenanceRequirement);
+	}
+
+	public isBeingLiquidated(): boolean {
+		return isOneOfVariant(this.getUserAccount().status, [
+			'beingLiquidated',
+			'bankrupt',
+		]);
+	}
+
+	public isBankrupt(): boolean {
+		return isVariant(this.getUserAccount().status, 'bankrupt');
 	}
 
 	/**

@@ -275,7 +275,7 @@ describe('liquidate perp and lp', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		assert(driftClient.getUserAccount().isBankrupt);
+		assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
 		console.log(driftClient.getUserAccount().perpPositions[0].quoteAssetAmount);
 		assert(
 			driftClient

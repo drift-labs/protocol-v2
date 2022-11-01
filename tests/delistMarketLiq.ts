@@ -639,7 +639,7 @@ describe('delist market, liquidation of expired position', () => {
 			driftClientLoser.getUserAccount().spotPositions,
 			driftClientLoser.getUserAccount().perpPositions
 		);
-		assert(driftClientLoser.getUserAccount().isBankrupt);
+		assert(isVariant(driftClientLoser.getUserAccount().status, 'bankrupt'));
 
 		const txSigBankrupt = await liquidatorDriftClient.resolvePerpBankruptcy(
 			await driftClientLoser.getUserAccountPublicKey(),
@@ -650,7 +650,7 @@ describe('delist market, liquidation of expired position', () => {
 		console.log(txSigBankrupt);
 		await printTxLogs(connection, txSigBankrupt);
 
-		assert(!driftClientLoser.getUserAccount().isBankrupt);
+		assert(!isVariant(driftClientLoser.getUserAccount().status, 'bankrupt'));
 		assert(
 			driftClientLoser
 				.getUserAccount()

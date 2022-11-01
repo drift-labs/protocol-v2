@@ -2585,7 +2585,7 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(shorter.is_being_liquidated(), false);
+            assert_eq!(shorter.is_being_liquidated(), true);
             assert_eq!(shorter.is_bankrupt(), true);
 
             {
