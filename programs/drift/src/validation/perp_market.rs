@@ -35,7 +35,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
     if market.status != MarketStatus::ReduceOnly {
         validate!(
             market.amm.sqrt_k > market.amm.base_asset_amount_with_amm.unsigned_abs(),
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidAmmDetected,
             "k out of wack: k={}, net_baa={}",
             market.amm.sqrt_k,
             market.amm.base_asset_amount_with_amm
