@@ -40,6 +40,7 @@ use crate::math::oracle::DriftAction;
 use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount};
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
+use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
     LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
     LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction, OrderActionExplanation,
@@ -1747,7 +1748,7 @@ pub fn resolve_perp_bankruptcy(
     // clear bad debt
     {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
-        let position_index = user.force_get_spot_position_index(market_index)?;
+        let position_index = get_position_index(&user.perp_positions, market_index)?;
         let quote_asset_amount = user.perp_positions[position_index].quote_asset_amount;
         update_quote_asset_amount(
             &mut user.perp_positions[position_index],
@@ -1867,12 +1868,13 @@ pub fn resolve_spot_bankruptcy(
 
     {
         let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
-        let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
-        let quote_social_loss = borrow_amount
-            .safe_mul(oracle_price.cast()?)?
-            .safe_div(spot_market.get_precision().cast()?)?
-            .cast::<u64>()?;
-        user.increment_total_socialized_loss(quote_social_loss)?;
+        let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?;
+        let quote_social_loss = get_token_value(
+            borrow_amount.cast()?,
+            spot_market.decimals,
+            oracle_price_data,
+        )?;
+        user.increment_total_socialized_loss(quote_social_loss.cast()?)?;
 
         let spot_position = user.get_spot_position_mut(market_index).unwrap();
         update_spot_balances_and_cumulative_deposits(
