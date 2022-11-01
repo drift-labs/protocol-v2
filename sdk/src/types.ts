@@ -314,6 +314,7 @@ export type LiquidationRecord = {
 	liquidationType: LiquidationType;
 	marginRequirement: BN;
 	totalCollateral: BN;
+	marginFreed: BN;
 	liquidationId: number;
 	canceledOrderIds: BN[];
 	liquidatePerp: LiquidatePerpRecord;
