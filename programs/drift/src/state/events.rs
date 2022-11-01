@@ -312,6 +312,7 @@ pub struct LiquidationRecord {
     pub liquidator: Pubkey,
     pub margin_requirement: u128,
     pub total_collateral: i128,
+    pub margin_freed: u64,
     pub liquidation_id: u16,
     pub bankrupt: bool,
     pub canceled_order_ids: Vec<u32>,

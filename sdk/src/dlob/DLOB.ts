@@ -650,10 +650,7 @@ export class DLOB {
 					const user = this.userMap.get(
 						bestGenerator.next.value.userAccount.toString()
 					);
-					if (
-						user?.getUserAccount().isBeingLiquidated ||
-						user?.getUserAccount().isBankrupt
-					) {
+					if (user?.isBeingLiquidated()) {
 						bestGenerator.next = bestGenerator.generator.next();
 						continue;
 					}
@@ -739,10 +736,7 @@ export class DLOB {
 					const user = this.userMap.get(
 						bestGenerator.next.value.userAccount.toString()
 					);
-					if (
-						user?.getUserAccount().isBeingLiquidated ||
-						user?.getUserAccount().isBankrupt
-					) {
+					if (user?.isBeingLiquidated()) {
 						bestGenerator.next = bestGenerator.generator.next();
 						continue;
 					}

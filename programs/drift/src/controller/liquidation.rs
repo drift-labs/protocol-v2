@@ -52,7 +52,7 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
-use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
+use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats, UserStatus};
 use crate::validate;
 
 #[cfg(test)]
@@ -77,10 +77,14 @@ pub fn liquidate_perp(
 ) -> DriftResult {
     let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
+    validate!(
+        !user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "user bankrupt",
+    )?;
 
     validate!(
-        !liquidator.is_bankrupt,
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -129,12 +133,12 @@ pub fn liquidate_perp(
             Some(liquidation_margin_buffer_ratio as u128),
         )?;
 
-    if !user.is_being_liquidated && total_collateral >= margin_requirement.cast()? {
+    if !user.is_being_liquidated() && total_collateral >= margin_requirement.cast()? {
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated
+    } else if user.is_being_liquidated()
         && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
-        user.is_being_liquidated = false;
+        user.status = UserStatus::Active;
         return Ok(());
     }
 
@@ -218,7 +222,7 @@ pub fn liquidate_perp(
                     liquidator: *liquidator_key,
                     margin_requirement,
                     total_collateral,
-                    bankrupt: user.is_bankrupt,
+                    bankrupt: user.is_bankrupt(),
                     canceled_order_ids,
                     liquidate_perp: LiquidatePerpRecord {
                         market_index,
@@ -229,7 +233,7 @@ pub fn liquidate_perp(
                     ..LiquidationRecord::default()
                 });
 
-                user.is_being_liquidated = false;
+                user.status = UserStatus::Active;
                 return Ok(());
             }
 
@@ -383,9 +387,9 @@ pub fn liquidate_perp(
     };
 
     if base_asset_amount >= base_asset_amount_to_cover_margin_shortage {
-        user.is_being_liquidated = false;
-    } else {
-        user.is_bankrupt = is_user_bankrupt(user);
+        user.status = UserStatus::Active;
+    } else if is_user_bankrupt(user) {
+        user.status = UserStatus::Bankrupt;
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -496,7 +500,7 @@ pub fn liquidate_perp(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
-        bankrupt: user.is_bankrupt,
+        bankrupt: user.is_bankrupt(),
         canceled_order_ids,
         liquidate_perp: LiquidatePerpRecord {
             market_index,
@@ -532,10 +536,14 @@ pub fn liquidate_spot(
     slot: u64,
     liquidation_margin_buffer_ratio: u32,
 ) -> DriftResult {
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
+    validate!(
+        !user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "user bankrupt",
+    )?;
 
     validate!(
-        !liquidator.is_bankrupt,
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -663,12 +671,12 @@ pub fn liquidate_spot(
             Some(liquidation_margin_buffer_ratio as u128),
         )?;
 
-    if !user.is_being_liquidated && total_collateral >= margin_requirement.cast()? {
+    if !user.is_being_liquidated() && total_collateral >= margin_requirement.cast()? {
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated
+    } else if user.is_being_liquidated()
         && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
-        user.is_being_liquidated = false;
+        user.status = UserStatus::Active;
         return Ok(());
     }
 
@@ -713,7 +721,7 @@ pub fn liquidate_spot(
                     liquidator: *liquidator_key,
                     margin_requirement,
                     total_collateral,
-                    bankrupt: user.is_bankrupt,
+                    bankrupt: user.is_bankrupt(),
                     canceled_order_ids,
                     liquidate_spot: LiquidateSpotRecord {
                         asset_market_index,
@@ -727,7 +735,7 @@ pub fn liquidate_spot(
                     ..LiquidationRecord::default()
                 });
 
-                user.is_being_liquidated = false;
+                user.status = UserStatus::Active;
                 return Ok(());
             }
 
@@ -849,9 +857,9 @@ pub fn liquidate_spot(
     }
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
-        user.is_being_liquidated = false;
-    } else {
-        user.is_bankrupt = is_user_bankrupt(user);
+        user.status = UserStatus::Active;
+    } else if is_user_bankrupt(user) {
+        user.status = UserStatus::Bankrupt;
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -871,7 +879,7 @@ pub fn liquidate_spot(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
-        bankrupt: user.is_bankrupt,
+        bankrupt: user.is_bankrupt(),
         liquidate_spot: LiquidateSpotRecord {
             asset_market_index,
             asset_price,
@@ -907,10 +915,14 @@ pub fn liquidate_borrow_for_perp_pnl(
     // can only be done once a user's perpetual position size is 0
     // blocks borrows where oracle is deemed invalid
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
+    validate!(
+        !user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "user bankrupt",
+    )?;
 
     validate!(
-        !liquidator.is_bankrupt,
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -1056,12 +1068,12 @@ pub fn liquidate_borrow_for_perp_pnl(
             Some(liquidation_margin_buffer_ratio as u128),
         )?;
 
-    if !user.is_being_liquidated && total_collateral >= margin_requirement.cast()? {
+    if !user.is_being_liquidated() && total_collateral >= margin_requirement.cast()? {
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated
+    } else if user.is_being_liquidated()
         && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
-        user.is_being_liquidated = false;
+        user.status = UserStatus::Active;
         return Ok(());
     }
 
@@ -1109,7 +1121,7 @@ pub fn liquidate_borrow_for_perp_pnl(
                     liquidator: *liquidator_key,
                     margin_requirement,
                     total_collateral,
-                    bankrupt: user.is_bankrupt,
+                    bankrupt: user.is_bankrupt(),
                     canceled_order_ids,
                     liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord {
                         perp_market_index,
@@ -1122,7 +1134,7 @@ pub fn liquidate_borrow_for_perp_pnl(
                     ..LiquidationRecord::default()
                 });
 
-                user.is_being_liquidated = false;
+                user.status = UserStatus::Active;
                 return Ok(());
             }
 
@@ -1223,9 +1235,9 @@ pub fn liquidate_borrow_for_perp_pnl(
     }
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
-        user.is_being_liquidated = false;
-    } else {
-        user.is_bankrupt = is_user_bankrupt(user);
+        user.status = UserStatus::Active;
+    } else if is_user_bankrupt(user) {
+        user.status = UserStatus::Bankrupt;
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -1250,7 +1262,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
-        bankrupt: user.is_bankrupt,
+        bankrupt: user.is_bankrupt(),
         liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord {
             perp_market_index,
             market_oracle_price,
@@ -1285,10 +1297,14 @@ pub fn liquidate_perp_pnl_for_deposit(
     // can only be done once the perpetual position's size is 0
     // blocked when the user deposit oracle is deemed invalid
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
+    validate!(
+        !user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "user bankrupt",
+    )?;
 
     validate!(
-        !liquidator.is_bankrupt,
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -1431,12 +1447,12 @@ pub fn liquidate_perp_pnl_for_deposit(
             Some(liquidation_margin_buffer_ratio as u128),
         )?;
 
-    if !user.is_being_liquidated && total_collateral >= margin_requirement.cast()? {
+    if !user.is_being_liquidated() && total_collateral >= margin_requirement.cast()? {
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated
+    } else if user.is_being_liquidated()
         && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
-        user.is_being_liquidated = false;
+        user.status = UserStatus::Active;
         return Ok(());
     }
 
@@ -1484,7 +1500,7 @@ pub fn liquidate_perp_pnl_for_deposit(
                     liquidator: *liquidator_key,
                     margin_requirement,
                     total_collateral,
-                    bankrupt: user.is_bankrupt,
+                    bankrupt: user.is_bankrupt(),
                     canceled_order_ids,
                     liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord {
                         perp_market_index,
@@ -1497,7 +1513,7 @@ pub fn liquidate_perp_pnl_for_deposit(
                     ..LiquidationRecord::default()
                 });
 
-                user.is_being_liquidated = false;
+                user.status = UserStatus::Active;
                 return Ok(());
             }
 
@@ -1598,9 +1614,9 @@ pub fn liquidate_perp_pnl_for_deposit(
     }
 
     if pnl_transfer >= pnl_transfer_to_cover_margin_shortage {
-        user.is_being_liquidated = false;
-    } else {
-        user.is_bankrupt = is_user_bankrupt(user);
+        user.status = UserStatus::Active;
+    } else if is_user_bankrupt(user) {
+        user.status = UserStatus::Bankrupt;
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -1625,7 +1641,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
-        bankrupt: user.is_bankrupt,
+        bankrupt: user.is_bankrupt(),
         liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord {
             perp_market_index,
             market_oracle_price,
@@ -1641,12 +1657,12 @@ pub fn liquidate_perp_pnl_for_deposit(
 }
 
 pub fn set_being_liquidated_and_get_liquidation_id(user: &mut User) -> DriftResult<u16> {
-    let liquidation_id = if user.is_being_liquidated {
+    let liquidation_id = if user.is_being_liquidated() {
         user.next_liquidation_id.safe_sub(1)?
     } else {
         get_then_update_id!(user, next_liquidation_id)
     };
-    user.is_being_liquidated = true;
+    user.status = UserStatus::BeingLiquidated;
 
     Ok(liquidation_id)
 }
@@ -1664,19 +1680,19 @@ pub fn resolve_perp_bankruptcy(
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
     validate!(
-        user.is_bankrupt,
+        user.is_bankrupt(),
         ErrorCode::UserNotBankrupt,
         "user not bankrupt",
     )?;
 
     validate!(
-        !liquidator.is_being_liquidated,
+        !liquidator.is_being_liquidated(),
         ErrorCode::UserIsBeingLiquidated,
         "liquidator being liquidated",
     )?;
 
     validate!(
-        !liquidator.is_bankrupt,
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -1791,8 +1807,7 @@ pub fn resolve_perp_bankruptcy(
 
     // exit bankruptcy
     if !is_user_bankrupt(user) {
-        user.is_bankrupt = false;
-        user.is_being_liquidated = false;
+        user.status = UserStatus::Active;
     }
 
     let liquidation_id = user.next_liquidation_id.safe_sub(1)?;
@@ -1833,19 +1848,19 @@ pub fn resolve_spot_bankruptcy(
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
     validate!(
-        user.is_bankrupt,
+        user.is_bankrupt(),
         ErrorCode::UserNotBankrupt,
         "user not bankrupt",
     )?;
 
     validate!(
-        !liquidator.is_being_liquidated,
+        !liquidator.is_being_liquidated(),
         ErrorCode::UserIsBeingLiquidated,
         "liquidator being liquidated",
     )?;
 
     validate!(
-        !liquidator.is_bankrupt,
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -1931,8 +1946,7 @@ pub fn resolve_spot_bankruptcy(
 
     // exit bankruptcy
     if !is_user_bankrupt(user) {
-        user.is_bankrupt = false;
-        user.is_being_liquidated = false;
+        user.status = UserStatus::Active;
     }
 
     let liquidation_id = user.next_liquidation_id.safe_sub(1)?;

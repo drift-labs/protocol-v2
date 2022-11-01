@@ -35,7 +35,9 @@ use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::State;
-use crate::state::user::{MarketType, OrderTriggerCondition, OrderType, User, UserStats};
+use crate::state::user::{
+    MarketType, OrderTriggerCondition, OrderType, User, UserStats, UserStatus,
+};
 use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
@@ -172,7 +174,7 @@ pub fn handle_deposit(
         return Err(ErrorCode::InsufficientDeposit.into());
     }
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?.clone();
@@ -239,15 +241,21 @@ pub fn handle_deposit(
         )?;
     }
 
-    if user.is_being_liquidated {
+    if user.is_being_liquidated() {
         // try to update liquidation status if user is was already being liq'd
-        user.is_being_liquidated = is_user_being_liquidated(
+        let is_being_liquidated = is_user_being_liquidated(
             user,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
             state.liquidation_margin_buffer_ratio,
         )?;
+
+        if is_being_liquidated {
+            user.status = UserStatus::BeingLiquidated;
+        } else {
+            user.status = UserStatus::Active;
+        }
     }
 
     controller::token::receive(
@@ -326,7 +334,7 @@ pub fn handle_withdraw(
         Some(state.oracle_guard_rails),
     )?;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let spot_market_is_reduce_only = {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
@@ -390,7 +398,7 @@ pub fn handle_withdraw(
 
     validate_spot_margin_trading(user, &spot_market_map, &mut oracle_map)?;
 
-    user.is_being_liquidated = false;
+    user.status = UserStatus::Active;
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
@@ -461,12 +469,12 @@ pub fn handle_transfer_deposit(
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
 
     validate!(
-        !to_user.is_bankrupt,
+        !to_user.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "to_user bankrupt"
     )?;
     validate!(
-        !from_user.is_bankrupt,
+        !from_user.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "from_user bankrupt"
     )?;
@@ -534,7 +542,7 @@ pub fn handle_transfer_deposit(
 
     validate_spot_margin_trading(from_user, &spot_market_map, &mut oracle_map)?;
 
-    from_user.is_being_liquidated = false;
+    from_user.status = UserStatus::Active;
 
     let oracle_price = {
         let spot_market = &spot_market_map.get_ref(&market_index)?;
@@ -1286,7 +1294,7 @@ pub fn handle_add_perp_lp_shares<'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
     math::liquidation::validate_user_not_being_liquidated(
         user,
         &perp_market_map,

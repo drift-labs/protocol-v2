@@ -155,7 +155,9 @@ describe('liquidate spot w/ social loss', () => {
 				.logMessages
 		);
 
-		assert(driftClient.getUserAccount().isBeingLiquidated);
+		// assert(driftClient.getUserAccount().isBeingLiquidated);
+		assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
+
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
 			driftClient.getUserAccount().spotPositions[0].scaledBalance.eq(ZERO)
@@ -298,8 +300,10 @@ describe('liquidate spot w/ social loss', () => {
 
 		await driftClient.fetchAccounts();
 
-		assert(!driftClient.getUserAccount().isBeingLiquidated);
-		assert(!driftClient.getUserAccount().isBankrupt);
+		assert(!isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
+		assert(!isVariant(driftClient.getUserAccount().status, 'bankrupt'));
+
+		// assert(!driftClient.getUserAccount().isBankrupt);
 		assert(
 			driftClient.getUserAccount().spotPositions[1].scaledBalance.eq(ZERO)
 		);

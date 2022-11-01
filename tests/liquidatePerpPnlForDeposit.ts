@@ -207,7 +207,9 @@ describe('liquidate perp pnl for deposit', () => {
 				.logMessages
 		);
 
-		assert(driftClient.getUserAccount().isBeingLiquidated);
+		// assert(driftClient.getUserAccount().isBeingLiquidated);
+		assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
+
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
 			driftClient.getUserAccount().spotPositions[0].scaledBalance.eq(ZERO)

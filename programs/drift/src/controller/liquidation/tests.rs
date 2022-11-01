@@ -3494,7 +3494,9 @@ pub mod resolve_perp_bankruptcy {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::{Order, OrderStatus, OrderType, PerpPosition, SpotPosition, User};
+    use crate::state::user::{
+        Order, OrderStatus, OrderType, PerpPosition, SpotPosition, User, UserStatus,
+    };
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
 
@@ -3579,8 +3581,7 @@ pub mod resolve_perp_bankruptcy {
                 ..PerpPosition::default()
             }),
             spot_positions: [SpotPosition::default(); 8],
-            is_bankrupt: true,
-            is_being_liquidated: false,
+            status: UserStatus::Bankrupt,
             next_liquidation_id: 2,
             ..User::default()
         };
@@ -3599,8 +3600,7 @@ pub mod resolve_perp_bankruptcy {
         let liquidator_key = Pubkey::default();
 
         let mut expected_user = user;
-        expected_user.is_being_liquidated = false;
-        expected_user.is_bankrupt = false;
+        expected_user.status = UserStatus::Active;
         expected_user.perp_positions[0].quote_asset_amount = 0;
         expected_user.total_social_loss = 100000000;
 
@@ -3729,7 +3729,9 @@ pub mod resolve_spot_bankruptcy {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::{Order, OrderStatus, OrderType, PerpPosition, SpotPosition, User};
+    use crate::state::user::{
+        Order, OrderStatus, OrderType, PerpPosition, SpotPosition, User, UserStatus,
+    };
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_pyth_price, get_spot_positions};
 
@@ -3812,8 +3814,7 @@ pub mod resolve_spot_bankruptcy {
                 balance_type: SpotBalanceType::Borrow,
                 ..SpotPosition::default()
             }),
-            is_bankrupt: true,
-            is_being_liquidated: false,
+            status: UserStatus::Bankrupt,
             next_liquidation_id: 2,
             ..User::default()
         };
@@ -3832,8 +3833,7 @@ pub mod resolve_spot_bankruptcy {
         let liquidator_key = Pubkey::default();
 
         let mut expected_user = user;
-        expected_user.is_being_liquidated = false;
-        expected_user.is_bankrupt = false;
+        expected_user.status = UserStatus::Active;
         expected_user.spot_positions[0].scaled_balance = 0;
         expected_user.spot_positions[0].cumulative_deposits = 100 * QUOTE_PRECISION_I64;
         expected_user.total_social_loss = 100000000;

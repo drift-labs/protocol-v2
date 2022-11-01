@@ -24,6 +24,19 @@ use std::cmp::max;
 #[cfg(test)]
 mod tests;
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum UserStatus {
+    Active,
+    BeingLiquidated,
+    Bankrupt,
+}
+
+impl Default for UserStatus {
+    fn default() -> Self {
+        UserStatus::Active
+    }
+}
+
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -43,17 +56,29 @@ pub struct User {
     // Fees (taker fees, maker rebate, filler reward) for spot
     pub cumulative_spot_fees: i64,
     pub cumulative_perp_funding: i64,
+    pub liquidation_margin_freed: u64, // currently unimplemented
+    pub liquidation_start_ts: i64,     // currently unimplemented
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
     pub sub_account_id: u16,
-    pub is_being_liquidated: bool,
-    pub is_bankrupt: bool,
+    pub status: UserStatus,
     pub is_margin_trading_enabled: bool,
-    pub padding: [u8; 1],
+    pub padding: [u8; 2],
 }
 
 impl User {
+    pub fn is_being_liquidated(&self) -> bool {
+        matches!(
+            self.status,
+            UserStatus::BeingLiquidated | UserStatus::Bankrupt
+        )
+    }
+
+    pub fn is_bankrupt(&self) -> bool {
+        self.status == UserStatus::Bankrupt
+    }
+
     pub fn get_spot_position_index(&self, market_index: u16) -> DriftResult<usize> {
         // first spot position is always quote asset
         if market_index == 0 {

@@ -2397,8 +2397,8 @@ pub mod delisting_test {
             let mut shorter_user_stats = UserStats::default();
             let mut liq_user_stats = UserStats::default();
 
-            assert_eq!(shorter.is_being_liquidated, false);
-            assert_eq!(shorter.is_bankrupt, false);
+            assert_eq!(shorter.is_being_liquidated(), false);
+            assert_eq!(shorter.is_bankrupt(), false);
             let state = State {
                 liquidation_margin_buffer_ratio: 10,
                 ..Default::default()
@@ -2422,8 +2422,8 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(shorter.is_being_liquidated, true);
-            assert_eq!(shorter.is_bankrupt, false);
+            assert_eq!(shorter.is_being_liquidated(), true);
+            assert_eq!(shorter.is_bankrupt(), false);
 
             {
                 let market = market_map.get_ref_mut(&0).unwrap();
@@ -2500,8 +2500,8 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(shorter.is_being_liquidated, true);
-            assert_eq!(shorter.is_bankrupt, false);
+            assert_eq!(shorter.is_being_liquidated(), true);
+            assert_eq!(shorter.is_bankrupt(), false);
 
             {
                 let mut market = market_map.get_ref_mut(&0).unwrap();
@@ -2587,8 +2587,8 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(shorter.is_being_liquidated, true);
-            assert_eq!(shorter.is_bankrupt, true);
+            assert_eq!(shorter.is_being_liquidated(), true);
+            assert_eq!(shorter.is_bankrupt(), true);
 
             {
                 let market = market_map.get_ref_mut(&0).unwrap();

@@ -1050,8 +1050,16 @@ describe('insurance fund stake', () => {
 		// 	secondUserDriftClient.getUserAccount().spotPositions[1].balanceType
 		// );
 
-		assert(secondUserDriftClient.getUserAccount().isBeingLiquidated);
-		assert(!secondUserDriftClient.getUserAccount().isBankrupt);
+		assert(
+			isVariant(
+				secondUserDriftClient.getUserAccount().status,
+				'beingLiquidated'
+			)
+		);
+
+		assert(
+			!isVariant(secondUserDriftClient.getUserAccount().status, 'bankrupt')
+		);
 
 		const ifPoolBalanceAfter = getTokenAmount(
 			spotMarket.revenuePool.scaledBalance,

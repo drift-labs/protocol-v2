@@ -11,13 +11,13 @@ pub fn validate_user_deletion(user: &User, user_stats: &UserStats) -> DriftResul
     )?;
 
     validate!(
-        !user.is_bankrupt,
+        !user.is_bankrupt(),
         ErrorCode::UserCantBeDeleted,
         "user bankrupt"
     )?;
 
     validate!(
-        !user.is_being_liquidated,
+        !user.is_being_liquidated(),
         ErrorCode::UserCantBeDeleted,
         "user being liquidated"
     )?;
