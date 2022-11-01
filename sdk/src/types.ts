@@ -343,7 +343,6 @@ export type FundingPaymentRecord = {
 
 export type LiquidationRecord = {
 	ts: BN;
-	slot: BN;
 	user: PublicKey;
 	liquidator: PublicKey;
 	liquidationType: LiquidationType;
