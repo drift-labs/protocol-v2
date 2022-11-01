@@ -389,7 +389,7 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
         let cumulative_funding_rate_delta =
             calculate_funding_rate_deltas_to_resolve_bankruptcy(loss, &market).unwrap();
 
-        assert_eq!(cumulative_funding_rate_delta, 9090909000);
+        assert_eq!(cumulative_funding_rate_delta, 9090910000);
     }
 }
 

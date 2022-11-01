@@ -275,7 +275,7 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
 
     loss.abs()
         .safe_mul(AMM_RESERVE_PRECISION_I128)?
-        .safe_div(total_base_asset_amount)?
+        .safe_div_ceil(total_base_asset_amount)?
         .safe_mul(FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO.cast()?)
 }
 
