@@ -220,7 +220,12 @@ pub fn settle_expired_position(
         None,
     )?;
 
-    let position_index = get_position_index(&user.perp_positions, perp_market_index)?;
+    let position_index = get_position_index(&user.perp_positions, perp_market_index);
+    if position_index.is_err() {
+        // users has no open positions in market
+        return Ok(());
+    }
+    let position_index = position_index.unwrap();
     let quote_spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
     let perp_market = &mut perp_market_map.get_ref_mut(&perp_market_index)?;
     validate!(

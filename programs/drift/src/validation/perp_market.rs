@@ -3,7 +3,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
 use crate::validate;
 use solana_program::msg;
 
@@ -32,13 +32,15 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         "peg_multiplier out of wack"
     )?;
 
-    validate!(
-        market.amm.sqrt_k > market.amm.base_asset_amount_with_amm.unsigned_abs(),
-        ErrorCode::InvalidAmmDetected,
-        "k out of wack: k={}, net_baa={}",
-        market.amm.sqrt_k,
-        market.amm.base_asset_amount_with_amm
-    )?;
+    if market.status != MarketStatus::ReduceOnly {
+        validate!(
+            market.amm.sqrt_k > market.amm.base_asset_amount_with_amm.unsigned_abs(),
+            ErrorCode::InvalidAmmDetected,
+            "k out of wack: k={}, net_baa={}",
+            market.amm.sqrt_k,
+            market.amm.base_asset_amount_with_amm
+        )?;
+    }
 
     validate!(
         market.amm.sqrt_k >= market.amm.base_asset_reserve

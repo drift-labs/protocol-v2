@@ -249,12 +249,15 @@ pub fn apply_cost_to_market(
         let new_total_fee_minus_distributions =
             market.amm.total_fee_minus_distributions.safe_sub(cost)?;
 
+        let fee_reserved_for_protocol = repeg::get_total_fee_lower_bound(market)?
+            .safe_add(market.amm.total_liquidation_fee)?
+            .safe_sub(market.amm.total_fee_withdrawn)?
+            .cast::<i128>()?;
+
         // Only a portion of the protocol fees are allocated to repegging
         // This checks that the total_fee_minus_distributions does not decrease too much after repeg
         if check_lower_bound {
-            if new_total_fee_minus_distributions
-                >= repeg::get_total_fee_lower_bound(market)?.cast::<i128>()?
-            {
+            if new_total_fee_minus_distributions >= fee_reserved_for_protocol {
                 market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
             } else {
                 return Ok(false);
