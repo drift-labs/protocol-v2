@@ -343,6 +343,15 @@ pub fn update_oracle_price_twap(
 
         amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price_twap_5min;
         amm.historical_oracle_data.last_oracle_price_twap = oracle_price_twap;
+
+        // update std stat
+        update_amm_oracle_std(
+            amm,
+            now,
+            oracle_price.cast()?,
+            amm.historical_oracle_data.last_oracle_price_twap.cast()?,
+        )?;
+
         amm.historical_oracle_data.last_oracle_price_twap_ts = now;
     } else {
         oracle_price_twap = amm.historical_oracle_data.last_oracle_price_twap
@@ -421,6 +430,24 @@ pub fn update_amm_mark_std(amm: &mut AMM, now: i64, price: u64, ewma: u64) -> Dr
 
     amm.mark_std = calculate_rolling_sum(
         amm.mark_std,
+        price_change.unsigned_abs(),
+        max(ONE_HOUR, since_last),
+        ONE_HOUR,
+    )?;
+
+    Ok(true)
+}
+
+pub fn update_amm_oracle_std(amm: &mut AMM, now: i64, price: u64, ewma: u64) -> DriftResult<bool> {
+    let since_last = max(
+        1_i64,
+        now.safe_sub(amm.historical_oracle_data.last_oracle_price_twap_ts)?,
+    );
+
+    let price_change = price.cast::<i64>()?.safe_sub(ewma.cast::<i64>()?)?;
+
+    amm.oracle_std = calculate_rolling_sum(
+        amm.oracle_std,
         price_change.unsigned_abs(),
         max(ONE_HOUR, since_last),
         ONE_HOUR,

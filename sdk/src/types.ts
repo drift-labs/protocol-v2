@@ -691,6 +691,7 @@ export type AMM = {
 	quoteEntryAmountShort: BN;
 
 	markStd: BN;
+	oracleStd: BN;
 	longIntensityCount: number;
 	longIntensityVolume: BN;
 	shortIntensityCount: number;

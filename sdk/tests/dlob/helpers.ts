@@ -122,6 +122,7 @@ export const mockAMM: AMM = {
 	quoteEntryAmountShort: new BN(0),
 
 	markStd: new BN(0),
+	oracleStd: new BN(0),
 	longIntensityCount: 0,
 	longIntensityVolume: new BN(0),
 	shortIntensityCount: 0,
