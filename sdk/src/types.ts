@@ -5,22 +5,22 @@ import { BN, ZERO } from '.';
 
 export class ExchangeStatus {
 	static readonly ACTIVE = { active: {} };
-	static readonly FUNDINGPAUSED = { fundingPaused: {} };
-	static readonly AMMPAUSED = { ammPaused: {} };
-	static readonly FILLPAUSED = { fillPaused: {} };
-	static readonly LIQPAUSED = { liqPaused: {} };
-	static readonly WITHDRAWPAUSED = { withdrawPaused: {} };
+	static readonly FUNDING_PAUSED = { fundingPaused: {} };
+	static readonly AMM_PAUSED = { ammPaused: {} };
+	static readonly FILL_PAUSED = { fillPaused: {} };
+	static readonly LIQ_PAUSED = { liqPaused: {} };
+	static readonly WITHDRAW_PAUSED = { withdrawPaused: {} };
 	static readonly PAUSED = { paused: {} };
 }
 
 export class MarketStatus {
 	static readonly INITIALIZED = { initialized: {} };
 	static readonly ACTIVE = { active: {} };
-	static readonly FUNDINGPAUSED = { fundingPaused: {} };
-	static readonly AMMPAUSED = { ammPaused: {} };
-	static readonly FILLPAUSED = { fillPaused: {} };
-	static readonly WITHDRAWPAUSED = { withdrawPaused: {} };
-	static readonly REDUCEONLY = { reduceOnly: {} };
+	static readonly FUNDING_PAUSED = { fundingPaused: {} };
+	static readonly AMM_PAUSED = { ammPaused: {} };
+	static readonly FILL_PAUSED = { fillPaused: {} };
+	static readonly WITHDRAW_PAUSED = { withdrawPaused: {} };
+	static readonly REDUCE_ONLY = { reduceOnly: {} };
 	static readonly SETTLEMENT = { settlement: {} };
 	static readonly DELISTED = { delisted: {} };
 }
@@ -90,14 +90,6 @@ export class OrderStatus {
 	static readonly OPEN = { open: {} };
 }
 
-export class OrderDiscountTier {
-	static readonly NONE = { none: {} };
-	static readonly FIRST = { first: {} };
-	static readonly SECOND = { second: {} };
-	static readonly THIRD = { third: {} };
-	static readonly FOURTH = { fourth: {} };
-}
-
 export class OrderAction {
 	static readonly PLACE = { place: {} };
 	static readonly CANCEL = { cancel: {} };
@@ -108,17 +100,38 @@ export class OrderAction {
 
 export class OrderActionExplanation {
 	static readonly NONE = { none: {} };
+	static readonly INSUFFICIENT_FREE_COLLATERAL = {
+		insufficientFreeCollateral: {},
+	};
 	static readonly ORACLE_PRICE_BREACHED_LIMIT_PRICE = {
 		oraclePriceBreachedLimitPrice: {},
 	};
 	static readonly MARKET_ORDER_FILLED_TO_LIMIT_PRICE = {
 		marketOrderFilledToLimitPrice: {},
 	};
-	static readonly CANCELED_FOR_LIQUIDATION = {
-		canceledForLiquidation: {},
+	static readonly ORDER_EXPIRED = {
+		orderExpired: {},
 	};
-	static readonly MARKET_ORDER_AUCTION_EXPIRED = {
-		marketOrderAuctionExpired: {},
+	static readonly LIQUIDATION = {
+		liquidation: {},
+	};
+	static readonly ORDER_FILLED_WITH_AMM = {
+		orderFilledWithAMM: {},
+	};
+	static readonly ORDER_FILLED_WITH_AMM_JIT = {
+		orderFilledWithAMMJit: {},
+	};
+	static readonly ORDER_FILLED_WITH_MATCH = {
+		orderFilledWithMatch: {},
+	};
+	static readonly MARKET_EXPIRED = {
+		marketExpired: {},
+	};
+	static readonly RISK_INCREASING_ORDER = {
+		riskingIncreasingOrder: {},
+	};
+	static readonly ORDER_FILLED_WITH_SERUM = {
+		orderFillWithSerum: {},
 	};
 }
 
@@ -139,17 +152,18 @@ export class SpotFulfillmentStatus {
 export class DepositExplanation {
 	static readonly NONE = { none: {} };
 	static readonly TRANSFER = { transfer: {} };
-	static readonly LIQUIDATEE = { liquidatee: {} };
-	static readonly LIQUIDATOR = { liquidator: {} };
-	static readonly BANKRUPTCY = { bankruptcy: {} };
 }
 
 export class SettlePnlExplanation {
 	static readonly NONE = { none: {} };
 	static readonly EXPIRED_POSITION = { expiredPosition: {} };
-	static readonly LIQUIDATEE = { liquidatee: {} };
-	static readonly LIQUIDATOR = { liquidator: {} };
-	static readonly BANKRUPTCY = { bankruptcy: {} };
+}
+
+export class StakeAction {
+	static readonly STAKE = { stake: {} };
+	static readonly UNSTAKE_REQUEST = { unstakeRequest: {} };
+	static readonly UNSTAKE_CANCEL_REQUEST = { unstakeCancelRequest: {} };
+	static readonly UNSTAKE = { unstake: {} };
 }
 
 export function isVariant(object: unknown, type: string) {
@@ -206,6 +220,8 @@ export type DepositRecord = {
 	marketWithdrawBalance: BN;
 	marketCumulativeDepositInterest: BN;
 	marketCumulativeBorrowInterest: BN;
+	totalDepositsAfter: BN;
+	totalWithdrawsAfter: BN;
 	depositRecordId: BN;
 	explanation: DepositExplanation;
 	transferUser?: PublicKey;
@@ -237,22 +253,40 @@ export type CurveRecord = {
 	sqrtKAfter: BN;
 	baseAssetAmountLong: BN;
 	baseAssetAmountShort: BN;
-	baseAssetAmount: BN;
-	openInterest: BN;
+	baseAssetAmountWithAmm: BN;
+	totalFee: BN;
+	totalFeeMinusDistributions: BN;
+	adjustmentCost: BN;
+	numberOfUsers: BN;
 	oraclePrice: BN;
-	tradeId: BN;
+	fillRecord: BN;
 };
 
 export declare type InsuranceFundRecord = {
 	ts: BN;
-	bankIndex: BN;
-	marketIndex: number;
+	spotMarketIndex: BN;
+	perpMarketIndex: number;
 	userIfFactor: number;
 	totalIfFactor: number;
 	vaultAmountBefore: BN;
 	insuranceVaultAmountBefore: BN;
-	amount: BN;
 	totalIfSharesBefore: BN;
+	totalIfSharesAfter: BN;
+	amount: BN;
+};
+
+export declare type InsuranceFundStakeRecord = {
+	ts: BN;
+	userAuthority: PublicKey;
+	action: StakeAction;
+	amount: BN;
+	marketIndex: number;
+	insuranceVaultAmountBefore: BN;
+	ifSharesBefore: BN;
+	userIfSharesBefore: BN;
+	totalIfSharesBefore: BN;
+	ifSharesAfter: BN;
+	userIfSharesAfter: BN;
 	totalIfSharesAfter: BN;
 };
 
@@ -303,12 +337,14 @@ export type FundingPaymentRecord = {
 
 export type LiquidationRecord = {
 	ts: BN;
+	slot: BN;
 	user: PublicKey;
 	liquidator: PublicKey;
 	liquidationType: LiquidationType;
 	marginRequirement: BN;
 	totalCollateral: BN;
 	liquidationId: number;
+	bankrupt: boolean;
 	canceledOrderIds: BN[];
 	liquidatePerp: LiquidatePerpRecord;
 	liquidateSpot: LiquidateSpotRecord;
@@ -425,13 +461,13 @@ export type OrderActionRecord = {
 	makerFee: BN | null;
 	referrerReward: number | null;
 	quoteAssetAmountSurplus: BN | null;
+	spot_fulfillment_method_fee: BN | null;
 	taker: PublicKey | null;
 	takerOrderId: number | null;
 	takerOrderDirection: PositionDirection | null;
 	takerOrderBaseAssetAmount: BN | null;
 	takerOrderCumulativeBaseAssetAmountFilled: BN | null;
 	takerOrderCumulativeQuoteAssetAmountFilled: BN | null;
-	takerOrderFee: BN | null;
 	maker: PublicKey | null;
 	makerOrderId: number | null;
 	makerOrderDirection: PositionDirection | null;

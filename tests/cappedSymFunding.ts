@@ -213,7 +213,7 @@ async function cappedSymFundingScenario(
 	await sleep(2500);
 
 	if (fees && fees > 0) {
-		await driftClient.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
+		await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
 
 		console.log('spawn some fee pool');
 
@@ -246,10 +246,10 @@ async function cappedSymFundingScenario(
 		'+/-',
 		convertToNumber(oracleData.confidence)
 	);
-	console.log(ExchangeStatus.FUNDINGPAUSED);
+	console.log(ExchangeStatus.FUNDING_PAUSED);
 	console.log(ExchangeStatus.ACTIVE);
 
-	await driftClient.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
+	await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
 	await driftClient.fetchAccounts();
 
 	if (longShortSizes[0] !== 0) {
@@ -391,7 +391,7 @@ async function cappedSymFundingScenario(
 	// );
 
 	setFeedPrice(anchor.workspace.Pyth, priceAction[0], priceFeedAddress);
-	await driftClient.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
+	await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
 
 	assert(fundingRateShort.lte(fundingRateLong));
 	if (longShortSizes[0] !== 0) {
