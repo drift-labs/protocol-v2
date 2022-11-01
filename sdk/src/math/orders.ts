@@ -196,10 +196,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 	oraclePriceData: OraclePriceData,
 	slot: number
 ): BN {
-	if (
-		isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']) &&
-		order.triggered === false
-	) {
+	if (mustBeTriggered(order) && !isTriggered(order)) {
 		return ZERO;
 	}
 
@@ -284,4 +281,12 @@ export function isMarketOrder(order: Order): boolean {
 
 export function isLimitOrder(order: Order): boolean {
 	return isOneOfVariant(order.orderType, ['limit', 'triggerLimit']);
+}
+
+export function mustBeTriggered(order: Order): boolean {
+	return isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']);
+}
+
+export function isTriggered(order: Order): boolean {
+	return isOneOfVariant(order.orderType, ['triggeredAbove', 'triggeredBelow']);
 }

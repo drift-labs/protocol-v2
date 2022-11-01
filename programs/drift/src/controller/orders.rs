@@ -69,7 +69,9 @@ use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
-use crate::state::user::{AssetType, Order, OrderStatus, OrderType, UserStats};
+use crate::state::user::{
+    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
+};
 use crate::state::user::{MarketType, User};
 use crate::validate;
 use crate::validation;
@@ -263,7 +265,6 @@ pub fn place_perp_order(
             params.direction,
         )?,
         trigger_condition: params.trigger_condition,
-        triggered: false,
         post_only: params.post_only,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
         immediate_or_cancel: params.immediate_or_cancel,
@@ -540,7 +541,7 @@ pub fn cancel_order(
         let position_index = get_position_index(&user.perp_positions, order_market_index)?;
 
         // only decrease open/bids ask if it's not a trigger order or if it's been triggered
-        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered {
+        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
             let base_asset_amount_unfilled =
                 user.orders[order_index].get_base_asset_amount_unfilled()?;
             position::decrease_open_bids_and_asks(
@@ -556,7 +557,7 @@ pub fn cancel_order(
         let spot_position_index = user.get_spot_position_index(order_market_index)?;
 
         // only decrease open/bids ask if it's not a trigger order or if it's been triggered
-        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered {
+        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
             let base_asset_amount_unfilled =
                 user.orders[order_index].get_base_asset_amount_unfilled()?;
             decrease_spot_open_bids_and_asks(
@@ -637,7 +638,7 @@ pub fn fill_perp_order(
     )?;
 
     validate!(
-        !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered,
+        !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered(),
         ErrorCode::OrderMustBeTriggeredFirst,
         "Order must be triggered first"
     )?;
@@ -1014,7 +1015,7 @@ fn sanitize_maker_order<'a>(
         }
 
         validate!(
-            !maker_order.must_be_triggered() || maker_order.triggered,
+            !maker_order.must_be_triggered() || maker_order.triggered(),
             ErrorCode::OrderMustBeTriggeredFirst,
             "Maker order not triggered"
         )?;
@@ -2079,6 +2080,12 @@ pub fn trigger_order(
     )?;
 
     validate!(
+        !user.orders[order_index].triggered(),
+        ErrorCode::OrderNotTriggerable,
+        "Order is already triggered"
+    )?;
+
+    validate!(
         market_type == MarketType::Perp,
         ErrorCode::InvalidOrderMarketType,
         "Order must be a perp order"
@@ -2123,14 +2130,22 @@ pub fn trigger_order(
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
         oracle_price.unsigned_abs().cast()?,
-    );
+    )?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
     {
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
 
-        user.orders[order_index].triggered = true;
+        user.orders[order_index].trigger_condition =
+            match user.orders[order_index].trigger_condition {
+                OrderTriggerCondition::Above => OrderTriggerCondition::TriggeredAbove,
+                OrderTriggerCondition::Below => OrderTriggerCondition::TriggeredBelow,
+                _ => {
+                    return Err(print_error!(ErrorCode::InvalidTriggerOrderCondition)());
+                }
+            };
+
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
@@ -2494,7 +2509,6 @@ pub fn place_spot_order(
             params.direction,
         )?,
         trigger_condition: params.trigger_condition,
-        triggered: false,
         post_only: params.post_only,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
         immediate_or_cancel: params.immediate_or_cancel,
@@ -2641,7 +2655,7 @@ pub fn fill_spot_order(
     )?;
 
     validate!(
-        !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered,
+        !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered(),
         ErrorCode::OrderMustBeTriggeredFirst,
         "Order must be triggered first"
     )?;
@@ -2827,7 +2841,7 @@ fn sanitize_spot_maker_order<'a>(
         }
 
         validate!(
-            !maker_order.must_be_triggered() || maker_order.triggered,
+            !maker_order.must_be_triggered() || maker_order.triggered(),
             ErrorCode::OrderMustBeTriggeredFirst,
             "Maker order not triggered"
         )?;
@@ -3787,6 +3801,12 @@ pub fn trigger_spot_order(
     )?;
 
     validate!(
+        !user.orders[order_index].triggered(),
+        ErrorCode::OrderNotTriggerable,
+        "Order is already triggered"
+    )?;
+
+    validate!(
         market_type == MarketType::Spot,
         ErrorCode::InvalidOrderMarketType,
         "Order must be a spot order"
@@ -3828,14 +3848,21 @@ pub fn trigger_spot_order(
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
         oracle_price.unsigned_abs().cast()?,
-    );
+    )?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
     {
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
 
-        user.orders[order_index].triggered = true;
+        user.orders[order_index].trigger_condition =
+            match user.orders[order_index].trigger_condition {
+                OrderTriggerCondition::Above => OrderTriggerCondition::TriggeredAbove,
+                OrderTriggerCondition::Below => OrderTriggerCondition::TriggeredBelow,
+                _ => {
+                    return Err(print_error!(ErrorCode::InvalidTriggerOrderCondition)());
+                }
+            };
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {

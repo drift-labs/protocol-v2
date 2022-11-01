@@ -5684,10 +5684,6 @@
             }
           },
           {
-            "name": "triggered",
-            "type": "bool"
-          },
-          {
             "name": "auctionDuration",
             "type": "u8"
           },
@@ -6329,6 +6325,12 @@
           },
           {
             "name": "Below"
+          },
+          {
+            "name": "TriggeredAbove"
+          },
+          {
+            "name": "TriggeredBelow"
           }
         ]
       }
@@ -7692,8 +7694,8 @@
     },
     {
       "code": 6078,
-      "name": "MarketNotFound",
-      "msg": "MarketNotFound"
+      "name": "PerpMarketNotFound",
+      "msg": "PerpMarketNotFound"
     },
     {
       "code": 6079,
@@ -7702,7 +7704,7 @@
     },
     {
       "code": 6080,
-      "name": "UnableToLoadMarketAccount",
+      "name": "UnableToLoadPerpMarketAccount",
       "msg": "UnableToLoadMarketAccount"
     },
     {
@@ -8374,6 +8376,11 @@
       "code": 6214,
       "name": "InvalidUserSubAccountId",
       "msg": "Invalid Sub Account Id"
+    },
+    {
+      "code": 6215,
+      "name": "InvalidTriggerOrderCondition",
+      "msg": "Invalid Trigger Order Condition"
     }
   ]
 }

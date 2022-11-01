@@ -25,7 +25,7 @@ import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BASE_PRECISION, OracleSource } from '../sdk';
+import { BASE_PRECISION, isVariant, OracleSource } from '../sdk';
 
 describe('trigger orders', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -185,7 +185,7 @@ describe('trigger orders', () => {
 		await fillerDriftClient.fetchAccounts();
 
 		order = driftClientUser.getOrderByUserOrderId(1);
-		assert(order.triggered);
+		assert(isVariant(order.triggerCondition, 'triggeredBelow'));
 
 		const userQuoteTokenAmount = driftClient.getQuoteAssetTokenAmount();
 		assert(userQuoteTokenAmount.eq(new BN(9990000)));
@@ -260,7 +260,7 @@ describe('trigger orders', () => {
 		await fillerDriftClient.fetchAccounts();
 
 		order = driftClientUser.getOrderByUserOrderId(1);
-		assert(order.triggered);
+		assert(isVariant(order.triggerCondition, 'triggeredAbove'));
 
 		const userQuoteTokenAmount = driftClient.getQuoteAssetTokenAmount();
 		assert(userQuoteTokenAmount.eq(new BN(9990000)));
