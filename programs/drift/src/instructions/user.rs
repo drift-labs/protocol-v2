@@ -356,6 +356,14 @@ pub fn handle_withdraw(
         };
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+        user.increment_total_withdraws(
+            amount,
+            oracle_price_data.price,
+            spot_market.get_precision().cast()?,
+        )?;
+
         // prevents withdraw when limits hit
         controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits(
             amount as u128,
@@ -374,14 +382,7 @@ pub fn handle_withdraw(
     user.is_being_liquidated = false;
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
-    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
-    let oracle_price = oracle_price_data.price;
-
-    user.increment_total_withdraws(
-        amount,
-        oracle_price_data.price,
-        spot_market.get_precision().cast()?,
-    )?;
+    let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
 
     let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let deposit_record = DepositRecord {
@@ -473,8 +474,14 @@ pub fn handle_transfer_deposit(
         )?;
     }
 
+    let oracle_price = {
+        let spot_market = &spot_market_map.get_ref(&market_index)?;
+        oracle_map.get_price_data(&spot_market.oracle)?.price
+    };
+
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+
         validate!(
             matches!(
                 spot_market.status,
@@ -488,6 +495,12 @@ pub fn handle_transfer_deposit(
             ErrorCode::MarketWithdrawPaused,
             "Spot Market {} withdraws are currently paused",
             spot_market.market_index
+        )?;
+
+        from_user.increment_total_withdraws(
+            amount,
+            oracle_price,
+            spot_market.get_precision().cast()?,
         )?;
 
         // prevents withdraw when limits hit
@@ -514,19 +527,8 @@ pub fn handle_transfer_deposit(
 
     from_user.is_being_liquidated = false;
 
-    let oracle_price = {
-        let spot_market = &spot_market_map.get_ref(&market_index)?;
-        oracle_map.get_price_data(&spot_market.oracle)?.price
-    };
-
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-
-        from_user.increment_total_withdraws(
-            amount,
-            oracle_price,
-            spot_market.get_precision().cast()?,
-        )?;
 
         let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
