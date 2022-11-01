@@ -6,7 +6,6 @@ use crate::math::constants::{
 };
 
 #[account]
-#[derive(Default)]
 #[repr(C)]
 pub struct State {
     pub admin: Pubkey,
@@ -28,7 +27,34 @@ pub struct State {
     pub default_market_order_time_in_force: u8,
     pub default_spot_auction_duration: u8,
     pub exchange_status: ExchangeStatus,
-    pub padding: [u8; 1],
+    pub padding: [u8; 65],
+}
+
+impl Default for State {
+    fn default() -> Self {
+        State {
+            admin: Pubkey::default(),
+            whitelist_mint: Pubkey::default(),
+            discount_mint: Pubkey::default(),
+            signer: Pubkey::default(),
+            srm_vault: Pubkey::default(),
+            perp_fee_structure: FeeStructure::default(),
+            spot_fee_structure: FeeStructure::default(),
+            oracle_guard_rails: OracleGuardRails::default(),
+            number_of_authorities: 0,
+            lp_cooldown_time: 0,
+            liquidation_margin_buffer_ratio: 0,
+            settlement_duration: 0,
+            number_of_markets: 0,
+            number_of_spot_markets: 0,
+            signer_nonce: 0,
+            min_perp_auction_duration: 0,
+            default_market_order_time_in_force: 0,
+            default_spot_auction_duration: 0,
+            exchange_status: ExchangeStatus::default(),
+            padding: [0; 65],
+        }
+    }
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

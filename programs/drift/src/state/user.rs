@@ -64,7 +64,7 @@ pub struct User {
     pub sub_account_id: u16,
     pub status: UserStatus,
     pub is_margin_trading_enabled: bool,
-    pub padding: [u8; 2],
+    pub padding: [u8; 26],
 }
 
 impl User {
@@ -704,7 +704,7 @@ impl Default for MarketType {
 }
 
 #[account(zero_copy)]
-#[derive(Default, Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct UserStats {
     pub authority: Pubkey,
@@ -725,7 +725,29 @@ pub struct UserStats {
     pub number_of_sub_accounts: u16,
     pub number_of_sub_accounts_created: u16,
     pub is_referrer: bool,
-    pub padding: [u8; 3],
+    pub padding: [u8; 51],
+}
+
+impl Default for UserStats {
+    fn default() -> Self {
+        UserStats {
+            authority: Pubkey::default(),
+            referrer: Pubkey::default(),
+            fees: UserFees::default(),
+            next_epoch_ts: 0,
+            maker_volume_30d: 0,
+            taker_volume_30d: 0,
+            filler_volume_30d: 0,
+            last_maker_volume_30d_ts: 0,
+            last_taker_volume_30d_ts: 0,
+            last_filler_volume_30d_ts: 0,
+            if_staked_quote_asset_amount: 0,
+            number_of_sub_accounts: 0,
+            number_of_sub_accounts_created: 0,
+            is_referrer: false,
+            padding: [0; 51],
+        }
+    }
 }
 
 impl UserStats {

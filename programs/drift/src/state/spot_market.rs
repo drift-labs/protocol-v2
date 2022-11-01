@@ -20,7 +20,7 @@ use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSour
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 
 #[account(zero_copy)]
-#[derive(Default, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 #[repr(C)]
 pub struct SpotMarket {
     pub pubkey: Pubkey,
@@ -70,7 +70,62 @@ pub struct SpotMarket {
     pub oracle_source: OracleSource,
     pub status: MarketStatus,
     pub asset_tier: AssetTier,
-    pub padding: [u8; 6],
+    pub padding: [u8; 86],
+}
+
+impl Default for SpotMarket {
+    fn default() -> Self {
+        SpotMarket {
+            pubkey: Pubkey::default(),
+            oracle: Pubkey::default(),
+            mint: Pubkey::default(),
+            vault: Pubkey::default(),
+            name: [0; 32],
+            historical_oracle_data: HistoricalOracleData::default(),
+            historical_index_data: HistoricalIndexData::default(),
+            revenue_pool: PoolBalance::default(),
+            spot_fee_pool: PoolBalance::default(),
+            insurance_fund: InsuranceFund::default(),
+            total_spot_fee: 0,
+            deposit_balance: 0,
+            borrow_balance: 0,
+            cumulative_deposit_interest: 0,
+            cumulative_borrow_interest: 0,
+            total_social_loss: 0,
+            total_quote_social_loss: 0,
+            withdraw_guard_threshold: 0,
+            max_token_deposits: 0,
+            deposit_token_twap: 0,
+            borrow_token_twap: 0,
+            utilization_twap: 0,
+            last_interest_ts: 0,
+            last_twap_ts: 0,
+            expiry_ts: 0,
+            order_step_size: 0,
+            order_tick_size: 0,
+            min_order_size: 0,
+            max_position_size: 0,
+            next_fill_record_id: 0,
+            next_deposit_record_id: 0,
+            initial_asset_weight: 0,
+            maintenance_asset_weight: 0,
+            initial_liability_weight: 0,
+            maintenance_liability_weight: 0,
+            imf_factor: 0,
+            liquidator_fee: 0,
+            if_liquidation_fee: 0,
+            optimal_utilization: 0,
+            optimal_borrow_rate: 0,
+            max_borrow_rate: 0,
+            decimals: 0,
+            market_index: 0,
+            orders_enabled: false,
+            oracle_source: OracleSource::default(),
+            status: MarketStatus::default(),
+            asset_tier: AssetTier::default(),
+            padding: [0; 86],
+        }
+    }
 }
 
 impl SpotMarket {

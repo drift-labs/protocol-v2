@@ -76,7 +76,7 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         perp_fee_structure: FeeStructure::perps_default(),
         spot_fee_structure: FeeStructure::spot_default(),
         lp_cooldown_time: 0,
-        padding: [0; 1],
+        padding: [0; 65],
     };
 
     Ok(())
@@ -257,7 +257,7 @@ pub fn handle_initialize_spot_market(
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
         orders_enabled: spot_market_index != 0,
-        padding: [0; 6],
+        padding: [0; 86],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             ..InsuranceFund::default()
@@ -536,7 +536,7 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        padding: [0; 3],
+        padding: [0; 51],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -623,6 +623,7 @@ pub fn handle_initialize_perp_market(
             amm_jit_intensity: 0, // turn it off at the start
 
             last_oracle_valid: false,
+            padding: [0; 48],
         },
     };
 

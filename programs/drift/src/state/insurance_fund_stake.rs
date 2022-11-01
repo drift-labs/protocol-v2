@@ -20,7 +20,7 @@ pub struct InsuranceFundStake {
     pub last_withdraw_request_ts: i64,
     pub market_index: u16,
     pub cost_basis: i64,
-    pub padding: [u8; 6],
+    pub padding: [u8; 14],
 }
 
 impl InsuranceFundStake {
@@ -35,7 +35,7 @@ impl InsuranceFundStake {
             if_base: 0,
             last_valid_ts: now,
             if_shares: 0,
-            padding: [0; 6],
+            padding: [0; 14],
         }
     }
 
