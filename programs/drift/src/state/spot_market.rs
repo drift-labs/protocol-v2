@@ -38,6 +38,8 @@ pub struct SpotMarket {
     pub borrow_balance: u128,
     pub cumulative_deposit_interest: u128,
     pub cumulative_borrow_interest: u128,
+    pub total_social_loss: u128,
+    pub total_quote_social_loss: u128,
     pub withdraw_guard_threshold: u64, // no withdraw limits/guards when deposits below this threshold
     pub max_token_deposits: u64,
     pub deposit_token_twap: u64, // 24 hour twap

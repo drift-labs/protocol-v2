@@ -1693,7 +1693,7 @@ pub mod delisting_test {
         assert_eq!(market.number_of_users_with_base, 0);
         assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.quote_asset_amount, 0);
-        assert_eq!(market.amm.cumulative_social_loss, 0);
+        assert_eq!(market.amm.total_social_loss, 0);
         drop(market);
     }
 
@@ -2646,7 +2646,7 @@ pub mod delisting_test {
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000,);
 
                 assert_eq!(market.amm.quote_asset_amount, 20000010000 + 77199990000);
-                assert_eq!(market.amm.cumulative_social_loss, 0);
+                assert_eq!(market.amm.total_social_loss, 0);
 
                 drop(market);
             }
@@ -2721,7 +2721,7 @@ pub mod delisting_test {
             assert_eq!(shorter_loss, 20000000000000); //$16629 loss
 
             let market = market_map.get_ref_mut(&0).unwrap();
-            assert_eq!(market.amm.cumulative_social_loss, -3449991000);
+            assert_eq!(market.amm.total_social_loss, 3449991000);
             assert_eq!(market.amm.base_asset_amount_long, 200000000000);
             assert_eq!(market.amm.base_asset_amount_short, 0);
             assert_eq!(market.amm.base_asset_amount_with_amm, 200000000000);
@@ -2794,7 +2794,7 @@ pub mod delisting_test {
             assert_eq!(longer_funding_payment, -3449991000);
 
             assert_eq!(market.amm.quote_asset_amount, 200000000);
-            assert_eq!(market.amm.cumulative_social_loss, -3449991000);
+            assert_eq!(market.amm.total_social_loss, 3449991000);
 
             drop(market);
 
@@ -2829,7 +2829,7 @@ pub mod delisting_test {
 
             assert_eq!(market.amm.quote_asset_amount, 0);
 
-            assert_eq!(market.amm.cumulative_social_loss, -3449991000);
+            assert_eq!(market.amm.total_social_loss, 3449991000);
 
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
             assert_eq!(oracle_price_data.price, 100 * PRICE_PRECISION_I64);

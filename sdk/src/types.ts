@@ -585,6 +585,8 @@ export type SpotMarketAccount = {
 	maxBorrowRate: number;
 	cumulativeDepositInterest: BN;
 	cumulativeBorrowInterest: BN;
+	totalSocialLoss: BN;
+	totalQuoteSocialLoss: BN;
 	depositBalance: BN;
 	borrowBalance: BN;
 	maxTokenDeposits: BN;
@@ -683,7 +685,7 @@ export type AMM = {
 	maxOpenInterest: BN;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;
-	cumulativeSocialLoss: BN;
+	totalSocialLoss: BN;
 
 	quoteBreakEvenAmountLong: BN;
 	quoteBreakEvenAmountShort: BN;
@@ -764,6 +766,7 @@ export type UserAccount = {
 	settledPerpPnl: BN;
 	totalDeposits: BN;
 	totalWithdraws: BN;
+	totalSocialLoss: BN;
 	cumulativePerpFunding: BN;
 };
 

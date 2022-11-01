@@ -37,6 +37,7 @@ pub struct User {
     pub last_add_perp_lp_shares_ts: i64,
     pub total_deposits: u64,
     pub total_withdraws: u64,
+    pub total_social_loss: u64,
     // Fees (taker fees, maker rebate, referrer reward, filler reward) and pnl for perps
     pub settled_perp_pnl: i64,
     // Fees (taker fees, maker rebate, filler reward) for spot
@@ -186,6 +187,12 @@ impl User {
             .safe_div(precision)?
             .cast::<u64>()?;
         self.total_withdraws = self.total_withdraws.saturating_add(value);
+
+        Ok(())
+    }
+
+    pub fn increment_total_socialized_loss(&mut self, value: u64) -> DriftResult {
+        self.total_social_loss = self.total_social_loss.saturating_add(value);
 
         Ok(())
     }

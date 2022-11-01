@@ -2805,11 +2805,12 @@ pub mod resolve_perp_bankruptcy {
         expected_user.is_being_liquidated = false;
         expected_user.is_bankrupt = false;
         expected_user.perp_positions[0].quote_asset_amount = 0;
+        expected_user.total_social_loss = 100000000;
 
         let mut expected_market = market;
         expected_market.amm.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
         expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
-        expected_market.amm.cumulative_social_loss = -100000000;
+        expected_market.amm.total_social_loss = 100000000;
         expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
         expected_market.number_of_users = 0;
 
@@ -3038,11 +3039,14 @@ pub mod resolve_spot_bankruptcy {
         expected_user.is_bankrupt = false;
         expected_user.spot_positions[0].scaled_balance = 0;
         expected_user.spot_positions[0].cumulative_deposits = 100 * QUOTE_PRECISION_I64;
+        expected_user.total_social_loss = 100000000;
 
         let mut expected_spot_market = spot_market;
         expected_spot_market.borrow_balance = 0;
         expected_spot_market.cumulative_deposit_interest =
             9 * SPOT_CUMULATIVE_INTEREST_PRECISION / 10;
+        expected_spot_market.total_social_loss = 100 * QUOTE_PRECISION;
+        expected_spot_market.total_quote_social_loss = 100 * QUOTE_PRECISION;
 
         resolve_spot_bankruptcy(
             0,

@@ -317,7 +317,7 @@ describe('liquidate perp and lp', () => {
 				QUOTE_PRECISION
 			)
 		);
-		assert(marketBeforeBankruptcy.amm.cumulativeSocialLoss.eq(ZERO));
+		assert(marketBeforeBankruptcy.amm.totalSocialLoss.eq(ZERO));
 		await liquidatorDriftClient.resolvePerpBankruptcy(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),
@@ -336,7 +336,7 @@ describe('liquidate perp and lp', () => {
 		assert(
 			marketAfterBankruptcy.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION)
 		);
-		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785008)));
+		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(5785008)));
 
 		assert(!driftClient.getUserAccount().isBankrupt);
 		assert(!driftClient.getUserAccount().isBeingLiquidated);

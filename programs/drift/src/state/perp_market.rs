@@ -329,7 +329,7 @@ pub struct AMM {
     pub total_liquidation_fee: u128,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
-    pub cumulative_social_loss: i128,
+    pub total_social_loss: u128,
     pub ask_base_asset_reserve: u128,
     pub ask_quote_asset_reserve: u128,
     pub bid_base_asset_reserve: u128,
