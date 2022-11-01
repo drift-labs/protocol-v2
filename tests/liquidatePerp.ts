@@ -336,7 +336,7 @@ describe('liquidate perp and lp', () => {
 		assert(
 			marketAfterBankruptcy.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION)
 		);
-		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(-5785008)));
+		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(5785008)));
 
 		assert(!driftClient.getUserAccount().isBankrupt);
 		assert(!driftClient.getUserAccount().isBeingLiquidated);

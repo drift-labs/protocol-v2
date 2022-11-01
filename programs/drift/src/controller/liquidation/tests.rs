@@ -2810,7 +2810,7 @@ pub mod resolve_perp_bankruptcy {
         let mut expected_market = market;
         expected_market.amm.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
         expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
-        expected_market.amm.total_social_loss = -100000000;
+        expected_market.amm.total_social_loss = 100000000;
         expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
         expected_market.number_of_users = 0;
 

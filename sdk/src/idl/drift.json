@@ -3934,6 +3934,14 @@
             "type": "u128"
           },
           {
+            "name": "totalSocialLoss",
+            "type": "u128"
+          },
+          {
+            "name": "totalQuoteSocialLoss",
+            "type": "u128"
+          },
+          {
             "name": "withdrawGuardThreshold",
             "type": "u64"
           },
@@ -4314,6 +4322,10 @@
           },
           {
             "name": "totalWithdraws",
+            "type": "u64"
+          },
+          {
+            "name": "totalSocialLoss",
             "type": "u64"
           },
           {
@@ -5016,8 +5028,8 @@
             "type": "i128"
           },
           {
-            "name": "cumulativeSocialLoss",
-            "type": "i128"
+            "name": "totalSocialLoss",
+            "type": "u128"
           },
           {
             "name": "askBaseAssetReserve",

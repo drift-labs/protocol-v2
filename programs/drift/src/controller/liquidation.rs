@@ -1732,7 +1732,10 @@ pub fn resolve_perp_bankruptcy(
     if loss_to_socialize < 0 {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-        market.amm.total_social_loss = market.amm.total_social_loss.safe_add(loss_to_socialize)?;
+        market.amm.total_social_loss = market
+            .amm
+            .total_social_loss
+            .safe_add(loss_to_socialize.unsigned_abs())?;
 
         market.amm.cumulative_funding_rate_long = market
             .amm
