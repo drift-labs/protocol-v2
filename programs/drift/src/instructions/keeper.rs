@@ -531,6 +531,7 @@ pub fn handle_liquidate_spot(
     asset_market_index: u16,
     liability_market_index: u16,
     liquidator_max_liability_transfer: u128,
+    limit_price: Option<u64>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -563,6 +564,7 @@ pub fn handle_liquidate_spot(
         asset_market_index,
         liability_market_index,
         liquidator_max_liability_transfer,
+        limit_price,
         user,
         &user_key,
         liquidator,
@@ -586,6 +588,7 @@ pub fn handle_liquidate_borrow_for_perp_pnl(
     perp_market_index: u16,
     spot_market_index: u16,
     liquidator_max_liability_transfer: u128,
+    limit_price: Option<u64>, // currently unimplemented
 ) -> Result<()> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -618,6 +621,7 @@ pub fn handle_liquidate_borrow_for_perp_pnl(
         perp_market_index,
         spot_market_index,
         liquidator_max_liability_transfer,
+        limit_price,
         user,
         &user_key,
         liquidator,
@@ -641,6 +645,7 @@ pub fn handle_liquidate_perp_pnl_for_deposit(
     perp_market_index: u16,
     spot_market_index: u16,
     liquidator_max_pnl_transfer: u128,
+    limit_price: Option<u64>, // currently unimplemented
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
@@ -673,6 +678,7 @@ pub fn handle_liquidate_perp_pnl_for_deposit(
         perp_market_index,
         spot_market_index,
         liquidator_max_pnl_transfer,
+        limit_price,
         user,
         &user_key,
         liquidator,

@@ -1107,6 +1107,12 @@
         {
           "name": "liquidatorMaxLiabilityTransfer",
           "type": "u128"
+        },
+        {
+          "name": "limitPrice",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -1156,6 +1162,12 @@
         {
           "name": "liquidatorMaxLiabilityTransfer",
           "type": "u128"
+        },
+        {
+          "name": "limitPrice",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -1205,6 +1217,12 @@
         {
           "name": "liquidatorMaxPnlTransfer",
           "type": "u128"
+        },
+        {
+          "name": "limitPrice",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -5921,6 +5939,9 @@
           },
           {
             "name": "RiskingIncreasingOrder"
+          },
+          {
+            "name": "OrderFillWithSerum"
           }
         ]
       }
