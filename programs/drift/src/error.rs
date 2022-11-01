@@ -161,12 +161,12 @@ pub enum ErrorCode {
     CantExpireOrders,
     #[msg("CouldNotLoadMarketData")]
     CouldNotLoadMarketData,
-    #[msg("MarketNotFound")]
-    MarketNotFound,
+    #[msg("PerpMarketNotFound")]
+    PerpMarketNotFound,
     #[msg("InvalidMarketAccount")]
     InvalidMarketAccount,
     #[msg("UnableToLoadMarketAccount")]
-    UnableToLoadMarketAccount,
+    UnableToLoadPerpMarketAccount,
     #[msg("MarketWrongMutability")]
     MarketWrongMutability,
     #[msg("UnableToCastUnixTime")]

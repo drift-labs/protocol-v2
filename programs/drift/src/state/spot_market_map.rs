@@ -11,37 +11,142 @@ use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use anchor_lang::Discriminator;
 use arrayref::array_ref;
 
+use solana_program::msg;
+use std::panic::Location;
+
 pub struct SpotMarketMap<'a>(pub BTreeMap<u16, AccountLoader<'a, SpotMarket>>);
 
 impl<'a> SpotMarketMap<'a> {
+    #[track_caller]
+    #[inline(always)]
     pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<SpotMarket>> {
-        self.0
-            .get(market_index)
-            .ok_or(ErrorCode::SpotMarketNotFound)?
-            .load()
-            .map_err(|e| {
-                solana_program::msg!("{:?}", e);
-                ErrorCode::UnableToLoadSpotMarketAccount
-            })
+        let loader = match self.0.get(market_index) {
+            Some(loader) => loader,
+            None => {
+                let caller = Location::caller();
+                msg!(
+                    "Could not find spot market {} at {}:{}",
+                    market_index,
+                    caller.file(),
+                    caller.line()
+                );
+                return Err(ErrorCode::SpotMarketNotFound);
+            }
+        };
+
+        match loader.load() {
+            Ok(spot_market) => Ok(spot_market),
+            Err(e) => {
+                let caller = Location::caller();
+                msg!("{:?}", e);
+                msg!(
+                    "Could not load spot market {} at {}:{}",
+                    market_index,
+                    caller.file(),
+                    caller.line()
+                );
+                Err(ErrorCode::UnableToLoadSpotMarketAccount)
+            }
+        }
     }
 
+    #[track_caller]
+    #[inline(always)]
     pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<SpotMarket>> {
-        self.0
-            .get(market_index)
-            .ok_or(ErrorCode::SpotMarketNotFound)?
-            .load_mut()
-            .map_err(|e| {
-                solana_program::msg!("{:?}", e);
-                ErrorCode::UnableToLoadSpotMarketAccount
-            })
+        let loader = match self.0.get(market_index) {
+            Some(loader) => loader,
+            None => {
+                let caller = Location::caller();
+                msg!(
+                    "Could not find spot market {} at {}:{}",
+                    market_index,
+                    caller.file(),
+                    caller.line()
+                );
+                return Err(ErrorCode::SpotMarketNotFound);
+            }
+        };
+
+        match loader.load_mut() {
+            Ok(spot_market) => Ok(spot_market),
+            Err(e) => {
+                let caller = Location::caller();
+                msg!("{:?}", e);
+                msg!(
+                    "Could not load spot market {} at {}:{}",
+                    market_index,
+                    caller.file(),
+                    caller.line()
+                );
+                Err(ErrorCode::UnableToLoadSpotMarketAccount)
+            }
+        }
     }
 
+    #[track_caller]
+    #[inline(always)]
     pub fn get_quote_spot_market(&self) -> DriftResult<Ref<SpotMarket>> {
-        self.get_ref(&QUOTE_SPOT_MARKET_INDEX)
+        let loader = match self.0.get(&QUOTE_SPOT_MARKET_INDEX) {
+            Some(loader) => loader,
+            None => {
+                let caller = Location::caller();
+                msg!(
+                    "Could not find spot market {} at {}:{}",
+                    QUOTE_SPOT_MARKET_INDEX,
+                    caller.file(),
+                    caller.line()
+                );
+                return Err(ErrorCode::SpotMarketNotFound);
+            }
+        };
+
+        match loader.load() {
+            Ok(spot_market) => Ok(spot_market),
+            Err(e) => {
+                let caller = Location::caller();
+                msg!("{:?}", e);
+                msg!(
+                    "Could not load spot market {} at {}:{}",
+                    QUOTE_SPOT_MARKET_INDEX,
+                    caller.file(),
+                    caller.line()
+                );
+                Err(ErrorCode::UnableToLoadSpotMarketAccount)
+            }
+        }
     }
 
+    #[track_caller]
+    #[inline(always)]
     pub fn get_quote_spot_market_mut(&self) -> DriftResult<RefMut<SpotMarket>> {
-        self.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)
+        let loader = match self.0.get(&QUOTE_SPOT_MARKET_INDEX) {
+            Some(loader) => loader,
+            None => {
+                let caller = Location::caller();
+                msg!(
+                    "Could not find spot market {} at {}:{}",
+                    QUOTE_SPOT_MARKET_INDEX,
+                    caller.file(),
+                    caller.line()
+                );
+                return Err(ErrorCode::SpotMarketNotFound);
+            }
+        };
+
+        match loader.load_mut() {
+            Ok(spot_market) => Ok(spot_market),
+            Err(e) => {
+                let caller = Location::caller();
+                msg!("{:?}", e);
+                msg!(
+                    "Could not load spot market {} at {}:{}",
+                    QUOTE_SPOT_MARKET_INDEX,
+                    caller.file(),
+                    caller.line()
+                );
+                Err(ErrorCode::UnableToLoadSpotMarketAccount)
+            }
+        }
     }
 
     pub fn load<'b, 'c>(
