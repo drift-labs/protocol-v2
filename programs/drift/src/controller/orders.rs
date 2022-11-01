@@ -3718,7 +3718,7 @@ pub fn fulfill_spot_order_with_serum(
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::None,
+        OrderActionExplanation::OrderFillWithSerum,
         taker.orders[taker_order_index].market_index,
         Some(*filler_key),
         Some(fill_record_id),

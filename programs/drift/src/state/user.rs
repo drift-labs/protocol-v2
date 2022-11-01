@@ -686,7 +686,7 @@ pub struct UserStats {
 
     pub if_staked_quote_asset_amount: u64,
     pub number_of_sub_accounts: u16,
-    pub max_sub_account_id: u16,
+    pub number_of_sub_accounts_created: u16,
     pub is_referrer: bool,
     pub padding: [u8; 3],
 }

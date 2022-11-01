@@ -96,7 +96,16 @@ pub fn handle_initialize_user(
         )?;
     }
 
-    user_stats.max_sub_account_id = user_stats.max_sub_account_id.max(sub_account_id);
+    validate!(
+        sub_account_id == user_stats.number_of_sub_accounts_created,
+        ErrorCode::InvalidUserSubAccountId,
+        "Invalid sub account id {}, must be {}",
+        sub_account_id,
+        user_stats.number_of_sub_accounts_created
+    )?;
+
+    user_stats.number_of_sub_accounts_created =
+        user_stats.number_of_sub_accounts_created.safe_add(1)?;
 
     emit!(NewUserRecord {
         ts: Clock::get()?.unix_timestamp,

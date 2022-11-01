@@ -95,8 +95,7 @@ describe('subaccounts', () => {
 		const userStats = driftClient.getUserStats().getAccount();
 
 		assert(userStats.numberOfSubAccounts === 2);
-		console.log(userStats.maxSubAccountId.toString());
-		assert(userStats.maxSubAccountId === 1);
+		assert(userStats.numberOfSubAccountsCreated === 2);
 	});
 
 	it('Fetch all user account', async () => {
@@ -198,5 +197,20 @@ describe('subaccounts', () => {
 		assert(deleteFailed);
 
 		await driftClient.deleteUser(1);
+	});
+
+	it('fail to reinitialize subaccount 0', async () => {
+		const subAccountId = 1;
+		const name = 'LIL PERP';
+
+		let initializeFailed = false;
+		try {
+			await driftClient.initializeUserAccount(subAccountId, name);
+		} catch (e) {
+			assert(e.toString().includes('0x1846'));
+			initializeFailed = true;
+		}
+
+		assert(initializeFailed);
 	});
 });

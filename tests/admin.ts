@@ -224,7 +224,7 @@ describe('admin', () => {
 	});
 
 	it('Pause liq', async () => {
-		await driftClient.updateExchangeStatus(ExchangeStatus.LIQPAUSED);
+		await driftClient.updateExchangeStatus(ExchangeStatus.LIQ_PAUSED);
 		await driftClient.fetchAccounts();
 		const state = driftClient.getStateAccount();
 		assert(isVariant(state.exchangeStatus, 'liqPaused'));
@@ -239,7 +239,7 @@ describe('admin', () => {
 	});
 
 	it('Pause amm', async () => {
-		await driftClient.updateExchangeStatus(ExchangeStatus.AMMPAUSED);
+		await driftClient.updateExchangeStatus(ExchangeStatus.AMM_PAUSED);
 		await driftClient.fetchAccounts();
 		const state = driftClient.getStateAccount();
 		assert(isVariant(state.exchangeStatus, 'ammPaused'));
@@ -254,7 +254,7 @@ describe('admin', () => {
 	});
 
 	it('Pause funding', async () => {
-		await driftClient.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
+		await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
 		await driftClient.fetchAccounts();
 		const state = driftClient.getStateAccount();
 		assert(isVariant(state.exchangeStatus, 'fundingPaused'));

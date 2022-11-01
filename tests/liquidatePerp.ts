@@ -362,15 +362,5 @@ describe('liquidate perp and lp', () => {
 		const market = driftClient.getPerpMarketAccount(0);
 		assert(market.amm.cumulativeFundingRateLong.eq(new BN(330571000)));
 		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-330571000)));
-
-		const settlePnlRecord =
-			eventSubscriber.getEventsArray('SettlePnlRecord')[0];
-
-		assert(
-			settlePnlRecord.user.equals(await driftClient.getUserAccountPublicKey())
-		);
-		assert(settlePnlRecord.marketIndex === 0);
-		assert(settlePnlRecord.pnl.eq(perpBankruptcyRecord.perpBankruptcy.pnl));
-		assert(isVariant(settlePnlRecord.explanation, 'bankruptcy'));
 	});
 });

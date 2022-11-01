@@ -7,6 +7,7 @@ use crate::math::constants::{BID_ASK_SPREAD_PRECISION_I128, TEN_BPS_I64};
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::safe_math::SafeMath;
 
+use crate::math::auction::is_auction_complete;
 use crate::state::user::Order;
 
 #[cfg(test)]
@@ -24,7 +25,9 @@ pub fn is_maker_for_taker(
         Ok(true)
     } else if maker_order.is_limit_order() && taker_order.is_market_order() {
         Ok(true)
-    } else if !maker_order.has_limit_price(slot)? {
+    } else if maker_order.is_market_order()
+        && is_auction_complete(maker_order.slot, maker_order.auction_duration, slot)?
+    {
         Ok(false)
     } else {
         Ok(maker_order.slot < taker_order.slot)

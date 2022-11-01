@@ -17,7 +17,10 @@ pub fn is_user_bankrupt(user: &User) -> bool {
     }
 
     for perp_position in user.perp_positions.iter() {
-        if perp_position.base_asset_amount != 0 || perp_position.quote_asset_amount > 0 {
+        if perp_position.base_asset_amount != 0
+            || perp_position.quote_asset_amount > 0
+            || perp_position.is_lp()
+        {
             return false;
         }
 

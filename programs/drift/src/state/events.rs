@@ -42,9 +42,6 @@ pub struct DepositRecord {
 pub enum DepositExplanation {
     None,
     Transfer,
-    Liquidatee,
-    Liquidator,
-    Bankruptcy,
 }
 
 impl Default for DepositExplanation {
@@ -270,6 +267,7 @@ pub enum OrderActionExplanation {
     OrderFilledWithMatch,
     MarketExpired,
     RiskingIncreasingOrder,
+    OrderFillWithSerum,
 }
 
 impl Default for OrderAction {
@@ -423,9 +421,6 @@ pub struct SettlePnlRecord {
 pub enum SettlePnlExplanation {
     None,
     ExpiredPosition,
-    Liquidatee,
-    Liquidator,
-    Bankruptcy,
 }
 
 impl Default for SettlePnlExplanation {
