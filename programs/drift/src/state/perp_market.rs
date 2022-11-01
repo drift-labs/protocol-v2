@@ -69,7 +69,7 @@ impl Default for ContractTier {
 }
 
 #[account(zero_copy)]
-#[derive(Default, Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct PerpMarket {
     pub pubkey: Pubkey,
@@ -97,7 +97,40 @@ pub struct PerpMarket {
     pub status: MarketStatus,
     pub contract_type: ContractType,
     pub contract_tier: ContractTier,
-    pub padding: [u8; 3],
+    pub padding: [u8; 51],
+}
+
+impl Default for PerpMarket {
+    fn default() -> Self {
+        PerpMarket {
+            pubkey: Pubkey::default(),
+            amm: AMM::default(),
+            pnl_pool: PoolBalance::default(),
+            name: [0; 32],
+            insurance_claim: InsuranceClaim::default(),
+            unrealized_pnl_max_imbalance: 0,
+            expiry_ts: 0,
+            expiry_price: 0,
+            next_fill_record_id: 0,
+            next_funding_rate_record_id: 0,
+            next_curve_record_id: 0,
+            imf_factor: 0,
+            unrealized_pnl_imf_factor: 0,
+            liquidator_fee: 0,
+            if_liquidation_fee: 0,
+            margin_ratio_initial: 0,
+            margin_ratio_maintenance: 0,
+            unrealized_pnl_initial_asset_weight: 0,
+            unrealized_pnl_maintenance_asset_weight: 0,
+            number_of_users_with_base: 0,
+            number_of_users: 0,
+            market_index: 0,
+            status: MarketStatus::default(),
+            contract_type: ContractType::default(),
+            contract_tier: ContractTier::default(),
+            padding: [0; 51],
+        }
+    }
 }
 
 impl PerpMarket {
@@ -290,7 +323,7 @@ impl SpotBalance for PoolBalance {
 }
 
 #[zero_copy]
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct AMM {
     pub oracle: Pubkey,
@@ -368,6 +401,90 @@ pub struct AMM {
     pub amm_jit_intensity: u8,
     pub oracle_source: OracleSource,
     pub last_oracle_valid: bool,
+    pub padding: [u8; 48],
+}
+
+impl Default for AMM {
+    fn default() -> Self {
+        AMM {
+            oracle: Pubkey::default(),
+            historical_oracle_data: HistoricalOracleData::default(),
+            base_asset_amount_per_lp: 0,
+            quote_asset_amount_per_lp: 0,
+            fee_pool: PoolBalance::default(),
+            base_asset_reserve: 0,
+            quote_asset_reserve: 0,
+            concentration_coef: 0,
+            min_base_asset_reserve: 0,
+            max_base_asset_reserve: 0,
+            sqrt_k: 0,
+            peg_multiplier: 0,
+            terminal_quote_asset_reserve: 0,
+            base_asset_amount_long: 0,
+            base_asset_amount_short: 0,
+            base_asset_amount_with_amm: 0,
+            base_asset_amount_with_unsettled_lp: 0,
+            max_open_interest: 0,
+            quote_asset_amount: 0,
+            quote_entry_amount_long: 0,
+            quote_entry_amount_short: 0,
+            quote_break_even_amount_long: 0,
+            quote_break_even_amount_short: 0,
+            user_lp_shares: 0,
+            last_funding_rate: 0,
+            last_funding_rate_long: 0,
+            last_funding_rate_short: 0,
+            last_24h_avg_funding_rate: 0,
+            total_fee: 0,
+            total_mm_fee: 0,
+            total_exchange_fee: 0,
+            total_fee_minus_distributions: 0,
+            total_fee_withdrawn: 0,
+            total_liquidation_fee: 0,
+            cumulative_funding_rate_long: 0,
+            cumulative_funding_rate_short: 0,
+            total_social_loss: 0,
+            ask_base_asset_reserve: 0,
+            ask_quote_asset_reserve: 0,
+            bid_base_asset_reserve: 0,
+            bid_quote_asset_reserve: 0,
+            last_oracle_normalised_price: 0,
+            last_oracle_reserve_price_spread_pct: 0,
+            last_bid_price_twap: 0,
+            last_ask_price_twap: 0,
+            last_mark_price_twap: 0,
+            last_mark_price_twap_5min: 0,
+            last_update_slot: 0,
+            last_oracle_conf_pct: 0,
+            net_revenue_since_last_funding: 0,
+            last_funding_rate_ts: 0,
+            funding_period: 0,
+            order_step_size: 0,
+            order_tick_size: 0,
+            min_order_size: 0,
+            max_position_size: 0,
+            volume_24h: 0,
+            long_intensity_volume: 0,
+            short_intensity_volume: 0,
+            last_trade_ts: 0,
+            mark_std: 0,
+            oracle_std: 0,
+            last_mark_price_twap_ts: 0,
+            base_spread: 0,
+            max_spread: 0,
+            long_spread: 0,
+            short_spread: 0,
+            long_intensity_count: 0,
+            short_intensity_count: 0,
+            max_fill_reserve_fraction: 0,
+            max_slippage_ratio: 0,
+            curve_update_intensity: 0,
+            amm_jit_intensity: 0,
+            oracle_source: OracleSource::default(),
+            last_oracle_valid: false,
+            padding: [0; 48],
+        }
+    }
 }
 
 impl AMM {
