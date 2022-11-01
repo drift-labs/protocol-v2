@@ -55,15 +55,15 @@ pub struct User {
     // Fees (taker fees, maker rebate, filler reward) for spot
     pub cumulative_spot_fees: i64,
     pub cumulative_perp_funding: i64,
-    pub liquidation_margin_freed: u64,
-    pub last_user_action_ts: i64,
+    pub liquidation_margin_freed: u64, // currently unimplemented
+    pub liquidation_start_ts: i64,     // currently unimplemented
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
     pub sub_account_id: u16,
     pub status: UserStatus,
     pub is_margin_trading_enabled: bool,
-    pub padding: [u8; 1],
+    pub padding: [u8; 2],
 }
 
 impl User {

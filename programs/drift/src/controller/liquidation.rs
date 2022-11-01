@@ -1774,7 +1774,6 @@ pub fn resolve_perp_bankruptcy(
     // exit bankruptcy
     if !is_user_bankrupt(user) {
         user.status = UserStatus::Active;
-        user.status = UserStatus::Active;
     }
 
     let liquidation_id = user.next_liquidation_id.safe_sub(1)?;
@@ -1897,7 +1896,6 @@ pub fn resolve_spot_bankruptcy(
 
     // exit bankruptcy
     if !is_user_bankrupt(user) {
-        user.status = UserStatus::Active;
         user.status = UserStatus::Active;
     }
 

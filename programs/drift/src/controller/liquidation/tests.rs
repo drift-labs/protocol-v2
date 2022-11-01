@@ -2804,7 +2804,6 @@ pub mod resolve_perp_bankruptcy {
 
         let mut expected_user = user;
         expected_user.status = UserStatus::Active;
-        expected_user.status = UserStatus::Active;
         expected_user.perp_positions[0].quote_asset_amount = 0;
 
         let mut expected_market = market;
@@ -3036,7 +3035,6 @@ pub mod resolve_spot_bankruptcy {
         let liquidator_key = Pubkey::default();
 
         let mut expected_user = user;
-        expected_user.status = UserStatus::Active;
         expected_user.status = UserStatus::Active;
         expected_user.spot_positions[0].scaled_balance = 0;
         expected_user.spot_positions[0].cumulative_deposits = 100 * QUOTE_PRECISION_I64;
