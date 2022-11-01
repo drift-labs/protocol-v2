@@ -29,6 +29,7 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	printTxLogs,
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
@@ -226,12 +227,13 @@ describe('post only maker order w/ amm fulfillments', () => {
 			order: order2,
 		};
 
-		await fillerDriftClient.fillPerpOrder(
+		const txSig = await fillerDriftClient.fillPerpOrder(
 			await driftClientUser.getUserAccountPublicKey(),
 			driftClientUser.getUserAccount(),
 			order,
 			makerInfo
 		);
+		await printTxLogs(connection, txSig);
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();

@@ -17,7 +17,7 @@
         },
         {
           "name": "state",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -773,7 +773,7 @@
         },
         {
           "name": "state",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -3730,7 +3730,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                14
               ]
             }
           }
@@ -3864,7 +3864,7 @@
             "type": {
               "array": [
                 "u8",
-                3
+                51
               ]
             }
           }
@@ -4090,7 +4090,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                86
               ]
             }
           }
@@ -4222,6 +4222,10 @@
             "type": "u64"
           },
           {
+            "name": "numberOfSubAccounts",
+            "type": "u64"
+          },
+          {
             "name": "lpCooldownTime",
             "type": "u64"
           },
@@ -4268,7 +4272,7 @@
             "type": {
               "array": [
                 "u8",
-                1
+                17
               ]
             }
           }
@@ -4363,7 +4367,7 @@
             "type": "u64"
           },
           {
-            "name": "lastUserActionTs",
+            "name": "liquidationStartTs",
             "type": "i64"
           },
           {
@@ -4397,7 +4401,7 @@
             "type": {
               "array": [
                 "u8",
-                1
+                26
               ]
             }
           }
@@ -4472,7 +4476,7 @@
             "type": {
               "array": [
                 "u8",
-                3
+                51
               ]
             }
           }
@@ -5152,6 +5156,10 @@
             "type": "u64"
           },
           {
+            "name": "oracleStd",
+            "type": "u64"
+          },
+          {
             "name": "lastMarkPriceTwapTs",
             "type": "i64"
           },
@@ -5204,6 +5212,15 @@
           {
             "name": "lastOracleValid",
             "type": "bool"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                48
+              ]
+            }
           }
         ]
       }
@@ -7039,6 +7056,11 @@
         {
           "name": "totalCollateral",
           "type": "i128",
+          "index": false
+        },
+        {
+          "name": "marginFreed",
+          "type": "u64",
           "index": false
         },
         {

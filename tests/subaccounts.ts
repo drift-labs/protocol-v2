@@ -80,6 +80,8 @@ describe('subaccounts', () => {
 		const userStats = driftClient.getUserStats().getAccount();
 
 		assert(userStats.numberOfSubAccounts === 1);
+		assert(driftClient.getStateAccount().numberOfAuthorities.eq(new BN(1)));
+		assert(driftClient.getStateAccount().numberOfSubAccounts.eq(new BN(1)));
 	});
 
 	it('Initialize second account', async () => {
@@ -96,6 +98,8 @@ describe('subaccounts', () => {
 
 		assert(userStats.numberOfSubAccounts === 2);
 		assert(userStats.numberOfSubAccountsCreated === 2);
+		assert(driftClient.getStateAccount().numberOfAuthorities.eq(new BN(1)));
+		assert(driftClient.getStateAccount().numberOfSubAccounts.eq(new BN(2)));
 	});
 
 	it('Fetch all user account', async () => {
@@ -197,6 +201,9 @@ describe('subaccounts', () => {
 		assert(deleteFailed);
 
 		await driftClient.deleteUser(1);
+
+		assert(driftClient.getStateAccount().numberOfAuthorities.eq(new BN(1)));
+		assert(driftClient.getStateAccount().numberOfSubAccounts.eq(new BN(1)));
 	});
 
 	it('fail to reinitialize subaccount 0', async () => {

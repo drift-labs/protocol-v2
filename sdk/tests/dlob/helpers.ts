@@ -484,6 +484,8 @@ export const mockStateAccount: StateAccount = {
 	minPerpAuctionDuration: 0,
 	numberOfMarkets: 0,
 	numberOfSpotMarkets: 0,
+	numberOfSubAccounts: new BN(0),
+	numberOfAuthorities: new BN(0),
 	oracleGuardRails: {
 		priceDivergence: {
 			markOracleDivergenceNumerator: new BN(0),

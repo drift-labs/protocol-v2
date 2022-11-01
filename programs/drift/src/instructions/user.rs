@@ -109,6 +109,9 @@ pub fn handle_initialize_user(
     user_stats.number_of_sub_accounts_created =
         user_stats.number_of_sub_accounts_created.safe_add(1)?;
 
+    let state = &mut ctx.accounts.state;
+    safe_increment!(state.number_of_sub_accounts, 1);
+
     emit!(NewUserRecord {
         ts: Clock::get()?.unix_timestamp,
         user_authority: ctx.accounts.authority.key(),
@@ -1493,6 +1496,9 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
 
     safe_decrement!(user_stats.number_of_sub_accounts, 1);
 
+    let state = &mut ctx.accounts.state;
+    safe_decrement!(state.number_of_sub_accounts, 1);
+
     Ok(())
 }
 
@@ -1514,6 +1520,7 @@ pub struct InitializeUser<'info> {
         has_one = authority
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(mut)]
@@ -1738,6 +1745,7 @@ pub struct DeleteUser<'info> {
         has_one = authority
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
 }

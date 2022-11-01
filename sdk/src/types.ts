@@ -490,6 +490,8 @@ export type StateAccount = {
 	whitelistMint: PublicKey;
 	discountMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
+	numberOfAuthorities: BN;
+	numberOfSubAccounts: BN;
 	numberOfMarkets: number;
 	numberOfSpotMarkets: number;
 	minPerpAuctionDuration: number;

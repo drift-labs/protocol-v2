@@ -63,6 +63,7 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         discount_mint: Pubkey::default(),
         oracle_guard_rails: OracleGuardRails::default(),
         number_of_authorities: 0,
+        number_of_sub_accounts: 0,
         number_of_markets: 0,
         number_of_spot_markets: 0,
         min_perp_auction_duration: 10,
@@ -76,7 +77,7 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         perp_fee_structure: FeeStructure::perps_default(),
         spot_fee_structure: FeeStructure::spot_default(),
         lp_cooldown_time: 0,
-        padding: [0; 65],
+        padding: [0; 17],
     };
 
     Ok(())
