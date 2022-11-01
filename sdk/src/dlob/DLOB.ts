@@ -651,8 +651,7 @@ export class DLOB {
 					const user = this.userMap.get(
 						bestGenerator.next.value.userAccount.toString()
 					);
-					const userAccount = user?.getUserAccount();
-					if (isVariant(userAccount.status, 'active')) {
+					if (user && !isVariant(user.getUserAccount().status, 'active')) {
 						bestGenerator.next = bestGenerator.generator.next();
 						continue;
 					}
@@ -738,7 +737,7 @@ export class DLOB {
 					const user = this.userMap.get(
 						bestGenerator.next.value.userAccount.toString()
 					);
-					if (!isVariant(user?.getUserAccount().status, 'active')) {
+					if (user && !isVariant(user.getUserAccount().status, 'active')) {
 						bestGenerator.next = bestGenerator.generator.next();
 						continue;
 					}

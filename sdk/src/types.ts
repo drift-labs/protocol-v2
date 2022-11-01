@@ -27,7 +27,7 @@ export class MarketStatus {
 
 export class UserStatus {
 	static readonly ACTIVE = { active: {} };
-	static readonly BEINGLIQUIDATED = { beingLiquidated: {} };
+	static readonly BEING_LIQUIDATED = { beingLiquidated: {} };
 	static readonly BANKRUPT = { bankrupt: {} };
 }
 
