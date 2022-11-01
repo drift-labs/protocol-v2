@@ -20,7 +20,11 @@ pub fn get_orders(order: Order) -> [Order; 32] {
 
 pub fn get_spot_positions(spot_position: SpotPosition) -> [SpotPosition; 8] {
     let mut spot_positions = [SpotPosition::default(); 8];
-    spot_positions[0] = spot_position;
+    if spot_position.market_index == 0 {
+        spot_positions[0] = spot_position;
+    } else {
+        spot_positions[1] = spot_position;
+    }
     spot_positions
 }
 

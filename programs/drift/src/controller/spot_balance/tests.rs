@@ -151,7 +151,7 @@ fn test_daily_withdraw_limits() {
         amount as u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
-        &mut user.spot_positions[0],
+        &mut user,
     )
     .is_err());
     spot_market = spot_market_backup;
@@ -168,7 +168,7 @@ fn test_daily_withdraw_limits() {
         (amount / 2) as u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
-        &mut user.spot_positions[0],
+        &mut user,
     )
     .unwrap();
     assert_eq!(user.spot_positions[0].scaled_balance, 499999999);
@@ -181,7 +181,7 @@ fn test_daily_withdraw_limits() {
         ((amount / 10) - 2) as u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
-        &mut user.spot_positions[0],
+        &mut user,
     )
     .unwrap();
 
@@ -192,7 +192,7 @@ fn test_daily_withdraw_limits() {
         2_u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
-        &mut user.spot_positions[0],
+        &mut user,
     )
     .is_err());
     spot_market = spot_market_backup;
@@ -217,7 +217,7 @@ fn test_daily_withdraw_limits() {
         QUOTE_PRECISION * 100000,
         &SpotBalanceType::Deposit,
         &mut spot_market,
-        &mut user.spot_positions[0],
+        &mut user,
     )
     .unwrap();
     assert_eq!(spot_market.deposit_balance, 100000400001998);
@@ -233,6 +233,8 @@ fn test_daily_withdraw_limits() {
 
     // tiny whale who will grow
     let mut whale = User {
+        total_deposits: 50 * 100 * QUOTE_PRECISION_U64,
+        total_withdraws: 0,
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
@@ -245,20 +247,25 @@ fn test_daily_withdraw_limits() {
 
     sol_spot_market.optimal_borrow_rate = SPOT_RATE_PRECISION_U32 / 5; //20% APR
     sol_spot_market.max_borrow_rate = SPOT_RATE_PRECISION_U32; //100% APR
+    assert_eq!(whale.spot_positions[1].market_index, 1);
+    assert_eq!(whale.spot_positions[1].scaled_balance, 50000000000);
 
     update_spot_balances_and_cumulative_deposits_with_limits(
         QUOTE_PRECISION * 50,
         &SpotBalanceType::Borrow,
         &mut spot_market,
-        &mut whale.spot_positions[1],
+        &mut whale,
     )
     .unwrap();
 
-    assert_eq!(whale.spot_positions[0].market_index, 1);
-    assert_eq!(whale.spot_positions[1].market_index, 0);
-    assert_eq!(whale.spot_positions[1].scaled_balance, 50000000001);
+    assert_eq!(whale.total_deposits, 5000000000);
+    assert_eq!(whale.total_withdraws, 0);
+    assert_eq!(whale.spot_positions[0].market_index, 0);
+    assert_eq!(whale.spot_positions[0].scaled_balance, 50000000001);
+    assert_eq!(whale.spot_positions[1].market_index, 1);
+    assert_eq!(whale.spot_positions[1].scaled_balance, 50000000000);
     assert_eq!(
-        whale.spot_positions[1].balance_type,
+        whale.spot_positions[0].balance_type,
         SpotBalanceType::Borrow
     );
     assert_eq!(user.spot_positions[1].scaled_balance, 0);
@@ -269,7 +276,7 @@ fn test_daily_withdraw_limits() {
         100000 * 100000,
         &SpotBalanceType::Borrow,
         &mut sol_spot_market,
-        &mut user.spot_positions[1],
+        &mut user,
     )
     .unwrap();
     assert_eq!(user.spot_positions[0].market_index, 0);
@@ -296,7 +303,7 @@ fn test_daily_withdraw_limits() {
         100000 * 100000 * 40,
         &SpotBalanceType::Borrow,
         &mut sol_spot_market,
-        &mut user.spot_positions[1],
+        &mut user,
     )
     .is_err());
     sol_spot_market = spot_market_backup;
@@ -306,7 +313,7 @@ fn test_daily_withdraw_limits() {
         100000 * 100000 * 6,
         &SpotBalanceType::Borrow,
         &mut sol_spot_market,
-        &mut user.spot_positions[1],
+        &mut user,
     )
     .unwrap();
 
@@ -321,7 +328,7 @@ fn test_daily_withdraw_limits() {
         100000 * 100000,
         &SpotBalanceType::Borrow,
         &mut sol_spot_market,
-        &mut user.spot_positions[1],
+        &mut user,
     )
     .unwrap();
 
@@ -351,7 +358,7 @@ fn test_daily_withdraw_limits() {
         100000 * 100000 * 100,
         &SpotBalanceType::Deposit,
         &mut sol_spot_market,
-        &mut user.spot_positions[1],
+        &mut user,
     )
     .unwrap();
 
@@ -434,12 +441,12 @@ fn test_check_withdraw_limits() {
         scaled_balance: SPOT_BALANCE_PRECISION_U64,
         ..SpotPosition::default()
     };
-    // let mut user = User {
-    //     orders: [Order::default(); 32],
-    //     perp_positions: [PerpPosition::default(); 8],
-    //     spot_positions,
-    //     ..User::default()
-    // };
+    let user = User {
+        orders: [Order::default(); 32],
+        perp_positions: [PerpPosition::default(); 8],
+        spot_positions,
+        ..User::default()
+    };
 
     let mdt = calculate_min_deposit_token(QUOTE_PRECISION, 0).unwrap();
     assert_eq!(mdt, QUOTE_PRECISION - QUOTE_PRECISION * 2 / 10);
@@ -447,16 +454,11 @@ fn test_check_withdraw_limits() {
     let mbt = calculate_max_borrow_token(QUOTE_PRECISION, QUOTE_PRECISION / 2, 0).unwrap();
     assert_eq!(mbt, 600000);
 
-    let valid_withdraw =
-        check_withdraw_limits(&spot_market, Some(&spot_positions[0]), Some(0)).unwrap();
+    let valid_withdraw = check_withdraw_limits(&spot_market, Some(&user), Some(0)).unwrap();
     assert!(valid_withdraw);
 
-    let valid_withdraw = check_withdraw_limits(
-        &sol_spot_market,
-        Some(&spot_positions[1]),
-        Some(QUOTE_PRECISION),
-    )
-    .unwrap();
+    let valid_withdraw =
+        check_withdraw_limits(&sol_spot_market, Some(&user), Some(QUOTE_PRECISION)).unwrap();
     assert!(!valid_withdraw);
 }
 
@@ -554,7 +556,7 @@ fn check_fee_collection() {
     let _spot_market_map = SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
     let mut spot_positions = [SpotPosition::default(); 8];
-    spot_positions[0] = SpotPosition {
+    spot_positions[1] = SpotPosition {
         market_index: 1,
         balance_type: SpotBalanceType::Deposit,
         scaled_balance: SPOT_BALANCE_PRECISION_U64,
@@ -579,9 +581,12 @@ fn check_fee_collection() {
         (amount / 2) as u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
-        &mut user.spot_positions[1],
+        &mut user,
     )
     .unwrap();
+
+    assert_eq!(user.total_deposits, 0);
+    assert_eq!(user.total_withdraws, 0);
 
     assert_eq!(spot_market.deposit_balance, 1000000000);
     assert_eq!(spot_market.borrow_balance, 125000001);

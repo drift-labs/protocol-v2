@@ -1,7 +1,3 @@
-use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::msg;
-
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
@@ -19,6 +15,10 @@ use crate::math_error;
 use crate::safe_increment;
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::validate;
+use anchor_lang::prelude::*;
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::msg;
 use std::cmp::max;
 
 #[cfg(test)]
@@ -82,6 +82,11 @@ impl User {
     pub fn get_spot_position_index(&self, market_index: u16) -> DriftResult<usize> {
         // first spot position is always quote asset
         if market_index == 0 {
+            validate!(
+                self.spot_positions[0].market_index == 0,
+                ErrorCode::DefaultError,
+                "User position 0 not market_index=0"
+            )?;
             return Ok(0);
         }
 

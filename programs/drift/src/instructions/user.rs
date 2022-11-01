@@ -380,15 +380,21 @@ pub fn handle_withdraw(
             amount
         };
 
-        let spot_position = user.force_get_spot_position_mut(market_index)?;
-
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+        user.increment_total_withdraws(
+            amount,
+            oracle_price_data.price,
+            spot_market.get_precision().cast()?,
+        )?;
+
         // prevents withdraw when limits hit
         controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits(
             amount as u128,
             &SpotBalanceType::Borrow,
             spot_market,
-            spot_position,
+            user,
         )?;
 
         amount
@@ -401,14 +407,7 @@ pub fn handle_withdraw(
     user.status = UserStatus::Active;
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
-    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
-    let oracle_price = oracle_price_data.price;
-
-    user.increment_total_withdraws(
-        amount,
-        oracle_price_data.price,
-        spot_market.get_precision().cast()?,
-    )?;
+    let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
 
     let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let deposit_record = DepositRecord {
@@ -501,8 +500,14 @@ pub fn handle_transfer_deposit(
         )?;
     }
 
+    let oracle_price = {
+        let spot_market = &spot_market_map.get_ref(&market_index)?;
+        oracle_map.get_price_data(&spot_market.oracle)?.price
+    };
+
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+
         validate!(
             matches!(
                 spot_market.status,
@@ -518,14 +523,18 @@ pub fn handle_transfer_deposit(
             spot_market.market_index
         )?;
 
-        let from_spot_position = from_user.force_get_spot_position_mut(spot_market.market_index)?;
+        from_user.increment_total_withdraws(
+            amount,
+            oracle_price,
+            spot_market.get_precision().cast()?,
+        )?;
 
         // prevents withdraw when limits hit
         controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits(
             amount as u128,
             &SpotBalanceType::Borrow,
             spot_market,
-            from_spot_position,
+            from_user,
         )?;
     }
 
@@ -544,19 +553,8 @@ pub fn handle_transfer_deposit(
 
     from_user.status = UserStatus::Active;
 
-    let oracle_price = {
-        let spot_market = &spot_market_map.get_ref(&market_index)?;
-        oracle_map.get_price_data(&spot_market.oracle)?.price
-    };
-
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-
-        from_user.increment_total_withdraws(
-            amount,
-            oracle_price,
-            spot_market.get_precision().cast()?,
-        )?;
 
         let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {

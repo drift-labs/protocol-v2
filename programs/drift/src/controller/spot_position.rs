@@ -12,7 +12,8 @@ use crate::safe_decrement;
 use crate::safe_increment;
 use crate::state::perp_market::MarketStatus;
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
-use crate::state::user::SpotPosition;
+use crate::state::user::{SpotPosition, User};
+
 use crate::validate;
 
 #[cfg(test)]
@@ -99,25 +100,28 @@ pub fn update_spot_balances_and_cumulative_deposits_with_limits(
     token_amount: u128,
     update_direction: &SpotBalanceType,
     spot_market: &mut SpotMarket,
-    spot_position: &mut SpotPosition,
+    user: &mut User,
 ) -> DriftResult {
+    let spot_position_index = user.get_spot_position_index(spot_market.market_index)?;
+
     update_spot_balances_and_cumulative_deposits(
         token_amount,
         update_direction,
         spot_market,
-        spot_position,
+        &mut user.spot_positions[spot_position_index],
         true,
         None,
     )?;
 
-    let valid_withdraw =
-        check_withdraw_limits(spot_market, Some(spot_position), Some(token_amount))?;
+    let valid_withdraw = check_withdraw_limits(spot_market, Some(user), Some(token_amount))?;
 
     validate!(
         valid_withdraw,
         ErrorCode::DailyWithdrawLimit,
-        "Spot Market {} has hit daily withdraw limit",
-        spot_market.market_index
+        "Spot Market {} has hit daily withdraw limit. Attempted withdraw amount of {} by {}",
+        spot_market.market_index,
+        token_amount,
+        user.authority
     )?;
 
     validate!(
@@ -137,7 +141,7 @@ pub fn update_spot_balances_and_cumulative_deposits_with_limits(
 
     validate!(
         !(spot_market.asset_tier == AssetTier::Protected
-            && spot_position.balance_type() == &SpotBalanceType::Borrow),
+            && user.spot_positions[spot_position_index].balance_type() == &SpotBalanceType::Borrow),
         ErrorCode::ProtectedAssetTierViolation,
         "Spot Market {} has Protected status and cannot be borrowed",
         spot_market.market_index
