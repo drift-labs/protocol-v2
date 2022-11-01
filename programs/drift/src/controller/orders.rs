@@ -103,7 +103,7 @@ pub fn place_perp_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     expire_orders(
         user,
@@ -642,7 +642,7 @@ pub fn fill_perp_order(
         "Order must be triggered first"
     )?;
 
-    if user.is_bankrupt {
+    if user.is_bankrupt() {
         msg!("user is bankrupt");
         return Ok((0, false));
     }
@@ -1009,7 +1009,7 @@ fn sanitize_maker_order<'a>(
             return Ok((None, None, None, None));
         }
 
-        if maker.is_being_liquidated || maker.is_bankrupt {
+        if maker.is_being_liquidated() || maker.is_bankrupt() {
             return Ok((None, None, None, None));
         }
 
@@ -2092,7 +2092,7 @@ pub fn trigger_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
@@ -2317,7 +2317,7 @@ pub fn place_spot_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     expire_orders(
         user,
@@ -2646,7 +2646,7 @@ pub fn fill_spot_order(
         "Order must be triggered first"
     )?;
 
-    if user.is_bankrupt {
+    if user.is_bankrupt() {
         msg!("User is bankrupt");
         return Ok(0);
     }
@@ -2822,7 +2822,7 @@ fn sanitize_spot_maker_order<'a>(
             return Ok((None, None, None, None));
         }
 
-        if maker.is_being_liquidated || maker.is_bankrupt {
+        if maker.is_being_liquidated() || maker.is_bankrupt() {
             return Ok((None, None, None, None));
         }
 
@@ -3800,7 +3800,7 @@ pub fn trigger_spot_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
     let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(

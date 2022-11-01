@@ -209,7 +209,7 @@ describe('liquidate perp and lp', () => {
 				.perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
 		);
 
-		assert(driftClient.getUserAccount().isBeingLiquidated);
+		assert(isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 
 		// try to add liq when being liquidated -- should fail
@@ -338,8 +338,12 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785008)));
 
-		assert(!driftClient.getUserAccount().isBankrupt);
-		assert(!driftClient.getUserAccount().isBeingLiquidated);
+		// assert(!driftClient.getUserAccount().isBankrupt);
+		// assert(!driftClient.getUserAccount().isBeingLiquidated);
+		assert(!isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
+		assert(!isVariant(driftClient.getUserAccount().status, 'bankrupt'));
+		assert(isVariant(driftClient.getUserAccount().status, 'active'));
+
 		assert(
 			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
 		);

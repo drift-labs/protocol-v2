@@ -1024,7 +1024,12 @@ export class User {
 
 		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
 		let liquidationBuffer = undefined;
-		if (this.getUserAccount().isBeingLiquidated) {
+		const isBeingLiquidated = isVariant(
+			this.getUserAccount().status,
+			'beingLiquidated'
+		);
+
+		if (isBeingLiquidated) {
 			liquidationBuffer = new BN(
 				this.driftClient.getStateAccount().liquidationMarginBufferRatio
 			);

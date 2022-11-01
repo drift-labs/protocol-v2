@@ -203,7 +203,7 @@ describe('liquidate borrow for perp pnl', () => {
 				.logMessages
 		);
 
-		assert(driftClient.getUserAccount().isBeingLiquidated);
+		assert(isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
 			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)

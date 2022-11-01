@@ -4329,6 +4329,14 @@
             "type": "i64"
           },
           {
+            "name": "liquidationMarginFreed",
+            "type": "u64"
+          },
+          {
+            "name": "lastUserActionTs",
+            "type": "i64"
+          },
+          {
             "name": "nextOrderId",
             "type": "u32"
           },
@@ -4345,12 +4353,10 @@
             "type": "u16"
           },
           {
-            "name": "isBeingLiquidated",
-            "type": "bool"
-          },
-          {
-            "name": "isBankrupt",
-            "type": "bool"
+            "name": "status",
+            "type": {
+              "defined": "UserStatus"
+            }
           },
           {
             "name": "isMarginTradingEnabled",
@@ -6188,6 +6194,23 @@
           },
           {
             "name": "Paused"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "BeingLiquidated"
+          },
+          {
+            "name": "Bankrupt"
           }
         ]
       }

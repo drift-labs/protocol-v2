@@ -17,7 +17,7 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::User;
+use crate::state::user::{User, UserStatus};
 use crate::validate;
 use solana_program::msg;
 
@@ -221,7 +221,7 @@ pub fn validate_user_not_being_liquidated(
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
 ) -> DriftResult {
-    if !user.is_being_liquidated {
+    if !user.is_being_liquidated() {
         return Ok(());
     }
 
@@ -236,7 +236,7 @@ pub fn validate_user_not_being_liquidated(
     if is_still_being_liquidated {
         return Err(ErrorCode::UserIsBeingLiquidated);
     } else {
-        user.is_being_liquidated = false;
+        user.status = UserStatus::Active;
     }
 
     Ok(())

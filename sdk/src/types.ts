@@ -25,6 +25,12 @@ export class MarketStatus {
 	static readonly DELISTED = { delisted: {} };
 }
 
+export class UserStatus {
+	static readonly ACTIVE = { active: {} };
+	static readonly BEINGLIQUIDATED = { beingLiquidated: {} };
+	static readonly BANKRUPT = { bankrupt: {} };
+}
+
 export class ContractType {
 	static readonly PERPETUAL = { perpetual: {} };
 	static readonly FUTURE = { future: {} };
@@ -718,8 +724,7 @@ export type UserAccount = {
 	spotPositions: SpotPosition[];
 	perpPositions: PerpPosition[];
 	orders: Order[];
-	isBeingLiquidated: boolean;
-	isBankrupt: boolean;
+	status: UserStatus;
 	nextLiquidationId: number;
 	nextOrderId: number;
 	maxMarginRatio: number;
