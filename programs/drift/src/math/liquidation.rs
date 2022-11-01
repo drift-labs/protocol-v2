@@ -295,3 +295,30 @@ pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
         .safe_div(total_deposits)
         .or(Ok(0))
 }
+
+pub fn validate_transfer_satisfies_limit_price(
+    asset_transfer: u128,
+    liability_transfer: u128,
+    asset_decimals: u32,
+    liability_decimals: u32,
+    limit_price: Option<u64>,
+) -> DriftResult {
+    let limit_price = match limit_price {
+        Some(limit_price) => limit_price,
+        None => return Ok(()),
+    };
+
+    let transfer_price = asset_transfer
+        .safe_mul(PRICE_PRECISION)?
+        .safe_div(10_u128.pow(asset_decimals))?
+        .safe_mul(10_u128.pow(liability_decimals))?
+        .safe_div(liability_transfer)?;
+
+    validate!(
+        transfer_price >= limit_price.cast()?,
+        ErrorCode::LiquidationDoesntSatisfyLimitPrice,
+        "transfer price transfer_price ({}/1000000) < limit price ({}/1000000)",
+        transfer_price,
+        limit_price
+    )
+}

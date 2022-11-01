@@ -2486,6 +2486,7 @@ pub mod delisting_test {
                 0,
                 0,
                 QUOTE_PRECISION_I128 as u128,
+                None,
                 &mut shorter,
                 &maker_key,
                 &mut liquidator,
@@ -2572,6 +2573,7 @@ pub mod delisting_test {
                 0,
                 0,
                 (QUOTE_PRECISION_I128 * 1000000000) as u128, // give all
+                None,
                 &mut shorter,
                 &maker_key,
                 &mut liquidator,

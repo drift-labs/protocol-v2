@@ -30,7 +30,7 @@ use crate::math::liquidation::{
     calculate_funding_rate_deltas_to_resolve_bankruptcy,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
-    LiquidationMultiplierType,
+    validate_transfer_satisfies_limit_price, LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
@@ -519,6 +519,7 @@ pub fn liquidate_spot(
     asset_market_index: u16,
     liability_market_index: u16,
     liquidator_max_liability_transfer: u128,
+    limit_price: Option<u64>,
     user: &mut User,
     user_key: &Pubkey,
     liquidator: &mut User,
@@ -787,6 +788,14 @@ pub fn liquidate_spot(
         liability_price,
     )?;
 
+    validate_transfer_satisfies_limit_price(
+        asset_transfer,
+        liability_transfer,
+        asset_decimals,
+        liability_decimals,
+        limit_price,
+    )?;
+
     let if_fee = liability_transfer
         .safe_mul(liquidation_if_fee.cast()?)?
         .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
@@ -881,6 +890,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     perp_market_index: u16,
     liability_market_index: u16,
     liquidator_max_liability_transfer: u128,
+    limit_price: Option<u64>,
     user: &mut User,
     user_key: &Pubkey,
     liquidator: &mut User,
@@ -1172,6 +1182,14 @@ pub fn liquidate_borrow_for_perp_pnl(
         liability_price,
     )?;
 
+    validate_transfer_satisfies_limit_price(
+        pnl_transfer,
+        liability_transfer,
+        quote_decimals,
+        liability_decimals,
+        limit_price,
+    )?;
+
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
@@ -1250,6 +1268,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     perp_market_index: u16,
     asset_market_index: u16,
     liquidator_max_pnl_transfer: u128,
+    limit_price: Option<u64>,
     user: &mut User,
     user_key: &Pubkey,
     liquidator: &mut User,
@@ -1534,6 +1553,14 @@ pub fn liquidate_perp_pnl_for_deposit(
         pnl_liquidation_multiplier,
         quote_decimals,
         quote_price,
+    )?;
+
+    validate_transfer_satisfies_limit_price(
+        asset_transfer,
+        pnl_transfer,
+        asset_decimals,
+        quote_decimals,
+        limit_price,
     )?;
 
     {
