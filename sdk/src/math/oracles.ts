@@ -69,7 +69,7 @@ export function isOracleTooDivergent(
 		amm.historicalOracleData.lastOraclePriceTwapTs
 	);
 	const sinceStart = BN.max(ZERO, new BN(60 * 5).sub(sinceLastUpdate));
-	const oracleTwap5min = amm.historicalOracleData.lastOraclePriceTwap5min
+	const oracleTwap5min = amm.historicalOracleData.lastOraclePriceTwap5Min
 		.mul(sinceStart)
 		.add(oraclePriceData.price)
 		.mul(sinceLastUpdate)
