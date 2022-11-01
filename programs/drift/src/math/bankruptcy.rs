@@ -5,6 +5,8 @@ use crate::state::user::User;
 mod tests;
 
 pub fn is_user_bankrupt(user: &User) -> bool {
+    // user is bankrupt iff they have spot liabilities, no spot assets, and no perp exposure
+
     let mut has_liability = false;
 
     for spot_position in user.spot_positions.iter() {
@@ -19,6 +21,7 @@ pub fn is_user_bankrupt(user: &User) -> bool {
     for perp_position in user.perp_positions.iter() {
         if perp_position.base_asset_amount != 0
             || perp_position.quote_asset_amount > 0
+            || perp_position.has_open_order()
             || perp_position.is_lp()
         {
             return false;
