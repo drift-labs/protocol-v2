@@ -115,13 +115,19 @@ mod test {
 
     #[test]
     fn safe_mul() {
+        assert_eq!(8_u128.safe_mul(80).unwrap(), 640);
         assert_eq!(1_u128.safe_mul(1).unwrap(), 1);
         assert_eq!(2_u128.safe_mul(u128::MAX), Err(ErrorCode::MathError));
     }
 
     #[test]
     fn safe_div() {
+        assert_eq!(155_u128.safe_div(8).unwrap(), 19);
+        assert_eq!(159_u128.safe_div(8).unwrap(), 19);
+        assert_eq!(160_u128.safe_div(8).unwrap(), 20);
+
         assert_eq!(1_u128.safe_div(1).unwrap(), 1);
+        assert_eq!(1_u128.safe_div(100).unwrap(), 0);
         assert_eq!(1_u128.safe_div(0), Err(ErrorCode::MathError));
     }
 }
