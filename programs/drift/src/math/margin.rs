@@ -358,7 +358,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     worst_case_token_amount,
                     spot_market.decimals,
                     oracle_price_data,
-                    worst_case_token_amount < 0,
                 )?
             };
 
@@ -817,7 +816,6 @@ pub fn validate_spot_margin_trading(
                 -bids as i128,
                 spot_market.decimals,
                 oracle_price_data,
-                false,
             )?;
 
             total_open_bids_value = total_open_bids_value.safe_add(open_bids_value)?;

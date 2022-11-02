@@ -3,7 +3,7 @@ use solana_program::msg;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
-use crate::math::safe_math::SafeMath;
+use crate::math::safe_math::{SafeDivFloor, SafeMath};
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
@@ -215,7 +215,7 @@ pub fn get_strict_token_value(
     let precision_decrease = 10_i128.pow(spot_decimals);
 
     validate!(
-        oracle_price_twap > 0,
+        oracle_price_twap > 0 && oracle_price_data.price > 0,
         ErrorCode::InvalidOracle,
         "oracle_price_data={:?} oracle_price_twap={} (<= 0)",
         oracle_price_data,
@@ -228,39 +228,29 @@ pub fn get_strict_token_value(
         oracle_price_data.price.max(oracle_price_twap)
     };
 
-    token_amount
-        .safe_mul(price.cast()?)?
-        .safe_div(precision_decrease)
+    let token_with_price = token_amount.safe_mul(price.cast()?)?;
+
+    if token_with_price < 0 {
+        token_with_price.safe_div_floor(precision_decrease)
+    } else {
+        token_with_price.safe_div(precision_decrease)
+    }
 }
 
 pub fn get_token_value(
     token_amount: i128,
     spot_decimals: u32,
     oracle_price_data: &OraclePriceData,
-    force_round_up: bool,
 ) -> DriftResult<i128> {
     if token_amount == 0 {
         return Ok(0);
     }
 
     let precision_decrease = 10_i128.pow(spot_decimals);
-    crate::dlog!(precision_decrease, oracle_price_data.price);
     let token_with_oracle = token_amount.safe_mul(oracle_price_data.price.cast()?)?;
 
-    if force_round_up {
-        msg!(
-            "force_round_up {}/{}",
-            token_with_oracle,
-            precision_decrease
-        );
-        let inter = token_with_oracle
-            .abs()
-            .safe_div_ceil(precision_decrease.abs())?;
-        if token_with_oracle < 0 {
-            Ok(-inter)
-        } else {
-            Ok(inter)
-        }
+    if token_with_oracle < 0 {
+        token_with_oracle.safe_div_floor(precision_decrease.abs())
     } else {
         token_with_oracle.safe_div(precision_decrease)
     }

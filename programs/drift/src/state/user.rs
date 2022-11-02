@@ -329,7 +329,6 @@ impl SpotPosition {
                 -self.open_bids as i128,
                 spot_market.decimals,
                 oracle_price_data,
-                true,
             )?;
             Ok((token_amount_all_bids_fill, worst_case_quote_token_amount))
         } else {
@@ -337,7 +336,6 @@ impl SpotPosition {
                 -self.open_asks as i128,
                 spot_market.decimals,
                 oracle_price_data,
-                true,
             )?;
             Ok((token_amount_all_asks_fill, worst_case_quote_token_amount))
         }
