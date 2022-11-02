@@ -292,7 +292,7 @@ pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
     spot_market
         .cumulative_deposit_interest
         .safe_mul(borrow)?
-        .safe_div(total_deposits)
+        .safe_div_ceil(total_deposits)
         .or(Ok(0))
 }
 

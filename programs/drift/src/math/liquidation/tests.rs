@@ -430,7 +430,7 @@ mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
             calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(loss, &spot_market)
                 .unwrap();
 
-        assert_eq!(delta, 916666666);
+        assert_eq!(delta, 916666667);
     }
 }
 
