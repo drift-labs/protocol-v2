@@ -1,6 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::bn::{U192, U256};
 use crate::math::ceil_div::CheckedCeilDiv;
+use crate::math::floor_div::CheckedFloorDiv;
 use solana_program::msg;
 use std::panic::Location;
 
@@ -96,10 +97,40 @@ checked_impl!(i32);
 checked_impl!(i16);
 checked_impl!(i8);
 
+pub trait SafeDivFloor: Sized {
+    /// Perform floor division
+    fn safe_div_floor(self, rhs: Self) -> DriftResult<Self>;
+}
+
+macro_rules! div_floor_impl {
+    ($t:ty) => {
+        impl SafeDivFloor for $t {
+            #[track_caller]
+            #[inline(always)]
+            fn safe_div_floor(self, v: $t) -> DriftResult<$t> {
+                match self.checked_floor_div(v) {
+                    Some(result) => Ok(result),
+                    None => {
+                        let caller = Location::caller();
+                        msg!("Math error thrown at {}:{}", caller.file(), caller.line());
+                        Err(ErrorCode::MathError)
+                    }
+                }
+            }
+        }
+    };
+}
+
+div_floor_impl!(i128);
+div_floor_impl!(i64);
+div_floor_impl!(i32);
+div_floor_impl!(i16);
+div_floor_impl!(i8);
+
 #[cfg(test)]
 mod test {
     use crate::error::ErrorCode;
-    use crate::math::safe_math::SafeMath;
+    use crate::math::safe_math::{SafeDivFloor, SafeMath};
 
     #[test]
     fn safe_add() {
@@ -129,5 +160,12 @@ mod test {
         assert_eq!(1_u128.safe_div(1).unwrap(), 1);
         assert_eq!(1_u128.safe_div(100).unwrap(), 0);
         assert_eq!(1_u128.safe_div(0), Err(ErrorCode::MathError));
+    }
+
+    #[test]
+    fn safe_div_floor() {
+        assert_eq!((-155_i128).safe_div_floor(8).unwrap(), -20);
+        assert_eq!((-159_i128).safe_div_floor(8).unwrap(), -20);
+        assert_eq!((-160_i128).safe_div_floor(8).unwrap(), -20);
     }
 }
