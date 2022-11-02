@@ -272,7 +272,7 @@ export type CurveRecord = {
 
 export declare type InsuranceFundRecord = {
 	ts: BN;
-	spotMarketIndex: BN;
+	spotMarketIndex: number;
 	perpMarketIndex: number;
 	userIfFactor: number;
 	totalIfFactor: number;
@@ -469,7 +469,7 @@ export type OrderActionRecord = {
 	makerFee: BN | null;
 	referrerReward: number | null;
 	quoteAssetAmountSurplus: BN | null;
-	spot_fulfillment_method_fee: BN | null;
+	spotFulfillmentMethodFee: BN | null;
 	taker: PublicKey | null;
 	takerOrderId: number | null;
 	takerOrderDirection: PositionDirection | null;
