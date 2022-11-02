@@ -189,7 +189,7 @@ fn validate_trigger_limit_order(order: &Order, step_size: u64, min_order_size: u
         OrderTriggerCondition::Above | OrderTriggerCondition::Below
     ) {
         msg!("Invalid trigger condition, must be Above or Below");
-        return Err(ErrorCode::InvalidOrderLimitPrice);
+        return Err(ErrorCode::InvalidTriggerOrderCondition);
     }
 
     if order.price == 0 {
@@ -227,7 +227,7 @@ fn validate_trigger_market_order(
         OrderTriggerCondition::Above | OrderTriggerCondition::Below
     ) {
         msg!("Invalid trigger condition, must be Above or Below");
-        return Err(ErrorCode::InvalidOrderLimitPrice);
+        return Err(ErrorCode::InvalidTriggerOrderCondition);
     }
 
     if order.price > 0 {
