@@ -34,7 +34,7 @@ mod validation;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("H4G1xzAoqSW8n1Edmeowqsgc895tSNCeDPafYjv4Md7i");
+declare_id!("4PzAUP84r19y2whicgTysCiqxw5aHabLHyDh3oJiAtqe");
 
 #[program]
 pub mod drift {

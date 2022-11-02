@@ -11,7 +11,7 @@ watch_build = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c 
 watch_cargo = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c cargo test -- --show-output'
 
 [programs.localnet]
-drift = "H4G1xzAoqSW8n1Edmeowqsgc895tSNCeDPafYjv4Md7i"
+drift = "4PzAUP84r19y2whicgTysCiqxw5aHabLHyDh3oJiAtqe"
 pyth = "gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s"
 
 [[test.genesis]]
