@@ -492,7 +492,7 @@ pub struct Order {
     pub immediate_or_cancel: bool,
     pub trigger_condition: OrderTriggerCondition,
     pub auction_duration: u8,
-    pub padding: [u8; 2],
+    pub padding: [u8; 3],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -657,7 +657,7 @@ impl Default for Order {
             auction_end_price: 0,
             auction_duration: 0,
             max_ts: 0,
-            padding: [0; 2],
+            padding: [0; 3],
         }
     }
 }
