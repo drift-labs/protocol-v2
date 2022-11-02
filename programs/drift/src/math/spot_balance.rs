@@ -45,9 +45,14 @@ pub fn get_token_amount(
         SpotBalanceType::Borrow => spot_market.cumulative_borrow_interest,
     };
 
-    let token_amount = balance
-        .safe_mul(cumulative_interest)?
-        .safe_div(precision_decrease)?;
+    let token_amount = match balance_type {
+        SpotBalanceType::Deposit => balance
+            .safe_mul(cumulative_interest)?
+            .safe_div(precision_decrease)?,
+        SpotBalanceType::Borrow => balance
+            .safe_mul(cumulative_interest)?
+            .safe_div_ceil(precision_decrease)?,
+    };
 
     Ok(token_amount)
 }

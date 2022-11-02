@@ -1025,12 +1025,6 @@ mod calculate_margin_requirement_and_total_collateral {
             SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
         let mut spot_positions = [SpotPosition::default(); 8];
-        // spot_positions[0] = SpotPosition {
-        //     market_index: 0,
-        //     balance_type: SpotBalanceType::Deposit,
-        //     scaled_balance: 1040,
-        //     ..SpotPosition::default()
-        // };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
@@ -1040,11 +1034,6 @@ mod calculate_margin_requirement_and_total_collateral {
 
         let user = User {
             orders: [Order::default(); 32],
-            // perp_positions: get_positions(PerpPosition {
-            //     market_index: 0,
-            //     base_asset_amount: 100 * BASE_PRECISION_I64,
-            //     ..PerpPosition::default()
-            // }),
             spot_positions,
             max_margin_ratio: 2 * MARGIN_PRECISION as u32, // .5x leverage
             ..User::default()
@@ -1153,12 +1142,6 @@ mod calculate_margin_requirement_and_total_collateral {
             SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
         let mut spot_positions = [SpotPosition::default(); 8];
-        // spot_positions[0] = SpotPosition {
-        //     market_index: 0,
-        //     balance_type: SpotBalanceType::Deposit,
-        //     scaled_balance: 1040,
-        //     ..SpotPosition::default()
-        // };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
@@ -1168,11 +1151,6 @@ mod calculate_margin_requirement_and_total_collateral {
 
         let user = User {
             orders: [Order::default(); 32],
-            // perp_positions: get_positions(PerpPosition {
-            //     market_index: 0,
-            //     base_asset_amount: 100 * BASE_PRECISION_I64,
-            //     ..PerpPosition::default()
-            // }),
             spot_positions,
             max_margin_ratio: 2 * MARGIN_PRECISION as u32, // .5x leverage
             ..User::default()
@@ -1502,60 +1480,6 @@ mod calculate_max_withdrawable_amount {
             SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
         let mut spot_positions = [SpotPosition::default(); 8];
-        // spot_positions[0] = SpotPosition {
-        //     market_index: 0,
-        //     balance_type: SpotBalanceType::Borrow,
-        //     scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
-        //     ..SpotPosition::default()
-        // };
-        // spot_positions[1] = SpotPosition {
-        //     market_index: 1,
-        //     balance_type: SpotBalanceType::Deposit,
-        //     scaled_balance: 183,
-        //     ..SpotPosition::default()
-        // };
-        // let user = User {
-        //     orders: [Order::default(); 32],
-        //     perp_positions: [PerpPosition::default(); 8],
-        //     spot_positions,
-        //     ..User::default()
-        // };
-
-        // let amount = calculate_max_withdrawable_amount(
-        //     1,
-        //     &user,
-        //     &market_map,
-        //     &spot_market_map,
-        //     &mut oracle_map,
-        // )
-        // .unwrap();
-
-        // assert_eq!(amount, 183);
-
-        // spot_positions[1] = SpotPosition {
-        //     market_index: 1,
-        //     balance_type: SpotBalanceType::Deposit,
-        //     scaled_balance: 1,
-        //     ..SpotPosition::default()
-        // };
-        // let user = User {
-        //     orders: [Order::default(); 32],
-        //     perp_positions: [PerpPosition::default(); 8],
-        //     spot_positions,
-        //     ..User::default()
-        // };
-
-        // let amount = calculate_max_withdrawable_amount(
-        //     1,
-        //     &user,
-        //     &market_map,
-        //     &spot_market_map,
-        //     &mut oracle_map,
-        // )
-        // .unwrap();
-
-        // assert_eq!(amount, 1);
-
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Borrow,
@@ -1584,7 +1508,7 @@ mod calculate_max_withdrawable_amount {
         )
         .unwrap();
 
-        assert_eq!(amount, 8018);
+        assert_eq!(amount, 7000);
     }
 }
 
