@@ -1334,7 +1334,7 @@ mod calculate_max_withdrawable_amount {
         )
         .unwrap();
 
-        assert_eq!(amount, 8000000000);
+        assert_eq!(amount, 10000000000);
     }
 
     #[test]

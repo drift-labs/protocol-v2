@@ -720,19 +720,20 @@ pub fn calculate_max_withdrawable_amount(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
-    let (margin_requirement, total_collateral, _, _) =
-        calculate_margin_requirement_and_total_collateral(
+    let (margin_requirement, total_collateral, _, _, num_of_liabilities, _) =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
             perp_market_map,
             MarginRequirementType::Initial,
             spot_market_map,
             oracle_map,
             None,
+            false,
         )?;
 
     let spot_market = &mut spot_market_map.get_ref(&market_index)?;
 
-    if margin_requirement == 0 {
+    if num_of_liabilities == 0 {
         // user has small dust deposit and no liabilities
         // so return early with user tokens amount
         return user
