@@ -1918,6 +1918,7 @@ pub fn resolve_spot_bankruptcy(
             borrow_amount.cast()?,
             spot_market.decimals,
             oracle_price_data,
+            true,
         )?;
         user.increment_total_socialized_loss(quote_social_loss.cast()?)?;
 

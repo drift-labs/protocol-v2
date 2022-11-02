@@ -322,6 +322,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     worst_case_token_amount,
                     spot_market.decimals,
                     oracle_price_data,
+                    worst_case_token_amount < 0,
                 )?
             };
 
@@ -339,6 +340,14 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         )?
                         .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
 
+                    crate::dlog!(
+                        "{} {} {} {}",
+                        worst_case_token_amount,
+                        worst_case_token_value,
+                        weighted_token_value,
+                        oracle_price_data.price,
+                    );
+
                     total_collateral =
                         total_collateral.safe_add(weighted_token_value.cast::<i128>()?)?;
                 }
@@ -353,6 +362,30 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         .unsigned_abs()
                         .safe_mul(liability_weight.cast()?)?
                         .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
+
+                    validate!(
+                        weighted_token_value >= worst_case_token_value.unsigned_abs(),
+                        ErrorCode::InvalidMarginRatio,
+                        "weighted_token_value < abs(worst_case_token_value) in spot market_index={}",
+                        spot_market.market_index,
+                    )?;
+
+                    validate!(
+                        weighted_token_value != 0,
+                        ErrorCode::InvalidOracle,
+                        "weighted_token_value=0 for worst_case_token_amount={} in spot market_index={}",
+                        worst_case_token_amount,
+                        spot_market.market_index,
+                    )?;
+
+                    crate::dlog!(
+                        "{} {} {} {} {}",
+                        liability_weight,
+                        worst_case_token_amount,
+                        worst_case_token_value,
+                        weighted_token_value,
+                        oracle_price_data.price,
+                    );
 
                     margin_requirement = margin_requirement.safe_add(weighted_token_value)?;
 
@@ -655,12 +688,38 @@ pub fn calculate_max_withdrawable_amount(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
-    let free_collateral =
-        calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?
-            .max(0)
-            .cast::<u128>()?;
+    let (margin_requirement, total_collateral, _, _) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            perp_market_map,
+            MarginRequirementType::Initial,
+            spot_market_map,
+            oracle_map,
+            None,
+        )?;
+
+    let free_collateral = total_collateral
+        .safe_sub(margin_requirement.cast::<i128>()?)?
+        .max(0)
+        .cast::<u128>()?;
 
     let spot_market = &mut spot_market_map.get_ref(&market_index)?;
+
+    if total_collateral == 0 && margin_requirement == 0 {
+        // user has small dust deposit and no liabilities
+        // so return early with user tokens amount
+        return user
+            .get_spot_position(market_index)
+            .ok_or_else(|| {
+                msg!(
+                    "User does not have a spot balance for market {}",
+                    market_index
+                );
+                ErrorCode::CouldNotFindSpotPosition
+            })?
+            .get_token_amount(spot_market)?
+            .cast();
+    }
 
     let precision_increase = 10u128.pow(spot_market.decimals - 6);
 
@@ -705,8 +764,12 @@ pub fn validate_spot_margin_trading(
         if bids > 0 {
             let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
             let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
-            let open_bids_value =
-                get_token_value(-bids as i128, spot_market.decimals, oracle_price_data)?;
+            let open_bids_value = get_token_value(
+                -bids as i128,
+                spot_market.decimals,
+                oracle_price_data,
+                false,
+            )?;
 
             total_open_bids_value = total_open_bids_value.safe_add(open_bids_value)?;
         }

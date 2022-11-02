@@ -237,16 +237,33 @@ pub fn get_token_value(
     token_amount: i128,
     spot_decimals: u32,
     oracle_price_data: &OraclePriceData,
+    force_round_up: bool,
 ) -> DriftResult<i128> {
     if token_amount == 0 {
         return Ok(0);
     }
 
     let precision_decrease = 10_i128.pow(spot_decimals);
+    crate::dlog!(precision_decrease, oracle_price_data.price);
+    let token_with_oracle = token_amount.safe_mul(oracle_price_data.price.cast()?)?;
 
-    token_amount
-        .safe_mul(oracle_price_data.price.cast()?)?
-        .safe_div(precision_decrease)
+    if force_round_up {
+        msg!(
+            "force_round_up {}/{}",
+            token_with_oracle,
+            precision_decrease
+        );
+        let inter = token_with_oracle
+            .abs()
+            .safe_div_ceil(precision_decrease.abs())?;
+        if token_with_oracle < 0 {
+            Ok(-inter)
+        } else {
+            Ok(inter)
+        }
+    } else {
+        token_with_oracle.safe_div(precision_decrease)
+    }
 }
 
 pub fn get_balance_value(

@@ -1640,7 +1640,8 @@ pub mod liquidate_spot {
         )
         .unwrap();
         let oracle_price_data = oracle_map.get_price_data(&sol_oracle_price_key).unwrap();
-        let token_value = get_token_value(token_amount as i128, 6, oracle_price_data).unwrap();
+        let token_value =
+            get_token_value(token_amount as i128, 6, oracle_price_data, false).unwrap();
 
         let strict_token_value_1 = get_strict_token_value(
             token_amount as i128,
@@ -2270,7 +2271,8 @@ pub mod liquidate_borrow_for_perp_pnl {
         )
         .unwrap();
         let oracle_price_data = oracle_map.get_price_data(&sol_oracle_price_key).unwrap();
-        let token_value = get_token_value(token_amount as i128, 6, oracle_price_data).unwrap();
+        let token_value =
+            get_token_value(token_amount as i128, 6, oracle_price_data, false).unwrap();
 
         let margin_ratio =
             total_collateral.unsigned_abs() * MARGIN_PRECISION_U128 / token_value.unsigned_abs();
