@@ -1453,7 +1453,7 @@ export class DriftClient {
 				toUser,
 				userStats: this.getUserStatsAccountPublicKey(),
 				state: await this.getStatePublicKey(),
-				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
+				spotMarketVault: this.getSpotMarketAccount(marketIndex).vault,
 			},
 			remainingAccounts,
 		});
