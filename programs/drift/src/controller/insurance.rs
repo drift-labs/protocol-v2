@@ -603,18 +603,20 @@ pub fn settle_revenue_to_insurance_fund(
         .safe_sub(spot_market.insurance_fund.user_factor)?;
 
     // give protocol its cut
-    let n_shares = vault_amount_to_if_shares(
-        insurance_fund_token_amount
-            .safe_mul(protocol_if_factor.cast()?)?
-            .safe_div(spot_market.insurance_fund.total_factor.cast()?)?,
-        spot_market.insurance_fund.total_shares,
-        insurance_vault_amount,
-    )?;
+    if protocol_if_factor > 0 {
+        let n_shares = vault_amount_to_if_shares(
+            insurance_fund_token_amount
+                .safe_mul(protocol_if_factor.cast()?)?
+                .safe_div(spot_market.insurance_fund.total_factor.cast()?)?,
+            spot_market.insurance_fund.total_shares,
+            insurance_vault_amount,
+        )?;
+
+        spot_market.insurance_fund.total_shares =
+            spot_market.insurance_fund.total_shares.safe_add(n_shares)?;
+    }
 
     let total_if_shares_before = spot_market.insurance_fund.total_shares;
-
-    spot_market.insurance_fund.total_shares =
-        spot_market.insurance_fund.total_shares.safe_add(n_shares)?;
 
     update_revenue_pool_balances(
         insurance_fund_token_amount.cast::<u128>()?,
