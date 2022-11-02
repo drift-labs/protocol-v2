@@ -16,7 +16,7 @@ macro_rules! checked_impl {
 
                 let remainder = self.checked_rem(rhs)?;
 
-                if remainder > <$t>::zero() && rhs > <$t>::zero() {
+                if remainder > <$t>::zero() {
                     quotient.checked_add(<$t>::one())
                 } else {
                     Some(quotient)
