@@ -435,6 +435,8 @@ pub enum ErrorCode {
     MarketBeingInitialized,
     #[msg("Invalid Sub Account Id")]
     InvalidUserSubAccountId,
+    #[msg("Invalid Trigger Order Condition")]
+    InvalidTriggerOrderCondition,
 }
 
 #[macro_export]

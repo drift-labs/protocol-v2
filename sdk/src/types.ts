@@ -144,6 +144,8 @@ export class OrderActionExplanation {
 export class OrderTriggerCondition {
 	static readonly ABOVE = { above: {} };
 	static readonly BELOW = { below: {} };
+	static readonly TRIGGERED_ABOVE = { triggeredAbove: {} }; // above condition has been triggered
+	static readonly TRIGGERED_BELOW = { triggeredBelow: {} }; // below condition has been triggered
 }
 
 export class SpotFulfillmentType {
@@ -804,7 +806,6 @@ export type Order = {
 	reduceOnly: boolean;
 	triggerPrice: BN;
 	triggerCondition: OrderTriggerCondition;
-	triggered: boolean;
 	existingPositionDirection: PositionDirection;
 	postOnly: boolean;
 	immediateOrCancel: boolean;

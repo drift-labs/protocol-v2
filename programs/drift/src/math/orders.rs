@@ -14,6 +14,7 @@ use crate::math::constants::MARGIN_PRECISION_U128;
 use crate::math::position::calculate_entry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math_error;
+use crate::print_error;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
@@ -49,7 +50,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?
     };
 
-    if order.must_be_triggered() && !order.triggered {
+    if order.must_be_triggered() && !order.triggered() {
         return Ok((0, limit_price));
     }
 
@@ -370,10 +371,11 @@ pub fn order_breaches_oracle_price_limits(
     }
 }
 
-pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> bool {
+pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> DriftResult<bool> {
     match order.trigger_condition {
-        OrderTriggerCondition::Above => oracle_price > order.trigger_price,
-        OrderTriggerCondition::Below => oracle_price < order.trigger_price,
+        OrderTriggerCondition::Above => Ok(oracle_price > order.trigger_price),
+        OrderTriggerCondition::Below => Ok(oracle_price < order.trigger_price),
+        _ => Err(print_error!(ErrorCode::InvalidTriggerOrderCondition)()),
     }
 }
 

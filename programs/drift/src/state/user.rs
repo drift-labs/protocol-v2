@@ -491,7 +491,6 @@ pub struct Order {
     pub post_only: bool,
     pub immediate_or_cancel: bool,
     pub trigger_condition: OrderTriggerCondition,
-    pub triggered: bool,
     pub auction_duration: u8,
     pub padding: [u8; 2],
 }
@@ -594,6 +593,13 @@ impl Order {
         )
     }
 
+    pub fn triggered(&self) -> bool {
+        matches!(
+            self.trigger_condition,
+            OrderTriggerCondition::TriggeredAbove | OrderTriggerCondition::TriggeredBelow
+        )
+    }
+
     pub fn is_jit_maker(&self) -> bool {
         self.post_only && self.immediate_or_cancel
     }
@@ -646,7 +652,6 @@ impl Default for Order {
             immediate_or_cancel: false,
             trigger_price: 0,
             trigger_condition: OrderTriggerCondition::Above,
-            triggered: false,
             oracle_price_offset: 0,
             auction_start_price: 0,
             auction_end_price: 0,
@@ -683,6 +688,8 @@ impl Default for OrderType {
 pub enum OrderTriggerCondition {
     Above,
     Below,
+    TriggeredAbove, // above condition has been triggered
+    TriggeredBelow, // below condition has been triggered
 }
 
 impl Default for OrderTriggerCondition {
