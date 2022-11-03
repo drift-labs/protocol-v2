@@ -8390,6 +8390,11 @@
       "code": 6215,
       "name": "InvalidTriggerOrderCondition",
       "msg": "Invalid Trigger Order Condition"
+    },
+    {
+      "code": 6216,
+      "name": "InvalidSpotPosition",
+      "msg": "Invalid Spot Position"
     }
   ]
 }

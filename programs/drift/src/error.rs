@@ -437,6 +437,8 @@ pub enum ErrorCode {
     InvalidUserSubAccountId,
     #[msg("Invalid Trigger Order Condition")]
     InvalidTriggerOrderCondition,
+    #[msg("Invalid Spot Position")]
+    InvalidSpotPosition,
 }
 
 #[macro_export]

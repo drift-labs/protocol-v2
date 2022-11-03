@@ -229,6 +229,17 @@ pub fn handle_deposit(
         None,
     )?;
 
+    let token_amount = spot_position.get_token_amount(spot_market)?;
+    if token_amount == 0 {
+        validate!(
+            spot_position.scaled_balance == 0,
+            ErrorCode::InvalidSpotPosition,
+            "deposit left user with invalid position. scaled balance = {} token amount = {}",
+            spot_position.scaled_balance,
+            token_amount
+        )?;
+    }
+
     if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.scaled_balance > 0 {
         validate!(
             matches!(
