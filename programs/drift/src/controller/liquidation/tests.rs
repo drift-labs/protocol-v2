@@ -1629,9 +1629,9 @@ pub mod liquidate_spot {
             )
             .unwrap();
 
-        assert_eq!(margin_requirement, 44744480);
+        assert_eq!(margin_requirement, 44744590);
         assert_eq!(total_collateral, 45558159);
-        assert_eq!(margin_requirement_plus_buffer, 45558016);
+        assert_eq!(margin_requirement_plus_buffer, 45558128);
 
         let token_amount = get_token_amount(
             user.spot_positions[1].scaled_balance as u128,
@@ -1664,9 +1664,9 @@ pub mod liquidate_spot {
         )
         .unwrap();
 
-        assert_eq!(token_amount, 406768);
-        assert_eq!(token_value, 40676800);
-        assert_eq!(strict_token_value_1, 4067680); // if oracle price is more favorable than twap
+        assert_eq!(token_amount, 406769);
+        assert_eq!(token_value, 40676900);
+        assert_eq!(strict_token_value_1, 4067690); // if oracle price is more favorable than twap
         assert_eq!(strict_token_value_2, token_value); // oracle price is less favorable than twap
         assert_eq!(strict_token_value_3, -(token_value * 2)); // if liability and strict would value as twap
 
@@ -2261,7 +2261,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             .unwrap();
 
         assert_eq!(total_collateral, 40066807);
-        assert_eq!(margin_requirement_plus_buffer, 40066768);
+        assert_eq!(margin_requirement_plus_buffer, 40066880);
 
         let token_amount = get_token_amount(
             user.spot_positions[0].scaled_balance as u128,
@@ -2275,7 +2275,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         let margin_ratio =
             total_collateral.unsigned_abs() * MARGIN_PRECISION_U128 / token_value.unsigned_abs();
 
-        assert_eq!(margin_ratio, 11200); // ~112%
+        assert_eq!(margin_ratio, 11199); // ~112%
 
         assert_eq!(
             liquidator.spot_positions[1].balance_type,
