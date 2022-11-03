@@ -50,8 +50,6 @@ pub fn update_amm_test() {
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
-            use_for_liquidations: true,
-            padding: [0; 7],
         },
         ..State::default()
     };
@@ -190,8 +188,6 @@ pub fn update_amm_test_bad_oracle() {
                 confidence_interval_max_size: 20000, //2%
                 too_volatile_ratio: 5,
             },
-            use_for_liquidations: true,
-            padding: [0; 7],
         },
         ..State::default()
     };
@@ -238,8 +234,6 @@ pub fn update_amm_larg_conf_test() {
                 confidence_interval_max_size: 20000, //2%
                 too_volatile_ratio: 5,
             },
-            use_for_liquidations: true,
-            padding: [0; 7],
         },
         ..State::default()
     };
@@ -365,8 +359,6 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
                 confidence_interval_max_size: 20000, //2%
                 too_volatile_ratio: 5,
             },
-            use_for_liquidations: true,
-            padding: [0; 7],
         },
         ..State::default()
     };

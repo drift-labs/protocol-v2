@@ -53,8 +53,6 @@ impl Default for ExchangeStatus {
 pub struct OracleGuardRails {
     pub price_divergence: PriceDivergenceGuardRails,
     pub validity: ValidityGuardRails,
-    pub use_for_liquidations: bool,
-    pub padding: [u8; 7],
 }
 
 impl Default for OracleGuardRails {
@@ -70,16 +68,14 @@ impl Default for OracleGuardRails {
                 confidence_interval_max_size: 20_000, // 2% of price
                 too_volatile_ratio: 5,                // 5x or 80% down
             },
-            use_for_liquidations: true,
-            padding: [0; 7],
         }
     }
 }
 
 #[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct PriceDivergenceGuardRails {
-    pub mark_oracle_divergence_numerator: u128,
-    pub mark_oracle_divergence_denominator: u128,
+    pub mark_oracle_divergence_numerator: u64,
+    pub mark_oracle_divergence_denominator: u64,
 }
 
 #[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Default)]

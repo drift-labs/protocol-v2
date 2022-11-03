@@ -131,8 +131,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -257,8 +255,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -371,8 +367,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -489,8 +483,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -607,8 +599,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -766,8 +756,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -985,8 +973,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -1207,8 +1193,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -1490,8 +1474,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -1901,8 +1883,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -2293,8 +2273,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };

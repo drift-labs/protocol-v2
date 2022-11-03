@@ -47,8 +47,6 @@ fn calculate_oracle_valid() {
                 confidence_interval_max_size: 20000, // 2%
                 too_volatile_ratio: 5,
             },
-            use_for_liquidations: true,
-            padding: [0; 7],
         },
         ..State::default()
     };

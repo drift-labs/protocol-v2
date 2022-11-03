@@ -1481,8 +1481,6 @@ pub mod fulfill_order {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };

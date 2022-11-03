@@ -5285,19 +5285,6 @@
             "type": {
               "defined": "ValidityGuardRails"
             }
-          },
-          {
-            "name": "useForLiquidations",
-            "type": "bool"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
           }
         ]
       }
@@ -5309,11 +5296,11 @@
         "fields": [
           {
             "name": "markOracleDivergenceNumerator",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "markOracleDivergenceDenominator",
-            "type": "u128"
+            "type": "u64"
           }
         ]
       }
