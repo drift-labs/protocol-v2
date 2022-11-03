@@ -1525,12 +1525,6 @@ export class User {
 			spotMarket,
 			nowTs
 		);
-		console.log(
-			'borrowLimit/withdrawLimit',
-			borrowLimit.toString(),
-			'/',
-			withdrawLimit.toString()
-		);
 
 		const userSpotPosition = this.getUserAccount().spotPositions.find(
 			(spotPosition) =>
@@ -1550,7 +1544,6 @@ export class User {
 		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
 		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
 		const [_numAssets, numLiabilities] = this.getNumberOfAssetsAndLiabilities();
-		console.log('num A/L:', _numAssets, numLiabilities);
 		let maxWithdrawValue = ZERO;
 		if (numLiabilities > 0) {
 			const amountWithdrawable = freeCollateral
@@ -1560,13 +1553,6 @@ export class User {
 				.div(new BN(spotMarket.initialAssetWeight))
 				.div(oracleData.price);
 
-			console.log(
-				'amountWithdrawable/withdrawLimit:',
-				amountWithdrawable.toString(),
-				'/',
-				withdrawLimit.toString()
-			);
-
 			maxWithdrawValue = BN.min(
 				BN.min(amountWithdrawable, userSpotBalance),
 				withdrawLimit.abs()
@@ -1574,7 +1560,6 @@ export class User {
 		} else {
 			maxWithdrawValue = BN.min(userSpotBalance, withdrawLimit.abs());
 		}
-		console.log('maxWithdrawValue:', maxWithdrawValue.toString());
 
 		if (reduceOnly) {
 			return BN.max(maxWithdrawValue, ZERO);
@@ -1584,7 +1569,6 @@ export class User {
 				'Initial',
 				false
 			);
-			console.log('weightedAssetValue:', weightedAssetValue.toString());
 
 			const freeCollatAfterWithdraw = userSpotBalance.gt(ZERO)
 				? freeCollateral.sub(weightedAssetValue)
@@ -1596,17 +1580,11 @@ export class User {
 				.mul(precisionIncrease)
 				.div(new BN(spotMarket.initialLiabilityWeight))
 				.div(oracleData.price);
-			console.log(
-				'freeCollatAfterWithdraw:',
-				freeCollatAfterWithdraw.toString()
-			);
-			console.log('maxLiabilityAllowed:', maxLiabilityAllowed.toString());
 
 			const maxBorrowValue = BN.min(
 				maxWithdrawValue.add(maxLiabilityAllowed),
 				borrowLimit.abs()
 			);
-			console.log('maxBorrowValue:', maxBorrowValue.toString());
 
 			return BN.max(maxBorrowValue, ZERO);
 		}
