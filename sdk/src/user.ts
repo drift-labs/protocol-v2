@@ -376,6 +376,43 @@ export class User {
 	}
 
 	/**
+	 * counts number of assets and liabilities in a user account
+	 * @returns : [number, number]
+	 */
+	public getNumberOfAssetsAndLiabilities(): [number, number] {
+		let numAssets = 0;
+		let numLiab = 0;
+		const userAccount = this.getUserAccount();
+
+		for (let i = 0; i < userAccount.spotPositions.length; i++) {
+			if (userAccount.spotPositions[i].scaledBalance.gt(ZERO)) {
+				if (isVariant(userAccount.spotPositions[i].balanceType, 'borrow')) {
+					numLiab += 1; // borrow
+				} else {
+					numAssets += 1; // deposit
+				}
+			}
+		}
+
+		for (let i = 0; i < userAccount.perpPositions.length; i++) {
+			if (
+				!userAccount.perpPositions[i].quoteAssetAmount.eq(ZERO) ||
+				!userAccount.perpPositions[i].baseAssetAmount.eq(ZERO)
+			) {
+				if (userAccount.perpPositions[i].baseAssetAmount.abs().gt(ZERO)) {
+					numLiab += 1; // position exposure
+				} else if (userAccount.perpPositions[i].quoteAssetAmount.gt(ZERO)) {
+					numAssets += 1; // positive unsettled with no position exposure
+				} else {
+					numLiab += 1; // negative unsettled pnl with no position exposure
+				}
+			}
+		}
+
+		return [numAssets, numLiab];
+	}
+
+	/**
 	 * @returns The margin requirement of a certain type (Initial or Maintenance) in USDC. : QUOTE_PRECISION
 	 */
 	public getMarginRequirement(
@@ -1488,17 +1525,12 @@ export class User {
 			spotMarket,
 			nowTs
 		);
-
-		const freeCollateral = this.getFreeCollateral();
-		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
-		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
-
-		const amountWithdrawable = freeCollateral
-			.mul(MARGIN_PRECISION)
-			.div(new BN(spotMarket.initialAssetWeight))
-			.mul(PRICE_PRECISION)
-			.div(oracleData.price)
-			.mul(precisionIncrease);
+		console.log(
+			'borrowLimit/withdrawLimit',
+			borrowLimit.toString(),
+			'/',
+			withdrawLimit.toString()
+		);
 
 		const userSpotPosition = this.getUserAccount().spotPositions.find(
 			(spotPosition) =>
@@ -1514,10 +1546,35 @@ export class User {
 			  )
 			: ZERO;
 
-		const maxWithdrawValue = BN.min(
-			BN.min(amountWithdrawable, userSpotBalance),
-			withdrawLimit.abs()
-		);
+		const freeCollateral = this.getFreeCollateral();
+		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
+		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
+		const [_numAssets, numLiabilities] = this.getNumberOfAssetsAndLiabilities();
+		console.log('num A/L:', _numAssets, numLiabilities);
+		let maxWithdrawValue = ZERO;
+		if (numLiabilities > 0) {
+			const amountWithdrawable = freeCollateral
+				.mul(MARGIN_PRECISION)
+				.mul(PRICE_PRECISION)
+				.mul(precisionIncrease)
+				.div(new BN(spotMarket.initialAssetWeight))
+				.div(oracleData.price);
+
+			console.log(
+				'amountWithdrawable/withdrawLimit:',
+				amountWithdrawable.toString(),
+				'/',
+				withdrawLimit.toString()
+			);
+
+			maxWithdrawValue = BN.min(
+				BN.min(amountWithdrawable, userSpotBalance),
+				withdrawLimit.abs()
+			);
+		} else {
+			maxWithdrawValue = BN.min(userSpotBalance, withdrawLimit.abs());
+		}
+		console.log('maxWithdrawValue:', maxWithdrawValue.toString());
 
 		if (reduceOnly) {
 			return BN.max(maxWithdrawValue, ZERO);
@@ -1527,6 +1584,7 @@ export class User {
 				'Initial',
 				false
 			);
+			console.log('weightedAssetValue:', weightedAssetValue.toString());
 
 			const freeCollatAfterWithdraw = userSpotBalance.gt(ZERO)
 				? freeCollateral.sub(weightedAssetValue)
@@ -1534,15 +1592,21 @@ export class User {
 
 			const maxLiabilityAllowed = freeCollatAfterWithdraw
 				.mul(MARGIN_PRECISION)
-				.div(new BN(spotMarket.initialLiabilityWeight))
 				.mul(PRICE_PRECISION)
-				.div(oracleData.price)
-				.mul(precisionIncrease);
+				.mul(precisionIncrease)
+				.div(new BN(spotMarket.initialLiabilityWeight))
+				.div(oracleData.price);
+			console.log(
+				'freeCollatAfterWithdraw:',
+				freeCollatAfterWithdraw.toString()
+			);
+			console.log('maxLiabilityAllowed:', maxLiabilityAllowed.toString());
 
 			const maxBorrowValue = BN.min(
 				maxWithdrawValue.add(maxLiabilityAllowed),
 				borrowLimit.abs()
 			);
+			console.log('maxBorrowValue:', maxBorrowValue.toString());
 
 			return BN.max(maxBorrowValue, ZERO);
 		}
