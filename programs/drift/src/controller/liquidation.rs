@@ -1915,11 +1915,11 @@ pub fn resolve_spot_bankruptcy(
         let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
         let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?;
         let quote_social_loss = get_token_value(
-            borrow_amount.cast()?,
+            -borrow_amount.cast()?,
             spot_market.decimals,
             oracle_price_data,
         )?;
-        user.increment_total_socialized_loss(quote_social_loss.cast()?)?;
+        user.increment_total_socialized_loss(quote_social_loss.unsigned_abs().cast()?)?;
 
         let spot_position = user.get_spot_position_mut(market_index).unwrap();
         update_spot_balances_and_cumulative_deposits(
@@ -1941,7 +1941,7 @@ pub fn resolve_spot_bankruptcy(
 
         spot_market.total_quote_social_loss = spot_market
             .total_quote_social_loss
-            .safe_add(quote_social_loss.cast()?)?;
+            .safe_add(quote_social_loss.unsigned_abs().cast()?)?;
     }
 
     // exit bankruptcy
