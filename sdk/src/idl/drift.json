@@ -3718,12 +3718,12 @@
             "type": "i64"
           },
           {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
             "name": "costBasis",
             "type": "i64"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
           },
           {
             "name": "padding",
