@@ -66,9 +66,12 @@ export async function fetchLogs(
 					finality
 				);
 
-				return transactions.map((transaction) => {
-					return mapTransactionResponseToLog(transaction);
-				});
+				return transactions.reduce((logs, transaction) => {
+					if (transaction) {
+						logs.push(mapTransactionResponseToLog(transaction));
+					}
+					return logs;
+				}, new Array<Log>());
 			})
 		)
 	).flat();
