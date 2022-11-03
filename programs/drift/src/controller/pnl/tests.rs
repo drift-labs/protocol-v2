@@ -43,6 +43,7 @@ pub fn user_no_position() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };
@@ -157,6 +158,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };
@@ -276,6 +278,7 @@ pub fn user_unsettled_negative_pnl() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };
@@ -408,6 +411,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };
@@ -538,6 +542,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };
@@ -670,6 +675,7 @@ pub fn market_fee_pool_receives_portion() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };
@@ -804,6 +810,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };
@@ -943,6 +950,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };
@@ -1076,6 +1084,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };
@@ -1206,6 +1215,7 @@ pub fn user_long_negative_unrealized_pnl() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };
@@ -1339,6 +1349,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };
@@ -1472,6 +1483,7 @@ pub fn user_short_negative_unrealized_pnl() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };

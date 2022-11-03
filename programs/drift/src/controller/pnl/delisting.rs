@@ -132,6 +132,7 @@ pub mod delisting_test {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };
@@ -257,6 +258,7 @@ pub mod delisting_test {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };
@@ -370,6 +372,7 @@ pub mod delisting_test {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };
@@ -487,6 +490,7 @@ pub mod delisting_test {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };
@@ -604,6 +608,7 @@ pub mod delisting_test {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };
@@ -762,6 +767,7 @@ pub mod delisting_test {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };
@@ -980,6 +986,7 @@ pub mod delisting_test {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };
@@ -1201,6 +1208,7 @@ pub mod delisting_test {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };
@@ -1483,6 +1491,7 @@ pub mod delisting_test {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };
@@ -1893,6 +1902,7 @@ pub mod delisting_test {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };
@@ -2284,6 +2294,7 @@ pub mod delisting_test {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };

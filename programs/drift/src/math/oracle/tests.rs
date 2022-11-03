@@ -48,6 +48,7 @@ fn calculate_oracle_valid() {
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         },
         ..State::default()
     };

@@ -5289,6 +5289,15 @@
           {
             "name": "useForLiquidations",
             "type": "bool"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
           }
         ]
       }

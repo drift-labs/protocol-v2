@@ -1482,6 +1482,7 @@ pub mod fulfill_order {
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
+                padding: [0; 7],
             },
             ..State::default()
         };

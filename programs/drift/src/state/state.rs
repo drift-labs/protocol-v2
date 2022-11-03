@@ -54,6 +54,7 @@ pub struct OracleGuardRails {
     pub price_divergence: PriceDivergenceGuardRails,
     pub validity: ValidityGuardRails,
     pub use_for_liquidations: bool,
+    pub padding: [u8; 7],
 }
 
 impl Default for OracleGuardRails {
@@ -70,6 +71,7 @@ impl Default for OracleGuardRails {
                 too_volatile_ratio: 5,                // 5x or 80% down
             },
             use_for_liquidations: true,
+            padding: [0; 7],
         }
     }
 }
