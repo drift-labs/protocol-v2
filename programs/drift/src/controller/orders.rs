@@ -1946,7 +1946,7 @@ pub fn fulfill_perp_order_with_match(
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::None,
+        OrderActionExplanation::OrderFilledWithMatch,
         market.market_index,
         Some(*filler_key),
         Some(fill_record_id),
@@ -3288,7 +3288,7 @@ pub fn fulfill_spot_order_with_match(
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::None,
+        OrderActionExplanation::OrderFilledWithMatch,
         maker.orders[maker_order_index].market_index,
         Some(*filler_key),
         Some(fill_record_id),
