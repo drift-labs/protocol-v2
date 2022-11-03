@@ -615,6 +615,17 @@ pub fn handle_transfer_deposit(
             None,
         )?;
 
+        let token_amount = to_spot_position.get_token_amount(spot_market)?;
+        if token_amount == 0 {
+            validate!(
+                to_spot_position.scaled_balance == 0,
+                ErrorCode::InvalidSpotPosition,
+                "deposit left to_user with invalid position. scaled balance = {} token amount = {}",
+                to_spot_position.scaled_balance,
+                token_amount
+            )?;
+        }
+
         let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
