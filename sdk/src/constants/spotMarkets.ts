@@ -1,12 +1,12 @@
 import { PublicKey } from '@solana/web3.js';
+import { BN, DriftEnv, OracleSource } from '../';
 import {
-	BN,
-	DriftEnv,
-	OracleSource,
 	QUOTE_PRECISION,
 	QUOTE_PRECISION_EXP,
-} from '../';
-import { LAMPORTS_EXP, LAMPORTS_PRECISION, SIX } from './numericConstants';
+	LAMPORTS_EXP,
+	LAMPORTS_PRECISION,
+	SIX,
+} from './numericConstants';
 
 export type SpotMarketConfig = {
 	symbol: string;
