@@ -1,5 +1,4 @@
 use crate::error::{DriftResult, ErrorCode};
-use crate::ids::mock_pyth_program;
 use crate::ids::pyth_program;
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
@@ -158,9 +157,7 @@ impl<'a> OracleMap<'a> {
         let mut oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>> = BTreeMap::new();
 
         while let Some(account_info) = account_info_iter.peek() {
-            if account_info.owner == &pyth_program::id()
-                || account_info.owner == &mock_pyth_program::id()
-            {
+            if account_info.owner == &pyth_program::id() {
                 let account_info = account_info_iter.next().unwrap();
                 let pubkey = account_info.key();
                 oracles.insert(

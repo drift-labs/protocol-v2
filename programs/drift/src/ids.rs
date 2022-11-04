@@ -6,14 +6,6 @@ pub mod pyth_program {
     declare_id!("gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s");
 }
 
-pub mod mock_pyth_program {
-    use solana_program::declare_id;
-    #[cfg(feature = "mainnet-beta")]
-    panic!();
-    #[cfg(not(feature = "mainnet-beta"))]
-    declare_id!("H8mqQDb9HQbMnFDPPWNiC5j7w1GeQTJ342Bx8cKHBdxw");
-}
-
 pub mod serum_program {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]
