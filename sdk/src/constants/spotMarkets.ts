@@ -65,6 +65,16 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: SPOT_MARKET_BALANCE_PRECISION,
 		precisionExp: SPOT_MARKET_BALANCE_PRECISION_EXP,
 	},
+	{
+		symbol: 'SOL',
+		marketIndex: 1,
+		oracle: new PublicKey('H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey(WRAPPED_SOL_MINT),
+		precision: LAMPORTS_PRECISION,
+		precisionExp: LAMPORTS_EXP,
+		serumMarket: new PublicKey('9wFFyRfZBsuAha4YcuxcXLKwMxJR43S7fPfQLusDBzvT'),
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
