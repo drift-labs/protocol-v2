@@ -148,7 +148,7 @@ impl FeeStructure {
             referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
         };
         fee_tiers[1] = FeeTier {
-            fee_numerator: 80,
+            fee_numerator: 90,
             fee_denominator: FEE_DENOMINATOR, // 8 bps
             maker_rebate_numerator: 20,
             maker_rebate_denominator: FEE_DENOMINATOR, // 2bps
@@ -158,7 +158,7 @@ impl FeeStructure {
             referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
         };
         fee_tiers[2] = FeeTier {
-            fee_numerator: 60,
+            fee_numerator: 80,
             fee_denominator: FEE_DENOMINATOR, // 6 bps
             maker_rebate_numerator: 20,
             maker_rebate_denominator: FEE_DENOMINATOR, // 2bps
@@ -168,7 +168,7 @@ impl FeeStructure {
             referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
         };
         fee_tiers[3] = FeeTier {
-            fee_numerator: 50,
+            fee_numerator: 70,
             fee_denominator: FEE_DENOMINATOR, // 5 bps
             maker_rebate_numerator: 20,
             maker_rebate_denominator: FEE_DENOMINATOR, // 2bps
@@ -178,7 +178,7 @@ impl FeeStructure {
             referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
         };
         fee_tiers[4] = FeeTier {
-            fee_numerator: 40,
+            fee_numerator: 60,
             fee_denominator: FEE_DENOMINATOR, // 4 bps
             maker_rebate_numerator: 20,
             maker_rebate_denominator: FEE_DENOMINATOR, // 2bps
@@ -188,7 +188,7 @@ impl FeeStructure {
             referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
         };
         fee_tiers[5] = FeeTier {
-            fee_numerator: 35,
+            fee_numerator: 50,
             fee_denominator: FEE_DENOMINATOR, // 3.5 bps
             maker_rebate_numerator: 20,
             maker_rebate_denominator: FEE_DENOMINATOR, // 2bps
