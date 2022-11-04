@@ -1,13 +1,13 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "0.2.0-master.45",
+	"version": "2.0.0",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
 	"homepage": "https://www.drift.trade/",
 	"repository": {
 		"type": "git",
-		"url": "git@github.com:drift-labs/protocol-v1.git"
+		"url": "git@github.com:drift-labs/protocol-v2.git"
 	},
 	"scripts": {
 		"lint": "eslint './**/*.{ts,tsx}' --quiet",
