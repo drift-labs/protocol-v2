@@ -492,6 +492,12 @@ pub fn handle_transfer_deposit(
         "from_user bankrupt"
     )?;
 
+    validate!(
+        from_user_key != to_user_key,
+        ErrorCode::CantTransferBetweenSameUserAccount,
+        "cant transfer between the same user account"
+    )?;
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,

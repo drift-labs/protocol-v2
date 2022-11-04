@@ -8395,6 +8395,11 @@
       "code": 6216,
       "name": "InvalidSpotPosition",
       "msg": "Invalid Spot Position"
+    },
+    {
+      "code": 6217,
+      "name": "CantTransferBetweenSameUserAccount",
+      "msg": "Cant transfer between same user account"
     }
   ]
 }

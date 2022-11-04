@@ -439,6 +439,8 @@ pub enum ErrorCode {
     InvalidTriggerOrderCondition,
     #[msg("Invalid Spot Position")]
     InvalidSpotPosition,
+    #[msg("Cant transfer between same user account")]
+    CantTransferBetweenSameUserAccount,
 }
 
 #[macro_export]
