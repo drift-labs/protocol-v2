@@ -40,7 +40,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 	'mainnet-beta': {
 		ENV: 'mainnet-beta',
 		PYTH_ORACLE_MAPPING_ADDRESS: 'AHtgzX45WTKfkPG53L6WYhGEXwQkN1BVknET3sVsLL8J',
-		DRIFT_PROGRAM_ID: 'dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN',
+		DRIFT_PROGRAM_ID: 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH',
 		USDC_MINT_ADDRESS: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
 		SERUM_V3: '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin',
 		V2_ALPHA_TICKET_MINT_ADDRESS:

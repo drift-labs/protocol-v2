@@ -32,7 +32,7 @@ mod test_utils;
 mod validation;
 
 #[cfg(feature = "mainnet-beta")]
-declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
+declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 #[cfg(not(feature = "mainnet-beta"))]
 declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 
