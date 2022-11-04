@@ -258,6 +258,12 @@ describe('insurance fund stake', () => {
 	it('user if unstake (half)', async () => {
 		const marketIndex = 0;
 		// const nShares = usdcAmount.div(new BN(2));
+		await driftClient.updateInsuranceFundUnstakingPeriod(
+			marketIndex,
+			new BN(1)
+		);
+		await sleep(1000);
+
 		const txSig = await driftClient.removeInsuranceFundStake(
 			marketIndex,
 			userUSDCAccount.publicKey
