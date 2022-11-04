@@ -61,5 +61,5 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
 	devnet: DevnetPerpMarkets,
-	'mainnet-beta': [],
+	'mainnet-beta': MainnetPerpMarkets,
 };
