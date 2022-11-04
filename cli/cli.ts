@@ -58,7 +58,7 @@ function adminFromOptions(options: OptionValues): Admin {
 	return Admin.from(
 		connection,
 		wallet,
-		new PublicKey(sdkConfig.CLEARING_HOUSE_PROGRAM_ID)
+		new PublicKey(sdkConfig.DRIFT_PROGRAM_ID)
 	);
 }
 

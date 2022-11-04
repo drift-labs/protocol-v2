@@ -142,9 +142,7 @@ const main = async () => {
 	);
 
 	// Set up the Drift Client
-	const driftClientPublicKey = new PublicKey(
-		sdkConfig.CLEARING_HOUSE_PROGRAM_ID
-	);
+	const driftClientPublicKey = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
 	const driftClient = DriftClient.from(
 		connection,
 		provider.wallet,
