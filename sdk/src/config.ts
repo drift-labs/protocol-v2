@@ -43,7 +43,8 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		DRIFT_PROGRAM_ID: 'dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN',
 		USDC_MINT_ADDRESS: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
 		SERUM_V3: '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin',
-		V2_ALPHA_TICKET_MINT_ADDRESS: '',
+		V2_ALPHA_TICKET_MINT_ADDRESS:
+			'Cmvhycb6LQvvzaShGw4iDHRLzeSSryioAsU98DSSkMNa',
 		PERP_MARKETS: MainnetPerpMarkets,
 		SPOT_MARKETS: MainnetSpotMarkets,
 	},
