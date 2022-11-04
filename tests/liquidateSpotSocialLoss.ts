@@ -315,7 +315,7 @@ describe('liquidate spot w/ social loss', () => {
 		assert(bankruptcyRecord.spotBankruptcy.marketIndex === 1);
 		console.log(bankruptcyRecord.spotBankruptcy.borrowAmount.toString());
 		assert(
-			bankruptcyRecord.spotBankruptcy.borrowAmount.eq(new BN(5001585)) ||
+			bankruptcyRecord.spotBankruptcy.borrowAmount.eq(new BN(5001586)) ||
 				bankruptcyRecord.spotBankruptcy.borrowAmount.eq(new BN(5001269))
 		);
 		const spotMarket = driftClient.getSpotMarketAccount(1);

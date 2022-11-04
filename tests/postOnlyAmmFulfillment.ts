@@ -281,7 +281,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const orderRecord2 = orderRecords[1];
 		console.log(orderRecord2);
 		assert(isVariant(orderRecord2.action, 'fill'));
-		assert(isVariant(orderRecord2.actionExplanation, 'none'));
+		assert(isVariant(orderRecord2.actionExplanation, 'orderFilledWithMatch'));
 		// assert(orderRecord2.maker == await fillerDriftClient.getUserAccountPublicKey());
 		// assert(orderRecord2.taker == await driftClient.getUserAccountPublicKey());
 		assert(orderRecord2.baseAssetAmountFilled.eq(new BN(1000000000 / 2)));

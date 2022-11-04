@@ -497,7 +497,6 @@ export const mockStateAccount: StateAccount = {
 			confidenceIntervalMaxSize: new BN(0),
 			tooVolatileRatio: new BN(0),
 		},
-		useForLiquidations: true,
 	},
 	perpFeeStructure: {
 		feeTiers: [

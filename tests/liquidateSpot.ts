@@ -196,7 +196,7 @@ describe('liquidate spot', () => {
 		// 58826010
 		console.log(liquidationRecord.liquidateSpot.assetTransfer.toString());
 		assert(
-			liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826626)) ||
+			liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826635)) ||
 				liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826010))
 		);
 		assert(

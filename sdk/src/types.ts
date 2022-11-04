@@ -932,7 +932,6 @@ export type OracleGuardRails = {
 		confidenceIntervalMaxSize: BN;
 		tooVolatileRatio: BN;
 	};
-	useForLiquidations: boolean;
 };
 
 export type MarginCategory = 'Initial' | 'Maintenance';
