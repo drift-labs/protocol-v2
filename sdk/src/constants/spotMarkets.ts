@@ -1,12 +1,12 @@
 import { PublicKey } from '@solana/web3.js';
-import { BN, DriftEnv, OracleSource } from '../';
 import {
-	SPOT_MARKET_BALANCE_PRECISION,
-	SPOT_MARKET_BALANCE_PRECISION_EXP,
-	LAMPORTS_EXP,
-	LAMPORTS_PRECISION,
-	SIX,
-} from './numericConstants';
+	BN,
+	DriftEnv,
+	OracleSource,
+	QUOTE_PRECISION,
+	QUOTE_PRECISION_EXP,
+} from '../';
+import { LAMPORTS_EXP, LAMPORTS_PRECISION, SIX } from './numericConstants';
 
 export type SpotMarketConfig = {
 	symbol: string;
@@ -62,8 +62,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		oracle: PublicKey.default,
 		oracleSource: OracleSource.QUOTE_ASSET,
 		mint: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
-		precision: SPOT_MARKET_BALANCE_PRECISION,
-		precisionExp: SPOT_MARKET_BALANCE_PRECISION_EXP,
+		precision: QUOTE_PRECISION,
+		precisionExp: QUOTE_PRECISION_EXP,
 	},
 	{
 		symbol: 'SOL',
