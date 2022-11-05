@@ -867,7 +867,7 @@ export class DriftClient {
 						!spotPosition.openAsks.eq(ZERO) ||
 						!spotPosition.openBids.eq(ZERO)
 					) {
-						spotMarketAccountMap.set(spotPosition.marketIndex, {
+						spotMarketAccountMap.set(QUOTE_SPOT_MARKET_INDEX, {
 							pubkey: this.getQuoteSpotMarketAccount().pubkey,
 							isSigner: false,
 							isWritable: false,
