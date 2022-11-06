@@ -3,6 +3,7 @@ import {
 	isOneOfVariant,
 	isVariant,
 	PerpMarketAccount,
+	AMM,
 	Order,
 	PositionDirection,
 } from '../types';
@@ -13,6 +14,7 @@ import { getAuctionPrice, isAuctionComplete } from './auction';
 import {
 	calculateMaxBaseAssetAmountFillable,
 	calculateMaxBaseAssetAmountToTrade,
+	calculateUpdatedAMM,
 } from './amm';
 
 export function isOrderRiskIncreasing(user: User, order: Order): boolean {
@@ -202,10 +204,12 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 
 	const limitPrice = getOptionalLimitPrice(order, oraclePriceData, slot);
 	let baseAssetAmount;
+
+	const updatedAMM = calculateUpdatedAMM(market.amm, oraclePriceData);
 	if (limitPrice !== undefined) {
 		baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
 			order,
-			market,
+			updatedAMM,
 			limitPrice,
 			oraclePriceData
 		);
@@ -214,7 +218,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 	}
 
 	const maxBaseAssetAmount = calculateMaxBaseAssetAmountFillable(
-		market.amm,
+		updatedAMM,
 		order.direction
 	);
 
@@ -223,12 +227,12 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 
 export function calculateBaseAssetAmountToFillUpToLimitPrice(
 	order: Order,
-	market: PerpMarketAccount,
+	amm: AMM,
 	limitPrice: BN,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
-		market.amm,
+		amm,
 		limitPrice,
 		order.direction,
 		oraclePriceData
@@ -236,7 +240,7 @@ export function calculateBaseAssetAmountToFillUpToLimitPrice(
 
 	const baseAssetAmount = standardizeBaseAssetAmount(
 		maxAmountToTrade,
-		market.amm.orderStepSize
+		amm.orderStepSize
 	);
 
 	// Check that directions are the same
