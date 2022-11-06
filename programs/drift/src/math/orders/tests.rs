@@ -521,3 +521,218 @@ mod should_expire_order {
         assert!(!is_expired);
     }
 }
+
+mod calculate_base_asset_amount_for_reduce_only_order {
+    use crate::controller::position::PositionDirection;
+    use crate::error::ErrorCode;
+    use crate::math::orders::calculate_base_asset_amount_for_reduce_only_order;
+
+    #[test]
+    pub fn zero_position() {
+        let order_base_asset_amount = 1;
+        let order_direction = PositionDirection::Long;
+        let existing_position = 0;
+        let open_bids = 0;
+        let open_asks = 0;
+
+        let result = calculate_base_asset_amount_for_reduce_only_order(
+            order_base_asset_amount,
+            order_direction,
+            existing_position,
+            open_bids,
+            open_asks,
+        );
+
+        assert_eq!(result, Err(ErrorCode::InvalidOrderNotRiskReducing))
+    }
+
+    #[test]
+    pub fn long_position_with_equal_asks() {
+        let order_base_asset_amount = 1;
+        let order_direction = PositionDirection::Long;
+        let existing_position = 1;
+        let open_bids = 0;
+        let open_asks = -1;
+
+        let result = calculate_base_asset_amount_for_reduce_only_order(
+            order_base_asset_amount,
+            order_direction,
+            existing_position,
+            open_bids,
+            open_asks,
+        );
+
+        assert_eq!(result, Err(ErrorCode::InvalidOrderNotRiskReducing))
+    }
+
+    #[test]
+    pub fn short_position_with_equal_bids() {
+        let order_base_asset_amount = 1;
+        let order_direction = PositionDirection::Long;
+        let existing_position = -1;
+        let open_bids = 1;
+        let open_asks = 0;
+
+        let result = calculate_base_asset_amount_for_reduce_only_order(
+            order_base_asset_amount,
+            order_direction,
+            existing_position,
+            open_bids,
+            open_asks,
+        );
+
+        assert_eq!(result, Err(ErrorCode::InvalidOrderNotRiskReducing))
+    }
+
+    #[test]
+    pub fn long_position_with_long_order() {
+        let order_base_asset_amount = 1;
+        let order_direction = PositionDirection::Long;
+        let existing_position = 1;
+        let open_bids = 0;
+        let open_asks = 0;
+
+        let result = calculate_base_asset_amount_for_reduce_only_order(
+            order_base_asset_amount,
+            order_direction,
+            existing_position,
+            open_bids,
+            open_asks,
+        );
+
+        assert_eq!(result, Err(ErrorCode::InvalidOrderNotRiskReducing))
+    }
+
+    #[test]
+    pub fn short_position_with_long_order() {
+        let order_base_asset_amount = 1;
+        let order_direction = PositionDirection::Short;
+        let existing_position = -1;
+        let open_bids = 0;
+        let open_asks = 0;
+
+        let result = calculate_base_asset_amount_for_reduce_only_order(
+            order_base_asset_amount,
+            order_direction,
+            existing_position,
+            open_bids,
+            open_asks,
+        );
+
+        assert_eq!(result, Err(ErrorCode::InvalidOrderNotRiskReducing))
+    }
+
+    #[test]
+    pub fn long_position_with_bigger_short_order() {
+        let order_base_asset_amount = 5;
+        let order_direction = PositionDirection::Short;
+        let existing_position = 1;
+        let open_bids = 0;
+        let open_asks = 0;
+
+        let result = calculate_base_asset_amount_for_reduce_only_order(
+            order_base_asset_amount,
+            order_direction,
+            existing_position,
+            open_bids,
+            open_asks,
+        );
+
+        assert_eq!(result, Ok(1))
+    }
+
+    #[test]
+    pub fn long_position_with_smaller_short_order() {
+        let order_base_asset_amount = 1;
+        let order_direction = PositionDirection::Short;
+        let existing_position = 5;
+        let open_bids = 0;
+        let open_asks = 0;
+
+        let result = calculate_base_asset_amount_for_reduce_only_order(
+            order_base_asset_amount,
+            order_direction,
+            existing_position,
+            open_bids,
+            open_asks,
+        );
+
+        assert_eq!(result, Ok(1))
+    }
+
+    #[test]
+    pub fn long_position_with_asks_and_short_order() {
+        let order_base_asset_amount = 2;
+        let order_direction = PositionDirection::Short;
+        let existing_position = 5;
+        let open_bids = 0;
+        let open_asks = -4;
+
+        let result = calculate_base_asset_amount_for_reduce_only_order(
+            order_base_asset_amount,
+            order_direction,
+            existing_position,
+            open_bids,
+            open_asks,
+        );
+
+        assert_eq!(result, Ok(1))
+    }
+
+    #[test]
+    pub fn short_position_with_bigger_long_order() {
+        let order_base_asset_amount = 5;
+        let order_direction = PositionDirection::Long;
+        let existing_position = -1;
+        let open_bids = 0;
+        let open_asks = 0;
+
+        let result = calculate_base_asset_amount_for_reduce_only_order(
+            order_base_asset_amount,
+            order_direction,
+            existing_position,
+            open_bids,
+            open_asks,
+        );
+
+        assert_eq!(result, Ok(1))
+    }
+
+    #[test]
+    pub fn short_position_with_smaller_long_order() {
+        let order_base_asset_amount = 1;
+        let order_direction = PositionDirection::Long;
+        let existing_position = -5;
+        let open_bids = 0;
+        let open_asks = 0;
+
+        let result = calculate_base_asset_amount_for_reduce_only_order(
+            order_base_asset_amount,
+            order_direction,
+            existing_position,
+            open_bids,
+            open_asks,
+        );
+
+        assert_eq!(result, Ok(1))
+    }
+
+    #[test]
+    pub fn short_position_with_bids_and_long_order() {
+        let order_base_asset_amount = 2;
+        let order_direction = PositionDirection::Long;
+        let existing_position = -5;
+        let open_bids = 4;
+        let open_asks = 0;
+
+        let result = calculate_base_asset_amount_for_reduce_only_order(
+            order_base_asset_amount,
+            order_direction,
+            existing_position,
+            open_bids,
+            open_asks,
+        );
+
+        assert_eq!(result, Ok(1))
+    }
+}

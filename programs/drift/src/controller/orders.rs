@@ -178,6 +178,8 @@ pub fn place_perp_order(
                 standardized_base_asset_amount,
                 params.direction,
                 market_position.base_asset_amount,
+                market_position.open_bids,
+                market_position.open_asks,
             )?
         } else {
             standardized_base_asset_amount
@@ -2412,6 +2414,8 @@ pub fn place_spot_order(
                 standardized_base_asset_amount,
                 params.direction,
                 signed_token_amount,
+                spot_position.open_bids,
+                spot_position.open_asks,
             )?
         } else {
             standardized_base_asset_amount
