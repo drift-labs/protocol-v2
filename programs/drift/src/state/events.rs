@@ -267,6 +267,7 @@ pub enum OrderActionExplanation {
     OrderFilledWithMatch,
     MarketExpired,
     RiskingIncreasingOrder,
+    ReduceOnlyOrderIncreasedPosition,
     OrderFillWithSerum,
 }
 

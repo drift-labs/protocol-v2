@@ -5956,6 +5956,9 @@
             "name": "RiskingIncreasingOrder"
           },
           {
+            "name": "ReduceOnlyOrderIncreasedPosition"
+          },
+          {
             "name": "OrderFillWithSerum"
           }
         ]

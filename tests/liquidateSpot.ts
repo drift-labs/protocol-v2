@@ -210,7 +210,7 @@ describe('liquidate spot', () => {
 			liquidationRecord.liquidateSpot.liabilityTransfer.toString()
 		);
 		assert(
-			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309613825)) ||
+			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309613873)) ||
 				liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309610584))
 		);
 
