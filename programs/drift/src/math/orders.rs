@@ -327,6 +327,21 @@ pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> Dr
     Ok(now > order.max_ts)
 }
 
+pub fn should_cancel_reduce_only_spot_order(
+    order: &Order,
+    existing_base_asset_amount: i64,
+) -> DriftResult<bool> {
+    let should_cancel = order.reduce_only
+        && !order.post_only
+        && !is_order_position_reducing(
+            &order.direction,
+            order.base_asset_amount,
+            existing_base_asset_amount,
+        )?;
+
+    Ok(should_cancel)
+}
+
 pub fn order_breaches_oracle_price_limits(
     order: &Order,
     oracle_price: i64,
@@ -454,6 +469,24 @@ pub fn is_order_risk_increasing(
         position_base_asset_amount,
     )
     .map(|risk_decreasing| !risk_decreasing)
+}
+
+pub fn is_order_position_reducing(
+    order_direction: &PositionDirection,
+    order_base_asset_amount: u64,
+    position_base_asset_amount: i64,
+) -> DriftResult<bool> {
+    Ok(match order_direction {
+        // User is short and order is long
+        PositionDirection::Long if position_base_asset_amount < 0 => {
+            order_base_asset_amount <= position_base_asset_amount.unsigned_abs()
+        }
+        // User is long and order is short
+        PositionDirection::Short if position_base_asset_amount > 0 => {
+            order_base_asset_amount <= position_base_asset_amount.unsigned_abs()
+        }
+        _ => false,
+    })
 }
 
 pub fn validate_fill_price(
