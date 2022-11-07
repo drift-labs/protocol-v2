@@ -130,6 +130,9 @@ export class OrderActionExplanation {
 	static readonly ORDER_FILLED_WITH_MATCH = {
 		orderFilledWithMatch: {},
 	};
+	static readonly ORDER_FILLED_WITH_MATCH_JIT = {
+		orderFilledWithMatchJit: {},
+	};
 	static readonly MARKET_EXPIRED = {
 		marketExpired: {},
 	};

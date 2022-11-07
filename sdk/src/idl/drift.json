@@ -5950,6 +5950,9 @@
             "name": "OrderFilledWithMatch"
           },
           {
+            "name": "OrderFilledWithMatchJit"
+          },
+          {
             "name": "MarketExpired"
           },
           {
