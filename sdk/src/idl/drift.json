@@ -17,7 +17,7 @@
         },
         {
           "name": "state",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -773,7 +773,7 @@
         },
         {
           "name": "state",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -1107,6 +1107,12 @@
         {
           "name": "liquidatorMaxLiabilityTransfer",
           "type": "u128"
+        },
+        {
+          "name": "limitPrice",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -1156,6 +1162,12 @@
         {
           "name": "liquidatorMaxLiabilityTransfer",
           "type": "u128"
+        },
+        {
+          "name": "limitPrice",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -1205,6 +1217,12 @@
         {
           "name": "liquidatorMaxPnlTransfer",
           "type": "u128"
+        },
+        {
+          "name": "limitPrice",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -3700,19 +3718,19 @@
             "type": "i64"
           },
           {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
             "name": "costBasis",
             "type": "i64"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
           },
           {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                6
+                14
               ]
             }
           }
@@ -3846,7 +3864,7 @@
             "type": {
               "array": [
                 "u8",
-                3
+                51
               ]
             }
           }
@@ -3931,6 +3949,14 @@
           },
           {
             "name": "cumulativeBorrowInterest",
+            "type": "u128"
+          },
+          {
+            "name": "totalSocialLoss",
+            "type": "u128"
+          },
+          {
+            "name": "totalQuoteSocialLoss",
             "type": "u128"
           },
           {
@@ -4064,7 +4090,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                86
               ]
             }
           }
@@ -4196,6 +4222,10 @@
             "type": "u64"
           },
           {
+            "name": "numberOfSubAccounts",
+            "type": "u64"
+          },
+          {
             "name": "lpCooldownTime",
             "type": "u64"
           },
@@ -4242,7 +4272,7 @@
             "type": {
               "array": [
                 "u8",
-                1
+                17
               ]
             }
           }
@@ -4317,6 +4347,10 @@
             "type": "u64"
           },
           {
+            "name": "totalSocialLoss",
+            "type": "u64"
+          },
+          {
             "name": "settledPerpPnl",
             "type": "i64"
           },
@@ -4326,6 +4360,14 @@
           },
           {
             "name": "cumulativePerpFunding",
+            "type": "i64"
+          },
+          {
+            "name": "liquidationMarginFreed",
+            "type": "u64"
+          },
+          {
+            "name": "liquidationStartTs",
             "type": "i64"
           },
           {
@@ -4345,12 +4387,10 @@
             "type": "u16"
           },
           {
-            "name": "isBeingLiquidated",
-            "type": "bool"
-          },
-          {
-            "name": "isBankrupt",
-            "type": "bool"
+            "name": "status",
+            "type": {
+              "defined": "UserStatus"
+            }
           },
           {
             "name": "isMarginTradingEnabled",
@@ -4361,7 +4401,7 @@
             "type": {
               "array": [
                 "u8",
-                1
+                26
               ]
             }
           }
@@ -4436,7 +4476,7 @@
             "type": {
               "array": [
                 "u8",
-                3
+                51
               ]
             }
           }
@@ -5016,8 +5056,8 @@
             "type": "i128"
           },
           {
-            "name": "cumulativeSocialLoss",
-            "type": "i128"
+            "name": "totalSocialLoss",
+            "type": "u128"
           },
           {
             "name": "askBaseAssetReserve",
@@ -5116,6 +5156,10 @@
             "type": "u64"
           },
           {
+            "name": "oracleStd",
+            "type": "u64"
+          },
+          {
             "name": "lastMarkPriceTwapTs",
             "type": "i64"
           },
@@ -5168,6 +5212,15 @@
           {
             "name": "lastOracleValid",
             "type": "bool"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                48
+              ]
+            }
           }
         ]
       }
@@ -5232,10 +5285,6 @@
             "type": {
               "defined": "ValidityGuardRails"
             }
-          },
-          {
-            "name": "useForLiquidations",
-            "type": "bool"
           }
         ]
       }
@@ -5247,11 +5296,11 @@
         "fields": [
           {
             "name": "markOracleDivergenceNumerator",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "markOracleDivergenceDenominator",
-            "type": "u128"
+            "type": "u64"
           }
         ]
       }
@@ -5631,10 +5680,6 @@
             }
           },
           {
-            "name": "triggered",
-            "type": "bool"
-          },
-          {
             "name": "auctionDuration",
             "type": "u8"
           },
@@ -5643,7 +5688,7 @@
             "type": {
               "array": [
                 "u8",
-                2
+                3
               ]
             }
           }
@@ -5909,6 +5954,12 @@
           },
           {
             "name": "RiskingIncreasingOrder"
+          },
+          {
+            "name": "ReduceOnlyOrderIncreasedPosition"
+          },
+          {
+            "name": "OrderFillWithSerum"
           }
         ]
       }
@@ -6193,6 +6244,23 @@
       }
     },
     {
+      "name": "UserStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "BeingLiquidated"
+          },
+          {
+            "name": "Bankrupt"
+          }
+        ]
+      }
+    },
+    {
       "name": "AssetType",
       "type": {
         "kind": "enum",
@@ -6256,6 +6324,12 @@
           },
           {
             "name": "Below"
+          },
+          {
+            "name": "TriggeredAbove"
+          },
+          {
+            "name": "TriggeredBelow"
           }
         ]
       }
@@ -6986,6 +7060,11 @@
           "index": false
         },
         {
+          "name": "marginFreed",
+          "type": "u64",
+          "index": false
+        },
+        {
           "name": "liquidationId",
           "type": "u16",
           "index": false
@@ -7614,8 +7693,8 @@
     },
     {
       "code": 6078,
-      "name": "MarketNotFound",
-      "msg": "MarketNotFound"
+      "name": "PerpMarketNotFound",
+      "msg": "PerpMarketNotFound"
     },
     {
       "code": 6079,
@@ -7624,7 +7703,7 @@
     },
     {
       "code": 6080,
-      "name": "UnableToLoadMarketAccount",
+      "name": "UnableToLoadPerpMarketAccount",
       "msg": "UnableToLoadMarketAccount"
     },
     {
@@ -8296,6 +8375,21 @@
       "code": 6214,
       "name": "InvalidUserSubAccountId",
       "msg": "Invalid Sub Account Id"
+    },
+    {
+      "code": 6215,
+      "name": "InvalidTriggerOrderCondition",
+      "msg": "Invalid Trigger Order Condition"
+    },
+    {
+      "code": 6216,
+      "name": "InvalidSpotPosition",
+      "msg": "Invalid Spot Position"
+    },
+    {
+      "code": 6217,
+      "name": "CantTransferBetweenSameUserAccount",
+      "msg": "Cant transfer between same user account"
     }
   ]
 }

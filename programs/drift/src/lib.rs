@@ -32,9 +32,9 @@ mod test_utils;
 mod validation;
 
 #[cfg(feature = "mainnet-beta")]
-declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
+declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("H4G1xzAoqSW8n1Edmeowqsgc895tSNCeDPafYjv4Md7i");
+declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 
 #[program]
 pub mod drift {
@@ -249,12 +249,14 @@ pub mod drift {
         asset_market_index: u16,
         liability_market_index: u16,
         liquidator_max_liability_transfer: u128,
+        limit_price: Option<u64>, // asset/liaiblity
     ) -> Result<()> {
         handle_liquidate_spot(
             ctx,
             asset_market_index,
             liability_market_index,
             liquidator_max_liability_transfer,
+            limit_price,
         )
     }
 
@@ -263,12 +265,14 @@ pub mod drift {
         perp_market_index: u16,
         spot_market_index: u16,
         liquidator_max_liability_transfer: u128,
+        limit_price: Option<u64>,
     ) -> Result<()> {
         handle_liquidate_borrow_for_perp_pnl(
             ctx,
             perp_market_index,
             spot_market_index,
             liquidator_max_liability_transfer,
+            limit_price,
         )
     }
 
@@ -277,12 +281,14 @@ pub mod drift {
         perp_market_index: u16,
         spot_market_index: u16,
         liquidator_max_pnl_transfer: u128,
+        limit_price: Option<u64>,
     ) -> Result<()> {
         handle_liquidate_perp_pnl_for_deposit(
             ctx,
             perp_market_index,
             spot_market_index,
             liquidator_max_pnl_transfer,
+            limit_price,
         )
     }
 

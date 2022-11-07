@@ -2,12 +2,11 @@ use solana_program::msg;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::safe_math::SafeMath;
 
 use crate::math::spot_balance::get_token_amount;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
-use crate::state::user::SpotPosition;
+use crate::state::user::User;
 use crate::validate;
 
 pub fn calculate_min_deposit_token(
@@ -36,13 +35,24 @@ pub fn calculate_max_borrow_token(
 
 pub fn check_user_exception_to_withdraw_limits(
     spot_market: &SpotMarket,
-    spot_position: Option<&SpotPosition>,
+    user: Option<&User>,
     token_amount_withdrawn: Option<u128>,
 ) -> DriftResult<bool> {
     // allow a smaller user in QUOTE_SPOT_MARKET_INDEX to bypass and withdraw their principal
     let mut valid_user_withdraw = false;
-    if let Some(spot_position) = spot_position {
-        if spot_position.market_index == QUOTE_SPOT_MARKET_INDEX
+    if let Some(user) = user {
+        let spot_position = user.get_spot_position(spot_market.market_index).unwrap();
+        let net_deposits = user
+            .total_deposits
+            .cast::<i128>()?
+            .safe_sub(user.total_withdraws.cast::<i128>()?)?;
+        msg!(
+            "net_deposits={}({}-{})",
+            net_deposits,
+            user.total_deposits,
+            user.total_withdraws
+        );
+        if net_deposits >= 0
             && spot_position.cumulative_deposits >= 0
             && spot_position.balance_type == SpotBalanceType::Deposit
         {
@@ -70,7 +80,7 @@ pub fn check_user_exception_to_withdraw_limits(
 
 pub fn check_withdraw_limits(
     spot_market: &SpotMarket,
-    spot_position: Option<&SpotPosition>,
+    user: Option<&User>,
     token_amount_withdrawn: Option<u128>,
 ) -> DriftResult<bool> {
     let deposit_token_amount = get_token_amount(
@@ -108,7 +118,7 @@ pub fn check_withdraw_limits(
         msg!("max_borrow_token={:?}", max_borrow_token);
         msg!("borrow_token_amount={:?}", borrow_token_amount);
 
-        check_user_exception_to_withdraw_limits(spot_market, spot_position, token_amount_withdrawn)?
+        check_user_exception_to_withdraw_limits(spot_market, user, token_amount_withdrawn)?
     } else {
         true
     };

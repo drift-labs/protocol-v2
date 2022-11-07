@@ -14,6 +14,7 @@ use crate::math::constants::MARGIN_PRECISION_U128;
 use crate::math::position::calculate_entry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math_error;
+use crate::print_error;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
@@ -49,7 +50,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?
     };
 
-    if order.must_be_triggered() && !order.triggered {
+    if order.must_be_triggered() && !order.triggered() {
         return Ok((0, limit_price));
     }
 
@@ -136,22 +137,41 @@ pub fn calculate_quote_asset_amount_for_maker_order(
 }
 
 pub fn calculate_base_asset_amount_for_reduce_only_order(
-    proposed_base_asset_amount: u64,
+    order_base_asset_amount: u64,
     order_direction: PositionDirection,
     existing_position: i64,
+    open_bids: i64,
+    open_asks: i64,
 ) -> DriftResult<u64> {
-    if proposed_base_asset_amount > 0
-        && (order_direction == PositionDirection::Long && existing_position >= 0)
-        || (order_direction == PositionDirection::Short && existing_position <= 0)
+    let position_plus_open_orders = if existing_position > 0 {
+        existing_position.safe_add(open_asks)?
+    } else if existing_position < 0 {
+        existing_position.safe_add(open_bids)?
+    } else {
+        0
+    };
+
+    let signed_order_base_asset_amount: i64 = match order_direction {
+        PositionDirection::Long => order_base_asset_amount.cast()?,
+        PositionDirection::Short => -order_base_asset_amount.cast()?,
+    };
+
+    if position_plus_open_orders == 0
+        || position_plus_open_orders.signum() == signed_order_base_asset_amount.signum()
     {
         msg!("Reduce Only Order must decrease existing position size");
-        Err(ErrorCode::InvalidOrderNotRiskReducing)
-    } else {
-        Ok(min(
-            proposed_base_asset_amount,
-            existing_position.unsigned_abs(),
-        ))
+        msg!(
+            "position_plus_open_orders = {} signed_order_base_asset_amount = {}",
+            position_plus_open_orders,
+            signed_order_base_asset_amount
+        );
+        return Err(ErrorCode::InvalidOrderNotRiskReducing);
     }
+
+    Ok(min(
+        position_plus_open_orders.unsigned_abs(),
+        signed_order_base_asset_amount.unsigned_abs(),
+    ))
 }
 
 pub fn standardize_base_asset_amount_with_remainder_i128(
@@ -307,6 +327,21 @@ pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> Dr
     Ok(now > order.max_ts)
 }
 
+pub fn should_cancel_reduce_only_spot_order(
+    order: &Order,
+    existing_base_asset_amount: i64,
+) -> DriftResult<bool> {
+    let should_cancel = order.reduce_only
+        && !order.post_only
+        && !is_order_position_reducing(
+            &order.direction,
+            order.base_asset_amount,
+            existing_base_asset_amount,
+        )?;
+
+    Ok(should_cancel)
+}
+
 pub fn order_breaches_oracle_price_limits(
     order: &Order,
     oracle_price: i64,
@@ -370,10 +405,11 @@ pub fn order_breaches_oracle_price_limits(
     }
 }
 
-pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> bool {
+pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> DriftResult<bool> {
     match order.trigger_condition {
-        OrderTriggerCondition::Above => oracle_price > order.trigger_price,
-        OrderTriggerCondition::Below => oracle_price < order.trigger_price,
+        OrderTriggerCondition::Above => Ok(oracle_price > order.trigger_price),
+        OrderTriggerCondition::Below => Ok(oracle_price < order.trigger_price),
+        _ => Err(print_error!(ErrorCode::InvalidTriggerOrderCondition)()),
     }
 }
 
@@ -433,6 +469,24 @@ pub fn is_order_risk_increasing(
         position_base_asset_amount,
     )
     .map(|risk_decreasing| !risk_decreasing)
+}
+
+pub fn is_order_position_reducing(
+    order_direction: &PositionDirection,
+    order_base_asset_amount: u64,
+    position_base_asset_amount: i64,
+) -> DriftResult<bool> {
+    Ok(match order_direction {
+        // User is short and order is long
+        PositionDirection::Long if position_base_asset_amount < 0 => {
+            order_base_asset_amount <= position_base_asset_amount.unsigned_abs()
+        }
+        // User is long and order is short
+        PositionDirection::Short if position_base_asset_amount > 0 => {
+            order_base_asset_amount <= position_base_asset_amount.unsigned_abs()
+        }
+        _ => false,
+    })
 }
 
 pub fn validate_fill_price(

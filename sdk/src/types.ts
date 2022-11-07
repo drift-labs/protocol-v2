@@ -25,6 +25,12 @@ export class MarketStatus {
 	static readonly DELISTED = { delisted: {} };
 }
 
+export class UserStatus {
+	static readonly ACTIVE = { active: {} };
+	static readonly BEING_LIQUIDATED = { beingLiquidated: {} };
+	static readonly BANKRUPT = { bankrupt: {} };
+}
+
 export class ContractType {
 	static readonly PERPETUAL = { perpetual: {} };
 	static readonly FUTURE = { future: {} };
@@ -133,11 +139,16 @@ export class OrderActionExplanation {
 	static readonly ORDER_FILLED_WITH_SERUM = {
 		orderFillWithSerum: {},
 	};
+	static readonly REDUCE_ONLY_ORDER_INCREASED_POSITION = {
+		reduceOnlyOrderIncreasedPosition: {},
+	};
 }
 
 export class OrderTriggerCondition {
 	static readonly ABOVE = { above: {} };
 	static readonly BELOW = { below: {} };
+	static readonly TRIGGERED_ABOVE = { triggeredAbove: {} }; // above condition has been triggered
+	static readonly TRIGGERED_BELOW = { triggeredBelow: {} }; // below condition has been triggered
 }
 
 export class SpotFulfillmentType {
@@ -264,7 +275,7 @@ export type CurveRecord = {
 
 export declare type InsuranceFundRecord = {
 	ts: BN;
-	spotMarketIndex: BN;
+	spotMarketIndex: number;
 	perpMarketIndex: number;
 	userIfFactor: number;
 	totalIfFactor: number;
@@ -337,12 +348,12 @@ export type FundingPaymentRecord = {
 
 export type LiquidationRecord = {
 	ts: BN;
-	slot: BN;
 	user: PublicKey;
 	liquidator: PublicKey;
 	liquidationType: LiquidationType;
 	marginRequirement: BN;
 	totalCollateral: BN;
+	marginFreed: BN;
 	liquidationId: number;
 	bankrupt: boolean;
 	canceledOrderIds: BN[];
@@ -461,7 +472,7 @@ export type OrderActionRecord = {
 	makerFee: BN | null;
 	referrerReward: number | null;
 	quoteAssetAmountSurplus: BN | null;
-	spot_fulfillment_method_fee: BN | null;
+	spotFulfillmentMethodFee: BN | null;
 	taker: PublicKey | null;
 	takerOrderId: number | null;
 	takerOrderDirection: PositionDirection | null;
@@ -483,6 +494,8 @@ export type StateAccount = {
 	whitelistMint: PublicKey;
 	discountMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
+	numberOfAuthorities: BN;
+	numberOfSubAccounts: BN;
 	numberOfMarkets: number;
 	numberOfSpotMarkets: number;
 	minPerpAuctionDuration: number;
@@ -537,7 +550,7 @@ export type HistoricalOracleData = {
 	lastOracleDelay: BN;
 	lastOracleConf: BN;
 	lastOraclePriceTwap: BN;
-	lastOraclePriceTwap5min: BN;
+	lastOraclePriceTwap5Min: BN;
 	lastOraclePriceTwapTs: BN;
 };
 
@@ -545,7 +558,7 @@ export type HistoricalIndexData = {
 	lastIndexBidPrice: BN;
 	lastIndexAskPrice: BN;
 	lastIndexPriceTwap: BN;
-	lastIndexPriceTwap5min: BN;
+	lastIndexPriceTwap5Min: BN;
 	lastIndexPriceTwapTs: BN;
 };
 
@@ -585,6 +598,8 @@ export type SpotMarketAccount = {
 	maxBorrowRate: number;
 	cumulativeDepositInterest: BN;
 	cumulativeBorrowInterest: BN;
+	totalSocialLoss: BN;
+	totalQuoteSocialLoss: BN;
 	depositBalance: BN;
 	borrowBalance: BN;
 	maxTokenDeposits: BN;
@@ -625,7 +640,7 @@ export type AMM = {
 	lastFundingRate: BN;
 	lastFundingRateTs: BN;
 	lastMarkPriceTwap: BN;
-	lastMarkPriceTwap5min: BN;
+	lastMarkPriceTwap5Min: BN;
 	lastMarkPriceTwapTs: BN;
 	lastTradeTs: BN;
 
@@ -683,7 +698,7 @@ export type AMM = {
 	maxOpenInterest: BN;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;
-	cumulativeSocialLoss: BN;
+	totalSocialLoss: BN;
 
 	quoteBreakEvenAmountLong: BN;
 	quoteBreakEvenAmountShort: BN;
@@ -696,7 +711,7 @@ export type AMM = {
 	longIntensityVolume: BN;
 	shortIntensityCount: number;
 	shortIntensityVolume: BN;
-	volume24h: BN;
+	volume24H: BN;
 	minOrderSize: BN;
 	maxPositionSize: BN;
 
@@ -755,8 +770,7 @@ export type UserAccount = {
 	spotPositions: SpotPosition[];
 	perpPositions: PerpPosition[];
 	orders: Order[];
-	isBeingLiquidated: boolean;
-	isBankrupt: boolean;
+	status: UserStatus;
 	nextLiquidationId: number;
 	nextOrderId: number;
 	maxMarginRatio: number;
@@ -764,6 +778,7 @@ export type UserAccount = {
 	settledPerpPnl: BN;
 	totalDeposits: BN;
 	totalWithdraws: BN;
+	totalSocialLoss: BN;
 	cumulativePerpFunding: BN;
 };
 
@@ -794,7 +809,6 @@ export type Order = {
 	reduceOnly: boolean;
 	triggerPrice: BN;
 	triggerCondition: OrderTriggerCondition;
-	triggered: boolean;
 	existingPositionDirection: PositionDirection;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
@@ -921,7 +935,6 @@ export type OracleGuardRails = {
 		confidenceIntervalMaxSize: BN;
 		tooVolatileRatio: BN;
 	};
-	useForLiquidations: boolean;
 };
 
 export type MarginCategory = 'Initial' | 'Maintenance';

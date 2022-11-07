@@ -46,9 +46,20 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 	},
 ];
 
-export const MainnetMarkets: PerpMarketConfig[] = [];
+export const MainnetPerpMarkets: PerpMarketConfig[] = [
+	{
+		fullName: 'Solana',
+		category: ['L1', 'Infra'],
+		symbol: 'SOL-PERP',
+		baseAssetSymbol: 'SOL',
+		marketIndex: 0,
+		oracle: new PublicKey('H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG'),
+		launchTs: 1667560505000,
+		oracleSource: OracleSource.PYTH,
+	},
+];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
 	devnet: DevnetPerpMarkets,
-	'mainnet-beta': [],
+	'mainnet-beta': MainnetPerpMarkets,
 };

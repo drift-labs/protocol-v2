@@ -48,7 +48,7 @@ pub fn settle_pnl(
     now: i64,
     state: &State,
 ) -> DriftResult {
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     {
         let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
@@ -183,7 +183,7 @@ pub fn settle_expired_position(
     slot: u64,
     state: &State,
 ) -> DriftResult {
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     // cannot settle pnl this way on a user who is in liquidation territory
     if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?)
@@ -220,7 +220,12 @@ pub fn settle_expired_position(
         None,
     )?;
 
-    let position_index = get_position_index(&user.perp_positions, perp_market_index)?;
+    let position_index = get_position_index(&user.perp_positions, perp_market_index);
+    if position_index.is_err() {
+        // users has no open positions in market
+        return Ok(());
+    }
+    let position_index = position_index.unwrap();
     let quote_spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
     let perp_market = &mut perp_market_map.get_ref_mut(&perp_market_index)?;
     validate!(

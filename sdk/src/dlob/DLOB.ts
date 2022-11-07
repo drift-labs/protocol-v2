@@ -23,6 +23,8 @@ import {
 	isMarketOrder,
 	isLimitOrder,
 	getOptionalLimitPrice,
+	mustBeTriggered,
+	isTriggered,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -252,8 +254,7 @@ export class DLOB {
 
 	public getListForOrder(order: Order): NodeList<any> | undefined {
 		const isInactiveTriggerOrder =
-			isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']) &&
-			!order.triggered;
+			mustBeTriggered(order) && !isTriggered(order);
 
 		let type: DLOBNodeType;
 		if (isInactiveTriggerOrder) {
@@ -650,10 +651,7 @@ export class DLOB {
 					const user = this.userMap.get(
 						bestGenerator.next.value.userAccount.toString()
 					);
-					if (
-						user?.getUserAccount().isBeingLiquidated ||
-						user?.getUserAccount().isBankrupt
-					) {
+					if (user?.isBeingLiquidated()) {
 						bestGenerator.next = bestGenerator.generator.next();
 						continue;
 					}
@@ -739,10 +737,7 @@ export class DLOB {
 					const user = this.userMap.get(
 						bestGenerator.next.value.userAccount.toString()
 					);
-					if (
-						user?.getUserAccount().isBeingLiquidated ||
-						user?.getUserAccount().isBankrupt
-					) {
+					if (user?.isBeingLiquidated()) {
 						bestGenerator.next = bestGenerator.generator.next();
 						continue;
 					}

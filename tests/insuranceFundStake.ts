@@ -258,6 +258,12 @@ describe('insurance fund stake', () => {
 	it('user if unstake (half)', async () => {
 		const marketIndex = 0;
 		// const nShares = usdcAmount.div(new BN(2));
+		await driftClient.updateInsuranceFundUnstakingPeriod(
+			marketIndex,
+			new BN(1)
+		);
+		await sleep(1000);
+
 		const txSig = await driftClient.removeInsuranceFundStake(
 			marketIndex,
 			userUSDCAccount.publicKey
@@ -1050,8 +1056,16 @@ describe('insurance fund stake', () => {
 		// 	secondUserDriftClient.getUserAccount().spotPositions[1].balanceType
 		// );
 
-		assert(secondUserDriftClient.getUserAccount().isBeingLiquidated);
-		assert(!secondUserDriftClient.getUserAccount().isBankrupt);
+		assert(
+			isVariant(
+				secondUserDriftClient.getUserAccount().status,
+				'beingLiquidated'
+			)
+		);
+
+		assert(
+			!isVariant(secondUserDriftClient.getUserAccount().status, 'bankrupt')
+		);
 
 		const ifPoolBalanceAfter = getTokenAmount(
 			spotMarket.revenuePool.scaledBalance,

@@ -9,8 +9,8 @@ use crate::math::bn;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128, PEG_PRECISION_I128,
-    PRICE_TO_PEG_PRECISION_RATIO, SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR,
+    PRICE_TO_PEG_PRECISION_RATIO, SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR,
+    SHARE_OF_FEES_ALLOCATED_TO_DRIFT_NUMERATOR,
 };
 use crate::math::cp_curve;
 use crate::math::oracle;
@@ -356,12 +356,16 @@ pub fn adjust_amm(
             market
                 .amm
                 .peg_multiplier
-                .safe_add(budget_delta_peg_magnitude)?
-        } else {
+                .safe_add(budget_delta_peg_magnitude)
+                .unwrap_or(u128::MAX)
+        } else if market.amm.peg_multiplier > budget_delta_peg_magnitude {
             market
                 .amm
                 .peg_multiplier
-                .safe_sub(budget_delta_peg_magnitude)?
+                .safe_sub(budget_delta_peg_magnitude)
+                .unwrap()
+        } else {
+            1
         };
 
         cost = calculate_repeg_cost(&market_clone.amm, new_peg)?;
@@ -444,8 +448,8 @@ pub fn get_total_fee_lower_bound(market: &PerpMarket) -> DriftResult<u128> {
     let total_fee_lower_bound = market
         .amm
         .total_exchange_fee
-        .safe_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)?
-        .safe_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)?;
+        .safe_mul(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_NUMERATOR)?
+        .safe_div(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR)?;
 
     Ok(total_fee_lower_bound)
 }

@@ -9,6 +9,7 @@ import {
 	UserAccount,
 	PerpPosition,
 	SpotPosition,
+	isOneOfVariant,
 } from './types';
 import { calculateEntryPrice } from './math/position';
 import {
@@ -1024,7 +1025,12 @@ export class User {
 
 		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
 		let liquidationBuffer = undefined;
-		if (this.getUserAccount().isBeingLiquidated) {
+		const isBeingLiquidated = isVariant(
+			this.getUserAccount().status,
+			'beingLiquidated'
+		);
+
+		if (isBeingLiquidated) {
 			liquidationBuffer = new BN(
 				this.driftClient.getStateAccount().liquidationMarginBufferRatio
 			);
@@ -1032,6 +1038,17 @@ export class User {
 		const maintenanceRequirement =
 			this.getMaintenanceMarginRequirement(liquidationBuffer);
 		return totalCollateral.lt(maintenanceRequirement);
+	}
+
+	public isBeingLiquidated(): boolean {
+		return isOneOfVariant(this.getUserAccount().status, [
+			'beingLiquidated',
+			'bankrupt',
+		]);
+	}
+
+	public isBankrupt(): boolean {
+		return isVariant(this.getUserAccount().status, 'bankrupt');
 	}
 
 	/**

@@ -1,7 +1,3 @@
-use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::msg;
-
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
@@ -19,10 +15,27 @@ use crate::math_error;
 use crate::safe_increment;
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::validate;
+use anchor_lang::prelude::*;
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::msg;
 use std::cmp::max;
 
 #[cfg(test)]
 mod tests;
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum UserStatus {
+    Active,
+    BeingLiquidated,
+    Bankrupt,
+}
+
+impl Default for UserStatus {
+    fn default() -> Self {
+        UserStatus::Active
+    }
+}
 
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
@@ -37,25 +50,43 @@ pub struct User {
     pub last_add_perp_lp_shares_ts: i64,
     pub total_deposits: u64,
     pub total_withdraws: u64,
+    pub total_social_loss: u64,
     // Fees (taker fees, maker rebate, referrer reward, filler reward) and pnl for perps
     pub settled_perp_pnl: i64,
     // Fees (taker fees, maker rebate, filler reward) for spot
     pub cumulative_spot_fees: i64,
     pub cumulative_perp_funding: i64,
+    pub liquidation_margin_freed: u64, // currently unimplemented
+    pub liquidation_start_ts: i64,     // currently unimplemented
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
     pub sub_account_id: u16,
-    pub is_being_liquidated: bool,
-    pub is_bankrupt: bool,
+    pub status: UserStatus,
     pub is_margin_trading_enabled: bool,
-    pub padding: [u8; 1],
+    pub padding: [u8; 26],
 }
 
 impl User {
+    pub fn is_being_liquidated(&self) -> bool {
+        matches!(
+            self.status,
+            UserStatus::BeingLiquidated | UserStatus::Bankrupt
+        )
+    }
+
+    pub fn is_bankrupt(&self) -> bool {
+        self.status == UserStatus::Bankrupt
+    }
+
     pub fn get_spot_position_index(&self, market_index: u16) -> DriftResult<usize> {
         // first spot position is always quote asset
         if market_index == 0 {
+            validate!(
+                self.spot_positions[0].market_index == 0,
+                ErrorCode::DefaultError,
+                "User position 0 not market_index=0"
+            )?;
             return Ok(0);
         }
 
@@ -186,6 +217,12 @@ impl User {
             .safe_div(precision)?
             .cast::<u64>()?;
         self.total_withdraws = self.total_withdraws.saturating_add(value);
+
+        Ok(())
+    }
+
+    pub fn increment_total_socialized_loss(&mut self, value: u64) -> DriftResult {
+        self.total_social_loss = self.total_social_loss.saturating_add(value);
 
         Ok(())
     }
@@ -454,9 +491,8 @@ pub struct Order {
     pub post_only: bool,
     pub immediate_or_cancel: bool,
     pub trigger_condition: OrderTriggerCondition,
-    pub triggered: bool,
     pub auction_duration: u8,
-    pub padding: [u8; 2],
+    pub padding: [u8; 3],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -557,6 +593,13 @@ impl Order {
         )
     }
 
+    pub fn triggered(&self) -> bool {
+        matches!(
+            self.trigger_condition,
+            OrderTriggerCondition::TriggeredAbove | OrderTriggerCondition::TriggeredBelow
+        )
+    }
+
     pub fn is_jit_maker(&self) -> bool {
         self.post_only && self.immediate_or_cancel
     }
@@ -609,13 +652,12 @@ impl Default for Order {
             immediate_or_cancel: false,
             trigger_price: 0,
             trigger_condition: OrderTriggerCondition::Above,
-            triggered: false,
             oracle_price_offset: 0,
             auction_start_price: 0,
             auction_end_price: 0,
             auction_duration: 0,
             max_ts: 0,
-            padding: [0; 2],
+            padding: [0; 3],
         }
     }
 }
@@ -646,6 +688,8 @@ impl Default for OrderType {
 pub enum OrderTriggerCondition {
     Above,
     Below,
+    TriggeredAbove, // above condition has been triggered
+    TriggeredBelow, // below condition has been triggered
 }
 
 impl Default for OrderTriggerCondition {
@@ -667,7 +711,7 @@ impl Default for MarketType {
 }
 
 #[account(zero_copy)]
-#[derive(Default, Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct UserStats {
     pub authority: Pubkey,
@@ -688,7 +732,29 @@ pub struct UserStats {
     pub number_of_sub_accounts: u16,
     pub number_of_sub_accounts_created: u16,
     pub is_referrer: bool,
-    pub padding: [u8; 3],
+    pub padding: [u8; 51],
+}
+
+impl Default for UserStats {
+    fn default() -> Self {
+        UserStats {
+            authority: Pubkey::default(),
+            referrer: Pubkey::default(),
+            fees: UserFees::default(),
+            next_epoch_ts: 0,
+            maker_volume_30d: 0,
+            taker_volume_30d: 0,
+            filler_volume_30d: 0,
+            last_maker_volume_30d_ts: 0,
+            last_taker_volume_30d_ts: 0,
+            last_filler_volume_30d_ts: 0,
+            if_staked_quote_asset_amount: 0,
+            number_of_sub_accounts: 0,
+            number_of_sub_accounts_created: 0,
+            is_referrer: false,
+            padding: [0; 51],
+        }
+    }
 }
 
 impl UserStats {

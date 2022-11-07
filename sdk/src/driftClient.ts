@@ -867,7 +867,7 @@ export class DriftClient {
 						!spotPosition.openAsks.eq(ZERO) ||
 						!spotPosition.openBids.eq(ZERO)
 					) {
-						spotMarketAccountMap.set(spotPosition.marketIndex, {
+						spotMarketAccountMap.set(QUOTE_SPOT_MARKET_INDEX, {
 							pubkey: this.getQuoteSpotMarketAccount().pubkey,
 							isSigner: false,
 							isWritable: false,
@@ -1453,7 +1453,7 @@ export class DriftClient {
 				toUser,
 				userStats: this.getUserStatsAccountPublicKey(),
 				state: await this.getStatePublicKey(),
-				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
+				spotMarketVault: this.getSpotMarketAccount(marketIndex).vault,
 			},
 			remainingAccounts,
 		});
@@ -2951,7 +2951,8 @@ export class DriftClient {
 		userAccount: UserAccount,
 		assetMarketIndex: number,
 		liabilityMarketIndex: number,
-		maxLiabilityTransfer: BN
+		maxLiabilityTransfer: BN,
+		limitPrice?: BN
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
@@ -2960,7 +2961,8 @@ export class DriftClient {
 					userAccount,
 					assetMarketIndex,
 					liabilityMarketIndex,
-					maxLiabilityTransfer
+					maxLiabilityTransfer,
+					limitPrice
 				)
 			),
 			[],
@@ -2976,7 +2978,8 @@ export class DriftClient {
 		userAccount: UserAccount,
 		assetMarketIndex: number,
 		liabilityMarketIndex: number,
-		maxLiabilityTransfer: BN
+		maxLiabilityTransfer: BN,
+		limitPrice?: BN
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -2996,6 +2999,7 @@ export class DriftClient {
 			assetMarketIndex,
 			liabilityMarketIndex,
 			maxLiabilityTransfer,
+			limitPrice || null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -3015,7 +3019,8 @@ export class DriftClient {
 		userAccount: UserAccount,
 		perpMarketIndex: number,
 		liabilityMarketIndex: number,
-		maxLiabilityTransfer: BN
+		maxLiabilityTransfer: BN,
+		limitPrice?: BN
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
@@ -3024,7 +3029,8 @@ export class DriftClient {
 					userAccount,
 					perpMarketIndex,
 					liabilityMarketIndex,
-					maxLiabilityTransfer
+					maxLiabilityTransfer,
+					limitPrice
 				)
 			),
 			[],
@@ -3040,7 +3046,8 @@ export class DriftClient {
 		userAccount: UserAccount,
 		perpMarketIndex: number,
 		liabilityMarketIndex: number,
-		maxLiabilityTransfer: BN
+		maxLiabilityTransfer: BN,
+		limitPrice?: BN
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -3060,6 +3067,7 @@ export class DriftClient {
 			perpMarketIndex,
 			liabilityMarketIndex,
 			maxLiabilityTransfer,
+			limitPrice || null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -3079,7 +3087,8 @@ export class DriftClient {
 		userAccount: UserAccount,
 		perpMarketIndex: number,
 		assetMarketIndex: number,
-		maxPnlTransfer: BN
+		maxPnlTransfer: BN,
+		limitPrice?: BN
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
@@ -3088,7 +3097,8 @@ export class DriftClient {
 					userAccount,
 					perpMarketIndex,
 					assetMarketIndex,
-					maxPnlTransfer
+					maxPnlTransfer,
+					limitPrice
 				)
 			),
 			[],
@@ -3104,7 +3114,8 @@ export class DriftClient {
 		userAccount: UserAccount,
 		perpMarketIndex: number,
 		assetMarketIndex: number,
-		maxPnlTransfer: BN
+		maxPnlTransfer: BN,
+		limitPrice?: BN
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -3124,6 +3135,7 @@ export class DriftClient {
 			perpMarketIndex,
 			assetMarketIndex,
 			maxPnlTransfer,
+			limitPrice || null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),

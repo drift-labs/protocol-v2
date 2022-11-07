@@ -254,7 +254,6 @@ describe('repeg and spread amm', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(2),
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);

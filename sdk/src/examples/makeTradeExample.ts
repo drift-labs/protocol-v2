@@ -64,7 +64,7 @@ const main = async () => {
 	);
 
 	// Set up the Drift Clearing House
-	const driftPublicKey = new PublicKey(sdkConfig.CLEARING_HOUSE_PROGRAM_ID);
+	const driftPublicKey = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
 	const bulkAccountLoader = new BulkAccountLoader(
 		connection,
 		'confirmed',

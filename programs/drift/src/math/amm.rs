@@ -690,8 +690,13 @@ pub fn is_oracle_mark_too_divergent(
 ) -> DriftResult<bool> {
     let max_divergence = oracle_guard_rails
         .mark_oracle_divergence_numerator
+        .cast::<u128>()?
         .safe_mul(BID_ASK_SPREAD_PRECISION_U128)?
-        .safe_div(oracle_guard_rails.mark_oracle_divergence_denominator)?
+        .safe_div(
+            oracle_guard_rails
+                .mark_oracle_divergence_denominator
+                .cast()?,
+        )?
         .cast::<u64>()?;
 
     Ok(price_spread_pct.unsigned_abs() > max_divergence)

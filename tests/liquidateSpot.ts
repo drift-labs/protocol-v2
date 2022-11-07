@@ -155,7 +155,9 @@ describe('liquidate spot', () => {
 				.logMessages
 		);
 
-		assert(!driftClient.getUserAccount().isBeingLiquidated); // out of liq territory
+		// assert(!driftClient.getUserAccount().isBeingLiquidated); // out of liq territory
+		assert(!isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
+
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
 			isVariant(
@@ -191,10 +193,11 @@ describe('liquidate spot', () => {
 		);
 
 		// todo, why?
+		// 58826010
 		console.log(liquidationRecord.liquidateSpot.assetTransfer.toString());
 		assert(
-			liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826626)) ||
-				liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826001))
+			liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826635)) ||
+				liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826010))
 		);
 		assert(
 			liquidationRecord.liquidateSpot.liabilityPrice.eq(
@@ -207,8 +210,8 @@ describe('liquidate spot', () => {
 			liquidationRecord.liquidateSpot.liabilityTransfer.toString()
 		);
 		assert(
-			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309613825)) ||
-				liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309610535))
+			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309613873)) ||
+				liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309610584))
 		);
 
 		// if fee costs 1/100th of liability transfer

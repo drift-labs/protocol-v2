@@ -9,7 +9,7 @@ use crate::math::orders::{
     order_breaches_oracle_price_limits,
 };
 use crate::state::perp_market::PerpMarket;
-use crate::state::user::{Order, OrderType};
+use crate::state::user::{Order, OrderTriggerCondition, OrderType};
 use crate::validate;
 
 pub fn validate_order(
@@ -184,6 +184,14 @@ fn validate_post_only_order(
 fn validate_trigger_limit_order(order: &Order, step_size: u64, min_order_size: u64) -> DriftResult {
     validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
 
+    if !matches!(
+        order.trigger_condition,
+        OrderTriggerCondition::Above | OrderTriggerCondition::Below
+    ) {
+        msg!("Invalid trigger condition, must be Above or Below");
+        return Err(ErrorCode::InvalidTriggerOrderCondition);
+    }
+
     if order.price == 0 {
         msg!("Trigger limit order price == 0");
         return Err(ErrorCode::InvalidOrderLimitPrice);
@@ -213,6 +221,14 @@ fn validate_trigger_market_order(
     min_order_size: u64,
 ) -> DriftResult {
     validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
+
+    if !matches!(
+        order.trigger_condition,
+        OrderTriggerCondition::Above | OrderTriggerCondition::Below
+    ) {
+        msg!("Invalid trigger condition, must be Above or Below");
+        return Err(ErrorCode::InvalidTriggerOrderCondition);
+    }
 
     if order.price > 0 {
         msg!("Trigger market order should not have price");

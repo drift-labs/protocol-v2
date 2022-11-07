@@ -3,7 +3,7 @@ use solana_program::msg;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
-use crate::math::safe_math::SafeMath;
+use crate::math::safe_math::{SafeDivFloor, SafeMath};
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
@@ -45,9 +45,14 @@ pub fn get_token_amount(
         SpotBalanceType::Borrow => spot_market.cumulative_borrow_interest,
     };
 
-    let token_amount = balance
-        .safe_mul(cumulative_interest)?
-        .safe_div(precision_decrease)?;
+    let token_amount = match balance_type {
+        SpotBalanceType::Deposit => balance
+            .safe_mul(cumulative_interest)?
+            .safe_div(precision_decrease)?,
+        SpotBalanceType::Borrow => balance
+            .safe_mul(cumulative_interest)?
+            .safe_div_ceil(precision_decrease)?,
+    };
 
     Ok(token_amount)
 }
@@ -215,7 +220,7 @@ pub fn get_strict_token_value(
     let precision_decrease = 10_i128.pow(spot_decimals);
 
     validate!(
-        oracle_price_twap > 0,
+        oracle_price_twap > 0 && oracle_price_data.price > 0,
         ErrorCode::InvalidOracle,
         "oracle_price_data={:?} oracle_price_twap={} (<= 0)",
         oracle_price_data,
@@ -228,9 +233,13 @@ pub fn get_strict_token_value(
         oracle_price_data.price.max(oracle_price_twap)
     };
 
-    token_amount
-        .safe_mul(price.cast()?)?
-        .safe_div(precision_decrease)
+    let token_with_price = token_amount.safe_mul(price.cast()?)?;
+
+    if token_with_price < 0 {
+        token_with_price.safe_div_floor(precision_decrease)
+    } else {
+        token_with_price.safe_div(precision_decrease)
+    }
 }
 
 pub fn get_token_value(
@@ -243,10 +252,13 @@ pub fn get_token_value(
     }
 
     let precision_decrease = 10_i128.pow(spot_decimals);
+    let token_with_oracle = token_amount.safe_mul(oracle_price_data.price.cast()?)?;
 
-    token_amount
-        .safe_mul(oracle_price_data.price.cast()?)?
-        .safe_div(precision_decrease)
+    if token_with_oracle < 0 {
+        token_with_oracle.safe_div_floor(precision_decrease.abs())
+    } else {
+        token_with_oracle.safe_div(precision_decrease)
+    }
 }
 
 pub fn get_balance_value(

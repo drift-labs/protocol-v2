@@ -161,12 +161,12 @@ pub enum ErrorCode {
     CantExpireOrders,
     #[msg("CouldNotLoadMarketData")]
     CouldNotLoadMarketData,
-    #[msg("MarketNotFound")]
-    MarketNotFound,
+    #[msg("PerpMarketNotFound")]
+    PerpMarketNotFound,
     #[msg("InvalidMarketAccount")]
     InvalidMarketAccount,
     #[msg("UnableToLoadMarketAccount")]
-    UnableToLoadMarketAccount,
+    UnableToLoadPerpMarketAccount,
     #[msg("MarketWrongMutability")]
     MarketWrongMutability,
     #[msg("UnableToCastUnixTime")]
@@ -435,6 +435,12 @@ pub enum ErrorCode {
     MarketBeingInitialized,
     #[msg("Invalid Sub Account Id")]
     InvalidUserSubAccountId,
+    #[msg("Invalid Trigger Order Condition")]
+    InvalidTriggerOrderCondition,
+    #[msg("Invalid Spot Position")]
+    InvalidSpotPosition,
+    #[msg("Cant transfer between same user account")]
+    CantTransferBetweenSameUserAccount,
 }
 
 #[macro_export]

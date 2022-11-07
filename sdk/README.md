@@ -142,9 +142,7 @@ const main = async () => {
 	);
 
 	// Set up the Drift Client
-	const driftClientPublicKey = new PublicKey(
-		sdkConfig.CLEARING_HOUSE_PROGRAM_ID
-	);
+	const driftClientPublicKey = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
 	const driftClient = DriftClient.from(
 		connection,
 		provider.wallet,
@@ -230,3 +228,4 @@ Drift Protocol v1 is licensed under [Apache 2.0](./LICENSE).
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in Drift SDK by you, as defined in the Apache-2.0 license, shall be
 licensed as above, without any additional terms or conditions.
+

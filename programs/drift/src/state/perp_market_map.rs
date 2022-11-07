@@ -14,30 +14,75 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPositions;
 
 use solana_program::msg;
+use std::panic::Location;
 
 pub struct PerpMarketMap<'a>(pub BTreeMap<u16, AccountLoader<'a, PerpMarket>>);
 
 impl<'a> PerpMarketMap<'a> {
+    #[track_caller]
+    #[inline(always)]
     pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<PerpMarket>> {
-        self.0
-            .get(market_index)
-            .ok_or_else(|| {
-                msg!("market not found: {}", market_index);
-                ErrorCode::MarketNotFound
-            })?
-            .load()
-            .or(Err(ErrorCode::UnableToLoadMarketAccount))
+        let loader = match self.0.get(market_index) {
+            Some(loader) => loader,
+            None => {
+                let caller = Location::caller();
+                msg!(
+                    "Could not find perp market {} at {}:{}",
+                    market_index,
+                    caller.file(),
+                    caller.line()
+                );
+                return Err(ErrorCode::PerpMarketNotFound);
+            }
+        };
+
+        match loader.load() {
+            Ok(perp_market) => Ok(perp_market),
+            Err(e) => {
+                let caller = Location::caller();
+                msg!("{:?}", e);
+                msg!(
+                    "Could not load perp market {} at {}:{}",
+                    market_index,
+                    caller.file(),
+                    caller.line()
+                );
+                Err(ErrorCode::UnableToLoadPerpMarketAccount)
+            }
+        }
     }
 
+    #[track_caller]
+    #[inline(always)]
     pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<PerpMarket>> {
-        self.0
-            .get(market_index)
-            .ok_or_else(|| {
-                msg!("market not found: {}", market_index);
-                ErrorCode::MarketNotFound
-            })?
-            .load_mut()
-            .or(Err(ErrorCode::UnableToLoadMarketAccount))
+        let loader = match self.0.get(market_index) {
+            Some(loader) => loader,
+            None => {
+                let caller = Location::caller();
+                msg!(
+                    "Could not find perp market {} at {}:{}",
+                    market_index,
+                    caller.file(),
+                    caller.line()
+                );
+                return Err(ErrorCode::PerpMarketNotFound);
+            }
+        };
+
+        match loader.load_mut() {
+            Ok(perp_market) => Ok(perp_market),
+            Err(e) => {
+                let caller = Location::caller();
+                msg!("{:?}", e);
+                msg!(
+                    "Could not load perp market {} at {}:{}",
+                    market_index,
+                    caller.file(),
+                    caller.line()
+                );
+                Err(ErrorCode::UnableToLoadPerpMarketAccount)
+            }
+        }
     }
 
     pub fn load<'b, 'c>(
@@ -62,8 +107,13 @@ impl<'a> PerpMarketMap<'a> {
                 break;
             }
 
-            // market index 8 bytes from the back of the account
-            let market_index = u16::from_le_bytes(*array_ref![data, expected_data_len - 8, 2]);
+            // market index 1160 bytes from front of account
+            let market_index = u16::from_le_bytes(*array_ref![data, 1160, 2]);
+
+            if perp_market_map.0.contains_key(&market_index) {
+                msg!("Can not include same market index twice {}", market_index);
+                return Err(ErrorCode::InvalidMarketAccount);
+            }
 
             let account_info = account_info_iter.next().unwrap();
 
@@ -105,8 +155,8 @@ impl<'a> PerpMarketMap<'a> {
             return Err(ErrorCode::CouldNotLoadMarketData);
         }
 
-        // market index 8 bytes from back of account
-        let market_index = u16::from_le_bytes(*array_ref![data, expected_data_len - 8, 2]);
+        // market index 1160 bytes from front of account
+        let market_index = u16::from_le_bytes(*array_ref![data, 1160, 2]);
 
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<PerpMarket> =
@@ -147,8 +197,8 @@ impl<'a> PerpMarketMap<'a> {
                 return Err(ErrorCode::CouldNotLoadMarketData);
             }
 
-            // market index 8 bytes from back of account
-            let market_index = u16::from_le_bytes(*array_ref![data, expected_data_len - 8, 2]);
+            // market index 1160 bytes from front of account
+            let market_index = u16::from_le_bytes(*array_ref![data, 1160, 2]);
 
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<PerpMarket> =

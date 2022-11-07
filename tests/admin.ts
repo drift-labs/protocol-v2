@@ -156,7 +156,6 @@ describe('admin', () => {
 				confidenceIntervalMaxSize: new BN(1),
 				tooVolatileRatio: new BN(1),
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);

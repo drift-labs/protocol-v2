@@ -209,7 +209,7 @@ describe('liquidate perp and lp', () => {
 				.perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
 		);
 
-		assert(driftClient.getUserAccount().isBeingLiquidated);
+		assert(isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 
 		// try to add liq when being liquidated -- should fail
@@ -275,7 +275,7 @@ describe('liquidate perp and lp', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		assert(driftClient.getUserAccount().isBankrupt);
+		assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
 		console.log(driftClient.getUserAccount().perpPositions[0].quoteAssetAmount);
 		assert(
 			driftClient
@@ -317,7 +317,7 @@ describe('liquidate perp and lp', () => {
 				QUOTE_PRECISION
 			)
 		);
-		assert(marketBeforeBankruptcy.amm.cumulativeSocialLoss.eq(ZERO));
+		assert(marketBeforeBankruptcy.amm.totalSocialLoss.eq(ZERO));
 		await liquidatorDriftClient.resolvePerpBankruptcy(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),
@@ -336,10 +336,14 @@ describe('liquidate perp and lp', () => {
 		assert(
 			marketAfterBankruptcy.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION)
 		);
-		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785008)));
+		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(5785008)));
 
-		assert(!driftClient.getUserAccount().isBankrupt);
-		assert(!driftClient.getUserAccount().isBeingLiquidated);
+		// assert(!driftClient.getUserAccount().isBankrupt);
+		// assert(!driftClient.getUserAccount().isBeingLiquidated);
+		assert(!isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
+		assert(!isVariant(driftClient.getUserAccount().status, 'bankrupt'));
+		assert(isVariant(driftClient.getUserAccount().status, 'active'));
+
 		assert(
 			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
 		);
@@ -355,12 +359,16 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.eq(
-				new BN(330571000)
+				new BN(330572000)
 			)
 		);
 
 		const market = driftClient.getPerpMarketAccount(0);
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(330571000)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-330571000)));
+		console.log(
+			market.amm.cumulativeFundingRateLong.toString(),
+			market.amm.cumulativeFundingRateShort.toString()
+		);
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(330572000)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-330572000)));
 	});
 });

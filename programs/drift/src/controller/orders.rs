@@ -69,7 +69,9 @@ use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
-use crate::state::user::{AssetType, Order, OrderStatus, OrderType, UserStats};
+use crate::state::user::{
+    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
+};
 use crate::state::user::{MarketType, User};
 use crate::validate;
 use crate::validation;
@@ -103,7 +105,7 @@ pub fn place_perp_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     expire_orders(
         user,
@@ -176,6 +178,8 @@ pub fn place_perp_order(
                 standardized_base_asset_amount,
                 params.direction,
                 market_position.base_asset_amount,
+                market_position.open_bids,
+                market_position.open_asks,
             )?
         } else {
             standardized_base_asset_amount
@@ -233,7 +237,14 @@ pub fn place_perp_order(
         state.min_perp_auction_duration,
     );
 
-    let max_ts = params.max_ts.unwrap_or(0);
+    let max_ts = match params.max_ts {
+        Some(max_ts) => max_ts,
+        None => match params.order_type {
+            OrderType::Market => now.safe_add(30)?,
+            _ => 0_i64,
+        },
+    };
+
     validate!(
         max_ts == 0 || max_ts > now,
         ErrorCode::InvalidOrderMaxTs,
@@ -263,7 +274,6 @@ pub fn place_perp_order(
             params.direction,
         )?,
         trigger_condition: params.trigger_condition,
-        triggered: false,
         post_only: params.post_only,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
         immediate_or_cancel: params.immediate_or_cancel,
@@ -271,7 +281,7 @@ pub fn place_perp_order(
         auction_end_price,
         auction_duration,
         max_ts,
-        padding: [0; 2],
+        padding: [0; 3],
     };
 
     let valid_oracle_price = get_valid_oracle_price(
@@ -540,7 +550,7 @@ pub fn cancel_order(
         let position_index = get_position_index(&user.perp_positions, order_market_index)?;
 
         // only decrease open/bids ask if it's not a trigger order or if it's been triggered
-        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered {
+        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
             let base_asset_amount_unfilled =
                 user.orders[order_index].get_base_asset_amount_unfilled()?;
             position::decrease_open_bids_and_asks(
@@ -556,7 +566,7 @@ pub fn cancel_order(
         let spot_position_index = user.get_spot_position_index(order_market_index)?;
 
         // only decrease open/bids ask if it's not a trigger order or if it's been triggered
-        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered {
+        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
             let base_asset_amount_unfilled =
                 user.orders[order_index].get_base_asset_amount_unfilled()?;
             decrease_spot_open_bids_and_asks(
@@ -637,12 +647,12 @@ pub fn fill_perp_order(
     )?;
 
     validate!(
-        !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered,
+        !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered(),
         ErrorCode::OrderMustBeTriggeredFirst,
         "Order must be triggered first"
     )?;
 
-    if user.is_bankrupt {
+    if user.is_bankrupt() {
         msg!("user is bankrupt");
         return Ok((0, false));
     }
@@ -743,34 +753,17 @@ pub fn fill_perp_order(
         )?
     };
 
-    if order_breaches_oracle_price {
-        let filler_reward = pay_keeper_flat_reward_for_perps(
-            user,
-            filler.as_deref_mut(),
-            perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
-            state.perp_fee_structure.flat_filler_fee,
-        )?;
-
-        cancel_order(
-            order_index,
-            user.deref_mut(),
-            &user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            now,
-            slot,
-            OrderActionExplanation::OraclePriceBreachedLimitPrice,
-            Some(&filler_key),
-            filler_reward,
-            false,
-        )?;
-
-        return Ok((0, true));
-    }
-
     let should_expire_order = should_expire_order(user, order_index, now)?;
-    if should_expire_order {
+
+    let existing_base_asset_amount = user
+        .get_perp_position(user.orders[order_index].market_index)?
+        .base_asset_amount;
+    let should_cancel_reduce_only_order = should_cancel_reduce_only_spot_order(
+        &user.orders[order_index],
+        existing_base_asset_amount,
+    )?;
+
+    if should_expire_order || order_breaches_oracle_price || should_cancel_reduce_only_order {
         let filler_reward = {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
             pay_keeper_flat_reward_for_perps(
@@ -779,6 +772,14 @@ pub fn fill_perp_order(
                 market.deref_mut(),
                 state.perp_fee_structure.flat_filler_fee,
             )?
+        };
+
+        let explanation = if should_expire_order {
+            OrderActionExplanation::OrderExpired
+        } else if order_breaches_oracle_price {
+            OrderActionExplanation::OraclePriceBreachedLimitPrice
+        } else {
+            OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
         };
 
         cancel_order(
@@ -790,7 +791,7 @@ pub fn fill_perp_order(
             oracle_map,
             now,
             slot,
-            OrderActionExplanation::OrderExpired,
+            explanation,
             Some(&filler_key),
             filler_reward,
             false,
@@ -1009,12 +1010,12 @@ fn sanitize_maker_order<'a>(
             return Ok((None, None, None, None));
         }
 
-        if maker.is_being_liquidated || maker.is_bankrupt {
+        if maker.is_being_liquidated() || maker.is_bankrupt() {
             return Ok((None, None, None, None));
         }
 
         validate!(
-            !maker_order.must_be_triggered() || maker_order.triggered,
+            !maker_order.must_be_triggered() || maker_order.triggered(),
             ErrorCode::OrderMustBeTriggeredFirst,
             "Maker order not triggered"
         )?;
@@ -1041,8 +1042,16 @@ fn sanitize_maker_order<'a>(
 
     let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
 
-    // Dont fulfill with a maker order if oracle has diverged significantly
-    if breaches_oracle_price_limits || should_expire_order {
+    let existing_base_asset_amount = maker
+        .get_perp_position(maker.orders[maker_order_index].market_index)?
+        .base_asset_amount;
+    let should_cancel_reduce_only_order = should_cancel_reduce_only_spot_order(
+        &maker.orders[maker_order_index],
+        existing_base_asset_amount,
+    )?;
+
+    // Dont fulfill with a maker order if oracle has diverged significantly, it should be expired or it is position increasing reduce only
+    if breaches_oracle_price_limits || should_expire_order || should_cancel_reduce_only_order {
         let filler_reward = {
             let mut market =
                 perp_market_map.get_ref_mut(&maker.orders[maker_order_index].market_index)?;
@@ -1056,8 +1065,10 @@ fn sanitize_maker_order<'a>(
 
         let explanation = if breaches_oracle_price_limits {
             OrderActionExplanation::OraclePriceBreachedLimitPrice
-        } else {
+        } else if should_expire_order {
             OrderActionExplanation::OrderExpired
+        } else {
+            OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
         };
 
         cancel_order(
@@ -1945,7 +1956,7 @@ pub fn fulfill_perp_order_with_match(
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::None,
+        OrderActionExplanation::OrderFilledWithMatch,
         market.market_index,
         Some(*filler_key),
         Some(fill_record_id),
@@ -2079,6 +2090,12 @@ pub fn trigger_order(
     )?;
 
     validate!(
+        !user.orders[order_index].triggered(),
+        ErrorCode::OrderNotTriggerable,
+        "Order is already triggered"
+    )?;
+
+    validate!(
         market_type == MarketType::Perp,
         ErrorCode::InvalidOrderMarketType,
         "Order must be a perp order"
@@ -2092,7 +2109,7 @@ pub fn trigger_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
@@ -2123,14 +2140,22 @@ pub fn trigger_order(
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
         oracle_price.unsigned_abs().cast()?,
-    );
+    )?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
     {
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
 
-        user.orders[order_index].triggered = true;
+        user.orders[order_index].trigger_condition =
+            match user.orders[order_index].trigger_condition {
+                OrderTriggerCondition::Above => OrderTriggerCondition::TriggeredAbove,
+                OrderTriggerCondition::Below => OrderTriggerCondition::TriggeredBelow,
+                _ => {
+                    return Err(print_error!(ErrorCode::InvalidTriggerOrderCondition)());
+                }
+            };
+
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
@@ -2317,7 +2342,7 @@ pub fn place_spot_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     expire_orders(
         user,
@@ -2390,6 +2415,8 @@ pub fn place_spot_order(
                 standardized_base_asset_amount,
                 params.direction,
                 signed_token_amount,
+                spot_position.open_bids,
+                spot_position.open_asks,
             )?
         } else {
             standardized_base_asset_amount
@@ -2464,7 +2491,14 @@ pub fn place_spot_order(
         .auction_duration
         .unwrap_or(state.default_spot_auction_duration);
 
-    let max_ts = params.max_ts.unwrap_or(0);
+    let max_ts = match params.max_ts {
+        Some(max_ts) => max_ts,
+        None => match params.order_type {
+            OrderType::Market => now.safe_add(30)?,
+            _ => 0_i64,
+        },
+    };
+
     validate!(
         max_ts == 0 || max_ts > now,
         ErrorCode::InvalidOrderMaxTs,
@@ -2494,7 +2528,6 @@ pub fn place_spot_order(
             params.direction,
         )?,
         trigger_condition: params.trigger_condition,
-        triggered: false,
         post_only: params.post_only,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
         immediate_or_cancel: params.immediate_or_cancel,
@@ -2502,7 +2535,7 @@ pub fn place_spot_order(
         auction_end_price,
         auction_duration,
         max_ts,
-        padding: [0; 2],
+        padding: [0; 3],
     };
 
     let valid_oracle_price = Some(oracle_price_data.price);
@@ -2641,12 +2674,12 @@ pub fn fill_spot_order(
     )?;
 
     validate!(
-        !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered,
+        !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered(),
         ErrorCode::OrderMustBeTriggeredFirst,
         "Order must be triggered first"
     )?;
 
-    if user.is_bankrupt {
+    if user.is_bankrupt() {
         msg!("User is bankrupt");
         return Ok(0);
     }
@@ -2692,7 +2725,22 @@ pub fn fill_spot_order(
     )?;
 
     let should_expire_order = should_expire_order(user, order_index, now)?;
-    if should_expire_order {
+
+    let should_cancel_reduce_only_order = if user.orders[order_index].reduce_only {
+        let market_index = user.orders[order_index].market_index;
+        let position_index = user.get_spot_position_index(market_index)?;
+        let spot_market = spot_market_map.get_ref(&market_index)?;
+        let signed_token_amount =
+            user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
+        should_cancel_reduce_only_spot_order(
+            &user.orders[order_index],
+            signed_token_amount.cast()?,
+        )?
+    } else {
+        false
+    };
+
+    if should_expire_order || should_cancel_reduce_only_order {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
@@ -2701,6 +2749,12 @@ pub fn fill_spot_order(
                 &mut quote_market,
                 state.spot_fee_structure.flat_filler_fee,
             )?
+        };
+
+        let explanation = if should_expire_order {
+            OrderActionExplanation::OrderExpired
+        } else {
+            OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
         };
 
         cancel_order(
@@ -2712,7 +2766,7 @@ pub fn fill_spot_order(
             oracle_map,
             now,
             slot,
-            OrderActionExplanation::OrderExpired,
+            explanation,
             Some(&filler_key),
             filler_reward,
             false,
@@ -2822,12 +2876,12 @@ fn sanitize_spot_maker_order<'a>(
             return Ok((None, None, None, None));
         }
 
-        if maker.is_being_liquidated || maker.is_bankrupt {
+        if maker.is_being_liquidated() || maker.is_bankrupt() {
             return Ok((None, None, None, None));
         }
 
         validate!(
-            !maker_order.must_be_triggered() || maker_order.triggered,
+            !maker_order.must_be_triggered() || maker_order.triggered(),
             ErrorCode::OrderMustBeTriggeredFirst,
             "Maker order not triggered"
         )?;
@@ -2839,8 +2893,8 @@ fn sanitize_spot_maker_order<'a>(
         )?
     }
 
+    let spot_market = spot_market_map.get_ref(&maker.orders[maker_order_index].market_index)?;
     let breaches_oracle_price_limits = {
-        let spot_market = spot_market_map.get_ref(&maker.orders[maker_order_index].market_index)?;
         let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?;
         let initial_margin_ratio = spot_market.get_margin_ratio(&MarginRequirementType::Initial)?;
         let maintenance_margin_ratio =
@@ -2857,7 +2911,20 @@ fn sanitize_spot_maker_order<'a>(
 
     let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
 
-    if breaches_oracle_price_limits || should_expire_order {
+    let should_cancel_reduce_only_order = if maker.orders[maker_order_index].reduce_only {
+        let spot_position_index =
+            maker.get_spot_position_index(maker.orders[maker_order_index].market_index)?;
+        let signed_token_amount =
+            maker.spot_positions[spot_position_index].get_signed_token_amount(&spot_market)?;
+        should_cancel_reduce_only_spot_order(
+            &maker.orders[maker_order_index],
+            signed_token_amount.cast()?,
+        )?
+    } else {
+        false
+    };
+
+    if breaches_oracle_price_limits || should_expire_order || should_cancel_reduce_only_order {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
@@ -2870,8 +2937,10 @@ fn sanitize_spot_maker_order<'a>(
 
         let explanation = if breaches_oracle_price_limits {
             OrderActionExplanation::OraclePriceBreachedLimitPrice
-        } else {
+        } else if should_expire_order {
             OrderActionExplanation::OrderExpired
+        } else {
+            OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
         };
 
         cancel_order(
@@ -3274,7 +3343,7 @@ pub fn fulfill_spot_order_with_match(
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::None,
+        OrderActionExplanation::OrderFilledWithMatch,
         maker.orders[maker_order_index].market_index,
         Some(*filler_key),
         Some(fill_record_id),
@@ -3787,6 +3856,12 @@ pub fn trigger_spot_order(
     )?;
 
     validate!(
+        !user.orders[order_index].triggered(),
+        ErrorCode::OrderNotTriggerable,
+        "Order is already triggered"
+    )?;
+
+    validate!(
         market_type == MarketType::Spot,
         ErrorCode::InvalidOrderMarketType,
         "Order must be a spot order"
@@ -3800,7 +3875,7 @@ pub fn trigger_spot_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
     let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
@@ -3828,14 +3903,21 @@ pub fn trigger_spot_order(
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
         oracle_price.unsigned_abs().cast()?,
-    );
+    )?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
     {
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
 
-        user.orders[order_index].triggered = true;
+        user.orders[order_index].trigger_condition =
+            match user.orders[order_index].trigger_condition {
+                OrderTriggerCondition::Above => OrderTriggerCondition::TriggeredAbove,
+                OrderTriggerCondition::Below => OrderTriggerCondition::TriggeredBelow,
+                _ => {
+                    return Err(print_error!(ErrorCode::InvalidTriggerOrderCondition)());
+                }
+            };
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {

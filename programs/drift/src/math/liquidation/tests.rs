@@ -389,7 +389,7 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
         let cumulative_funding_rate_delta =
             calculate_funding_rate_deltas_to_resolve_bankruptcy(loss, &market).unwrap();
 
-        assert_eq!(cumulative_funding_rate_delta, 9090909000);
+        assert_eq!(cumulative_funding_rate_delta, 9090910000);
     }
 }
 
@@ -430,6 +430,68 @@ mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
             calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(loss, &spot_market)
                 .unwrap();
 
-        assert_eq!(delta, 916666666);
+        assert_eq!(delta, 916666667);
+    }
+}
+
+mod validate_transfer_satisfies_limit_price {
+    use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_PRECISION};
+    use crate::math::liquidation::validate_transfer_satisfies_limit_price;
+    use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
+
+    #[test]
+    fn sol_asset_usdc_liability() {
+        let limit_price = PRICE_PRECISION_U64 / 100; // 1 SOL / $100 USD
+        let asset = LAMPORTS_PER_SOL as u128;
+        let asset_decimals = 9_u32;
+        let liability = 100 * QUOTE_PRECISION;
+        let liability_decimals = 6_u32;
+
+        assert!(validate_transfer_satisfies_limit_price(
+            asset,
+            liability,
+            asset_decimals,
+            liability_decimals,
+            Some(limit_price)
+        )
+        .is_ok());
+
+        let asset = asset / 10;
+        assert!(validate_transfer_satisfies_limit_price(
+            asset,
+            liability,
+            asset_decimals,
+            liability_decimals,
+            Some(limit_price)
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn usdc_asset_sol_liability() {
+        let limit_price = PRICE_PRECISION_U64 * 100; // $100 / 1 SOL
+        let asset = 100 * QUOTE_PRECISION;
+        let asset_decimals = 6_u32;
+        let liability = LAMPORTS_PER_SOL as u128;
+        let liability_decimals = 9_u32;
+
+        assert!(validate_transfer_satisfies_limit_price(
+            asset,
+            liability,
+            asset_decimals,
+            liability_decimals,
+            Some(limit_price)
+        )
+        .is_ok());
+
+        let asset = asset / 10;
+        assert!(validate_transfer_satisfies_limit_price(
+            asset,
+            liability,
+            asset_decimals,
+            liability_decimals,
+            Some(limit_price)
+        )
+        .is_err());
     }
 }

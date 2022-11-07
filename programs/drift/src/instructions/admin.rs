@@ -20,7 +20,7 @@ use crate::math::constants::{
     DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
     INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
     MAX_CONCENTRATION_COEFFICIENT, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
-    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
+    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
     TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
@@ -63,6 +63,7 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         discount_mint: Pubkey::default(),
         oracle_guard_rails: OracleGuardRails::default(),
         number_of_authorities: 0,
+        number_of_sub_accounts: 0,
         number_of_markets: 0,
         number_of_spot_markets: 0,
         min_perp_auction_duration: 10,
@@ -76,7 +77,7 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         perp_fee_structure: FeeStructure::perps_default(),
         spot_fee_structure: FeeStructure::spot_default(),
         lp_cooldown_time: 0,
-        padding: [0; 1],
+        padding: [0; 17],
     };
 
     Ok(())
@@ -236,6 +237,8 @@ pub fn handle_initialize_spot_market(
         utilization_twap: 0, // todo: use for dynamic interest / additional guards
         cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        total_social_loss: 0,
+        total_quote_social_loss: 0,
         last_interest_ts: now,
         last_twap_ts: now,
         initial_asset_weight,
@@ -255,9 +258,10 @@ pub fn handle_initialize_spot_market(
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
         orders_enabled: spot_market_index != 0,
-        padding: [0; 6],
+        padding: [0; 86],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
+            unstaking_period: THIRTEEN_DAY,
             ..InsuranceFund::default()
         },
     };
@@ -534,7 +538,7 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        padding: [0; 3],
+        padding: [0; 51],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -547,7 +551,7 @@ pub fn handle_initialize_perp_market(
             bid_quote_asset_reserve: amm_quote_asset_reserve,
             cumulative_funding_rate_long: 0,
             cumulative_funding_rate_short: 0,
-            cumulative_social_loss: 0,
+            total_social_loss: 0,
             last_funding_rate: 0,
             last_funding_rate_long: 0,
             last_funding_rate_short: 0,
@@ -621,6 +625,7 @@ pub fn handle_initialize_perp_market(
             amm_jit_intensity: 0, // turn it off at the start
 
             last_oracle_valid: false,
+            padding: [0; 48],
         },
     };
 

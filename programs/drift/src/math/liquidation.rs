@@ -17,7 +17,7 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::User;
+use crate::state::user::{User, UserStatus};
 use crate::validate;
 use solana_program::msg;
 
@@ -221,7 +221,7 @@ pub fn validate_user_not_being_liquidated(
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
 ) -> DriftResult {
-    if !user.is_being_liquidated {
+    if !user.is_being_liquidated() {
         return Ok(());
     }
 
@@ -236,7 +236,7 @@ pub fn validate_user_not_being_liquidated(
     if is_still_being_liquidated {
         return Err(ErrorCode::UserIsBeingLiquidated);
     } else {
-        user.is_being_liquidated = false;
+        user.status = UserStatus::Active;
     }
 
     Ok(())
@@ -275,7 +275,7 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
 
     loss.abs()
         .safe_mul(AMM_RESERVE_PRECISION_I128)?
-        .safe_div(total_base_asset_amount)?
+        .safe_div_ceil(total_base_asset_amount)?
         .safe_mul(FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO.cast()?)
 }
 
@@ -292,6 +292,33 @@ pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
     spot_market
         .cumulative_deposit_interest
         .safe_mul(borrow)?
-        .safe_div(total_deposits)
+        .safe_div_ceil(total_deposits)
         .or(Ok(0))
+}
+
+pub fn validate_transfer_satisfies_limit_price(
+    asset_transfer: u128,
+    liability_transfer: u128,
+    asset_decimals: u32,
+    liability_decimals: u32,
+    limit_price: Option<u64>,
+) -> DriftResult {
+    let limit_price = match limit_price {
+        Some(limit_price) => limit_price,
+        None => return Ok(()),
+    };
+
+    let transfer_price = asset_transfer
+        .safe_mul(PRICE_PRECISION)?
+        .safe_div(10_u128.pow(asset_decimals))?
+        .safe_mul(10_u128.pow(liability_decimals))?
+        .safe_div(liability_transfer)?;
+
+    validate!(
+        transfer_price >= limit_price.cast()?,
+        ErrorCode::LiquidationDoesntSatisfyLimitPrice,
+        "transfer price transfer_price ({}/1000000) < limit price ({}/1000000)",
+        transfer_price,
+        limit_price
+    )
 }

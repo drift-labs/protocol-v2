@@ -6,6 +6,124 @@ use crate::state::oracle::HistoricalOracleData;
 use crate::state::perp_market::{PerpMarket, AMM};
 
 #[test]
+fn balanced_funding_test() {
+    // balanced market no fees collected
+
+    let sqrt_k0 = 100 * AMM_RESERVE_PRECISION + 8793888383;
+    let px0 = 32_513_929;
+    let mut count = 0;
+
+    while count < 2 {
+        let px = px0 + count;
+        let sqrt_k = sqrt_k0 + count;
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: sqrt_k as u128,
+                quote_asset_reserve: sqrt_k as u128,
+                sqrt_k: sqrt_k as u128,
+                peg_multiplier: px,
+                base_asset_amount_with_amm: 0,
+                base_asset_amount_long: 12295081967,
+                base_asset_amount_short: -12295081967,
+                total_exchange_fee: (count * 1000000783) / 2888,
+                total_fee_minus_distributions: (count * 1000000783) as i128,
+                last_mark_price_twap: (px * 999 / 1000) as u64,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (px * 1001 / 1000) as i64,
+                    ..HistoricalOracleData::default()
+                },
+                funding_period: 3600,
+
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+        let balanced_funding = calculate_funding_rate(
+            market.amm.last_mark_price_twap as u128,
+            market.amm.historical_oracle_data.last_oracle_price_twap as i128,
+            market.amm.funding_period,
+        )
+        .unwrap();
+
+        assert_eq!(
+            market.amm.last_mark_price_twap
+                < (market.amm.historical_oracle_data.last_oracle_price_twap as u64),
+            true
+        );
+
+        let (long_funding, short_funding, _) =
+            calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
+
+        assert_eq!(balanced_funding, -2709458);
+        assert_eq!(long_funding, -2709458);
+        assert_eq!(short_funding, -2709458);
+        count += 1;
+    }
+
+    let sqrt_k0 = 55 * AMM_RESERVE_PRECISION + 48383;
+    let px0 = 19_902_513_929;
+    let mut count = 0;
+
+    while count < 2 {
+        let px = px0 + count;
+        let sqrt_k = sqrt_k0 + count;
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: sqrt_k as u128,
+                quote_asset_reserve: sqrt_k as u128,
+                sqrt_k: sqrt_k as u128,
+                peg_multiplier: px,
+                base_asset_amount_with_amm: 0,
+                base_asset_amount_long: 7845926098328,
+                base_asset_amount_short: -7845926098328,
+                total_exchange_fee: (count * 1000000783) / 2888,
+                total_fee_minus_distributions: (count * 1000000783) as i128,
+                last_mark_price_twap: (px * 999 / 1000) as u64,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (px * 888 / 1000) as i64,
+                    ..HistoricalOracleData::default()
+                },
+                funding_period: 3600,
+
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+        let balanced_funding = calculate_funding_rate(
+            market.amm.last_mark_price_twap as u128,
+            market.amm.historical_oracle_data.last_oracle_price_twap as i128,
+            market.amm.funding_period,
+        )
+        .unwrap();
+
+        //sanity, funding CANT be larger than oracle twap price
+        assert_eq!(balanced_funding < (px * FUNDING_RATE_BUFFER) as i128, true);
+        assert_eq!(
+            balanced_funding
+                < ((market.amm.historical_oracle_data.last_oracle_price_twap as u128)
+                    * FUNDING_RATE_BUFFER) as i128,
+            true
+        );
+
+        assert_eq!(
+            market.amm.last_mark_price_twap
+                > (market.amm.historical_oracle_data.last_oracle_price_twap as u64),
+            true
+        );
+
+        let (long_funding, short_funding, _) =
+            calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
+
+        assert_eq!(balanced_funding, 22_314_939_833); // 2_231_493 in PRICE_PRECISION
+        assert_eq!(long_funding, 22_314_939_833);
+        assert_eq!(short_funding, 22_314_939_833);
+        count += 1;
+    }
+}
+
+#[test]
 fn capped_sym_funding_test() {
     // more shorts than longs, positive funding, 1/3 of fee pool too small
     let mut market = PerpMarket {
