@@ -286,6 +286,10 @@ describe('User Account', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10))
 		);
+
+		await driftClient.fetchAccounts();
+		await userAccount.fetchAccounts();
+
 		const perpPosition = userAccount.getPerpPosition(marketIndex);
 
 		const market = driftClient.getPerpMarketAccount(perpPosition.marketIndex);

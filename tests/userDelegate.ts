@@ -155,7 +155,7 @@ describe('user delegate', () => {
 			delegateUsdcAccount.publicKey
 		);
 
-		assert(delegateDriftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
+		assert(await delegateDriftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
 	});
 
 	it('Withdraw', async () => {
