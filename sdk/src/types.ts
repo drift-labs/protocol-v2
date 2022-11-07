@@ -122,10 +122,10 @@ export class OrderActionExplanation {
 		liquidation: {},
 	};
 	static readonly ORDER_FILLED_WITH_AMM = {
-		orderFilledWithAMM: {},
+		orderFilledWithAmm: {},
 	};
 	static readonly ORDER_FILLED_WITH_AMM_JIT = {
-		orderFilledWithAMMJit: {},
+		orderFilledWithAmmJit: {},
 	};
 	static readonly ORDER_FILLED_WITH_MATCH = {
 		orderFilledWithMatch: {},
