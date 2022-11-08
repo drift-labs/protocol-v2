@@ -410,6 +410,16 @@ export class User {
 		return this.getMarginRequirement('Maintenance', liquidationBuffer);
 	}
 
+	public getActivePerpPositions(): PerpPosition[] {
+		return this.getUserAccount().perpPositions.filter(
+			(pos) =>
+				!pos.baseAssetAmount.eq(ZERO) ||
+				!pos.quoteAssetAmount.eq(ZERO) ||
+				!(pos.openOrders == 0) ||
+				!pos.lpShares.eq(ZERO)
+		);
+	}
+
 	/**
 	 * calculates unrealized position price pnl
 	 * @returns : Precision QUOTE_PRECISION
@@ -420,10 +430,8 @@ export class User {
 		withWeightMarginCategory?: MarginCategory
 	): BN {
 		const quoteSpotMarket = this.driftClient.getQuoteSpotMarketAccount();
-		return this.getUserAccount()
-			.perpPositions.filter((pos) =>
-				marketIndex ? pos.marketIndex === marketIndex : true
-			)
+		return this.getActivePerpPositions()
+			.filter((pos) => (marketIndex ? pos.marketIndex === marketIndex : true))
 			.reduce((unrealizedPnl, perpPosition) => {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
@@ -758,6 +766,63 @@ export class User {
 	}
 
 	/**
+	 * calculates User Health by comparing total collateral and maint. margin requirement
+	 * @returns : number (value from [0, 100])
+	 */
+	public getHealth(): number {
+		const userAccount = this.getUserAccount();
+
+		if (
+			isVariant(userAccount.status, 'being_liquidated') ||
+			isVariant(userAccount.status, 'bankrupt')
+		) {
+			console.log('health=0 from status');
+			return 0;
+		}
+
+		const totalCollateral = this.getTotalCollateral('Maintenance');
+		const maintenanceMarginReq = this.getMaintenanceMarginRequirement();
+
+		// console.log('totalCollateral:', totalCollateral.toNumber());
+		// console.log('maintenanceMarginReq:', maintenanceMarginReq.toNumber());
+
+		let health: number;
+
+		if (maintenanceMarginReq.eq(ZERO) && totalCollateral.gte(ZERO)) {
+			health = 100;
+		} else if (totalCollateral.lte(ZERO)) {
+			health = 0;
+		} else {
+			// const totalCollateral = this.getTotalCollateral('Initial');
+			// const maintenanceMarginReq = this.getMaintenanceMarginRequirement();
+
+			const marginRatio =
+				this.getMarginRatio('Maintenance').toNumber() /
+				MARGIN_PRECISION.toNumber();
+			// console.log('marginRatio:', marginRatio);
+
+			const maintenanceRatio =
+				(maintenanceMarginReq.toNumber() / totalCollateral.toNumber()) *
+				marginRatio;
+			// console.log('maintenanceRatio:', maintenanceRatio);
+
+			const healthP1 = Math.max(0, (marginRatio - maintenanceRatio) * 100) + 1;
+			// console.log(healthP1);
+
+			health = Math.min(1, Math.log(healthP1) / Math.log(100)) * 100;
+			// console.log(health);
+			if (health > 1) {
+				health = Math.round(health);
+			} else {
+				health = Math.round(health * 100) / 100;
+			}
+			// console.log(health);
+		}
+
+		return health;
+	}
+
+	/**
 	 * calculates sum of position value across all positions in margin system
 	 * @returns : Precision QUOTE_PRECISION
 	 */
@@ -766,7 +831,7 @@ export class User {
 		liquidationBuffer?: BN,
 		includeOpenOrders?: boolean
 	): BN {
-		return this.getUserAccount().perpPositions.reduce(
+		return this.getActivePerpPositions().reduce(
 			(totalPerpValue, perpPosition) => {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
@@ -955,15 +1020,20 @@ export class User {
 		return totalLiabilityValue.mul(TEN_THOUSAND).div(totalAssetValue);
 	}
 
-	getTotalLiabilityValue(): BN {
-		return this.getTotalPerpPositionValue(undefined, undefined, true).add(
-			this.getSpotMarketLiabilityValue(undefined, undefined, undefined, true)
+	getTotalLiabilityValue(marginCategory?: MarginCategory): BN {
+		return this.getTotalPerpPositionValue(marginCategory, undefined, true).add(
+			this.getSpotMarketLiabilityValue(
+				undefined,
+				marginCategory,
+				undefined,
+				true
+			)
 		);
 	}
 
-	getTotalAssetValue(): BN {
-		return this.getSpotMarketAssetValue(undefined, undefined, true).add(
-			this.getUnrealizedPNL(true, undefined, undefined)
+	getTotalAssetValue(marginCategory?: MarginCategory): BN {
+		return this.getSpotMarketAssetValue(undefined, marginCategory, true).add(
+			this.getUnrealizedPNL(true, undefined, marginCategory)
 		);
 	}
 
@@ -1008,14 +1078,14 @@ export class User {
 	 * calculates margin ratio: total collateral / |total position value|
 	 * @returns : Precision TEN_THOUSAND
 	 */
-	public getMarginRatio(): BN {
-		const totalLiabilityValue = this.getTotalLiabilityValue();
+	public getMarginRatio(marginCategory?: MarginCategory): BN {
+		const totalLiabilityValue = this.getTotalLiabilityValue(marginCategory);
 
 		if (totalLiabilityValue.eq(ZERO)) {
 			return BN_MAX;
 		}
 
-		const totalAssetValue = this.getTotalAssetValue();
+		const totalAssetValue = this.getTotalAssetValue(marginCategory);
 
 		return totalAssetValue.mul(TEN_THOUSAND).div(totalLiabilityValue);
 	}
