@@ -121,7 +121,7 @@ mod test {
         assert!(short_spread3 > long_spread3);
 
         // 1000/2 * (1+(34562000-34000000)/QUOTE_PRECISION) -> 781
-        assert_eq!(long_spread3, 1562);
+        assert_eq!(long_spread3, 31246);
 
         // last_oracle_reserve_price_spread_pct + conf retreat
         // assert_eq!(short_spread3, 1010000);
@@ -211,7 +211,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(long_spread_btc, 500 / 2);
+        assert_eq!(long_spread_btc, 411);
         assert_eq!(short_spread_btc, 74584);
 
         let (long_spread_btc1, short_spread_btc1) = calculate_spread(
