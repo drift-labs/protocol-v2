@@ -370,7 +370,6 @@ export type LiquidationRecord = {
 
 export class LiquidationType {
 	static readonly LIQUIDATE_PERP = { liquidatePerp: {} };
-	static readonly LIQUIDATE_BORROW = { liquidateBorrow: {} };
 	static readonly LIQUIDATE_BORROW_FOR_PERP_PNL = {
 		liquidateBorrowForPerpPnl: {},
 	};
