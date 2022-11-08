@@ -144,6 +144,11 @@ describe('liquidate spot', () => {
 		console.log('healthBefore100:', healthBefore100);
 		assert(healthBefore100 == 96);
 
+		console.log(
+			'spotLiquidationPrice:',
+			convertToNumber(user.spotLiquidationPrice(user.getSpotPosition(1)))
+		);
+
 		await setFeedPrice(anchor.workspace.Pyth, 179, solOracle);
 		await sleep(1000);
 
@@ -152,6 +157,10 @@ describe('liquidate spot', () => {
 		const healthBefore179 = user.getHealth();
 		console.log('healthBefore179:', healthBefore179);
 		assert(healthBefore179 == 21);
+		console.log(
+			'spotLiquidationPrice:',
+			convertToNumber(user.spotLiquidationPrice(user.getSpotPosition(1)))
+		);
 
 		let mtc = user.getTotalCollateral('Maintenance');
 		let mmr = user.getMaintenanceMarginRequirement();
@@ -182,6 +191,13 @@ describe('liquidate spot', () => {
 		const healthBefore181 = user.getHealth();
 		console.log('healthBefore181:', healthBefore181);
 		assert(healthBefore181 == 0.02);
+		console.log(
+			'spotLiquidationPrice:',
+			convertToNumber(
+				user.spotLiquidationPrice(user.getSpotPosition(1)),
+				PRICE_PRECISION
+			)
+		);
 
 		await setFeedPrice(anchor.workspace.Pyth, 190, solOracle);
 		await sleep(1000);
