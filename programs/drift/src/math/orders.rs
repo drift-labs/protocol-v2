@@ -199,9 +199,9 @@ pub fn standardize_base_asset_amount(base_asset_amount: u64, step_size: u64) -> 
 }
 
 pub fn standardize_base_asset_amount_ceil(
-    base_asset_amount: u128,
-    step_size: u128,
-) -> DriftResult<u128> {
+    base_asset_amount: u64,
+    step_size: u64,
+) -> DriftResult<u64> {
     let remainder = base_asset_amount
         .checked_rem_euclid(step_size)
         .ok_or_else(math_error!())?;
