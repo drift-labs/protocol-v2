@@ -1291,7 +1291,7 @@ pub mod liquidate_perp {
         };
         liquidate_perp(
             0,
-            BASE_PRECISION_U64,
+            BASE_PRECISION_U64 / 100,
             None,
             &mut user,
             &user_key,
