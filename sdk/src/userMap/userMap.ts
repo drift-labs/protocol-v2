@@ -115,7 +115,9 @@ export class UserMap implements UserMapInterface {
 	}
 
 	public async updateWithOrderRecord(record: OrderRecord) {
-		await this.addPubkey(record.user);
+		if (!this.has(record.user.toString())) {
+			await this.addPubkey(record.user);
+		}
 	}
 
 	public values(): IterableIterator<User> {

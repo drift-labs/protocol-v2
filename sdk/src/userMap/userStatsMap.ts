@@ -81,9 +81,9 @@ export class UserStatsMap {
 	}
 
 	public async updateWithOrderRecord(record: OrderRecord, userMap: UserMap) {
-		if (!this.has(record.user.toString())) {
-			const takerUserAccount = await userMap.mustGet(record.user.toString());
-			this.addUserStat(takerUserAccount.getUserAccount().authority);
+		const user = await userMap.mustGet(record.user.toString());
+		if (!this.has(user.getUserAccount().authority.toString())) {
+			this.addUserStat(user.getUserAccount().authority);
 		}
 	}
 
