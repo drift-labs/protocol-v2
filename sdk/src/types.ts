@@ -122,13 +122,16 @@ export class OrderActionExplanation {
 		liquidation: {},
 	};
 	static readonly ORDER_FILLED_WITH_AMM = {
-		orderFilledWithAMM: {},
+		orderFilledWithAmm: {},
 	};
 	static readonly ORDER_FILLED_WITH_AMM_JIT = {
-		orderFilledWithAMMJit: {},
+		orderFilledWithAmmJit: {},
 	};
 	static readonly ORDER_FILLED_WITH_MATCH = {
 		orderFilledWithMatch: {},
+	};
+	static readonly ORDER_FILLED_WITH_MATCH_JIT = {
+		orderFilledWithMatchJit: {},
 	};
 	static readonly MARKET_EXPIRED = {
 		marketExpired: {},
@@ -379,6 +382,9 @@ export class LiquidationType {
 	};
 	static readonly BORROW_BANKRUPTCY = {
 		borrowBankruptcy: {},
+	};
+	static readonly LIQUIDATE_SPOT = {
+		liquidateSpot: {},
 	};
 }
 

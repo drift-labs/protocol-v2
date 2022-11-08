@@ -1021,7 +1021,7 @@ export class User {
 	}
 
 	public canBeLiquidated(): boolean {
-		const totalCollateral = this.getTotalCollateral();
+		const totalCollateral = this.getTotalCollateral('Maintenance');
 
 		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
 		let liquidationBuffer = undefined;

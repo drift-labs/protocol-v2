@@ -1953,10 +1953,15 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
+    let order_action_explanation = if maker.orders[maker_order_index].is_jit_maker() {
+        OrderActionExplanation::OrderFilledWithMatchJit
+    } else {
+        OrderActionExplanation::OrderFilledWithMatch
+    };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::OrderFilledWithMatch,
+        order_action_explanation,
         market.market_index,
         Some(*filler_key),
         Some(fill_record_id),
@@ -3340,10 +3345,15 @@ pub fn fulfill_spot_order_with_match(
     }
 
     let fill_record_id = get_then_update_id!(base_market, next_fill_record_id);
+    let order_action_explanation = if maker.orders[maker_order_index].is_jit_maker() {
+        OrderActionExplanation::OrderFilledWithMatchJit
+    } else {
+        OrderActionExplanation::OrderFilledWithMatch
+    };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::OrderFilledWithMatch,
+        order_action_explanation,
         maker.orders[maker_order_index].market_index,
         Some(*filler_key),
         Some(fill_record_id),
