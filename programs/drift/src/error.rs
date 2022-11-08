@@ -441,6 +441,8 @@ pub enum ErrorCode {
     InvalidSpotPosition,
     #[msg("Cant transfer between same user account")]
     CantTransferBetweenSameUserAccount,
+    #[msg("Invalid Perp Position")]
+    InvalidPerpPosition,
 }
 
 #[macro_export]

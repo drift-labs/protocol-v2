@@ -37,7 +37,10 @@ use crate::math::margin::{
     MarginRequirementType,
 };
 use crate::math::oracle::DriftAction;
-use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount};
+use crate::math::orders::{
+    get_position_delta_for_fill, is_multiple_of_step_size, standardize_base_asset_amount,
+    standardize_base_asset_amount_ceil,
+};
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
@@ -250,6 +253,11 @@ pub fn liquidate_perp(
         return Ok(());
     }
 
+    let liquidator_max_base_asset_amount = standardize_base_asset_amount(
+        liquidator_max_base_asset_amount,
+        perp_market_map.get_ref(&market_index)?.amm.order_step_size,
+    )?;
+
     validate!(
         liquidator_max_base_asset_amount != 0,
         ErrorCode::InvalidBaseAssetAmountForLiquidatePerp,
@@ -278,7 +286,7 @@ pub fn liquidate_perp(
     let market = perp_market_map.get_ref(&market_index)?;
     let liquidation_fee = market.liquidator_fee;
     let if_liquidation_fee = market.if_liquidation_fee;
-    let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount(
+    let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount_ceil(
         calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
             margin_ratio_with_buffer,
@@ -293,7 +301,7 @@ pub fn liquidate_perp(
     let base_asset_amount = user_base_asset_amount
         .min(liquidator_max_base_asset_amount)
         .min(base_asset_amount_to_cover_margin_shortage);
-    let base_asset_amount = standardize_base_asset_amount(
+    let base_asset_amount = standardize_base_asset_amount_ceil(
         base_asset_amount,
         perp_market_map.get_ref(&market_index)?.amm.order_step_size,
     )?;
@@ -363,6 +371,17 @@ pub fn liquidate_perp(
         update_quote_asset_and_break_even_amount(user_position, &mut market, liquidator_fee)?;
         update_quote_asset_and_break_even_amount(user_position, &mut market, if_fee)?;
 
+        validate!(
+            is_multiple_of_step_size(
+                user_position.base_asset_amount.unsigned_abs(),
+                market.amm.order_step_size
+            )?,
+            ErrorCode::InvalidPerpPosition,
+            "base asset amount {} step size {}",
+            user_position.base_asset_amount,
+            market.amm.order_step_size
+        )?;
+
         let liquidator_position = liquidator
             .force_get_perp_position_mut(market_index)
             .unwrap();
@@ -372,6 +391,17 @@ pub fn liquidate_perp(
             liquidator_position,
             &mut market,
             -liquidator_fee,
+        )?;
+
+        validate!(
+            is_multiple_of_step_size(
+                liquidator_position.base_asset_amount.unsigned_abs(),
+                market.amm.order_step_size
+            )?,
+            ErrorCode::InvalidPerpPosition,
+            "base asset amount {} step size {}",
+            liquidator_position.base_asset_amount,
+            market.amm.order_step_size
         )?;
 
         market.amm.total_liquidation_fee = market
