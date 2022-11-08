@@ -407,10 +407,12 @@ export function calculateSpreadBN(
 	minBaseAssetReserve: BN,
 	maxBaseAssetReserve: BN
 ): [number, number] {
+	console.log('-----');
 	let longSpread = baseSpread / 2;
 	let shortSpread = baseSpread / 2;
 
 	if (lastOracleReservePriceSpreadPct.gt(ZERO)) {
+		longSpread = Math.max(longSpread, lastOracleConfPct.toNumber() / 2);
 		shortSpread = Math.max(
 			shortSpread,
 			lastOracleReservePriceSpreadPct.abs().toNumber() +
@@ -422,7 +424,29 @@ export function calculateSpreadBN(
 			lastOracleReservePriceSpreadPct.abs().toNumber() +
 				lastOracleConfPct.toNumber()
 		);
+		shortSpread = Math.max(shortSpread, lastOracleConfPct.toNumber() / 2);
+	} else {
+		if (netBaseAssetAmount.gt(ZERO)) {
+			longSpread = Math.max(longSpread, lastOracleConfPct.toNumber());
+			shortSpread = Math.max(shortSpread, lastOracleConfPct.toNumber() / 2);
+		} else if (netBaseAssetAmount.lt(ZERO)) {
+			longSpread = Math.max(longSpread, lastOracleConfPct.toNumber() / 2);
+			shortSpread = Math.max(shortSpread, lastOracleConfPct.toNumber());
+		} else {
+			longSpread = Math.max(longSpread, lastOracleConfPct.toNumber() / 2);
+			shortSpread = Math.max(shortSpread, lastOracleConfPct.toNumber() / 2);
+		}
 	}
+
+	console.log(
+		'lastOracleReservePriceSpreadPct:',
+		lastOracleReservePriceSpreadPct.toString()
+	);
+
+	console.log('lastOracleConfPct:', lastOracleConfPct.toString());
+
+	console.log('longSpread:', longSpread.toString());
+	console.log('shortSpread:', shortSpread.toString());
 
 	const maxTargetSpread: number = Math.max(
 		maxSpread,
@@ -484,6 +508,10 @@ export function calculateSpreadBN(
 		}
 	}
 
+	console.log('maxTargetSpread:', maxTargetSpread.toString());
+	console.log('longSpread:', longSpread.toString());
+	console.log('shortSpread:', shortSpread.toString());
+
 	return [longSpread, shortSpread];
 }
 
@@ -504,7 +532,7 @@ export function calculateSpread(
 
 	const targetPrice = oraclePriceData?.price || reservePrice;
 	const confInterval = oraclePriceData.confidence || ZERO;
-
+	console.log('confInterval:', confInterval.toString());
 	const targetMarkSpreadPct = reservePrice
 		.sub(targetPrice)
 		.mul(BID_ASK_SPREAD_PRECISION)
@@ -513,7 +541,8 @@ export function calculateSpread(
 	const confIntervalPct = confInterval
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(reservePrice);
-
+	console.log('reservePrice:', reservePrice.toString());
+	console.log('confIntervalPct:', confIntervalPct.toString());
 	const [longSpread, shortSpread] = calculateSpreadBN(
 		amm.baseSpread,
 		targetMarkSpreadPct,

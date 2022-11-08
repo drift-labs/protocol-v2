@@ -123,13 +123,41 @@ pub fn calculate_spread(
                 .unsigned_abs()
                 .safe_add(last_oracle_conf_pct)?,
         );
-    } else {
+        short_spread = max(
+            short_spread,
+            last_oracle_conf_pct,
+        );
+    } else if last_oracle_reserve_price_spread_pct > 0 {
+        long_spread = max(
+            long_spread,
+            last_oracle_conf_pct,
+        );
         short_spread = max(
             short_spread,
             last_oracle_reserve_price_spread_pct
                 .unsigned_abs()
                 .safe_add(last_oracle_conf_pct)?,
         );
+    } else {
+        if base_asset_amount_with_amm > 0 {
+            long_spread = max(
+                long_spread,
+                last_oracle_conf_pct,
+            );
+            short_spread = max(
+                short_spread,
+                last_oracle_conf_pct / 2,
+            );
+        } else {
+            long_spread = max(
+                long_spread,
+                last_oracle_conf_pct / 2,
+            );
+            short_spread = max(
+                short_spread,
+                last_oracle_conf_pct,
+            );
+        }
     }
 
     // inventory scale
