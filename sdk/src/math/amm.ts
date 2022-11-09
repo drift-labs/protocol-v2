@@ -410,7 +410,7 @@ export function calculateSpreadBN(
 	let longSpread = baseSpread / 2;
 	let shortSpread = baseSpread / 2;
 
-	if (lastOracleReservePriceSpreadPct.gt(ZERO)) {
+	if (lastOracleReservePriceSpreadPct.gte(ZERO)) {
 		shortSpread = Math.max(
 			shortSpread,
 			lastOracleReservePriceSpreadPct.abs().toNumber() +
