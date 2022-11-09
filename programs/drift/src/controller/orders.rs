@@ -826,7 +826,7 @@ pub fn fill_perp_order(
             amm_is_available,
         )?;
 
-    if should_cancel_order_after_fulfill(user, order_index, slot)? {
+    if amm_is_available && should_cancel_order_after_fulfill(user, order_index, slot)? {
         updated_user_state = true;
 
         let filler_reward = {
