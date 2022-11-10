@@ -556,6 +556,22 @@ export class DriftClient {
 		);
 	}
 
+	public async updateUserMarginTradingEnabled(
+		marginTradingEnabled: boolean,
+		subAccountId = 0
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateUserMarginTradingEnabled(
+			subAccountId,
+			marginTradingEnabled,
+			{
+				accounts: {
+					user: await this.getUserAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+	}
+
 	public async updateUserDelegate(
 		delegate: PublicKey,
 		subAccountId = 0

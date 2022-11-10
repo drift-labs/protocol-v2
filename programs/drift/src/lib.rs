@@ -179,6 +179,14 @@ pub mod drift {
         handle_update_user_custom_margin_ratio(ctx, _sub_account_id, margin_ratio)
     }
 
+    pub fn update_user_margin_trading_enabled(
+        ctx: Context<UpdateUser>,
+        _sub_account_id: u16,
+        margin_trading_enabled: bool,
+    ) -> Result<()> {
+        handle_update_user_margin_trading_enabled(ctx, _sub_account_id, margin_trading_enabled)
+    }
+
     pub fn update_user_delegate(
         ctx: Context<UpdateUser>,
         _sub_account_id: u16,
