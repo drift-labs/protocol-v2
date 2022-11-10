@@ -8418,11 +8418,6 @@
       "code": 6217,
       "name": "CantTransferBetweenSameUserAccount",
       "msg": "Cant transfer between same user account"
-    },
-    {
-      "code": 6218,
-      "name": "InvalidPerpPosition",
-      "msg": "Invalid Perp Position"
     }
   ]
 }

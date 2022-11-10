@@ -376,7 +376,7 @@ pub fn liquidate_perp(
                 user_position.base_asset_amount.unsigned_abs(),
                 market.amm.order_step_size
             )?,
-            ErrorCode::InvalidPerpPosition,
+            ErrorCode::InvalidPerpPositionDetected,
             "base asset amount {} step size {}",
             user_position.base_asset_amount,
             market.amm.order_step_size
@@ -398,7 +398,7 @@ pub fn liquidate_perp(
                 liquidator_position.base_asset_amount.unsigned_abs(),
                 market.amm.order_step_size
             )?,
-            ErrorCode::InvalidPerpPosition,
+            ErrorCode::InvalidPerpPositionDetected,
             "base asset amount {} step size {}",
             liquidator_position.base_asset_amount,
             market.amm.order_step_size
