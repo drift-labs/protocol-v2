@@ -784,13 +784,8 @@ export class User {
 		const totalCollateral = this.getTotalCollateral('Maintenance');
 		const maintenanceMarginReq = this.getMaintenanceMarginRequirement();
 
-<<<<<<< Updated upstream
-		// console.log('totalCollateral:', totalCollateral.toNumber());
-		// console.log('maintenanceMarginReq:', maintenanceMarginReq.toNumber());
-=======
 		console.log('totalCollateral:', totalCollateral.toNumber());
 		console.log('maintenanceMarginReq:', maintenanceMarginReq.toNumber());
->>>>>>> Stashed changes
 
 		let health: number;
 
