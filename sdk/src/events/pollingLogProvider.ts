@@ -49,11 +49,11 @@ export class PollingLogProvider implements LogProvider {
 					skipHistory && this.firstFetch ? 1 : undefined
 				);
 
-				this.firstFetch = false;
-
 				if (response === undefined) {
 					return;
 				}
+
+				this.firstFetch = false;
 
 				const { mostRecentTx, transactionLogs } = response;
 
