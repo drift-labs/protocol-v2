@@ -110,6 +110,11 @@ pub fn calculate_spread(
     base_asset_reserve: u128,
     min_base_asset_reserve: u128,
     max_base_asset_reserve: u128,
+    mark_std: u64,
+    oracle_std: u64,
+    long_inten: u64,
+    short_inten: u64,
+    time_since_last_trade: i64,
 ) -> DriftResult<(u32, u32)> {
     let mut long_spread = (base_spread / 2) as u64;
     let mut short_spread = (base_spread / 2) as u64;
@@ -141,6 +146,25 @@ pub fn calculate_spread(
     } else {
         long_spread = max(long_spread, last_oracle_conf_pct / 2);
         short_spread = max(short_spread, last_oracle_conf_pct / 2);
+    }
+
+    oracle_std.safe_add(mark_std).safe_mul(time_since_last_trade.cast()?.integer_sqrt()).safe_div(2);
+
+    // intensity scale
+    let l_s_inten: i128 = long_inten.cast::<i128>()?.safe_sub(short_inten.cast::<i128>()?)?;
+    if l_s_inten > 0 {
+        long_spread *= 2;
+    } else {
+        short_spread *= 2;
+    }
+
+    // vol scale
+    if oracle_std > mark_std {
+        long_spread *= 2
+        short_spread *= 2
+    } else {
+        long_spread *= 2
+        short_spread *= 2
     }
 
     // inventory scale
