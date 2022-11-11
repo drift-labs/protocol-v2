@@ -32,7 +32,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
 ) -> DriftResult<(u64, Option<u64>)> {
     let limit_price = if let Some(override_limit_price) = override_limit_price {
         if let Some(limit_price) =
-            order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?
+            order.get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?
         {
             validate!(
                 (limit_price >= override_limit_price && order.direction == PositionDirection::Long)
@@ -47,7 +47,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
 
         Some(override_limit_price)
     } else {
-        order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?
+        order.get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?
     };
 
     if order.must_be_triggered() && !order.triggered() {
@@ -350,7 +350,8 @@ pub fn order_breaches_oracle_price_limits(
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
 ) -> DriftResult<bool> {
-    let order_limit_price = order.get_limit_price(Some(oracle_price), slot, tick_size)?;
+    let order_limit_price =
+        order.force_get_limit_price(Some(oracle_price), None, slot, tick_size)?;
     let oracle_price = oracle_price.unsigned_abs();
 
     let max_percent_diff = margin_ratio_initial.safe_sub(margin_ratio_maintenance)?;
@@ -537,4 +538,11 @@ pub fn validate_fill_price(
     }
 
     Ok(())
+}
+
+pub fn get_fallback_price(direction: &PositionDirection, bid_price: u64, ask_price: u64) -> u64 {
+    match direction {
+        PositionDirection::Long => ask_price,
+        PositionDirection::Short => bid_price,
+    }
 }
