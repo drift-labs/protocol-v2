@@ -626,6 +626,12 @@ impl Order {
     pub fn is_limit_order(&self) -> bool {
         matches!(self.order_type, OrderType::Limit | OrderType::TriggerLimit)
     }
+
+    pub fn has_limit_price(self, slot: u64) -> DriftResult<bool> {
+        Ok(self.price > 0
+            || self.has_oracle_price_offset()
+            || !is_auction_complete(self.slot, self.auction_duration, slot)?)
+    }
 }
 
 impl Default for Order {

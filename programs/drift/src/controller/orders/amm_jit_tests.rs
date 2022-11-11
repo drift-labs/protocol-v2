@@ -1186,9 +1186,8 @@ pub mod amm_jit {
                 < market.amm.base_asset_amount_with_amm.abs()
         );
 
-        // mm gains from trade
-        let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
-        assert!(quote_asset_amount_surplus > 0);
+        let total_fee_delta = market_after.amm.total_fee - market.amm.total_fee;
+        assert!(total_fee_delta > 0);
     }
 
     #[test]
