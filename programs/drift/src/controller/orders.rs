@@ -746,18 +746,6 @@ pub fn fill_perp_order(
     let (mut referrer, mut referrer_stats) =
         sanitize_referrer(referrer, referrer_stats, user_stats)?;
 
-    let order_breaches_oracle_price = {
-        let market = perp_market_map.get_ref(&market_index)?;
-        order_breaches_oracle_price_limits(
-            &user.orders[order_index],
-            oracle_price,
-            slot,
-            market.amm.order_tick_size,
-            market.margin_ratio_initial,
-            market.margin_ratio_maintenance,
-        )?
-    };
-
     let should_expire_order = should_expire_order(user, order_index, now)?;
 
     let existing_base_asset_amount = user
@@ -768,7 +756,7 @@ pub fn fill_perp_order(
         existing_base_asset_amount,
     )?;
 
-    if should_expire_order || order_breaches_oracle_price || should_cancel_reduce_only_order {
+    if should_expire_order || should_cancel_reduce_only_order {
         let filler_reward = {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
             pay_keeper_flat_reward_for_perps(
@@ -781,8 +769,6 @@ pub fn fill_perp_order(
 
         let explanation = if should_expire_order {
             OrderActionExplanation::OrderExpired
-        } else if order_breaches_oracle_price {
-            OrderActionExplanation::OraclePriceBreachedLimitPrice
         } else {
             OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
         };
