@@ -2842,6 +2842,7 @@ pub mod fill_order {
         let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         let mut user = User {
+            authority: Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap(), // different authority than filler
             orders: get_orders(Order {
                 market_index: 0,
                 order_id: 1,
@@ -2969,6 +2970,7 @@ pub mod fill_order {
         let mut oracle_map = get_oracle_map();
 
         let mut user = User {
+            authority: Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap(),
             orders: get_orders(Order {
                 market_index: 0,
                 order_id: 1,

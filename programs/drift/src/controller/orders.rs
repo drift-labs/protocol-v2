@@ -716,7 +716,12 @@ pub fn fill_perp_order(
     let is_filler_taker = user_key == filler_key;
     let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
-        (Some(load_mut!(filler)?), Some(load_mut!(filler_stats)?))
+        let filler = load_mut!(filler)?;
+        if filler.authority != user.authority {
+            (Some(filler), Some(load_mut!(filler_stats)?))
+        } else {
+            (None, None)
+        }
     } else {
         (None, None)
     };
@@ -2708,7 +2713,12 @@ pub fn fill_spot_order(
     let is_filler_taker = user_key == filler_key;
     let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
-        (Some(load_mut!(filler)?), Some(load_mut!(filler_stats)?))
+        let filler = load_mut!(filler)?;
+        if filler.authority != user.authority {
+            (Some(filler), Some(load_mut!(filler_stats)?))
+        } else {
+            (None, None)
+        }
     } else {
         (None, None)
     };
