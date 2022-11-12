@@ -22,9 +22,9 @@ import {
 	StateAccount,
 	isMarketOrder,
 	isLimitOrder,
-	getOptionalLimitPrice,
 	mustBeTriggered,
 	isTriggered,
+	getLimitPrice,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -427,11 +427,7 @@ export class DLOB {
 				continue;
 			}
 
-			const askLimitPrice = getOptionalLimitPrice(
-				askNode.order,
-				oraclePriceData,
-				slot
-			);
+			const askLimitPrice = getLimitPrice(askNode.order, oraclePriceData, slot);
 
 			// order crosses if there is no limit price or it crosses fallback price
 			const crosses =
@@ -460,11 +456,7 @@ export class DLOB {
 				continue;
 			}
 
-			const bidLimitPrice = getOptionalLimitPrice(
-				bidNode.order,
-				oraclePriceData,
-				slot
-			);
+			const bidLimitPrice = getLimitPrice(bidNode.order, oraclePriceData, slot);
 
 			// order crosses if there is no limit price or it crosses fallback price
 			const crosses =
@@ -584,7 +576,8 @@ export class DLOB {
 		fallbackAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		priceFilter?: 'hasPrice' | 'noPrice'
 	): Generator<DLOBNode> {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot asks');
@@ -632,6 +625,9 @@ export class DLOB {
 						oraclePriceData,
 						slot
 					);
+
+					if (!bestAskPrice) {
+					}
 
 					return bestAskPrice.lt(currentAskPrice)
 						? bestGenerator
