@@ -777,15 +777,11 @@ export class User {
 			isVariant(userAccount.status, 'being_liquidated') ||
 			isVariant(userAccount.status, 'bankrupt')
 		) {
-			console.log('health=0 from status');
 			return 0;
 		}
 
 		const totalCollateral = this.getTotalCollateral('Maintenance');
 		const maintenanceMarginReq = this.getMaintenanceMarginRequirement();
-
-		console.log('totalCollateral:', totalCollateral.toNumber());
-		console.log('maintenanceMarginReq:', maintenanceMarginReq.toNumber());
 
 		let health: number;
 
@@ -799,24 +795,19 @@ export class User {
 
 			const marginRatio =
 				this.getMarginRatio().toNumber() / MARGIN_PRECISION.toNumber();
-			console.log('marginRatio:', marginRatio);
 
 			const maintenanceRatio =
 				(maintenanceMarginReq.toNumber() / totalCollateral.toNumber()) *
 				marginRatio;
-			console.log('maintenanceRatio:', maintenanceRatio);
 
 			const healthP1 = Math.max(0, (marginRatio - maintenanceRatio) * 100) + 1;
-			console.log(healthP1);
 
 			health = Math.min(1, Math.log(healthP1) / Math.log(100)) * 100;
-			console.log(health);
 			if (health > 1) {
 				health = Math.round(health);
 			} else {
 				health = Math.round(health * 100) / 100;
 			}
-			console.log(health);
 		}
 
 		return health;
@@ -1166,7 +1157,6 @@ export class User {
 		const mmr = this.getMaintenanceMarginRequirement();
 
 		const deltaValueToLiq = mtc.sub(mmr); // QUOTE_PRECISION
-		console.log('deltaValueToLiq:', deltaValueToLiq.toString());
 
 		const currentSpotMarket = this.driftClient.getSpotMarketAccount(
 			spotPosition.marketIndex
@@ -1179,7 +1169,7 @@ export class User {
 		const tokenAmountQP = tokenAmount
 			.mul(QUOTE_PRECISION)
 			.div(new BN(10 ** currentSpotMarket.decimals));
-		// console.log('tokenAmountQP:', tokenAmountQP.toString());
+
 		if (tokenAmountQP.abs().eq(ZERO)) {
 			return new BN(-1);
 		}
@@ -1198,12 +1188,10 @@ export class User {
 				.div(new BN(currentSpotMarket.maintenanceAssetWeight))
 				.mul(new BN(-1));
 		}
-		console.log('liqPriceDelta:', liqPriceDelta.toString());
 
 		const currentPrice = this.driftClient.getOracleDataForSpotMarket(
 			spotPosition.marketIndex
 		).price;
-		console.log('currentPrice:', currentPrice.toString());
 
 		const liqPrice = currentPrice.add(liqPriceDelta);
 
