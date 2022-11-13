@@ -1405,7 +1405,7 @@ describe('DLOB Perp Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			12, // auction over
 			MarketType.PERP,
@@ -1414,7 +1414,10 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -1446,7 +1449,7 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			12, // auction over
 			MarketType.PERP,
@@ -1455,7 +1458,10 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		console.log(`Filled nodes: ${nodesToFillAfter.length}`);
 		for (const n of nodesToFillAfter) {
@@ -1544,7 +1550,7 @@ describe('DLOB Perp Tests', () => {
 		const endSlot = 12;
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			endSlot,
 			MarketType.PERP,
@@ -1553,7 +1559,10 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(endSlot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -1572,7 +1581,7 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			endSlot,
 			MarketType.PERP,
@@ -1581,7 +1590,10 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(endSlot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		console.log(`Filled nodes: ${nodesToFillAfter.length}`);
 		for (const n of nodesToFillAfter) {
@@ -1690,11 +1702,14 @@ describe('DLOB Perp Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			12, // auction over
 			MarketType.PERP,
-			oracle
+			oracle,
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -1726,11 +1741,14 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			slot, // auction over
 			MarketType.PERP,
-			oracle
+			oracle,
+			false,
+			undefined,
+			undefined
 		);
 		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
@@ -2397,11 +2415,14 @@ describe('DLOB Perp Tests', () => {
 		// should have no crossing orders
 		const auctionOverSlot = slot * 10;
 		const auctionOverTs = ts * 10;
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			auctionOverSlot, // auction over
 			MarketType.PERP,
-			oracle
+			oracle,
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -2551,11 +2572,14 @@ describe('DLOB Perp Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			slot,
 			MarketType.PERP,
-			oracle
+			oracle,
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -2587,11 +2611,14 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			slot, // auction in progress
 			MarketType.PERP,
-			oracle
+			oracle,
+			false,
+			undefined,
+			undefined
 		);
 		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
@@ -3873,7 +3900,7 @@ describe('DLOB Spot Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			12, // auction over
 			MarketType.SPOT,
@@ -3882,7 +3909,10 @@ describe('DLOB Spot Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -3914,7 +3944,7 @@ describe('DLOB Spot Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			12, // auction over
 			MarketType.SPOT,
@@ -3923,7 +3953,10 @@ describe('DLOB Spot Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		for (const n of nodesToFillAfter) {
 			console.log(
@@ -4011,7 +4044,7 @@ describe('DLOB Spot Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			12, // auction over
 			MarketType.SPOT,
@@ -4020,7 +4053,10 @@ describe('DLOB Spot Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -4039,7 +4075,7 @@ describe('DLOB Spot Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			12, // auction over
 			MarketType.SPOT,
@@ -4048,7 +4084,10 @@ describe('DLOB Spot Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		for (const n of nodesToFillAfter) {
 			console.log(
@@ -4147,11 +4186,14 @@ describe('DLOB Spot Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			12, // auction over
 			MarketType.SPOT,
-			oracle
+			oracle,
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -4183,11 +4225,14 @@ describe('DLOB Spot Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			slot, // auction over
 			MarketType.SPOT,
-			oracle
+			oracle,
+			false,
+			undefined,
+			undefined
 		);
 		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
