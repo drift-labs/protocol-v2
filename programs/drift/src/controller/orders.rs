@@ -751,10 +751,8 @@ pub fn fill_perp_order(
     let existing_base_asset_amount = user
         .get_perp_position(user.orders[order_index].market_index)?
         .base_asset_amount;
-    let should_cancel_reduce_only_order = should_cancel_reduce_only_spot_order(
-        &user.orders[order_index],
-        existing_base_asset_amount,
-    )?;
+    let should_cancel_reduce_only_order =
+        should_cancel_reduce_only_order(&user.orders[order_index], existing_base_asset_amount)?;
 
     if should_expire_order || should_cancel_reduce_only_order {
         let filler_reward = {
@@ -1036,7 +1034,7 @@ fn sanitize_maker_order<'a>(
     let existing_base_asset_amount = maker
         .get_perp_position(maker.orders[maker_order_index].market_index)?
         .base_asset_amount;
-    let should_cancel_reduce_only_order = should_cancel_reduce_only_spot_order(
+    let should_cancel_reduce_only_order = should_cancel_reduce_only_order(
         &maker.orders[maker_order_index],
         existing_base_asset_amount,
     )?;
@@ -2733,10 +2731,7 @@ pub fn fill_spot_order(
         let spot_market = spot_market_map.get_ref(&market_index)?;
         let signed_token_amount =
             user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
-        should_cancel_reduce_only_spot_order(
-            &user.orders[order_index],
-            signed_token_amount.cast()?,
-        )?
+        should_cancel_reduce_only_order(&user.orders[order_index], signed_token_amount.cast()?)?
     } else {
         false
     };
@@ -2917,7 +2912,7 @@ fn sanitize_spot_maker_order<'a>(
             maker.get_spot_position_index(maker.orders[maker_order_index].market_index)?;
         let signed_token_amount =
             maker.spot_positions[spot_position_index].get_signed_token_amount(&spot_market)?;
-        should_cancel_reduce_only_spot_order(
+        should_cancel_reduce_only_order(
             &maker.orders[maker_order_index],
             signed_token_amount.cast()?,
         )?

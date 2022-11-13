@@ -327,7 +327,7 @@ pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> Dr
     Ok(now > order.max_ts)
 }
 
-pub fn should_cancel_reduce_only_spot_order(
+pub fn should_cancel_reduce_only_order(
     order: &Order,
     existing_base_asset_amount: i64,
 ) -> DriftResult<bool> {
