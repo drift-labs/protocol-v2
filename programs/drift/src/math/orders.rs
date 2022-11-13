@@ -335,7 +335,7 @@ pub fn should_cancel_reduce_only_spot_order(
         && !order.post_only
         && !is_order_position_reducing(
             &order.direction,
-            order.base_asset_amount,
+            order.get_base_asset_amount_unfilled()?,
             existing_base_asset_amount,
         )?;
 
