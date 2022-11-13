@@ -798,8 +798,7 @@ export class User {
 			// const maintenanceMarginReq = this.getMaintenanceMarginRequirement();
 
 			const marginRatio =
-				this.getMarginRatio('Maintenance').toNumber() /
-				MARGIN_PRECISION.toNumber();
+				this.getMarginRatio().toNumber() / MARGIN_PRECISION.toNumber();
 			console.log('marginRatio:', marginRatio);
 
 			const maintenanceRatio =
