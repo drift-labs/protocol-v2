@@ -5,6 +5,14 @@ import {
 	bulkPollingUserSubscribe,
 	OrderRecord,
 	UserSubscriptionConfig,
+	WrappedEvent,
+	DepositRecord,
+	FundingPaymentRecord,
+	LiquidationRecord,
+	OrderActionRecord,
+	SettlePnlRecord,
+	NewUserRecord,
+	LPRecord,
 } from '..';
 import { ProgramAccount } from '@project-serum/anchor';
 
@@ -117,6 +125,42 @@ export class UserMap implements UserMapInterface {
 	public async updateWithOrderRecord(record: OrderRecord) {
 		if (!this.has(record.user.toString())) {
 			await this.addPubkey(record.user);
+		}
+	}
+
+	public async updateWithEventRecord(record: WrappedEvent<any>) {
+		if (record.eventType === 'DepositRecord') {
+			const depositRecord = record as DepositRecord;
+			await this.mustGet(depositRecord.user.toString());
+		} else if (record.eventType === 'FundingPaymentRecord') {
+			const fundingPaymentRecord = record as FundingPaymentRecord;
+			await this.mustGet(fundingPaymentRecord.user.toString());
+		} else if (record.eventType === 'LiquidationRecord') {
+			const liqRecord = record as LiquidationRecord;
+
+			await this.mustGet(liqRecord.user.toString());
+			await this.mustGet(liqRecord.liquidator.toString());
+		} else if (record.eventType === 'OrderRecord') {
+			const orderRecord = record as OrderRecord;
+			await this.updateWithOrderRecord(orderRecord);
+		} else if (record.eventType === 'OrderActionRecord') {
+			const actionRecord = record as OrderActionRecord;
+
+			if (actionRecord.taker) {
+				await this.mustGet(actionRecord.taker.toString());
+			}
+			if (actionRecord.maker) {
+				await this.mustGet(actionRecord.maker.toString());
+			}
+		} else if (record.eventType === 'SettlePnlRecord') {
+			const settlePnlRecord = record as SettlePnlRecord;
+			await this.mustGet(settlePnlRecord.user.toString());
+		} else if (record.eventType === 'NewUserRecord') {
+			const newUserRecord = record as NewUserRecord;
+			await this.mustGet(newUserRecord.user.toString());
+		} else if (record.eventType === 'LPRecord') {
+			const lpRecord = record as LPRecord;
+			await this.mustGet(lpRecord.user.toString());
 		}
 	}
 
