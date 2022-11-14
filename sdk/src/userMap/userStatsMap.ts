@@ -105,4 +105,8 @@ export class UserStatsMap {
 	public values(): IterableIterator<UserStats> {
 		return this.userStatsMap.values();
 	}
+
+	public size(): number {
+		return this.userStatsMap.size;
+	}
 }

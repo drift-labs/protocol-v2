@@ -123,4 +123,8 @@ export class UserMap implements UserMapInterface {
 	public values(): IterableIterator<User> {
 		return this.userMap.values();
 	}
+
+	public size(): number {
+		return this.userMap.size;
+	}
 }
