@@ -434,8 +434,8 @@ export class DLOB {
 				oraclePriceData,
 				bidGenerator,
 				fallbackAsk,
-				(askPrice, fallbackPrice) => {
-					return askPrice.gte(fallbackPrice);
+				(bidPrice, fallbackPrice) => {
+					return bidPrice.gte(fallbackPrice);
 				}
 			);
 
@@ -499,8 +499,8 @@ export class DLOB {
 			}
 		}
 
-		marketOrderGenerator = this.getMarketAsks(marketIndex, marketType);
-		limitOrderGenerator = this.getBids(
+		marketOrderGenerator = this.getMarketBids(marketIndex, marketType);
+		limitOrderGenerator = this.getAsks(
 			marketIndex,
 			undefined,
 			slot,
@@ -531,8 +531,8 @@ export class DLOB {
 					oraclePriceData,
 					marketOrderGenerator,
 					fallbackAsk,
-					(takerPrice, makerPrice) => {
-						return takerPrice === undefined || takerPrice.gte(makerPrice);
+					(takerPrice, fallbackPrice) => {
+						return takerPrice === undefined || takerPrice.gte(fallbackPrice);
 					}
 				);
 			for (const marketBidCrossingFallback of marketBidsCrossingFallback) {
@@ -583,6 +583,8 @@ export class DLOB {
 
 			const ordersCross = doesCross(takerPrice, makerPrice);
 			if (!ordersCross) {
+				// market orders aren't sorted by price, they are sorted by time, so we need to traverse
+				// through all of em
 				nextTakerNode = takerNodeGenerator.next();
 				continue;
 			}
@@ -641,7 +643,7 @@ export class DLOB {
 		const nodesToFill = new Array<NodeToFill>();
 
 		let nextNode = nodeGenerator.next();
-		while (!nextNode.done && fallbackPrice !== undefined) {
+		while (!nextNode.done) {
 			const node = nextNode.value;
 
 			if (isVariant(marketType, 'spot') && node.order?.postOnly) {
@@ -666,95 +668,6 @@ export class DLOB {
 			}
 
 			nextNode = nodeGenerator.next();
-		}
-
-		return nodesToFill;
-	}
-
-	public findFallbackCrossingNodesToFill(
-		marketIndex: number,
-		fallbackBid: BN,
-		fallbackAsk: BN,
-		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData
-	): NodeToFill[] {
-		const nodesToFill = new Array<NodeToFill>();
-
-		const askGenerator = this.getAsks(
-			marketIndex,
-			undefined, // dont include vask
-			slot,
-			marketType,
-			oraclePriceData
-		);
-		const bidGenerator = this.getBids(
-			marketIndex,
-			undefined, // dont include vbid
-			slot,
-			marketType,
-			oraclePriceData
-		);
-
-		let nextAsk = askGenerator.next();
-		let nextBid = bidGenerator.next();
-
-		// check for asks that cross fallbackBid
-		while (!nextAsk.done && fallbackBid !== undefined) {
-			const askNode = nextAsk.value;
-
-			if (isVariant(marketType, 'spot') && askNode.order?.postOnly) {
-				nextAsk = askGenerator.next();
-				continue;
-			}
-
-			const askLimitPrice = getLimitPrice(askNode.order, oraclePriceData, slot);
-
-			// order crosses if there is no limit price or it crosses fallback price
-			const crosses =
-				askLimitPrice === undefined || askLimitPrice.lte(fallbackBid);
-
-			// fallback is available if auction is complete or it's a spot order
-			const fallbackAvailable =
-				isVariant(marketType, 'spot') || isAuctionComplete(askNode.order, slot);
-
-			if (crosses && fallbackAvailable) {
-				nodesToFill.push({
-					node: askNode,
-					makerNode: undefined, // filled by fallback
-				});
-			}
-
-			nextAsk = askGenerator.next();
-		}
-
-		// check for bids that cross fallbackAsk
-		while (!nextBid.done && fallbackAsk !== undefined) {
-			const bidNode = nextBid.value;
-
-			if (isVariant(marketType, 'spot') && bidNode.order?.postOnly) {
-				nextBid = bidGenerator.next();
-				continue;
-			}
-
-			const bidLimitPrice = getLimitPrice(bidNode.order, oraclePriceData, slot);
-
-			// order crosses if there is no limit price or it crosses fallback price
-			const crosses =
-				bidLimitPrice === undefined || bidLimitPrice.gte(fallbackAsk);
-
-			// fallback is available if auction is complete or it's a spot order
-			const fallbackAvailable =
-				isVariant(marketType, 'spot') || isAuctionComplete(bidNode.order, slot);
-
-			if (crosses && fallbackAvailable) {
-				nodesToFill.push({
-					node: bidNode,
-					makerNode: undefined, // filled by fallback
-				});
-			}
-
-			nextBid = bidGenerator.next();
 		}
 
 		return nodesToFill;
