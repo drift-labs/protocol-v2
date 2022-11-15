@@ -3824,7 +3824,7 @@ pub mod resolve_perp_bankruptcy {
         expected_affected_short_user.perp_positions[0].quote_asset_amount =
             450 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_short_user.perp_positions[0].quote_break_even_amount =
-            550 * QUOTE_PRECISION_I64; // loses $50
+            450 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_short_user.perp_positions[0].last_cumulative_funding_rate =
             -1010 * FUNDING_RATE_PRECISION_I64;
         expected_affected_short_user.cumulative_perp_funding = -50 * QUOTE_PRECISION_I64;
