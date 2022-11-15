@@ -17,6 +17,9 @@ import {
 	getTokenAmount,
 	SpotBalanceType,
 	isVariant,
+	User,
+	QUOTE_PRECISION,
+	convertToNumber,
 } from '../sdk/src';
 
 import {
@@ -28,6 +31,7 @@ import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
+	sleep,
 } from './testHelpers';
 
 describe('liquidate spot', () => {
@@ -130,9 +134,83 @@ describe('liquidate spot', () => {
 	});
 
 	it('liquidate', async () => {
+		const user = new User({
+			driftClient: driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		});
+		await user.subscribe();
+		await driftClient.fetchAccounts();
+		const healthBefore100 = user.getHealth();
+		console.log('healthBefore100:', healthBefore100);
+		assert(healthBefore100 == 98);
+
+		console.log(
+			'spotLiquidationPrice:',
+			convertToNumber(user.spotLiquidationPrice(user.getSpotPosition(1)))
+		);
+
+		await setFeedPrice(anchor.workspace.Pyth, 179, solOracle);
+		await sleep(1000);
+
+		await driftClient.fetchAccounts();
+		await user.fetchAccounts();
+		const healthBefore179 = user.getHealth();
+		console.log('healthBefore179:', healthBefore179);
+		assert(healthBefore179 == 22);
+		console.log(
+			'spotLiquidationPrice:',
+			convertToNumber(user.spotLiquidationPrice(user.getSpotPosition(1)))
+		);
+
+		let mtc = user.getTotalCollateral('Maintenance');
+		let mmr = user.getMaintenanceMarginRequirement();
+		console.log(
+			'$',
+			convertToNumber(mtc.sub(mmr), QUOTE_PRECISION),
+			'away from liq'
+		);
+
+		await setFeedPrice(
+			anchor.workspace.Pyth,
+			179 + convertToNumber(mtc.sub(mmr), QUOTE_PRECISION) * (2 / 1.1 - 0.001),
+			solOracle
+		);
+		await sleep(1000);
+
+		await driftClient.fetchAccounts();
+		await user.fetchAccounts();
+
+		mtc = user.getTotalCollateral('Maintenance');
+		mmr = user.getMaintenanceMarginRequirement();
+		console.log(
+			'$',
+			convertToNumber(mtc.sub(mmr), QUOTE_PRECISION),
+			'away from liq'
+		);
+
+		const healthBefore181 = user.getHealth();
+		console.log('healthBefore181:', healthBefore181);
+		assert(healthBefore181 == 0.02);
+		console.log(
+			'spotLiquidationPrice:',
+			convertToNumber(
+				user.spotLiquidationPrice(user.getSpotPosition(1)),
+				PRICE_PRECISION
+			)
+		);
+
 		await setFeedPrice(anchor.workspace.Pyth, 190, solOracle);
+		await sleep(1000);
+
 		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
 		const spotMarket1Before = driftClient.getSpotMarketAccount(1);
+		await driftClient.fetchAccounts();
+		await user.fetchAccounts();
+
+		const healthAfter = user.getHealth();
+		console.log('healthAfter:', healthAfter);
+		assert(healthAfter == 0);
+		await user.unsubscribe();
 
 		const txSig = await liquidatorDriftClient.liquidateSpot(
 			await driftClient.getUserAccountPublicKey(),
@@ -197,7 +275,9 @@ describe('liquidate spot', () => {
 		console.log(liquidationRecord.liquidateSpot.assetTransfer.toString());
 		assert(
 			liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826635)) ||
-				liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826010))
+				liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826010)) ||
+				liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58827867)) ||
+				liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58828492))
 		);
 		assert(
 			liquidationRecord.liquidateSpot.liabilityPrice.eq(
@@ -211,7 +291,13 @@ describe('liquidate spot', () => {
 		);
 		assert(
 			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309613873)) ||
-				liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309610584))
+				liquidationRecord.liquidateSpot.liabilityTransfer.eq(
+					new BN(309610584)
+				) ||
+				liquidationRecord.liquidateSpot.liabilityTransfer.eq(
+					new BN(309620356)
+				) ||
+				liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309623645))
 		);
 
 		// if fee costs 1/100th of liability transfer
