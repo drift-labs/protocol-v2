@@ -443,6 +443,8 @@ pub enum ErrorCode {
     CantTransferBetweenSameUserAccount,
     #[msg("Invalid Perp Position")]
     InvalidPerpPosition,
+    #[msg("Invalid Liquidation")]
+    InvalidLiquidation,
 }
 
 #[macro_export]

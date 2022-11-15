@@ -846,6 +846,22 @@ pub fn liquidate_spot(
         liability_price,
     )?;
 
+    if asset_transfer == 0 || liability_transfer == 0 {
+        msg!(
+            "asset_market_index {} liability_market_index {}",
+            asset_market_index,
+            liability_market_index
+        );
+        msg!("liquidator_max_liability_transfer {} liability_amount {} liability_transfer_to_cover_margin_shortage {}", liquidator_max_liability_transfer, liability_amount, liability_transfer_to_cover_margin_shortage);
+        msg!(
+            "liability_transfer_implied_by_asset_amount {} liability_transfer {} asset_transfer {}",
+            liability_transfer_implied_by_asset_amount,
+            liability_transfer,
+            asset_transfer
+        );
+        return Err(ErrorCode::InvalidLiquidation);
+    }
+
     validate_transfer_satisfies_limit_price(
         asset_transfer,
         liability_transfer,
@@ -1255,6 +1271,22 @@ pub fn liquidate_borrow_for_perp_pnl(
         liability_price,
     )?;
 
+    if liability_transfer == 0 || pnl_transfer == 0 {
+        msg!(
+            "perp_market_index {} liability_market_index {}",
+            perp_market_index,
+            liability_market_index
+        );
+        msg!("liquidator_max_liability_transfer {} liability_amount {} liability_transfer_to_cover_margin_shortage {}", liquidator_max_liability_transfer, liability_amount, liability_transfer_to_cover_margin_shortage);
+        msg!(
+            "liability_transfer_implied_by_pnl {} liability_transfer {} pnl_transfer {}",
+            liability_transfer_implied_by_pnl,
+            liability_transfer,
+            pnl_transfer
+        );
+        return Err(ErrorCode::InvalidLiquidation);
+    }
+
     validate_transfer_satisfies_limit_price(
         pnl_transfer,
         liability_transfer,
@@ -1639,6 +1671,22 @@ pub fn liquidate_perp_pnl_for_deposit(
         quote_decimals,
         quote_price,
     )?;
+
+    if asset_transfer == 0 || pnl_transfer == 0 {
+        msg!(
+            "asset_market_index {} perp_market_index {}",
+            asset_market_index,
+            perp_market_index
+        );
+        msg!("liquidator_max_pnl_transfer {} unsettled_pnl {} pnl_transfer_to_cover_margin_shortage {}", liquidator_max_pnl_transfer, unsettled_pnl, pnl_transfer_to_cover_margin_shortage);
+        msg!(
+            "pnl_transfer_implied_by_asset_amount {} pnl_transfer {} asset_transfer {}",
+            pnl_transfer_implied_by_asset_amount,
+            pnl_transfer,
+            asset_transfer
+        );
+        return Err(ErrorCode::InvalidLiquidation);
+    }
 
     validate_transfer_satisfies_limit_price(
         asset_transfer,
