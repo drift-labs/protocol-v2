@@ -633,6 +633,13 @@ pub fn liquidate_spot(
 
         let token_amount = spot_deposit_position.get_token_amount(&asset_market)?;
 
+        validate!(
+            token_amount != 0,
+            ErrorCode::InvalidSpotPosition,
+            "asset token amount zero for market index = {}",
+            asset_market_index
+        )?;
+
         let asset_price = asset_price_data.price;
         (
             token_amount,
@@ -675,6 +682,13 @@ pub fn liquidate_spot(
         )?;
 
         let token_amount = spot_position.get_token_amount(&liability_market)?;
+
+        validate!(
+            token_amount != 0,
+            ErrorCode::InvalidSpotPosition,
+            "liability token amount zero for market index = {}",
+            liability_market_index
+        )?;
 
         let liability_price = liability_price_data.price;
 
@@ -1076,6 +1090,13 @@ pub fn liquidate_borrow_for_perp_pnl(
 
         let token_amount = spot_position.get_token_amount(&liability_market)?;
 
+        validate!(
+            token_amount != 0,
+            ErrorCode::InvalidSpotPosition,
+            "liability token amount zero for market index = {}",
+            liability_market_index
+        )?;
+
         (
             token_amount,
             liability_price_data.price,
@@ -1406,6 +1427,13 @@ pub fn liquidate_perp_pnl_for_deposit(
         )?;
 
         let token_amount = spot_position.get_token_amount(&asset_market)?;
+
+        validate!(
+            token_amount != 0,
+            ErrorCode::InvalidSpotPosition,
+            "asset token amount zero for market index = {}",
+            asset_market_index
+        )?;
 
         (
             token_amount,
