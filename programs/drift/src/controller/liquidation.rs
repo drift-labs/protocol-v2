@@ -21,7 +21,7 @@ use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    LIQUIDATION_FEE_PRECISION_U128, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
+    LIQUIDATION_FEE_PRECISION_U128, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
@@ -30,7 +30,8 @@ use crate::math::liquidation::{
     calculate_funding_rate_deltas_to_resolve_bankruptcy,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
-    validate_transfer_satisfies_limit_price, LiquidationMultiplierType,
+    calculate_one_quote_worth_of_token, validate_transfer_satisfies_limit_price,
+    LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
@@ -824,9 +825,13 @@ pub fn liquidate_spot(
             liability_price,
         )?;
 
+    let one_quote_worth_of_liability =
+        calculate_one_quote_worth_of_token(liability_price, liability_decimals)?;
+
     let liability_transfer = liquidator_max_liability_transfer
         .min(liability_amount)
-        .min(liability_transfer_to_cover_margin_shortage)
+        // want to make sure the liability_transfer_to_cover_margin_shortage doesn't lead to dust positions
+        .min(liability_transfer_to_cover_margin_shortage.max(one_quote_worth_of_liability))
         .min(liability_transfer_implied_by_asset_amount);
 
     // Given the borrow amount to transfer, determine how much deposit amount to transfer
@@ -1229,9 +1234,13 @@ pub fn liquidate_borrow_for_perp_pnl(
         liability_price,
     )?;
 
+    let one_quote_worth_of_liability =
+        calculate_one_quote_worth_of_token(liability_price, liability_decimals)?;
+
     let liability_transfer = liquidator_max_liability_transfer
         .min(liability_amount)
-        .min(liability_transfer_to_cover_margin_shortage)
+        // want to make sure the liability_transfer_to_cover_margin_shortage doesn't lead to dust positions
+        .min(liability_transfer_to_cover_margin_shortage.max(one_quote_worth_of_liability))
         .min(liability_transfer_implied_by_pnl);
 
     // Given the borrow amount to transfer, determine how much deposit amount to transfer
@@ -1615,7 +1624,8 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     let pnl_transfer = liquidator_max_pnl_transfer
         .min(unsettled_pnl)
-        .min(pnl_transfer_to_cover_margin_shortage)
+        // want to make sure the pnl_transfer_to_cover_margin_shortage doesn't lead to dust pnl
+        .min(pnl_transfer_to_cover_margin_shortage.max(QUOTE_PRECISION))
         .min(pnl_transfer_implied_by_asset_amount);
 
     // Given the borrow amount to transfer, determine how much deposit amount to transfer

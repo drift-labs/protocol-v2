@@ -322,3 +322,7 @@ pub fn validate_transfer_satisfies_limit_price(
         limit_price
     )
 }
+
+pub fn calculate_one_quote_worth_of_token(oracle_price: i64, decimals: u32) -> DriftResult<u128> {
+    10_u128.pow(decimals + 6).safe_div(oracle_price.cast()?)
+}
