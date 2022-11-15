@@ -515,8 +515,18 @@ mod calculate_one_quote_worth_of_token {
         let price = 50000 * PRICE_PRECISION_I64;
         let decimals = 6;
 
-        let one_quote_worth_of_sol = calculate_one_quote_worth_of_token(price, decimals).unwrap();
+        let one_quote_worth_of_btc = calculate_one_quote_worth_of_token(price, decimals).unwrap();
 
-        assert_eq!(one_quote_worth_of_sol, 20);
+        assert_eq!(one_quote_worth_of_btc, 20);
+    }
+
+    #[test]
+    fn dog() {
+        let price = 1;
+        let decimals = 9;
+
+        let one_quote_worth_of_dog = calculate_one_quote_worth_of_token(price, decimals).unwrap();
+
+        assert_eq!(one_quote_worth_of_dog, 1000000000000000);
     }
 }
