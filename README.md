@@ -27,8 +27,23 @@ git submodule update --init --recursive
 anchor build 
 # build deps
 cd deps/serum-dex/dex && anchor build && cd ../../..
-# run rust tests 
+```
+
+## Running Rust Test
+
+```bash
 cargo test
+```
+
+## Running Javascript Tests
+
+```bash
+# install packages
+yarn
+# build sdk 
+cd sdk/ && yarn && yarn build && cd ..
+# run test 
+bash test-scripts/run-anchor-tests.sh
 ```
 
 # Bug Bounty
