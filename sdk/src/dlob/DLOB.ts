@@ -809,12 +809,6 @@ export class DLOB {
 					const bestPrice = bestValue.getPrice(oraclePriceData, slot);
 					const currentPrice = currentValue.getPrice(oraclePriceData, slot);
 
-					if (bestPrice !== undefined && currentPrice === undefined) {
-						return bestGenerator;
-					} else if (bestPrice === undefined && currentPrice !== undefined) {
-						return currentGenerator;
-					}
-
 					return compareFcn(bestPrice, currentPrice)
 						? bestGenerator
 						: currentGenerator;
