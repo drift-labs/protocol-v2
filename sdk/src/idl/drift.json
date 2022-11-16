@@ -2071,6 +2071,34 @@
       ]
     },
     {
+      "name": "updateSerumFulfillmentConfigStatus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "SpotFulfillmentConfigStatus"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateSerumVault",
       "accounts": [
         {
@@ -4184,7 +4212,7 @@
           {
             "name": "status",
             "type": {
-              "defined": "SpotFulfillmentStatus"
+              "defined": "SpotFulfillmentConfigStatus"
             }
           },
           {
@@ -6206,7 +6234,7 @@
       }
     },
     {
-      "name": "SpotFulfillmentStatus",
+      "name": "SpotFulfillmentConfigStatus",
       "type": {
         "kind": "enum",
         "variants": [
@@ -8428,6 +8456,11 @@
       "code": 6219,
       "name": "InvalidLiquidation",
       "msg": "Invalid Liquidation"
+    },
+    {
+      "code": 6220,
+      "name": "SpotFulfillmentConfigDisabled",
+      "msg": "Spot Fulfullment Config Disabled"
     }
   ]
 }
