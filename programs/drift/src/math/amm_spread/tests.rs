@@ -497,4 +497,55 @@ mod test {
         assert_eq!(long_spread1, 18330);
         assert_eq!(short_spread1, 500);
     }
+
+    #[test]
+    fn calculate_vol_spread_tests() {
+        let base_spread = 250; // .025%
+        let last_oracle_reserve_price_spread_pct = 0;
+        let last_oracle_conf_pct = 0;
+        let quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let peg_multiplier = 34000000;
+        let base_asset_amount_with_amm = 0;
+        let reserve_price = 34562304;
+        let total_fee_minus_distributions = 0;
+
+        let base_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let min_base_asset_reserve = 0_u128;
+        let max_base_asset_reserve = AMM_RESERVE_PRECISION * 100000;
+
+        let margin_ratio_initial = 2000; // 5x max leverage
+        let max_spread = margin_ratio_initial * 100;
+
+        let mark_std = 34000000 / 50;
+        let oracle_std = 34000000 / 150;
+        let long_intensity_volume = (QUOTE_PRECISION * 10000) as u64;
+        let short_intensity_volume = (QUOTE_PRECISION * 30000) as u64;
+        let volume_24h = (QUOTE_PRECISION * 40000) as u64;
+
+        // at 0 fee be max spread
+        let (long_spread1, short_spread) = calculate_spread(
+            base_spread,
+            last_oracle_reserve_price_spread_pct,
+            last_oracle_conf_pct,
+            max_spread,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            base_asset_amount_with_amm,
+            reserve_price,
+            total_fee_minus_distributions,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+        )
+        .unwrap();
+        assert_eq!(long_spread1, 16390);
+        assert_eq!(short_spread, 49180);
+    }
 }

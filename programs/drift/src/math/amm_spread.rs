@@ -105,26 +105,36 @@ pub fn calculate_long_short_vol_spread(
     volume_24h: u64,
 ) -> DriftResult<(u64, u64)> {
     // 1.6 * std
-    let market_avg_std_pct = oracle_std.safe_add(mark_std)?.safe_div(2 * reserve_price)?;
+    let market_avg_std_pct = oracle_std
+        .safe_add(mark_std)?
+        .safe_mul(PERCENTAGE_PRECISION_U64)?
+        .safe_div(2 * reserve_price)?;
 
     let vol_spread: u64 = last_oracle_conf_pct.max(market_avg_std_pct / 2);
+    crate::dlog!(vol_spread, market_avg_std_pct);
 
-    let long_vol_spread_factor: u64 = vol_spread
-        .safe_mul(long_inten)?
+    let long_vol_spread_factor: u64 = long_inten
         .safe_mul(PERCENTAGE_PRECISION_U64)?
         .safe_div(max(volume_24h, 1))?
         .clamp(
             PERCENTAGE_PRECISION_U64 / 100,
             16 * PERCENTAGE_PRECISION_U64 / 10,
         );
-    let short_vol_spread_factor: u64 = vol_spread
-        .safe_mul(short_inten)?
+    let short_vol_spread_factor: u64 = short_inten
         .safe_mul(PERCENTAGE_PRECISION_U64)?
         .safe_div(max(volume_24h, 1))?
         .clamp(
             PERCENTAGE_PRECISION_U64 / 100,
             16 * PERCENTAGE_PRECISION_U64 / 10,
         );
+
+    crate::dlog!(
+        last_oracle_conf_pct,
+        market_avg_std_pct,
+        vol_spread,
+        long_vol_spread_factor,
+        short_vol_spread_factor
+    );
 
     Ok((
         max(
@@ -171,6 +181,7 @@ pub fn calculate_spread(
 
     let mut long_spread = max((base_spread / 2) as u64, long_vol_spread);
     let mut short_spread = max((base_spread / 2) as u64, short_vol_spread);
+    crate::dlog!(long_vol_spread, long_spread, short_vol_spread, short_spread);
 
     // oracle retreat
     // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
