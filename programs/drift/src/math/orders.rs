@@ -199,9 +199,9 @@ pub fn standardize_base_asset_amount(base_asset_amount: u64, step_size: u64) -> 
 }
 
 pub fn standardize_base_asset_amount_ceil(
-    base_asset_amount: u128,
-    step_size: u128,
-) -> DriftResult<u128> {
+    base_asset_amount: u64,
+    step_size: u64,
+) -> DriftResult<u64> {
     let remainder = base_asset_amount
         .checked_rem_euclid(step_size)
         .ok_or_else(math_error!())?;
@@ -327,7 +327,7 @@ pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> Dr
     Ok(now > order.max_ts)
 }
 
-pub fn should_cancel_reduce_only_spot_order(
+pub fn should_cancel_reduce_only_order(
     order: &Order,
     existing_base_asset_amount: i64,
 ) -> DriftResult<bool> {
@@ -335,7 +335,7 @@ pub fn should_cancel_reduce_only_spot_order(
         && !order.post_only
         && !is_order_position_reducing(
             &order.direction,
-            order.base_asset_amount,
+            order.get_base_asset_amount_unfilled()?,
             existing_base_asset_amount,
         )?;
 

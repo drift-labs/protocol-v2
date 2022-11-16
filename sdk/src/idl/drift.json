@@ -734,6 +734,31 @@
       ]
     },
     {
+      "name": "updateUserMarginTradingEnabled",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "marginTradingEnabled",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "updateUserDelegate",
       "accounts": [
         {
@@ -2042,6 +2067,34 @@
         {
           "name": "marketIndex",
           "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateSerumFulfillmentConfigStatus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "SpotFulfillmentConfigStatus"
+          }
         }
       ]
     },
@@ -4159,7 +4212,7 @@
           {
             "name": "status",
             "type": {
-              "defined": "SpotFulfillmentStatus"
+              "defined": "SpotFulfillmentConfigStatus"
             }
           },
           {
@@ -5950,6 +6003,9 @@
             "name": "OrderFilledWithMatch"
           },
           {
+            "name": "OrderFilledWithMatchJit"
+          },
+          {
             "name": "MarketExpired"
           },
           {
@@ -6178,7 +6234,7 @@
       }
     },
     {
-      "name": "SpotFulfillmentStatus",
+      "name": "SpotFulfillmentConfigStatus",
       "type": {
         "kind": "enum",
         "variants": [
@@ -8390,6 +8446,21 @@
       "code": 6217,
       "name": "CantTransferBetweenSameUserAccount",
       "msg": "Cant transfer between same user account"
+    },
+    {
+      "code": 6218,
+      "name": "InvalidPerpPosition",
+      "msg": "Invalid Perp Position"
+    },
+    {
+      "code": 6219,
+      "name": "InvalidLiquidation",
+      "msg": "Invalid Liquidation"
+    },
+    {
+      "code": 6220,
+      "name": "SpotFulfillmentConfigDisabled",
+      "msg": "Spot Fulfullment Config Disabled"
     }
   ]
 }

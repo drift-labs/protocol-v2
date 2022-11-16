@@ -292,5 +292,8 @@ export function mustBeTriggered(order: Order): boolean {
 }
 
 export function isTriggered(order: Order): boolean {
-	return isOneOfVariant(order.orderType, ['triggeredAbove', 'triggeredBelow']);
+	return isOneOfVariant(order.triggerCondition, [
+		'triggeredAbove',
+		'triggeredBelow',
+	]);
 }

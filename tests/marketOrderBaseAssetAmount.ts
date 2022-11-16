@@ -272,7 +272,7 @@ describe('market orders', () => {
 		assert.ok(
 			driftClient
 				.getUserAccount()
-				.perpPositions[0].quoteBreakEvenAmount.eq(new BN(24048000))
+				.perpPositions[0].quoteBreakEvenAmount.eq(new BN(23952000))
 		);
 		console.log(
 			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.toString()

@@ -716,7 +716,12 @@ pub fn fill_perp_order(
     let is_filler_taker = user_key == filler_key;
     let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
-        (Some(load_mut!(filler)?), Some(load_mut!(filler_stats)?))
+        let filler = load_mut!(filler)?;
+        if filler.authority != user.authority {
+            (Some(filler), Some(load_mut!(filler_stats)?))
+        } else {
+            (None, None)
+        }
     } else {
         (None, None)
     };
@@ -741,29 +746,15 @@ pub fn fill_perp_order(
     let (mut referrer, mut referrer_stats) =
         sanitize_referrer(referrer, referrer_stats, user_stats)?;
 
-    let order_breaches_oracle_price = {
-        let market = perp_market_map.get_ref(&market_index)?;
-        order_breaches_oracle_price_limits(
-            &user.orders[order_index],
-            oracle_price,
-            slot,
-            market.amm.order_tick_size,
-            market.margin_ratio_initial,
-            market.margin_ratio_maintenance,
-        )?
-    };
-
     let should_expire_order = should_expire_order(user, order_index, now)?;
 
     let existing_base_asset_amount = user
         .get_perp_position(user.orders[order_index].market_index)?
         .base_asset_amount;
-    let should_cancel_reduce_only_order = should_cancel_reduce_only_spot_order(
-        &user.orders[order_index],
-        existing_base_asset_amount,
-    )?;
+    let should_cancel_reduce_only_order =
+        should_cancel_reduce_only_order(&user.orders[order_index], existing_base_asset_amount)?;
 
-    if should_expire_order || order_breaches_oracle_price || should_cancel_reduce_only_order {
+    if should_expire_order || should_cancel_reduce_only_order {
         let filler_reward = {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
             pay_keeper_flat_reward_for_perps(
@@ -776,8 +767,6 @@ pub fn fill_perp_order(
 
         let explanation = if should_expire_order {
             OrderActionExplanation::OrderExpired
-        } else if order_breaches_oracle_price {
-            OrderActionExplanation::OraclePriceBreachedLimitPrice
         } else {
             OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
         };
@@ -826,7 +815,7 @@ pub fn fill_perp_order(
             amm_is_available,
         )?;
 
-    if should_cancel_order_after_fulfill(user, order_index, slot)? {
+    if amm_is_available && should_cancel_order_after_fulfill(user, order_index, slot)? {
         updated_user_state = true;
 
         let filler_reward = {
@@ -1045,7 +1034,7 @@ fn sanitize_maker_order<'a>(
     let existing_base_asset_amount = maker
         .get_perp_position(maker.orders[maker_order_index].market_index)?
         .base_asset_amount;
-    let should_cancel_reduce_only_order = should_cancel_reduce_only_spot_order(
+    let should_cancel_reduce_only_order = should_cancel_reduce_only_order(
         &maker.orders[maker_order_index],
         existing_base_asset_amount,
     )?;
@@ -1953,10 +1942,15 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
+    let order_action_explanation = if maker.orders[maker_order_index].is_jit_maker() {
+        OrderActionExplanation::OrderFilledWithMatchJit
+    } else {
+        OrderActionExplanation::OrderFilledWithMatch
+    };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::OrderFilledWithMatch,
+        order_action_explanation,
         market.market_index,
         Some(*filler_key),
         Some(fill_record_id),
@@ -2703,7 +2697,12 @@ pub fn fill_spot_order(
     let is_filler_taker = user_key == filler_key;
     let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
-        (Some(load_mut!(filler)?), Some(load_mut!(filler_stats)?))
+        let filler = load_mut!(filler)?;
+        if filler.authority != user.authority {
+            (Some(filler), Some(load_mut!(filler_stats)?))
+        } else {
+            (None, None)
+        }
     } else {
         (None, None)
     };
@@ -2732,10 +2731,7 @@ pub fn fill_spot_order(
         let spot_market = spot_market_map.get_ref(&market_index)?;
         let signed_token_amount =
             user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
-        should_cancel_reduce_only_spot_order(
-            &user.orders[order_index],
-            signed_token_amount.cast()?,
-        )?
+        should_cancel_reduce_only_order(&user.orders[order_index], signed_token_amount.cast()?)?
     } else {
         false
     };
@@ -2916,7 +2912,7 @@ fn sanitize_spot_maker_order<'a>(
             maker.get_spot_position_index(maker.orders[maker_order_index].market_index)?;
         let signed_token_amount =
             maker.spot_positions[spot_position_index].get_signed_token_amount(&spot_market)?;
-        should_cancel_reduce_only_spot_order(
+        should_cancel_reduce_only_order(
             &maker.orders[maker_order_index],
             signed_token_amount.cast()?,
         )?
@@ -3340,10 +3336,15 @@ pub fn fulfill_spot_order_with_match(
     }
 
     let fill_record_id = get_then_update_id!(base_market, next_fill_record_id);
+    let order_action_explanation = if maker.orders[maker_order_index].is_jit_maker() {
+        OrderActionExplanation::OrderFilledWithMatchJit
+    } else {
+        OrderActionExplanation::OrderFilledWithMatch
+    };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::OrderFilledWithMatch,
+        order_action_explanation,
         maker.orders[maker_order_index].market_index,
         Some(*filler_key),
         Some(fill_record_id),

@@ -4,7 +4,9 @@ use crate::load;
 
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::{MarketSet, PerpMarketMap};
-use crate::state::spot_market::{SerumV3FulfillmentConfig, SpotMarket};
+use crate::state::spot_market::{
+    SerumV3FulfillmentConfig, SpotFulfillmentConfigStatus, SpotMarket,
+};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::{OracleGuardRails, State};
 use crate::state::user::{User, UserStats};
@@ -164,6 +166,11 @@ pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
             ErrorCode::InvalidSerumFulfillmentConfig
         })?;
     let serum_fulfillment_config = load!(serum_fulfillment_config_loader)?;
+
+    validate!(
+        serum_fulfillment_config.status == SpotFulfillmentConfigStatus::Enabled,
+        ErrorCode::SpotFulfillmentConfigDisabled
+    )?;
 
     validate!(
         &state.signer == drift_signer.key,

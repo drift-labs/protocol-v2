@@ -558,20 +558,19 @@ pub fn update_quote_break_even_amount(
         return Ok(());
     }
 
+    position.quote_break_even_amount = position.quote_break_even_amount.safe_add(delta)?;
     match position.get_direction() {
         PositionDirection::Long => {
-            position.quote_break_even_amount = position.quote_break_even_amount.safe_add(delta)?;
             market.amm.quote_break_even_amount_long = market
                 .amm
                 .quote_break_even_amount_long
                 .safe_add(delta.cast()?)?
         }
         PositionDirection::Short => {
-            position.quote_break_even_amount = position.quote_break_even_amount.safe_sub(delta)?;
             market.amm.quote_break_even_amount_short = market
                 .amm
                 .quote_break_even_amount_short
-                .safe_sub(delta.cast()?)?
+                .safe_add(delta.cast()?)?
         }
     }
 

@@ -495,3 +495,38 @@ mod validate_transfer_satisfies_limit_price {
         .is_err());
     }
 }
+
+mod calculate_one_quote_worth_of_token {
+    use crate::math::constants::PRICE_PRECISION_I64;
+    use crate::math::liquidation::calculate_one_quote_worth_of_token;
+
+    #[test]
+    fn sol() {
+        let price = 100 * PRICE_PRECISION_I64;
+        let decimals = 9;
+
+        let one_quote_worth_of_sol = calculate_one_quote_worth_of_token(price, decimals).unwrap();
+
+        assert_eq!(one_quote_worth_of_sol, 10000000);
+    }
+
+    #[test]
+    fn btc() {
+        let price = 50000 * PRICE_PRECISION_I64;
+        let decimals = 6;
+
+        let one_quote_worth_of_btc = calculate_one_quote_worth_of_token(price, decimals).unwrap();
+
+        assert_eq!(one_quote_worth_of_btc, 20);
+    }
+
+    #[test]
+    fn dog() {
+        let price = 1;
+        let decimals = 9;
+
+        let one_quote_worth_of_dog = calculate_one_quote_worth_of_token(price, decimals).unwrap();
+
+        assert_eq!(one_quote_worth_of_dog, 1000000000000000);
+    }
+}

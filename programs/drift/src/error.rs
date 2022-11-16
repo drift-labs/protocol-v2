@@ -441,6 +441,12 @@ pub enum ErrorCode {
     InvalidSpotPosition,
     #[msg("Cant transfer between same user account")]
     CantTransferBetweenSameUserAccount,
+    #[msg("Invalid Perp Position")]
+    InvalidPerpPosition,
+    #[msg("Invalid Liquidation")]
+    InvalidLiquidation,
+    #[msg("Spot Fulfullment Config Disabled")]
+    SpotFulfillmentConfigDisabled,
 }
 
 #[macro_export]

@@ -122,13 +122,16 @@ export class OrderActionExplanation {
 		liquidation: {},
 	};
 	static readonly ORDER_FILLED_WITH_AMM = {
-		orderFilledWithAMM: {},
+		orderFilledWithAmm: {},
 	};
 	static readonly ORDER_FILLED_WITH_AMM_JIT = {
-		orderFilledWithAMMJit: {},
+		orderFilledWithAmmJit: {},
 	};
 	static readonly ORDER_FILLED_WITH_MATCH = {
 		orderFilledWithMatch: {},
+	};
+	static readonly ORDER_FILLED_WITH_MATCH_JIT = {
+		orderFilledWithMatchJit: {},
 	};
 	static readonly MARKET_EXPIRED = {
 		marketExpired: {},
@@ -168,6 +171,11 @@ export class DepositExplanation {
 export class SettlePnlExplanation {
 	static readonly NONE = { none: {} };
 	static readonly EXPIRED_POSITION = { expiredPosition: {} };
+}
+
+export class SpotFulfillmentConfigStatus {
+	static readonly ENABLED = { enabled: {} };
+	static readonly DISABLED = { disabled: {} };
 }
 
 export class StakeAction {
@@ -367,7 +375,6 @@ export type LiquidationRecord = {
 
 export class LiquidationType {
 	static readonly LIQUIDATE_PERP = { liquidatePerp: {} };
-	static readonly LIQUIDATE_BORROW = { liquidateBorrow: {} };
 	static readonly LIQUIDATE_BORROW_FOR_PERP_PNL = {
 		liquidateBorrowForPerpPnl: {},
 	};
@@ -379,6 +386,9 @@ export class LiquidationType {
 	};
 	static readonly BORROW_BANKRUPTCY = {
 		borrowBankruptcy: {},
+	};
+	static readonly LIQUIDATE_SPOT = {
+		liquidateSpot: {},
 	};
 }
 

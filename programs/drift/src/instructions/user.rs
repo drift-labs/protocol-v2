@@ -1506,6 +1506,16 @@ pub fn handle_update_user_custom_margin_ratio(
     Ok(())
 }
 
+pub fn handle_update_user_margin_trading_enabled(
+    ctx: Context<UpdateUser>,
+    _sub_account_id: u16,
+    margin_trading_enabled: bool,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+    user.is_margin_trading_enabled = margin_trading_enabled;
+    Ok(())
+}
+
 pub fn handle_update_user_delegate(
     ctx: Context<UpdateUser>,
     _sub_account_id: u16,

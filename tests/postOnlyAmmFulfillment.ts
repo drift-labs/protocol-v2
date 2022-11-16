@@ -311,7 +311,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		console.log(positionMaker.quoteBreakEvenAmount.toString());
 		assert(positionMaker.quoteAssetAmount.eq(new BN(16089577)));
 		assert(positionMaker.quoteEntryAmount.eq(new BN(16086360)));
-		assert(positionMaker.quoteBreakEvenAmount.eq(new BN(16083143)));
+		assert(positionMaker.quoteBreakEvenAmount.eq(new BN(16089577)));
 
 		await fillerDriftClient.fetchAccounts();
 		const perpMarket = fillerDriftClient.getPerpMarketAccount(0);
