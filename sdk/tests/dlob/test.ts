@@ -3310,14 +3310,19 @@ describe('DLOB Perp Tests', () => {
 			new BN(200)
 		);
 
-		console.log(`Book state before fill:`);
+		console.log(`Book state before taker auction ends:`);
 		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
+
+		console.log(``);
+		const auctionEndSlot = slot * 2;
+		console.log(`Book state after taker auction ends:`);
+		printBookState(dlob, marketIndex, vBid, vAsk, auctionEndSlot, oracle);
 
 		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
 			vBid,
 			vAsk,
-			slot,
+			auctionEndSlot, // auction ends
 			ts,
 			MarketType.PERP,
 			oracle
