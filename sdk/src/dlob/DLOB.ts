@@ -1126,19 +1126,31 @@ export class DLOB {
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getLimitAsks(marketIndex, slot, marketType, oraclePriceData)
+		return this.getAsks(
+			marketIndex,
+			fallbackAsk,
+			slot,
+			marketType,
+			oraclePriceData
+		)
 			.next()
 			.value.getPrice(oraclePriceData, slot);
 	}
 
 	public getBestBid(
 		marketIndex: number,
-		fallbackAsk: BN | undefined,
+		fallbackBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getLimitBids(marketIndex, slot, marketType, oraclePriceData)
+		return this.getBids(
+			marketIndex,
+			fallbackBid,
+			slot,
+			marketType,
+			oraclePriceData
+		)
 			.next()
 			.value.getPrice(oraclePriceData, slot);
 	}
