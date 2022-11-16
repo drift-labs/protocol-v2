@@ -55,6 +55,13 @@ mod test {
 
         let margin_ratio_initial = 2000; // 5x max leverage
         let max_spread = margin_ratio_initial * 100;
+
+        let mark_std = 0;
+        let oracle_std = 0;
+        let long_intensity_volume = 0;
+        let short_intensity_volume = 0;
+        let volume_24h = 0;
+
         // at 0 fee be max spread
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
@@ -70,6 +77,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
         assert_eq!(long_spread1, (base_spread * 10 / 2));
@@ -93,6 +105,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
         assert_eq!(long_spread2, (base_spread * 10));
@@ -116,6 +133,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
         assert!(short_spread3 > long_spread3);
@@ -143,6 +165,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
         assert!(short_spread4 < long_spread4);
@@ -166,6 +193,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
 
@@ -208,6 +240,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
 
@@ -228,6 +265,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
 
@@ -254,6 +296,12 @@ mod test {
         let margin_ratio_initial = 2000; // 5x max leverage
         let max_spread = margin_ratio_initial * 100;
 
+        let mark_std = 0;
+        let oracle_std = 0;
+        let long_intensity_volume = 0;
+        let short_intensity_volume = 0;
+        let volume_24h = 0;
+
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
             last_oracle_reserve_price_spread_pct,
@@ -268,6 +316,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
 
@@ -310,6 +363,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
@@ -331,6 +389,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
@@ -351,6 +414,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
@@ -371,6 +439,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
         assert_eq!(long_spread1, 38330);
@@ -390,6 +463,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
         assert_eq!(long_spread1, 50000);
@@ -409,6 +487,11 @@ mod test {
             base_asset_reserve,
             min_base_asset_reserve / 2,
             max_base_asset_reserve * 2,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
         )
         .unwrap();
         assert_eq!(long_spread1, 18330);

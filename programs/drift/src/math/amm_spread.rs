@@ -11,7 +11,7 @@ use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
     DEFAULT_LARGE_BID_ASK_FACTOR, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION,
-    PRICE_PRECISION, PRICE_PRECISION_I128,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 
@@ -95,6 +95,49 @@ pub fn cap_to_max_spread(
     Ok((long_spread, short_spread))
 }
 
+pub fn calculate_long_short_vol_spread(
+    last_oracle_conf_pct: u64,
+    reserve_price: u64,
+    mark_std: u64,
+    oracle_std: u64,
+    long_inten: u64,
+    short_inten: u64,
+    volume_24h: u64,
+) -> DriftResult<(u64, u64)> {
+    // 1.6 * std
+    let market_avg_std_pct = oracle_std.safe_add(mark_std)?.safe_div(2 * reserve_price)?;
+
+    let vol_spread: u64 = last_oracle_conf_pct.max(market_avg_std_pct / 2);
+
+    let long_vol_spread_factor: u64 = vol_spread
+        .safe_mul(long_inten)?
+        .safe_mul(PERCENTAGE_PRECISION_U64)?
+        .safe_div(max(volume_24h, 1))?
+        .clamp(
+            PERCENTAGE_PRECISION_U64 / 100,
+            16 * PERCENTAGE_PRECISION_U64 / 10,
+        );
+    let short_vol_spread_factor: u64 = vol_spread
+        .safe_mul(short_inten)?
+        .safe_mul(PERCENTAGE_PRECISION_U64)?
+        .safe_div(max(volume_24h, 1))?
+        .clamp(
+            PERCENTAGE_PRECISION_U64 / 100,
+            16 * PERCENTAGE_PRECISION_U64 / 10,
+        );
+
+    Ok((
+        max(
+            last_oracle_conf_pct,
+            vol_spread * long_vol_spread_factor / PERCENTAGE_PRECISION_U64,
+        ),
+        max(
+            last_oracle_conf_pct,
+            vol_spread * short_vol_spread_factor / PERCENTAGE_PRECISION_U64,
+        ),
+    ))
+}
+
 #[allow(clippy::comparison_chain)]
 pub fn calculate_spread(
     base_spread: u32,
@@ -114,10 +157,20 @@ pub fn calculate_spread(
     oracle_std: u64,
     long_inten: u64,
     short_inten: u64,
-    time_since_last_trade: i64,
+    volume_24h: u64,
 ) -> DriftResult<(u32, u32)> {
-    let mut long_spread = (base_spread / 2) as u64;
-    let mut short_spread = (base_spread / 2) as u64;
+    let (long_vol_spread, short_vol_spread) = calculate_long_short_vol_spread(
+        last_oracle_conf_pct,
+        reserve_price,
+        mark_std,
+        oracle_std,
+        long_inten,
+        short_inten,
+        volume_24h,
+    )?;
+
+    let mut long_spread = max((base_spread / 2) as u64, long_vol_spread);
+    let mut short_spread = max((base_spread / 2) as u64, short_vol_spread);
 
     // oracle retreat
     // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
@@ -126,45 +179,15 @@ pub fn calculate_spread(
             long_spread,
             last_oracle_reserve_price_spread_pct
                 .unsigned_abs()
-                .safe_add(last_oracle_conf_pct)?,
+                .safe_add(long_vol_spread)?,
         );
-        short_spread = max(short_spread, last_oracle_conf_pct);
     } else if last_oracle_reserve_price_spread_pct > 0 {
-        long_spread = max(long_spread, last_oracle_conf_pct);
         short_spread = max(
             short_spread,
             last_oracle_reserve_price_spread_pct
                 .unsigned_abs()
-                .safe_add(last_oracle_conf_pct)?,
+                .safe_add(short_vol_spread)?,
         );
-    } else if base_asset_amount_with_amm > 0 {
-        long_spread = max(long_spread, last_oracle_conf_pct);
-        short_spread = max(short_spread, last_oracle_conf_pct / 2);
-    } else if base_asset_amount_with_amm < 0 {
-        long_spread = max(long_spread, last_oracle_conf_pct / 2);
-        short_spread = max(short_spread, last_oracle_conf_pct);
-    } else {
-        long_spread = max(long_spread, last_oracle_conf_pct / 2);
-        short_spread = max(short_spread, last_oracle_conf_pct / 2);
-    }
-
-    oracle_std.safe_add(mark_std).safe_mul(time_since_last_trade.cast()?.integer_sqrt()).safe_div(2);
-
-    // intensity scale
-    let l_s_inten: i128 = long_inten.cast::<i128>()?.safe_sub(short_inten.cast::<i128>()?)?;
-    if l_s_inten > 0 {
-        long_spread *= 2;
-    } else {
-        short_spread *= 2;
-    }
-
-    // vol scale
-    if oracle_std > mark_std {
-        long_spread *= 2
-        short_spread *= 2
-    } else {
-        long_spread *= 2
-        short_spread *= 2
     }
 
     // inventory scale
