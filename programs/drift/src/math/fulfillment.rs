@@ -6,6 +6,9 @@ use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::perp_market::AMM;
 use crate::state::user::Order;
 
+#[cfg(test)]
+mod tests;
+
 pub fn determine_perp_fulfillment_methods(
     taker_order: &Order,
     maker_order: Option<&Order>,
