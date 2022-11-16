@@ -445,6 +445,8 @@ pub enum ErrorCode {
     InvalidPerpPosition,
     #[msg("Invalid Liquidation")]
     InvalidLiquidation,
+    #[msg("Spot Fulfullment Config Disabled")]
+    SpotFulfillmentConfigDisabled,
 }
 
 #[macro_export]

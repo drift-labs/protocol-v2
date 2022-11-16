@@ -11,6 +11,7 @@ import {
 	MarketStatus,
 	ContractTier,
 	AssetTier,
+	SpotFulfillmentConfigStatus,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@project-serum/anchor';
@@ -877,6 +878,19 @@ export class AdminClient extends DriftClient {
 					this.program.programId,
 					spotMarketIndex
 				),
+			},
+		});
+	}
+
+	public async updateSerumFulfillmentConfigStatus(
+		serumFulfillmentConfig: PublicKey,
+		status: SpotFulfillmentConfigStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSerumFulfillmentConfigStatus(status, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				serumFulfillmentConfig,
 			},
 		});
 	}

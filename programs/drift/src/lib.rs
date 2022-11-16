@@ -15,6 +15,7 @@ use state::oracle::OracleSource;
 use crate::controller::position::PositionDirection;
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
+use crate::state::spot_market::SpotFulfillmentConfigStatus;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::MarketType;
@@ -39,6 +40,7 @@ declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 #[program]
 pub mod drift {
     use super::*;
+    use crate::state::spot_market::SpotFulfillmentConfigStatus;
 
     // User Instructions
 
@@ -439,6 +441,13 @@ pub mod drift {
         market_index: u16,
     ) -> Result<()> {
         handle_initialize_serum_fulfillment_config(ctx, market_index)
+    }
+
+    pub fn update_serum_fulfillment_config_status(
+        ctx: Context<UpdateSerumFulfillmentConfig>,
+        status: SpotFulfillmentConfigStatus,
+    ) -> Result<()> {
+        handle_update_serum_fulfillment_config_status(ctx, status)
     }
 
     pub fn update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {

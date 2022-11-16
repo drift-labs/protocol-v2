@@ -41,8 +41,8 @@ use crate::state::perp_market::{
 };
 use crate::state::serum::{load_open_orders, load_serum_market};
 use crate::state::spot_market::{
-    AssetTier, InsuranceFund, SerumV3FulfillmentConfig, SpotBalanceType, SpotFulfillmentStatus,
-    SpotMarket,
+    AssetTier, InsuranceFund, SerumV3FulfillmentConfig, SpotBalanceType,
+    SpotFulfillmentConfigStatus, SpotMarket,
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::validate;
@@ -390,7 +390,7 @@ pub fn handle_initialize_serum_fulfillment_config(
     let mut serum_fulfillment_config = ctx.accounts.serum_fulfillment_config.load_init()?;
     *serum_fulfillment_config = SerumV3FulfillmentConfig {
         fulfillment_type: SpotFulfillmentType::SerumV3,
-        status: SpotFulfillmentStatus::Enabled,
+        status: SpotFulfillmentConfigStatus::Enabled,
         pubkey: serum_fulfillment_config_key,
         market_index,
         serum_program_id,
@@ -406,6 +406,15 @@ pub fn handle_initialize_serum_fulfillment_config(
         padding: [0; 4],
     };
 
+    Ok(())
+}
+
+pub fn handle_update_serum_fulfillment_config_status(
+    ctx: Context<UpdateSerumFulfillmentConfig>,
+    status: SpotFulfillmentConfigStatus,
+) -> Result<()> {
+    let mut config = load_mut!(ctx.accounts.serum_fulfillment_config)?;
+    config.status = status;
     Ok(())
 }
 
@@ -2100,6 +2109,18 @@ pub struct InitializeSerumFulfillmentConfig<'info> {
     pub admin: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateSerumFulfillmentConfig<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub serum_fulfillment_config: AccountLoader<'info, SerumV3FulfillmentConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
 }
 
 #[derive(Accounts)]

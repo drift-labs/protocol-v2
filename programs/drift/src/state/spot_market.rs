@@ -318,19 +318,19 @@ pub struct SerumV3FulfillmentConfig {
     pub serum_signer_nonce: u64,
     pub market_index: u16,
     pub fulfillment_type: SpotFulfillmentType,
-    pub status: SpotFulfillmentStatus,
+    pub status: SpotFulfillmentConfigStatus,
     pub padding: [u8; 4],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
-pub enum SpotFulfillmentStatus {
+pub enum SpotFulfillmentConfigStatus {
     Enabled,
     Disabled,
 }
 
-impl Default for SpotFulfillmentStatus {
+impl Default for SpotFulfillmentConfigStatus {
     fn default() -> Self {
-        SpotFulfillmentStatus::Enabled
+        SpotFulfillmentConfigStatus::Enabled
     }
 }
 

@@ -8423,6 +8423,11 @@
       "code": 6218,
       "name": "InvalidPerpPosition",
       "msg": "Invalid Perp Position"
+    },
+    {
+      "code": 6219,
+      "name": "InvalidLiquidation",
+      "msg": "Invalid Liquidation"
     }
   ]
 }
