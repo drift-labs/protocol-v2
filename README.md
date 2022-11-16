@@ -18,6 +18,19 @@ This repository provides open source access to Drift V2's Typescript SDK, Solana
 
 SDK docs can be found [here](./sdk/README.md)
 
+# Building Locally
+
+```bash
+# init submodules
+git submodule update --init --recursive
+# build v2
+anchor build 
+# build deps
+cd deps/serum-dex/dex && anchor build && cd ../../..
+# run rust tests 
+cargo test
+```
+
 # Bug Bounty
 
 Information about the Bug Bounty can be found [here](./bug-bounty/README.md)
