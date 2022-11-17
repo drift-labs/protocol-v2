@@ -918,7 +918,7 @@ pub mod amm_jit {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64 / 2,
-                price: 100 * PRICE_PRECISION_U64,
+                price: 99000000,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1090,7 +1090,6 @@ pub mod amm_jit {
                 auction_start_price: 99 * PRICE_PRECISION_U64,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
-
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1185,10 +1184,6 @@ pub mod amm_jit {
             market_after.amm.base_asset_amount_with_amm.abs()
                 < market.amm.base_asset_amount_with_amm.abs()
         );
-
-        // mm gains from trade
-        let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
-        assert!(quote_asset_amount_surplus > 0);
     }
 
     #[test]
@@ -1362,45 +1357,19 @@ pub mod amm_jit {
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
-        assert_eq!(taker_stats.taker_volume_30d, 7499998);
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(
             maker_position.base_asset_amount,
             -BASE_PRECISION_I64 / 2 / 2
         );
-        assert_eq!(maker_position.quote_asset_amount, 5001500 / 2);
-        assert_eq!(maker_position.quote_entry_amount, 2500000);
-        assert_eq!(maker_position.quote_break_even_amount, 5001500 / 2);
-        assert_eq!(maker_position.open_orders, 1);
-        assert_eq!(maker_position.open_asks, -250000000);
-        assert_eq!(maker_stats.fees.total_fee_rebate, 1500 / 2);
-        assert_eq!(maker_stats.maker_volume_30d, 2500000);
-        assert_eq!(
-            maker_position.quote_entry_amount as i128 + maker_stats.fees.total_fee_rebate as i128,
-            maker_position.quote_asset_amount as i128
-        );
-        assert_eq!(
-            maker_position.quote_break_even_amount as i128,
-            maker_position.quote_asset_amount as i128
-        );
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.base_asset_amount_with_amm, -250000000);
 
-        // mm gains from trade
+        // market pays extra for trade
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
         assert!(quote_asset_amount_surplus < 0);
-        assert_eq!(quote_asset_amount_surplus, -21582279);
-
-        assert_eq!(market_after.amm.total_fee, -21579654);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, -21579654);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, -21579654);
-        assert_eq!(market_after.amm.total_mm_fee, -21582279);
-        assert_eq!(market_after.amm.total_exchange_fee, 2875);
-        assert_eq!(market_after.amm.total_fee_withdrawn, 0);
-
-        assert_eq!(filler_stats.filler_volume_30d, 7499998);
     }
 
     #[test]
