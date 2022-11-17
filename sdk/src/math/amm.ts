@@ -468,33 +468,21 @@ export function calculateSpreadBN(
 		volume24H
 	);
 
-	let longSpread = baseSpread / 2;
-	let shortSpread = baseSpread / 2;
+	let longSpread = Math.max(baseSpread / 2, longVolSpread.toNumber());
+	let shortSpread = Math.max(baseSpread / 2, shortVolSpread.toNumber());
 
-	if (lastOracleReservePriceSpreadPct.gte(ZERO)) {
+	if (lastOracleReservePriceSpreadPct.gt(ZERO)) {
 		shortSpread = Math.max(
 			shortSpread,
 			lastOracleReservePriceSpreadPct.abs().toNumber() +
-				lastOracleConfPct.toNumber()
+				shortVolSpread.toNumber()
 		);
 	} else if (lastOracleReservePriceSpreadPct.lt(ZERO)) {
 		longSpread = Math.max(
 			longSpread,
 			lastOracleReservePriceSpreadPct.abs().toNumber() +
-				lastOracleConfPct.toNumber()
+				longVolSpread.toNumber()
 		);
-		shortSpread = Math.max(shortSpread, lastOracleConfPct.toNumber() / 2);
-	} else {
-		if (netBaseAssetAmount.gt(ZERO)) {
-			longSpread = Math.max(longSpread, lastOracleConfPct.toNumber());
-			shortSpread = Math.max(shortSpread, lastOracleConfPct.toNumber() / 2);
-		} else if (netBaseAssetAmount.lt(ZERO)) {
-			longSpread = Math.max(longSpread, lastOracleConfPct.toNumber() / 2);
-			shortSpread = Math.max(shortSpread, lastOracleConfPct.toNumber());
-		} else {
-			longSpread = Math.max(longSpread, lastOracleConfPct.toNumber() / 2);
-			shortSpread = Math.max(shortSpread, lastOracleConfPct.toNumber() / 2);
-		}
 	}
 
 	console.log(
