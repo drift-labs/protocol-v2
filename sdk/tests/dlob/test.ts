@@ -245,9 +245,10 @@ describe('DLOB Tests', () => {
 		);
 		const vAsk = new BN(11);
 		const vBid = new BN(10);
+		const slot = 12;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)),
-			slot: new BN(12),
+			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
@@ -258,7 +259,7 @@ describe('DLOB Tests', () => {
 			for (const _ask of dlob.getAsks(
 				market.marketIndex,
 				vAsk,
-				0,
+				slot,
 				MarketType.PERP,
 				oracle
 			)) {
@@ -387,7 +388,7 @@ describe('DLOB Tests', () => {
 		const bids = dlob.getBids(
 			marketIndex,
 			undefined,
-			0,
+			slot,
 			MarketType.PERP,
 			oracle
 		);
@@ -525,16 +526,15 @@ describe('DLOB Perp Tests', () => {
 			// ascending order
 			return a.expectedIdx - b.expectedIdx;
 		});
-		const bids = dlob.getBids(marketIndex, vBid, slot, MarketType.PERP, oracle);
-
-		console.log('The Book Bids:');
-		const gotBids: Array<DLOBNode> = [];
+		const allBids = dlob.getBids(
+			marketIndex,
+			vBid,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
 		let countBids = 0;
-		for (const bid of bids) {
-			gotBids.push(bid);
-			printOrderNode(bid, oracle, slot);
-		}
-		for (const bid of gotBids) {
+		for (const bid of allBids) {
 			expect(bid.isVammNode(), `expected vAMM node`).to.be.eq(
 				expectedTestCase[countBids].isVamm
 			);
@@ -552,8 +552,61 @@ describe('DLOB Perp Tests', () => {
 			);
 			countBids++;
 		}
-
 		expect(countBids).to.equal(testCases.length);
+
+		const marketBids = dlob.getMarketBids(marketIndex, MarketType.PERP);
+		countBids = 0;
+		for (const bid of marketBids) {
+			expect(bid.isVammNode(), `expected vAMM node`).to.be.eq(
+				expectedTestCase.slice(0, 3)[countBids].isVamm
+			);
+			expect(bid.order?.orderId, `expected orderId`).to.equal(
+				expectedTestCase.slice(0, 3)[countBids].orderId
+			);
+			expect(bid.order?.price.toNumber(), `expected price`).to.equal(
+				expectedTestCase.slice(0, 3)[countBids].price?.toNumber()
+			);
+			expect(bid.order?.direction, `expected order direction`).to.equal(
+				expectedTestCase.slice(0, 3)[countBids].direction
+			);
+			expect(bid.order?.orderType, `expected order type`).to.equal(
+				expectedTestCase.slice(0, 3)[countBids].orderType
+			);
+			countBids++;
+		}
+		expect(countBids).to.equal(expectedTestCase.slice(0, 3).length);
+
+		const limitBids = dlob.getLimitBids(
+			marketIndex,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
+		countBids = 0;
+		let idx = 0;
+		for (const bid of limitBids) {
+			if (expectedTestCase.slice(3)[idx].isVamm) {
+				idx++;
+			}
+			expect(bid.isVammNode(), `expected vAMM node`).to.be.eq(
+				expectedTestCase.slice(3)[idx].isVamm
+			);
+			expect(bid.order?.orderId, `expected orderId`).to.equal(
+				expectedTestCase.slice(3)[idx].orderId
+			);
+			expect(bid.order?.price.toNumber(), `expected price`).to.equal(
+				expectedTestCase.slice(3)[idx].price?.toNumber()
+			);
+			expect(bid.order?.direction, `expected order direction`).to.equal(
+				expectedTestCase.slice(3)[idx].direction
+			);
+			expect(bid.order?.orderType, `expected order type`).to.equal(
+				expectedTestCase.slice(3)[idx].orderType
+			);
+			countBids++;
+			idx++;
+		}
+		expect(countBids).to.equal(expectedTestCase.slice(3).length - 1); // subtract one since test case 5 is vAMM node
 	});
 
 	it('Test proper bids on multiple markets', () => {
@@ -826,20 +879,10 @@ describe('DLOB Perp Tests', () => {
 			// ascending order
 			return a.expectedIdx - b.expectedIdx;
 		});
-		const asks = dlob.getAsks(marketIndex, vAsk, slot, MarketType.PERP, oracle);
 
-		console.log('The Book Asks:');
+		const asks = dlob.getAsks(marketIndex, vAsk, slot, MarketType.PERP, oracle);
 		let countAsks = 0;
 		for (const ask of asks) {
-			console.log(
-				` . vAMMNode? ${ask.isVammNode()}, ${JSON.stringify(
-					ask.order?.orderType
-				)} , ${ask.order?.orderId.toString()} , vammTestgetPRice: ${ask.getPrice(
-					oracle,
-					slot
-				)}, price: ${ask.order?.price.toString()}, quantity: ${ask.order?.baseAssetAmountFilled.toString()}/${ask.order?.baseAssetAmount.toString()}`
-			);
-
 			expect(ask.isVammNode()).to.be.eq(expectedTestCase[countAsks].isVamm);
 			expect(ask.order?.orderId).to.equal(expectedTestCase[countAsks].orderId);
 			expect(ask.order?.price.toNumber()).to.equal(
@@ -853,8 +896,59 @@ describe('DLOB Perp Tests', () => {
 			);
 			countAsks++;
 		}
-
 		expect(countAsks).to.equal(testCases.length);
+
+		const marketAsks = dlob.getMarketAsks(marketIndex, MarketType.PERP);
+		countAsks = 0;
+		for (const ask of marketAsks) {
+			expect(ask.isVammNode()).to.be.eq(
+				expectedTestCase.slice(0, 3)[countAsks].isVamm
+			);
+			expect(ask.order?.orderId).to.equal(
+				expectedTestCase.slice(0, 3)[countAsks].orderId
+			);
+			expect(ask.order?.price.toNumber()).to.equal(
+				expectedTestCase.slice(0, 3)[countAsks].price?.toNumber()
+			);
+			expect(ask.order?.direction).to.equal(
+				expectedTestCase.slice(0, 3)[countAsks].direction
+			);
+			expect(ask.order?.orderType).to.equal(
+				expectedTestCase.slice(0, 3)[countAsks].orderType
+			);
+			countAsks++;
+		}
+		expect(countAsks).to.equal(expectedTestCase.slice(0, 3).length);
+
+		const limitAsks = dlob.getLimitAsks(
+			marketIndex,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
+		countAsks = 0;
+		let idx = 0;
+		for (const ask of limitAsks) {
+			if (expectedTestCase.slice(3)[idx].isVamm) {
+				idx++;
+			}
+			expect(ask.isVammNode()).to.be.eq(expectedTestCase.slice(3)[idx].isVamm);
+			expect(ask.order?.orderId).to.equal(
+				expectedTestCase.slice(3)[idx].orderId
+			);
+			expect(ask.order?.price.toNumber()).to.equal(
+				expectedTestCase.slice(3)[idx].price?.toNumber()
+			);
+			expect(ask.order?.direction).to.equal(
+				expectedTestCase.slice(3)[idx].direction
+			);
+			expect(ask.order?.orderType).to.equal(
+				expectedTestCase.slice(3)[idx].orderType
+			);
+			countAsks++;
+			idx++;
+		}
+		expect(countAsks).to.equal(expectedTestCase.slice(3).length - 1); // subtract one since test case includes vAMM node
 	});
 
 	it('Test insert market orders', () => {
@@ -940,6 +1034,7 @@ describe('DLOB Perp Tests', () => {
 		expect(asks).to.equal(4); // vamm ask + 3 orders
 
 		let bids = 0;
+		const expectedBidOrderIds = [1, 2, 3];
 		for (const bid of dlob.getBids(
 			marketIndex,
 			vBid,
@@ -947,17 +1042,15 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle
 		)) {
-			if (bids === 0) {
-				// vamm node
-				expect(bid.order).to.equal(undefined);
-			} else {
-				// market orders
-				expect(getVariant(bid.order?.status)).to.equal('open');
-				expect(getVariant(bid.order?.orderType)).to.equal('market');
-				expect(getVariant(bid.order?.direction)).to.equal('long');
-				expect(bid.order?.orderId).to.equal(bids);
-			}
 			bids++;
+			if (bid.isVammNode()) {
+				continue;
+			}
+			// market orders
+			expect(getVariant(bid.order?.status)).to.equal('open');
+			expect(getVariant(bid.order?.orderType)).to.equal('market');
+			expect(getVariant(bid.order?.direction)).to.equal('long');
+			expect(bid.order?.orderId).to.equal(expectedBidOrderIds[bids - 1]);
 		}
 		expect(bids).to.equal(4); // vamm bid + 3 orders
 	});
@@ -1405,7 +1498,7 @@ describe('DLOB Perp Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			12, // auction over
 			MarketType.PERP,
@@ -1414,7 +1507,10 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -1446,9 +1542,12 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			12, // auction over
+			Date.now(),
 			MarketType.PERP,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
@@ -1544,7 +1643,7 @@ describe('DLOB Perp Tests', () => {
 		const endSlot = 12;
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			endSlot,
 			MarketType.PERP,
@@ -1553,7 +1652,10 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(endSlot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -1572,9 +1674,12 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			endSlot,
+			Date.now(),
 			MarketType.PERP,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
@@ -1689,10 +1794,12 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
-			12, // auction over
+			undefined,
+			undefined,
+			slot, // auction over
+			Date.now(),
 			MarketType.PERP,
 			oracle
 		);
@@ -1726,9 +1833,12 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			slot, // auction over
+			Date.now(),
 			MarketType.PERP,
 			oracle
 		);
@@ -2021,7 +2131,6 @@ describe('DLOB Perp Tests', () => {
 		console.log(`nodesToTriggeR: ${nodesToTrigger.length}`);
 		for (const [idx, n] of nodesToTrigger.entries()) {
 			expect(n.node.order?.orderId).to.equal(orderIdsToTrigger[idx]);
-			console.log(`nodeToTrigger: ${n.node.order?.orderId.toString()}`);
 		}
 	});
 
@@ -2397,11 +2506,14 @@ describe('DLOB Perp Tests', () => {
 		// should have no crossing orders
 		const auctionOverSlot = slot * 10;
 		const auctionOverTs = ts * 10;
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			auctionOverSlot, // auction over
 			MarketType.PERP,
-			oracle
+			oracle,
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -2551,9 +2663,12 @@ describe('DLOB Perp Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			slot,
+			Date.now(),
 			MarketType.PERP,
 			oracle
 		);
@@ -2587,9 +2702,12 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			slot, // auction in progress
+			Date.now(),
 			MarketType.PERP,
 			oracle
 		);
@@ -3127,6 +3245,104 @@ describe('DLOB Perp Tests', () => {
 
 		expect(nodesToFillBefore.length).to.equal(0);
 	});
+
+	it('Test fills 0 price market order with limit orders better than vAMM', () => {
+		const vAsk = new BN(20).mul(PRICE_PRECISION);
+		const vBid = new BN(5).mul(PRICE_PRECISION);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
+		const marketIndex = 0;
+
+		const slot = 12;
+		const ts = 12;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		// resting bid above vBid (better)
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(15).mul(PRICE_PRECISION), // price,
+			new BN(10).mul(BASE_PRECISION), // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(slot),
+			new BN(200)
+		);
+
+		// market sell into the resting bid
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(0), // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vAsk,
+			vBid,
+			new BN(slot),
+			new BN(200)
+		);
+
+		console.log(`Book state before taker auction ends:`);
+		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
+
+		console.log(``);
+		const auctionEndSlot = slot * 2;
+		console.log(`Book state after taker auction ends:`);
+		printBookState(dlob, marketIndex, vBid, vAsk, auctionEndSlot, oracle);
+
+		const nodesToFillBefore = dlob.findNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			auctionEndSlot, // auction ends
+			ts,
+			MarketType.PERP,
+			oracle
+		);
+		console.log(`Nodes to fill: ${nodesToFillBefore.length}`);
+		for (const n of nodesToFillBefore) {
+			printCrossedNodes(n, slot);
+		}
+		expect(nodesToFillBefore.length).to.equal(1);
+
+		// first order is maker, second is taker
+		expect(
+			nodesToFillBefore[0].node.order?.orderId,
+			'wrong taker orderId'
+		).to.equal(3);
+		expect(
+			nodesToFillBefore[0].makerNode?.order?.orderId,
+			'wrong maker orderId'
+		).to.equal(2);
+	});
 });
 
 describe('DLOB Spot Tests', () => {
@@ -3152,35 +3368,35 @@ describe('DLOB Spot Tests', () => {
 		};
 		const testCases = [
 			{
-				expectedIdx: 3,
+				expectedIdx: 0,
 				orderId: 5,
 				price: new BN(0), // will calc 108
 				direction: PositionDirection.LONG,
 				orderType: OrderType.MARKET,
 			},
 			{
-				expectedIdx: 4,
+				expectedIdx: 1,
 				orderId: 6,
 				price: new BN(0), // will calc 108
 				direction: PositionDirection.LONG,
 				orderType: OrderType.MARKET,
 			},
 			{
-				expectedIdx: 5,
+				expectedIdx: 2,
 				orderId: 7,
 				price: new BN(0), // will calc 108
 				direction: PositionDirection.LONG,
 				orderType: OrderType.MARKET,
 			},
 			{
-				expectedIdx: 0,
+				expectedIdx: 4,
 				orderId: 1,
 				price: new BN(110),
 				direction: PositionDirection.LONG,
 				orderType: OrderType.LIMIT,
 			},
 			{
-				expectedIdx: 1,
+				expectedIdx: 5,
 				orderId: 2,
 				price: new BN(109),
 				direction: PositionDirection.LONG,
@@ -3873,8 +4089,11 @@ describe('DLOB Spot Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
+			Date.now(),
 			12, // auction over
 			MarketType.SPOT,
 			{
@@ -3914,9 +4133,12 @@ describe('DLOB Spot Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			12, // auction over
+			Date.now(),
 			MarketType.SPOT,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
@@ -4011,9 +4233,12 @@ describe('DLOB Spot Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			12, // auction over
+			Date.now(),
 			MarketType.SPOT,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
@@ -4039,9 +4264,12 @@ describe('DLOB Spot Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			12, // auction over
+			Date.now(),
 			MarketType.SPOT,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
@@ -4147,9 +4375,12 @@ describe('DLOB Spot Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			12, // auction over
+			Date.now(),
 			MarketType.SPOT,
 			oracle
 		);
@@ -4183,9 +4414,12 @@ describe('DLOB Spot Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			slot, // auction over
+			Date.now(),
 			MarketType.SPOT,
 			oracle
 		);
@@ -4477,10 +4711,8 @@ describe('DLOB Spot Tests', () => {
 			oracle.price,
 			MarketType.SPOT
 		);
-		console.log(`nodesToTriggeR: ${nodesToTrigger.length}`);
 		for (const [idx, n] of nodesToTrigger.entries()) {
 			expect(n.node.order?.orderId).to.equal(orderIdsToTrigger[idx]);
-			console.log(`nodeToTrigger: ${n.node.order?.orderId}`);
 		}
 	});
 

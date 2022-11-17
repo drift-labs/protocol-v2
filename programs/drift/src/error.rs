@@ -443,6 +443,8 @@ pub enum ErrorCode {
     CantTransferBetweenSameUserAccount,
     #[msg("Invalid Perp Position")]
     InvalidPerpPosition,
+    #[msg("Unable To Get Limit Price")]
+    UnableToGetLimitPrice,
     #[msg("Invalid Liquidation")]
     InvalidLiquidation,
     #[msg("Spot Fulfullment Config Disabled")]

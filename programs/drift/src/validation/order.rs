@@ -139,10 +139,10 @@ fn validate_post_only_order(
     slot: u64,
 ) -> DriftResult {
     let limit_price =
-        order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?;
+        order.force_get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?;
 
     let base_asset_amount_market_can_fill =
-        calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, limit_price)?;
+        calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, Some(limit_price))?;
 
     if base_asset_amount_market_can_fill != 0 {
         msg!(
@@ -161,14 +161,12 @@ fn validate_post_only_order(
         if !order.is_jit_maker() {
             let mut invalid = true;
             if let Some(valid_oracle_price) = valid_oracle_price {
-                if let Some(limit_price) = limit_price {
-                    if (valid_oracle_price > limit_price.cast()?
-                        && order.direction == PositionDirection::Long)
-                        || (valid_oracle_price < limit_price.cast()?
-                            && order.direction == PositionDirection::Short)
-                    {
-                        invalid = false;
-                    }
+                if (valid_oracle_price > limit_price.cast()?
+                    && order.direction == PositionDirection::Long)
+                    || (valid_oracle_price < limit_price.cast()?
+                        && order.direction == PositionDirection::Short)
+                {
+                    invalid = false;
                 }
             }
 
