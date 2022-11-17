@@ -88,3 +88,55 @@ export function isOracleTooDivergent(
 
 	return tooDivergent;
 }
+
+export function calculateLiveOracleTwap(
+	amm: AMM,
+	oraclePriceData: OraclePriceData,
+	now: BN
+): BN {
+	const sinceLastUpdate = now.sub(
+		amm.historicalOracleData.lastOraclePriceTwapTs
+	);
+	const sinceStart = BN.max(ZERO, amm.fundingPeriod.sub(sinceLastUpdate));
+
+	const clampRange = amm.historicalOracleData.lastOraclePriceTwap.div(
+		new BN(3)
+	);
+
+	const clampedOraclePrice = BN.min(
+		amm.historicalOracleData.lastOraclePriceTwap.add(clampRange),
+		BN.max(
+			oraclePriceData.price,
+			amm.historicalOracleData.lastOraclePriceTwap.sub(clampRange)
+		)
+	);
+
+	const newOracleTwap = amm.historicalOracleData.lastOraclePriceTwap
+		.mul(sinceStart)
+		.add(clampedOraclePrice)
+		.mul(sinceLastUpdate)
+		.div(sinceStart.add(sinceLastUpdate));
+
+	return newOracleTwap;
+}
+
+export function calculateLiveOracleStd(
+	amm: AMM,
+	oraclePriceData: OraclePriceData,
+	now: BN
+): BN {
+	const sinceLastUpdate = now.sub(
+		amm.historicalOracleData.lastOraclePriceTwapTs
+	);
+	const sinceStart = BN.max(ZERO, amm.fundingPeriod.sub(sinceLastUpdate));
+
+	const liveOracleTwap = calculateLiveOracleTwap(amm, oraclePriceData, now);
+
+	const priceDeltaVsTwap = oraclePriceData.price.sub(liveOracleTwap).abs();
+
+	const oracleStd = priceDeltaVsTwap.add(
+		amm.oracleStd.mul(sinceStart).div(sinceStart.add(sinceLastUpdate))
+	);
+
+	return oracleStd;
+}

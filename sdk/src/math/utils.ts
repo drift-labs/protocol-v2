@@ -1,5 +1,9 @@
 import { BN } from '../';
 
+export function clampBN(x: BN, min: BN, max: BN): BN {
+	return BN.max(min, BN.min(x, max));
+}
+
 export const squareRootBN = (n, closeness = new BN(1)) => {
 	// Assuming the sqrt of n as n only
 	let x = n;
