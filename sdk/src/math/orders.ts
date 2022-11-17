@@ -127,8 +127,9 @@ export function standardizeBaseAssetAmount(
 export function getLimitPrice(
 	order: Order,
 	oraclePriceData: OraclePriceData,
-	slot: number
-): BN {
+	slot: number,
+	fallbackPrice?: BN
+): BN | undefined {
 	let limitPrice;
 	if (order.oraclePriceOffset !== 0) {
 		limitPrice = oraclePriceData.price.add(new BN(order.oraclePriceOffset));
@@ -138,31 +139,13 @@ export function getLimitPrice(
 		} else if (!order.price.eq(ZERO)) {
 			limitPrice = order.price;
 		} else {
-			// check oracle validity?
-			const oraclePrice1Pct = oraclePriceData.price.div(new BN(100));
-			if (isVariant(order.direction, 'long')) {
-				limitPrice = oraclePriceData.price.add(oraclePrice1Pct);
-			} else {
-				limitPrice = oraclePriceData.price.sub(oraclePrice1Pct);
-			}
+			limitPrice = fallbackPrice;
 		}
 	} else {
 		limitPrice = order.price;
 	}
 
 	return limitPrice;
-}
-
-export function getOptionalLimitPrice(
-	order: Order,
-	oraclePriceData: OraclePriceData,
-	slot: number
-): BN | undefined {
-	if (hasLimitPrice(order, slot)) {
-		return getLimitPrice(order, oraclePriceData, slot);
-	} else {
-		return undefined;
-	}
 }
 
 export function hasLimitPrice(order: Order, slot: number): boolean {
@@ -202,7 +185,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 		return ZERO;
 	}
 
-	const limitPrice = getOptionalLimitPrice(order, oraclePriceData, slot);
+	const limitPrice = getLimitPrice(order, oraclePriceData, slot);
 	let baseAssetAmount;
 
 	const updatedAMM = calculateUpdatedAMM(market.amm, oraclePriceData);

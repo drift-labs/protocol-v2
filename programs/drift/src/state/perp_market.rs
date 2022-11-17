@@ -6,10 +6,14 @@ use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::Cast;
+#[cfg(test)]
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION_U128, MARGIN_PRECISION_U128,
-    PRICE_PRECISION_I64, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
 };
+use crate::math::constants::{
+    BID_ASK_SPREAD_PRECISION_U128, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+};
+
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -19,7 +23,7 @@ use crate::math::stats;
 
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
-use crate::{AMM_TO_QUOTE_PRECISION_RATIO, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION};
+use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
@@ -195,27 +199,6 @@ impl PerpMarket {
         }
     }
 
-    pub fn default_test() -> Self {
-        let amm = AMM::default_test();
-        PerpMarket {
-            amm,
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            ..PerpMarket::default()
-        }
-    }
-
-    pub fn default_btc_test() -> Self {
-        let amm = AMM::default_btc_test();
-        PerpMarket {
-            amm,
-            margin_ratio_initial: 1000,    // 10x
-            margin_ratio_maintenance: 500, // 5x
-            status: MarketStatus::Initialized,
-            ..PerpMarket::default()
-        }
-    }
-
     pub fn get_unrealized_asset_weight(
         &self,
         unrealized_pnl: i128,
@@ -271,6 +254,30 @@ impl PerpMarket {
             .abs()
             .max(self.amm.base_asset_amount_short.abs())
             .unsigned_abs()
+    }
+}
+
+#[cfg(test)]
+impl PerpMarket {
+    pub fn default_test() -> Self {
+        let amm = AMM::default_test();
+        PerpMarket {
+            amm,
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            ..PerpMarket::default()
+        }
+    }
+
+    pub fn default_btc_test() -> Self {
+        let amm = AMM::default_btc_test();
+        PerpMarket {
+            amm,
+            margin_ratio_initial: 1000,    // 10x
+            margin_ratio_maintenance: 500, // 5x
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default()
+        }
     }
 }
 
@@ -488,65 +495,6 @@ impl Default for AMM {
 }
 
 impl AMM {
-    pub fn default_test() -> Self {
-        let default_reserves = 100 * AMM_RESERVE_PRECISION;
-        // make sure tests dont have the default sqrt_k = 0
-        AMM {
-            base_asset_reserve: default_reserves,
-            quote_asset_reserve: default_reserves,
-            sqrt_k: default_reserves,
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            order_step_size: 1,
-            order_tick_size: 1,
-            max_base_asset_reserve: u64::MAX as u128,
-            min_base_asset_reserve: 0,
-            terminal_quote_asset_reserve: default_reserves,
-            peg_multiplier: crate::math::constants::PEG_PRECISION,
-            max_spread: 1000,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: PRICE_PRECISION_I64,
-                ..HistoricalOracleData::default()
-            },
-            last_oracle_valid: true,
-            ..AMM::default()
-        }
-    }
-
-    pub fn default_btc_test() -> Self {
-        AMM {
-            base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 63015384615,
-            terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
-            sqrt_k: 64 * AMM_RESERVE_PRECISION,
-
-            peg_multiplier: 19_400_000_000,
-
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
-            min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
-
-            base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
-            mark_std: PRICE_PRECISION as u64,
-
-            quote_asset_amount: 19_000_000_000, // short 1 BTC @ $19000
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: 19_400 * PRICE_PRECISION_I64,
-                last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
-                last_oracle_price_twap_ts: 1662800000_i64,
-                ..HistoricalOracleData::default()
-            },
-            last_mark_price_twap_ts: 1662800000,
-
-            curve_update_intensity: 100,
-
-            base_spread: 250,
-            max_spread: 975,
-
-            last_oracle_valid: true,
-            ..AMM::default()
-        }
-    }
-
     pub fn amm_jit_is_active(&self) -> bool {
         self.amm_jit_intensity > 0
     }
@@ -642,5 +590,67 @@ impl AMM {
         self.last_trade_ts = now;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+impl AMM {
+    pub fn default_test() -> Self {
+        let default_reserves = 100 * AMM_RESERVE_PRECISION;
+        // make sure tests dont have the default sqrt_k = 0
+        AMM {
+            base_asset_reserve: default_reserves,
+            quote_asset_reserve: default_reserves,
+            sqrt_k: default_reserves,
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+            order_step_size: 1,
+            order_tick_size: 1,
+            max_base_asset_reserve: u64::MAX as u128,
+            min_base_asset_reserve: 0,
+            terminal_quote_asset_reserve: default_reserves,
+            peg_multiplier: crate::math::constants::PEG_PRECISION,
+            max_spread: 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
+            last_oracle_valid: true,
+            ..AMM::default()
+        }
+    }
+
+    pub fn default_btc_test() -> Self {
+        AMM {
+            base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 63015384615,
+            terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
+            sqrt_k: 64 * AMM_RESERVE_PRECISION,
+
+            peg_multiplier: 19_400_000_000,
+
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+            max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
+            min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
+
+            base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
+            mark_std: PRICE_PRECISION as u64,
+
+            quote_asset_amount: 19_000_000_000, // short 1 BTC @ $19000
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: 19_400 * PRICE_PRECISION_I64,
+                last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
+                last_oracle_price_twap_ts: 1662800000_i64,
+                ..HistoricalOracleData::default()
+            },
+            last_mark_price_twap_ts: 1662800000,
+
+            curve_update_intensity: 100,
+
+            base_spread: 250,
+            max_spread: 975,
+
+            last_oracle_valid: true,
+            ..AMM::default()
+        }
     }
 }

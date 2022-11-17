@@ -995,7 +995,7 @@ fn sanitize_maker_order<'a>(
 
     {
         let maker_order = &maker.orders[maker_order_index];
-        if !is_maker_for_taker(maker_order, taker_order, slot)? {
+        if !is_maker_for_taker(maker_order, taker_order)? {
             return Ok((None, None, None, None));
         }
 
@@ -1394,8 +1394,9 @@ pub fn fulfill_perp_order_with_amm(
     // Determine the base asset amount the market can fill
     let (base_asset_amount, limit_price, fill_price) = match override_base_asset_amount {
         Some(override_base_asset_amount) => {
-            let limit_price = user.orders[order_index].get_optional_limit_price(
+            let limit_price = user.orders[order_index].get_limit_price(
                 valid_oracle_price,
+                None,
                 slot,
                 market.amm.order_tick_size,
             )?;
@@ -1662,22 +1663,28 @@ pub fn fulfill_perp_order_with_match(
         return Ok((0_u64, 0_u64));
     }
 
+    let (bid_price, ask_price) = market.amm.bid_ask_price(market.amm.reserve_price()?)?;
+
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-    let taker_price = taker.orders[taker_order_index].get_limit_price(
+    let taker_direction = taker.orders[taker_order_index].direction;
+    let taker_fallback_price = get_fallback_price(&taker_direction, bid_price, ask_price);
+    let taker_price = taker.orders[taker_order_index].force_get_limit_price(
         Some(oracle_price),
+        Some(taker_fallback_price),
         slot,
         market.amm.order_tick_size,
     )?;
-    let taker_direction = taker.orders[taker_order_index].direction;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
 
-    let maker_price = maker.orders[maker_order_index].get_limit_price(
+    let maker_price = maker.orders[maker_order_index].force_get_limit_price(
         Some(oracle_price),
+        None,
         slot,
         market.amm.order_tick_size,
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
+
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
 
@@ -1715,13 +1722,19 @@ pub fn fulfill_perp_order_with_match(
 
     let mut total_quote_asset_amount = 0_u64;
     let base_asset_amount_left_to_fill = if amm_wants_to_make && market.amm.amm_jit_is_active() {
-        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
-            market,
-            base_asset_amount,
-            maker_price,
-            valid_oracle_price,
-            taker_direction,
-        )?;
+        let jit_base_asset_amount = if !taker.orders[taker_order_index].has_limit_price(slot)?
+            && maker_base_asset_amount < taker_base_asset_amount
+        {
+            0
+        } else {
+            crate::math::amm_jit::calculate_jit_base_asset_amount(
+                market,
+                base_asset_amount,
+                maker_price,
+                valid_oracle_price,
+                taker_direction,
+            )?
+        };
 
         if jit_base_asset_amount > 0 {
             let (base_asset_amount_filled_by_amm, quote_asset_amount_filled_by_amm) =
@@ -2868,7 +2881,7 @@ fn sanitize_spot_maker_order<'a>(
 
     {
         let maker_order = &maker.orders[maker_order_index];
-        if !is_maker_for_taker(maker_order, taker_order, slot)? {
+        if !is_maker_for_taker(maker_order, taker_order)? {
             return Ok((None, None, None, None));
         }
 
@@ -3125,19 +3138,27 @@ pub fn fulfill_spot_order_with_match(
 
     let market_index = taker.orders[taker_order_index].market_index;
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
-    let taker_price = taker.orders[taker_order_index].get_limit_price(
+    let taker_price = match taker.orders[taker_order_index].get_limit_price(
         Some(oracle_price),
+        None,
         slot,
         base_market.order_tick_size,
-    )?;
+    )? {
+        Some(price) => price,
+        None => {
+            return Ok(0_u64);
+        }
+    };
+
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
     let taker_order_slot = taker.orders[taker_order_index].slot;
     let taker_spot_position_index = taker.get_spot_position_index(market_index)?;
     let taker_direction = taker.orders[taker_order_index].direction;
 
-    let maker_price = maker.orders[maker_order_index].get_limit_price(
+    let maker_price = maker.orders[maker_order_index].force_get_limit_price(
         Some(oracle_price),
+        None,
         slot,
         base_market.order_tick_size,
     )?;
@@ -3401,8 +3422,9 @@ pub fn fulfill_spot_order_with_serum(
     };
 
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
-    let taker_price = taker.orders[taker_order_index].get_optional_limit_price(
+    let taker_price = taker.orders[taker_order_index].get_limit_price(
         Some(oracle_price),
+        None,
         slot,
         base_market.order_tick_size,
     )?;

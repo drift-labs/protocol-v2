@@ -1,9 +1,13 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::auction::is_auction_complete;
+use crate::math::matching::do_orders_cross;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::perp_market::AMM;
 use crate::state::user::Order;
+
+#[cfg(test)]
+mod tests;
 
 pub fn determine_perp_fulfillment_methods(
     taker_order: &Order,
@@ -22,15 +26,33 @@ pub fn determine_perp_fulfillment_methods(
 
     if let Some(maker_order) = maker_order {
         if is_amm_available {
-            let maker_price =
-                maker_order.get_limit_price(valid_oracle_price, slot, amm.order_tick_size)?;
+            let taker_price =
+                taker_order.get_limit_price(valid_oracle_price, None, slot, amm.order_tick_size)?;
+
+            let maker_price = maker_order.force_get_limit_price(
+                valid_oracle_price,
+                None,
+                slot,
+                amm.order_tick_size,
+            )?;
 
             let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
 
-            if (taker_order.direction == PositionDirection::Long && maker_price <= amm_ask_price)
-                || (taker_order.direction == PositionDirection::Short
-                    && maker_price >= amm_bid_price)
-            {
+            let taker_crosses_maker = match taker_price {
+                Some(taker_price) => {
+                    do_orders_cross(maker_order.direction, maker_price, taker_price)
+                }
+                None => true,
+            };
+
+            let maker_better_than_amm = match taker_order.direction {
+                PositionDirection::Long => maker_price <= amm_ask_price,
+                PositionDirection::Short => maker_price >= amm_bid_price,
+            };
+
+            if !taker_crosses_maker {
+                fulfillment_methods.push(PerpFulfillmentMethod::AMM(None));
+            } else if taker_crosses_maker && maker_better_than_amm {
                 fulfillment_methods.push(PerpFulfillmentMethod::Match);
                 fulfillment_methods.push(PerpFulfillmentMethod::AMM(None));
             } else {
