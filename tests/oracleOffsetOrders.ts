@@ -354,7 +354,7 @@ describe('oracle offset', () => {
 		const entryPrice = calculateEntryPrice(position);
 		console.log(breakEvenPrice.toString());
 		console.log(entryPrice.toString());
-		assert(breakEvenPrice.eq(new BN(1101097)));
+		assert(breakEvenPrice.eq(new BN(1099997)));
 		assert(entryPrice.eq(new BN(1099997)));
 
 		await driftClient.unsubscribe();

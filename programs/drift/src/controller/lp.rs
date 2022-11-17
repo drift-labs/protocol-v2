@@ -117,16 +117,18 @@ pub fn settle_lp(
         if position.lp_shares > 0 {
             let (position_delta, pnl) = settle_lp_position(position, market)?;
 
-            crate::emit!(LPRecord {
-                ts: now,
-                action: LPAction::SettleLiquidity,
-                user: *user_key,
-                market_index: market.market_index,
-                delta_base_asset_amount: position_delta.base_asset_amount,
-                delta_quote_asset_amount: position_delta.quote_asset_amount,
-                pnl,
-                n_shares: 0
-            });
+            if position_delta.base_asset_amount != 0 || position_delta.quote_asset_amount != 0 {
+                crate::emit!(LPRecord {
+                    ts: now,
+                    action: LPAction::SettleLiquidity,
+                    user: *user_key,
+                    market_index: market.market_index,
+                    delta_base_asset_amount: position_delta.base_asset_amount,
+                    delta_quote_asset_amount: position_delta.quote_asset_amount,
+                    pnl,
+                    n_shares: 0
+                });
+            }
         }
     }
 

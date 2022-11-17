@@ -481,21 +481,15 @@ export class BigNum {
 			? this.prettyPrint(useTradePrecision, precisionOverride)
 			: BigNum.fromPrint(this.toFixed(2), new BN(2)).prettyPrint();
 
-		// Append two trailing zeroes if not using custom precision
+		// Append trailing zeroes out to 2 decimal places if not using custom precision
 		if (!usingCustomPrecision) {
 			const [_, rightSide] = val.split(BigNum.delim);
-
 			const trailingLength = rightSide?.length ?? 0;
 
-			if (trailingLength < 2) {
-				const numHasDecimals = this.print().includes(BigNum.delim);
-
-				// Handle case where pretty print won't include the decimal point
-				if (trailingLength === 0 && numHasDecimals) {
-					val = `${val}.00`;
-				} else {
-					val = `${val}${new Array(2 - trailingLength).fill('0').join('')}`;
-				}
+			if (trailingLength === 0) {
+				val = `${val}${BigNum.delim}00`;
+			} else if (trailingLength === 1) {
+				val = `${val}0`;
 			}
 		}
 

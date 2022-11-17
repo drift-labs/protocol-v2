@@ -445,6 +445,10 @@ pub enum ErrorCode {
     InvalidPerpPosition,
     #[msg("Unable To Get Limit Price")]
     UnableToGetLimitPrice,
+    #[msg("Invalid Liquidation")]
+    InvalidLiquidation,
+    #[msg("Spot Fulfullment Config Disabled")]
+    SpotFulfillmentConfigDisabled,
 }
 
 #[macro_export]

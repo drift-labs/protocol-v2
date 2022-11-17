@@ -50,7 +50,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             0_u64
         } else {
             calculate_filler_reward(
-                quote_asset_amount,
+                fee,
                 order_slot,
                 clock_slot,
                 0,

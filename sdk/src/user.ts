@@ -64,6 +64,7 @@ import {
 	getWorstCaseTokenAmounts,
 	isSpotPositionAvailable,
 } from './math/spotPosition';
+
 export class User {
 	driftClient: DriftClient;
 	userAccountPublicKey: PublicKey;
@@ -410,6 +411,16 @@ export class User {
 		return this.getMarginRequirement('Maintenance', liquidationBuffer);
 	}
 
+	public getActivePerpPositions(): PerpPosition[] {
+		return this.getUserAccount().perpPositions.filter(
+			(pos) =>
+				!pos.baseAssetAmount.eq(ZERO) ||
+				!pos.quoteAssetAmount.eq(ZERO) ||
+				!(pos.openOrders == 0) ||
+				!pos.lpShares.eq(ZERO)
+		);
+	}
+
 	/**
 	 * calculates unrealized position price pnl
 	 * @returns : Precision QUOTE_PRECISION
@@ -420,10 +431,8 @@ export class User {
 		withWeightMarginCategory?: MarginCategory
 	): BN {
 		const quoteSpotMarket = this.driftClient.getQuoteSpotMarketAccount();
-		return this.getUserAccount()
-			.perpPositions.filter((pos) =>
-				marketIndex ? pos.marketIndex === marketIndex : true
-			)
+		return this.getActivePerpPositions()
+			.filter((pos) => (marketIndex ? pos.marketIndex === marketIndex : true))
 			.reduce((unrealizedPnl, perpPosition) => {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
@@ -758,6 +767,53 @@ export class User {
 	}
 
 	/**
+	 * calculates User Health by comparing total collateral and maint. margin requirement
+	 * @returns : number (value from [0, 100])
+	 */
+	public getHealth(): number {
+		const userAccount = this.getUserAccount();
+
+		if (
+			isVariant(userAccount.status, 'beingLiquidated') ||
+			isVariant(userAccount.status, 'bankrupt')
+		) {
+			return 0;
+		}
+
+		const totalCollateral = this.getTotalCollateral('Maintenance');
+		const maintenanceMarginReq = this.getMaintenanceMarginRequirement();
+
+		let health: number;
+
+		if (maintenanceMarginReq.eq(ZERO) && totalCollateral.gte(ZERO)) {
+			health = 100;
+		} else if (totalCollateral.lte(ZERO)) {
+			health = 0;
+		} else {
+			// const totalCollateral = this.getTotalCollateral('Initial');
+			// const maintenanceMarginReq = this.getMaintenanceMarginRequirement();
+
+			const marginRatio =
+				this.getMarginRatio().toNumber() / MARGIN_PRECISION.toNumber();
+
+			const maintenanceRatio =
+				(maintenanceMarginReq.toNumber() / totalCollateral.toNumber()) *
+				marginRatio;
+
+			const healthP1 = Math.max(0, (marginRatio - maintenanceRatio) * 100) + 1;
+
+			health = Math.min(1, Math.log(healthP1) / Math.log(100)) * 100;
+			if (health > 1) {
+				health = Math.round(health);
+			} else {
+				health = Math.round(health * 100) / 100;
+			}
+		}
+
+		return health;
+	}
+
+	/**
 	 * calculates sum of position value across all positions in margin system
 	 * @returns : Precision QUOTE_PRECISION
 	 */
@@ -766,7 +822,7 @@ export class User {
 		liquidationBuffer?: BN,
 		includeOpenOrders?: boolean
 	): BN {
-		return this.getUserAccount().perpPositions.reduce(
+		return this.getActivePerpPositions().reduce(
 			(totalPerpValue, perpPosition) => {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
@@ -955,15 +1011,20 @@ export class User {
 		return totalLiabilityValue.mul(TEN_THOUSAND).div(totalAssetValue);
 	}
 
-	getTotalLiabilityValue(): BN {
-		return this.getTotalPerpPositionValue(undefined, undefined, true).add(
-			this.getSpotMarketLiabilityValue(undefined, undefined, undefined, true)
+	getTotalLiabilityValue(marginCategory?: MarginCategory): BN {
+		return this.getTotalPerpPositionValue(marginCategory, undefined, true).add(
+			this.getSpotMarketLiabilityValue(
+				undefined,
+				marginCategory,
+				undefined,
+				true
+			)
 		);
 	}
 
-	getTotalAssetValue(): BN {
-		return this.getSpotMarketAssetValue(undefined, undefined, true).add(
-			this.getUnrealizedPNL(true, undefined, undefined)
+	getTotalAssetValue(marginCategory?: MarginCategory): BN {
+		return this.getSpotMarketAssetValue(undefined, marginCategory, true).add(
+			this.getUnrealizedPNL(true, undefined, marginCategory)
 		);
 	}
 
@@ -1008,14 +1069,14 @@ export class User {
 	 * calculates margin ratio: total collateral / |total position value|
 	 * @returns : Precision TEN_THOUSAND
 	 */
-	public getMarginRatio(): BN {
-		const totalLiabilityValue = this.getTotalLiabilityValue();
+	public getMarginRatio(marginCategory?: MarginCategory): BN {
+		const totalLiabilityValue = this.getTotalLiabilityValue(marginCategory);
 
 		if (totalLiabilityValue.eq(ZERO)) {
 			return BN_MAX;
 		}
 
-		const totalAssetValue = this.getTotalAssetValue();
+		const totalAssetValue = this.getTotalAssetValue(marginCategory);
 
 		return totalAssetValue.mul(TEN_THOUSAND).div(totalLiabilityValue);
 	}
@@ -1081,7 +1142,64 @@ export class User {
 	}
 
 	/**
-	 * Calculate the liquidation price of a position, with optional parameter to calculate the liquidation price after a trade
+	 * Calculate the liquidation price of a perp position, with optional parameter to calculate the liquidation price after a trade
+	 * @param PerpPosition
+	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for : Precision 10^13
+	 * @param partial
+	 * @returns Precision : PRICE_PRECISION
+	 */
+	public spotLiquidationPrice(
+		spotPosition: Pick<SpotPosition, 'marketIndex'>
+	): BN {
+		const currentSpotPosition = this.getSpotPosition(spotPosition.marketIndex);
+
+		const mtc = this.getTotalCollateral('Maintenance');
+		const mmr = this.getMaintenanceMarginRequirement();
+
+		const deltaValueToLiq = mtc.sub(mmr); // QUOTE_PRECISION
+
+		const currentSpotMarket = this.driftClient.getSpotMarketAccount(
+			spotPosition.marketIndex
+		);
+		const tokenAmount = getTokenAmount(
+			currentSpotPosition.scaledBalance,
+			currentSpotMarket,
+			currentSpotPosition.balanceType
+		);
+		const tokenAmountQP = tokenAmount
+			.mul(QUOTE_PRECISION)
+			.div(new BN(10 ** currentSpotMarket.decimals));
+
+		if (tokenAmountQP.abs().eq(ZERO)) {
+			return new BN(-1);
+		}
+		let liqPriceDelta: BN;
+		if (isVariant(currentSpotPosition.balanceType, 'borrow')) {
+			liqPriceDelta = deltaValueToLiq
+				.mul(PRICE_PRECISION)
+				.mul(SPOT_MARKET_WEIGHT_PRECISION)
+				.div(tokenAmountQP)
+				.div(new BN(currentSpotMarket.maintenanceLiabilityWeight));
+		} else {
+			liqPriceDelta = deltaValueToLiq
+				.mul(PRICE_PRECISION)
+				.mul(SPOT_MARKET_WEIGHT_PRECISION)
+				.div(tokenAmountQP)
+				.div(new BN(currentSpotMarket.maintenanceAssetWeight))
+				.mul(new BN(-1));
+		}
+
+		const currentPrice = this.driftClient.getOracleDataForSpotMarket(
+			spotPosition.marketIndex
+		).price;
+
+		const liqPrice = currentPrice.add(liqPriceDelta);
+
+		return liqPrice;
+	}
+
+	/**
+	 * Calculate the liquidation price of a perp position, with optional parameter to calculate the liquidation price after a trade
 	 * @param PerpPosition
 	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for : Precision 10^13
 	 * @param partial

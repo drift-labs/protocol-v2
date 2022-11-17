@@ -146,7 +146,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 100030000);
         assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION_I64);
-        assert_eq!(maker_position.quote_break_even_amount, 99970000);
+        assert_eq!(maker_position.quote_break_even_amount, 100030000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
@@ -263,7 +263,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 160048000);
         assert_eq!(maker_position.quote_entry_amount, 160 * QUOTE_PRECISION_I64);
-        assert_eq!(maker_position.quote_break_even_amount, 159952000);
+        assert_eq!(maker_position.quote_break_even_amount, 160048000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 48000);
@@ -364,7 +364,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, 179910000);
         assert_eq!(taker_position.quote_entry_amount, 180 * QUOTE_PRECISION_I64);
-        assert_eq!(taker_position.quote_break_even_amount, 180090000);
+        assert_eq!(taker_position.quote_break_even_amount, 179910000);
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
         assert_eq!(taker_stats.fees.total_fee_paid, 90000);
@@ -481,7 +481,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, 139930000);
         assert_eq!(taker_position.quote_entry_amount, 140 * QUOTE_PRECISION_I64);
-        assert_eq!(taker_position.quote_break_even_amount, 140070000);
+        assert_eq!(taker_position.quote_break_even_amount, 139930000);
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
         assert_eq!(taker_stats.fees.total_fee_paid, 70000);
@@ -943,7 +943,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 120072000);
         assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION_I64);
-        assert_eq!(maker_position.quote_break_even_amount, 119928000);
+        assert_eq!(maker_position.quote_break_even_amount, 120072000);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         assert_eq!(market.amm.base_asset_amount_with_amm, 0);
@@ -1047,7 +1047,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 120072000);
         assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION_I64);
-        assert_eq!(maker_position.quote_break_even_amount, 119928000);
+        assert_eq!(maker_position.quote_break_even_amount, 120072000);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         assert_eq!(market.amm.base_asset_amount_with_amm, 0);
@@ -1160,7 +1160,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 150045000);
         assert_eq!(maker_position.quote_entry_amount, 150 * QUOTE_PRECISION_I64);
-        assert_eq!(maker_position.quote_break_even_amount, 149955000);
+        assert_eq!(maker_position.quote_break_even_amount, 150045000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 45000);
@@ -1258,7 +1258,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 100030000);
         assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION_I64);
-        assert_eq!(maker_position.quote_break_even_amount, 99970000);
+        assert_eq!(maker_position.quote_break_even_amount, 100030000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
@@ -1387,7 +1387,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, 99950000);
         assert_eq!(taker_position.quote_entry_amount, 100 * QUOTE_PRECISION_I64);
-        assert_eq!(taker_position.quote_break_even_amount, 100050000);
+        assert_eq!(taker_position.quote_break_even_amount, 99950000);
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
@@ -1931,7 +1931,7 @@ pub mod fulfill_order {
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
-        assert_eq!(maker_position.quote_break_even_amount, 49989999);
+        assert_eq!(maker_position.quote_break_even_amount, 50_020_001);
         assert_eq!(maker_position.quote_entry_amount, 50_005_000);
         assert_eq!(maker_position.quote_asset_amount, 50_020_001); // 50_005_000 + 50_005_000 * .0003
         assert_eq!(maker_position.open_orders, 0);
@@ -2143,7 +2143,7 @@ pub mod fulfill_order {
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
-        assert_eq!(maker_position.quote_break_even_amount, 49989999);
+        assert_eq!(maker_position.quote_break_even_amount, 50_020_001);
         assert_eq!(maker_position.quote_entry_amount, 50_005_000);
         assert_eq!(maker_position.quote_asset_amount, 50_020_001); // 50_005_000 + 50_005_000 * .0003
         assert_eq!(maker_position.open_orders, 0);
@@ -2334,7 +2334,7 @@ pub mod fulfill_order {
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_asset_amount, 50015000);
         assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I64);
-        assert_eq!(maker_position.quote_break_even_amount, 49985000);
+        assert_eq!(maker_position.quote_break_even_amount, 50015000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
@@ -2894,7 +2894,7 @@ pub mod fulfill_order {
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_asset_amount, 50015000);
         assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I64);
-        assert_eq!(maker_position.quote_break_even_amount, 49985000);
+        assert_eq!(maker_position.quote_break_even_amount, 50015000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
@@ -3064,6 +3064,7 @@ pub mod fill_order {
         let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         let mut user = User {
+            authority: Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap(), // different authority than filler
             orders: get_orders(Order {
                 market_index: 0,
                 order_id: 1,
@@ -3191,6 +3192,7 @@ pub mod fill_order {
         let mut oracle_map = get_oracle_map();
 
         let mut user = User {
+            authority: Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap(),
             orders: get_orders(Order {
                 market_index: 0,
                 order_id: 1,
