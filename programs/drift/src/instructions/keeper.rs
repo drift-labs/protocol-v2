@@ -1457,6 +1457,7 @@ pub struct ResolvePerpPnlDeficit<'info> {
 pub struct SettleRevenueToInsuranceFund<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
+        mut,
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
         bump
     )]
