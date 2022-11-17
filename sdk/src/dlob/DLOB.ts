@@ -21,7 +21,6 @@ import {
 	MarketTypeStr,
 	StateAccount,
 	isMarketOrder,
-	isLimitOrder,
 	mustBeTriggered,
 	isTriggered,
 	getLimitPrice,
@@ -349,17 +348,15 @@ export class DLOB {
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
-		let askGenerator = this.getAsks(
+		let askGenerator = this.getLimitAsks(
 			marketIndex,
-			undefined, // dont include vask
 			slot,
 			marketType,
 			oraclePriceData
 		);
 
-		let bidGenerator = this.getBids(
+		let bidGenerator = this.getLimitBids(
 			marketIndex,
-			undefined, // dont include vbid
 			slot,
 			marketType,
 			oraclePriceData
@@ -397,9 +394,8 @@ export class DLOB {
 		}
 
 		if (fallbackBid && !isAmmPaused) {
-			askGenerator = this.getAsks(
+			askGenerator = this.getLimitAsks(
 				marketIndex,
-				undefined,
 				slot,
 				marketType,
 				oraclePriceData
@@ -421,9 +417,8 @@ export class DLOB {
 		}
 
 		if (fallbackAsk && !isAmmPaused) {
-			bidGenerator = this.getBids(
+			bidGenerator = this.getLimitBids(
 				marketIndex,
-				undefined,
 				slot,
 				marketType,
 				oraclePriceData
@@ -459,9 +454,8 @@ export class DLOB {
 		const nodesToFill = new Array<NodeToFill>();
 
 		let marketOrderGenerator = this.getMarketAsks(marketIndex, marketType);
-		let limitOrderGenerator = this.getBids(
+		let limitOrderGenerator = this.getLimitBids(
 			marketIndex,
-			undefined,
 			slot,
 			marketType,
 			oraclePriceData
@@ -500,9 +494,8 @@ export class DLOB {
 		}
 
 		marketOrderGenerator = this.getMarketBids(marketIndex, marketType);
-		limitOrderGenerator = this.getAsks(
+		limitOrderGenerator = this.getLimitAsks(
 			marketIndex,
-			undefined,
 			slot,
 			marketType,
 			oraclePriceData
@@ -777,9 +770,79 @@ export class DLOB {
 		}
 	}
 
-	*getAsks(
+	private *getBestNode(
+		generatorList: Array<Generator<DLOBNode>>,
+		oraclePriceData: OraclePriceData,
+		slot: number,
+		compareFcn: (bestPrice: BN, currentPrice: BN) => boolean
+	): Generator<DLOBNode> {
+		const generators = generatorList.map((generator) => {
+			return {
+				next: generator.next(),
+				generator,
+			};
+		});
+
+		let sideExhausted = false;
+		while (!sideExhausted) {
+			const bestGenerator = generators.reduce(
+				(bestGenerator, currentGenerator) => {
+					if (currentGenerator.next.done) {
+						return bestGenerator;
+					}
+
+					if (bestGenerator.next.done) {
+						return currentGenerator;
+					}
+
+					const bestValue = bestGenerator.next.value as DLOBNode;
+					const currentValue = currentGenerator.next.value as DLOBNode;
+
+					// always return the market orders first
+					if (bestValue.order && isMarketOrder(bestValue.order)) {
+						return bestGenerator;
+					}
+					if (currentValue.order && isMarketOrder(currentValue.order)) {
+						return currentGenerator;
+					}
+
+					const bestPrice = bestValue.getPrice(oraclePriceData, slot);
+					const currentPrice = currentValue.getPrice(oraclePriceData, slot);
+
+					return compareFcn(bestPrice, currentPrice)
+						? bestGenerator
+						: currentGenerator;
+				}
+			);
+
+			if (!bestGenerator.next.done) {
+				// skip this node if it's already completely filled
+				if (bestGenerator.next.value.isBaseFilled()) {
+					bestGenerator.next = bestGenerator.generator.next();
+					continue;
+				}
+
+				// skip order if user is being liquidated/bankrupt
+				if (bestGenerator.next.value.userAccount !== undefined) {
+					const user = this.userMap.get(
+						bestGenerator.next.value.userAccount.toString()
+					);
+					if (user?.isBeingLiquidated()) {
+						bestGenerator.next = bestGenerator.generator.next();
+						continue;
+					}
+				}
+
+				yield bestGenerator.next.value;
+				bestGenerator.next = bestGenerator.generator.next();
+			} else {
+				sideExhausted = true;
+			}
+		}
+	}
+
+	*getLimitAsks(
 		marketIndex: number,
-		fallbackAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
@@ -795,76 +858,18 @@ export class DLOB {
 			nodeLists.floatingLimit.ask.getGenerator(),
 		];
 
-		if (marketTypeStr === 'perp' && fallbackAsk) {
-			generatorList.push(getVammNodeGenerator(fallbackAsk));
-		}
-		if (generatorList.length === 0) {
-			throw new Error('No ask generators found');
-		}
-
-		const askGenerators = generatorList.map((generator) => {
-			return {
-				next: generator.next(),
-				generator,
-			};
-		});
-
-		let asksExhausted = false;
-		while (!asksExhausted) {
-			const bestGenerator = askGenerators.reduce(
-				(bestGenerator, currentGenerator) => {
-					if (currentGenerator.next.done) {
-						return bestGenerator;
-					}
-
-					if (bestGenerator.next.done) {
-						return currentGenerator;
-					}
-
-					const bestAskPrice = bestGenerator.next.value.getPrice(
-						oraclePriceData,
-						slot
-					);
-					const currentAskPrice = currentGenerator.next.value.getPrice(
-						oraclePriceData,
-						slot
-					);
-
-					return bestAskPrice.lt(currentAskPrice)
-						? bestGenerator
-						: currentGenerator;
-				}
-			);
-
-			if (!bestGenerator.next.done) {
-				// skip this node if it's already completely filled
-				if (bestGenerator.next.value.isBaseFilled()) {
-					bestGenerator.next = bestGenerator.generator.next();
-					continue;
-				}
-
-				// skip order if user is being liquidated/bankrupt
-				if (bestGenerator.next.value.userAccount !== undefined) {
-					const user = this.userMap.get(
-						bestGenerator.next.value.userAccount.toString()
-					);
-					if (user?.isBeingLiquidated()) {
-						bestGenerator.next = bestGenerator.generator.next();
-						continue;
-					}
-				}
-
-				yield bestGenerator.next.value;
-				bestGenerator.next = bestGenerator.generator.next();
-			} else {
-				asksExhausted = true;
+		yield* this.getBestNode(
+			generatorList,
+			oraclePriceData,
+			slot,
+			(bestPrice, currentPrice) => {
+				return bestPrice.lt(currentPrice);
 			}
-		}
+		);
 	}
 
-	*getBids(
+	*getLimitBids(
 		marketIndex: number,
-		fallbackBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
@@ -880,71 +885,77 @@ export class DLOB {
 			nodeLists.limit.bid.getGenerator(),
 			nodeLists.floatingLimit.bid.getGenerator(),
 		];
+
+		yield* this.getBestNode(
+			generatorList,
+			oraclePriceData,
+			slot,
+			(bestPrice, currentPrice) => {
+				return bestPrice.gt(currentPrice);
+			}
+		);
+	}
+
+	*getAsks(
+		marketIndex: number,
+		fallbackAsk: BN | undefined,
+		slot: number,
+		marketType: MarketType,
+		oraclePriceData: OraclePriceData
+	): Generator<DLOBNode> {
+		if (isVariant(marketType, 'spot') && !oraclePriceData) {
+			throw new Error('Must provide OraclePriceData to get spot asks');
+		}
+
+		const generatorList = [
+			this.getMarketAsks(marketIndex, marketType),
+			this.getLimitAsks(marketIndex, slot, marketType, oraclePriceData),
+		];
+
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+		if (marketTypeStr === 'perp' && fallbackAsk) {
+			generatorList.push(getVammNodeGenerator(fallbackAsk));
+		}
+
+		yield* this.getBestNode(
+			generatorList,
+			oraclePriceData,
+			slot,
+			(bestPrice, currentPrice) => {
+				return bestPrice.lt(currentPrice);
+			}
+		);
+	}
+
+	*getBids(
+		marketIndex: number,
+		fallbackBid: BN | undefined,
+		slot: number,
+		marketType: MarketType,
+		oraclePriceData: OraclePriceData
+	): Generator<DLOBNode> {
+		if (isVariant(marketType, 'spot') && !oraclePriceData) {
+			throw new Error('Must provide OraclePriceData to get spot bids');
+		}
+
+		const generatorList = [
+			this.getMarketBids(marketIndex, marketType),
+			this.getLimitBids(marketIndex, slot, marketType, oraclePriceData),
+		];
+
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		if (marketTypeStr === 'perp' && fallbackBid) {
 			generatorList.push(getVammNodeGenerator(fallbackBid));
 		}
-		if (generatorList.length === 0) {
-			throw new Error('No bid generators found');
-		}
 
-		const bidGenerators = generatorList.map((generator) => {
-			return {
-				next: generator.next(),
-				generator,
-			};
-		});
-
-		let bidsExhausted = false; // there will always be the fallbackBid
-		while (!bidsExhausted) {
-			const bestGenerator = bidGenerators.reduce(
-				(bestGenerator, currentGenerator) => {
-					if (currentGenerator.next.done) {
-						return bestGenerator;
-					}
-
-					if (bestGenerator.next.done) {
-						return currentGenerator;
-					}
-
-					const bestBidPrice = bestGenerator.next.value.getPrice(
-						oraclePriceData,
-						slot
-					);
-					const currentBidPrice = currentGenerator.next.value.getPrice(
-						oraclePriceData,
-						slot
-					);
-
-					return bestBidPrice.gt(currentBidPrice)
-						? bestGenerator
-						: currentGenerator;
-				}
-			);
-
-			if (!bestGenerator.next.done) {
-				// skip this node if it's already completely filled
-				if (bestGenerator.next.value.isBaseFilled()) {
-					bestGenerator.next = bestGenerator.generator.next();
-					continue;
-				}
-
-				// skip order if user is being liquidated/bankrupt
-				if (bestGenerator.next.value.userAccount !== undefined) {
-					const user = this.userMap.get(
-						bestGenerator.next.value.userAccount.toString()
-					);
-					if (user?.isBeingLiquidated()) {
-						bestGenerator.next = bestGenerator.generator.next();
-						continue;
-					}
-				}
-
-				yield bestGenerator.next.value;
-				bestGenerator.next = bestGenerator.generator.next();
-			} else {
-				bidsExhausted = true;
+		yield* this.getBestNode(
+			generatorList,
+			oraclePriceData,
+			slot,
+			(bestPrice, currentPrice) => {
+				return bestPrice.gt(currentPrice);
 			}
-		}
+		);
 	}
 
 	findCrossingLimitOrders(
