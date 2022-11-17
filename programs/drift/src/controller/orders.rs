@@ -1305,20 +1305,20 @@ fn fulfill_perp_order(
     }
 
     if let Some(maker) = maker {
-        let (maker_margin_requirement, maker_total_collateral, _, _) =
+        let (_, maker_total_collateral, maker_margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
                 maker,
                 perp_market_map,
                 MarginRequirementType::Maintenance,
                 spot_market_map,
                 oracle_map,
-                None,
+                Some(maintenance_margin_buffer.cast()?),
             )?;
 
-        if maker_total_collateral < maker_margin_requirement.cast()? {
+        if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
-            "maker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            maker_margin_requirement,
+            "maker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+            maker_margin_requirement_plus_buffer,
             maker_total_collateral
         );
             return Err(ErrorCode::InsufficientCollateral);
@@ -3101,20 +3101,20 @@ fn fulfill_spot_order(
     }
 
     if let Some(maker) = maker {
-        let (maker_margin_requirement, maker_total_collateral, _, _) =
+        let (_, maker_total_collateral, maker_margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
                 maker,
                 perp_market_map,
                 MarginRequirementType::Maintenance,
                 spot_market_map,
                 oracle_map,
-                None,
+                Some(maintenance_margin_buffer.cast()?),
             )?;
 
-        if maker_total_collateral < maker_margin_requirement.cast()? {
+        if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
-            "maker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            maker_margin_requirement,
+            "maker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+            maker_margin_requirement_plus_buffer,
             maker_total_collateral
         );
             return Err(ErrorCode::InsufficientCollateral);
