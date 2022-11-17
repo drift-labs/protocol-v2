@@ -1718,7 +1718,7 @@ pub fn fulfill_perp_order_with_match(
         let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
             market,
             base_asset_amount,
-            taker_price,
+            maker_price,
             valid_oracle_price,
             taker_direction,
         )?;
@@ -1744,7 +1744,7 @@ pub fn fulfill_perp_order_with_match(
                     fee_structure,
                     order_records,
                     Some(jit_base_asset_amount),
-                    Some(taker_price), // current auction price
+                    Some(maker_price), // match the makers price
                     false,             // dont split with the lps
                 )?;
 
