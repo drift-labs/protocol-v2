@@ -73,7 +73,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		mint: new PublicKey(WRAPPED_SOL_MINT),
 		precision: LAMPORTS_PRECISION,
 		precisionExp: LAMPORTS_EXP,
-		serumMarket: new PublicKey('9wFFyRfZBsuAha4YcuxcXLKwMxJR43S7fPfQLusDBzvT'),
+		serumMarket: new PublicKey('8BnEgHoWFysVcuFFX7QztDmzuH8r5ZFvyP3sYwn1XTh6'),
 	},
 ];
 

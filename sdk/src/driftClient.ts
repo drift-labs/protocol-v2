@@ -300,9 +300,28 @@ export class DriftClient {
 		return this.accountSubscriber.getStateAccountAndSlot().data;
 	}
 
+	/**
+	 * Forces a fetch to rpc before returning accounts. Useful for anchor tests.
+	 */
+	public async forceGetStateAccount(): Promise<StateAccount> {
+		await this.accountSubscriber.fetch();
+		return this.accountSubscriber.getStateAccountAndSlot().data;
+	}
+
 	public getPerpMarketAccount(
 		marketIndex: number
 	): PerpMarketAccount | undefined {
+		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
+	}
+
+	/**
+	 * Forces a fetch to rpc before returning accounts. Useful for anchor tests.
+	 * @param marketIndex
+	 */
+	public async forceGetPerpMarketAccount(
+		marketIndex: number
+	): Promise<PerpMarketAccount | undefined> {
+		await this.accountSubscriber.fetch();
 		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
 	}
 
@@ -315,6 +334,17 @@ export class DriftClient {
 	public getSpotMarketAccount(
 		marketIndex: number
 	): SpotMarketAccount | undefined {
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+	}
+
+	/**
+	 * Forces a fetch to rpc before returning accounts. Useful for anchor tests.
+	 * @param marketIndex
+	 */
+	public async forceGetSpotMarketAccount(
+		marketIndex: number
+	): Promise<SpotMarketAccount | undefined> {
+		await this.accountSubscriber.fetch();
 		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
 	}
 
@@ -676,6 +706,17 @@ export class DriftClient {
 	}
 
 	public getUserAccount(subAccountId?: number): UserAccount | undefined {
+		return this.getUser(subAccountId).getUserAccount();
+	}
+
+	/**
+	 * Forces a fetch to rpc before returning accounts. Useful for anchor tests.
+	 * @param subAccountId
+	 */
+	public async forceGetUserAccount(
+		subAccountId?: number
+	): Promise<UserAccount | undefined> {
+		await this.getUser(subAccountId).fetchAccounts();
 		return this.getUser(subAccountId).getUserAccount();
 	}
 

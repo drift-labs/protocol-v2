@@ -173,6 +173,11 @@ export class SettlePnlExplanation {
 	static readonly EXPIRED_POSITION = { expiredPosition: {} };
 }
 
+export class SpotFulfillmentConfigStatus {
+	static readonly ENABLED = { enabled: {} };
+	static readonly DISABLED = { disabled: {} };
+}
+
 export class StakeAction {
 	static readonly STAKE = { stake: {} };
 	static readonly UNSTAKE_REQUEST = { unstakeRequest: {} };
