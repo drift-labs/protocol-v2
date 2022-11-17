@@ -160,7 +160,7 @@ fn formualic_k_tests() {
 }
 
 #[test]
-fn iterative_formualic_k_tests() {
+fn iterative_bounds_formualic_k_tests() {
     let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 512295081967,
@@ -186,9 +186,65 @@ fn iterative_formualic_k_tests() {
         has_sufficient_number_of_data_points: true,
     };
 
-    // zero funding cost
-    let funding_cost: i128 = 0;
-    formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
+    // negative funding cost
+    let mut count = 0;
+    let mut prev_k = market.amm.sqrt_k;
+    let mut new_k = 0;
+    while prev_k != new_k && count < 10000 {
+        let funding_cost = -(QUOTE_PRECISION as i128);
+        prev_k = market.amm.sqrt_k;
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
+        new_k = market.amm.sqrt_k;
+        count += 1
+    }
+
+    assert_eq!(market.amm.base_asset_amount_with_amm, -12295081967);
+    assert_eq!(market.amm.sqrt_k, 10958340658498292);
+    assert_eq!(market.amm.total_fee_minus_distributions, 985_612_320);
+}
+
+#[test]
+fn iterative_no_bounds_formualic_k_tests() {
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 512295081967,
+            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+            sqrt_k: 500 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 50000000,
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+            base_asset_amount_with_amm: -12295081967,
+            total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+            curve_update_intensity: 100,
+            ..AMM::default()
+        },
+        ..PerpMarket::default()
+    };
+    // let prev_sqrt_k = market.amm.sqrt_k;
+
+    // let reserve_price = market.amm.reserve_price().unwrap();
+    let now = 10000;
+    let oracle_price_data = OraclePriceData {
+        price: 50 * PRICE_PRECISION_I64,
+        confidence: 0,
+        delay: 2,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    // negative funding cost
+    let mut count = 0;
+    let mut prev_k = market.amm.sqrt_k;
+    let mut new_k = 0;
+    while prev_k != new_k && count < 100000 {
+        let funding_cost = -((QUOTE_PRECISION * 100000) as i128);
+        prev_k = market.amm.sqrt_k;
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
+        new_k = market.amm.sqrt_k;
+        count += 1
+    }
+
+    assert_eq!(market.amm.base_asset_amount_with_amm, -12295081967);
+    assert_eq!(market.amm.sqrt_k, 1000880506218211275599);
+    assert_eq!(market.amm.total_fee_minus_distributions, 985625040);
 }
 
 #[test]

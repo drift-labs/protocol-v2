@@ -157,6 +157,7 @@ pub const HUNDRENTH_OF_CENT: u128 = PRICE_PRECISION / 10_000; //.0001
 pub const MAX_K_BPS_INCREASE: i128 = TEN_BPS;
 pub const MAX_K_BPS_DECREASE: i128 = TWO_PT_TWO_PCT;
 pub const MAX_UPDATE_K_PRICE_CHANGE: u128 = HUNDRENTH_OF_CENT;
+pub const MAX_SQRT_K: u128 = 1000000000000000000000; // 1e21 (count 'em!)
 
 pub const MAX_PEG_BPS_INCREASE: u128 = TEN_BPS as u128; // 10 bps increase
 pub const MAX_PEG_BPS_DECREASE: u128 = TEN_BPS as u128; // 10 bps decrease

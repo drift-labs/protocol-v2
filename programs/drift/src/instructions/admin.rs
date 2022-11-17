@@ -19,7 +19,7 @@ use crate::math::constants::{
     DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
     DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
     INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
-    MAX_CONCENTRATION_COEFFICIENT, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
     TWENTY_FOUR_HOUR,
 };
@@ -1087,6 +1087,13 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
             return Err(ErrorCode::InvalidUpdateK.into());
         }
     }
+
+    validate!(
+        perp_market.amm.sqrt_k < MAX_SQRT_K,
+        ErrorCode::InvalidUpdateK,
+        "cannot increase sqrt_k={} past MAX_SQRT_K",
+        perp_market.amm.sqrt_k
+    )?;
 
     perp_market.amm.total_fee_minus_distributions = perp_market
         .amm

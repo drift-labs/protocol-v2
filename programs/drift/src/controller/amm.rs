@@ -16,7 +16,7 @@ use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     CONCENTRATION_PRECISION, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE,
-    PRICE_TO_PEG_PRECISION_RATIO,
+    MAX_SQRT_K, PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -303,7 +303,7 @@ pub fn formulaic_update_k(
         0
     };
 
-    if budget > 0 || (budget < 0 && market.amm.can_lower_k()?) {
+    if (budget > 0 && market.amm.sqrt_k < MAX_SQRT_K) || (budget < 0 && market.amm.can_lower_k()?) {
         // single k scale is capped by .1% increase and .1% decrease (regardless of budget)
         let k_pct_upper_bound = K_BPS_UPDATE_SCALE
             + MAX_K_BPS_INCREASE * (market.amm.curve_update_intensity as i128) / 100;
