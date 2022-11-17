@@ -350,8 +350,12 @@ pub fn settle_expired_market(
     )?;
 
     if budget > 0 {
-        let (k_scale_numerator, k_scale_denominator) =
-            cp_curve::calculate_budgeted_k_scale(market, budget.cast()?, K_BPS_UPDATE_SCALE * 100)?;
+        let (k_scale_numerator, k_scale_denominator) = cp_curve::calculate_budgeted_k_scale(
+            market,
+            budget.cast()?,
+            K_BPS_UPDATE_SCALE * 100,
+            K_BPS_UPDATE_SCALE,
+        )?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .safe_mul(bn::U192::from(k_scale_numerator))?

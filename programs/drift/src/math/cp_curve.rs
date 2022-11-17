@@ -21,21 +21,24 @@ mod tests;
 pub fn calculate_budgeted_k_scale(
     market: &mut PerpMarket,
     budget: i128,
-    increase_max: i128,
+    k_pct_upper_bound: i128,
+    k_pct_lower_bound: i128,
 ) -> DriftResult<(u128, u128)> {
-    let curve_update_intensity = market.amm.curve_update_intensity as i128;
-    let k_pct_upper_bound = increase_max;
-
     validate!(
-        increase_max >= K_BPS_UPDATE_SCALE,
+        k_pct_upper_bound >= K_BPS_UPDATE_SCALE,
         ErrorCode::InvalidUpdateK,
-        "invalid increase_max={} < {}",
-        increase_max,
+        "invalid k_pct_upper_bound={} > {}",
+        k_pct_upper_bound,
         K_BPS_UPDATE_SCALE
     )?;
 
-    let k_pct_lower_bound =
-        K_BPS_UPDATE_SCALE - (MAX_K_BPS_DECREASE) * curve_update_intensity / 100;
+    validate!(
+        (K_BPS_UPDATE_SCALE - MAX_K_BPS_DECREASE..=K_BPS_UPDATE_SCALE).contains(&k_pct_lower_bound),
+        ErrorCode::InvalidUpdateK,
+        "invalid k_pct_lower_bound={} vs {}",
+        k_pct_lower_bound,
+        K_BPS_UPDATE_SCALE - MAX_K_BPS_DECREASE
+    )?;
 
     let (numerator, denominator) = _calculate_budgeted_k_scale(
         market.amm.base_asset_reserve,

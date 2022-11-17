@@ -299,6 +299,7 @@ fn calculate_k_tests_wrapper_fcn() {
         &mut market,
         (QUOTE_PRECISION / 500) as i128, // positive budget
         1100000,
+        1000000 - 22000,
     )
     .unwrap();
 

@@ -304,11 +304,18 @@ pub fn formulaic_update_k(
     };
 
     if budget > 0 || (budget < 0 && market.amm.can_lower_k()?) {
-        // single k scale is capped by .1% increase and 2.2% decrease (regardless of budget)
-        let k_update_max = K_BPS_UPDATE_SCALE
+        // single k scale is capped by .1% increase and .1% decrease (regardless of budget)
+        let k_pct_upper_bound = K_BPS_UPDATE_SCALE
             + MAX_K_BPS_INCREASE * (market.amm.curve_update_intensity as i128) / 100;
-        let (k_scale_numerator, k_scale_denominator) =
-            cp_curve::calculate_budgeted_k_scale(market, budget.cast::<i128>()?, k_update_max)?;
+        let k_pct_lower_bound = K_BPS_UPDATE_SCALE
+            - MAX_K_BPS_INCREASE * (market.amm.curve_update_intensity as i128) / 100;
+
+        let (k_scale_numerator, k_scale_denominator) = cp_curve::calculate_budgeted_k_scale(
+            market,
+            budget.cast::<i128>()?,
+            k_pct_upper_bound,
+            k_pct_lower_bound,
+        )?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .safe_mul(bn::U192::from(k_scale_numerator))?
