@@ -315,14 +315,14 @@ export function calculateMarketOpenBidAsk(
 ): [BN, BN] {
 	// open orders
 	let openAsks;
-	if (maxBaseAssetReserve > baseAssetReserve) {
+	if (maxBaseAssetReserve.gt(baseAssetReserve)) {
 		openAsks = maxBaseAssetReserve.sub(baseAssetReserve).mul(new BN(-1));
 	} else {
 		openAsks = ZERO;
 	}
 
 	let openBids;
-	if (minBaseAssetReserve < baseAssetReserve) {
+	if (minBaseAssetReserve.lt(baseAssetReserve)) {
 		openBids = baseAssetReserve.sub(minBaseAssetReserve);
 	} else {
 		openBids = ZERO;
