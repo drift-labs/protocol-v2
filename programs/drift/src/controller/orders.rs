@@ -748,13 +748,13 @@ pub fn fill_perp_order(
 
     let should_expire_order = should_expire_order(user, order_index, now)?;
 
-    let existing_base_asset_amount = user
-        .get_perp_position(user.orders[order_index].market_index)?
-        .base_asset_amount;
-    let should_cancel_reduce_only_order =
+    let position_index =
+        get_position_index(&user.perp_positions, user.orders[order_index].market_index)?;
+    let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
+    let should_cancel_reduce_only =
         should_cancel_reduce_only_order(&user.orders[order_index], existing_base_asset_amount)?;
 
-    if should_expire_order || should_cancel_reduce_only_order {
+    if should_expire_order || should_cancel_reduce_only {
         let filler_reward = {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
             pay_keeper_flat_reward_for_perps(
@@ -815,10 +815,14 @@ pub fn fill_perp_order(
             amm_is_available,
         )?;
 
-    let should_cancel_for_filling_to_limit =
+    let should_cancel_market_order =
         amm_is_available && should_cancel_market_order_after_fill(user, order_index, slot)?;
 
-    if should_cancel_for_filling_to_limit {
+    let base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
+    let should_cancel_reduce_only =
+        should_cancel_reduce_only_order(&user.orders[order_index], base_asset_amount_after)?;
+
+    if should_cancel_market_order || should_cancel_reduce_only {
         updated_user_state = true;
 
         let filler_reward = {
@@ -831,6 +835,12 @@ pub fn fill_perp_order(
             )?
         };
 
+        let explanation = if should_cancel_market_order {
+            OrderActionExplanation::MarketOrderFilledToLimitPrice
+        } else {
+            OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
+        };
+
         cancel_order(
             order_index,
             user,
@@ -840,7 +850,7 @@ pub fn fill_perp_order(
             oracle_map,
             now,
             slot,
-            OrderActionExplanation::MarketOrderFilledToLimitPrice,
+            explanation,
             Some(&filler_key),
             filler_reward,
             false,
@@ -2752,7 +2762,7 @@ pub fn fill_spot_order(
 
     let should_expire_order = should_expire_order(user, order_index, now)?;
 
-    let should_cancel_reduce_only_order = if user.orders[order_index].reduce_only {
+    let should_cancel_reduce_only = if user.orders[order_index].reduce_only {
         let market_index = user.orders[order_index].market_index;
         let position_index = user.get_spot_position_index(market_index)?;
         let spot_market = spot_market_map.get_ref(&market_index)?;
@@ -2763,7 +2773,7 @@ pub fn fill_spot_order(
         false
     };
 
-    if should_expire_order || should_cancel_reduce_only_order {
+    if should_expire_order || should_cancel_reduce_only {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
@@ -2818,7 +2828,23 @@ pub fn fill_spot_order(
         serum_fulfillment_params,
     )?;
 
-    if should_cancel_market_order_after_fill(user, order_index, slot)? {
+    let should_cancel_market_order =
+        should_cancel_market_order_after_fill(user, order_index, slot)?;
+
+    let is_open = user.orders[order_index].status == OrderStatus::Open;
+    let is_reduce_only = user.orders[order_index].reduce_only;
+    let should_cancel_reduce_only = if is_open && is_reduce_only {
+        let market_index = user.orders[order_index].market_index;
+        let position_index = user.get_spot_position_index(market_index)?;
+        let spot_market = spot_market_map.get_ref(&market_index)?;
+        let signed_token_amount =
+            user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
+        should_cancel_reduce_only_order(&user.orders[order_index], signed_token_amount.cast()?)?
+    } else {
+        false
+    };
+
+    if should_cancel_market_order || should_cancel_reduce_only {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
@@ -2827,6 +2853,12 @@ pub fn fill_spot_order(
                 &mut quote_market,
                 state.spot_fee_structure.flat_filler_fee,
             )?
+        };
+
+        let explanation = if should_cancel_market_order {
+            OrderActionExplanation::MarketOrderFilledToLimitPrice
+        } else {
+            OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
         };
 
         cancel_order(
@@ -2838,7 +2870,7 @@ pub fn fill_spot_order(
             oracle_map,
             now,
             slot,
-            OrderActionExplanation::MarketOrderFilledToLimitPrice,
+            explanation,
             Some(&filler_key),
             filler_reward,
             false,
