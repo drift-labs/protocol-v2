@@ -816,7 +816,7 @@ pub fn fill_perp_order(
         )?;
 
     let should_cancel_for_filling_to_limit =
-        amm_is_available && should_cancel_order_for_filling_to_limit(user, order_index, slot)?;
+        amm_is_available && should_cancel_market_order_after_fill(user, order_index, slot)?;
 
     if should_cancel_for_filling_to_limit {
         updated_user_state = true;
@@ -2818,7 +2818,7 @@ pub fn fill_spot_order(
         serum_fulfillment_params,
     )?;
 
-    if should_cancel_order_for_filling_to_limit(user, order_index, slot)? {
+    if should_cancel_market_order_after_fill(user, order_index, slot)? {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(

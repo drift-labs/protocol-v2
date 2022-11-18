@@ -306,7 +306,7 @@ pub fn get_position_delta_for_fill(
     })
 }
 
-pub fn should_cancel_order_for_filling_to_limit(
+pub fn should_cancel_market_order_after_fill(
     user: &User,
     user_order_index: usize,
     slot: u64,
