@@ -456,8 +456,6 @@ export function calculateSpreadBN(
 	shortIntensity: BN,
 	volume24H: BN
 ): [number, number] {
-	console.log('-----');
-
 	const [longVolSpread, shortVolSpread] = calculateVolSpreadBN(
 		lastOracleConfPct,
 		reservePrice,
@@ -484,16 +482,6 @@ export function calculateSpreadBN(
 				longVolSpread.toNumber()
 		);
 	}
-
-	console.log(
-		'lastOracleReservePriceSpreadPct:',
-		lastOracleReservePriceSpreadPct.toString()
-	);
-
-	console.log('lastOracleConfPct:', lastOracleConfPct.toString());
-
-	console.log('longSpread:', longSpread.toString());
-	console.log('shortSpread:', shortSpread.toString());
 
 	const maxTargetSpread: number = Math.max(
 		maxSpread,
@@ -555,10 +543,6 @@ export function calculateSpreadBN(
 		}
 	}
 
-	console.log('maxTargetSpread:', maxTargetSpread.toString());
-	console.log('longSpread:', longSpread.toString());
-	console.log('shortSpread:', shortSpread.toString());
-
 	return [longSpread, shortSpread];
 }
 
@@ -579,7 +563,6 @@ export function calculateSpread(
 
 	const targetPrice = oraclePriceData?.price || reservePrice;
 	const confInterval = oraclePriceData.confidence || ZERO;
-	console.log('confInterval:', confInterval.toString());
 	const targetMarkSpreadPct = reservePrice
 		.sub(targetPrice)
 		.mul(BID_ASK_SPREAD_PRECISION)
@@ -588,8 +571,6 @@ export function calculateSpread(
 	const confIntervalPct = confInterval
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(reservePrice);
-	console.log('reservePrice:', reservePrice.toString());
-	console.log('confIntervalPct:', confIntervalPct.toString());
 
 	const now = new BN(new Date().getTime() / 1000); //todo
 	const liveOracleStd = calculateLiveOracleStd(amm, oraclePriceData, now);

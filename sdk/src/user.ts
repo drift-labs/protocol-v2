@@ -774,10 +774,9 @@ export class User {
 		const userAccount = this.getUserAccount();
 
 		if (
-			isVariant(userAccount.status, 'being_liquidated') ||
+			isVariant(userAccount.status, 'beingLiquidated') ||
 			isVariant(userAccount.status, 'bankrupt')
 		) {
-			console.log('health=0 from status');
 			return 0;
 		}
 
