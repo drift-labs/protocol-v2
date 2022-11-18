@@ -10,6 +10,7 @@ import {
 	QUOTE_PRECISION,
 	MARGIN_PRECISION,
 	PRICE_DIV_PEG,
+	PERCENTAGE_PRECISION,
 } from '../constants/numericConstants';
 import {
 	AMM,
@@ -19,7 +20,7 @@ import {
 	isVariant,
 } from '../types';
 import { assert } from '../assert/assert';
-import { squareRootBN, standardizeBaseAssetAmount } from '..';
+import { squareRootBN, clampBN, standardizeBaseAssetAmount } from '..';
 
 import { OraclePriceData } from '../oracles/types';
 import {
@@ -27,6 +28,8 @@ import {
 	calculateAdjustKCost,
 	calculateBudgetedPeg,
 } from './repeg';
+
+import { calculateLiveOracleStd } from './oracles';
 
 export function calculatePegFromTargetPrice(
 	targetPrice: BN,
@@ -392,6 +395,47 @@ export function calculateMaxSpread(marginRatioInitial: number): number {
 	return maxTargetSpread;
 }
 
+export function calculateVolSpreadBN(
+	lastOracleConfPct: BN,
+	reservePrice: BN,
+	markStd: BN,
+	oracleStd: BN,
+	longIntensity: BN,
+	shortIntensity: BN,
+	volume24H: BN
+): [BN, BN] {
+	const marketAvgStdPct = markStd
+		.add(oracleStd)
+		.mul(PERCENTAGE_PRECISION)
+		.div(reservePrice.mul(new BN(2)));
+	const volSpread = BN.max(lastOracleConfPct, marketAvgStdPct.div(new BN(2)));
+
+	const clampMax = PERCENTAGE_PRECISION.mul(new BN(16)).div(new BN(10));
+	const clampMin = PERCENTAGE_PRECISION.div(new BN(10));
+
+	const longVolSpreadFactor = clampBN(
+		longIntensity.mul(PERCENTAGE_PRECISION).div(BN.max(ONE, volume24H)),
+		clampMin,
+		clampMax
+	);
+	const shortVolSpreadFactor = clampBN(
+		shortIntensity.mul(PERCENTAGE_PRECISION).div(BN.max(ONE, volume24H)),
+		clampMin,
+		clampMax
+	);
+
+	const longVolSpread = BN.max(
+		lastOracleConfPct,
+		volSpread.mul(longVolSpreadFactor).div(PERCENTAGE_PRECISION)
+	);
+	const shortVolSpread = BN.max(
+		lastOracleConfPct,
+		volSpread.mul(shortVolSpreadFactor).div(PERCENTAGE_PRECISION)
+	);
+
+	return [longVolSpread, shortVolSpread];
+}
+
 export function calculateSpreadBN(
 	baseSpread: number,
 	lastOracleReservePriceSpreadPct: BN,
@@ -405,22 +449,37 @@ export function calculateSpreadBN(
 	totalFeeMinusDistributions: BN,
 	baseAssetReserve: BN,
 	minBaseAssetReserve: BN,
-	maxBaseAssetReserve: BN
+	maxBaseAssetReserve: BN,
+	markStd: BN,
+	oracleStd: BN,
+	longIntensity: BN,
+	shortIntensity: BN,
+	volume24H: BN
 ): [number, number] {
-	let longSpread = baseSpread / 2;
-	let shortSpread = baseSpread / 2;
+	const [longVolSpread, shortVolSpread] = calculateVolSpreadBN(
+		lastOracleConfPct,
+		reservePrice,
+		markStd,
+		oracleStd,
+		longIntensity,
+		shortIntensity,
+		volume24H
+	);
 
-	if (lastOracleReservePriceSpreadPct.gte(ZERO)) {
+	let longSpread = Math.max(baseSpread / 2, longVolSpread.toNumber());
+	let shortSpread = Math.max(baseSpread / 2, shortVolSpread.toNumber());
+
+	if (lastOracleReservePriceSpreadPct.gt(ZERO)) {
 		shortSpread = Math.max(
 			shortSpread,
 			lastOracleReservePriceSpreadPct.abs().toNumber() +
-				lastOracleConfPct.toNumber()
+				shortVolSpread.toNumber()
 		);
 	} else if (lastOracleReservePriceSpreadPct.lt(ZERO)) {
 		longSpread = Math.max(
 			longSpread,
 			lastOracleReservePriceSpreadPct.abs().toNumber() +
-				lastOracleConfPct.toNumber()
+				longVolSpread.toNumber()
 		);
 	}
 
@@ -504,7 +563,6 @@ export function calculateSpread(
 
 	const targetPrice = oraclePriceData?.price || reservePrice;
 	const confInterval = oraclePriceData.confidence || ZERO;
-
 	const targetMarkSpreadPct = reservePrice
 		.sub(targetPrice)
 		.mul(BID_ASK_SPREAD_PRECISION)
@@ -513,6 +571,9 @@ export function calculateSpread(
 	const confIntervalPct = confInterval
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(reservePrice);
+
+	const now = new BN(new Date().getTime() / 1000); //todo
+	const liveOracleStd = calculateLiveOracleStd(amm, oraclePriceData, now);
 
 	const [longSpread, shortSpread] = calculateSpreadBN(
 		amm.baseSpread,
@@ -527,7 +588,12 @@ export function calculateSpread(
 		amm.totalFeeMinusDistributions,
 		amm.baseAssetReserve,
 		amm.minBaseAssetReserve,
-		amm.maxBaseAssetReserve
+		amm.maxBaseAssetReserve,
+		amm.markStd,
+		liveOracleStd,
+		amm.longIntensityVolume,
+		amm.shortIntensityVolume,
+		amm.volume24H
 	);
 
 	let spread: number;
