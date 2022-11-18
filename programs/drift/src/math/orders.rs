@@ -29,6 +29,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     valid_oracle_price: Option<i64>,
     slot: u64,
     override_limit_price: Option<u64>,
+    existing_base_asset_amount: i64,
 ) -> DriftResult<(u64, Option<u64>)> {
     let limit_price = if let Some(override_limit_price) = override_limit_price {
         if let Some(limit_price) =
@@ -54,8 +55,12 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         return Ok((0, limit_price));
     }
 
-    let base_asset_amount =
-        calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, limit_price)?;
+    let base_asset_amount = calculate_base_asset_amount_to_fill_up_to_limit_price(
+        order,
+        market,
+        limit_price,
+        Some(existing_base_asset_amount),
+    )?;
     let max_base_asset_amount =
         calculate_max_base_asset_amount_fillable(&market.amm, &order.direction)?;
 
@@ -66,8 +71,10 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     order: &Order,
     market: &PerpMarket,
     limit_price: Option<u64>,
+    existing_base_asset_amount: Option<i64>,
 ) -> DriftResult<u64> {
-    let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
+    let base_asset_amount_unfilled =
+        order.get_base_asset_amount_unfilled(existing_base_asset_amount)?;
 
     let (max_trade_base_asset_amount, max_trade_direction) = if let Some(limit_price) = limit_price
     {
@@ -299,7 +306,7 @@ pub fn get_position_delta_for_fill(
     })
 }
 
-pub fn should_cancel_order_after_fulfill(
+pub fn should_cancel_order_for_filling_to_limit(
     user: &User,
     user_order_index: usize,
     slot: u64,
@@ -331,13 +338,9 @@ pub fn should_cancel_reduce_only_order(
     order: &Order,
     existing_base_asset_amount: i64,
 ) -> DriftResult<bool> {
-    let should_cancel = order.reduce_only
-        && !order.post_only
-        && !is_order_position_reducing(
-            &order.direction,
-            order.get_base_asset_amount_unfilled()?,
-            existing_base_asset_amount,
-        )?;
+    let should_cancel = order.status != OrderStatus::Open
+        && order.reduce_only
+        && order.get_base_asset_amount_unfilled(Some(existing_base_asset_amount))? == 0;
 
     Ok(should_cancel)
 }

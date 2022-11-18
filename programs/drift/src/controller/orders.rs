@@ -552,7 +552,7 @@ pub fn cancel_order(
         // only decrease open/bids ask if it's not a trigger order or if it's been triggered
         if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
             let base_asset_amount_unfilled =
-                user.orders[order_index].get_base_asset_amount_unfilled()?;
+                user.orders[order_index].get_base_asset_amount_unfilled(None)?;
             position::decrease_open_bids_and_asks(
                 &mut user.perp_positions[position_index],
                 &order_direction,
@@ -568,7 +568,7 @@ pub fn cancel_order(
         // only decrease open/bids ask if it's not a trigger order or if it's been triggered
         if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
             let base_asset_amount_unfilled =
-                user.orders[order_index].get_base_asset_amount_unfilled()?;
+                user.orders[order_index].get_base_asset_amount_unfilled(None)?;
             decrease_spot_open_bids_and_asks(
                 &mut user.spot_positions[spot_position_index],
                 &order_direction,
@@ -815,7 +815,10 @@ pub fn fill_perp_order(
             amm_is_available,
         )?;
 
-    if amm_is_available && should_cancel_order_after_fulfill(user, order_index, slot)? {
+    let should_cancel_for_filling_to_limit =
+        amm_is_available && should_cancel_order_for_filling_to_limit(user, order_index, slot)?;
+
+    if should_cancel_for_filling_to_limit {
         updated_user_state = true;
 
         let filler_reward = {
@@ -1164,7 +1167,8 @@ fn fulfill_perp_order(
     let position_base_asset_amount_before = user.perp_positions[position_index].base_asset_amount;
     let risk_decreasing = is_order_risk_decreasing(
         &order_direction,
-        user.orders[user_order_index].get_base_asset_amount_unfilled()?,
+        user.orders[user_order_index]
+            .get_base_asset_amount_unfilled(Some(position_base_asset_amount_before))?,
         position_base_asset_amount_before.cast()?,
     )?;
 
@@ -1399,6 +1403,8 @@ pub fn fulfill_perp_order_with_amm(
     override_fill_price: Option<u64>,
     split_with_lps: bool,
 ) -> DriftResult<(u64, u64)> {
+    let position_index = get_position_index(&user.perp_positions, market.market_index)?;
+
     // Determine the base asset amount the market can fill
     let (base_asset_amount, limit_price, fill_price) = match override_base_asset_amount {
         Some(override_base_asset_amount) => {
@@ -1412,12 +1418,14 @@ pub fn fulfill_perp_order_with_amm(
             (override_base_asset_amount, limit_price, override_fill_price)
         }
         None => {
+            let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
                 &user.orders[order_index],
                 market,
                 valid_oracle_price,
                 slot,
                 override_fill_price,
+                existing_base_asset_amount,
             )?;
 
             let fill_price = if user.orders[order_index].post_only {
@@ -1437,8 +1445,6 @@ pub fn fulfill_perp_order_with_amm(
         }
         return Ok((0, 0));
     }
-
-    let position_index = get_position_index(&user.perp_positions, market.market_index)?;
 
     let (order_post_only, order_slot, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, slot, direction);
@@ -1632,7 +1638,7 @@ pub fn fulfill_perp_order_with_amm(
     order_records.push(order_action_record);
 
     // Cant reset order until after its logged
-    if user.orders[order_index].get_base_asset_amount_unfilled()? == 0 {
+    if user.orders[order_index].get_base_asset_amount_unfilled(None)? == 0 {
         user.orders[order_index] = Order::default();
         let market_position = &mut user.perp_positions[position_index];
         market_position.open_orders -= 1;
@@ -1682,8 +1688,11 @@ pub fn fulfill_perp_order_with_match(
         slot,
         market.amm.order_tick_size,
     )?;
-    let taker_base_asset_amount =
-        taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
+    let taker_existing_position = taker
+        .get_perp_position(market.market_index)?
+        .base_asset_amount;
+    let taker_base_asset_amount = taker.orders[taker_order_index]
+        .get_base_asset_amount_unfilled(Some(taker_existing_position))?;
 
     let maker_price = maker.orders[maker_order_index].force_get_limit_price(
         Some(oracle_price),
@@ -1692,9 +1701,11 @@ pub fn fulfill_perp_order_with_match(
         market.amm.order_tick_size,
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
-
-    let maker_base_asset_amount =
-        maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
+    let maker_existing_position = maker
+        .get_perp_position(market.market_index)?
+        .base_asset_amount;
+    let maker_base_asset_amount = maker.orders[maker_order_index]
+        .get_base_asset_amount_unfilled(Some(maker_existing_position))?;
 
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
@@ -1778,9 +1789,6 @@ pub fn fulfill_perp_order_with_match(
     } else {
         base_asset_amount
     };
-
-    let taker_base_asset_amount =
-        taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
 
     let (base_asset_amount_fulfilled, quote_asset_amount) = calculate_fill_for_matched_orders(
         base_asset_amount_left_to_fill,
@@ -1991,13 +1999,13 @@ pub fn fulfill_perp_order_with_match(
     )?;
     order_records.push(order_action_record);
 
-    if taker.orders[taker_order_index].get_base_asset_amount_unfilled()? == 0 {
+    if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         taker.orders[taker_order_index] = Order::default();
         let market_position = &mut taker.perp_positions[taker_position_index];
         market_position.open_orders -= 1;
     }
 
-    if maker.orders[maker_order_index].get_base_asset_amount_unfilled()? == 0 {
+    if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         maker.orders[maker_order_index] = Order::default();
         let market_position = &mut maker.perp_positions[maker_position_index];
         market_position.open_orders -= 1;
@@ -2017,7 +2025,7 @@ pub fn update_order_after_fill(
         .quote_asset_amount_filled
         .safe_add(quote_asset_amount)?;
 
-    if order.get_base_asset_amount_unfilled()? == 0 {
+    if order.get_base_asset_amount_unfilled(None)? == 0 {
         order.status = OrderStatus::Filled;
     }
 
@@ -2713,8 +2721,6 @@ pub fn fill_spot_order(
         }
     }
 
-    // TODO SPOT do we need before and after oracle guardrail checks?
-
     let is_filler_taker = user_key == filler_key;
     let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
@@ -2812,7 +2818,7 @@ pub fn fill_spot_order(
         serum_fulfillment_params,
     )?;
 
-    if should_cancel_order_after_fulfill(user, order_index, slot)? {
+    if should_cancel_order_for_filling_to_limit(user, order_index, slot)? {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
@@ -2838,8 +2844,6 @@ pub fn fill_spot_order(
             false,
         )?
     }
-
-    // TODO SPOT check if we need to check oracle guardrails
 
     Ok(base_asset_amount)
 }
@@ -3165,10 +3169,12 @@ pub fn fulfill_spot_order_with_match(
         }
     };
 
-    let taker_base_asset_amount =
-        taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
-    let taker_order_slot = taker.orders[taker_order_index].slot;
     let taker_spot_position_index = taker.get_spot_position_index(market_index)?;
+    let taker_token_amount =
+        taker.spot_positions[taker_spot_position_index].get_signed_token_amount(base_market)?;
+    let taker_base_asset_amount = taker.orders[taker_order_index]
+        .get_base_asset_amount_unfilled(Some(taker_token_amount.cast()?))?;
+    let taker_order_slot = taker.orders[taker_order_index].slot;
     let taker_direction = taker.orders[taker_order_index].direction;
 
     let maker_price = maker.orders[maker_order_index].force_get_limit_price(
@@ -3178,9 +3184,11 @@ pub fn fulfill_spot_order_with_match(
         base_market.order_tick_size,
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
-    let maker_base_asset_amount =
-        maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
     let maker_spot_position_index = maker.get_spot_position_index(market_index)?;
+    let maker_token_amount =
+        maker.spot_positions[maker_spot_position_index].get_signed_token_amount(base_market)?;
+    let maker_base_asset_amount = maker.orders[maker_order_index]
+        .get_base_asset_amount_unfilled(Some(maker_token_amount.cast()?))?;
 
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
@@ -3401,12 +3409,12 @@ pub fn fulfill_spot_order_with_match(
     order_records.push(order_action_record);
 
     // Clear taker/maker order if completely filled
-    if taker.orders[taker_order_index].get_base_asset_amount_unfilled()? == 0 {
+    if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         taker.orders[taker_order_index] = Order::default();
         taker.spot_positions[taker_spot_position_index].open_orders -= 1;
     }
 
-    if maker.orders[maker_order_index].get_base_asset_amount_unfilled()? == 0 {
+    if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         maker.orders[maker_order_index] = Order::default();
         maker.spot_positions[maker_spot_position_index].open_orders -= 1;
     }
@@ -3443,8 +3451,11 @@ pub fn fulfill_spot_order_with_serum(
         slot,
         base_market.order_tick_size,
     )?;
-    let taker_base_asset_amount =
-        taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
+    let taker_token_amount = taker
+        .force_get_spot_position_mut(base_market.market_index)?
+        .get_signed_token_amount(base_market)?;
+    let taker_base_asset_amount = taker.orders[taker_order_index]
+        .get_base_asset_amount_unfilled(Some(taker_token_amount.cast()?))?;
     let order_direction = taker.orders[taker_order_index].direction;
     let taker_order_slot = taker.orders[taker_order_index].slot;
 
@@ -3845,7 +3856,7 @@ pub fn fulfill_spot_order_with_serum(
     )?;
     order_records.push(order_action_record);
 
-    if taker.orders[taker_order_index].get_base_asset_amount_unfilled()? == 0 {
+    if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         taker.orders[taker_order_index] = Order::default();
         taker
             .force_get_spot_position_mut(base_market.market_index)?
