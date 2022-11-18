@@ -80,10 +80,6 @@ impl User {
         self.status == UserStatus::Bankrupt
     }
 
-    pub fn get_perp_position_index(&self, market_index: u16) -> DriftResult<usize> {
-        get_position_index(&self.perp_positions, market_index)
-    }
-
     pub fn get_spot_position_index(&self, market_index: u16) -> DriftResult<usize> {
         // first spot position is always quote asset
         if market_index == 0 {
@@ -582,6 +578,7 @@ impl Order {
         }
     }
 
+    /// Passing in an existing_position forces the function to consider the order's reduce only status
     pub fn get_base_asset_amount_unfilled(
         &self,
         existing_position: Option<i64>,
@@ -597,6 +594,7 @@ impl Order {
             }
         };
 
+        // if order is post only, can disregard reduce only
         if !self.reduce_only || self.post_only {
             return Ok(base_asset_amount_unfilled);
         }
