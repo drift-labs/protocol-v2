@@ -61,15 +61,24 @@ pub fn settle_pnl(
 
     crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
 
+    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+
     drop(market);
 
-    // cannot settle pnl this way on a user who is in liquidation territory
-    if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?)
+    let position_index = get_position_index(&user.perp_positions, market_index)?;
+    let unrealized_pnl = user.perp_positions[position_index].get_unrealized_pnl(oracle_price)?;
+
+    // cannot settle negative pnl this way on a user who is in liquidation territory
+    if unrealized_pnl < 0
+        && !meets_maintenance_margin_requirement(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+        )?
     {
         return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
     }
-
-    let position_index = get_position_index(&user.perp_positions, market_index)?;
 
     let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
@@ -93,8 +102,6 @@ pub fn settle_pnl(
         ErrorCode::InvalidMarketStatusToSettlePnl,
         "Cannot settle pnl under current market status"
     )?;
-
-    let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
 
     let pnl_pool_token_amount = get_token_amount(
         perp_market.pnl_pool.scaled_balance,
