@@ -8454,11 +8454,16 @@
     },
     {
       "code": 6219,
+      "name": "UnableToGetLimitPrice",
+      "msg": "Unable To Get Limit Price"
+    },
+    {
+      "code": 6220,
       "name": "InvalidLiquidation",
       "msg": "Invalid Liquidation"
     },
     {
-      "code": 6220,
+      "code": 6221,
       "name": "SpotFulfillmentConfigDisabled",
       "msg": "Spot Fulfullment Config Disabled"
     }
