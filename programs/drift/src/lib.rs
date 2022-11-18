@@ -1,5 +1,4 @@
 #![allow(clippy::too_many_arguments)]
-#![allow(unaligned_references)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::comparison_chain)]
 
