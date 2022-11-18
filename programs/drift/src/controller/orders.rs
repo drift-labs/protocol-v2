@@ -1278,39 +1278,47 @@ fn fulfill_perp_order(
         emit!(order_record)
     }
 
-    let (taker_margin_requirement, taker_total_collateral, _, _) =
+    let perp_market = perp_market_map.get_ref(&market_index)?;
+    let initial_margin_ratio = perp_market.margin_ratio_initial;
+    let maintenance_margin_ratio = perp_market.margin_ratio_maintenance;
+    let maintenance_margin_buffer = initial_margin_ratio
+        .safe_sub(maintenance_margin_ratio)?
+        .safe_div(2)?;
+    drop(perp_market);
+
+    let (_, taker_total_collateral, taker_margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
             MarginRequirementType::Maintenance,
             spot_market_map,
             oracle_map,
-            None,
+            Some(maintenance_margin_buffer.cast()?),
         )?;
-    if taker_total_collateral < taker_margin_requirement.cast()? {
+    if taker_total_collateral < taker_margin_requirement_plus_buffer.cast()? {
         msg!(
-            "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            taker_margin_requirement,
+            "taker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+            taker_margin_requirement_plus_buffer,
             taker_total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
     }
 
     if let Some(maker) = maker {
-        let (maker_margin_requirement, maker_total_collateral, _, _) =
+        let (_, maker_total_collateral, maker_margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
                 maker,
                 perp_market_map,
                 MarginRequirementType::Maintenance,
                 spot_market_map,
                 oracle_map,
-                None,
+                Some(maintenance_margin_buffer.cast()?),
             )?;
 
-        if maker_total_collateral < maker_margin_requirement.cast()? {
+        if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
-            "maker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            maker_margin_requirement,
+            "maker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+            maker_margin_requirement_plus_buffer,
             maker_total_collateral
         );
             return Err(ErrorCode::InsufficientCollateral);
@@ -2998,7 +3006,7 @@ fn fulfill_spot_order(
     fee_structure: &FeeStructure,
     serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
 ) -> DriftResult<(u64, bool)> {
-    let base_market = user.orders[user_order_index].market_index;
+    let base_market_index = user.orders[user_order_index].market_index;
 
     let fulfillment_methods = determine_spot_fulfillment_methods(
         &user.orders[user_order_index],
@@ -3007,7 +3015,7 @@ fn fulfill_spot_order(
     )?;
 
     let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
-    let mut base_market = spot_market_map.get_ref_mut(&base_market)?;
+    let mut base_market = spot_market_map.get_ref_mut(&base_market_index)?;
 
     let mut order_records: Vec<OrderActionRecord> = vec![];
     let mut base_asset_amount = 0_u64;
@@ -3059,6 +3067,13 @@ fn fulfill_spot_order(
         base_asset_amount = base_asset_amount.safe_add(_base_asset_amount)?;
     }
 
+    let initial_margin_ratio = base_market.get_margin_ratio(&MarginRequirementType::Initial)?;
+    let maintenance_margin_ratio =
+        base_market.get_margin_ratio(&MarginRequirementType::Maintenance)?;
+    let maintenance_margin_buffer = initial_margin_ratio
+        .safe_sub(maintenance_margin_ratio)?
+        .safe_div(2)?;
+
     drop(base_market);
     drop(quote_market);
 
@@ -3066,40 +3081,40 @@ fn fulfill_spot_order(
         emit!(order_record)
     }
 
-    let (taker_margin_requirement, taker_total_collateral, _, _) =
+    let (_, taker_total_collateral, taker_margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
             MarginRequirementType::Maintenance,
             spot_market_map,
             oracle_map,
-            None,
+            Some(maintenance_margin_buffer.cast()?),
         )?;
 
-    if taker_total_collateral < taker_margin_requirement.cast()? {
+    if taker_total_collateral < taker_margin_requirement_plus_buffer.cast()? {
         msg!(
-            "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            taker_margin_requirement,
+            "taker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+            taker_margin_requirement_plus_buffer,
             taker_total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
     }
 
     if let Some(maker) = maker {
-        let (maker_margin_requirement, maker_total_collateral, _, _) =
+        let (_, maker_total_collateral, maker_margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
                 maker,
                 perp_market_map,
                 MarginRequirementType::Maintenance,
                 spot_market_map,
                 oracle_map,
-                None,
+                Some(maintenance_margin_buffer.cast()?),
             )?;
 
-        if maker_total_collateral < maker_margin_requirement.cast()? {
+        if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
-            "maker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            maker_margin_requirement,
+            "maker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+            maker_margin_requirement_plus_buffer,
             maker_total_collateral
         );
             return Err(ErrorCode::InsufficientCollateral);
