@@ -80,6 +80,10 @@ impl User {
         self.status == UserStatus::Bankrupt
     }
 
+    pub fn get_perp_position_index(&self, market_index: u16) -> DriftResult<usize> {
+        get_position_index(&self.perp_positions, market_index)
+    }
+
     pub fn get_spot_position_index(&self, market_index: u16) -> DriftResult<usize> {
         // first spot position is always quote asset
         if market_index == 0 {
@@ -578,9 +582,45 @@ impl Order {
         }
     }
 
-    pub fn get_base_asset_amount_unfilled(&self) -> DriftResult<u64> {
-        self.base_asset_amount
-            .safe_sub(self.base_asset_amount_filled)
+    pub fn get_base_asset_amount_unfilled(
+        &self,
+        existing_position: Option<i64>,
+    ) -> DriftResult<u64> {
+        let base_asset_amount_unfilled = self
+            .base_asset_amount
+            .safe_sub(self.base_asset_amount_filled)?;
+
+        let existing_position = match existing_position {
+            Some(existing_position) => existing_position,
+            None => {
+                return Ok(base_asset_amount_unfilled);
+            }
+        };
+
+        if !self.reduce_only || self.post_only {
+            return Ok(base_asset_amount_unfilled);
+        }
+
+        if existing_position == 0 {
+            return Ok(0);
+        }
+
+        match self.direction {
+            PositionDirection::Long => {
+                if existing_position > 0 {
+                    Ok(0)
+                } else {
+                    Ok(base_asset_amount_unfilled.min(existing_position.unsigned_abs()))
+                }
+            }
+            PositionDirection::Short => {
+                if existing_position < 0 {
+                    Ok(0)
+                } else {
+                    Ok(base_asset_amount_unfilled.min(existing_position.unsigned_abs()))
+                }
+            }
+        }
     }
 
     pub fn must_be_triggered(&self) -> bool {

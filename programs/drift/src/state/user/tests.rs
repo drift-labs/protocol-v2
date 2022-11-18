@@ -885,3 +885,134 @@ mod get_worst_case_token_amounts {
         assert_eq!(worst_case_quote_token_amount, 100 * QUOTE_PRECISION_I128);
     }
 }
+
+mod get_base_asset_amount_unfilled {
+    use crate::controller::position::PositionDirection;
+    use crate::state::user::Order;
+
+    #[test]
+    fn existing_position_is_none() {
+        let order = Order {
+            base_asset_amount: 1,
+            base_asset_amount_filled: 0,
+            ..Order::default()
+        };
+
+        assert_eq!(order.get_base_asset_amount_unfilled(None).unwrap(), 1)
+    }
+
+    #[test]
+    fn order_is_not_reduce_only() {
+        let order = Order {
+            base_asset_amount: 1,
+            base_asset_amount_filled: 0,
+            reduce_only: false,
+            ..Order::default()
+        };
+
+        assert_eq!(order.get_base_asset_amount_unfilled(Some(1)).unwrap(), 1)
+    }
+
+    #[test]
+    fn order_is_reduce_only_and_post_only() {
+        let order = Order {
+            base_asset_amount: 1,
+            base_asset_amount_filled: 0,
+            reduce_only: true,
+            post_only: true,
+            ..Order::default()
+        };
+
+        assert_eq!(order.get_base_asset_amount_unfilled(Some(1)).unwrap(), 1)
+    }
+
+    #[test]
+    fn no_existing_position() {
+        let order = Order {
+            base_asset_amount: 1,
+            base_asset_amount_filled: 0,
+            reduce_only: true,
+            ..Order::default()
+        };
+
+        assert_eq!(order.get_base_asset_amount_unfilled(Some(0)).unwrap(), 0)
+    }
+
+    #[test]
+    fn bid_with_long_existing_position() {
+        let order = Order {
+            base_asset_amount: 1,
+            base_asset_amount_filled: 0,
+            reduce_only: true,
+            direction: PositionDirection::Long,
+            ..Order::default()
+        };
+
+        assert_eq!(order.get_base_asset_amount_unfilled(Some(1)).unwrap(), 0)
+    }
+
+    #[test]
+    fn bid_with_smaller_short_existing_position() {
+        let order = Order {
+            base_asset_amount: 5,
+            base_asset_amount_filled: 0,
+            reduce_only: true,
+            direction: PositionDirection::Long,
+            ..Order::default()
+        };
+
+        assert_eq!(order.get_base_asset_amount_unfilled(Some(-3)).unwrap(), 3)
+    }
+
+    #[test]
+    fn bid_with_larger_short_existing_position() {
+        let order = Order {
+            base_asset_amount: 5,
+            base_asset_amount_filled: 0,
+            reduce_only: true,
+            direction: PositionDirection::Long,
+            ..Order::default()
+        };
+
+        assert_eq!(order.get_base_asset_amount_unfilled(Some(-6)).unwrap(), 5)
+    }
+
+    #[test]
+    fn ask_with_short_existing_position() {
+        let order = Order {
+            base_asset_amount: 1,
+            base_asset_amount_filled: 0,
+            reduce_only: true,
+            direction: PositionDirection::Short,
+            ..Order::default()
+        };
+
+        assert_eq!(order.get_base_asset_amount_unfilled(Some(-1)).unwrap(), 0)
+    }
+
+    #[test]
+    fn ask_with_smaller_long_existing_position() {
+        let order = Order {
+            base_asset_amount: 5,
+            base_asset_amount_filled: 0,
+            reduce_only: true,
+            direction: PositionDirection::Short,
+            ..Order::default()
+        };
+
+        assert_eq!(order.get_base_asset_amount_unfilled(Some(3)).unwrap(), 3)
+    }
+
+    #[test]
+    fn ask_with_larger_long_existing_position() {
+        let order = Order {
+            base_asset_amount: 5,
+            base_asset_amount_filled: 0,
+            reduce_only: true,
+            direction: PositionDirection::Short,
+            ..Order::default()
+        };
+
+        assert_eq!(order.get_base_asset_amount_unfilled(Some(6)).unwrap(), 5)
+    }
+}

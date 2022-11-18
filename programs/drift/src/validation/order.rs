@@ -141,8 +141,12 @@ fn validate_post_only_order(
     let limit_price =
         order.force_get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?;
 
-    let base_asset_amount_market_can_fill =
-        calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, Some(limit_price))?;
+    let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
+        order,
+        market,
+        Some(limit_price),
+        None,
+    )?;
 
     if base_asset_amount_market_can_fill != 0 {
         msg!(
