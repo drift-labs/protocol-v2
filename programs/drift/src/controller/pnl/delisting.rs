@@ -26,8 +26,8 @@ pub mod delisting_test {
     use crate::math::amm::calculate_net_user_pnl;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, PEG_PRECISION,
-        PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
-        QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION,
+        PERCENTAGE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION,
         SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::funding::calculate_funding_payment;
@@ -2408,6 +2408,7 @@ pub mod delisting_test {
                 clock.slot,
                 clock.unix_timestamp,
                 &state,
+                PERCENTAGE_PRECISION,
             )
             .unwrap();
 
@@ -2486,6 +2487,7 @@ pub mod delisting_test {
                 clock.unix_timestamp,
                 clock.slot,
                 10,
+                PERCENTAGE_PRECISION,
             )
             .unwrap();
 
@@ -2573,6 +2575,7 @@ pub mod delisting_test {
                 clock.unix_timestamp,
                 clock.slot,
                 10,
+                PERCENTAGE_PRECISION,
             )
             .unwrap();
 

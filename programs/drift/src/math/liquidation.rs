@@ -3,21 +3,23 @@ use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO,
     LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_PRECISION_U128,
-    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, PRICE_PRECISION,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, SPOT_WEIGHT_PRECISION_U128,
+    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
+    PRICE_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
+    SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_balance::{get_token_amount, get_token_value};
 
+use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::{User, UserStatus};
+use crate::state::user::User;
 use crate::validate;
 use solana_program::msg;
 
@@ -236,7 +238,7 @@ pub fn validate_user_not_being_liquidated(
     if is_still_being_liquidated {
         return Err(ErrorCode::UserIsBeingLiquidated);
     } else {
-        user.status = UserStatus::Active;
+        user.exit_liquidation()
     }
 
     Ok(())
@@ -325,4 +327,53 @@ pub fn validate_transfer_satisfies_limit_price(
 
 pub fn calculate_one_quote_worth_of_token(oracle_price: i64, decimals: u32) -> DriftResult<u128> {
     10_u128.pow(decimals + 6).safe_div(oracle_price.cast()?)
+}
+
+pub fn calculate_margin_freed_for_perp_position(
+    base_asset_amount: i64,
+    oracle_price: i64,
+    margin_ratio: u32,
+) -> DriftResult<u64> {
+    let base_asset_value =
+        calculate_base_asset_value_with_oracle_price(base_asset_amount.cast()?, oracle_price)?;
+    base_asset_value
+        .safe_mul(margin_ratio.cast()?)?
+        .safe_div(MARGIN_PRECISION_U128)?
+        .cast()
+}
+
+pub fn calculate_margin_freed_for_liability(
+    token_amount: u128,
+    decimals: u32,
+    oracle_price: i64,
+    liability_weight: u32,
+) -> DriftResult<u64> {
+    let token_value = get_token_value(token_amount.cast()?, decimals, oracle_price)?;
+    token_value
+        .cast::<u128>()?
+        .safe_mul(liability_weight.cast()?)?
+        .safe_div(SPOT_WEIGHT_PRECISION_U128)?
+        .cast()
+}
+
+pub fn calculate_max_pct_to_liquidate(
+    user: &User,
+    margin_shortage: u128,
+    now: i64,
+    initial_pct_allowed_to_liquidate: u128,
+) -> DriftResult<u128> {
+    let time_elapsed = now.safe_sub(user.liquidation_start_ts)?;
+
+    let margin_freed = user.liquidation_margin_freed.cast::<u128>()?;
+    let pct_margin_freed = margin_freed
+        .safe_mul(PERCENTAGE_PRECISION)?
+        .safe_div(margin_freed.safe_add(margin_shortage)?)?;
+
+    let max_pct_freed = time_elapsed
+        .cast::<u128>()?
+        .safe_mul(PERCENTAGE_PRECISION)?
+        .safe_div(60)?
+        .safe_add(initial_pct_allowed_to_liquidate)?;
+
+    Ok(max_pct_freed.saturating_sub(pct_margin_freed))
 }

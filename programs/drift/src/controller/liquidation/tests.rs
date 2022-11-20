@@ -13,8 +13,9 @@ pub mod liquidate_perp {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, MARGIN_PRECISION_U128, PEG_PRECISION,
-        PRICE_PRECISION_U64, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
-        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        PERCENTAGE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::math::liquidation::is_user_being_liquidated;
     use crate::math::margin::{
@@ -151,6 +152,7 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -293,6 +295,7 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -437,6 +440,7 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -565,6 +569,7 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -712,6 +717,7 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -925,6 +931,7 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -1065,6 +1072,7 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
+            PERCENTAGE_PRECISION,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -1189,6 +1197,7 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
+            PERCENTAGE_PRECISION,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -1305,6 +1314,7 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -1345,9 +1355,9 @@ pub mod liquidate_spot {
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
-        LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, MARGIN_PRECISION_U128, PRICE_PRECISION_U64,
-        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
+        PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -1470,6 +1480,7 @@ pub mod liquidate_spot {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -1596,6 +1607,7 @@ pub mod liquidate_spot {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         )
         .is_err());
 
@@ -1622,6 +1634,7 @@ pub mod liquidate_spot {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -1750,6 +1763,7 @@ pub mod liquidate_spot {
             now,
             slot,
             liquidation_buffer, // 2%
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -1778,7 +1792,8 @@ pub mod liquidate_spot {
         )
         .unwrap();
         let oracle_price_data = oracle_map.get_price_data(&sol_oracle_price_key).unwrap();
-        let token_value = get_token_value(token_amount as i128, 6, oracle_price_data).unwrap();
+        let token_value =
+            get_token_value(token_amount as i128, 6, oracle_price_data.price).unwrap();
 
         let strict_token_value_1 = get_strict_token_value(
             token_amount as i128,
@@ -1948,6 +1963,7 @@ pub mod liquidate_spot {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -2061,6 +2077,7 @@ pub mod liquidate_spot {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         );
 
         assert_eq!(result, Ok(()));
@@ -2176,6 +2193,7 @@ pub mod liquidate_spot {
             now,
             slot,
             liquidation_buffer, // 2%
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -2200,9 +2218,9 @@ pub mod liquidate_borrow_for_perp_pnl {
     use crate::error::ErrorCode;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        MARGIN_PRECISION_U128, PEG_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
-        QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        MARGIN_PRECISION_U128, PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION_U64,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -2352,6 +2370,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -2501,6 +2520,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             now,
             slot,
             liquidation_buffer,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -2528,7 +2548,8 @@ pub mod liquidate_borrow_for_perp_pnl {
         )
         .unwrap();
         let oracle_price_data = oracle_map.get_price_data(&sol_oracle_price_key).unwrap();
-        let token_value = get_token_value(token_amount as i128, 6, oracle_price_data).unwrap();
+        let token_value =
+            get_token_value(token_amount as i128, 6, oracle_price_data.price).unwrap();
 
         let margin_ratio =
             total_collateral.unsigned_abs() * MARGIN_PRECISION_U128 / token_value.unsigned_abs();
@@ -2685,6 +2706,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -2833,6 +2855,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -2972,6 +2995,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         );
 
         assert_eq!(result, Ok(()));
@@ -3112,6 +3136,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             now,
             slot,
             liquidation_buffer,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -3139,9 +3164,9 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::error::ErrorCode;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PEG_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
-        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
@@ -3287,6 +3312,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -3435,6 +3461,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             now,
             slot,
             MARGIN_PRECISION as u32 / 50,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -3585,6 +3612,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 
@@ -3733,6 +3761,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -3872,6 +3901,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             now,
             slot,
             10,
+            PERCENTAGE_PRECISION,
         );
 
         assert_eq!(result, Ok(()));
@@ -4011,6 +4041,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             now,
             slot,
             MARGIN_PRECISION as u32 / 50,
+            PERCENTAGE_PRECISION,
         )
         .unwrap();
 

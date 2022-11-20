@@ -245,14 +245,14 @@ pub fn get_strict_token_value(
 pub fn get_token_value(
     token_amount: i128,
     spot_decimals: u32,
-    oracle_price_data: &OraclePriceData,
+    oracle_price: i64,
 ) -> DriftResult<i128> {
     if token_amount == 0 {
         return Ok(0);
     }
 
     let precision_decrease = 10_i128.pow(spot_decimals);
-    let token_with_oracle = token_amount.safe_mul(oracle_price_data.price.cast()?)?;
+    let token_with_oracle = token_amount.safe_mul(oracle_price.cast()?)?;
 
     if token_with_oracle < 0 {
         token_with_oracle.safe_div_floor(precision_decrease.abs())

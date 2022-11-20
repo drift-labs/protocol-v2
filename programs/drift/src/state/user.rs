@@ -1,5 +1,6 @@
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
+use crate::get_then_update_id;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -237,6 +238,38 @@ impl User {
         safe_increment!(self.cumulative_perp_funding, amount);
         Ok(())
     }
+
+    pub fn enter_liquidation(&mut self, now: i64) -> DriftResult<u16> {
+        if self.is_being_liquidated() {
+            return self.next_liquidation_id.safe_sub(1);
+        }
+
+        self.status = UserStatus::BeingLiquidated;
+        self.liquidation_margin_freed = 0;
+        self.liquidation_start_ts = now;
+        Ok(get_then_update_id!(self, next_liquidation_id))
+    }
+
+    pub fn exit_liquidation(&mut self) {
+        self.status = UserStatus::Active;
+        self.liquidation_margin_freed = 0;
+        self.liquidation_start_ts = 0;
+    }
+
+    pub fn enter_bankruptcy(&mut self) {
+        self.status = UserStatus::Bankrupt;
+    }
+
+    pub fn exit_bankruptcy(&mut self) {
+        self.status = UserStatus::Active;
+        self.liquidation_margin_freed = 0;
+        self.liquidation_start_ts = 0;
+    }
+
+    pub fn increment_margin_freed(&mut self, margin_free: u64) -> DriftResult {
+        self.liquidation_margin_freed = self.liquidation_margin_freed.safe_add(margin_free)?;
+        Ok(())
+    }
 }
 
 #[zero_copy]
@@ -329,14 +362,14 @@ impl SpotPosition {
             let worst_case_quote_token_amount = get_token_value(
                 -self.open_bids as i128,
                 spot_market.decimals,
-                oracle_price_data,
+                oracle_price_data.price,
             )?;
             Ok((token_amount_all_bids_fill, worst_case_quote_token_amount))
         } else {
             let worst_case_quote_token_amount = get_token_value(
                 -self.open_asks as i128,
                 spot_market.decimals,
-                oracle_price_data,
+                oracle_price_data.price,
             )?;
             Ok((token_amount_all_asks_fill, worst_case_quote_token_amount))
         }

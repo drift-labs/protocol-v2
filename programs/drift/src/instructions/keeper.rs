@@ -8,7 +8,7 @@ use crate::instructions::optional_accounts::{
     get_spot_market_vaults, load_maps, AccountMaps,
 };
 use crate::load_mut;
-use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
+use crate::math::constants::{PERCENTAGE_PRECISION, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::insurance::if_shares_to_vault_amount;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
@@ -518,6 +518,7 @@ pub fn handle_liquidate_perp(
         slot,
         now,
         state,
+        PERCENTAGE_PRECISION / 10,
     )?;
 
     Ok(())
@@ -575,6 +576,7 @@ pub fn handle_liquidate_spot(
         now,
         clock.slot,
         state.liquidation_margin_buffer_ratio,
+        PERCENTAGE_PRECISION / 10,
     )?;
 
     Ok(())
@@ -632,6 +634,7 @@ pub fn handle_liquidate_borrow_for_perp_pnl(
         now,
         clock.slot,
         state.liquidation_margin_buffer_ratio,
+        PERCENTAGE_PRECISION / 10,
     )?;
 
     Ok(())
@@ -689,6 +692,7 @@ pub fn handle_liquidate_perp_pnl_for_deposit(
         now,
         clock.slot,
         state.liquidation_margin_buffer_ratio,
+        PERCENTAGE_PRECISION / 10,
     )?;
 
     Ok(())
