@@ -364,16 +364,20 @@ pub fn calculate_max_pct_to_liquidate(
 ) -> DriftResult<u128> {
     let time_elapsed = now.safe_sub(user.liquidation_start_ts)?;
 
-    let margin_freed = user.liquidation_margin_freed.cast::<u128>()?;
-    let pct_margin_freed = margin_freed
-        .safe_mul(PERCENTAGE_PRECISION)?
-        .safe_div(margin_freed.safe_add(margin_shortage)?)?;
-
-    let max_pct_freed = time_elapsed
+    let pct_freeable = time_elapsed
         .cast::<u128>()?
         .safe_mul(PERCENTAGE_PRECISION)?
         .safe_div(60)?
-        .safe_add(initial_pct_allowed_to_liquidate)?;
+        .safe_add(initial_pct_allowed_to_liquidate)?
+        .max(PERCENTAGE_PRECISION);
 
-    Ok(max_pct_freed.saturating_sub(pct_margin_freed))
+    let total_margin_shortage = margin_shortage.safe_add(user.liquidation_margin_freed.cast()?)?;
+    let max_margin_freed = total_margin_shortage
+        .safe_mul(pct_freeable)?
+        .safe_div(PERCENTAGE_PRECISION)?;
+    let margin_freeable = max_margin_freed.saturating_sub(user.liquidation_margin_freed.cast()?);
+
+    margin_freeable
+        .safe_mul(PERCENTAGE_PRECISION)?
+        .safe_div(margin_shortage)
 }
