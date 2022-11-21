@@ -329,6 +329,16 @@ pub fn calculate_one_quote_worth_of_token(oracle_price: i64, decimals: u32) -> D
     10_u128.pow(decimals + 6).safe_div(oracle_price.cast()?)
 }
 
+pub fn calculate_margin_shortage(
+    margin_requirement_with_buffer: u128,
+    total_collateral: i128,
+) -> DriftResult<u128> {
+    Ok(margin_requirement_with_buffer
+        .cast::<i128>()?
+        .safe_sub(total_collateral)?
+        .unsigned_abs())
+}
+
 pub fn calculate_margin_freed_for_perp_position(
     base_asset_amount: i64,
     oracle_price: i64,

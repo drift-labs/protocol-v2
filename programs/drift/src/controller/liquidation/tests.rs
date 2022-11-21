@@ -1471,11 +1471,11 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 1);
-        assert_eq!(user.liquidation_margin_freed, 5000000);
+        assert_eq!(user.liquidation_margin_freed, 7000000);
         assert_eq!(user.perp_positions[0].base_asset_amount, 2000000000);
 
-        // ~43% of liquidation finished
-        let slot = 51_u64;
+        // ~60% of liquidation finished
+        let slot = 76_u64;
         liquidate_perp(
             0,
             10 * BASE_PRECISION_U64,
@@ -1497,8 +1497,8 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 1);
-        assert_eq!(user.liquidation_margin_freed, 6100000);
-        assert_eq!(user.perp_positions[0].base_asset_amount, 1780000000);
+        assert_eq!(user.liquidation_margin_freed, 9600000);
+        assert_eq!(user.perp_positions[0].base_asset_amount, 1480000000);
 
         let (_, total_collateral, margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -1516,10 +1516,10 @@ pub mod liquidate_perp {
 
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);
-        assert_eq!(pct_margin_freed, 435714); // ~43%
+        assert_eq!(pct_margin_freed, 600000); // ~60%
 
-        // dont change slot, still ~43% done
-        let slot = 51_u64;
+        // dont change slot, still ~60% done
+        let slot = 76_u64;
         liquidate_perp(
             0,
             10 * BASE_PRECISION_U64,
@@ -1541,8 +1541,8 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 1);
-        assert_eq!(user.liquidation_margin_freed, 6100000); // no new margin freed
-        assert_eq!(user.perp_positions[0].base_asset_amount, 1780000000);
+        assert_eq!(user.liquidation_margin_freed, 9600000); // no new margin freed
+        assert_eq!(user.perp_positions[0].base_asset_amount, 1480000000);
 
         // ~76% of liquidation finished
         let slot = 101_u64;
@@ -1567,8 +1567,8 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 1);
-        assert_eq!(user.liquidation_margin_freed, 10750000);
-        assert_eq!(user.perp_positions[0].base_asset_amount, 850000000);
+        assert_eq!(user.liquidation_margin_freed, 12300000);
+        assert_eq!(user.perp_positions[0].base_asset_amount, 940000000);
 
         let (_, total_collateral, margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -1586,7 +1586,7 @@ pub mod liquidate_perp {
 
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);
-        assert_eq!(pct_margin_freed, 767857); // ~76%
+        assert_eq!(pct_margin_freed, 768750); // ~76%
 
         // ~100% of liquidation finished
         let slot = 136_u64;
@@ -1614,6 +1614,127 @@ pub mod liquidate_perp {
         assert_eq!(user.liquidation_start_slot, 0);
         assert_eq!(user.liquidation_margin_freed, 0);
         assert_eq!(user.perp_positions[0].base_asset_amount, 200000000);
+    }
+
+    #[test]
+    pub fn partial_liquidation_oracle_down_20_pct() {
+        let now = 1_i64;
+        let slot = 1_u64;
+
+        let mut oracle_price = get_pyth_price(80, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 10000000,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+                base_asset_amount_with_amm: BASE_PRECISION_I128,
+                oracle: oracle_price_key,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            number_of_users_with_base: 1,
+            status: MarketStatus::Initialized,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            ..PerpMarket::default()
+        };
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let perp_market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        let mut user = User {
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 10 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut liquidator = User {
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 50 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            ..Default::default()
+        };
+        liquidate_perp(
+            0,
+            10 * BASE_PRECISION_U64,
+            None,
+            &mut user,
+            &user_key,
+            &mut user_stats,
+            &mut liquidator,
+            &liquidator_key,
+            &mut liquidator_stats,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            slot,
+            now,
+            &state,
+            PERCENTAGE_PRECISION / 10,
+        )
+        .unwrap();
+
+        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.liquidation_margin_freed, 1560000);
+        assert_eq!(user.perp_positions[0].base_asset_amount, 610000000);
     }
 }
 
