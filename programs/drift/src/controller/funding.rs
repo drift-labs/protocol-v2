@@ -227,11 +227,12 @@ pub fn update_funding_rate(
             .safe_div(period_adjustment.cast()?)?
             .cast::<i64>()?;
 
-        let (funding_rate_long, funding_rate_short, funding_imbalance_cost) =
+        let (funding_rate_long, funding_rate_short, funding_imbalance_revenue) =
             calculate_funding_rate_long_short(market, funding_rate.cast()?)?;
 
-        // todo: finish robust tests
         if market.amm.curve_update_intensity > 0 {
+            // if funding_imbalance_cost is positive, protocol receives money
+            let funding_imbalance_cost = -funding_imbalance_revenue;
             formulaic_update_k(market, oracle_price_data, funding_imbalance_cost, now)?;
         }
 
