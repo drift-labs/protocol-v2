@@ -149,7 +149,7 @@ pub fn liquidate_perp(
         return Ok(());
     }
 
-    let liquidation_id = user.enter_liquidation(now)?;
+    let liquidation_id = user.enter_liquidation(slot)?;
     let mut margin_freed = 0_u64;
 
     let position_index = get_position_index(&user.perp_positions, market_index)?;
@@ -316,7 +316,7 @@ pub fn liquidate_perp(
     let max_pct_allowed = calculate_max_pct_to_liquidate(
         user,
         margin_shortage,
-        now,
+        slot,
         initial_pct_allowed_to_liquidate,
     )?;
     let max_base_asset_amount_allowed_to_be_transferred =
@@ -762,7 +762,7 @@ pub fn liquidate_spot(
         return Ok(());
     }
 
-    let liquidation_id = user.enter_liquidation(now)?;
+    let liquidation_id = user.enter_liquidation(slot)?;
     let mut margin_freed = 0_u64;
 
     let canceled_order_ids = orders::cancel_orders(
@@ -864,7 +864,7 @@ pub fn liquidate_spot(
     let max_pct_allowed = calculate_max_pct_to_liquidate(
         user,
         margin_shortage,
-        now,
+        slot,
         initial_pct_allowed_to_liquidate,
     )?;
     let max_liability_allowed_to_be_transferred = liability_transfer_to_cover_margin_shortage
@@ -1218,7 +1218,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         return Ok(());
     }
 
-    let liquidation_id = user.enter_liquidation(now)?;
+    let liquidation_id = user.enter_liquidation(slot)?;
     let mut margin_freed = 0_u64;
 
     let canceled_order_ids = orders::cancel_orders(
@@ -1322,7 +1322,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     let max_pct_allowed = calculate_max_pct_to_liquidate(
         user,
         margin_shortage,
-        now,
+        slot,
         initial_pct_allowed_to_liquidate,
     )?;
     let max_liability_allowed_to_be_transferred = liability_transfer_to_cover_margin_shortage
@@ -1656,7 +1656,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         return Ok(());
     }
 
-    let liquidation_id = user.enter_liquidation(now)?;
+    let liquidation_id = user.enter_liquidation(slot)?;
     let mut margin_freed = 0_u64;
 
     let canceled_order_ids = orders::cancel_orders(
@@ -1757,7 +1757,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     let max_pct_allowed = calculate_max_pct_to_liquidate(
         user,
         margin_shortage,
-        now,
+        slot,
         initial_pct_allowed_to_liquidate,
     )?;
     let max_pnl_allowed_to_be_transferred = pnl_transfer_to_cover_margin_shortage

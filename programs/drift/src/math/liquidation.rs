@@ -359,15 +359,15 @@ pub fn calculate_margin_freed_for_liability(
 pub fn calculate_max_pct_to_liquidate(
     user: &User,
     margin_shortage: u128,
-    now: i64,
+    slot: u64,
     initial_pct_allowed_to_liquidate: u128,
 ) -> DriftResult<u128> {
-    let time_elapsed = now.safe_sub(user.liquidation_start_ts)?;
+    let slots_elapsed = slot.safe_sub(user.liquidation_start_slot)?;
 
-    let pct_freeable = time_elapsed
+    let pct_freeable = slots_elapsed
         .cast::<u128>()?
         .safe_mul(PERCENTAGE_PRECISION)?
-        .safe_div(60)?
+        .safe_div(150)? // ~ 1 minute if per slot is 400ms
         .safe_add(initial_pct_allowed_to_liquidate)?
         .max(PERCENTAGE_PRECISION);
 
