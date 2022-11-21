@@ -231,7 +231,8 @@ pub fn update_funding_rate(
             calculate_funding_rate_long_short(market, funding_rate.cast()?)?;
 
         if market.amm.curve_update_intensity > 0 {
-            // if funding_imbalance_cost is positive, protocol receives money
+            // if funding_imbalance_revenue is positive, protocol receives.
+            // if funding_imbalance_cost is positive, protocol spends.
             let funding_imbalance_cost = -funding_imbalance_revenue;
             formulaic_update_k(market, oracle_price_data, funding_imbalance_cost, now)?;
         }

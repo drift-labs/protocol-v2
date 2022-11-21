@@ -2,8 +2,8 @@
 mod test {
     use crate::math::amm_spread::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I64,
-        QUOTE_PRECISION, QUOTE_PRECISION_I128,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BID_ASK_SPREAD_PRECISION,
+        BID_ASK_SPREAD_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
 
     #[test]
@@ -499,6 +499,44 @@ mod test {
     }
 
     #[test]
+    fn calculate_spread_scales_tests() {
+        let lscale = calculate_spread_leverage_scale(
+            AMM_RESERVE_PRECISION,
+            AMM_RESERVE_PRECISION,
+            12 * PEG_PRECISION,
+            BASE_PRECISION_I128,
+            (12.5 * PRICE_PRECISION as f64) as u64,
+            QUOTE_PRECISION_I128,
+        )
+        .unwrap();
+        assert_eq!(lscale, 10000000); // 10x (max)
+
+        // more total fee minus dist => lower leverage
+        let lscale = calculate_spread_leverage_scale(
+            AMM_RESERVE_PRECISION,
+            AMM_RESERVE_PRECISION,
+            12 * PEG_PRECISION,
+            BASE_PRECISION_I128,
+            (12.5 * PRICE_PRECISION as f64) as u64,
+            QUOTE_PRECISION_I128 * 100,
+        )
+        .unwrap();
+        assert_eq!(lscale, 1125000); // 1.125x (max)
+
+        // user long => bar < sqrt_k < qar => tqar < qar => peg < reserve_price
+        let lscale = calculate_spread_leverage_scale(
+            AMM_RESERVE_PRECISION * 1000,
+            (AMM_RESERVE_PRECISION * 9999 / 10000) as u128,
+            12 * PEG_PRECISION,
+            BASE_PRECISION_I128,
+            (12.1 * PRICE_PRECISION as f64) as u64,
+            QUOTE_PRECISION_I128,
+        )
+        .unwrap();
+        assert_eq!(lscale, 1000001); // 1.000001x (min)
+    }
+
+    #[test]
     fn calculate_vol_spread_tests() {
         let base_spread = 250; // .025%
         let last_oracle_reserve_price_spread_pct = 0;
@@ -515,16 +553,62 @@ mod test {
         let max_base_asset_reserve = AMM_RESERVE_PRECISION * 100000;
 
         let margin_ratio_initial = 2000; // 5x max leverage
-        let max_spread = margin_ratio_initial * 100;
+        let max_spread = margin_ratio_initial * 100; //20%
 
-        let mark_std = 34000000 / 50;
-        let oracle_std = 34000000 / 150;
-        let long_intensity_volume = (QUOTE_PRECISION * 10000) as u64;
-        let short_intensity_volume = (QUOTE_PRECISION * 30000) as u64;
-        let volume_24h = (QUOTE_PRECISION * 40000) as u64;
+        let mark_std = 34000000 / 50; // 2% of price
+        let oracle_std = 34000000 / 150; // .66% of price
+        let long_intensity_volume = (QUOTE_PRECISION * 10000) as u64; //10k
+        let short_intensity_volume = (QUOTE_PRECISION * 30000) as u64; //30k
+        let volume_24h = (QUOTE_PRECISION * 40000) as u64; // 40k
 
-        // at 0 fee be max spread
-        let (long_spread1, short_spread) = calculate_spread(
+        let (long_vspread, short_vspread) = calculate_long_short_vol_spread(
+            last_oracle_conf_pct,
+            reserve_price,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+        )
+        .unwrap();
+        assert_eq!(long_vspread, 1639);
+        assert_eq!(short_vspread, 4918);
+
+        // since short volume ~= 3 * long volume intensity, expect short spread to be larger by this factor
+        assert_eq!(short_vspread >= long_vspread * 3, true);
+
+        // inventory scale
+        let (max_bids, max_asks) = _calculate_market_open_bids_asks(
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+        )
+        .unwrap();
+        assert_eq!(max_bids, 10000000000);
+        assert_eq!(max_asks, -99990000000000);
+
+        let min_side_liquidity = max_bids.min(max_asks.abs());
+        assert_eq!(min_side_liquidity, 10000000000);
+
+        // inventory scale
+        let inventory_scale = base_asset_amount_with_amm
+            .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>().unwrap())
+            .unwrap()
+            .safe_div(min_side_liquidity.max(1))
+            .unwrap()
+            .unsigned_abs();
+
+        assert_eq!(inventory_scale, 0);
+
+        let inventory_scale_capped = min(
+            MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+            BID_ASK_SPREAD_PRECISION
+                .safe_add(inventory_scale.cast().unwrap())
+                .unwrap(),
+        );
+        assert_eq!(inventory_scale_capped, BID_ASK_SPREAD_PRECISION);
+
+        let (long_spread, short_spread) = calculate_spread(
             base_spread,
             last_oracle_reserve_price_spread_pct,
             last_oracle_conf_pct,
@@ -545,7 +629,280 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread1, 16390);
+
+        // since total_fee_minus_distributions <=0, 10 * vol spread
+        assert_eq!(long_spread, 16390); // vs 2500
+        assert_eq!(
+            long_spread
+                > (base_spread
+                    * ((DEFAULT_LARGE_BID_ASK_FACTOR / BID_ASK_SPREAD_PRECISION) as u32)),
+            true
+        );
+
         assert_eq!(short_spread, 49180);
+        assert_eq!(
+            short_spread
+                > (base_spread
+                    * ((DEFAULT_LARGE_BID_ASK_FACTOR / BID_ASK_SPREAD_PRECISION) as u32)),
+            true
+        );
+
+        let (long_spread, short_spread) = calculate_spread(
+            base_spread,
+            last_oracle_reserve_price_spread_pct,
+            last_oracle_conf_pct,
+            max_spread,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            base_asset_amount_with_amm,
+            reserve_price,
+            total_fee_minus_distributions + 1000,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+        )
+        .unwrap();
+
+        assert_eq!(long_spread, 1639);
+        assert_eq!(short_spread, 4918);
+
+        let (long_spread, short_spread) = calculate_spread(
+            base_spread,
+            last_oracle_reserve_price_spread_pct,
+            last_oracle_conf_pct,
+            max_spread,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            base_asset_amount_with_amm + BASE_PRECISION_I128,
+            reserve_price,
+            total_fee_minus_distributions + 1000,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+        )
+        .unwrap();
+        assert_eq!(long_spread, 1639 * 20); // inventory scale = 1e6, effective_leverage = 10 (max) when terminal=quote reserves and amm long
+        assert_eq!(short_spread, 4918);
+
+        let (long_spread, short_spread) = calculate_spread(
+            base_spread,
+            last_oracle_reserve_price_spread_pct,
+            last_oracle_conf_pct,
+            max_spread,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            base_asset_amount_with_amm - BASE_PRECISION_I128,
+            reserve_price,
+            total_fee_minus_distributions + 1000,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+        )
+        .unwrap();
+        assert_eq!(long_spread, 1639);
+        assert_eq!(short_spread, 4918 * 2); // inventory scale = 1e6, effective_leverage = 0 when terminal=quote reserves and amm short
+    }
+
+    #[test]
+    fn calculate_vol_oracle_reserve_price_spread_pct_tests() {
+        let base_spread = 250; // .025%
+        let last_oracle_reserve_price_spread_pct = 5000; //.5%
+        let last_oracle_conf_pct = 250; // .025%
+        let quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 9;
+        let peg_multiplier = 34000000;
+        let base_asset_amount_with_amm = 0;
+        let reserve_price = 34562304;
+        let total_fee_minus_distributions = 0;
+
+        let base_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let min_base_asset_reserve = AMM_RESERVE_PRECISION * 7;
+        let max_base_asset_reserve = AMM_RESERVE_PRECISION * 13;
+
+        let margin_ratio_initial = 2000; // 5x max leverage
+        let max_spread = margin_ratio_initial * 100; //20%
+
+        let mark_std = 34000000 / 50; // 2% of price
+        let oracle_std = 34000000 / 150; // .66% of price
+        let long_intensity_volume = (QUOTE_PRECISION * 10000) as u64; //10k
+        let short_intensity_volume = (QUOTE_PRECISION * 30000) as u64; //30k
+        let volume_24h = (QUOTE_PRECISION * 40000) as u64; // 40k
+
+        let (long_vspread, short_vspread) = calculate_long_short_vol_spread(
+            last_oracle_conf_pct,
+            reserve_price,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+        )
+        .unwrap();
+        assert_eq!(long_vspread, 1639);
+        assert_eq!(short_vspread, 4918);
+
+        // since short volume ~= 3 * long volume intensity, expect short spread to be larger by this factor
+        assert_eq!(short_vspread >= long_vspread * 3, true);
+
+        // inventory scale
+        let (max_bids, max_asks) = _calculate_market_open_bids_asks(
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+        )
+        .unwrap();
+        assert_eq!(max_bids, 3000000000);
+        assert_eq!(max_asks, -3000000000);
+
+        let min_side_liquidity = max_bids.min(max_asks.abs());
+        assert_eq!(min_side_liquidity, 3000000000);
+
+        // inventory scale
+        let inventory_scale = base_asset_amount_with_amm
+            .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>().unwrap())
+            .unwrap()
+            .safe_div(min_side_liquidity.max(1))
+            .unwrap()
+            .unsigned_abs();
+
+        assert_eq!(inventory_scale, 0);
+
+        let inventory_scale_capped = min(
+            MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+            BID_ASK_SPREAD_PRECISION
+                .safe_add(inventory_scale.cast().unwrap())
+                .unwrap(),
+        );
+        assert_eq!(inventory_scale_capped, BID_ASK_SPREAD_PRECISION);
+
+        let (long_spread, short_spread) = calculate_spread(
+            base_spread,
+            last_oracle_reserve_price_spread_pct,
+            last_oracle_conf_pct,
+            max_spread,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            base_asset_amount_with_amm,
+            reserve_price,
+            total_fee_minus_distributions,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+        )
+        .unwrap();
+
+        // since total_fee_minus_distributions <=0, 10 * vol spread
+        assert_eq!(long_spread, 16390); // vs 2500
+        assert_eq!(
+            long_spread
+                > (base_spread
+                    * ((DEFAULT_LARGE_BID_ASK_FACTOR / BID_ASK_SPREAD_PRECISION) as u32)),
+            true
+        );
+
+        assert_eq!(short_spread, 99180);
+        assert_eq!(
+            short_spread
+                > (base_spread
+                    * ((DEFAULT_LARGE_BID_ASK_FACTOR / BID_ASK_SPREAD_PRECISION) as u32)),
+            true
+        );
+
+        let (long_spread, short_spread) = calculate_spread(
+            base_spread,
+            last_oracle_reserve_price_spread_pct,
+            last_oracle_conf_pct,
+            max_spread,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            base_asset_amount_with_amm,
+            reserve_price,
+            total_fee_minus_distributions + 1000,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+        )
+        .unwrap();
+
+        assert_eq!(long_spread, 1639);
+        assert_eq!(short_spread, 9918);
+
+        let (long_spread, short_spread) = calculate_spread(
+            base_spread,
+            last_oracle_reserve_price_spread_pct,
+            last_oracle_conf_pct,
+            max_spread,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            base_asset_amount_with_amm + BASE_PRECISION_I128,
+            reserve_price,
+            total_fee_minus_distributions + 1000,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+        )
+        .unwrap();
+        assert_eq!(long_spread, 71020); // big cause of oracel pct
+        assert_eq!(short_spread, 9918);
+
+        let (long_spread, short_spread) = calculate_spread(
+            base_spread,
+            last_oracle_reserve_price_spread_pct,
+            last_oracle_conf_pct,
+            max_spread,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            base_asset_amount_with_amm - BASE_PRECISION_I128,
+            reserve_price,
+            total_fee_minus_distributions + 1000,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+        )
+        .unwrap();
+        assert_eq!(long_spread, 1639);
+        assert_eq!(short_spread, 42977); // big
     }
 }
