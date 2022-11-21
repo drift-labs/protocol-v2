@@ -369,7 +369,7 @@ pub fn calculate_max_pct_to_liquidate(
         .safe_mul(PERCENTAGE_PRECISION)?
         .safe_div(150)? // ~ 1 minute if per slot is 400ms
         .safe_add(initial_pct_allowed_to_liquidate)?
-        .max(PERCENTAGE_PRECISION);
+        .min(PERCENTAGE_PRECISION);
 
     let total_margin_shortage = margin_shortage.safe_add(user.liquidation_margin_freed.cast()?)?;
     let max_margin_freed = total_margin_shortage
