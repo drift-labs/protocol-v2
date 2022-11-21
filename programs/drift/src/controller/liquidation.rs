@@ -326,6 +326,12 @@ pub fn liquidate_perp(
             .safe_div(PERCENTAGE_PRECISION)?
             .cast::<u64>()?;
 
+    validate!(
+        max_base_asset_amount_allowed_to_be_transferred != 0,
+        ErrorCode::InvalidLiquidation,
+        "max_base_asset_amount_allowed_to_be_transferred == 0"
+    )?;
+
     let base_asset_amount = user_base_asset_amount
         .min(liquidator_max_base_asset_amount)
         .min(max_base_asset_amount_allowed_to_be_transferred);
@@ -871,6 +877,12 @@ pub fn liquidate_spot(
         .saturating_mul(max_pct_allowed)
         .safe_div(PERCENTAGE_PRECISION)?;
 
+    validate!(
+        max_liability_allowed_to_be_transferred != 0,
+        ErrorCode::InvalidLiquidation,
+        "max_liability_allowed_to_be_transferred == 0"
+    )?;
+
     // Given the user's deposit amount, how much borrow can be transferred?
     let liability_transfer_implied_by_asset_amount =
         calculate_liability_transfer_implied_by_asset_amount(
@@ -1329,6 +1341,12 @@ pub fn liquidate_borrow_for_perp_pnl(
         .saturating_mul(max_pct_allowed)
         .safe_div(PERCENTAGE_PRECISION)?;
 
+    validate!(
+        max_liability_allowed_to_be_transferred != 0,
+        ErrorCode::InvalidLiquidation,
+        "max_liability_allowed_to_be_transferred == 0"
+    )?;
+
     // Given the user's deposit amount, how much borrow can be transferred?
     let liability_transfer_implied_by_pnl = calculate_liability_transfer_implied_by_asset_amount(
         pnl,
@@ -1763,6 +1781,12 @@ pub fn liquidate_perp_pnl_for_deposit(
     let max_pnl_allowed_to_be_transferred = pnl_transfer_to_cover_margin_shortage
         .saturating_mul(max_pct_allowed)
         .safe_div(PERCENTAGE_PRECISION)?;
+
+    validate!(
+        max_pnl_allowed_to_be_transferred != 0,
+        ErrorCode::InvalidLiquidation,
+        "max_pnl_allowed_to_be_transferred == 0"
+    )?;
 
     // Given the user's deposit amount, how much borrow can be transferred?
     let pnl_transfer_implied_by_asset_amount =
