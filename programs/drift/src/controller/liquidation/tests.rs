@@ -2592,11 +2592,11 @@ pub mod liquidate_spot {
         )
         .unwrap();
 
-        assert_eq!(user.spot_positions[0].scaled_balance, 1138999000);
-        assert_eq!(user.spot_positions[1].scaled_balance, 10009999);
+        assert_eq!(user.spot_positions[0].scaled_balance, 0);
+        assert_eq!(user.spot_positions[1].scaled_balance, 19999);
 
-        assert_eq!(liquidator.spot_positions[0].scaled_balance, 101001001000);
-        assert_eq!(liquidator.spot_positions[1].scaled_balance, 10000001); // ~$1 worth of liability
+        assert_eq!(liquidator.spot_positions[0].scaled_balance, 102140000000);
+        assert_eq!(liquidator.spot_positions[1].scaled_balance, 20000001); // ~$1 worth of liability
     }
 
     #[test]
@@ -3673,7 +3673,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             deposit_balance: SPOT_BALANCE_PRECISION,
-            borrow_balance: SPOT_BALANCE_PRECISION,
+            borrow_balance: SPOT_BALANCE_PRECISION / 50,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
@@ -3741,15 +3741,15 @@ pub mod liquidate_borrow_for_perp_pnl {
         )
         .unwrap();
 
-        assert_eq!(user.spot_positions[0].scaled_balance, 9999999);
-        assert_eq!(user.perp_positions[0].quote_asset_amount, 1128989);
+        assert_eq!(user.spot_positions[0].scaled_balance, 0);
+        assert_eq!(user.perp_positions[0].quote_asset_amount, 0);
 
         assert_eq!(
             liquidator.spot_positions[1].balance_type,
             SpotBalanceType::Borrow
         );
-        assert_eq!(liquidator.spot_positions[1].scaled_balance, 10000001); // ~$1 liability taken over
-        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 1011011);
+        assert_eq!(liquidator.spot_positions[1].scaled_balance, 20000001); // ~$1 liability taken over
+        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 2140000);
     }
 
     #[test]
@@ -4879,14 +4879,14 @@ pub mod liquidate_perp_pnl_for_deposit {
         .unwrap();
 
         assert_eq!(user.spot_positions[0].scaled_balance, 0);
-        assert_eq!(user.perp_positions[0].quote_asset_amount, -820000);
+        assert_eq!(user.perp_positions[0].quote_asset_amount, 0);
 
         assert_eq!(
             liquidator.spot_positions[1].balance_type,
             SpotBalanceType::Deposit
         );
         assert_eq!(liquidator.spot_positions[1].scaled_balance, 20000000);
-        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -1000000); // -$1
+        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -1820000); // -$1
     }
 
     #[test]

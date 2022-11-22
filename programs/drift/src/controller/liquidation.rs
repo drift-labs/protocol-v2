@@ -21,8 +21,8 @@ use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    LIQUIDATION_FEE_PRECISION_U128, PERCENTAGE_PRECISION, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
-    SPOT_WEIGHT_PRECISION,
+    LIQUIDATION_FEE_PRECISION_U128, PERCENTAGE_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+    QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
@@ -31,7 +31,7 @@ use crate::math::liquidation::{
     calculate_funding_rate_deltas_to_resolve_bankruptcy,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
-    calculate_margin_shortage, calculate_max_pct_to_liquidate, calculate_one_quote_worth_of_token,
+    calculate_margin_shortage, calculate_max_pct_to_liquidate,
     validate_transfer_satisfies_limit_price, LiquidationMultiplierType,
 };
 use crate::math::margin::{
@@ -333,9 +333,20 @@ pub fn liquidate_perp(
         return Ok(());
     }
 
+    let base_asset_value =
+        calculate_base_asset_value_with_oracle_price(user_base_asset_amount.cast()?, oracle_price)?
+            .cast::<u64>()?;
+
+    // if position is less than $10, liquidator can liq all of it
+    let min_base_asset_amount = if base_asset_value > 10 * QUOTE_PRECISION_U64 {
+        0_u64
+    } else {
+        user_base_asset_amount
+    };
+
     let base_asset_amount = user_base_asset_amount
         .min(liquidator_max_base_asset_amount)
-        .min(max_base_asset_amount_allowed_to_be_transferred);
+        .min(max_base_asset_amount_allowed_to_be_transferred.max(min_base_asset_amount));
     let base_asset_amount = standardize_base_asset_amount_ceil(
         base_asset_amount,
         perp_market_map.get_ref(&market_index)?.amm.order_step_size,
@@ -901,13 +912,22 @@ pub fn liquidate_spot(
             liability_price,
         )?;
 
-    let one_quote_worth_of_liability =
-        calculate_one_quote_worth_of_token(liability_price, liability_decimals)?;
+    let liability_value = get_token_value(
+        liability_amount.cast()?,
+        liability_decimals,
+        liability_price,
+    )?;
+
+    let minimum_liability_transfer = if liability_value > 10 * QUOTE_PRECISION_I128 {
+        0_u128
+    } else {
+        liability_amount
+    };
 
     let liability_transfer = liquidator_max_liability_transfer
         .min(liability_amount)
         // want to make sure the liability_transfer_to_cover_margin_shortage doesn't lead to dust positions
-        .min(max_liability_allowed_to_be_transferred.max(one_quote_worth_of_liability))
+        .min(max_liability_allowed_to_be_transferred.max(minimum_liability_transfer))
         .min(liability_transfer_implied_by_asset_amount);
 
     // Given the borrow amount to transfer, determine how much deposit amount to transfer
@@ -1368,13 +1388,22 @@ pub fn liquidate_borrow_for_perp_pnl(
         liability_price,
     )?;
 
-    let one_quote_worth_of_liability =
-        calculate_one_quote_worth_of_token(liability_price, liability_decimals)?;
+    let liability_value = get_token_value(
+        liability_amount.cast()?,
+        liability_decimals,
+        liability_price,
+    )?;
+
+    let minimum_liability_transfer = if liability_value > 10 * QUOTE_PRECISION_I128 {
+        0_u128
+    } else {
+        liability_amount
+    };
 
     let liability_transfer = liquidator_max_liability_transfer
         .min(liability_amount)
         // want to make sure the liability_transfer_to_cover_margin_shortage doesn't lead to dust positions
-        .min(max_liability_allowed_to_be_transferred.max(one_quote_worth_of_liability))
+        .min(max_liability_allowed_to_be_transferred.max(minimum_liability_transfer))
         .min(liability_transfer_implied_by_pnl);
 
     // Given the borrow amount to transfer, determine how much deposit amount to transfer
@@ -1814,10 +1843,16 @@ pub fn liquidate_perp_pnl_for_deposit(
             quote_price,
         )?;
 
+    let minimum_pnl_transfer = if unsettled_pnl > 10 * QUOTE_PRECISION {
+        0_u128
+    } else {
+        unsettled_pnl
+    };
+
     let pnl_transfer = liquidator_max_pnl_transfer
         .min(unsettled_pnl)
         // want to make sure the pnl_transfer_to_cover_margin_shortage doesn't lead to dust pnl
-        .min(max_pnl_allowed_to_be_transferred.max(QUOTE_PRECISION))
+        .min(max_pnl_allowed_to_be_transferred.max(minimum_pnl_transfer))
         .min(pnl_transfer_implied_by_asset_amount);
 
     // Given the borrow amount to transfer, determine how much deposit amount to transfer

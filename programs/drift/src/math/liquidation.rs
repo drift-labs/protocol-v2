@@ -3,17 +3,15 @@ use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO,
     LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_PRECISION_U128,
-    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
-    PRICE_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
-    SPOT_WEIGHT_PRECISION_U128,
+    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, PERCENTAGE_PRECISION, PRICE_PRECISION,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::{get_token_amount, get_token_value};
+use crate::math::spot_balance::get_token_amount;
 
-use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -325,10 +323,6 @@ pub fn validate_transfer_satisfies_limit_price(
     )
 }
 
-pub fn calculate_one_quote_worth_of_token(oracle_price: i64, decimals: u32) -> DriftResult<u128> {
-    10_u128.pow(decimals + 6).safe_div(oracle_price.cast()?)
-}
-
 pub fn calculate_margin_shortage(
     margin_requirement_with_buffer: u128,
     total_collateral: i128,
@@ -337,33 +331,6 @@ pub fn calculate_margin_shortage(
         .cast::<i128>()?
         .safe_sub(total_collateral)?
         .unsigned_abs())
-}
-
-pub fn calculate_margin_freed_for_perp_position(
-    base_asset_amount: i64,
-    oracle_price: i64,
-    margin_ratio: u32,
-) -> DriftResult<u64> {
-    let base_asset_value =
-        calculate_base_asset_value_with_oracle_price(base_asset_amount.cast()?, oracle_price)?;
-    base_asset_value
-        .safe_mul(margin_ratio.cast()?)?
-        .safe_div(MARGIN_PRECISION_U128)?
-        .cast()
-}
-
-pub fn calculate_margin_freed_for_liability(
-    token_amount: u128,
-    decimals: u32,
-    oracle_price: i64,
-    liability_weight: u32,
-) -> DriftResult<u64> {
-    let token_value = get_token_value(token_amount.cast()?, decimals, oracle_price)?;
-    token_value
-        .cast::<u128>()?
-        .safe_mul(liability_weight.cast()?)?
-        .safe_div(SPOT_WEIGHT_PRECISION_U128)?
-        .cast()
 }
 
 pub fn calculate_max_pct_to_liquidate(
