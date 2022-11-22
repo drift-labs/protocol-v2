@@ -15,6 +15,7 @@ import {
 	PRICE_PRECISION,
 	PositionDirection,
 	Wallet,
+	LIQUIDATION_PCT_PRECISION,
 } from '../sdk/src';
 import { assert } from 'chai';
 
@@ -89,6 +90,10 @@ describe('liquidate perp and lp', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
+
+		await driftClient.updateInitialPctToLiquidate(
+			LIQUIDATION_PCT_PRECISION.toNumber()
+		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await driftClient.updatePerpAuctionDuration(new BN(0));

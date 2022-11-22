@@ -358,7 +358,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 get_token_value(
                     worst_case_token_amount,
                     spot_market.decimals,
-                    oracle_price_data,
+                    oracle_price_data.price,
                 )?
             };
 
@@ -798,7 +798,7 @@ pub fn validate_spot_margin_trading(
             let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
             let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
             let open_bids_value =
-                get_token_value(-bids as i128, spot_market.decimals, oracle_price_data)?;
+                get_token_value(-bids as i128, spot_market.decimals, oracle_price_data.price)?;
 
             total_open_bids_value = total_open_bids_value.safe_add(open_bids_value)?;
         }

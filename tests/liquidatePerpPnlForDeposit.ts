@@ -17,6 +17,7 @@ import {
 	PositionDirection,
 	EventSubscriber,
 	OracleGuardRails,
+	LIQUIDATION_PCT_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -97,6 +98,10 @@ describe('liquidate perp pnl for deposit', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
+
+		await driftClient.updateInitialPctToLiquidate(
+			LIQUIDATION_PCT_PRECISION.toNumber()
+		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);

@@ -606,6 +606,34 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
+	public async updateInitialPctToLiquidate(
+		initialPctToLiquidate: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateInitialPctToLiquidate(
+			initialPctToLiquidate,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async updateLiquidationDuration(
+		liquidationDuration: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateLiquidationDuration(
+			liquidationDuration,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateOracleGuardRails(
 		oracleGuardRails: OracleGuardRails
 	): Promise<TransactionSignature> {

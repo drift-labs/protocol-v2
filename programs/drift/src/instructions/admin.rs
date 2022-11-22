@@ -77,7 +77,9 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         perp_fee_structure: FeeStructure::perps_default(),
         spot_fee_structure: FeeStructure::spot_default(),
         lp_cooldown_time: 0,
-        padding: [0; 17],
+        liquidation_duration: 0,
+        initial_pct_to_liquidate: 0,
+        padding: [0; 14],
     };
 
     Ok(())
@@ -1704,6 +1706,22 @@ pub fn handle_update_spot_fee_structure(
 ) -> Result<()> {
     validate_fee_structure(&fee_structure)?;
     ctx.accounts.state.spot_fee_structure = fee_structure;
+    Ok(())
+}
+
+pub fn handle_update_initial_pct_to_liquidate(
+    ctx: Context<AdminUpdateState>,
+    initial_pct_to_liquidate: u16,
+) -> Result<()> {
+    ctx.accounts.state.initial_pct_to_liquidate = initial_pct_to_liquidate;
+    Ok(())
+}
+
+pub fn handle_update_liquidation_duration(
+    ctx: Context<AdminUpdateState>,
+    liquidation_duration: u8,
+) -> Result<()> {
+    ctx.accounts.state.liquidation_duration = liquidation_duration;
     Ok(())
 }
 

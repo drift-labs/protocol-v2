@@ -23,6 +23,7 @@ import {
 	isVariant,
 	MARGIN_PRECISION,
 	SPOT_MARKET_BALANCE_PRECISION,
+	LIQUIDATION_PCT_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -128,6 +129,10 @@ describe('delist market, liquidation of expired position', () => {
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
+
+		await driftClient.updateInitialPctToLiquidate(
+			LIQUIDATION_PCT_PRECISION.toNumber()
+		);
 
 		const periodicity = new BN(0);
 
