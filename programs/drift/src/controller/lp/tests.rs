@@ -28,8 +28,8 @@ fn test_full_long_settle() {
 
     settle_lp_position(&mut position, &mut market).unwrap();
 
-    assert_eq!(position.last_net_base_asset_amount_per_lp, 10);
-    assert_eq!(position.last_net_quote_asset_amount_per_lp, -10);
+    assert_eq!(position.last_base_asset_amount_per_lp, 10);
+    assert_eq!(position.last_quote_asset_amount_per_lp, -10);
     assert_eq!(position.base_asset_amount, 10);
     assert_eq!(position.quote_asset_amount, -10);
     assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 0);
@@ -71,8 +71,8 @@ fn test_full_short_settle() {
 
     settle_lp_position(&mut position, &mut market).unwrap();
 
-    assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
-    assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
+    assert_eq!(position.last_base_asset_amount_per_lp, -10);
+    assert_eq!(position.last_quote_asset_amount_per_lp, 10);
     assert_eq!(position.base_asset_amount, -10 * 100);
     assert_eq!(position.quote_asset_amount, 10 * 100);
 }
@@ -106,8 +106,8 @@ fn test_partial_short_settle() {
     assert_eq!(position.base_asset_amount, -9);
     assert_eq!(position.quote_asset_amount, 10);
     assert_eq!(position.remainder_base_asset_amount, -1);
-    assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
-    assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
+    assert_eq!(position.last_base_asset_amount_per_lp, -10);
+    assert_eq!(position.last_quote_asset_amount_per_lp, 10);
 
     // burn
     let _position = position;
@@ -140,6 +140,6 @@ fn test_partial_long_settle() {
     assert_eq!(position.base_asset_amount, -9);
     assert_eq!(position.quote_asset_amount, 10);
     assert_eq!(position.remainder_base_asset_amount, -1);
-    assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
-    assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
+    assert_eq!(position.last_base_asset_amount_per_lp, -10);
+    assert_eq!(position.last_quote_asset_amount_per_lp, 10);
 }
