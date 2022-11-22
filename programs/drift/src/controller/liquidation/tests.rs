@@ -13,9 +13,9 @@ pub mod liquidate_perp {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION, MARGIN_PRECISION,
-        MARGIN_PRECISION_U128, PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION,
-        PRICE_PRECISION_U64, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
-        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        MARGIN_PRECISION_U128, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64,
+        QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::liquidation::is_user_being_liquidated;
     use crate::math::margin::{
@@ -134,6 +134,8 @@ pub mod liquidate_perp {
         let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: 10,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
             ..Default::default()
         };
         liquidate_perp(
@@ -152,8 +154,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION,
-            150,
         )
         .unwrap();
 
@@ -278,6 +278,8 @@ pub mod liquidate_perp {
         let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: 10,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
             ..Default::default()
         };
         liquidate_perp(
@@ -296,8 +298,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION,
-            150,
         )
         .unwrap();
 
@@ -424,6 +424,8 @@ pub mod liquidate_perp {
         let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: 255,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
             ..Default::default()
         };
         liquidate_perp(
@@ -442,8 +444,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION,
-            150,
         )
         .unwrap();
 
@@ -554,6 +554,8 @@ pub mod liquidate_perp {
         let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
             ..Default::default()
         };
         liquidate_perp(
@@ -572,8 +574,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION,
-            150,
         )
         .unwrap();
 
@@ -703,6 +703,8 @@ pub mod liquidate_perp {
         let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
             ..Default::default()
         };
         liquidate_perp(
@@ -721,8 +723,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION,
-            150,
         )
         .unwrap();
 
@@ -918,6 +918,8 @@ pub mod liquidate_perp {
         let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: 10,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
             ..Default::default()
         };
         liquidate_perp(
@@ -936,8 +938,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION,
-            150,
         )
         .unwrap();
 
@@ -1059,6 +1059,8 @@ pub mod liquidate_perp {
         let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: 10,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
             ..Default::default()
         };
 
@@ -1078,8 +1080,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION,
-            150,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -1185,6 +1185,8 @@ pub mod liquidate_perp {
         let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: 10,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
             ..Default::default()
         };
 
@@ -1204,8 +1206,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION,
-            150,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -1304,6 +1304,8 @@ pub mod liquidate_perp {
         let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: 10,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
             ..Default::default()
         };
         liquidate_perp(
@@ -1322,8 +1324,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION,
-            150,
         )
         .unwrap();
 
@@ -1457,6 +1457,8 @@ pub mod liquidate_perp {
         let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            initial_pct_to_liquidate: (LIQUIDATION_PCT_PRECISION / 10) as u16,
+            liquidation_duration: 150,
             ..Default::default()
         };
         liquidate_perp(
@@ -1475,8 +1477,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            LIQUIDATION_PCT_PRECISION / 10,
-            150,
         )
         .unwrap();
 
@@ -1502,8 +1502,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            LIQUIDATION_PCT_PRECISION / 10,
-            150,
         )
         .unwrap();
 
@@ -1547,8 +1545,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            LIQUIDATION_PCT_PRECISION / 10,
-            150,
         )
         .unwrap();
 
@@ -1574,8 +1570,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            LIQUIDATION_PCT_PRECISION / 10,
-            150,
         )
         .unwrap();
 
@@ -1619,8 +1613,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            LIQUIDATION_PCT_PRECISION / 10,
-            150,
         )
         .unwrap();
 
@@ -1724,6 +1716,8 @@ pub mod liquidate_perp {
         let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            initial_pct_to_liquidate: (LIQUIDATION_PCT_PRECISION / 10) as u16,
+            liquidation_duration: 150,
             ..Default::default()
         };
         liquidate_perp(
@@ -1742,8 +1736,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            LIQUIDATION_PCT_PRECISION / 10,
-            150,
         )
         .unwrap();
 

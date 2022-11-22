@@ -518,8 +518,6 @@ pub fn handle_liquidate_perp(
         slot,
         now,
         state,
-        state.initial_pct_to_liquidate as u128,
-        state.liquidation_duration as u128,
     )?;
 
     Ok(())

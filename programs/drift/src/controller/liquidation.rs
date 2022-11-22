@@ -79,10 +79,10 @@ pub fn liquidate_perp(
     slot: u64,
     now: i64,
     state: &State,
-    initial_pct_to_liquidate: u128,
-    liquidation_duration: u128,
 ) -> DriftResult {
     let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
+    let initial_pct_to_liquidate = state.initial_pct_to_liquidate as u128;
+    let liquidation_duration = state.liquidation_duration as u128;
 
     validate!(
         !user.is_bankrupt(),
