@@ -11,7 +11,7 @@ use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
     DEFAULT_LARGE_BID_ASK_FACTOR, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128, AMM_RESERVE_PRECISION_I128
 };
 use crate::math::safe_math::SafeMath;
 
@@ -161,6 +161,12 @@ pub fn calculate_spread_inventory_scale(
 
     // inventory scale
     let inventory_scale = base_asset_amount_with_amm
+        .safe_mul(
+            base_asset_amount_with_amm
+                .abs()
+                .max(AMM_RESERVE_PRECISION_I128),
+        )?
+        .safe_div(AMM_RESERVE_PRECISION_I128)?
         .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>()?)?
         .safe_div(min_side_liquidity.max(1))?
         .unsigned_abs();

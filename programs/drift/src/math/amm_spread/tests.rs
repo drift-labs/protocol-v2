@@ -371,7 +371,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 3833);
+        assert_eq!(short_spread1, 5000);
 
         terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 11;
         total_fee_minus_distributions = QUOTE_PRECISION_I128 * 5;
@@ -397,7 +397,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 8269);
+        assert_eq!(short_spread1, 10787);
 
         total_fee_minus_distributions = QUOTE_PRECISION_I128;
         let (long_spread1, short_spread1) = calculate_spread(
@@ -422,7 +422,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 26017); // 1214 * 5
+        assert_eq!(short_spread1, 33939); // 1214 * 27.95
 
         // flip sign
         let (long_spread1, short_spread1) = calculate_spread(
@@ -446,7 +446,7 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread1, 38330);
+        assert_eq!(long_spread1, 50000);
         assert_eq!(short_spread1, 500);
 
         let (long_spread1, short_spread1) = calculate_spread(
@@ -494,7 +494,7 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread1, 18330);
+        assert_eq!(long_spread1, 31660);
         assert_eq!(short_spread1, 500);
     }
 
