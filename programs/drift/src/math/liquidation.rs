@@ -337,7 +337,7 @@ pub fn calculate_max_pct_to_liquidate(
     user: &User,
     margin_shortage: u128,
     slot: u64,
-    initial_pct_allowed_to_liquidate: u128,
+    initial_pct_to_liquidate: u128,
     liquidation_duration: u128,
 ) -> DriftResult<u128> {
     let slots_elapsed = slot.safe_sub(user.liquidation_start_slot)?;
@@ -347,7 +347,7 @@ pub fn calculate_max_pct_to_liquidate(
         .safe_mul(LIQUIDATION_PCT_PRECISION)?
         .safe_div(liquidation_duration) // ~ 1 minute if per slot is 400ms
         .unwrap_or(LIQUIDATION_PCT_PRECISION) // if divide by zero, default to 100%
-        .safe_add(initial_pct_allowed_to_liquidate)?
+        .safe_add(initial_pct_to_liquidate)?
         .min(LIQUIDATION_PCT_PRECISION);
 
     let total_margin_shortage = margin_shortage.safe_add(user.liquidation_margin_freed.cast()?)?;

@@ -79,7 +79,7 @@ pub fn liquidate_perp(
     slot: u64,
     now: i64,
     state: &State,
-    initial_pct_allowed_to_liquidate: u128,
+    initial_pct_to_liquidate: u128,
     liquidation_duration: u128,
 ) -> DriftResult {
     let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
@@ -320,7 +320,7 @@ pub fn liquidate_perp(
         user,
         margin_shortage,
         slot,
-        initial_pct_allowed_to_liquidate,
+        initial_pct_to_liquidate,
         liquidation_duration,
     )?;
     let max_base_asset_amount_allowed_to_be_transferred =
@@ -625,7 +625,7 @@ pub fn liquidate_spot(
     now: i64,
     slot: u64,
     liquidation_margin_buffer_ratio: u32,
-    initial_pct_allowed_to_liquidate: u128,
+    initial_pct_to_liquidate: u128,
     liquidation_duration: u128,
 ) -> DriftResult {
     validate!(
@@ -892,7 +892,7 @@ pub fn liquidate_spot(
         user,
         margin_shortage,
         slot,
-        initial_pct_allowed_to_liquidate,
+        initial_pct_to_liquidate,
         liquidation_duration,
     )?;
     let max_liability_allowed_to_be_transferred = liability_transfer_to_cover_margin_shortage
@@ -1087,7 +1087,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     now: i64,
     slot: u64,
     liquidation_margin_buffer_ratio: u32,
-    initial_pct_allowed_to_liquidate: u128,
+    initial_pct_to_liquidate: u128,
     liquidation_duration: u128,
 ) -> DriftResult {
     // liquidator takes over a user borrow in exchange for that user's positive perpetual pnl
@@ -1371,7 +1371,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         user,
         margin_shortage,
         slot,
-        initial_pct_allowed_to_liquidate,
+        initial_pct_to_liquidate,
         liquidation_duration,
     )?;
     let max_liability_allowed_to_be_transferred = liability_transfer_to_cover_margin_shortage
@@ -1549,7 +1549,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     now: i64,
     slot: u64,
     liquidation_margin_buffer_ratio: u32,
-    initial_pct_allowed_to_liquidate: u128,
+    initial_pct_to_liquidate: u128,
     liquidation_duration: u128,
 ) -> DriftResult {
     // liquidator takes over remaining negative perpetual pnl in exchange for a user deposit
@@ -1827,7 +1827,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         user,
         margin_shortage,
         slot,
-        initial_pct_allowed_to_liquidate,
+        initial_pct_to_liquidate,
         liquidation_duration,
     )?;
     let max_pnl_allowed_to_be_transferred = pnl_transfer_to_cover_margin_shortage
