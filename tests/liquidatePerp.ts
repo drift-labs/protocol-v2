@@ -30,6 +30,7 @@ import {
 	initializeQuoteSpotMarket,
 	printTxLogs,
 } from './testHelpers';
+import { PERCENTAGE_PRECISION } from '../sdk';
 
 describe('liquidate perp and lp', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -89,6 +90,10 @@ describe('liquidate perp and lp', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
+
+		await driftClient.updateInitialPctToLiquidate(
+			PERCENTAGE_PRECISION.toNumber()
+		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await driftClient.updatePerpAuctionDuration(new BN(0));

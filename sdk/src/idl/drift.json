@@ -3234,6 +3234,27 @@
       ]
     },
     {
+      "name": "updateInitialPctToLiquidate",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "initialPctToLiquidate",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "updateOracleGuardRails",
       "accounts": [
         {
@@ -4321,11 +4342,15 @@
             }
           },
           {
+            "name": "initialPctToLiquidate",
+            "type": "u32"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                17
+                13
               ]
             }
           }
@@ -4420,8 +4445,8 @@
             "type": "u64"
           },
           {
-            "name": "liquidationStartTs",
-            "type": "i64"
+            "name": "liquidationStartSlot",
+            "type": "u64"
           },
           {
             "name": "nextOrderId",

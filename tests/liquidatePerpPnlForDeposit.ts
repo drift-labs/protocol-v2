@@ -30,7 +30,7 @@ import {
 	initializeSolSpotMarket,
 	printTxLogs,
 } from './testHelpers';
-import { isVariant } from '../sdk';
+import { isVariant, PERCENTAGE_PRECISION } from '../sdk';
 
 describe('liquidate perp pnl for deposit', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -97,6 +97,10 @@ describe('liquidate perp pnl for deposit', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
+
+		await driftClient.updateInitialPctToLiquidate(
+			PERCENTAGE_PRECISION.toNumber()
+		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);

@@ -29,7 +29,8 @@ pub struct State {
     pub default_market_order_time_in_force: u8,
     pub default_spot_auction_duration: u8,
     pub exchange_status: ExchangeStatus,
-    pub padding: [u8; 17],
+    pub initial_pct_to_liquidate: u32,
+    pub padding: [u8; 13],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

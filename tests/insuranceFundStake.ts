@@ -43,6 +43,7 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
+import { PERCENTAGE_PRECISION } from '../sdk';
 
 describe('insurance fund stake', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -98,6 +99,10 @@ describe('insurance fund stake', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
+
+		await driftClient.updateInitialPctToLiquidate(
+			PERCENTAGE_PRECISION.toNumber()
+		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);

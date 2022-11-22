@@ -33,6 +33,7 @@ import {
 	initializeSolSpotMarket,
 	sleep,
 } from './testHelpers';
+import { PERCENTAGE_PRECISION } from '../sdk';
 
 describe('liquidate spot', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -90,6 +91,10 @@ describe('liquidate spot', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
+
+		await driftClient.updateInitialPctToLiquidate(
+			PERCENTAGE_PRECISION.toNumber()
+		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);

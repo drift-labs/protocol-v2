@@ -28,7 +28,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { isVariant, ONE } from '../sdk';
+import { isVariant, ONE, PERCENTAGE_PRECISION } from '../sdk';
 
 describe('liquidate spot w/ social loss', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -86,6 +86,10 @@ describe('liquidate spot w/ social loss', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
+
+		await driftClient.updateInitialPctToLiquidate(
+			PERCENTAGE_PRECISION.toNumber()
+		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
