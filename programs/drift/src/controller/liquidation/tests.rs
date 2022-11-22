@@ -12,10 +12,10 @@ pub mod liquidate_perp {
     use crate::error::ErrorCode;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
-        LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, MARGIN_PRECISION_U128, PEG_PRECISION,
-        PERCENTAGE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
-        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION, MARGIN_PRECISION,
+        MARGIN_PRECISION_U128, PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION,
+        PRICE_PRECISION_U64, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::liquidation::is_user_being_liquidated;
     use crate::math::margin::{
@@ -153,6 +153,7 @@ pub mod liquidate_perp {
             now,
             &state,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -296,6 +297,7 @@ pub mod liquidate_perp {
             now,
             &state,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -441,6 +443,7 @@ pub mod liquidate_perp {
             now,
             &state,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -570,6 +573,7 @@ pub mod liquidate_perp {
             now,
             &state,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -718,6 +722,7 @@ pub mod liquidate_perp {
             now,
             &state,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -932,6 +937,7 @@ pub mod liquidate_perp {
             now,
             &state,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -1073,6 +1079,7 @@ pub mod liquidate_perp {
             now,
             &state,
             PERCENTAGE_PRECISION,
+            150,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -1198,6 +1205,7 @@ pub mod liquidate_perp {
             now,
             &state,
             PERCENTAGE_PRECISION,
+            150,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -1315,6 +1323,7 @@ pub mod liquidate_perp {
             now,
             &state,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -1466,7 +1475,8 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
@@ -1492,7 +1502,8 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
@@ -1536,7 +1547,8 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
@@ -1562,7 +1574,8 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
@@ -1606,7 +1619,8 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
@@ -1728,7 +1742,8 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
@@ -1750,9 +1765,10 @@ pub mod liquidate_spot {
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
-        LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
-        PRICE_PRECISION, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION, MARGIN_PRECISION,
+        MARGIN_PRECISION_U128, PERCENTAGE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64,
+        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -1876,6 +1892,7 @@ pub mod liquidate_spot {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -2003,6 +2020,7 @@ pub mod liquidate_spot {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         )
         .is_err());
 
@@ -2030,6 +2048,7 @@ pub mod liquidate_spot {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -2159,6 +2178,7 @@ pub mod liquidate_spot {
             slot,
             liquidation_buffer, // 2%
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -2359,6 +2379,7 @@ pub mod liquidate_spot {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -2473,6 +2494,7 @@ pub mod liquidate_spot {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         );
 
         assert_eq!(result, Ok(()));
@@ -2589,6 +2611,7 @@ pub mod liquidate_spot {
             slot,
             liquidation_buffer, // 2%
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -2709,7 +2732,8 @@ pub mod liquidate_spot {
             now,
             slot,
             liquidation_buffer, // 2%
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
@@ -2752,14 +2776,15 @@ pub mod liquidate_spot {
             now,
             slot,
             liquidation_buffer, // 2%
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 1);
-        assert_eq!(user.liquidation_margin_freed, 3033411);
-        assert_eq!(user.spot_positions[0].scaled_balance, 79242243000);
-        assert_eq!(user.spot_positions[1].scaled_balance, 742935998);
+        assert_eq!(user.liquidation_margin_freed, 3032982);
+        assert_eq!(user.spot_positions[0].scaled_balance, 79245846000);
+        assert_eq!(user.spot_positions[1].scaled_balance, 742971998);
 
         let (_, total_collateral, margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -2777,7 +2802,7 @@ pub mod liquidate_spot {
 
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);
-        assert_eq!(pct_margin_freed, 433344); // ~43.3%
+        assert_eq!(pct_margin_freed, 433283); // ~43.3%
 
         let slot = 136_u64;
         liquidate_spot(
@@ -2795,14 +2820,15 @@ pub mod liquidate_spot {
             now,
             slot,
             liquidation_buffer, // 2%
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 0);
         assert_eq!(user.liquidation_margin_freed, 0);
-        assert_eq!(user.spot_positions[0].scaled_balance, 45559261000);
-        assert_eq!(user.spot_positions[1].scaled_balance, 406778997);
+        assert_eq!(user.spot_positions[0].scaled_balance, 45559160000);
+        assert_eq!(user.spot_positions[1].scaled_balance, 406777997);
     }
 }
 
@@ -2818,10 +2844,11 @@ pub mod liquidate_borrow_for_perp_pnl {
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        MARGIN_PRECISION_U128, PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION,
-        PRICE_PRECISION_U64, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
-        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION,
+        LIQUIDATION_PCT_PRECISION, MARGIN_PRECISION, MARGIN_PRECISION_U128, PEG_PRECISION,
+        PERCENTAGE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -2972,6 +2999,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -3122,6 +3150,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             slot,
             liquidation_buffer,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -3308,6 +3337,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -3457,6 +3487,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -3597,6 +3628,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         );
 
         assert_eq!(result, Ok(()));
@@ -3738,6 +3770,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             slot,
             liquidation_buffer,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -3887,7 +3920,8 @@ pub mod liquidate_borrow_for_perp_pnl {
             now,
             slot,
             liquidation_buffer,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
@@ -3930,14 +3964,15 @@ pub mod liquidate_borrow_for_perp_pnl {
             now,
             slot,
             liquidation_buffer,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 1);
-        assert_eq!(user.liquidation_margin_freed, 3033295);
-        assert_eq!(user.spot_positions[0].scaled_balance, 721687998);
-        assert_eq!(user.perp_positions[0].quote_asset_amount, 76862351);
+        assert_eq!(user.liquidation_margin_freed, 3032859);
+        assert_eq!(user.spot_positions[0].scaled_balance, 721727998);
+        assert_eq!(user.perp_positions[0].quote_asset_amount, 76866395);
 
         let (_, total_collateral, margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -3955,7 +3990,7 @@ pub mod liquidate_borrow_for_perp_pnl {
 
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);
-        assert_eq!(pct_margin_freed, 433327); // ~43.3%
+        assert_eq!(pct_margin_freed, 433265); // ~43.3%
 
         let slot = 136_u64;
         liquidate_borrow_for_perp_pnl(
@@ -3973,7 +4008,8 @@ pub mod liquidate_borrow_for_perp_pnl {
             now,
             slot,
             liquidation_buffer,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
@@ -3993,10 +4029,11 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64,
-        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
-        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION,
+        LIQUIDATION_PCT_PRECISION, MARGIN_PRECISION, PEG_PRECISION, PERCENTAGE_PRECISION,
+        PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -4146,6 +4183,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -4295,6 +4333,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             slot,
             MARGIN_PRECISION as u32 / 50,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -4446,6 +4485,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -4595,6 +4635,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -4735,6 +4776,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             slot,
             10,
             PERCENTAGE_PRECISION,
+            150,
         );
 
         assert_eq!(result, Ok(()));
@@ -4875,6 +4917,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             slot,
             MARGIN_PRECISION as u32 / 50,
             PERCENTAGE_PRECISION,
+            150,
         )
         .unwrap();
 
@@ -5024,7 +5067,8 @@ pub mod liquidate_perp_pnl_for_deposit {
             now,
             slot,
             liquidation_buffer,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
@@ -5067,14 +5111,15 @@ pub mod liquidate_perp_pnl_for_deposit {
             now,
             slot,
             liquidation_buffer,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 1);
-        assert_eq!(user.liquidation_margin_freed, 433401);
-        assert_eq!(user.spot_positions[0].scaled_balance, 951324000);
-        assert_eq!(user.perp_positions[0].quote_asset_amount, -86185759);
+        assert_eq!(user.liquidation_margin_freed, 433231);
+        assert_eq!(user.spot_positions[0].scaled_balance, 951337000);
+        assert_eq!(user.perp_positions[0].quote_asset_amount, -86187099);
 
         let (_, total_collateral, margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -5092,7 +5137,7 @@ pub mod liquidate_perp_pnl_for_deposit {
 
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);
-        assert_eq!(pct_margin_freed, 433401); // ~43%
+        assert_eq!(pct_margin_freed, 433231); // ~43%
 
         let slot = 136_u64;
         liquidate_perp_pnl_for_deposit(
@@ -5110,7 +5155,8 @@ pub mod liquidate_perp_pnl_for_deposit {
             now,
             slot,
             liquidation_buffer,
-            PERCENTAGE_PRECISION / 10,
+            LIQUIDATION_PCT_PRECISION / 10,
+            150,
         )
         .unwrap();
 

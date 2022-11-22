@@ -3,7 +3,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO,
     LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_PRECISION_U128,
-    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, PERCENTAGE_PRECISION, PRICE_PRECISION,
+    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LIQUIDATION_PCT_PRECISION, PRICE_PRECISION,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::margin::{
@@ -338,23 +338,25 @@ pub fn calculate_max_pct_to_liquidate(
     margin_shortage: u128,
     slot: u64,
     initial_pct_allowed_to_liquidate: u128,
+    liquidation_duration: u128,
 ) -> DriftResult<u128> {
     let slots_elapsed = slot.safe_sub(user.liquidation_start_slot)?;
 
     let pct_freeable = slots_elapsed
         .cast::<u128>()?
-        .safe_mul(PERCENTAGE_PRECISION)?
-        .safe_div(150)? // ~ 1 minute if per slot is 400ms
+        .safe_mul(LIQUIDATION_PCT_PRECISION)?
+        .safe_div(liquidation_duration) // ~ 1 minute if per slot is 400ms
+        .unwrap_or(LIQUIDATION_PCT_PRECISION) // if divide by zero, default to 100%
         .safe_add(initial_pct_allowed_to_liquidate)?
-        .min(PERCENTAGE_PRECISION);
+        .min(LIQUIDATION_PCT_PRECISION);
 
     let total_margin_shortage = margin_shortage.safe_add(user.liquidation_margin_freed.cast()?)?;
     let max_margin_freed = total_margin_shortage
         .safe_mul(pct_freeable)?
-        .safe_div(PERCENTAGE_PRECISION)?;
+        .safe_div(LIQUIDATION_PCT_PRECISION)?;
     let margin_freeable = max_margin_freed.saturating_sub(user.liquidation_margin_freed.cast()?);
 
     margin_freeable
-        .safe_mul(PERCENTAGE_PRECISION)?
+        .safe_mul(LIQUIDATION_PCT_PRECISION)?
         .safe_div(margin_shortage)
 }

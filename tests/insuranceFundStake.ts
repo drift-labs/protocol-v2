@@ -30,6 +30,7 @@ import {
 	AMM_RESERVE_PRECISION,
 	unstakeSharesToAmount,
 	MarketStatus,
+	LIQUIDATION_PCT_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -43,7 +44,6 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
-import { PERCENTAGE_PRECISION } from '../sdk';
 
 describe('insurance fund stake', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -101,7 +101,7 @@ describe('insurance fund stake', () => {
 		await driftClient.subscribe();
 
 		await driftClient.updateInitialPctToLiquidate(
-			PERCENTAGE_PRECISION.toNumber()
+			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);

@@ -21,8 +21,8 @@ use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    LIQUIDATION_FEE_PRECISION_U128, PERCENTAGE_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
-    QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
+    LIQUIDATION_FEE_PRECISION_U128, LIQUIDATION_PCT_PRECISION, QUOTE_PRECISION,
+    QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
@@ -80,6 +80,7 @@ pub fn liquidate_perp(
     now: i64,
     state: &State,
     initial_pct_allowed_to_liquidate: u128,
+    liquidation_duration: u128,
 ) -> DriftResult {
     let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
 
@@ -320,12 +321,13 @@ pub fn liquidate_perp(
         margin_shortage,
         slot,
         initial_pct_allowed_to_liquidate,
+        liquidation_duration,
     )?;
     let max_base_asset_amount_allowed_to_be_transferred =
         base_asset_amount_to_cover_margin_shortage
             .cast::<u128>()?
             .saturating_mul(max_pct_allowed)
-            .safe_div(PERCENTAGE_PRECISION)?
+            .safe_div(LIQUIDATION_PCT_PRECISION)?
             .cast::<u64>()?;
 
     if max_base_asset_amount_allowed_to_be_transferred == 0 {
@@ -624,6 +626,7 @@ pub fn liquidate_spot(
     slot: u64,
     liquidation_margin_buffer_ratio: u32,
     initial_pct_allowed_to_liquidate: u128,
+    liquidation_duration: u128,
 ) -> DriftResult {
     validate!(
         !user.is_bankrupt(),
@@ -890,10 +893,11 @@ pub fn liquidate_spot(
         margin_shortage,
         slot,
         initial_pct_allowed_to_liquidate,
+        liquidation_duration,
     )?;
     let max_liability_allowed_to_be_transferred = liability_transfer_to_cover_margin_shortage
         .saturating_mul(max_pct_allowed)
-        .safe_div(PERCENTAGE_PRECISION)?;
+        .safe_div(LIQUIDATION_PCT_PRECISION)?;
 
     if max_liability_allowed_to_be_transferred == 0 {
         msg!("max_liability_allowed_to_be_transferred == 0");
@@ -1084,6 +1088,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     slot: u64,
     liquidation_margin_buffer_ratio: u32,
     initial_pct_allowed_to_liquidate: u128,
+    liquidation_duration: u128,
 ) -> DriftResult {
     // liquidator takes over a user borrow in exchange for that user's positive perpetual pnl
     // can only be done once a user's perpetual position size is 0
@@ -1367,10 +1372,11 @@ pub fn liquidate_borrow_for_perp_pnl(
         margin_shortage,
         slot,
         initial_pct_allowed_to_liquidate,
+        liquidation_duration,
     )?;
     let max_liability_allowed_to_be_transferred = liability_transfer_to_cover_margin_shortage
         .saturating_mul(max_pct_allowed)
-        .safe_div(PERCENTAGE_PRECISION)?;
+        .safe_div(LIQUIDATION_PCT_PRECISION)?;
 
     if max_liability_allowed_to_be_transferred == 0 {
         msg!("max_liability_allowed_to_be_transferred == 0");
@@ -1544,6 +1550,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     slot: u64,
     liquidation_margin_buffer_ratio: u32,
     initial_pct_allowed_to_liquidate: u128,
+    liquidation_duration: u128,
 ) -> DriftResult {
     // liquidator takes over remaining negative perpetual pnl in exchange for a user deposit
     // can only be done once the perpetual position's size is 0
@@ -1821,10 +1828,11 @@ pub fn liquidate_perp_pnl_for_deposit(
         margin_shortage,
         slot,
         initial_pct_allowed_to_liquidate,
+        liquidation_duration,
     )?;
     let max_pnl_allowed_to_be_transferred = pnl_transfer_to_cover_margin_shortage
         .saturating_mul(max_pct_allowed)
-        .safe_div(PERCENTAGE_PRECISION)?;
+        .safe_div(LIQUIDATION_PCT_PRECISION)?;
 
     if max_pnl_allowed_to_be_transferred == 0 {
         msg!("max_pnl_allowed_to_be_transferred == 0");

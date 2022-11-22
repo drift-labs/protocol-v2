@@ -520,6 +520,7 @@ export type StateAccount = {
 	spotFeeStructure: FeeStructure;
 	lpCooldownTime: BN;
 	initialPctToLiquidate: number;
+	liquidationDuration: number;
 };
 
 export type PerpMarketAccount = {

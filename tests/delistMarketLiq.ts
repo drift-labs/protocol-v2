@@ -23,6 +23,7 @@ import {
 	isVariant,
 	MARGIN_PRECISION,
 	SPOT_MARKET_BALANCE_PRECISION,
+	LIQUIDATION_PCT_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -38,7 +39,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { Keypair } from '@solana/web3.js';
-import { calculateReservePrice, PERCENTAGE_PRECISION } from '../sdk';
+import { calculateReservePrice } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -130,7 +131,7 @@ describe('delist market, liquidation of expired position', () => {
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		await driftClient.updateInitialPctToLiquidate(
-			PERCENTAGE_PRECISION.toNumber()
+			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
 
 		const periodicity = new BN(0);

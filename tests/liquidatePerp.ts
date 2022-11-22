@@ -15,6 +15,7 @@ import {
 	PRICE_PRECISION,
 	PositionDirection,
 	Wallet,
+	LIQUIDATION_PCT_PRECISION,
 } from '../sdk/src';
 import { assert } from 'chai';
 
@@ -30,7 +31,6 @@ import {
 	initializeQuoteSpotMarket,
 	printTxLogs,
 } from './testHelpers';
-import { PERCENTAGE_PRECISION } from '../sdk';
 
 describe('liquidate perp and lp', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -92,7 +92,7 @@ describe('liquidate perp and lp', () => {
 		await driftClient.subscribe();
 
 		await driftClient.updateInitialPctToLiquidate(
-			PERCENTAGE_PRECISION.toNumber()
+			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);

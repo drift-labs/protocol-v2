@@ -2409,6 +2409,7 @@ pub mod delisting_test {
                 clock.unix_timestamp,
                 &state,
                 PERCENTAGE_PRECISION,
+                150,
             )
             .unwrap();
 
@@ -2488,6 +2489,7 @@ pub mod delisting_test {
                 clock.slot,
                 10,
                 PERCENTAGE_PRECISION,
+                150,
             )
             .unwrap();
 
@@ -2576,6 +2578,7 @@ pub mod delisting_test {
                 clock.slot,
                 10,
                 PERCENTAGE_PRECISION,
+                150,
             )
             .unwrap();
 

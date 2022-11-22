@@ -17,6 +17,7 @@ import {
 	PositionDirection,
 	EventSubscriber,
 	OracleGuardRails,
+	LIQUIDATION_PCT_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -30,7 +31,7 @@ import {
 	initializeSolSpotMarket,
 	printTxLogs,
 } from './testHelpers';
-import { isVariant, PERCENTAGE_PRECISION } from '../sdk';
+import { isVariant } from '../sdk';
 
 describe('liquidate perp pnl for deposit', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -99,7 +100,7 @@ describe('liquidate perp pnl for deposit', () => {
 		await driftClient.subscribe();
 
 		await driftClient.updateInitialPctToLiquidate(
-			PERCENTAGE_PRECISION.toNumber()
+			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);

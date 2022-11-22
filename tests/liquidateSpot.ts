@@ -20,6 +20,7 @@ import {
 	User,
 	QUOTE_PRECISION,
 	convertToNumber,
+	LIQUIDATION_PCT_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -33,7 +34,6 @@ import {
 	initializeSolSpotMarket,
 	sleep,
 } from './testHelpers';
-import { PERCENTAGE_PRECISION } from '../sdk';
 
 describe('liquidate spot', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -93,7 +93,7 @@ describe('liquidate spot', () => {
 		await driftClient.subscribe();
 
 		await driftClient.updateInitialPctToLiquidate(
-			PERCENTAGE_PRECISION.toNumber()
+			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
