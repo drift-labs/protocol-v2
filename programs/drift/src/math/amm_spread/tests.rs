@@ -521,7 +521,19 @@ mod test {
             QUOTE_PRECISION_I128 * 100,
         )
         .unwrap();
-        assert_eq!(lscale, 1125000); // 1.125x (max)
+        assert_eq!(lscale, 1125000); // 1.125x
+
+        // less base => lower leverage
+        let lscale = calculate_spread_leverage_scale(
+            AMM_RESERVE_PRECISION,
+            AMM_RESERVE_PRECISION,
+            12 * PEG_PRECISION,
+            BASE_PRECISION_I128 / 100,
+            (12.5 * PRICE_PRECISION as f64) as u64,
+            QUOTE_PRECISION_I128,
+        )
+        .unwrap();
+        assert_eq!(lscale, 1125000); // 1.125x (inc)
 
         // user long => bar < sqrt_k < qar => tqar < qar => peg < reserve_price
         let lscale = calculate_spread_leverage_scale(
