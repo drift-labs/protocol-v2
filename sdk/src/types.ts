@@ -745,8 +745,8 @@ export type PerpPosition = {
 	settledPnl: BN;
 	lpShares: BN;
 	remainderBaseAssetAmount: number;
-	lastNetBaseAssetAmountPerLp: BN;
-	lastNetQuoteAssetAmountPerLp: BN;
+	lastBaseAssetAmountPerLp: BN;
+	lastQuoteAssetAmountPerLp: BN;
 };
 
 export type UserStatsAccount = {

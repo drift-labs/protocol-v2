@@ -37,8 +37,8 @@ export const mockPerpPosition: PerpPosition = {
 	settledPnl: new BN(0),
 	lpShares: new BN(0),
 	remainderBaseAssetAmount: 0,
-	lastNetBaseAssetAmountPerLp: new BN(0),
-	lastNetQuoteAssetAmountPerLp: new BN(0),
+	lastBaseAssetAmountPerLp: new BN(0),
+	lastQuoteAssetAmountPerLp: new BN(0),
 };
 
 export const mockAMM: AMM = {
