@@ -371,7 +371,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 5000);
+        assert_eq!(short_spread1, 5000 + 2166);
 
         terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 11;
         total_fee_minus_distributions = QUOTE_PRECISION_I128 * 5;
@@ -397,7 +397,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 10787);
+        assert_eq!(short_spread1, 10787 + 4674);
 
         total_fee_minus_distributions = QUOTE_PRECISION_I128;
         let (long_spread1, short_spread1) = calculate_spread(
@@ -422,9 +422,32 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 33939); // 1214 * 27.95
+        assert_eq!(short_spread1, 48641); // 1214 * 40.06
 
         // flip sign
+        let (d1, _) = calculate_long_short_vol_spread(
+            last_oracle_conf_pct, // 0
+            reserve_price,
+            mark_std,               // 0
+            oracle_std,             // 0
+            long_intensity_volume,  // 0
+            short_intensity_volume, // 0
+            volume_24h,             // 0
+        )
+        .unwrap();
+        assert_eq!(d1, 0); // no volatility measured at all from input data -_-
+
+        let iscale = calculate_spread_inventory_scale(
+            -base_asset_amount_with_amm,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            d1,
+            max_spread as u64,
+        )
+        .unwrap();
+        assert_eq!(iscale, 14333333); //14.3x
+
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
             last_oracle_reserve_price_spread_pct,
@@ -446,7 +469,7 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread1, 50000);
+        assert_eq!(long_spread1, 71660);
         assert_eq!(short_spread1, 500);
 
         let (long_spread1, short_spread1) = calculate_spread(
@@ -470,8 +493,8 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread1, 50000);
-        assert_eq!(short_spread1, 500);
+        assert_eq!(long_spread1, 50000 * 4);
+        assert_eq!(short_spread1, 0); // max on long
 
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
@@ -496,6 +519,25 @@ mod test {
         .unwrap();
         assert_eq!(long_spread1, 31660);
         assert_eq!(short_spread1, 500);
+    }
+
+    #[test]
+    fn calculate_spread_inventory_scale_tests() {
+        // from mainnet 2022/11/22
+
+        let d1 = 250;
+        let max_spread = 300000;
+        let iscale = calculate_spread_inventory_scale(
+            941291801615,
+            443370320987941,
+            435296619793629,
+            453513306290427,
+            d1,
+            max_spread,
+        )
+        .unwrap();
+        assert_eq!(iscale / BID_ASK_SPREAD_PRECISION, 600);
+        assert_eq!(250 * iscale / BID_ASK_SPREAD_PRECISION, 300000 / 2);
     }
 
     #[test]
@@ -546,6 +588,18 @@ mod test {
         )
         .unwrap();
         assert_eq!(lscale, 1000001); // 1.000001x (min)
+
+        // from mainnet 2022/11/22
+        let lscale = calculate_spread_leverage_scale(
+            455362349720024,
+            454386986330347,
+            11760127,
+            968409950546,
+            11869992,
+            7978239165,
+        )
+        .unwrap();
+        assert_eq!(lscale, 1003087); // 1.003087x
     }
 
     #[test]
@@ -705,7 +759,7 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread, 1639 * 20); // inventory scale = 1e6, effective_leverage = 10 (max) when terminal=quote reserves and amm long
+        assert_eq!(long_spread, 1639 * 20); // inventory scale = 1e6 (=>2x), effective_leverage = 10 (10x, max) when terminal=quote reserves and amm long
         assert_eq!(short_spread, 4918);
 
         let (long_spread, short_spread) = calculate_spread(

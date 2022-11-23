@@ -8,7 +8,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, LP_FEE_SLICE_DENOMINATOR,
-    LP_FEE_SLICE_NUMERATOR, PERP_DECIMALS,
+    LP_FEE_SLICE_NUMERATOR, MAX_BASE_ASSET_AMOUNT_WITH_AMM, PERP_DECIMALS,
 };
 use crate::math::helpers::get_proportion_i128;
 use crate::math::orders::{
@@ -485,6 +485,13 @@ pub fn update_position_with_base_asset_amount(
         .amm
         .base_asset_amount_with_amm
         .safe_add(position_delta.base_asset_amount.cast()?)?;
+
+    validate!(
+        market.amm.base_asset_amount_with_amm.unsigned_abs() <= MAX_BASE_ASSET_AMOUNT_WITH_AMM,
+        ErrorCode::InvalidAmmDetected,
+        "market.amm.base_asset_amount_with_amm={} cannot exceed MAX_BASE_ASSET_AMOUNT_WITH_AMM",
+        market.amm.base_asset_amount_with_amm
+    )?;
 
     controller::amm::update_spread_reserves(&mut market.amm)?;
 

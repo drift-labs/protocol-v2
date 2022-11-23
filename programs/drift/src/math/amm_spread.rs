@@ -8,10 +8,10 @@ use crate::math::amm::_calculate_market_open_bids_asks;
 use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
-    DEFAULT_LARGE_BID_ASK_FACTOR, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128, AMM_RESERVE_PRECISION_I128
+    AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
+    BID_ASK_SPREAD_PRECISION_U128, DEFAULT_LARGE_BID_ASK_FACTOR, MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+    PEG_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 
@@ -149,7 +149,13 @@ pub fn calculate_spread_inventory_scale(
     base_asset_reserve: u128,
     min_base_asset_reserve: u128,
     max_base_asset_reserve: u128,
+    directional_spread: u64,
+    max_spread: u64,
 ) -> DriftResult<u64> {
+    if base_asset_amount_with_amm == 0 {
+        return Ok(BID_ASK_SPREAD_PRECISION);
+    }
+
     // inventory scale
     let (max_bids, max_asks) = _calculate_market_open_bids_asks(
         base_asset_reserve,
@@ -171,10 +177,19 @@ pub fn calculate_spread_inventory_scale(
         .safe_div(min_side_liquidity.max(1))?
         .unsigned_abs();
 
+    // only allow up to scale up of larger of MAX_BID_ASK_INVENTORY_SKEW_FACTOR or half of max spread
+    let inventory_scale_max = MAX_BID_ASK_INVENTORY_SKEW_FACTOR.max(
+        max_spread
+            .safe_div(2)?
+            .safe_mul(BID_ASK_SPREAD_PRECISION)?
+            .safe_div(max(directional_spread, 1))?,
+    );
+
     let inventory_scale_capped = min(
-        MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+        inventory_scale_max,
         BID_ASK_SPREAD_PRECISION.safe_add(inventory_scale.cast()?)?,
     );
+
     Ok(inventory_scale_capped)
 }
 
@@ -242,6 +257,10 @@ pub fn calculate_spread(
     let mut long_spread = max((base_spread / 2) as u64, long_vol_spread);
     let mut short_spread = max((base_spread / 2) as u64, short_vol_spread);
 
+    let max_spread = max_spread
+        .cast::<u64>()?
+        .max(last_oracle_reserve_price_spread_pct.unsigned_abs());
+
     // oracle retreat
     // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
     if last_oracle_reserve_price_spread_pct < 0 {
@@ -266,6 +285,12 @@ pub fn calculate_spread(
         base_asset_reserve,
         min_base_asset_reserve,
         max_base_asset_reserve,
+        if base_asset_amount_with_amm > 0 {
+            long_spread
+        } else {
+            short_spread
+        },
+        max_spread,
     )?;
 
     if base_asset_amount_with_amm > 0 {
@@ -305,13 +330,7 @@ pub fn calculate_spread(
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
     }
 
-    let (long_spread, short_spread) = cap_to_max_spread(
-        long_spread,
-        short_spread,
-        max_spread
-            .cast::<u64>()?
-            .max(last_oracle_reserve_price_spread_pct.unsigned_abs()),
-    )?;
+    let (long_spread, short_spread) = cap_to_max_spread(long_spread, short_spread, max_spread)?;
 
     Ok((long_spread.cast::<u32>()?, short_spread.cast::<u32>()?))
 }
