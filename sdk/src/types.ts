@@ -792,6 +792,8 @@ export type UserAccount = {
 	totalWithdraws: BN;
 	totalSocialLoss: BN;
 	cumulativePerpFunding: BN;
+	liquidationMarginFreed: BN;
+	liquidationStartSlot: BN;
 };
 
 export type SpotPosition = {
