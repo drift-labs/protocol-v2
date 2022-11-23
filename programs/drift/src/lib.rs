@@ -753,6 +753,20 @@ pub mod drift {
         handle_update_spot_fee_structure(ctx, fee_structure)
     }
 
+    pub fn update_initial_pct_to_liquidate(
+        ctx: Context<AdminUpdateState>,
+        initial_pct_to_liquidate: u16,
+    ) -> Result<()> {
+        handle_update_initial_pct_to_liquidate(ctx, initial_pct_to_liquidate)
+    }
+
+    pub fn update_liquidation_duration(
+        ctx: Context<AdminUpdateState>,
+        liquidation_duration: u8,
+    ) -> Result<()> {
+        handle_update_liquidation_duration(ctx, liquidation_duration)
+    }
+
     pub fn update_oracle_guard_rails(
         ctx: Context<AdminUpdateState>,
         oracle_guard_rails: OracleGuardRails,

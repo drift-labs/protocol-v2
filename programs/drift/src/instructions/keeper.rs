@@ -575,6 +575,8 @@ pub fn handle_liquidate_spot(
         now,
         clock.slot,
         state.liquidation_margin_buffer_ratio,
+        state.initial_pct_to_liquidate as u128,
+        state.liquidation_duration as u128,
     )?;
 
     Ok(())
@@ -632,6 +634,8 @@ pub fn handle_liquidate_borrow_for_perp_pnl(
         now,
         clock.slot,
         state.liquidation_margin_buffer_ratio,
+        state.initial_pct_to_liquidate as u128,
+        state.liquidation_duration as u128,
     )?;
 
     Ok(())
@@ -689,6 +693,8 @@ pub fn handle_liquidate_perp_pnl_for_deposit(
         now,
         clock.slot,
         state.liquidation_margin_buffer_ratio,
+        state.initial_pct_to_liquidate as u128,
+        state.liquidation_duration as u128,
     )?;
 
     Ok(())

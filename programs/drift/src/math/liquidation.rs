@@ -3,7 +3,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO,
     LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_PRECISION_U128,
-    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, PRICE_PRECISION,
+    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LIQUIDATION_PCT_PRECISION, PRICE_PRECISION,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::margin::{
@@ -17,7 +17,7 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::{User, UserStatus};
+use crate::state::user::User;
 use crate::validate;
 use solana_program::msg;
 
@@ -236,7 +236,7 @@ pub fn validate_user_not_being_liquidated(
     if is_still_being_liquidated {
         return Err(ErrorCode::UserIsBeingLiquidated);
     } else {
-        user.status = UserStatus::Active;
+        user.exit_liquidation()
     }
 
     Ok(())
@@ -323,6 +323,40 @@ pub fn validate_transfer_satisfies_limit_price(
     )
 }
 
-pub fn calculate_one_quote_worth_of_token(oracle_price: i64, decimals: u32) -> DriftResult<u128> {
-    10_u128.pow(decimals + 6).safe_div(oracle_price.cast()?)
+pub fn calculate_margin_shortage(
+    margin_requirement_with_buffer: u128,
+    total_collateral: i128,
+) -> DriftResult<u128> {
+    Ok(margin_requirement_with_buffer
+        .cast::<i128>()?
+        .safe_sub(total_collateral)?
+        .unsigned_abs())
+}
+
+pub fn calculate_max_pct_to_liquidate(
+    user: &User,
+    margin_shortage: u128,
+    slot: u64,
+    initial_pct_to_liquidate: u128,
+    liquidation_duration: u128,
+) -> DriftResult<u128> {
+    let slots_elapsed = slot.safe_sub(user.liquidation_start_slot)?;
+
+    let pct_freeable = slots_elapsed
+        .cast::<u128>()?
+        .safe_mul(LIQUIDATION_PCT_PRECISION)?
+        .safe_div(liquidation_duration) // ~ 1 minute if per slot is 400ms
+        .unwrap_or(LIQUIDATION_PCT_PRECISION) // if divide by zero, default to 100%
+        .safe_add(initial_pct_to_liquidate)?
+        .min(LIQUIDATION_PCT_PRECISION);
+
+    let total_margin_shortage = margin_shortage.safe_add(user.liquidation_margin_freed.cast()?)?;
+    let max_margin_freed = total_margin_shortage
+        .safe_mul(pct_freeable)?
+        .safe_div(LIQUIDATION_PCT_PRECISION)?;
+    let margin_freeable = max_margin_freed.saturating_sub(user.liquidation_margin_freed.cast()?);
+
+    margin_freeable
+        .safe_mul(LIQUIDATION_PCT_PRECISION)?
+        .safe_div(margin_shortage)
 }

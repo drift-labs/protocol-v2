@@ -3234,6 +3234,48 @@
       ]
     },
     {
+      "name": "updateInitialPctToLiquidate",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "initialPctToLiquidate",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateLiquidationDuration",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidationDuration",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updateOracleGuardRails",
       "accounts": [
         {
@@ -4321,11 +4363,23 @@
             }
           },
           {
+            "name": "padding1",
+            "type": "u8"
+          },
+          {
+            "name": "initialPctToLiquidate",
+            "type": "u16"
+          },
+          {
+            "name": "liquidationDuration",
+            "type": "u16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                17
+                12
               ]
             }
           }
@@ -4420,8 +4474,8 @@
             "type": "u64"
           },
           {
-            "name": "liquidationStartTs",
-            "type": "i64"
+            "name": "liquidationStartSlot",
+            "type": "u64"
           },
           {
             "name": "nextOrderId",
