@@ -564,7 +564,10 @@ pub fn get_max_fill_amounts(
             Ok((None, Some(max_quote)))
         }
         PositionDirection::Short => {
-            let max_base = get_max_fill_amounts_for_market(user, base_market)?.cast::<u64>()?;
+            let max_base = standardize_base_asset_amount(
+                get_max_fill_amounts_for_market(user, base_market)?.cast::<u64>()?,
+                base_market.order_step_size,
+            )?;
             Ok((Some(max_base), None))
         }
     }

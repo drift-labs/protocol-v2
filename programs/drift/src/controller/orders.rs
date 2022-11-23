@@ -3249,9 +3249,12 @@ pub fn fulfill_spot_order_with_match(
 
     let taker_implied_max_base_asset_amount =
         if let Some(taker_max_quote_asset_amount) = taker_max_quote_asset_amount {
-            taker_max_quote_asset_amount
-                .safe_mul(base_market.get_precision())?
-                .safe_div(maker_price)?
+            standardize_base_asset_amount(
+                taker_max_quote_asset_amount
+                    .safe_mul(base_market.get_precision())?
+                    .safe_div(maker_price)?,
+                base_market.order_step_size,
+            )?
         } else {
             u64::MAX
         };
@@ -3264,9 +3267,12 @@ pub fn fulfill_spot_order_with_match(
 
     let maker_implied_max_base_asset_amount =
         if let Some(maker_max_quote_asset_amount) = maker_max_quote_asset_amount {
-            maker_max_quote_asset_amount
-                .safe_mul(base_market.get_precision())?
-                .safe_div(maker_price)?
+            standardize_base_asset_amount(
+                maker_max_quote_asset_amount
+                    .safe_mul(base_market.get_precision())?
+                    .safe_div(maker_price)?,
+                base_market.order_step_size,
+            )?
         } else {
             u64::MAX
         };
