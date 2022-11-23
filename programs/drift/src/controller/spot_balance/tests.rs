@@ -19,7 +19,7 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, MarginRequirementType,
 };
 use crate::math::spot_withdraw::{
-    calculate_max_borrow_token, calculate_min_deposit_token, check_withdraw_limits,
+    calculate_max_borrow_token_amount, calculate_min_deposit_token, check_withdraw_limits,
 };
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
@@ -451,7 +451,7 @@ fn test_check_withdraw_limits() {
     let mdt = calculate_min_deposit_token(QUOTE_PRECISION, 0).unwrap();
     assert_eq!(mdt, QUOTE_PRECISION - QUOTE_PRECISION * 2 / 10);
 
-    let mbt = calculate_max_borrow_token(QUOTE_PRECISION, QUOTE_PRECISION / 2, 0).unwrap();
+    let mbt = calculate_max_borrow_token_amount(QUOTE_PRECISION, QUOTE_PRECISION / 2, 0).unwrap();
     assert_eq!(mbt, 600000);
 
     let valid_withdraw = check_withdraw_limits(&spot_market, Some(&user), Some(0)).unwrap();
