@@ -25,16 +25,16 @@ mod test {
         assert_eq!(s, 222);
 
         let (l, s) = cap_to_max_spread(150, 2221, 1000).unwrap();
-        assert_eq!(l, 0);
-        assert_eq!(s, 1000);
+        assert_eq!(l, 63);
+        assert_eq!(s, 1000 - 63);
 
         let (l, s) = cap_to_max_spread(2500 - 10, 11, 2500).unwrap();
         assert_eq!(l, 2490);
         assert_eq!(s, 10);
 
         let (l, s) = cap_to_max_spread(2510, 110, 2500).unwrap();
-        assert_eq!(l, 2500);
-        assert_eq!(s, 0);
+        assert_eq!(l, 2396);
+        assert_eq!(s, 104);
     }
 
     #[test]
@@ -48,6 +48,7 @@ mod test {
         let mut base_asset_amount_with_amm = 0;
         let reserve_price = 34562304;
         let mut total_fee_minus_distributions = 0;
+        let net_revenue_since_last_funding = 0;
 
         let base_asset_reserve = AMM_RESERVE_PRECISION * 10;
         let min_base_asset_reserve = 0_u128;
@@ -74,6 +75,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -102,6 +104,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -130,6 +133,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -162,6 +166,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -190,6 +195,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions * 2,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -237,6 +243,7 @@ mod test {
             -193160000,
             21927763871,
             50457675,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -262,6 +269,7 @@ mod test {
             -193060000,
             21671071573,
             4876326,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -273,8 +281,8 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(long_spread_btc1, 0);
-        assert_eq!(short_spread_btc1, 200000); // max spread
+        assert_eq!(long_spread_btc1, 211);
+        assert_eq!(short_spread_btc1, 200000 - 211); // max spread
     }
 
     #[test]
@@ -288,6 +296,7 @@ mod test {
         let mut base_asset_amount_with_amm = -(AMM_RESERVE_PRECISION as i128);
         let reserve_price = 34562304;
         let mut total_fee_minus_distributions = 10000 * QUOTE_PRECISION_I128;
+        let net_revenue_since_last_funding = 0;
 
         let base_asset_reserve = AMM_RESERVE_PRECISION * 11;
         let min_base_asset_reserve = AMM_RESERVE_PRECISION * 7;
@@ -313,6 +322,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -360,6 +370,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -386,6 +397,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price * 9 / 10,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -411,6 +423,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price * 9 / 10,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -459,6 +472,7 @@ mod test {
             -base_asset_amount_with_amm,
             reserve_price * 9 / 10,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -483,6 +497,7 @@ mod test {
             -base_asset_amount_with_amm * 5,
             reserve_price * 9 / 10,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -493,8 +508,8 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread1, 50000 * 4);
-        assert_eq!(short_spread1, 0); // max on long
+        assert_eq!(long_spread1, 199901);
+        assert_eq!(short_spread1, 99); // max on long
 
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
@@ -507,6 +522,7 @@ mod test {
             -base_asset_amount_with_amm,
             reserve_price * 9 / 10,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve / 2,
             max_base_asset_reserve * 2,
@@ -613,6 +629,7 @@ mod test {
         let base_asset_amount_with_amm = 0;
         let reserve_price = 34562304;
         let total_fee_minus_distributions = 0;
+        let net_revenue_since_last_funding = 0;
 
         let base_asset_reserve = AMM_RESERVE_PRECISION * 10;
         let min_base_asset_reserve = 0_u128;
@@ -685,6 +702,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -724,6 +742,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions + 1000,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -749,6 +768,7 @@ mod test {
             base_asset_amount_with_amm + BASE_PRECISION_I128,
             reserve_price,
             total_fee_minus_distributions + 1000,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -773,6 +793,7 @@ mod test {
             base_asset_amount_with_amm - BASE_PRECISION_I128,
             reserve_price,
             total_fee_minus_distributions + 1000,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -798,6 +819,7 @@ mod test {
         let base_asset_amount_with_amm = 0;
         let reserve_price = 34562304;
         let total_fee_minus_distributions = 0;
+        let net_revenue_since_last_funding = 0;
 
         let base_asset_reserve = AMM_RESERVE_PRECISION * 10;
         let min_base_asset_reserve = AMM_RESERVE_PRECISION * 7;
@@ -870,6 +892,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -909,6 +932,7 @@ mod test {
             base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions + 1000,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -934,6 +958,7 @@ mod test {
             base_asset_amount_with_amm + BASE_PRECISION_I128,
             reserve_price,
             total_fee_minus_distributions + 1000,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,
@@ -958,6 +983,7 @@ mod test {
             base_asset_amount_with_amm - BASE_PRECISION_I128,
             reserve_price,
             total_fee_minus_distributions + 1000,
+            net_revenue_since_last_funding,
             base_asset_reserve,
             min_base_asset_reserve,
             max_base_asset_reserve,

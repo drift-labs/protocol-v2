@@ -395,9 +395,9 @@ pub fn calculate_optimal_peg_and_budget(
 
     let mut check_lower_bound = true;
     if fee_budget < max(0, optimal_peg_cost).cast()? {
-        let max_price_spread = target_price
+        let half_max_price_spread = target_price
             .cast::<u128>()?
-            .safe_mul(market.amm.max_spread.cast()?)?
+            .safe_mul(market.amm.max_spread.safe_div(2)?.cast()?)?
             .safe_div(BID_ASK_SPREAD_PRECISION_U128)?
             .cast::<i64>()?;
 
@@ -405,8 +405,11 @@ pub fn calculate_optimal_peg_and_budget(
             .cast::<i64>()?
             .safe_sub(target_price_i64)?;
 
-        if target_price_gap.abs() > max_price_spread {
-            let mark_adj = target_price_gap.abs().safe_sub(max_price_spread)?.cast()?;
+        if target_price_gap.abs() > half_max_price_spread {
+            let mark_adj = target_price_gap
+                .abs()
+                .safe_sub(half_max_price_spread)?
+                .cast()?;
 
             let target_price = if target_price_gap < 0 {
                 reserve_price_before.safe_add(mark_adj)?

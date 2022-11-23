@@ -67,7 +67,8 @@ export function calculateOptimalPegAndBudget(
 	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
 	if (budget.lt(prePegCost)) {
-		const maxPriceSpread = new BN(amm.maxSpread)
+		const halfMaxPriceSpread = new BN(amm.maxSpread)
+			.div(new BN(2))
 			.mul(targetPrice)
 			.div(BID_ASK_SPREAD_PRECISION);
 
@@ -76,8 +77,8 @@ export function calculateOptimalPegAndBudget(
 		let newBudget: BN;
 		const targetPriceGap = reservePriceBefore.sub(targetPrice);
 
-		if (targetPriceGap.abs().gt(maxPriceSpread)) {
-			const markAdj = targetPriceGap.abs().sub(maxPriceSpread);
+		if (targetPriceGap.abs().gt(halfMaxPriceSpread)) {
+			const markAdj = targetPriceGap.abs().sub(halfMaxPriceSpread);
 
 			if (targetPriceGap.lt(new BN(0))) {
 				newTargetPrice = reservePriceBefore.add(markAdj);
@@ -177,6 +178,8 @@ export function calculateUpdatedAMM(
 
 	newAmm.totalFeeMinusDistributions =
 		newAmm.totalFeeMinusDistributions.sub(prepegCost);
+	newAmm.netRevenueSinceLastFunding =
+		newAmm.netRevenueSinceLastFunding.sub(prepegCost);
 
 	return newAmm;
 }

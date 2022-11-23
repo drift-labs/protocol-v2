@@ -10,7 +10,8 @@ use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    BID_ASK_SPREAD_PRECISION_U128, DEFAULT_LARGE_BID_ASK_FACTOR, MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+    BID_ASK_SPREAD_PRECISION_U128, DEFAULT_LARGE_BID_ASK_FACTOR,
+    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
     PEG_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
@@ -74,10 +75,14 @@ pub fn cap_to_max_spread(
 
     if total_spread > max_spread {
         if long_spread > short_spread {
-            long_spread = min(max_spread, long_spread);
+            long_spread = long_spread
+                .safe_mul(max_spread)?
+                .safe_div_ceil(total_spread)?;
             short_spread = max_spread.safe_sub(long_spread)?;
         } else {
-            short_spread = min(max_spread, short_spread);
+            short_spread = short_spread
+                .safe_mul(max_spread)?
+                .safe_div_ceil(total_spread)?;
             long_spread = max_spread.safe_sub(short_spread)?;
         }
     }
@@ -235,6 +240,7 @@ pub fn calculate_spread(
     base_asset_amount_with_amm: i128,
     reserve_price: u64,
     total_fee_minus_distributions: i128,
+    net_revenue_since_last_funding: i64,
     base_asset_reserve: u128,
     min_base_asset_reserve: u128,
     max_base_asset_reserve: u128,
@@ -328,6 +334,22 @@ pub fn calculate_spread(
         short_spread = short_spread
             .safe_mul(effective_leverage_capped)?
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
+    }
+
+    // on-the-hour revenue scale
+    if net_revenue_since_last_funding < DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT {
+        let retreat_amount = base_spread
+            .cast::<u64>()?
+            .safe_mul(net_revenue_since_last_funding.unsigned_abs())?
+            .safe_div(DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.unsigned_abs())?;
+
+        if base_asset_amount_with_amm > 0 {
+            long_spread = long_spread.safe_add(retreat_amount)?;
+            short_spread = short_spread.safe_add(retreat_amount.safe_div(2)?)?;
+        } else if base_asset_amount_with_amm < 0 {
+            long_spread = long_spread.safe_add(retreat_amount.safe_div(2)?)?;
+            short_spread = short_spread.safe_add(retreat_amount)?;
+        }
     }
 
     let (long_spread, short_spread) = cap_to_max_spread(long_spread, short_spread, max_spread)?;

@@ -65,8 +65,9 @@ fn calculate_optimal_peg_and_budget_test() {
     let (optimal_peg, budget, check_lb) =
         calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
 
-    assert_eq!(optimal_peg, 13430053711);
-    assert_eq!(budget, 5878100963);
+    assert_eq!(optimal_peg, 13110290527);
+    assert_eq!(optimal_peg > oracle_price_data.price as u128, true);
+    assert_eq!(budget, 6192944714);
     assert!(!check_lb);
 
     // positive target_price_gap within max_spread
@@ -152,8 +153,8 @@ fn calculate_optimal_peg_and_budget_test() {
     let (optimal_peg, budget, check_lb) =
         calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
 
-    assert_eq!(optimal_peg, 41548583984);
-    assert_eq!(budget, 21146993011); // $21146.993022
+    assert_eq!(optimal_peg, 42641967773);
+    assert_eq!(budget, 22190932405); // $2219.032405
     assert!(!check_lb);
 }
 
