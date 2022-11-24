@@ -3247,39 +3247,38 @@ pub fn fulfill_spot_order_with_match(
     let (taker_max_base_asset_amount, taker_max_quote_asset_amount) =
         get_max_fill_amounts(taker, taker_order_index, base_market, quote_market)?;
 
-    let taker_implied_max_base_asset_amount =
+    let taker_base_asset_amount =
         if let Some(taker_max_quote_asset_amount) = taker_max_quote_asset_amount {
-            standardize_base_asset_amount(
+            let taker_implied_max_base_asset_amount = standardize_base_asset_amount(
                 taker_max_quote_asset_amount
                     .safe_mul(base_market.get_precision())?
                     .safe_div(maker_price)?,
                 base_market.order_step_size,
-            )?
+            )?;
+            taker_base_asset_amount.min(taker_implied_max_base_asset_amount)
+        } else if let Some(taker_max_base_asset_amount) = taker_max_base_asset_amount {
+            taker_base_asset_amount.min(taker_max_base_asset_amount)
         } else {
-            u64::MAX
+            taker_base_asset_amount
         };
-    let taker_base_asset_amount = taker_base_asset_amount
-        .min(taker_max_base_asset_amount.unwrap_or(u64::MAX))
-        .min(taker_implied_max_base_asset_amount);
 
     let (maker_max_base_asset_amount, maker_max_quote_asset_amount) =
         get_max_fill_amounts(maker, maker_order_index, base_market, quote_market)?;
 
-    let maker_implied_max_base_asset_amount =
+    let maker_base_asset_amount =
         if let Some(maker_max_quote_asset_amount) = maker_max_quote_asset_amount {
-            standardize_base_asset_amount(
+            let maker_implied_max_base_asset_amount = standardize_base_asset_amount(
                 maker_max_quote_asset_amount
                     .safe_mul(base_market.get_precision())?
                     .safe_div(maker_price)?,
                 base_market.order_step_size,
-            )?
+            )?;
+            maker_base_asset_amount.min(maker_implied_max_base_asset_amount)
+        } else if let Some(maker_max_base_asset_amount) = maker_max_base_asset_amount {
+            maker_base_asset_amount.min(maker_max_base_asset_amount)
         } else {
-            u64::MAX
+            maker_base_asset_amount
         };
-
-    let maker_base_asset_amount = maker_base_asset_amount
-        .min(maker_max_base_asset_amount.unwrap_or(u64::MAX))
-        .min(maker_implied_max_base_asset_amount);
 
     let (base_asset_amount, quote_asset_amount) = calculate_fill_for_matched_orders(
         maker_base_asset_amount,
