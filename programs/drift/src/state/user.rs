@@ -4,7 +4,7 @@ use crate::get_then_update_id;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, PRICE_PRECISION_I128,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, PRICE_PRECISION_I128, QUOTE_PRECISION,
     QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::orders::standardize_price;
@@ -336,6 +336,12 @@ impl SpotPosition {
         self.open_orders != 0 || self.open_bids != 0 || self.open_asks != 0
     }
 
+    pub fn margin_requirement_for_open_orders(&self) -> DriftResult<u128> {
+        self.open_orders
+            .cast::<u128>()?
+            .safe_mul(QUOTE_PRECISION / 100)
+    }
+
     pub fn get_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
         get_token_amount(self.scaled_balance.cast()?, spot_market, &self.balance_type)
     }
@@ -419,6 +425,12 @@ impl PerpPosition {
 
     pub fn has_open_order(&self) -> bool {
         self.open_orders != 0 || self.open_bids != 0 || self.open_asks != 0
+    }
+
+    pub fn margin_requirement_for_open_orders(&self) -> DriftResult<u128> {
+        self.open_orders
+            .cast::<u128>()?
+            .safe_mul(QUOTE_PRECISION / 100)
     }
 
     pub fn is_lp(&self) -> bool {

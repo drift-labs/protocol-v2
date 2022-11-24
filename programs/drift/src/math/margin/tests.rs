@@ -607,7 +607,7 @@ mod calculate_margin_requirement_and_total_collateral {
             )
             .unwrap();
 
-        assert_eq!(margin_requirement, 50000000000);
+        assert_eq!(margin_requirement, 50000010000);
         assert_eq!(total_collateral, 50000000000);
     }
 
@@ -695,7 +695,7 @@ mod calculate_margin_requirement_and_total_collateral {
             )
             .unwrap();
 
-        assert_eq!(margin_requirement, 60000000000);
+        assert_eq!(margin_requirement, 60000010000);
         assert_eq!(total_collateral, 60000000000);
     }
 
@@ -784,7 +784,7 @@ mod calculate_margin_requirement_and_total_collateral {
             )
             .unwrap();
 
-        assert_eq!(margin_requirement, 300000000000);
+        assert_eq!(margin_requirement, 300000010000);
         assert_eq!(total_collateral, 300000000000);
     }
 

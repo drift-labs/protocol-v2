@@ -778,7 +778,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 100000000);
-        assert_eq!(margin_requirement, 7500000);
+        assert_eq!(margin_requirement, 7510000);
 
         // put in settlement mode
         settle_expired_market(
@@ -809,7 +809,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 100000000);
-        assert_eq!(margin_requirement, 0);
+        assert_eq!(margin_requirement, 10000);
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
@@ -995,7 +995,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 100000000);
-        assert_eq!(margin_requirement, 7500000);
+        assert_eq!(margin_requirement, 7510000);
 
         // put in settlement mode
         settle_expired_market(
@@ -1026,7 +1026,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 100000000);
-        assert_eq!(margin_requirement, 0); // settlement in margin now
+        assert_eq!(margin_requirement, 10000); // settlement in margin now
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
@@ -1232,7 +1232,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 100000000);
-        assert_eq!(margin_requirement, 0);
+        assert_eq!(margin_requirement, 10000);
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
@@ -1496,7 +1496,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
-        assert_eq!(margin_requirement, 10005000000);
+        assert_eq!(margin_requirement, 10005010000);
 
         // put in settlement mode
         settle_expired_market(
@@ -1610,7 +1610,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
-        assert_eq!(margin_requirement, 0);
+        assert_eq!(margin_requirement, 10000);
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 2019997999000);
@@ -1905,7 +1905,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
-        assert_eq!(margin_requirement, 1005000000);
+        assert_eq!(margin_requirement, 1005010000);
 
         let (margin_requirement_short, total_collateral_short, _, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -1919,7 +1919,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral_short, 17_000_000_000);
-        assert_eq!(margin_requirement_short, 16002500000);
+        assert_eq!(margin_requirement_short, 16002510000);
         assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), false);
         assert_eq!(market.is_reduce_only().unwrap(), false);
 
@@ -1956,7 +1956,7 @@ pub mod delisting_test {
                 .unwrap();
 
             assert_eq!(total_collateral, 20000000000);
-            assert_eq!(margin_requirement, 0);
+            assert_eq!(margin_requirement, 10000);
 
             let market = market_map.get_ref_mut(&0).unwrap();
             assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
@@ -2292,7 +2292,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
-        assert_eq!(margin_requirement, 1005000000);
+        assert_eq!(margin_requirement, 1005010000);
 
         // put in settlement mode
         settle_expired_market(
@@ -2754,7 +2754,7 @@ pub mod delisting_test {
                 .unwrap();
 
             assert_eq!(total_collateral, 20000000000);
-            assert_eq!(margin_requirement, 0);
+            assert_eq!(margin_requirement, 10000);
             assert_eq!(longer.spot_positions[0].scaled_balance, 20000000000000);
             assert_eq!(longer.perp_positions[0].last_cumulative_funding_rate, 0);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
