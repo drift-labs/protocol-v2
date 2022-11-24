@@ -1363,7 +1363,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             )
             .unwrap();
 
-        assert_eq!(margin_requirement, QUOTE_PRECISION / 10);
+        assert_eq!(margin_requirement, QUOTE_PRECISION / 100);
         assert_eq!(num_of_liabilities, 1);
     }
 
@@ -1475,7 +1475,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             )
             .unwrap();
 
-        assert_eq!(margin_requirement, QUOTE_PRECISION / 10);
+        assert_eq!(margin_requirement, QUOTE_PRECISION / 100);
         assert_eq!(num_of_liabilities, 1);
     }
 }

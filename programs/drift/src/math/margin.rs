@@ -213,7 +213,10 @@ pub fn calculate_perp_position_value_and_pnl(
         0
     } else if worst_case_base_asset_amount == 0 && market_position.has_open_order() {
         // this means the user has a trigger order and we want them to post some collateral
-        QUOTE_PRECISION / 10
+        market_position
+            .open_orders
+            .cast::<u128>()?
+            .safe_mul(QUOTE_PRECISION / 100)?
     } else {
         worse_case_base_asset_value
             .safe_mul(margin_ratio.cast()?)?
@@ -427,7 +430,12 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 Ordering::Equal => {
                     if spot_position.has_open_order() {
                         num_spot_liabilities += 1;
-                        margin_requirement = margin_requirement.safe_add(QUOTE_PRECISION / 10)?;
+                        let open_orders_margin_requirement = spot_position
+                            .open_orders
+                            .cast::<u128>()?
+                            .safe_mul(QUOTE_PRECISION / 100)?;
+                        margin_requirement =
+                            margin_requirement.safe_add(open_orders_margin_requirement)?;
                     }
                 }
             }
