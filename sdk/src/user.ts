@@ -25,6 +25,7 @@ import {
 	SPOT_MARKET_WEIGHT_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
 	TEN,
+	OPEN_ORDER_MARGIN_REQUIREMENT,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -593,6 +594,10 @@ export class User {
 						newTotalLiabilityValue.add(weightedTokenValue);
 				}
 
+				newTotalLiabilityValue = newTotalLiabilityValue.add(
+					new BN(spotPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
+				);
+
 				return newTotalLiabilityValue;
 			},
 			ZERO
@@ -893,6 +898,12 @@ export class User {
 					baseAssetValue = baseAssetValue
 						.mul(marginRatio)
 						.div(MARGIN_PRECISION);
+
+					if (includeOpenOrders) {
+						baseAssetValue = baseAssetValue.add(
+							new BN(perpPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
+						);
+					}
 				}
 
 				return totalPerpValue.add(baseAssetValue);

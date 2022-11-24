@@ -89,3 +89,5 @@ export const QUOTE_SPOT_MARKET_INDEX = 0;
 
 export const LAMPORTS_PRECISION = new BN(LAMPORTS_PER_SOL);
 export const LAMPORTS_EXP = new BN(Math.log10(LAMPORTS_PER_SOL));
+
+export const OPEN_ORDER_MARGIN_REQUIREMENT = QUOTE_PRECISION.div(new BN(100));

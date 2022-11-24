@@ -867,7 +867,7 @@ pub mod liquidate_perp {
             None,
         )
         .unwrap();
-        assert_eq!(margin_req, 150_015_000_000);
+        assert_eq!(margin_req, 150_015_010_000);
         assert!(!is_user_being_liquidated(
             &user,
             &perp_market_map,
@@ -891,7 +891,7 @@ pub mod liquidate_perp {
             None,
         )
         .unwrap();
-        assert_eq!(margin_req2, 1_049_604_950_000);
+        assert_eq!(margin_req2, 1_049_604_960_000);
         assert!(is_user_being_liquidated(
             &user,
             &perp_market_map,
@@ -1481,7 +1481,7 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 1);
-        assert_eq!(user.liquidation_margin_freed, 7000000);
+        assert_eq!(user.liquidation_margin_freed, 7010000);
         assert_eq!(user.perp_positions[0].base_asset_amount, 2000000000);
 
         // ~60% of liquidation finished
@@ -1506,7 +1506,7 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 1);
-        assert_eq!(user.liquidation_margin_freed, 9600000);
+        assert_eq!(user.liquidation_margin_freed, 9610000);
         assert_eq!(user.perp_positions[0].base_asset_amount, 1480000000);
 
         let (_, total_collateral, margin_requirement_plus_buffer, _) =
@@ -1525,7 +1525,7 @@ pub mod liquidate_perp {
 
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);
-        assert_eq!(pct_margin_freed, 600000); // ~60%
+        assert_eq!(pct_margin_freed, 600249); // ~60%
 
         // dont change slot, still ~60% done
         let slot = 76_u64;
@@ -1549,7 +1549,7 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 1);
-        assert_eq!(user.liquidation_margin_freed, 9600000); // no new margin freed
+        assert_eq!(user.liquidation_margin_freed, 9610000); // no new margin freed
         assert_eq!(user.perp_positions[0].base_asset_amount, 1480000000);
 
         // ~76% of liquidation finished
@@ -1574,7 +1574,7 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.liquidation_start_slot, 1);
-        assert_eq!(user.liquidation_margin_freed, 12300000);
+        assert_eq!(user.liquidation_margin_freed, 12310000);
         assert_eq!(user.perp_positions[0].base_asset_amount, 940000000);
 
         let (_, total_collateral, margin_requirement_plus_buffer, _) =
@@ -1593,7 +1593,7 @@ pub mod liquidate_perp {
 
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);
-        assert_eq!(pct_margin_freed, 768750); // ~76%
+        assert_eq!(pct_margin_freed, 768894); // ~76%
 
         // ~100% of liquidation finished
         let slot = 136_u64;
