@@ -1999,6 +1999,10 @@ pub fn resolve_perp_bankruptcy(
     now: i64,
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
+    if !user.is_bankrupt() && is_user_bankrupt(user) {
+        user.enter_bankruptcy();
+    }
+
     validate!(
         user.is_bankrupt(),
         ErrorCode::UserNotBankrupt,
@@ -2167,6 +2171,10 @@ pub fn resolve_spot_bankruptcy(
     now: i64,
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
+    if !user.is_bankrupt() && is_user_bankrupt(user) {
+        user.enter_bankruptcy();
+    }
+
     validate!(
         user.is_bankrupt(),
         ErrorCode::UserNotBankrupt,
