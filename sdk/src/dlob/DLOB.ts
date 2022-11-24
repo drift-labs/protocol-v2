@@ -454,18 +454,14 @@ export class DLOB {
 		const nodesToFill = new Array<NodeToFill>();
 
 		let marketOrderGenerator = this.getMarketAsks(marketIndex, marketType);
-		let limitOrderGenerator = this.getLimitBids(
+
+		const marketAsksCrossingBids = this.findMarketNodesCrossingLimitNodes(
 			marketIndex,
 			slot,
 			marketType,
-			oraclePriceData
-		);
-
-		const marketAsksCrossingBids = this.findMarketNodesCrossingLimitNodes(
-			slot,
 			oraclePriceData,
 			marketOrderGenerator,
-			limitOrderGenerator,
+			this.getLimitBids.bind(this),
 			(takerPrice, makerPrice) => {
 				return takerPrice === undefined || takerPrice.lte(makerPrice);
 			}
@@ -494,18 +490,14 @@ export class DLOB {
 		}
 
 		marketOrderGenerator = this.getMarketBids(marketIndex, marketType);
-		limitOrderGenerator = this.getLimitAsks(
+
+		const marketBidsToFill = this.findMarketNodesCrossingLimitNodes(
 			marketIndex,
 			slot,
 			marketType,
-			oraclePriceData
-		);
-
-		const marketBidsToFill = this.findMarketNodesCrossingLimitNodes(
-			slot,
 			oraclePriceData,
 			marketOrderGenerator,
-			limitOrderGenerator,
+			this.getLimitAsks.bind(this),
 			(takerPrice, fallbackPrice) => {
 				return takerPrice === undefined || takerPrice.gte(fallbackPrice);
 			}
@@ -537,88 +529,92 @@ export class DLOB {
 	}
 
 	public findMarketNodesCrossingLimitNodes(
+		marketIndex: number,
 		slot: number,
+		marketType: MarketType,
 		oraclePriceData: OraclePriceData,
 		takerNodeGenerator: Generator<DLOBNode>,
-		makerNodeGenerator: Generator<DLOBNode>,
+		makerNodeGeneratorFn: (
+			marketIndex: number,
+			slot: number,
+			marketType: MarketType,
+			oraclePriceData: OraclePriceData
+		) => Generator<DLOBNode>,
 		doesCross: (takerPrice: BN | undefined, makerPrice: BN) => boolean
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
-		let nextTakerNode = takerNodeGenerator.next();
-		let nextMakerNode = makerNodeGenerator.next();
-
-		while (!nextTakerNode.done && !nextMakerNode.done) {
-			const takerNode: DLOBNode = nextTakerNode.value;
-			const makerNode: DLOBNode = nextMakerNode.value;
-
-			const bidUserAuthority = this.userMap.getUserAuthority(
-				makerNode.userAccount.toString()
-			);
-			const askUserAuthority = this.userMap.getUserAuthority(
-				takerNode.userAccount.toString()
+		for (const takerNode of takerNodeGenerator) {
+			const makerNodeGenerator = makerNodeGeneratorFn(
+				marketIndex,
+				slot,
+				marketType,
+				oraclePriceData
 			);
 
-			// Can't match orders from the same authority
-			const sameAuthority = bidUserAuthority.equals(askUserAuthority);
+			for (const makerNode of makerNodeGenerator) {
+				const bidUserAuthority = this.userMap.getUserAuthority(
+					makerNode.userAccount.toString()
+				);
+				const askUserAuthority = this.userMap.getUserAuthority(
+					takerNode.userAccount.toString()
+				);
 
-			if (sameAuthority) {
-				if (Math.random() < 0.5) {
-					nextTakerNode = takerNodeGenerator.next();
-				} else {
-					nextMakerNode = makerNodeGenerator.next();
+				// Can't match orders from the same authority
+				const sameAuthority = bidUserAuthority.equals(askUserAuthority);
+
+				if (sameAuthority) {
+					continue;
 				}
-				continue;
-			}
 
-			const makerPrice = makerNode.getPrice(oraclePriceData, slot);
-			const takerPrice = takerNode.getPrice(oraclePriceData, slot);
+				const makerPrice = makerNode.getPrice(oraclePriceData, slot);
+				const takerPrice = takerNode.getPrice(oraclePriceData, slot);
 
-			const ordersCross = doesCross(takerPrice, makerPrice);
-			if (!ordersCross) {
-				// market orders aren't sorted by price, they are sorted by time, so we need to traverse
-				// through all of em
-				nextTakerNode = takerNodeGenerator.next();
-				continue;
-			}
+				const ordersCross = doesCross(takerPrice, makerPrice);
+				if (!ordersCross) {
+					// market orders aren't sorted by price, they are sorted by time, so we need to traverse
+					// through all of em
+					break;
+				}
 
-			nodesToFill.push({
-				node: takerNode,
-				makerNode: makerNode,
-			});
+				nodesToFill.push({
+					node: takerNode,
+					makerNode: makerNode,
+				});
 
-			const makerOrder = makerNode.order;
-			const takerOrder = takerNode.order;
+				const makerOrder = makerNode.order;
+				const takerOrder = takerNode.order;
 
-			const makerBaseRemaining = makerOrder.baseAssetAmount.sub(
-				makerOrder.baseAssetAmountFilled
-			);
-			const takerBaseRemaining = takerOrder.baseAssetAmount.sub(
-				takerOrder.baseAssetAmountFilled
-			);
+				const makerBaseRemaining = makerOrder.baseAssetAmount.sub(
+					makerOrder.baseAssetAmountFilled
+				);
+				const takerBaseRemaining = takerOrder.baseAssetAmount.sub(
+					takerOrder.baseAssetAmountFilled
+				);
 
-			const baseFilled = BN.min(makerBaseRemaining, takerBaseRemaining);
+				const baseFilled = BN.min(makerBaseRemaining, takerBaseRemaining);
 
-			const newMakerOrder = { ...makerOrder };
-			newMakerOrder.baseAssetAmountFilled =
-				makerOrder.baseAssetAmountFilled.add(baseFilled);
-			this.getListForOrder(newMakerOrder).update(
-				newMakerOrder,
-				makerNode.userAccount
-			);
-			if (newMakerOrder.baseAssetAmountFilled.eq(makerOrder.baseAssetAmount)) {
-				nextMakerNode = makerNodeGenerator.next();
-			}
+				const newMakerOrder = { ...makerOrder };
+				newMakerOrder.baseAssetAmountFilled =
+					makerOrder.baseAssetAmountFilled.add(baseFilled);
+				this.getListForOrder(newMakerOrder).update(
+					newMakerOrder,
+					makerNode.userAccount
+				);
 
-			const newTakerOrder = { ...takerOrder };
-			newTakerOrder.baseAssetAmountFilled =
-				takerOrder.baseAssetAmountFilled.add(baseFilled);
-			this.getListForOrder(newTakerOrder).update(
-				newTakerOrder,
-				takerNode.userAccount
-			);
-			if (newTakerOrder.baseAssetAmountFilled.eq(takerOrder.baseAssetAmount)) {
-				nextTakerNode = takerNodeGenerator.next();
+				const newTakerOrder = { ...takerOrder };
+				newTakerOrder.baseAssetAmountFilled =
+					takerOrder.baseAssetAmountFilled.add(baseFilled);
+				this.getListForOrder(newTakerOrder).update(
+					newTakerOrder,
+					takerNode.userAccount
+				);
+
+				if (
+					newTakerOrder.baseAssetAmountFilled.eq(takerOrder.baseAssetAmount)
+				) {
+					break;
+				}
 			}
 		}
 
