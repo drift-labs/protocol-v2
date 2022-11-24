@@ -1796,7 +1796,7 @@ pub fn resolve_perp_bankruptcy(
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
     if !user.is_bankrupt() && is_user_bankrupt(user) {
-        user.enter_bankruptcy();
+        user.status = UserStatus::Bankrupt;
     }
 
     validate!(
@@ -1968,7 +1968,7 @@ pub fn resolve_spot_bankruptcy(
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
     if !user.is_bankrupt() && is_user_bankrupt(user) {
-        user.enter_bankruptcy();
+        user.status = UserStatus::Bankrupt;
     }
 
     validate!(
