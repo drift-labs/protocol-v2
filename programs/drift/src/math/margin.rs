@@ -1,7 +1,7 @@
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
 use crate::math::constants::{
-    MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION,
+    MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION, QUOTE_PRECISION,
     SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::position::{
@@ -211,6 +211,9 @@ pub fn calculate_perp_position_value_and_pnl(
 
     let margin_requirement = if market.status == MarketStatus::Settlement {
         0
+    } else if worst_case_base_asset_amount == 0 && market_position.has_open_order() {
+        // this means the user has a trigger order and we want them to post some collateral
+        QUOTE_PRECISION / 10
     } else {
         worse_case_base_asset_value
             .safe_mul(margin_ratio.cast()?)?
@@ -421,7 +424,12 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     num_spot_liabilities += 1;
                     with_isolated_liability &= spot_market.asset_tier == AssetTier::Isolated;
                 }
-                Ordering::Equal => {}
+                Ordering::Equal => {
+                    if spot_position.has_open_order() {
+                        num_spot_liabilities += 1;
+                        margin_requirement = margin_requirement.safe_add(QUOTE_PRECISION / 10)?;
+                    }
+                }
             }
 
             match worst_cast_quote_token_amount.cmp(&0) {
@@ -495,7 +503,10 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         total_collateral = total_collateral.safe_add(weighted_pnl)?;
 
-        if market_position.base_asset_amount != 0 || market_position.quote_asset_amount < 0 {
+        if market_position.base_asset_amount != 0
+            || market_position.quote_asset_amount < 0
+            || market_position.has_open_order()
+        {
             num_perp_liabilities += 1;
         }
 

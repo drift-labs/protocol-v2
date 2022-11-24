@@ -332,6 +332,10 @@ impl SpotPosition {
         self.scaled_balance == 0 && self.open_orders == 0
     }
 
+    pub fn has_open_order(&self) -> bool {
+        self.open_orders != 0 || self.open_bids != 0 || self.open_asks != 0
+    }
+
     pub fn get_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
         get_token_amount(self.scaled_balance.cast()?, spot_market, &self.balance_type)
     }
