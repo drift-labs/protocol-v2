@@ -17,7 +17,7 @@ This repository provides open source access to Drift's Typescript SDK, Solana Pr
 
 # SDK Guide
 
-The technical documentation for the SDK can be found [here](https://drift-labs.github.io/protocol-v1/sdk/), and you can visit Drift's general purpose documentation [here](https://docs.drift.trade/drift-sdk-documentation).
+The technical documentation for the SDK can be found [here](https://drift-labs.github.io/protocol-v2/sdk/), and you can visit Drift's general purpose documentation [here](https://docs.drift.trade/sdk-documentation).
 
 ## Installation
 
