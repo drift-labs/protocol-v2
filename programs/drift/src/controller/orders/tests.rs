@@ -5138,6 +5138,806 @@ pub mod fulfill_spot_order_with_match {
 
         assert_eq!(base_asset_amount, 0);
     }
+
+    #[test]
+    fn taker_short_selling_base_no_borrow_liquidity() {
+        let mut taker_spot_positions = [SpotPosition::default(); 8];
+        taker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 0,
+            open_orders: 1,
+            open_asks: -LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                slot: 0,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: taker_spot_positions,
+            ..User::default()
+        };
+
+        let mut maker_spot_positions = [SpotPosition::default(); 8];
+        maker_spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            open_orders: 1,
+            open_bids: LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                post_only: true,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+
+        let mut base_market = SpotMarket {
+            deposit_balance: 0,
+            ..SpotMarket::default_base_market()
+        };
+        let mut quote_market = SpotMarket {
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_quote_market()
+        };
+
+        let now = 1_i64;
+        let slot = 1_u64;
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut order_records = vec![];
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        let base_filled = fulfill_spot_order_with_match(
+            &mut base_market,
+            &mut quote_market,
+            &mut taker,
+            &mut taker_stats,
+            0,
+            &taker_key,
+            &mut maker,
+            &mut maker_stats,
+            0,
+            &maker_key,
+            None,
+            None,
+            &filler_key,
+            now,
+            slot,
+            &mut get_oracle_map(),
+            &fee_structure,
+            &mut order_records,
+        )
+        .unwrap();
+
+        assert_eq!(base_filled, 0);
+    }
+
+    #[test]
+    fn taker_short_selling_base_small_borrow_liquidity() {
+        let mut taker_spot_positions = [SpotPosition::default(); 8];
+        taker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 0,
+            open_orders: 1,
+            open_asks: -LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                slot: 0,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: taker_spot_positions,
+            ..User::default()
+        };
+
+        let mut maker_spot_positions = [SpotPosition::default(); 8];
+        maker_spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            open_orders: 1,
+            open_bids: LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                post_only: true,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+
+        let mut base_market = SpotMarket {
+            deposit_balance: SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_base_market()
+        };
+        let mut quote_market = SpotMarket {
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_quote_market()
+        };
+
+        let now = 1_i64;
+        let slot = 1_u64;
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut order_records = vec![];
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        let base_filled = fulfill_spot_order_with_match(
+            &mut base_market,
+            &mut quote_market,
+            &mut taker,
+            &mut taker_stats,
+            0,
+            &taker_key,
+            &mut maker,
+            &mut maker_stats,
+            0,
+            &maker_key,
+            None,
+            None,
+            &filler_key,
+            now,
+            slot,
+            &mut get_oracle_map(),
+            &fee_structure,
+            &mut order_records,
+        )
+        .unwrap();
+
+        assert_eq!(base_filled, 166666666);
+    }
+
+    #[test]
+    fn maker_short_selling_quote_no_borrow_liquidity() {
+        let mut taker_spot_positions = [SpotPosition::default(); 8];
+        taker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
+            open_orders: 1,
+            open_asks: -LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                slot: 0,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: taker_spot_positions,
+            ..User::default()
+        };
+
+        let mut maker_spot_positions = [SpotPosition::default(); 8];
+        maker_spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 0,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            open_orders: 1,
+            open_bids: LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                post_only: true,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+
+        let mut base_market = SpotMarket {
+            deposit_balance: SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_base_market()
+        };
+        let mut quote_market = SpotMarket {
+            deposit_balance: 0,
+            ..SpotMarket::default_quote_market()
+        };
+
+        let now = 1_i64;
+        let slot = 1_u64;
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut order_records = vec![];
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        let base_filled = fulfill_spot_order_with_match(
+            &mut base_market,
+            &mut quote_market,
+            &mut taker,
+            &mut taker_stats,
+            0,
+            &taker_key,
+            &mut maker,
+            &mut maker_stats,
+            0,
+            &maker_key,
+            None,
+            None,
+            &filler_key,
+            now,
+            slot,
+            &mut get_oracle_map(),
+            &fee_structure,
+            &mut order_records,
+        )
+        .unwrap();
+
+        assert_eq!(base_filled, 0);
+    }
+
+    #[test]
+    fn maker_short_selling_quote_little_borrow_liquidity() {
+        let mut taker_spot_positions = [SpotPosition::default(); 8];
+        taker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
+            open_orders: 1,
+            open_asks: -LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                slot: 0,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: taker_spot_positions,
+            ..User::default()
+        };
+
+        let mut maker_spot_positions = [SpotPosition::default(); 8];
+        maker_spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 0,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            open_orders: 1,
+            open_bids: LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                post_only: true,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+
+        let mut base_market = SpotMarket {
+            deposit_balance: SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_base_market()
+        };
+        let mut quote_market = SpotMarket {
+            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_quote_market()
+        };
+
+        let now = 1_i64;
+        let slot = 1_u64;
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut order_records = vec![];
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        let base_filled = fulfill_spot_order_with_match(
+            &mut base_market,
+            &mut quote_market,
+            &mut taker,
+            &mut taker_stats,
+            0,
+            &taker_key,
+            &mut maker,
+            &mut maker_stats,
+            0,
+            &maker_key,
+            None,
+            None,
+            &filler_key,
+            now,
+            slot,
+            &mut get_oracle_map(),
+            &fee_structure,
+            &mut order_records,
+        )
+        .unwrap();
+
+        assert_eq!(base_filled, 166666660);
+    }
+
+    #[test]
+    fn taker_short_selling_quote_no_borrow_liquidity() {
+        let mut taker_spot_positions = [SpotPosition::default(); 8];
+        taker_spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 0,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        taker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            open_orders: 1,
+            open_bids: LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                slot: 0,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: taker_spot_positions,
+            ..User::default()
+        };
+
+        let mut maker_spot_positions = [SpotPosition::default(); 8];
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
+            open_orders: 1,
+            open_asks: -LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                post_only: true,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+
+        let mut base_market = SpotMarket {
+            deposit_balance: SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_base_market()
+        };
+        let mut quote_market = SpotMarket {
+            deposit_balance: 0,
+            ..SpotMarket::default_quote_market()
+        };
+
+        let now = 1_i64;
+        let slot = 1_u64;
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut order_records = vec![];
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        let base_filled = fulfill_spot_order_with_match(
+            &mut base_market,
+            &mut quote_market,
+            &mut taker,
+            &mut taker_stats,
+            0,
+            &taker_key,
+            &mut maker,
+            &mut maker_stats,
+            0,
+            &maker_key,
+            None,
+            None,
+            &filler_key,
+            now,
+            slot,
+            &mut get_oracle_map(),
+            &fee_structure,
+            &mut order_records,
+        )
+        .unwrap();
+
+        assert_eq!(base_filled, 0);
+    }
+
+    #[test]
+    fn taker_short_selling_quote_little_borrow_liquidity() {
+        let mut taker_spot_positions = [SpotPosition::default(); 8];
+        taker_spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 0,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        taker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            open_orders: 1,
+            open_bids: LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                slot: 0,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: taker_spot_positions,
+            ..User::default()
+        };
+
+        let mut maker_spot_positions = [SpotPosition::default(); 8];
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
+            open_orders: 1,
+            open_asks: -LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                post_only: true,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+
+        let mut base_market = SpotMarket {
+            deposit_balance: SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_base_market()
+        };
+        let mut quote_market = SpotMarket {
+            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_quote_market()
+        };
+
+        let now = 1_i64;
+        let slot = 1_u64;
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut order_records = vec![];
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        let base_filled = fulfill_spot_order_with_match(
+            &mut base_market,
+            &mut quote_market,
+            &mut taker,
+            &mut taker_stats,
+            0,
+            &taker_key,
+            &mut maker,
+            &mut maker_stats,
+            0,
+            &maker_key,
+            None,
+            None,
+            &filler_key,
+            now,
+            slot,
+            &mut get_oracle_map(),
+            &fee_structure,
+            &mut order_records,
+        )
+        .unwrap();
+
+        assert_eq!(base_filled, 166666660);
+    }
+
+    #[test]
+    fn maker_short_selling_base_no_borrow_liquidity() {
+        let mut taker_spot_positions = [SpotPosition::default(); 8];
+        taker_spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        taker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            open_orders: 1,
+            open_bids: LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                slot: 0,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: taker_spot_positions,
+            ..User::default()
+        };
+
+        let mut maker_spot_positions = [SpotPosition::default(); 8];
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 0,
+            open_orders: 1,
+            open_asks: -LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                post_only: true,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+
+        let mut base_market = SpotMarket {
+            deposit_balance: 0,
+            ..SpotMarket::default_base_market()
+        };
+        let mut quote_market = SpotMarket {
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_quote_market()
+        };
+
+        let now = 1_i64;
+        let slot = 1_u64;
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut order_records = vec![];
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        let base_filled = fulfill_spot_order_with_match(
+            &mut base_market,
+            &mut quote_market,
+            &mut taker,
+            &mut taker_stats,
+            0,
+            &taker_key,
+            &mut maker,
+            &mut maker_stats,
+            0,
+            &maker_key,
+            None,
+            None,
+            &filler_key,
+            now,
+            slot,
+            &mut get_oracle_map(),
+            &fee_structure,
+            &mut order_records,
+        )
+        .unwrap();
+
+        assert_eq!(base_filled, 0);
+    }
+
+    #[test]
+    fn maker_short_selling_base_little_borrow_liquidity() {
+        let mut taker_spot_positions = [SpotPosition::default(); 8];
+        taker_spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        taker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            open_orders: 1,
+            open_bids: LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                slot: 0,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: taker_spot_positions,
+            ..User::default()
+        };
+
+        let mut maker_spot_positions = [SpotPosition::default(); 8];
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 0,
+            open_orders: 1,
+            open_asks: -LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                post_only: true,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+
+        let mut base_market = SpotMarket {
+            deposit_balance: SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_base_market()
+        };
+        let mut quote_market = SpotMarket {
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_quote_market()
+        };
+
+        let now = 1_i64;
+        let slot = 1_u64;
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut order_records = vec![];
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        let base_filled = fulfill_spot_order_with_match(
+            &mut base_market,
+            &mut quote_market,
+            &mut taker,
+            &mut taker_stats,
+            0,
+            &taker_key,
+            &mut maker,
+            &mut maker_stats,
+            0,
+            &maker_key,
+            None,
+            None,
+            &filler_key,
+            now,
+            slot,
+            &mut get_oracle_map(),
+            &fee_structure,
+            &mut order_records,
+        )
+        .unwrap();
+
+        assert_eq!(base_filled, 166666666);
+    }
 }
 
 pub mod fulfill_spot_order {

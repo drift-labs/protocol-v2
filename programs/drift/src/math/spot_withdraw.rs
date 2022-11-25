@@ -19,7 +19,7 @@ pub fn calculate_min_deposit_token(
     Ok(min_deposit_token)
 }
 
-pub fn calculate_max_borrow_token(
+pub fn calculate_max_borrow_token_amount(
     deposit_token_amount: u128,
     borrow_token_twap: u128,
     withdraw_guard_threshold: u128,
@@ -94,7 +94,7 @@ pub fn check_withdraw_limits(
         &SpotBalanceType::Borrow,
     )?;
 
-    let max_borrow_token = calculate_max_borrow_token(
+    let max_borrow_token = calculate_max_borrow_token_amount(
         deposit_token_amount,
         spot_market.borrow_token_twap.cast()?,
         spot_market.withdraw_guard_threshold.cast()?,
@@ -124,6 +124,28 @@ pub fn check_withdraw_limits(
     };
 
     Ok(valid_withdrawal)
+}
+
+pub fn calculate_availability_borrow_liquidity(spot_market: &SpotMarket) -> DriftResult<u128> {
+    let deposit_token_amount = get_token_amount(
+        spot_market.deposit_balance,
+        spot_market,
+        &SpotBalanceType::Deposit,
+    )?;
+
+    let borrow_token_amount = get_token_amount(
+        spot_market.borrow_balance,
+        spot_market,
+        &SpotBalanceType::Borrow,
+    )?;
+
+    let max_borrow_token = calculate_max_borrow_token_amount(
+        deposit_token_amount,
+        spot_market.borrow_token_twap.cast()?,
+        spot_market.withdraw_guard_threshold.cast()?,
+    )?;
+
+    Ok(max_borrow_token.saturating_sub(borrow_token_amount))
 }
 
 pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<u64> {

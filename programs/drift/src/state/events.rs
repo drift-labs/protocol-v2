@@ -270,6 +270,7 @@ pub enum OrderActionExplanation {
     RiskingIncreasingOrder,
     ReduceOnlyOrderIncreasedPosition,
     OrderFillWithSerum,
+    NoBorrowLiquidity,
 }
 
 impl Default for OrderAction {

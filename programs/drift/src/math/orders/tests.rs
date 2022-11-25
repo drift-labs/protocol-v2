@@ -736,3 +736,248 @@ mod calculate_base_asset_amount_for_reduce_only_order {
         assert_eq!(result, Ok(1))
     }
 }
+
+mod get_max_fill_amounts {
+    use crate::controller::position::PositionDirection;
+    use crate::math::constants::{
+        LAMPORTS_PER_SOL_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64,
+    };
+    use crate::math::orders::get_max_fill_amounts;
+    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::user::{Order, SpotPosition, User};
+    use crate::test_utils::get_orders;
+    use anchor_spl::token::spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
+
+    #[test]
+    fn fully_collateralized_selling_base() {
+        let base_market = SpotMarket::default_base_market();
+        let quote_market = SpotMarket::default_quote_market();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            open_asks: -100 * LAMPORTS_PER_SOL_I64,
+            open_orders: 1,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+
+        let user = User {
+            spot_positions,
+            orders: get_orders(Order {
+                direction: PositionDirection::Short,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let (max_base, max_quote) =
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+
+        assert_eq!(max_base, Some(100 * LAMPORTS_PER_SOL));
+        assert_eq!(max_quote, None);
+    }
+
+    #[test]
+    fn selling_base_with_borrow_and_no_borrow_liquidity() {
+        let base_market = SpotMarket::default_base_market();
+        let quote_market = SpotMarket::default_quote_market();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            open_asks: -100 * LAMPORTS_PER_SOL_I64,
+            open_orders: 1,
+            balance_type: SpotBalanceType::Borrow,
+            ..SpotPosition::default()
+        };
+
+        let user = User {
+            spot_positions,
+            orders: get_orders(Order {
+                direction: PositionDirection::Short,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let (max_base, max_quote) =
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+
+        assert_eq!(max_base, Some(0));
+        assert_eq!(max_quote, None);
+    }
+
+    #[test]
+    fn selling_base_with_borrow_liquidity_greater_than_order() {
+        let base_market = SpotMarket {
+            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_base_market()
+        };
+        let quote_market = SpotMarket::default_quote_market();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            scaled_balance: 0,
+            open_asks: -100 * LAMPORTS_PER_SOL_I64,
+            open_orders: 1,
+            ..SpotPosition::default()
+        };
+
+        let user = User {
+            spot_positions,
+            orders: get_orders(Order {
+                direction: PositionDirection::Short,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let (max_base, max_quote) =
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+
+        assert_eq!(max_base, Some(16666666666));
+        assert_eq!(max_quote, None);
+    }
+
+    #[test]
+    fn fully_collateralized_selling_quote() {
+        let base_market = SpotMarket::default_base_market();
+        let quote_market = SpotMarket::default_quote_market();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            open_bids: 100 * LAMPORTS_PER_SOL_I64,
+            open_orders: 1,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+
+        let user = User {
+            spot_positions,
+            orders: get_orders(Order {
+                direction: PositionDirection::Long,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let (max_base, max_quote) =
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+
+        assert_eq!(max_base, None);
+        assert_eq!(max_quote, Some(100 * QUOTE_PRECISION_U64));
+    }
+
+    #[test]
+    fn selling_quote_with_borrow_and_no_borrow_liquidity() {
+        let base_market = SpotMarket::default_base_market();
+        let quote_market = SpotMarket::default_quote_market();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            balance_type: SpotBalanceType::Borrow,
+            ..SpotPosition::default()
+        };
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            open_bids: 100 * LAMPORTS_PER_SOL_I64,
+            open_orders: 1,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+
+        let user = User {
+            spot_positions,
+            orders: get_orders(Order {
+                direction: PositionDirection::Long,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let (max_base, max_quote) =
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+
+        assert_eq!(max_base, None);
+        assert_eq!(max_quote, Some(0));
+    }
+
+    #[test]
+    fn selling_quote_with_borrow_liquidity_greater_than_order() {
+        let base_market = SpotMarket::default_base_market();
+        let quote_market = SpotMarket {
+            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            ..SpotMarket::default_quote_market()
+        };
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            balance_type: SpotBalanceType::Borrow,
+            ..SpotPosition::default()
+        };
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            scaled_balance: 0,
+            open_bids: 100 * LAMPORTS_PER_SOL_I64,
+            open_orders: 1,
+            ..SpotPosition::default()
+        };
+
+        let user = User {
+            spot_positions,
+            orders: get_orders(Order {
+                direction: PositionDirection::Long,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let (max_base, max_quote) =
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+
+        assert_eq!(max_base, None);
+        assert_eq!(max_quote, Some(16666666));
+    }
+}

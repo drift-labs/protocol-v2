@@ -2844,7 +2844,21 @@ pub fn fill_spot_order(
         false
     };
 
-    if should_cancel_market_order || should_cancel_reduce_only {
+    let should_cancel_for_no_borrow_liquidity = if is_open {
+        let market_index = user.orders[order_index].market_index;
+        let base_market = spot_market_map.get_ref(&market_index)?;
+        let quote_market = spot_market_map.get_quote_spot_market()?;
+        let (max_base_asset_amount, max_quote_asset_amount) =
+            get_max_fill_amounts(user, order_index, &base_market, &quote_market)?;
+        max_base_asset_amount == Some(0) || max_quote_asset_amount == Some(0)
+    } else {
+        false
+    };
+
+    if should_cancel_market_order
+        || should_cancel_reduce_only
+        || should_cancel_for_no_borrow_liquidity
+    {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
@@ -2857,8 +2871,10 @@ pub fn fill_spot_order(
 
         let explanation = if should_cancel_market_order {
             OrderActionExplanation::MarketOrderFilledToLimitPrice
-        } else {
+        } else if should_cancel_reduce_only {
             OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
+        } else {
+            OrderActionExplanation::NoBorrowLiquidity
         };
 
         cancel_order(
@@ -3228,6 +3244,42 @@ pub fn fulfill_spot_order_with_match(
         return Ok(0_u64);
     }
 
+    let (taker_max_base_asset_amount, taker_max_quote_asset_amount) =
+        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market)?;
+
+    let taker_base_asset_amount =
+        if let Some(taker_max_quote_asset_amount) = taker_max_quote_asset_amount {
+            let taker_implied_max_base_asset_amount = standardize_base_asset_amount(
+                taker_max_quote_asset_amount
+                    .safe_mul(base_market.get_precision())?
+                    .safe_div(maker_price)?,
+                base_market.order_step_size,
+            )?;
+            taker_base_asset_amount.min(taker_implied_max_base_asset_amount)
+        } else if let Some(taker_max_base_asset_amount) = taker_max_base_asset_amount {
+            taker_base_asset_amount.min(taker_max_base_asset_amount)
+        } else {
+            taker_base_asset_amount
+        };
+
+    let (maker_max_base_asset_amount, maker_max_quote_asset_amount) =
+        get_max_fill_amounts(maker, maker_order_index, base_market, quote_market)?;
+
+    let maker_base_asset_amount =
+        if let Some(maker_max_quote_asset_amount) = maker_max_quote_asset_amount {
+            let maker_implied_max_base_asset_amount = standardize_base_asset_amount(
+                maker_max_quote_asset_amount
+                    .safe_mul(base_market.get_precision())?
+                    .safe_div(maker_price)?,
+                base_market.order_step_size,
+            )?;
+            maker_base_asset_amount.min(maker_implied_max_base_asset_amount)
+        } else if let Some(maker_max_base_asset_amount) = maker_max_base_asset_amount {
+            maker_base_asset_amount.min(maker_max_base_asset_amount)
+        } else {
+            maker_base_asset_amount
+        };
+
     let (base_asset_amount, quote_asset_amount) = calculate_fill_for_matched_orders(
         maker_base_asset_amount,
         maker_price,
@@ -3491,6 +3543,12 @@ pub fn fulfill_spot_order_with_serum(
     let order_direction = taker.orders[taker_order_index].direction;
     let taker_order_slot = taker.orders[taker_order_index].slot;
 
+    let (max_base_asset_amount, max_quote_asset_amount) =
+        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market)?;
+
+    let taker_base_asset_amount =
+        taker_base_asset_amount.min(max_base_asset_amount.unwrap_or(u64::MAX));
+
     let (best_bid, best_ask) = get_best_bid_and_ask(
         serum_new_order_accounts.serum_market,
         serum_new_order_accounts.serum_bids,
@@ -3585,7 +3643,12 @@ pub fn fulfill_spot_order_with_serum(
         serum_limit_price,
         serum_max_coin_qty,
         market_state_before.pc_lot_size,
-    )?;
+    )?
+    .min(max_quote_asset_amount.unwrap_or(u64::MAX));
+
+    if serum_max_coin_qty == 0 || serum_max_native_pc_qty == 0 {
+        return Ok(0);
+    }
 
     let serum_order = NewOrderInstructionV3 {
         side: serum_order_side,

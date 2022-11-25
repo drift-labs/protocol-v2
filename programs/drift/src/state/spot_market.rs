@@ -244,6 +244,7 @@ impl SpotMarket {
             initial_asset_weight: 8000,
             maintenance_asset_weight: 9000,
             decimals: 9,
+            order_step_size: 1,
             order_tick_size: 1,
             status: MarketStatus::Active,
             ..SpotMarket::default()
