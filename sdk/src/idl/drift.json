@@ -5646,11 +5646,11 @@
             "type": "u64"
           },
           {
-            "name": "lastNetBaseAssetAmountPerLp",
+            "name": "lastBaseAssetAmountPerLp",
             "type": "i64"
           },
           {
-            "name": "lastNetQuoteAssetAmountPerLp",
+            "name": "lastQuoteAssetAmountPerLp",
             "type": "i64"
           },
           {

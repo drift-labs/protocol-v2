@@ -164,8 +164,8 @@ export class User {
 			openAsks: ZERO,
 			settledPnl: ZERO,
 			lpShares: ZERO,
-			lastNetBaseAssetAmountPerLp: ZERO,
-			lastNetQuoteAssetAmountPerLp: ZERO,
+			lastBaseAssetAmountPerLp: ZERO,
+			lastQuoteAssetAmountPerLp: ZERO,
 		};
 	}
 
@@ -268,11 +268,11 @@ export class User {
 		const nShares = position.lpShares;
 
 		const deltaBaa = market.amm.baseAssetAmountPerLp
-			.sub(position.lastNetBaseAssetAmountPerLp)
+			.sub(position.lastBaseAssetAmountPerLp)
 			.mul(nShares)
 			.div(AMM_RESERVE_PRECISION);
 		const deltaQaa = market.amm.quoteAssetAmountPerLp
-			.sub(position.lastNetQuoteAssetAmountPerLp)
+			.sub(position.lastQuoteAssetAmountPerLp)
 			.mul(nShares)
 			.div(AMM_RESERVE_PRECISION);
 
@@ -1262,8 +1262,8 @@ export class User {
 			openAsks: new BN(0),
 			settledPnl: ZERO,
 			lpShares: ZERO,
-			lastNetBaseAssetAmountPerLp: ZERO,
-			lastNetQuoteAssetAmountPerLp: ZERO,
+			lastBaseAssetAmountPerLp: ZERO,
+			lastQuoteAssetAmountPerLp: ZERO,
 		};
 
 		if (proposedBaseAssetAmount.eq(ZERO)) return new BN(-1);

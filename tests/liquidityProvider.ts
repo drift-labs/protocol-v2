@@ -461,8 +461,8 @@ describe('liquidity providing', () => {
 			lpPosition.baseAssetAmount.toString(),
 			lpPosition.quoteAssetAmount.toString(),
 			// lpPosition.unsettledPnl.toString(),
-			lpPosition.lastNetBaseAssetAmountPerLp.toString(),
-			lpPosition.lastNetQuoteAssetAmountPerLp.toString()
+			lpPosition.lastBaseAssetAmountPerLp.toString(),
+			lpPosition.lastQuoteAssetAmountPerLp.toString()
 		);
 
 		// assert(lpPosition.lpShares.eq(new BN(0)));
@@ -475,12 +475,8 @@ describe('liquidity providing', () => {
 		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN(-1233600)));
 		// assert(user.perpPositions[0].unsettledPnl.eq(new BN(900)));
 		// remainder goes into the last
-		assert(
-			user.perpPositions[0].lastNetBaseAssetAmountPerLp.eq(new BN(12500000))
-		);
-		assert(
-			user.perpPositions[0].lastNetQuoteAssetAmountPerLp.eq(new BN(-12336))
-		);
+		assert(user.perpPositions[0].lastBaseAssetAmountPerLp.eq(new BN(12500000)));
+		assert(user.perpPositions[0].lastQuoteAssetAmountPerLp.eq(new BN(-12336)));
 
 		market = await driftClient.getPerpMarketAccount(0);
 		console.log(

@@ -38,8 +38,8 @@ pub fn mint_lp_shares(
     if position.lp_shares > 0 {
         settle_lp_position(position, market)?;
     } else {
-        position.last_net_base_asset_amount_per_lp = amm.base_asset_amount_per_lp.cast()?;
-        position.last_net_quote_asset_amount_per_lp = amm.quote_asset_amount_per_lp.cast()?;
+        position.last_base_asset_amount_per_lp = amm.base_asset_amount_per_lp.cast()?;
+        position.last_quote_asset_amount_per_lp = amm.quote_asset_amount_per_lp.cast()?;
     }
 
     // add share balance
@@ -98,8 +98,8 @@ pub fn settle_lp_position(
         .base_asset_amount_with_unsettled_lp
         .safe_add(lp_metrics.base_asset_amount)?;
 
-    position.last_net_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
-    position.last_net_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
+    position.last_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
+    position.last_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
 
     crate::validation::perp_market::validate_perp_market(market)?;
     crate::validation::position::validate_perp_position_with_perp_market(position, market)?;
@@ -203,8 +203,8 @@ pub fn burn_lp_shares(
     }
 
     // update last_ metrics
-    position.last_net_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
-    position.last_net_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
+    position.last_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
+    position.last_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
 
     // burn shares
     position.lp_shares = position.lp_shares.safe_sub(shares_to_burn)?;
