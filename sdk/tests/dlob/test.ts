@@ -4457,18 +4457,9 @@ describe('DLOB Spot Tests', () => {
 		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
 		const userAuth1 = Keypair.generate();
-		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
-		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
-		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 
 		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
 		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
@@ -4581,6 +4572,132 @@ describe('DLOB Spot Tests', () => {
 		// taker should fill completely with second best maker
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(4);
 		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(2);
+	});
+
+	it('Test limit orders skipping maker with same authority', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(8);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const userAuth0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const userAuth1 = Keypair.generate();
+
+		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
+		const marketIndex = 0;
+
+		const slot = 12;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		// insert some limit sells below vAMM ask, above bid
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			1, // orderId
+			marketIndex,
+			new BN(14), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(13), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+
+		// should have no crossing orders
+		const nodesToFillBefore = dlob.findNodesToFill(
+			marketIndex,
+			undefined,
+			undefined,
+			12, // auction over
+			Date.now(),
+			MarketType.PERP,
+			oracle
+		);
+		expect(nodesToFillBefore.length).to.equal(0);
+
+		// place two market buy orders to eat the best ask
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(15), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			4, // orderId
+			marketIndex,
+			new BN(14), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+
+		const nodesToFillAfter = dlob.findNodesToFill(
+			marketIndex,
+			undefined,
+			undefined,
+			slot, // auction over
+			Date.now(),
+			MarketType.PERP,
+			oracle
+		);
+
+		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
+
+		for (const n of nodesToFillAfter) {
+			console.log(
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: BAA: ${n.makerNode?.order?.baseAssetAmountFilled.toString()}/${n.makerNode?.order?.baseAssetAmount.toString()}`
+			);
+		}
+		expect(nodesToFillAfter.length).to.equal(2);
+
+		// taker should fill completely with best maker
+		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(2);
+		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(4);
+
+		// taker should fill completely with second best maker
+		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(1);
+		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(3);
 	});
 
 	it('Test trigger orders', () => {
