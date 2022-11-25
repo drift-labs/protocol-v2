@@ -206,6 +206,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u3
             amm.base_asset_amount_with_amm,
             reserve_price,
             amm.total_fee_minus_distributions,
+            amm.net_revenue_since_last_funding,
             amm.base_asset_reserve,
             amm.min_base_asset_reserve,
             amm.max_base_asset_reserve,

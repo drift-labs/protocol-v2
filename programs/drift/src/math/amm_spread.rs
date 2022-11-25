@@ -8,10 +8,11 @@ use crate::math::amm::_calculate_market_open_bids_asks;
 use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
-    DEFAULT_LARGE_BID_ASK_FACTOR, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
+    AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
+    BID_ASK_SPREAD_PRECISION_U128, DEFAULT_LARGE_BID_ASK_FACTOR,
+    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+    PEG_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 
@@ -74,10 +75,14 @@ pub fn cap_to_max_spread(
 
     if total_spread > max_spread {
         if long_spread > short_spread {
-            long_spread = min(max_spread, long_spread);
+            long_spread = long_spread
+                .safe_mul(max_spread)?
+                .safe_div_ceil(total_spread)?;
             short_spread = max_spread.safe_sub(long_spread)?;
         } else {
-            short_spread = min(max_spread, short_spread);
+            short_spread = short_spread
+                .safe_mul(max_spread)?
+                .safe_div_ceil(total_spread)?;
             long_spread = max_spread.safe_sub(short_spread)?;
         }
     }
@@ -144,6 +149,85 @@ pub fn calculate_long_short_vol_spread(
     ))
 }
 
+pub fn calculate_spread_inventory_scale(
+    base_asset_amount_with_amm: i128,
+    base_asset_reserve: u128,
+    min_base_asset_reserve: u128,
+    max_base_asset_reserve: u128,
+    directional_spread: u64,
+    max_spread: u64,
+) -> DriftResult<u64> {
+    if base_asset_amount_with_amm == 0 {
+        return Ok(BID_ASK_SPREAD_PRECISION);
+    }
+
+    // inventory scale
+    let (max_bids, max_asks) = _calculate_market_open_bids_asks(
+        base_asset_reserve,
+        min_base_asset_reserve,
+        max_base_asset_reserve,
+    )?;
+
+    let min_side_liquidity = max_bids.min(max_asks.abs());
+
+    // inventory scale
+    let inventory_scale = base_asset_amount_with_amm
+        .safe_mul(
+            base_asset_amount_with_amm
+                .abs()
+                .max(AMM_RESERVE_PRECISION_I128),
+        )?
+        .safe_div(AMM_RESERVE_PRECISION_I128)?
+        .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>()?)?
+        .safe_div(min_side_liquidity.max(1))?
+        .unsigned_abs();
+
+    // only allow up to scale up of larger of MAX_BID_ASK_INVENTORY_SKEW_FACTOR or half of max spread
+    let inventory_scale_max = MAX_BID_ASK_INVENTORY_SKEW_FACTOR.max(
+        max_spread
+            .safe_div(2)?
+            .safe_mul(BID_ASK_SPREAD_PRECISION)?
+            .safe_div(max(directional_spread, 1))?,
+    );
+
+    let inventory_scale_capped = min(
+        inventory_scale_max,
+        BID_ASK_SPREAD_PRECISION.safe_add(inventory_scale.cast()?)?,
+    );
+
+    Ok(inventory_scale_capped)
+}
+
+pub fn calculate_spread_leverage_scale(
+    quote_asset_reserve: u128,
+    terminal_quote_asset_reserve: u128,
+    peg_multiplier: u128,
+    base_asset_amount_with_amm: i128,
+    reserve_price: u64,
+    total_fee_minus_distributions: i128,
+) -> DriftResult<u64> {
+    let net_base_asset_value = quote_asset_reserve
+        .cast::<i128>()?
+        .safe_sub(terminal_quote_asset_reserve.cast::<i128>()?)?
+        .safe_mul(peg_multiplier.cast::<i128>()?)?
+        .safe_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)?;
+
+    let local_base_asset_value = base_asset_amount_with_amm
+        .safe_mul(reserve_price.cast::<i128>()?)?
+        .safe_div(AMM_TO_QUOTE_PRECISION_RATIO_I128 * PRICE_PRECISION_I128)?;
+
+    let effective_leverage = max(0, local_base_asset_value.safe_sub(net_base_asset_value)?)
+        .safe_mul(BID_ASK_SPREAD_PRECISION_I128)?
+        .safe_div(max(0, total_fee_minus_distributions) + 1)?;
+
+    let effective_leverage_capped = min(
+        MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+        BID_ASK_SPREAD_PRECISION.safe_add(max(0, effective_leverage).cast::<u64>()? + 1)?,
+    );
+
+    Ok(effective_leverage_capped)
+}
+
 #[allow(clippy::comparison_chain)]
 pub fn calculate_spread(
     base_spread: u32,
@@ -156,6 +240,7 @@ pub fn calculate_spread(
     base_asset_amount_with_amm: i128,
     reserve_price: u64,
     total_fee_minus_distributions: i128,
+    net_revenue_since_last_funding: i64,
     base_asset_reserve: u128,
     min_base_asset_reserve: u128,
     max_base_asset_reserve: u128,
@@ -178,6 +263,10 @@ pub fn calculate_spread(
     let mut long_spread = max((base_spread / 2) as u64, long_vol_spread);
     let mut short_spread = max((base_spread / 2) as u64, short_vol_spread);
 
+    let max_spread = max_spread
+        .cast::<u64>()?
+        .max(last_oracle_reserve_price_spread_pct.unsigned_abs());
+
     // oracle retreat
     // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
     if last_oracle_reserve_price_spread_pct < 0 {
@@ -197,24 +286,18 @@ pub fn calculate_spread(
     }
 
     // inventory scale
-    let (max_bids, max_asks) = _calculate_market_open_bids_asks(
+    let inventory_scale_capped = calculate_spread_inventory_scale(
+        base_asset_amount_with_amm,
         base_asset_reserve,
         min_base_asset_reserve,
         max_base_asset_reserve,
+        if base_asset_amount_with_amm > 0 {
+            long_spread
+        } else {
+            short_spread
+        },
+        max_spread,
     )?;
-
-    let min_side_liquidity = max_bids.min(max_asks.abs());
-
-    // inventory scale
-    let inventory_scale = base_asset_amount_with_amm
-        .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>()?)?
-        .safe_div(min_side_liquidity.max(1))?
-        .unsigned_abs();
-
-    let inventory_scale_capped = min(
-        MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
-        BID_ASK_SPREAD_PRECISION.safe_add(inventory_scale.cast()?)?,
-    );
 
     if base_asset_amount_with_amm > 0 {
         long_spread = long_spread
@@ -227,24 +310,14 @@ pub fn calculate_spread(
     }
 
     // effective leverage scale
-    let net_base_asset_value = quote_asset_reserve
-        .cast::<i128>()?
-        .safe_sub(terminal_quote_asset_reserve.cast::<i128>()?)?
-        .safe_mul(peg_multiplier.cast::<i128>()?)?
-        .safe_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)?;
-
-    let local_base_asset_value = base_asset_amount_with_amm
-        .safe_mul(reserve_price.cast::<i128>()?)?
-        .safe_div(AMM_TO_QUOTE_PRECISION_RATIO_I128 * PRICE_PRECISION_I128)?;
-
-    let effective_leverage = max(0, local_base_asset_value.safe_sub(net_base_asset_value)?)
-        .safe_mul(BID_ASK_SPREAD_PRECISION_I128)?
-        .safe_div(max(0, total_fee_minus_distributions) + 1)?;
-
-    let effective_leverage_capped = min(
-        MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
-        BID_ASK_SPREAD_PRECISION.safe_add(max(0, effective_leverage).cast::<u64>()? + 1)?,
-    );
+    let effective_leverage_capped = calculate_spread_leverage_scale(
+        quote_asset_reserve,
+        terminal_quote_asset_reserve,
+        peg_multiplier,
+        base_asset_amount_with_amm,
+        reserve_price,
+        total_fee_minus_distributions,
+    )?;
 
     if total_fee_minus_distributions <= 0 {
         long_spread = long_spread
@@ -262,13 +335,24 @@ pub fn calculate_spread(
             .safe_mul(effective_leverage_capped)?
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
     }
-    let (long_spread, short_spread) = cap_to_max_spread(
-        long_spread,
-        short_spread,
-        max_spread
+
+    // on-the-hour revenue scale
+    if net_revenue_since_last_funding < DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT {
+        let retreat_amount = base_spread
             .cast::<u64>()?
-            .max(last_oracle_reserve_price_spread_pct.unsigned_abs()),
-    )?;
+            .safe_mul(net_revenue_since_last_funding.unsigned_abs())?
+            .safe_div(DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.unsigned_abs())?;
+
+        if base_asset_amount_with_amm > 0 {
+            long_spread = long_spread.safe_add(retreat_amount)?;
+            short_spread = short_spread.safe_add(retreat_amount.safe_div(2)?)?;
+        } else if base_asset_amount_with_amm < 0 {
+            long_spread = long_spread.safe_add(retreat_amount.safe_div(2)?)?;
+            short_spread = short_spread.safe_add(retreat_amount)?;
+        }
+    }
+
+    let (long_spread, short_spread) = cap_to_max_spread(long_spread, short_spread, max_spread)?;
 
     Ok((long_spread.cast::<u32>()?, short_spread.cast::<u32>()?))
 }

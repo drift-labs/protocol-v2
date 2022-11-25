@@ -11,6 +11,7 @@ import {
 	MARGIN_PRECISION,
 	PRICE_DIV_PEG,
 	PERCENTAGE_PRECISION,
+	BASE_PRECISION,
 } from '../constants/numericConstants';
 import {
 	AMM,
@@ -66,7 +67,8 @@ export function calculateOptimalPegAndBudget(
 	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
 	if (budget.lt(prePegCost)) {
-		const maxPriceSpread = new BN(amm.maxSpread)
+		const halfMaxPriceSpread = new BN(amm.maxSpread)
+			.div(new BN(2))
 			.mul(targetPrice)
 			.div(BID_ASK_SPREAD_PRECISION);
 
@@ -75,8 +77,8 @@ export function calculateOptimalPegAndBudget(
 		let newBudget: BN;
 		const targetPriceGap = reservePriceBefore.sub(targetPrice);
 
-		if (targetPriceGap.abs().gt(maxPriceSpread)) {
-			const markAdj = targetPriceGap.abs().sub(maxPriceSpread);
+		if (targetPriceGap.abs().gt(halfMaxPriceSpread)) {
+			const markAdj = targetPriceGap.abs().sub(halfMaxPriceSpread);
 
 			if (targetPriceGap.lt(new BN(0))) {
 				newTargetPrice = reservePriceBefore.add(markAdj);
@@ -176,6 +178,8 @@ export function calculateUpdatedAMM(
 
 	newAmm.totalFeeMinusDistributions =
 		newAmm.totalFeeMinusDistributions.sub(prepegCost);
+	newAmm.netRevenueSinceLastFunding =
+		newAmm.netRevenueSinceLastFunding.sub(prepegCost);
 
 	return newAmm;
 }
@@ -334,12 +338,18 @@ export function calculateMarketOpenBidAsk(
 }
 
 export function calculateInventoryScale(
-	netBaseAssetAmount: BN,
+	baseAssetAmountWithAmm: BN,
 	baseAssetReserve: BN,
 	minBaseAssetReserve: BN,
-	maxBaseAssetReserve: BN
+	maxBaseAssetReserve: BN,
+	directionalSpread: number,
+	maxSpread: number
 ): number {
-	const maxScale = BID_ASK_SPREAD_PRECISION.mul(new BN(10));
+	if (baseAssetAmountWithAmm.eq(ZERO)) {
+		return 0;
+	}
+
+	const defaultLargeBidAskFactor = BID_ASK_SPREAD_PRECISION.mul(new BN(10));
 	// inventory skew
 	const [openBids, openAsks] = calculateMarketOpenBidAsk(
 		baseAssetReserve,
@@ -351,13 +361,27 @@ export function calculateInventoryScale(
 		new BN(1),
 		BN.min(openBids.abs(), openAsks.abs())
 	);
-	const inventoryScale =
-		BN.min(
-			maxScale,
-			netBaseAssetAmount.mul(maxScale).div(minSideLiquidity).abs()
+
+	const inventoryScaleMax =
+		BN.max(
+			defaultLargeBidAskFactor,
+			new BN(maxSpread / 2)
+				.mul(BID_ASK_SPREAD_PRECISION)
+				.div(new BN(Math.max(directionalSpread, 1)))
 		).toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
-	return inventoryScale;
+	const inventoryScale =
+		baseAssetAmountWithAmm
+			.mul(BN.max(baseAssetAmountWithAmm.abs(), BASE_PRECISION))
+			.div(BASE_PRECISION)
+			.mul(defaultLargeBidAskFactor)
+			.div(minSideLiquidity)
+			.abs()
+			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
+
+	const inventorySpreadScale = Math.min(inventoryScaleMax, 1 + inventoryScale);
+
+	return inventorySpreadScale;
 }
 
 export function calculateEffectiveLeverage(
@@ -444,7 +468,7 @@ export function calculateSpreadBN(
 	quoteAssetReserve: BN,
 	terminalQuoteAssetReserve: BN,
 	pegMultiplier: BN,
-	netBaseAssetAmount: BN,
+	baseAssetAmountWithAmm: BN,
 	reservePrice: BN,
 	totalFeeMinusDistributions: BN,
 	baseAssetReserve: BN,
@@ -488,22 +512,18 @@ export function calculateSpreadBN(
 		lastOracleReservePriceSpreadPct.abs().toNumber()
 	);
 
-	const MAX_BID_ASK_INVENTORY_SKEW_FACTOR = 10;
-
-	const inventoryScale = calculateInventoryScale(
-		netBaseAssetAmount,
+	const inventorySpreadScale = calculateInventoryScale(
+		baseAssetAmountWithAmm,
 		baseAssetReserve,
 		minBaseAssetReserve,
-		maxBaseAssetReserve
-	);
-	const inventorySpreadScale = Math.min(
-		MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
-		1 + inventoryScale
+		maxBaseAssetReserve,
+		baseAssetAmountWithAmm.gt(ZERO) ? longSpread : shortSpread,
+		maxTargetSpread
 	);
 
-	if (netBaseAssetAmount.gt(ZERO)) {
+	if (baseAssetAmountWithAmm.gt(ZERO)) {
 		longSpread *= inventorySpreadScale;
-	} else if (netBaseAssetAmount.lt(ZERO)) {
+	} else if (baseAssetAmountWithAmm.lt(ZERO)) {
 		shortSpread *= inventorySpreadScale;
 	}
 
@@ -512,24 +532,22 @@ export function calculateSpreadBN(
 		quoteAssetReserve,
 		terminalQuoteAssetReserve,
 		pegMultiplier,
-		netBaseAssetAmount,
+		baseAssetAmountWithAmm,
 		reservePrice,
 		totalFeeMinusDistributions
 	);
 
+	const MAX_SPREAD_SCALE = 10;
 	if (totalFeeMinusDistributions.gt(ZERO)) {
-		const spreadScale = Math.min(
-			MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
-			1 + effectiveLeverage
-		);
-		if (netBaseAssetAmount.gt(ZERO)) {
+		const spreadScale = Math.min(MAX_SPREAD_SCALE, 1 + effectiveLeverage);
+		if (baseAssetAmountWithAmm.gt(ZERO)) {
 			longSpread *= spreadScale;
 		} else {
 			shortSpread *= spreadScale;
 		}
 	} else {
-		longSpread *= MAX_BID_ASK_INVENTORY_SKEW_FACTOR;
-		shortSpread *= MAX_BID_ASK_INVENTORY_SKEW_FACTOR;
+		longSpread *= MAX_SPREAD_SCALE;
+		shortSpread *= MAX_SPREAD_SCALE;
 	}
 
 	const totalSpread = longSpread + shortSpread;

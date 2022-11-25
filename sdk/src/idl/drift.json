@@ -3271,7 +3271,7 @@
       "args": [
         {
           "name": "liquidationDuration",
-          "type": "u16"
+          "type": "u8"
         }
       ]
     },
@@ -4363,7 +4363,7 @@
             }
           },
           {
-            "name": "padding1",
+            "name": "liquidationDuration",
             "type": "u8"
           },
           {
@@ -4371,15 +4371,11 @@
             "type": "u16"
           },
           {
-            "name": "liquidationDuration",
-            "type": "u16"
-          },
-          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                12
+                14
               ]
             }
           }
