@@ -6066,6 +6066,9 @@
           },
           {
             "name": "OrderFillWithSerum"
+          },
+          {
+            "name": "NoBorrowLiquidity"
           }
         ]
       }
