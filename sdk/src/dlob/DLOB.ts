@@ -59,8 +59,6 @@ export type NodeToTrigger = {
 	node: TriggerOrderNode;
 };
 
-type Side = 'ask' | 'bid' | 'both' | 'nocross';
-
 export class DLOB {
 	openOrders = new Map<MarketTypeStr, Set<string>>();
 	orderLists = new Map<MarketTypeStr, Map<number, MarketNodeLists>>();
@@ -348,53 +346,19 @@ export class DLOB {
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
-		let askGenerator = this.getLimitAsks(
+		const crossingNodes = this.findCrossingLimitOrders(
 			marketIndex,
 			slot,
 			marketType,
 			oraclePriceData
 		);
 
-		let bidGenerator = this.getLimitBids(
-			marketIndex,
-			slot,
-			marketType,
-			oraclePriceData
-		);
-
-		let nextAsk = askGenerator.next();
-		let nextBid = bidGenerator.next();
-
-		// First try to find orders that cross
-		while (!nextAsk.done && !nextBid.done) {
-			const { crossingNodes, exhaustedSide } = this.findCrossingLimitOrders(
-				nextAsk.value,
-				nextBid.value,
-				oraclePriceData,
-				slot
-			);
-
-			if (exhaustedSide === 'bid') {
-				nextBid = bidGenerator.next();
-			} else if (exhaustedSide === 'ask') {
-				nextAsk = askGenerator.next();
-			} else if (exhaustedSide === 'both') {
-				nextBid = bidGenerator.next();
-				nextAsk = askGenerator.next();
-			} else if (exhaustedSide === 'nocross') {
-				break;
-			} else {
-				console.error(`invalid exhaustedSide: ${exhaustedSide}`);
-				break;
-			}
-
-			for (const crossingNode of crossingNodes) {
-				nodesToFill.push(crossingNode);
-			}
+		for (const crossingNode of crossingNodes) {
+			nodesToFill.push(crossingNode);
 		}
 
 		if (fallbackBid && !isAmmPaused) {
-			askGenerator = this.getLimitAsks(
+			const askGenerator = this.getLimitAsks(
 				marketIndex,
 				slot,
 				marketType,
@@ -417,7 +381,7 @@ export class DLOB {
 		}
 
 		if (fallbackAsk && !isAmmPaused) {
-			bidGenerator = this.getLimitBids(
+			const bidGenerator = this.getLimitBids(
 				marketIndex,
 				slot,
 				marketType,
@@ -454,18 +418,14 @@ export class DLOB {
 		const nodesToFill = new Array<NodeToFill>();
 
 		let marketOrderGenerator = this.getMarketAsks(marketIndex, marketType);
-		let limitOrderGenerator = this.getLimitBids(
+
+		const marketAsksCrossingBids = this.findMarketNodesCrossingLimitNodes(
 			marketIndex,
 			slot,
 			marketType,
-			oraclePriceData
-		);
-
-		const marketAsksCrossingBids = this.findMarketNodesCrossingLimitNodes(
-			slot,
 			oraclePriceData,
 			marketOrderGenerator,
-			limitOrderGenerator,
+			this.getLimitBids.bind(this),
 			(takerPrice, makerPrice) => {
 				return takerPrice === undefined || takerPrice.lte(makerPrice);
 			}
@@ -494,18 +454,14 @@ export class DLOB {
 		}
 
 		marketOrderGenerator = this.getMarketBids(marketIndex, marketType);
-		limitOrderGenerator = this.getLimitAsks(
+
+		const marketBidsToFill = this.findMarketNodesCrossingLimitNodes(
 			marketIndex,
 			slot,
 			marketType,
-			oraclePriceData
-		);
-
-		const marketBidsToFill = this.findMarketNodesCrossingLimitNodes(
-			slot,
 			oraclePriceData,
 			marketOrderGenerator,
-			limitOrderGenerator,
+			this.getLimitAsks.bind(this),
 			(takerPrice, fallbackPrice) => {
 				return takerPrice === undefined || takerPrice.gte(fallbackPrice);
 			}
@@ -537,88 +493,92 @@ export class DLOB {
 	}
 
 	public findMarketNodesCrossingLimitNodes(
+		marketIndex: number,
 		slot: number,
+		marketType: MarketType,
 		oraclePriceData: OraclePriceData,
 		takerNodeGenerator: Generator<DLOBNode>,
-		makerNodeGenerator: Generator<DLOBNode>,
+		makerNodeGeneratorFn: (
+			marketIndex: number,
+			slot: number,
+			marketType: MarketType,
+			oraclePriceData: OraclePriceData
+		) => Generator<DLOBNode>,
 		doesCross: (takerPrice: BN | undefined, makerPrice: BN) => boolean
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
-		let nextTakerNode = takerNodeGenerator.next();
-		let nextMakerNode = makerNodeGenerator.next();
-
-		while (!nextTakerNode.done && !nextMakerNode.done) {
-			const takerNode: DLOBNode = nextTakerNode.value;
-			const makerNode: DLOBNode = nextMakerNode.value;
-
-			const bidUserAuthority = this.userMap.getUserAuthority(
-				makerNode.userAccount.toString()
-			);
-			const askUserAuthority = this.userMap.getUserAuthority(
-				takerNode.userAccount.toString()
+		for (const takerNode of takerNodeGenerator) {
+			const makerNodeGenerator = makerNodeGeneratorFn(
+				marketIndex,
+				slot,
+				marketType,
+				oraclePriceData
 			);
 
-			// Can't match orders from the same authority
-			const sameAuthority = bidUserAuthority.equals(askUserAuthority);
+			for (const makerNode of makerNodeGenerator) {
+				const bidUserAuthority = this.userMap.getUserAuthority(
+					makerNode.userAccount.toString()
+				);
+				const askUserAuthority = this.userMap.getUserAuthority(
+					takerNode.userAccount.toString()
+				);
 
-			if (sameAuthority) {
-				if (Math.random() < 0.5) {
-					nextTakerNode = takerNodeGenerator.next();
-				} else {
-					nextMakerNode = makerNodeGenerator.next();
+				// Can't match orders from the same authority
+				const sameAuthority = bidUserAuthority.equals(askUserAuthority);
+
+				if (sameAuthority) {
+					continue;
 				}
-				continue;
-			}
 
-			const makerPrice = makerNode.getPrice(oraclePriceData, slot);
-			const takerPrice = takerNode.getPrice(oraclePriceData, slot);
+				const makerPrice = makerNode.getPrice(oraclePriceData, slot);
+				const takerPrice = takerNode.getPrice(oraclePriceData, slot);
 
-			const ordersCross = doesCross(takerPrice, makerPrice);
-			if (!ordersCross) {
-				// market orders aren't sorted by price, they are sorted by time, so we need to traverse
-				// through all of em
-				nextTakerNode = takerNodeGenerator.next();
-				continue;
-			}
+				const ordersCross = doesCross(takerPrice, makerPrice);
+				if (!ordersCross) {
+					// market orders aren't sorted by price, they are sorted by time, so we need to traverse
+					// through all of em
+					break;
+				}
 
-			nodesToFill.push({
-				node: takerNode,
-				makerNode: makerNode,
-			});
+				nodesToFill.push({
+					node: takerNode,
+					makerNode: makerNode,
+				});
 
-			const makerOrder = makerNode.order;
-			const takerOrder = takerNode.order;
+				const makerOrder = makerNode.order;
+				const takerOrder = takerNode.order;
 
-			const makerBaseRemaining = makerOrder.baseAssetAmount.sub(
-				makerOrder.baseAssetAmountFilled
-			);
-			const takerBaseRemaining = takerOrder.baseAssetAmount.sub(
-				takerOrder.baseAssetAmountFilled
-			);
+				const makerBaseRemaining = makerOrder.baseAssetAmount.sub(
+					makerOrder.baseAssetAmountFilled
+				);
+				const takerBaseRemaining = takerOrder.baseAssetAmount.sub(
+					takerOrder.baseAssetAmountFilled
+				);
 
-			const baseFilled = BN.min(makerBaseRemaining, takerBaseRemaining);
+				const baseFilled = BN.min(makerBaseRemaining, takerBaseRemaining);
 
-			const newMakerOrder = { ...makerOrder };
-			newMakerOrder.baseAssetAmountFilled =
-				makerOrder.baseAssetAmountFilled.add(baseFilled);
-			this.getListForOrder(newMakerOrder).update(
-				newMakerOrder,
-				makerNode.userAccount
-			);
-			if (newMakerOrder.baseAssetAmountFilled.eq(makerOrder.baseAssetAmount)) {
-				nextMakerNode = makerNodeGenerator.next();
-			}
+				const newMakerOrder = { ...makerOrder };
+				newMakerOrder.baseAssetAmountFilled =
+					makerOrder.baseAssetAmountFilled.add(baseFilled);
+				this.getListForOrder(newMakerOrder).update(
+					newMakerOrder,
+					makerNode.userAccount
+				);
 
-			const newTakerOrder = { ...takerOrder };
-			newTakerOrder.baseAssetAmountFilled =
-				takerOrder.baseAssetAmountFilled.add(baseFilled);
-			this.getListForOrder(newTakerOrder).update(
-				newTakerOrder,
-				takerNode.userAccount
-			);
-			if (newTakerOrder.baseAssetAmountFilled.eq(takerOrder.baseAssetAmount)) {
-				nextTakerNode = takerNodeGenerator.next();
+				const newTakerOrder = { ...takerOrder };
+				newTakerOrder.baseAssetAmountFilled =
+					takerOrder.baseAssetAmountFilled.add(baseFilled);
+				this.getListForOrder(newTakerOrder).update(
+					newTakerOrder,
+					takerNode.userAccount
+				);
+
+				if (
+					newTakerOrder.baseAssetAmountFilled.eq(takerOrder.baseAssetAmount)
+				) {
+					break;
+				}
 			}
 		}
 
@@ -959,162 +919,117 @@ export class DLOB {
 	}
 
 	findCrossingLimitOrders(
-		askNode: DLOBNode,
-		bidNode: DLOBNode,
-		oraclePriceData: OraclePriceData,
-		slot: number
-	): {
-		crossingNodes: NodeToFill[];
-		exhaustedSide: Side;
-	} {
-		const bidPrice = bidNode.getPrice(oraclePriceData, slot);
-		const askPrice = askNode.getPrice(oraclePriceData, slot);
+		marketIndex: number,
+		slot: number,
+		marketType: MarketType,
+		oraclePriceData: OraclePriceData
+	): NodeToFill[] {
+		const nodesToFill = new Array<NodeToFill>();
 
-		// orders don't cross - we're done walkin gup the book
-		if (bidPrice.lt(askPrice)) {
-			return {
-				crossingNodes: [],
-				exhaustedSide: 'nocross',
-			};
-		}
+		for (const askNode of this.getLimitAsks(
+			marketIndex,
+			slot,
+			marketType,
+			oraclePriceData
+		)) {
+			for (const bidNode of this.getLimitBids(
+				marketIndex,
+				slot,
+				marketType,
+				oraclePriceData
+			)) {
+				const bidPrice = bidNode.getPrice(oraclePriceData, slot);
+				const askPrice = askNode.getPrice(oraclePriceData, slot);
 
-		const bidOrder = bidNode.order;
-		const askOrder = askNode.order;
+				// orders don't cross - we're done walking the book
+				if (bidPrice.lt(askPrice)) {
+					return nodesToFill;
+				}
 
-		const bidUserAuthority = this.userMap.getUserAuthority(
-			bidNode.userAccount.toString()
-		);
-		const askUserAuthority = this.userMap.getUserAuthority(
-			askNode.userAccount.toString()
-		);
+				const bidOrder = bidNode.order;
+				const askOrder = askNode.order;
 
-		// Can't match orders from the same authority
-		const sameAuthority = bidUserAuthority.equals(askUserAuthority);
-		if (sameAuthority || (bidOrder.postOnly && askOrder.postOnly)) {
-			// don't have a principle way to pick which one to exhaust,
-			// exhaust each one 50% of the time so we can try each one against other orders
-			const exhaustedSide = Math.random() < 0.5 ? 'bid' : 'ask';
-			return {
-				crossingNodes: [],
-				exhaustedSide,
-			};
-		}
+				const bidUserAuthority = this.userMap.getUserAuthority(
+					bidNode.userAccount.toString()
+				);
+				const askUserAuthority = this.userMap.getUserAuthority(
+					askNode.userAccount.toString()
+				);
 
-		const { takerNode, makerNode } = this.determineMakerAndTaker(
-			askNode,
-			bidNode
-		);
+				// Can't match orders from the same authority
+				const sameAuthority = bidUserAuthority.equals(askUserAuthority);
+				if (sameAuthority || (bidOrder.postOnly && askOrder.postOnly)) {
+					continue;
+				}
 
-		const bidBaseRemaining = bidOrder.baseAssetAmount.sub(
-			bidOrder.baseAssetAmountFilled
-		);
-		const askBaseRemaining = askOrder.baseAssetAmount.sub(
-			askOrder.baseAssetAmountFilled
-		);
+				const { takerNode, makerNode } = this.determineMakerAndTaker(
+					askNode,
+					bidNode
+				);
 
-		let exhaustedSide: Side;
-		if (bidBaseRemaining.eq(askBaseRemaining)) {
-			exhaustedSide = 'both';
-		} else if (bidBaseRemaining.gt(askBaseRemaining)) {
-			exhaustedSide = 'ask';
-		} else {
-			exhaustedSide = 'bid';
-		}
+				const bidBaseRemaining = bidOrder.baseAssetAmount.sub(
+					bidOrder.baseAssetAmountFilled
+				);
+				const askBaseRemaining = askOrder.baseAssetAmount.sub(
+					askOrder.baseAssetAmountFilled
+				);
 
-		// update the orders on DLOB as if they were fill - so we don't try to match them on the next iteration
-		// NOTE: if something goes wrong during the actual fill (transaction fails, i.e. due to orders already being filled)
-		// then we risk having a mismatch between this local DLOB and the actual DLOB state on the blockchain. This isn't
-		// a problem in the current implementation because we construct a new DLOB from the blockchain state every time, rather
-		// than updating the existing DLOB based on events.
-		if (exhaustedSide === 'ask') {
-			// bid partially filled
-			const newBidOrder = { ...bidOrder };
-			newBidOrder.baseAssetAmountFilled =
-				bidOrder.baseAssetAmountFilled.add(askBaseRemaining);
-			this.getListForOrder(newBidOrder).update(
-				newBidOrder,
-				bidNode.userAccount
-			);
+				const baseFilled = BN.min(bidBaseRemaining, askBaseRemaining);
 
-			// ask completely filled
-			const newAskOrder = { ...askOrder };
-			newAskOrder.baseAssetAmountFilled = askOrder.baseAssetAmount;
-			this.getListForOrder(newAskOrder).update(
-				newAskOrder,
-				askNode.userAccount
-			);
-		} else if (exhaustedSide === 'bid') {
-			// ask partially filled
-			const newAskOrder = { ...askOrder };
-			newAskOrder.baseAssetAmountFilled =
-				askOrder.baseAssetAmountFilled.add(bidBaseRemaining);
-			this.getListForOrder(newAskOrder).update(
-				newAskOrder,
-				askNode.userAccount
-			);
+				const newBidOrder = { ...bidOrder };
+				newBidOrder.baseAssetAmountFilled =
+					bidOrder.baseAssetAmountFilled.add(baseFilled);
+				this.getListForOrder(newBidOrder).update(
+					newBidOrder,
+					bidNode.userAccount
+				);
 
-			// bid completely filled
-			const newBidOrder = { ...bidOrder };
-			newBidOrder.baseAssetAmountFilled = bidOrder.baseAssetAmount;
-			this.getListForOrder(newBidOrder).update(
-				newBidOrder,
-				bidNode.userAccount
-			);
-		} else {
-			// both completely filled
-			const newBidOrder = { ...bidOrder };
-			newBidOrder.baseAssetAmountFilled = bidOrder.baseAssetAmount;
-			this.getListForOrder(newBidOrder).update(
-				newBidOrder,
-				bidNode.userAccount
-			);
+				// ask completely filled
+				const newAskOrder = { ...askOrder };
+				newAskOrder.baseAssetAmountFilled =
+					askOrder.baseAssetAmountFilled.add(baseFilled);
+				this.getListForOrder(newAskOrder).update(
+					newAskOrder,
+					askNode.userAccount
+				);
 
-			const newAskOrder = { ...askOrder };
-			newAskOrder.baseAssetAmountFilled = askOrder.baseAssetAmount;
-			this.getListForOrder(newAskOrder).update(
-				newAskOrder,
-				askNode.userAccount
-			);
-		}
-
-		return {
-			crossingNodes: [
-				{
+				nodesToFill.push({
 					node: takerNode,
 					makerNode: makerNode,
-				},
-			],
-			exhaustedSide,
-		};
+				});
+
+				if (newAskOrder.baseAssetAmount.eq(newAskOrder.baseAssetAmountFilled)) {
+					break;
+				}
+			}
+		}
+
+		return nodesToFill;
 	}
 
 	determineMakerAndTaker(
 		askNode: DLOBNode,
 		bidNode: DLOBNode
-	): { takerNode: DLOBNode; makerNode: DLOBNode; makerSide: Side } {
+	): { takerNode: DLOBNode; makerNode: DLOBNode } {
 		if (bidNode.order.postOnly) {
 			return {
 				takerNode: askNode,
 				makerNode: bidNode,
-				makerSide: 'bid',
 			};
 		} else if (askNode.order.postOnly) {
 			return {
 				takerNode: bidNode,
 				makerNode: askNode,
-				makerSide: 'ask',
 			};
 		} else if (askNode.order.slot.lt(bidNode.order.slot)) {
 			return {
 				takerNode: bidNode,
 				makerNode: askNode,
-				makerSide: 'ask',
 			};
 		} else {
 			return {
 				takerNode: askNode,
 				makerNode: bidNode,
-				makerSide: 'bid',
 			};
 		}
 	}
