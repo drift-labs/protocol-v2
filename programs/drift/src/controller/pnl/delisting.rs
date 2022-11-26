@@ -722,7 +722,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -939,7 +939,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1159,7 +1159,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1387,7 +1387,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1810,7 +1810,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -2189,7 +2189,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),

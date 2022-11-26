@@ -525,8 +525,8 @@ pub struct Order {
     pub base_asset_amount_filled: u64,
     pub quote_asset_amount_filled: u64,
     pub trigger_price: u64,
-    pub auction_start_price: u64,
-    pub auction_end_price: u64,
+    pub auction_start_price: i64,
+    pub auction_end_price: i64,
     pub max_ts: i64,
     pub oracle_price_offset: i32,
     pub order_id: u32,
@@ -556,7 +556,6 @@ impl Order {
         self.oracle_price_offset != 0
     }
 
-    /// Always returns a price, even if order.price is 0, which can be the case for market orders
     pub fn get_limit_price(
         &self,
         valid_oracle_price: Option<i64>,
@@ -564,38 +563,35 @@ impl Order {
         slot: u64,
         tick_size: u64,
     ) -> DriftResult<Option<u64>> {
-        // the limit price can be hardcoded on order or derived based on oracle/slot
-        let price = if self.has_oracle_price_offset() {
-            if let Some(oracle_price) = valid_oracle_price {
-                let limit_price = oracle_price.safe_add(self.oracle_price_offset.cast()?)?;
-
-                if limit_price <= 0 {
-                    msg!("Oracle offset limit price below zero: {}", limit_price);
-                    return Err(crate::error::ErrorCode::InvalidOracleOffset);
-                }
-
-                Some(standardize_price(
-                    limit_price.cast::<u64>()?,
-                    tick_size,
-                    self.direction,
-                )?)
-            } else {
+        let price = if self.has_auction_price(self.slot, self.auction_duration, slot)? {
+            Some(calculate_auction_price(
+                self,
+                slot,
+                tick_size,
+                valid_oracle_price,
+            )?)
+        } else if self.has_oracle_price_offset() {
+            let oracle_price = valid_oracle_price.ok_or_else(|| {
                 msg!("Could not find oracle too calculate oracle offset limit price");
-                return Err(crate::error::ErrorCode::OracleNotFound);
+                ErrorCode::OracleNotFound
+            })?;
+
+            let limit_price = oracle_price.safe_add(self.oracle_price_offset.cast()?)?;
+
+            if limit_price <= 0 {
+                msg!("Oracle offset limit price below zero: {}", limit_price);
+                return Err(crate::error::ErrorCode::InvalidOracleOffset);
             }
-        } else if matches!(
-            self.order_type,
-            OrderType::Market | OrderType::TriggerMarket
-        ) {
-            if !is_auction_complete(self.slot, self.auction_duration, slot)? {
-                Some(calculate_auction_price(self, slot, tick_size)?)
-            } else if self.price != 0 {
-                Some(self.price)
-            } else {
-                match fallback_price {
-                    Some(price) => Some(standardize_price(price, tick_size, self.direction)?),
-                    None => None,
-                }
+
+            Some(standardize_price(
+                limit_price.cast::<u64>()?,
+                tick_size,
+                self.direction,
+            )?)
+        } else if self.price == 0 {
+            match fallback_price {
+                Some(price) => Some(standardize_price(price, tick_size, self.direction)?),
+                None => None,
             }
         } else {
             Some(self.price)
@@ -625,6 +621,23 @@ impl Order {
                 Err(ErrorCode::UnableToGetLimitPrice)
             }
         }
+    }
+
+    pub fn has_limit_price(self, slot: u64) -> DriftResult<bool> {
+        Ok(self.price > 0
+            || self.has_oracle_price_offset()
+            || !is_auction_complete(self.slot, self.auction_duration, slot)?)
+    }
+
+    pub fn has_auction_price(
+        &self,
+        order_slot: u64,
+        auction_duration: u8,
+        slot: u64,
+    ) -> DriftResult<bool> {
+        let has_auction_price =
+            self.is_market_order() && !is_auction_complete(order_slot, auction_duration, slot)?;
+        Ok(has_auction_price)
     }
 
     /// Passing in an existing_position forces the function to consider the order's reduce only status
@@ -706,18 +719,12 @@ impl Order {
     pub fn is_market_order(&self) -> bool {
         matches!(
             self.order_type,
-            OrderType::Market | OrderType::TriggerMarket
+            OrderType::Market | OrderType::TriggerMarket | OrderType::Oracle
         )
     }
 
     pub fn is_limit_order(&self) -> bool {
         matches!(self.order_type, OrderType::Limit | OrderType::TriggerLimit)
-    }
-
-    pub fn has_limit_price(self, slot: u64) -> DriftResult<bool> {
-        Ok(self.price > 0
-            || self.has_oracle_price_offset()
-            || !is_auction_complete(self.slot, self.auction_duration, slot)?)
     }
 }
 
@@ -766,6 +773,7 @@ pub enum OrderType {
     Limit,
     TriggerMarket,
     TriggerLimit,
+    Oracle,
 }
 
 impl Default for OrderType {
