@@ -116,22 +116,19 @@ pub fn calculate_long_short_vol_spread(
         .safe_div(reserve_price)?
         .safe_div(2)?;
 
-    let vol_spread: u64 = last_oracle_conf_pct.max(market_avg_std_pct / 2);
+    let vol_spread: u64 = last_oracle_conf_pct.max(market_avg_std_pct.safe_div(2)?);
+
+    let factor_clamp_min = PERCENTAGE_PRECISION_U64 / 100; // .01
+    let factor_clamp_max = 16 * PERCENTAGE_PRECISION_U64 / 10; // 1.6
 
     let long_vol_spread_factor: u64 = long_intensity
         .safe_mul(PERCENTAGE_PRECISION_U64)?
         .safe_div(max(volume_24h, 1))?
-        .clamp(
-            PERCENTAGE_PRECISION_U64 / 100,
-            16 * PERCENTAGE_PRECISION_U64 / 10,
-        );
+        .clamp(factor_clamp_min, factor_clamp_max);
     let short_vol_spread_factor: u64 = short_intensity
         .safe_mul(PERCENTAGE_PRECISION_U64)?
         .safe_div(max(volume_24h, 1))?
-        .clamp(
-            PERCENTAGE_PRECISION_U64 / 100,
-            16 * PERCENTAGE_PRECISION_U64 / 10,
-        );
+        .clamp(factor_clamp_min, factor_clamp_max);
 
     Ok((
         max(
@@ -228,6 +225,28 @@ pub fn calculate_spread_leverage_scale(
     Ok(effective_leverage_capped)
 }
 
+pub fn calculate_spread_revenue_retreat_amount(
+    base_spread: u32,
+    max_spread: u64,
+    net_revenue_since_last_funding: i64,
+) -> DriftResult<u64> {
+    // on-the-hour revenue scale
+    let revenue_retreat_amount =
+        if net_revenue_since_last_funding < DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT {
+            min(
+                max_spread.safe_div(10)?,
+                base_spread
+                    .cast::<u64>()?
+                    .safe_mul(net_revenue_since_last_funding.unsigned_abs())?
+                    .safe_div(DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.unsigned_abs())?,
+            )
+        } else {
+            0
+        };
+
+    Ok(revenue_retreat_amount)
+}
+
 #[allow(clippy::comparison_chain)]
 pub fn calculate_spread(
     base_spread: u32,
@@ -263,7 +282,7 @@ pub fn calculate_spread(
     let mut long_spread = max((base_spread / 2) as u64, long_vol_spread);
     let mut short_spread = max((base_spread / 2) as u64, short_vol_spread);
 
-    let max_spread = max_spread
+    let max_target_spread = max_spread
         .cast::<u64>()?
         .max(last_oracle_reserve_price_spread_pct.unsigned_abs());
 
@@ -296,7 +315,7 @@ pub fn calculate_spread(
         } else {
             short_spread
         },
-        max_spread,
+        max_target_spread,
     )?;
 
     if base_asset_amount_with_amm > 0 {
@@ -309,16 +328,6 @@ pub fn calculate_spread(
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
     }
 
-    // effective leverage scale
-    let effective_leverage_capped = calculate_spread_leverage_scale(
-        quote_asset_reserve,
-        terminal_quote_asset_reserve,
-        peg_multiplier,
-        base_asset_amount_with_amm,
-        reserve_price,
-        total_fee_minus_distributions,
-    )?;
-
     if total_fee_minus_distributions <= 0 {
         long_spread = long_spread
             .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR)?
@@ -326,33 +335,48 @@ pub fn calculate_spread(
         short_spread = short_spread
             .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR)?
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
-    } else if base_asset_amount_with_amm > 0 {
-        long_spread = long_spread
-            .safe_mul(effective_leverage_capped)?
-            .safe_div(BID_ASK_SPREAD_PRECISION)?;
     } else {
-        short_spread = short_spread
-            .safe_mul(effective_leverage_capped)?
-            .safe_div(BID_ASK_SPREAD_PRECISION)?;
-    }
-
-    // on-the-hour revenue scale
-    if net_revenue_since_last_funding < DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT {
-        let retreat_amount = base_spread
-            .cast::<u64>()?
-            .safe_mul(net_revenue_since_last_funding.unsigned_abs())?
-            .safe_div(DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.unsigned_abs())?;
+        // effective leverage scale
+        let effective_leverage_capped = calculate_spread_leverage_scale(
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            base_asset_amount_with_amm,
+            reserve_price,
+            total_fee_minus_distributions,
+        )?;
 
         if base_asset_amount_with_amm > 0 {
-            long_spread = long_spread.safe_add(retreat_amount)?;
-            short_spread = short_spread.safe_add(retreat_amount.safe_div(2)?)?;
+            long_spread = long_spread
+                .safe_mul(effective_leverage_capped)?
+                .safe_div(BID_ASK_SPREAD_PRECISION)?;
         } else if base_asset_amount_with_amm < 0 {
-            long_spread = long_spread.safe_add(retreat_amount.safe_div(2)?)?;
-            short_spread = short_spread.safe_add(retreat_amount)?;
+            short_spread = short_spread
+                .safe_mul(effective_leverage_capped)?
+                .safe_div(BID_ASK_SPREAD_PRECISION)?;
         }
     }
 
-    let (long_spread, short_spread) = cap_to_max_spread(long_spread, short_spread, max_spread)?;
+    let revenue_retreat_amount = calculate_spread_revenue_retreat_amount(
+        base_spread,
+        max_target_spread,
+        net_revenue_since_last_funding,
+    )?;
+    if revenue_retreat_amount != 0 {
+        if base_asset_amount_with_amm > 0 {
+            long_spread = long_spread.safe_add(revenue_retreat_amount)?;
+            short_spread = short_spread.safe_add(revenue_retreat_amount.safe_div(2)?)?;
+        } else if base_asset_amount_with_amm < 0 {
+            long_spread = long_spread.safe_add(revenue_retreat_amount.safe_div(2)?)?;
+            short_spread = short_spread.safe_add(revenue_retreat_amount)?;
+        } else {
+            long_spread = long_spread.safe_add(revenue_retreat_amount.safe_div(2)?)?;
+            short_spread = short_spread.safe_add(revenue_retreat_amount.safe_div(2)?)?;
+        }
+    }
+
+    let (long_spread, short_spread) =
+        cap_to_max_spread(long_spread, short_spread, max_target_spread)?;
 
     Ok((long_spread.cast::<u32>()?, short_spread.cast::<u32>()?))
 }

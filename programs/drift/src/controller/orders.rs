@@ -1341,7 +1341,7 @@ fn fulfill_perp_order(
 
     let position_base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
     let risk_increasing = position_base_asset_amount_before == 0
-        || position_base_asset_amount_before.signum() == position_base_asset_amount_after.signum()
+        || position_base_asset_amount_before.signum() != position_base_asset_amount_after.signum()
         || position_base_asset_amount_before.abs() < position_base_asset_amount_after.abs();
 
     let updated_user_state = base_asset_amount != 0;

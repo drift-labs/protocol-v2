@@ -431,11 +431,12 @@ export function calculateVolSpreadBN(
 	const marketAvgStdPct = markStd
 		.add(oracleStd)
 		.mul(PERCENTAGE_PRECISION)
-		.div(reservePrice.mul(new BN(2)));
+		.div(reservePrice)
+		.div(new BN(2));
 	const volSpread = BN.max(lastOracleConfPct, marketAvgStdPct.div(new BN(2)));
 
+	const clampMin = PERCENTAGE_PRECISION.div(new BN(100));
 	const clampMax = PERCENTAGE_PRECISION.mul(new BN(16)).div(new BN(10));
-	const clampMin = PERCENTAGE_PRECISION.div(new BN(10));
 
 	const longVolSpreadFactor = clampBN(
 		longIntensity.mul(PERCENTAGE_PRECISION).div(BN.max(ONE, volume24H)),
@@ -471,6 +472,7 @@ export function calculateSpreadBN(
 	baseAssetAmountWithAmm: BN,
 	reservePrice: BN,
 	totalFeeMinusDistributions: BN,
+	netRevenueSinceLastFunding: BN,
 	baseAssetReserve: BN,
 	minBaseAssetReserve: BN,
 	maxBaseAssetReserve: BN,
@@ -550,13 +552,41 @@ export function calculateSpreadBN(
 		shortSpread *= MAX_SPREAD_SCALE;
 	}
 
+	const DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT = new BN(-25).mul(
+		QUOTE_PRECISION
+	);
+	if (
+		netRevenueSinceLastFunding.lt(
+			DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
+		)
+	) {
+		const retreatAmount = Math.min(
+			maxTargetSpread / 10,
+			Math.floor(
+				(baseSpread * netRevenueSinceLastFunding.toNumber()) /
+					DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.toNumber()
+			)
+		);
+		const halfRetreatAmount = Math.floor(retreatAmount / 2);
+		if (baseAssetAmountWithAmm.gt(ZERO)) {
+			longSpread += retreatAmount;
+			shortSpread += halfRetreatAmount;
+		} else if (baseAssetAmountWithAmm.lt(ZERO)) {
+			longSpread += halfRetreatAmount;
+			shortSpread += retreatAmount;
+		} else {
+			longSpread += halfRetreatAmount;
+			shortSpread += halfRetreatAmount;
+		}
+	}
+
 	const totalSpread = longSpread + shortSpread;
 	if (totalSpread > maxTargetSpread) {
 		if (longSpread > shortSpread) {
-			longSpread = Math.min(longSpread, maxTargetSpread);
+			longSpread = Math.ceil((longSpread * maxTargetSpread) / totalSpread);
 			shortSpread = maxTargetSpread - longSpread;
 		} else {
-			shortSpread = Math.min(shortSpread, maxTargetSpread);
+			shortSpread = Math.ceil((shortSpread * maxTargetSpread) / totalSpread);
 			longSpread = maxTargetSpread - shortSpread;
 		}
 	}
@@ -604,6 +634,7 @@ export function calculateSpread(
 		amm.baseAssetAmountWithAmm,
 		reservePrice,
 		amm.totalFeeMinusDistributions,
+		amm.netRevenueSinceLastFunding,
 		amm.baseAssetReserve,
 		amm.minBaseAssetReserve,
 		amm.maxBaseAssetReserve,
