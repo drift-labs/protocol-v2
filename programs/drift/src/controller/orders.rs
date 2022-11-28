@@ -218,7 +218,7 @@ pub fn place_perp_order(
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
         None => match params.order_type {
-            OrderType::Market => now.safe_add(30)?,
+            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
             _ => 0_i64,
         },
     };
@@ -2515,7 +2515,7 @@ pub fn place_spot_order(
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
         None => match params.order_type {
-            OrderType::Market => now.safe_add(30)?,
+            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
             _ => 0_i64,
         },
     };

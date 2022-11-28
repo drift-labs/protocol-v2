@@ -18,7 +18,7 @@ use crate::math_error;
 use crate::print_error;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
-use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
+use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, User};
 use crate::validate;
 
 #[cfg(test)]
@@ -313,22 +313,17 @@ pub fn should_cancel_market_order_after_fill(
     slot: u64,
 ) -> DriftResult<bool> {
     let order = &user.orders[user_order_index];
-    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
+    if !order.is_market_order() || order.status != OrderStatus::Open {
         return Ok(false);
     }
 
-    Ok(order.price != 0 && is_auction_complete(order.slot, order.auction_duration, slot)?)
+    Ok(order.has_limit_price(slot)?
+        && is_auction_complete(order.slot, order.auction_duration, slot)?)
 }
 
 pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> DriftResult<bool> {
     let order = &user.orders[user_order_index];
-    if order.status != OrderStatus::Open
-        || order.max_ts == 0
-        || matches!(
-            order.order_type,
-            OrderType::TriggerMarket | OrderType::TriggerLimit
-        )
-    {
+    if order.status != OrderStatus::Open || order.max_ts == 0 || order.must_be_triggered() {
         return Ok(false);
     }
 
