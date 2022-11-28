@@ -86,16 +86,19 @@ pub fn calculate_auction_price(
 ) -> DriftResult<u64> {
     match order.order_type {
         OrderType::Market | OrderType::TriggerMarket => {
-            calculate_auction_price_for_market_order(order, slot, tick_size)
+            calculate_auction_price_for_fixed_auction(order, slot, tick_size)
         }
-        OrderType::Oracle => {
-            calculate_auction_price_for_oracle_order(order, slot, tick_size, valid_oracle_price)
-        }
+        OrderType::Oracle => calculate_auction_price_for_oracle_offset_auction(
+            order,
+            slot,
+            tick_size,
+            valid_oracle_price,
+        ),
         _ => unreachable!(),
     }
 }
 
-fn calculate_auction_price_for_market_order(
+fn calculate_auction_price_for_fixed_auction(
     order: &Order,
     slot: u64,
     tick_size: u64,
@@ -131,7 +134,7 @@ fn calculate_auction_price_for_market_order(
     standardize_price(price, tick_size, order.direction)
 }
 
-fn calculate_auction_price_for_oracle_order(
+fn calculate_auction_price_for_oracle_offset_auction(
     order: &Order,
     slot: u64,
     tick_size: u64,
