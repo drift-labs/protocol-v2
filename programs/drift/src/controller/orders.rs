@@ -337,31 +337,26 @@ fn get_auction_prices(
     oracle_price_data: &OraclePriceData,
     tick_size: u64,
 ) -> DriftResult<(i64, i64)> {
-    let (auction_start_price, auction_end_price) =
-        if matches!(params.order_type, OrderType::Market | OrderType::Oracle) {
-            let (auction_start_price, auction_end_price) =
-                match (params.auction_start_price, params.auction_end_price) {
-                    (Some(auction_start_price), Some(auction_end_price)) => {
-                        (auction_start_price, auction_end_price)
-                    }
-                    _ if params.order_type == OrderType::Oracle => {
-                        msg!("Oracle order must specify auction start and end price offsets");
-                        return Err(ErrorCode::InvalidOrderAuction);
-                    }
-                    _ => {
-                        calculate_auction_prices(oracle_price_data, params.direction, params.price)?
-                    }
-                };
+    if !matches!(params.order_type, OrderType::Market | OrderType::Oracle) {
+        return Ok((0_i64, 0_i64));
+    }
 
-            (
-                standardize_price_i64(auction_start_price, tick_size.cast()?, params.direction)?,
-                standardize_price_i64(auction_end_price, tick_size.cast()?, params.direction)?,
-            )
-        } else {
-            (0_i64, 0_i64)
+    let (auction_start_price, auction_end_price) =
+        match (params.auction_start_price, params.auction_end_price) {
+            (Some(auction_start_price), Some(auction_end_price)) => {
+                (auction_start_price, auction_end_price)
+            }
+            _ if params.order_type == OrderType::Oracle => {
+                msg!("Oracle order must specify auction start and end price offsets");
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+            _ => calculate_auction_prices(oracle_price_data, params.direction, params.price)?,
         };
 
-    Ok((auction_start_price, auction_end_price))
+    Ok((
+        standardize_price_i64(auction_start_price, tick_size.cast()?, params.direction)?,
+        standardize_price_i64(auction_end_price, tick_size.cast()?, params.direction)?,
+    ))
 }
 
 pub fn cancel_orders(
