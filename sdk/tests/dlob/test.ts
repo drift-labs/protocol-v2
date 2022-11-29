@@ -22,12 +22,7 @@ import {
 	ZERO,
 } from '../../src';
 
-import {
-	mockPerpMarkets,
-	mockSpotMarkets,
-	mockStateAccount,
-	MockUserMap,
-} from './helpers';
+import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -234,13 +229,10 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 
 describe('DLOB Tests', () => {
 	it('Fresh DLOB is empty', () => {
-		const mockUserMap = new MockUserMap();
-
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const vAsk = new BN(11);
@@ -311,28 +303,14 @@ describe('DLOB Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
-		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
-		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -414,12 +392,10 @@ describe('DLOB Perp Tests', () => {
 	it('Test proper bids', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -504,8 +480,6 @@ describe('DLOB Perp Tests', () => {
 			}
 
 			const user = Keypair.generate();
-			const userAuth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -612,12 +586,10 @@ describe('DLOB Perp Tests', () => {
 	it('Test proper bids on multiple markets', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex0 = 0;
@@ -702,8 +674,6 @@ describe('DLOB Perp Tests', () => {
 			}
 
 			const user = Keypair.generate();
-			const userAuth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -767,12 +737,10 @@ describe('DLOB Perp Tests', () => {
 	it('Test proper asks', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -857,8 +825,6 @@ describe('DLOB Perp Tests', () => {
 			}
 
 			const user = Keypair.generate();
-			const userAuth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -954,12 +920,10 @@ describe('DLOB Perp Tests', () => {
 	it('Test insert market orders', () => {
 		const vAsk = new BN(11);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -973,8 +937,6 @@ describe('DLOB Perp Tests', () => {
 		// 3 mkt buys
 		for (let i = 0; i < 3; i++) {
 			const user = Keypair.generate();
-			const userAuth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -994,8 +956,6 @@ describe('DLOB Perp Tests', () => {
 		// 3 mkt sells
 		for (let i = 0; i < 3; i++) {
 			const user = Keypair.generate();
-			const userAuth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -1066,32 +1026,17 @@ describe('DLOB Perp Tests', () => {
 			hasSufficientNumberOfDataPoints: true,
 		};
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 		const user5 = Keypair.generate();
-		const userAuth5 = Keypair.generate();
-
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -1238,32 +1183,17 @@ describe('DLOB Perp Tests', () => {
 			hasSufficientNumberOfDataPoints: true,
 		};
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 		const user5 = Keypair.generate();
-		const userAuth5 = Keypair.generate();
-
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -1430,28 +1360,16 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -1575,25 +1493,15 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -1719,28 +1627,16 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -1870,49 +1766,23 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
 		const user5 = Keypair.generate();
-		const user5Auth = Keypair.generate();
 		const user6 = Keypair.generate();
-		const user6Auth = Keypair.generate();
 		const user7 = Keypair.generate();
-		const user7Auth = Keypair.generate();
 		const user8 = Keypair.generate();
-		const user8Auth = Keypair.generate();
 		const user9 = Keypair.generate();
-		const user9Auth = Keypair.generate();
 		const user10 = Keypair.generate();
-		const user10Auth = Keypair.generate();
 		const user11 = Keypair.generate();
-		const user11Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, user5Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user6.publicKey, user6Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user7.publicKey, user7Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user8.publicKey, user8Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user9.publicKey, user9Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user10.publicKey, user10Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user11.publicKey, user11Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -2138,19 +2008,13 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -2242,28 +2106,16 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -2418,28 +2270,16 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -2578,28 +2418,16 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -2761,28 +2589,16 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -2938,22 +2754,14 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -3076,19 +2884,13 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(20).mul(PRICE_PRECISION);
 		const vBid = new BN(5).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -3164,105 +2966,17 @@ describe('DLOB Perp Tests', () => {
 		).to.equal(3);
 	});
 
-	it('Test will not fill two limit orders by same authority', () => {
-		const vAsk = new BN(20).mul(PRICE_PRECISION);
-		const vBid = new BN(5).mul(PRICE_PRECISION);
-
-		const mockUserMap = new MockUserMap();
-		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
-		const user1 = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user0Auth.publicKey);
-
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
-		const marketIndex = 0;
-
-		const slot = 12;
-		const ts = 12;
-		const oracle = {
-			price: vBid.add(vAsk).div(new BN(2)), // 11.5
-			slot: new BN(slot),
-			confidence: new BN(1),
-			hasSufficientNumberOfDataPoints: true,
-		};
-
-		// insert a sell below the bid, but above vBid
-		insertOrderToDLOB(
-			dlob,
-			user0.publicKey,
-			OrderType.LIMIT,
-			MarketType.PERP,
-			3, // orderId
-			marketIndex,
-			new BN(10).mul(PRICE_PRECISION), // price; crosses bid
-			new BN(1).mul(BASE_PRECISION), // quantity
-			PositionDirection.SHORT,
-			vAsk,
-			vBid,
-			new BN(slot),
-			new BN(200)
-		);
-		// insert a buy above the vBid
-		insertOrderToDLOB(
-			dlob,
-			user1.publicKey,
-			OrderType.LIMIT,
-			MarketType.PERP,
-			2, // orderId
-			marketIndex,
-			new BN(15).mul(PRICE_PRECISION), // price,
-			new BN(8768).mul(BASE_PRECISION).div(new BN(10000)), // quantity
-			PositionDirection.LONG,
-			vBid,
-			vAsk,
-			new BN(slot),
-			new BN(200)
-		);
-
-		console.log(`Book state before fill:`);
-		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
-
-		const nodesToFillBefore = dlob.findNodesToFill(
-			marketIndex,
-			vBid,
-			vAsk,
-			slot,
-			ts,
-			MarketType.PERP,
-			oracle
-		);
-		console.log(`Filled nodes: ${nodesToFillBefore.length}`);
-		for (const n of nodesToFillBefore) {
-			printCrossedNodes(n, slot);
-		}
-
-		expect(nodesToFillBefore.length).to.equal(0);
-	});
-
 	it('Test fills 0 price market order with limit orders better than vAMM', () => {
 		const vAsk = new BN(20).mul(PRICE_PRECISION);
 		const vBid = new BN(5).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -3349,12 +3063,10 @@ describe('DLOB Spot Tests', () => {
 	it('Test proper bids', () => {
 		const vAsk = new BN(115);
 		const vBid = new BN(100);
-		const mockUserMap = new MockUserMap();
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -3420,8 +3132,6 @@ describe('DLOB Spot Tests', () => {
 
 		for (const t of testCases) {
 			const user0 = Keypair.generate();
-			const user0Auth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -3474,12 +3184,10 @@ describe('DLOB Spot Tests', () => {
 	it('Test proper bids on multiple markets', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex0 = 0;
@@ -3553,8 +3261,6 @@ describe('DLOB Spot Tests', () => {
 
 		for (const t of testCases) {
 			const user0 = Keypair.generate();
-			const user0Auth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -3618,12 +3324,10 @@ describe('DLOB Spot Tests', () => {
 	it('Test proper asks', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -3689,8 +3393,6 @@ describe('DLOB Spot Tests', () => {
 
 		for (const t of testCases) {
 			const user0 = Keypair.generate();
-			const user0Auth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -3751,12 +3453,10 @@ describe('DLOB Spot Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		const mockUserMap = new MockUserMap();
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -3764,8 +3464,6 @@ describe('DLOB Spot Tests', () => {
 		// 3 mkt buys
 		for (let i = 0; i < 3; i++) {
 			const user0 = Keypair.generate();
-			const user0Auth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -3785,8 +3483,6 @@ describe('DLOB Spot Tests', () => {
 		// 3 mkt sells
 		for (let i = 0; i < 3; i++) {
 			const user0 = Keypair.generate();
-			const user0Auth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -3853,32 +3549,17 @@ describe('DLOB Spot Tests', () => {
 			hasSufficientNumberOfDataPoints: true,
 		};
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 		const user5 = Keypair.generate();
-		const userAuth5 = Keypair.generate();
-
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -4017,32 +3698,16 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
-		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 		const user5 = Keypair.generate();
-		const userAuth5 = Keypair.generate();
-
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -4167,26 +3832,15 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
-
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -4298,29 +3952,16 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
-
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -4452,20 +4093,13 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
-
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -4578,20 +4212,13 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
-
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -4704,50 +4331,23 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 		const user5 = Keypair.generate();
-		const userAuth5 = Keypair.generate();
 		const user6 = Keypair.generate();
-		const userAuth6 = Keypair.generate();
 		const user7 = Keypair.generate();
-		const userAuth7 = Keypair.generate();
 		const user8 = Keypair.generate();
-		const userAuth8 = Keypair.generate();
 		const user9 = Keypair.generate();
-		const userAuth9 = Keypair.generate();
 		const user10 = Keypair.generate();
-		const userAuth10 = Keypair.generate();
 		const user11 = Keypair.generate();
-		const userAuth11 = Keypair.generate();
-
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
-		mockUserMap.addUserAccountAuthority(user6.publicKey, userAuth6.publicKey);
-		mockUserMap.addUserAccountAuthority(user7.publicKey, userAuth7.publicKey);
-		mockUserMap.addUserAccountAuthority(user8.publicKey, userAuth8.publicKey);
-		mockUserMap.addUserAccountAuthority(user9.publicKey, userAuth9.publicKey);
-		mockUserMap.addUserAccountAuthority(user10.publicKey, userAuth10.publicKey);
-		mockUserMap.addUserAccountAuthority(user11.publicKey, userAuth11.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;
@@ -4972,19 +4572,13 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
 
 		const dlob = new DLOB(
 			mockPerpMarkets,
 			mockSpotMarkets,
 			mockStateAccount,
-			mockUserMap,
 			false
 		);
 		const marketIndex = 0;

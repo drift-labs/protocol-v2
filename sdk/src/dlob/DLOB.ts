@@ -17,13 +17,13 @@ import {
 	PerpMarketAccount,
 	OraclePriceData,
 	SlotSubscriber,
-	UserMapInterface,
 	MarketTypeStr,
 	StateAccount,
 	isMarketOrder,
 	mustBeTriggered,
 	isTriggered,
 	getLimitPrice,
+	UserMap,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -68,7 +68,6 @@ export class DLOB {
 		Map<number, PerpMarketAccount | SpotMarketAccount>
 	>();
 
-	userMap: UserMapInterface;
 	silent = false;
 	initialized = false;
 
@@ -76,18 +75,15 @@ export class DLOB {
 	 *
 	 * @param perpMarkets The perp markets to maintain a DLOB for
 	 * @param spotMarkets The spot markets to maintain a DLOB for
-	 * @param userMap map of all users
 	 * @param silent set to true to prevent logging on inserts and removals
 	 */
 	public constructor(
 		perpMarkets: PerpMarketAccount[],
 		spotMarkets: SpotMarketAccount[],
 		stateAccount: StateAccount,
-		userMap: UserMapInterface,
 		silent?: boolean
 	) {
 		this.stateAccount = stateAccount;
-		this.userMap = userMap;
 		this.silent = silent;
 
 		this.openOrders.set('perp', new Set<string>());
@@ -176,13 +172,13 @@ export class DLOB {
 	 *
 	 * @returns a promise that resolves when the DLOB is initialized
 	 */
-	public async init(): Promise<boolean> {
+	public async init(userMap: UserMap): Promise<boolean> {
 		if (this.initialized) {
 			return false;
 		}
 
-		// initialize the dlob with the user map (prevents hitting getProgramAccounts)
-		for (const user of this.userMap.values()) {
+		// initialize the dlob with the user map
+		for (const user of userMap.values()) {
 			const userAccount = user.getUserAccount();
 			const userAccountPubkey = user.getUserAccountPublicKey();
 
@@ -517,17 +513,9 @@ export class DLOB {
 			);
 
 			for (const makerNode of makerNodeGenerator) {
-				const bidUserAuthority = this.userMap.getUserAuthority(
-					makerNode.userAccount.toString()
-				);
-				const askUserAuthority = this.userMap.getUserAuthority(
-					takerNode.userAccount.toString()
-				);
-
 				// Can't match orders from the same authority
-				const sameAuthority = bidUserAuthority.equals(askUserAuthority);
-
-				if (sameAuthority) {
+				const sameUser = takerNode.userAccount.equals(makerNode.userAccount);
+				if (sameUser) {
 					continue;
 				}
 
@@ -782,17 +770,6 @@ export class DLOB {
 					continue;
 				}
 
-				// skip order if user is being liquidated/bankrupt
-				if (bestGenerator.next.value.userAccount !== undefined) {
-					const user = this.userMap.get(
-						bestGenerator.next.value.userAccount.toString()
-					);
-					if (user?.isBeingLiquidated()) {
-						bestGenerator.next = bestGenerator.generator.next();
-						continue;
-					}
-				}
-
 				yield bestGenerator.next.value;
 				bestGenerator.next = bestGenerator.generator.next();
 			} else {
@@ -949,16 +926,9 @@ export class DLOB {
 				const bidOrder = bidNode.order;
 				const askOrder = askNode.order;
 
-				const bidUserAuthority = this.userMap.getUserAuthority(
-					bidNode.userAccount.toString()
-				);
-				const askUserAuthority = this.userMap.getUserAuthority(
-					askNode.userAccount.toString()
-				);
-
 				// Can't match orders from the same authority
-				const sameAuthority = bidUserAuthority.equals(askUserAuthority);
-				if (sameAuthority || (bidOrder.postOnly && askOrder.postOnly)) {
+				const sameUser = bidNode.userAccount.equals(askNode.userAccount);
+				if (sameUser || (bidOrder.postOnly && askOrder.postOnly)) {
 					continue;
 				}
 
