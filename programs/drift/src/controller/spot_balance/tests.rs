@@ -944,6 +944,21 @@ fn check_settle_rev() {
         false,
     ).unwrap();
 
+    let _depositors_amount_after = get_token_amount(
+        spot_market.deposit_balance,
+        &spot_market,
+        &SpotBalanceType::Deposit,
+    ).unwrap();
+
+    let _borrowers_amount_after = get_token_amount(
+        spot_market.borrow_balance,
+        &spot_market,
+        &SpotBalanceType::Borrow,
+    ).unwrap();
+
+    assert_eq!(0, _depositors_amount_after);
+    assert_eq!(_borrowers_amount_after, borrowers_amount_before);
+
     crate::controller::spot_balance::update_revenue_pool_balances(
         pnl_pool_token_amount.safe_add(fee_pool_token_amount).unwrap(),
         &SpotBalanceType::Deposit,
