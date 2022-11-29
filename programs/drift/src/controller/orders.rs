@@ -734,6 +734,7 @@ pub fn fill_perp_order(
         maker_stats,
         maker_order_id,
         &user_key,
+        &user.authority,
         &user.orders[order_index],
         &mut filler.as_deref_mut(),
         &filler_key,
@@ -971,6 +972,7 @@ fn sanitize_maker_order<'a>(
     maker_stats: Option<&'a AccountLoader<UserStats>>,
     maker_order_id: Option<u32>,
     taker_key: &Pubkey,
+    taker_authority: &Pubkey,
     taker_order: &Order,
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
@@ -989,14 +991,26 @@ fn sanitize_maker_order<'a>(
     }
 
     let maker = maker.unwrap();
-    let maker_stats = maker_stats.unwrap();
     if &maker.key() == taker_key {
         return Ok((None, None, None, None));
     }
-
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
-    let maker_stats = load_mut!(maker_stats)?;
+
+    let maker_stats = if &maker.authority == taker_authority {
+        None
+    } else {
+        let maker_stats = load_mut!(maker_stats.unwrap())?;
+
+        validate!(
+            maker.authority.eq(&maker_stats.authority),
+            ErrorCode::InvalidMaker,
+            "maker authority != maker stats authority"
+        )?;
+
+        Some(maker_stats)
+    };
+
     let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
     let maker_order_index = match maker.get_order_index(maker_order_id) {
         Ok(order_index) => order_index,
@@ -1100,7 +1114,7 @@ fn sanitize_maker_order<'a>(
 
     Ok((
         Some(maker),
-        Some(maker_stats),
+        maker_stats,
         Some(maker_key),
         Some(maker_order_index),
     ))
@@ -1262,7 +1276,7 @@ fn fulfill_perp_order(
                 user_order_index,
                 user_key,
                 maker.as_deref_mut().unwrap(),
-                maker_stats.as_deref_mut().unwrap(),
+                maker_stats,
                 maker_order_index.unwrap(),
                 maker_key.unwrap(),
                 filler,
@@ -1663,7 +1677,7 @@ pub fn fulfill_perp_order_with_match(
     taker_order_index: usize,
     taker_key: &Pubkey,
     maker: &mut User,
-    maker_stats: &mut UserStats,
+    maker_stats: &mut Option<&mut UserStats>,
     maker_order_index: usize,
     maker_key: &Pubkey,
     filler: &mut Option<&mut User>,
@@ -1843,7 +1857,12 @@ pub fn fulfill_perp_order_with_match(
         &maker_position_delta,
     )?;
 
-    maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+    // if maker is none, makes maker and taker authority was the same
+    if let Some(maker_stats) = maker_stats {
+        maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+    } else {
+        taker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+    };
 
     let taker_position_index = get_position_index(
         &taker.perp_positions,
@@ -1924,7 +1943,11 @@ pub fn fulfill_perp_order_with_match(
         maker_rebate.cast()?,
     )?;
 
-    maker_stats.increment_total_rebate(maker_rebate)?;
+    if let Some(maker_stats) = maker_stats {
+        maker_stats.increment_total_rebate(maker_rebate)?;
+    } else {
+        taker_stats.increment_total_rebate(maker_rebate)?;
+    }
 
     if let Some(filler) = filler {
         if filler_reward > 0 {
@@ -2751,6 +2774,7 @@ pub fn fill_spot_order(
         maker_stats,
         maker_order_id,
         &user_key,
+        &user.authority,
         &user.orders[order_index],
         &mut filler.as_deref_mut(),
         &filler_key,
@@ -2904,6 +2928,7 @@ fn sanitize_spot_maker_order<'a>(
     maker_stats: Option<&'a AccountLoader<UserStats>>,
     maker_order_id: Option<u32>,
     taker_key: &Pubkey,
+    taker_authority: &Pubkey,
     taker_order: &Order,
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
@@ -2921,14 +2946,27 @@ fn sanitize_spot_maker_order<'a>(
     }
 
     let maker = maker.unwrap();
-    let maker_stats = maker_stats.unwrap();
     if &maker.key() == taker_key {
         return Ok((None, None, None, None));
     }
 
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
-    let maker_stats = load_mut!(maker_stats)?;
+
+    let maker_stats = if &maker.authority == taker_authority {
+        None
+    } else {
+        let maker_stats = load_mut!(maker_stats.unwrap())?;
+
+        validate!(
+            maker.authority.eq(&maker_stats.authority),
+            ErrorCode::InvalidMaker,
+            "maker authority != maker stats authority"
+        )?;
+
+        Some(maker_stats)
+    };
+
     let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
     let maker_order_index = match maker.get_order_index(maker_order_id) {
         Ok(order_index) => order_index,
@@ -3031,7 +3069,7 @@ fn sanitize_spot_maker_order<'a>(
 
     Ok((
         Some(maker),
-        Some(maker_stats),
+        maker_stats,
         Some(maker_key),
         Some(maker_order_index),
     ))
@@ -3084,7 +3122,7 @@ fn fulfill_spot_order(
                 user_order_index,
                 user_key,
                 maker.as_deref_mut().unwrap(),
-                maker_stats.as_deref_mut().unwrap(),
+                maker_stats,
                 maker_order_index.unwrap(),
                 maker_key.unwrap(),
                 filler.as_deref_mut(),
@@ -3183,7 +3221,7 @@ pub fn fulfill_spot_order_with_match(
     taker_order_index: usize,
     taker_key: &Pubkey,
     maker: &mut User,
-    maker_stats: &mut UserStats,
+    maker_stats: &mut Option<&mut UserStats>,
     maker_order_index: usize,
     maker_key: &Pubkey,
     filler: Option<&mut User>,
@@ -3416,9 +3454,13 @@ pub fn fulfill_spot_order_with_match(
         base_asset_amount,
     )?;
 
-    maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
-
-    maker_stats.increment_total_rebate(maker_rebate)?;
+    if let Some(maker_stats) = maker_stats {
+        maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        maker_stats.increment_total_rebate(maker_rebate)?;
+    } else {
+        taker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        taker_stats.increment_total_rebate(maker_rebate)?;
+    }
 
     // Update filler state
     if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
