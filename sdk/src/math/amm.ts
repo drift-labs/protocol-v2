@@ -12,6 +12,7 @@ import {
 	PRICE_DIV_PEG,
 	PERCENTAGE_PRECISION,
 	BASE_PRECISION,
+	DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
 } from '../constants/numericConstants';
 import {
 	AMM,
@@ -584,9 +585,6 @@ export function calculateSpreadBN(
 
 	console.log('l/s spread:', longSpread, shortSpread);
 
-	const DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT = new BN(-25).mul(
-		QUOTE_PRECISION
-	);
 	if (
 		netRevenueSinceLastFunding.lt(
 			DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
@@ -595,7 +593,7 @@ export function calculateSpreadBN(
 		const retreatAmount = Math.min(
 			maxTargetSpread / 10,
 			Math.floor(
-				(baseSpread * netRevenueSinceLastFunding.toNumber()) /
+				(baseSpread * netRevenueSinceLastFunding.abs().toNumber()) /
 					DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.toNumber()
 			)
 		);
