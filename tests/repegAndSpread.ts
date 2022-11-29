@@ -36,6 +36,7 @@ import {
 	calculateSpreadBN,
 	calculateInventoryScale,
 	calculateEffectiveLeverage,
+	calculateLiveOracleStd,
 } from '../sdk/src';
 
 import {
@@ -291,6 +292,21 @@ describe('repeg and spread amm', () => {
 		);
 		await depositToFeePoolFromIF(50, driftClient, userUSDCAccount);
 
+		await driftClient.fetchAccounts();
+		const btcPerpAccount = driftClient.getPerpMarketAccount(0);
+		assert(btcPerpAccount.numberOfUsersWithBase == 1);
+		assert(btcPerpAccount.numberOfUsers == 1);
+		assert(btcPerpAccount.amm.baseAssetAmountWithAmm.lt(ZERO));
+		console.log(
+			btcPerpAccount.amm.baseAssetAmountWithAmm.toString(),
+			baseAssetAmount.toString()
+		);
+		assert(btcPerpAccount.amm.baseAssetAmountWithAmm.eq(new BN('-193100000')));
+		assert(btcPerpAccount.amm.shortIntensityVolume.gt(ZERO));
+		assert(btcPerpAccount.amm.longIntensityVolume.eq(ZERO));
+		assert(btcPerpAccount.amm.markStd.gt(ZERO));
+		assert(btcPerpAccount.amm.oracleStd.gt(ZERO));
+
 		// old oracle price: 21966
 		await setFeedPrice(anchor.workspace.Pyth, 19790, btcUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, btcUsd)).price;
@@ -310,6 +326,9 @@ describe('repeg and spread amm', () => {
 			'market0.amm.pegMultiplier:',
 			market0.amm.pegMultiplier.toNumber() / PEG_PRECISION.toNumber()
 		);
+
+		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
+
 		console.log(
 			'market0.amm.netBaseAssetAmount:',
 			market0.amm.baseAssetAmountWithAmm.toString(),
@@ -318,29 +337,42 @@ describe('repeg and spread amm', () => {
 			'quoteAssetReserve:',
 			market0.amm.quoteAssetReserve.toString(),
 			'pegMultiplier:',
-			market0.amm.pegMultiplier.toString()
+			market0.amm.pegMultiplier.toString(),
+			'->',
+			prepegAMM.pegMultiplier.toString()
 		);
 
-		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
-		const longSpread = calculateSpread(
-			prepegAMM,
-			PositionDirection.LONG,
+		const [longSpread, shortSpread] = calculateSpread(
+			market0.amm,
 			oraclePriceData
 		);
-		const shortSpread = calculateSpread(
+
+		const [bid2, ask2] = calculateBidAskPrice(prepegAMM, oraclePriceData);
+		const [longSpread2, shortSpread2] = calculateSpread(
 			prepegAMM,
-			PositionDirection.SHORT,
 			oraclePriceData
 		);
-		console.log('spreads:', longSpread, shortSpread);
-		assert(shortSpread > longSpread);
 
 		const reservePrice = calculatePrice(
 			prepegAMM.baseAssetReserve,
 			prepegAMM.quoteAssetReserve,
 			prepegAMM.pegMultiplier
 		);
+		console.log('maxSpread:', prepegAMM.maxSpread);
+
+		console.log('bid/ask:', convertToNumber(bid), convertToNumber(ask));
+		console.log('spreads:', longSpread, shortSpread);
+
+		console.log(
+			'bid2/reserve/ask2:',
+			convertToNumber(bid2),
+			convertToNumber(reservePrice),
+			convertToNumber(ask2)
+		);
+		console.log('spreads:', longSpread2, shortSpread2);
+
+		assert(shortSpread2 > longSpread2);
 
 		const targetPrice = oraclePriceData?.price || reservePrice;
 
@@ -370,6 +402,14 @@ describe('repeg and spread amm', () => {
 			'pegMultiplier:',
 			prepegAMM.pegMultiplier.toString()
 		);
+
+		const now = new BN(new Date().getTime() / 1000); //todo
+		const liveOracleStd = calculateLiveOracleStd(
+			prepegAMM,
+			oraclePriceData,
+			now
+		);
+
 		const [ls1, ss1] = calculateSpreadBN(
 			prepegAMM.baseSpread,
 			targetMarkSpreadPct,
@@ -381,9 +421,15 @@ describe('repeg and spread amm', () => {
 			prepegAMM.baseAssetAmountWithAmm,
 			reservePrice,
 			prepegAMM.totalFeeMinusDistributions,
+			prepegAMM.netRevenueSinceLastFunding,
 			prepegAMM.baseAssetReserve,
 			prepegAMM.minBaseAssetReserve,
-			prepegAMM.maxBaseAssetReserve
+			prepegAMM.maxBaseAssetReserve,
+			prepegAMM.markStd,
+			liveOracleStd,
+			prepegAMM.longIntensityVolume,
+			prepegAMM.shortIntensityVolume,
+			prepegAMM.volume24H
 		);
 		console.log('spreads:', ls1, ss1);
 		const maxSpread = market0.amm.maxSpread;
@@ -425,13 +471,15 @@ describe('repeg and spread amm', () => {
 			prepegAMM.baseAssetAmountWithAmm,
 			prepegAMM.baseAssetReserve,
 			prepegAMM.minBaseAssetReserve,
-			prepegAMM.maxBaseAssetReserve
+			prepegAMM.maxBaseAssetReserve,
+			prepegAMM.baseSpread,
+			prepegAMM.maxSpread
 		);
 
 		console.log('inventoryScale:', inventoryScale);
 		console.log('effectiveLeverage:', effectiveLeverage);
 		assert(Math.min(effectiveLeverage, 10) == 10); // lol
-		assert(Math.min(inventoryScale, 10) == 10);
+		assert(Math.min(inventoryScale, 10) == 1.069649);
 
 		try {
 			const txSig = await driftClient.updateAMMs([marketIndex]);
@@ -451,6 +499,12 @@ describe('repeg and spread amm', () => {
 			false
 		);
 
+		console.log(
+			'longSpread/shortSpread:',
+			market.amm.longSpread,
+			market.amm.shortSpread
+		);
+
 		const mark1 = calculatePrice(
 			market.amm.baseAssetReserve,
 			market.amm.quoteAssetReserve,
@@ -468,12 +522,13 @@ describe('repeg and spread amm', () => {
 		assert(bid1.eq(bid));
 		assert(ask1.eq(ask));
 		assert(mark1.eq(reservePrice));
+		console.log(market.amm.pegMultiplier.toString());
+		console.log(oraclePriceData.price.toString());
 
 		assert(bid1.lt(ask1));
 		assert(ask1.gt(oraclePriceData.price));
 		assert(bid1.lt(oraclePriceData.price));
 
-		console.log(market.amm.pegMultiplier.toString());
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);
@@ -691,14 +746,8 @@ describe('repeg and spread amm', () => {
 			const market0 = driftClient.getPerpMarketAccount(0);
 			const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 			const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
-			const longSpread = calculateSpread(
+			const [longSpread, shortSpread] = calculateSpread(
 				prepegAMM,
-				PositionDirection.LONG,
-				oraclePriceData
-			);
-			const shortSpread = calculateSpread(
-				prepegAMM,
-				PositionDirection.SHORT,
 				oraclePriceData
 			);
 			console.log('spreads:', longSpread, shortSpread);
@@ -917,14 +966,15 @@ describe('repeg and spread amm', () => {
 		// assert(usdcDepositBalance == 60207.477328);
 		// assert(sinceStartTFMD == -583.629353);
 
-		assert(
-			Math.abs(
-				allUserCollateral +
-					pnlPoolBalance +
-					feePoolBalance -
-					(usdcDepositBalance - usdcBorrowBalance)
-			) < 1e-7
+		const moneyMissing = Math.abs(
+			allUserCollateral +
+				pnlPoolBalance +
+				feePoolBalance -
+				(usdcDepositBalance - usdcBorrowBalance)
 		);
+		console.log('moneyMissing:', moneyMissing);
+
+		assert(moneyMissing < 1e-7);
 
 		console.log(
 			'market0.amm.netBaseAssetAmount:',

@@ -616,6 +616,44 @@ mod test {
         )
         .unwrap();
         assert_eq!(lscale, 1003087); // 1.003087x
+
+        let rra = calculate_spread_revenue_retreat_amount(
+            250,
+            30000,
+            (15 * QUOTE_PRECISION_I128 + 835) as i64,
+        )
+        .unwrap();
+        assert_eq!(rra, 0);
+
+        let rra = calculate_spread_revenue_retreat_amount(2150, 30000, 0).unwrap();
+        assert_eq!(rra, 0);
+
+        let rra = calculate_spread_revenue_retreat_amount(340, 30000, -1).unwrap();
+        assert_eq!(rra, 0);
+
+        let rra = calculate_spread_revenue_retreat_amount(
+            250,
+            30000,
+            (-10 * QUOTE_PRECISION_I128) as i64,
+        )
+        .unwrap();
+        assert_eq!(rra, 0);
+
+        let rra = calculate_spread_revenue_retreat_amount(
+            250,
+            30000,
+            (-91 * QUOTE_PRECISION_I128) as i64,
+        )
+        .unwrap();
+        assert_eq!(rra, 250 * 3 + 160); //every additional dollar adds
+
+        let rra = calculate_spread_revenue_retreat_amount(
+            250,
+            30000,
+            (-14000 * QUOTE_PRECISION_I128) as i64,
+        )
+        .unwrap();
+        assert_eq!(rra, 30000 / 10); //every additional dollar adds
     }
 
     #[test]

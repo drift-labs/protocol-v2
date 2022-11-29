@@ -142,13 +142,12 @@ pub fn update_amm_test() {
         (market.margin_ratio_initial * 100) as u32
     );
 
-    assert_eq!(bid, 12056402874);
+    assert_eq!(bid, 12039058154);
     assert!(bid < (oracle_price_data.price as u64));
     assert_eq!(reserve_price, 12744099999);
-    assert_eq!(ask, 12763700424);
+    assert_eq!(ask, 12746355704);
     assert!(ask >= (oracle_price_data.price as u64));
-    //(133487208381380-120146825282679)/133403830987014 == .1 (max spread)
-    // 127060953641838
+    //(12746355704-12039058154)/12746355704 == .05547 (max spread=.0555)
 }
 
 #[test]

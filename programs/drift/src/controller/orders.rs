@@ -1230,6 +1230,7 @@ fn fulfill_perp_order(
             break;
         }
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
+        let user_order_direction = user.orders[user_order_index].direction;
 
         let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
             PerpFulfillmentMethod::AMM(maker_price) => fulfill_perp_order_with_amm(
@@ -1281,11 +1282,9 @@ fn fulfill_perp_order(
 
         base_asset_amount = base_asset_amount.safe_add(fill_base_asset_amount)?;
         quote_asset_amount = quote_asset_amount.safe_add(fill_quote_asset_amount)?;
-        market.amm.update_volume_24h(
-            fill_quote_asset_amount,
-            user.orders[user_order_index].direction,
-            now,
-        )?;
+        market
+            .amm
+            .update_volume_24h(fill_quote_asset_amount, user_order_direction, now)?;
     }
 
     for order_record in order_records {
@@ -1341,7 +1340,7 @@ fn fulfill_perp_order(
 
     let position_base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
     let risk_increasing = position_base_asset_amount_before == 0
-        || position_base_asset_amount_before.signum() == position_base_asset_amount_after.signum()
+        || position_base_asset_amount_before.signum() != position_base_asset_amount_after.signum()
         || position_base_asset_amount_before.abs() < position_base_asset_amount_after.abs();
 
     let updated_user_state = base_asset_amount != 0;

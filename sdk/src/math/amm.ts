@@ -12,6 +12,7 @@ import {
 	PRICE_DIV_PEG,
 	PERCENTAGE_PRECISION,
 	BASE_PRECISION,
+	DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
 } from '../constants/numericConstants';
 import {
 	AMM,
@@ -190,11 +191,15 @@ export function calculateUpdatedAMMSpreadReserves(
 	oraclePriceData: OraclePriceData
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
 	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
-	const dirReserves = calculateSpreadReserves(
+	const [shortReserves, longReserves] = calculateSpreadReserves(
 		newAmm,
-		direction,
 		oraclePriceData
 	);
+
+	const dirReserves = isVariant(direction, 'long')
+		? longReserves
+		: shortReserves;
+
 	const result = {
 		baseAssetReserve: dirReserves.baseAssetReserve,
 		quoteAssetReserve: dirReserves.quoteAssetReserve,
@@ -217,14 +222,8 @@ export function calculateBidAskPrice(
 		newAmm = amm;
 	}
 
-	const askReserves = calculateSpreadReserves(
+	const [bidReserves, askReserves] = calculateSpreadReserves(
 		newAmm,
-		PositionDirection.LONG,
-		oraclePriceData
-	);
-	const bidReserves = calculateSpreadReserves(
-		newAmm,
-		PositionDirection.SHORT,
 		oraclePriceData
 	);
 
@@ -370,6 +369,17 @@ export function calculateInventoryScale(
 				.div(new BN(Math.max(directionalSpread, 1)))
 		).toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
+	console.log('inventoryScaleMax:', inventoryScaleMax);
+	console.log(
+		'openBids/Asks',
+		openBids.toNumber(),
+		openAsks.toNumber(),
+		'minSideLiquidity:',
+		minSideLiquidity.toNumber()
+	);
+	console.log('baseAssetAmountWithAmm', baseAssetAmountWithAmm.toNumber());
+	console.log('defaultLargeBidAskFactor', defaultLargeBidAskFactor.toNumber());
+
 	const inventoryScale =
 		baseAssetAmountWithAmm
 			.mul(BN.max(baseAssetAmountWithAmm.abs(), BASE_PRECISION))
@@ -379,6 +389,7 @@ export function calculateInventoryScale(
 			.abs()
 			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
+	console.log('1 + inventoryScale', 1 + inventoryScale);
 	const inventorySpreadScale = Math.min(inventoryScaleMax, 1 + inventoryScale);
 
 	return inventorySpreadScale;
@@ -431,12 +442,19 @@ export function calculateVolSpreadBN(
 	const marketAvgStdPct = markStd
 		.add(oracleStd)
 		.mul(PERCENTAGE_PRECISION)
-		.div(reservePrice.mul(new BN(2)));
+		.div(reservePrice)
+		.div(new BN(2));
 	const volSpread = BN.max(lastOracleConfPct, marketAvgStdPct.div(new BN(2)));
 
+	const clampMin = PERCENTAGE_PRECISION.div(new BN(100));
 	const clampMax = PERCENTAGE_PRECISION.mul(new BN(16)).div(new BN(10));
-	const clampMin = PERCENTAGE_PRECISION.div(new BN(10));
-
+	console.log(
+		'l/s intesnity:',
+		volume24H.toString(),
+		longIntensity.toNumber(),
+		shortIntensity.toNumber()
+	);
+	console.log('clamps:', clampMin.toNumber(), clampMax.toNumber());
 	const longVolSpreadFactor = clampBN(
 		longIntensity.mul(PERCENTAGE_PRECISION).div(BN.max(ONE, volume24H)),
 		clampMin,
@@ -446,6 +464,13 @@ export function calculateVolSpreadBN(
 		shortIntensity.mul(PERCENTAGE_PRECISION).div(BN.max(ONE, volume24H)),
 		clampMin,
 		clampMax
+	);
+
+	console.log(
+		'volspread + l/s factor:',
+		volSpread.toString(),
+		longVolSpreadFactor.toNumber(),
+		shortVolSpreadFactor.toNumber()
 	);
 
 	const longVolSpread = BN.max(
@@ -471,6 +496,7 @@ export function calculateSpreadBN(
 	baseAssetAmountWithAmm: BN,
 	reservePrice: BN,
 	totalFeeMinusDistributions: BN,
+	netRevenueSinceLastFunding: BN,
 	baseAssetReserve: BN,
 	minBaseAssetReserve: BN,
 	maxBaseAssetReserve: BN,
@@ -489,9 +515,15 @@ export function calculateSpreadBN(
 		shortIntensity,
 		volume24H
 	);
+	console.log(
+		'vol l/s spreads:',
+		longVolSpread.toNumber(),
+		shortVolSpread.toNumber()
+	);
 
 	let longSpread = Math.max(baseSpread / 2, longVolSpread.toNumber());
 	let shortSpread = Math.max(baseSpread / 2, shortVolSpread.toNumber());
+	console.log('l/s spread:', longSpread, shortSpread);
 
 	if (lastOracleReservePriceSpreadPct.gt(ZERO)) {
 		shortSpread = Math.max(
@@ -506,6 +538,7 @@ export function calculateSpreadBN(
 				longVolSpread.toNumber()
 		);
 	}
+	console.log('l/s spread:', longSpread, shortSpread);
 
 	const maxTargetSpread: number = Math.max(
 		maxSpread,
@@ -526,19 +559,19 @@ export function calculateSpreadBN(
 	} else if (baseAssetAmountWithAmm.lt(ZERO)) {
 		shortSpread *= inventorySpreadScale;
 	}
-
-	const effectiveLeverage = calculateEffectiveLeverage(
-		baseSpread,
-		quoteAssetReserve,
-		terminalQuoteAssetReserve,
-		pegMultiplier,
-		baseAssetAmountWithAmm,
-		reservePrice,
-		totalFeeMinusDistributions
-	);
+	console.log('l/s spread:', longSpread, shortSpread);
 
 	const MAX_SPREAD_SCALE = 10;
 	if (totalFeeMinusDistributions.gt(ZERO)) {
+		const effectiveLeverage = calculateEffectiveLeverage(
+			baseSpread,
+			quoteAssetReserve,
+			terminalQuoteAssetReserve,
+			pegMultiplier,
+			baseAssetAmountWithAmm,
+			reservePrice,
+			totalFeeMinusDistributions
+		);
 		const spreadScale = Math.min(MAX_SPREAD_SCALE, 1 + effectiveLeverage);
 		if (baseAssetAmountWithAmm.gt(ZERO)) {
 			longSpread *= spreadScale;
@@ -550,27 +583,55 @@ export function calculateSpreadBN(
 		shortSpread *= MAX_SPREAD_SCALE;
 	}
 
+	console.log('l/s spread:', longSpread, shortSpread);
+
+	if (
+		netRevenueSinceLastFunding.lt(
+			DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
+		)
+	) {
+		const retreatAmount = Math.min(
+			maxTargetSpread / 10,
+			Math.floor(
+				(baseSpread * netRevenueSinceLastFunding.abs().toNumber()) /
+					DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.toNumber()
+			)
+		);
+		const halfRetreatAmount = Math.floor(retreatAmount / 2);
+		if (baseAssetAmountWithAmm.gt(ZERO)) {
+			longSpread += retreatAmount;
+			shortSpread += halfRetreatAmount;
+		} else if (baseAssetAmountWithAmm.lt(ZERO)) {
+			longSpread += halfRetreatAmount;
+			shortSpread += retreatAmount;
+		} else {
+			longSpread += halfRetreatAmount;
+			shortSpread += halfRetreatAmount;
+		}
+	}
+	console.log('l/s spread:', longSpread, shortSpread);
+
 	const totalSpread = longSpread + shortSpread;
 	if (totalSpread > maxTargetSpread) {
 		if (longSpread > shortSpread) {
-			longSpread = Math.min(longSpread, maxTargetSpread);
+			longSpread = Math.ceil((longSpread * maxTargetSpread) / totalSpread);
 			shortSpread = maxTargetSpread - longSpread;
 		} else {
-			shortSpread = Math.min(shortSpread, maxTargetSpread);
+			shortSpread = Math.ceil((shortSpread * maxTargetSpread) / totalSpread);
 			longSpread = maxTargetSpread - shortSpread;
 		}
 	}
+	console.log('l/s spread:', longSpread, shortSpread);
 
 	return [longSpread, shortSpread];
 }
 
 export function calculateSpread(
 	amm: AMM,
-	direction: PositionDirection,
 	oraclePriceData: OraclePriceData
-): number {
+): [number, number] {
 	if (amm.baseSpread == 0 || amm.curveUpdateIntensity == 0) {
-		return amm.baseSpread / 2;
+		return [amm.baseSpread / 2, amm.baseSpread / 2];
 	}
 
 	const reservePrice = calculatePrice(
@@ -604,6 +665,7 @@ export function calculateSpread(
 		amm.baseAssetAmountWithAmm,
 		reservePrice,
 		amm.totalFeeMinusDistributions,
+		amm.netRevenueSinceLastFunding,
 		amm.baseAssetReserve,
 		amm.minBaseAssetReserve,
 		amm.maxBaseAssetReserve,
@@ -614,50 +676,59 @@ export function calculateSpread(
 		amm.volume24H
 	);
 
-	let spread: number;
-
-	if (isVariant(direction, 'long')) {
-		spread = longSpread;
-	} else {
-		spread = shortSpread;
-	}
-
-	return spread;
+	return [longSpread, shortSpread];
 }
 
 export function calculateSpreadReserves(
 	amm: AMM,
-	direction: PositionDirection,
 	oraclePriceData: OraclePriceData
-): {
-	baseAssetReserve: BN;
-	quoteAssetReserve: BN;
-} {
-	const spread = calculateSpread(amm, direction, oraclePriceData);
+) {
+	function calculateSpreadReserve(
+		spread: number,
+		direction: PositionDirection,
+		amm: AMM
+	): {
+		baseAssetReserve;
+		quoteAssetReserve;
+	} {
+		if (spread === 0) {
+			return {
+				baseAssetReserve: amm.baseAssetReserve,
+				quoteAssetReserve: amm.quoteAssetReserve,
+			};
+		}
 
-	if (spread === 0) {
+		const quoteAssetReserveDelta = amm.quoteAssetReserve.div(
+			BID_ASK_SPREAD_PRECISION.div(new BN(spread / 2))
+		);
+
+		let quoteAssetReserve;
+		if (isVariant(direction, 'long')) {
+			quoteAssetReserve = amm.quoteAssetReserve.add(quoteAssetReserveDelta);
+		} else {
+			quoteAssetReserve = amm.quoteAssetReserve.sub(quoteAssetReserveDelta);
+		}
+
+		const baseAssetReserve = amm.sqrtK.mul(amm.sqrtK).div(quoteAssetReserve);
 		return {
-			baseAssetReserve: amm.baseAssetReserve,
-			quoteAssetReserve: amm.quoteAssetReserve,
+			baseAssetReserve,
+			quoteAssetReserve,
 		};
 	}
 
-	const quoteAsserReserveDelta = amm.quoteAssetReserve.div(
-		BID_ASK_SPREAD_PRECISION.div(new BN(spread / 2))
+	const [longSpread, shortSpread] = calculateSpread(amm, oraclePriceData);
+	const askReserves = calculateSpreadReserve(
+		longSpread,
+		PositionDirection.LONG,
+		amm
+	);
+	const bidReserves = calculateSpreadReserve(
+		shortSpread,
+		PositionDirection.SHORT,
+		amm
 	);
 
-	let quoteAssetReserve;
-	if (isVariant(direction, 'long')) {
-		quoteAssetReserve = amm.quoteAssetReserve.add(quoteAsserReserveDelta);
-	} else {
-		quoteAssetReserve = amm.quoteAssetReserve.sub(quoteAsserReserveDelta);
-	}
-
-	const baseAssetReserve = amm.sqrtK.mul(amm.sqrtK).div(quoteAssetReserve);
-	return {
-		baseAssetReserve,
-		quoteAssetReserve,
-	};
+	return [bidReserves, askReserves];
 }
 
 /**
@@ -749,12 +820,14 @@ export function calculateMaxBaseAssetAmountToTrade(
 		.div(PEG_PRECISION);
 
 	const newBaseAssetReserve = squareRootBN(newBaseAssetReserveSquared);
-
-	const baseAssetReserveBefore = calculateSpreadReserves(
+	const [shortSpreadReserves, longSpreadReserves] = calculateSpreadReserves(
 		amm,
-		direction,
 		oraclePriceData
-	).baseAssetReserve;
+	);
+
+	const baseAssetReserveBefore: BN = isVariant(direction, 'long')
+		? longSpreadReserves.baseAssetReserve
+		: shortSpreadReserves.baseAssetReserve;
 
 	if (newBaseAssetReserve.gt(baseAssetReserveBefore)) {
 		return [
