@@ -369,17 +369,6 @@ export function calculateInventoryScale(
 				.div(new BN(Math.max(directionalSpread, 1)))
 		).toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
-	console.log('inventoryScaleMax:', inventoryScaleMax);
-	console.log(
-		'openBids/Asks',
-		openBids.toNumber(),
-		openAsks.toNumber(),
-		'minSideLiquidity:',
-		minSideLiquidity.toNumber()
-	);
-	console.log('baseAssetAmountWithAmm', baseAssetAmountWithAmm.toNumber());
-	console.log('defaultLargeBidAskFactor', defaultLargeBidAskFactor.toNumber());
-
 	const inventoryScale =
 		baseAssetAmountWithAmm
 			.mul(BN.max(baseAssetAmountWithAmm.abs(), BASE_PRECISION))
@@ -389,7 +378,6 @@ export function calculateInventoryScale(
 			.abs()
 			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
-	console.log('1 + inventoryScale', 1 + inventoryScale);
 	const inventorySpreadScale = Math.min(inventoryScaleMax, 1 + inventoryScale);
 
 	return inventorySpreadScale;
@@ -448,13 +436,7 @@ export function calculateVolSpreadBN(
 
 	const clampMin = PERCENTAGE_PRECISION.div(new BN(100));
 	const clampMax = PERCENTAGE_PRECISION.mul(new BN(16)).div(new BN(10));
-	console.log(
-		'l/s intesnity:',
-		volume24H.toString(),
-		longIntensity.toNumber(),
-		shortIntensity.toNumber()
-	);
-	console.log('clamps:', clampMin.toNumber(), clampMax.toNumber());
+
 	const longVolSpreadFactor = clampBN(
 		longIntensity.mul(PERCENTAGE_PRECISION).div(BN.max(ONE, volume24H)),
 		clampMin,
@@ -464,13 +446,6 @@ export function calculateVolSpreadBN(
 		shortIntensity.mul(PERCENTAGE_PRECISION).div(BN.max(ONE, volume24H)),
 		clampMin,
 		clampMax
-	);
-
-	console.log(
-		'volspread + l/s factor:',
-		volSpread.toString(),
-		longVolSpreadFactor.toNumber(),
-		shortVolSpreadFactor.toNumber()
 	);
 
 	const longVolSpread = BN.max(
@@ -515,15 +490,9 @@ export function calculateSpreadBN(
 		shortIntensity,
 		volume24H
 	);
-	console.log(
-		'vol l/s spreads:',
-		longVolSpread.toNumber(),
-		shortVolSpread.toNumber()
-	);
 
 	let longSpread = Math.max(baseSpread / 2, longVolSpread.toNumber());
 	let shortSpread = Math.max(baseSpread / 2, shortVolSpread.toNumber());
-	console.log('l/s spread:', longSpread, shortSpread);
 
 	if (lastOracleReservePriceSpreadPct.gt(ZERO)) {
 		shortSpread = Math.max(
@@ -538,7 +507,6 @@ export function calculateSpreadBN(
 				longVolSpread.toNumber()
 		);
 	}
-	console.log('l/s spread:', longSpread, shortSpread);
 
 	const maxTargetSpread: number = Math.max(
 		maxSpread,
@@ -559,7 +527,6 @@ export function calculateSpreadBN(
 	} else if (baseAssetAmountWithAmm.lt(ZERO)) {
 		shortSpread *= inventorySpreadScale;
 	}
-	console.log('l/s spread:', longSpread, shortSpread);
 
 	const MAX_SPREAD_SCALE = 10;
 	if (totalFeeMinusDistributions.gt(ZERO)) {
@@ -582,8 +549,6 @@ export function calculateSpreadBN(
 		longSpread *= MAX_SPREAD_SCALE;
 		shortSpread *= MAX_SPREAD_SCALE;
 	}
-
-	console.log('l/s spread:', longSpread, shortSpread);
 
 	if (
 		netRevenueSinceLastFunding.lt(
@@ -609,7 +574,6 @@ export function calculateSpreadBN(
 			shortSpread += halfRetreatAmount;
 		}
 	}
-	console.log('l/s spread:', longSpread, shortSpread);
 
 	const totalSpread = longSpread + shortSpread;
 	if (totalSpread > maxTargetSpread) {
@@ -621,7 +585,6 @@ export function calculateSpreadBN(
 			longSpread = maxTargetSpread - shortSpread;
 		}
 	}
-	console.log('l/s spread:', longSpread, shortSpread);
 
 	return [longSpread, shortSpread];
 }
