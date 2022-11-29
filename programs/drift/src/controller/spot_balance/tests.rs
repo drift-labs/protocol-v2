@@ -30,6 +30,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{Order, PerpPosition, SpotPosition, User};
 use crate::test_utils::*;
 use crate::test_utils::{get_pyth_price, get_spot_positions};
+use crate::state::perp_market::PoolBalance;
 
 #[test]
 fn test_daily_withdraw_limits() {
@@ -832,6 +833,137 @@ fn check_fee_collection() {
     assert_eq!(borrow_tokens_6, 2248415015);
     assert_eq!(spot_market.deposit_token_twap, 2249289190);
     assert_eq!(spot_market.borrow_token_twap, 2248415014);
+}
+
+#[test]
+fn check_settle_rev() {
+    let mut now = 0_i64;
+    let slot = 0_u64;
+
+    let mut oracle_price = get_pyth_price(100, 6);
+    let oracle_price_key =
+        Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+    let pyth_program = crate::ids::pyth_program::id();
+    create_account_info!(
+        oracle_price,
+        &oracle_price_key,
+        &pyth_program,
+        oracle_account_info
+    );
+    let _oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+            sqrt_k: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            max_slippage_ratio: 50,
+            max_fill_reserve_fraction: 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
+            oracle: oracle_price_key,
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+            ..AMM::default()
+        },
+        margin_ratio_initial: 1000,
+        margin_ratio_maintenance: 500,
+        number_of_users_with_base: 1,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+        pnl_pool: PoolBalance::default(),
+        ..PerpMarket::default()
+    };
+    market.pnl_pool.scaled_balance = 6057 * SPOT_BALANCE_PRECISION;
+    market.amm.fee_pool.scaled_balance = 6057 * SPOT_BALANCE_PRECISION;
+
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let _market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+    let mut spot_market = SpotMarket {
+        market_index: 0,
+        oracle_source: OracleSource::QuoteAsset,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION + 47449,
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION + 5516925,
+        decimals: 6,
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 12114 * SPOT_BALANCE_PRECISION,
+        borrow_balance: 0,
+        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
+
+        optimal_utilization: SPOT_UTILIZATION_PRECISION_U32 / 2,
+        optimal_borrow_rate: SPOT_RATE_PRECISION_U32 * 20,
+        max_borrow_rate: SPOT_RATE_PRECISION_U32 * 50,
+        ..SpotMarket::default()
+    };
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+
+    let depositors_amount_before = get_token_amount(
+        spot_market.deposit_balance,
+        &spot_market,
+        &SpotBalanceType::Deposit,
+    ).unwrap();
+
+    let borrowers_amount_before = get_token_amount(
+        spot_market.borrow_balance,
+        &spot_market,
+        &SpotBalanceType::Borrow,
+    ).unwrap();
+
+    let pnl_pool_token_amount = get_token_amount(
+        market.pnl_pool.scaled_balance,
+        &spot_market,
+        &SpotBalanceType::Deposit,
+    ).unwrap();
+    
+    let fee_pool_token_amount = get_token_amount(
+        market.amm.fee_pool.scaled_balance,
+        &spot_market,
+        &SpotBalanceType::Deposit,
+    ).unwrap();
+
+    crate::controller::spot_balance::update_spot_balances(
+        pnl_pool_token_amount,
+        &SpotBalanceType::Borrow,
+        &mut spot_market,
+        &mut market.pnl_pool,
+        false,
+    ).unwrap();
+
+    crate::controller::spot_balance::update_spot_balances(
+        fee_pool_token_amount,
+        &SpotBalanceType::Borrow,
+        &mut spot_market,
+        &mut market.amm.fee_pool,
+        false,
+    ).unwrap();
+
+    crate::controller::spot_balance::update_revenue_pool_balances(
+        pnl_pool_token_amount.safe_add(fee_pool_token_amount).unwrap(),
+        &SpotBalanceType::Deposit,
+        &mut spot_market,
+    ).unwrap();
+
+    let depositors_amount_after = get_token_amount(
+        spot_market.deposit_balance,
+        &spot_market,
+        &SpotBalanceType::Deposit,
+    ).unwrap();
+
+    let borrowers_amount_after = get_token_amount(
+        spot_market.borrow_balance,
+        &spot_market,
+        &SpotBalanceType::Borrow,
+    ).unwrap();
+
+    assert_eq!(depositors_amount_before, depositors_amount_after);
+    assert_eq!(borrowers_amount_before, borrowers_amount_after);
 }
 
 #[test]
