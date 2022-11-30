@@ -8519,6 +8519,11 @@
       "code": 6221,
       "name": "SpotFulfillmentConfigDisabled",
       "msg": "Spot Fulfullment Config Disabled"
+    },
+    {
+      "code": 6222,
+      "name": "InvalidMaker",
+      "msg": "Invalid Maker"
     }
   ]
 }
