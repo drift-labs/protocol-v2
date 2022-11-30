@@ -28,7 +28,7 @@ import {
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
 import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
-import { DLOBOrders, DLOBMarketOrders } from './DLOBOrders';
+import { DLOBOrders } from './DLOBOrders';
 
 export type MarketNodeLists = {
 	limit: {
@@ -1141,16 +1141,16 @@ export class DLOB {
 	}
 
 	public getDLOBOrders(): DLOBOrders {
-		const dlobOrders: DLOBOrders = [];
+		let dlobOrders: DLOBOrders = [];
 
 		for (const [marketIndex, nodeLists] of this.orderLists.get('perp')) {
-			dlobOrders.push(
+			dlobOrders = dlobOrders.concat(
 				this.getOrdersForMarket(marketIndex, MarketType.PERP, nodeLists)
 			);
 		}
 
 		for (const [marketIndex, nodeLists] of this.orderLists.get('spot')) {
-			dlobOrders.push(
+			dlobOrders = dlobOrders.concat(
 				this.getOrdersForMarket(marketIndex, MarketType.SPOT, nodeLists)
 			);
 		}
@@ -1162,7 +1162,7 @@ export class DLOB {
 		marketIndex: number,
 		marketType: MarketType,
 		nodeLists: MarketNodeLists
-	): DLOBMarketOrders {
+	): DLOBOrders {
 		const orders: { user: PublicKey; order: Order }[] = [];
 
 		for (const node of nodeLists.limit.bid.getGenerator()) {
@@ -1221,10 +1221,6 @@ export class DLOB {
 			});
 		}
 
-		return {
-			marketIndex,
-			marketType,
-			orders,
-		};
+		return orders;
 	}
 }

@@ -24,6 +24,7 @@ import {
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
 import { isVariant } from '../../lib';
+import { DLOBOrdersCoder } from '../../src/dlob/DLOBOrders';
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -378,7 +379,7 @@ describe('DLOB Tests', () => {
 		expect(thrown, 'should throw after clearing').to.equal(true);
 	});
 
-	it('get DLOB orders', () => {
+	it('DLOB orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 
@@ -526,17 +527,20 @@ describe('DLOB Tests', () => {
 		);
 
 		const dlobOrders = dlob.getDLOBOrders();
-		expect(dlobOrders.length).to.equal(2);
-		expect(dlobOrders[0].marketIndex).to.equal(0);
-		expect(isVariant(dlobOrders[0].marketType, 'perp')).to.equal(true);
-		expect(
-			isVariant(dlobOrders[0].orders[0].order.marketType, 'perp')
-		).to.equal(true);
-		expect(dlobOrders[1].marketIndex).to.equal(0);
-		expect(isVariant(dlobOrders[1].marketType, 'spot')).to.equal(true);
-		expect(
-			isVariant(dlobOrders[1].orders[0].order.marketType, 'spot')
-		).to.equal(true);
+		expect(dlobOrders.length).to.equal(10);
+		expect(isVariant(dlobOrders[0].order.marketType, 'perp')).to.equal(true);
+		expect(isVariant(dlobOrders[5].order.marketType, 'spot')).to.equal(true);
+
+		const coder = DLOBOrdersCoder.create();
+		const encodedOrders = coder.encode(dlobOrders);
+		const decodedDLOBOrders = coder.decode(encodedOrders);
+		expect(decodedDLOBOrders.length).to.equal(10);
+		expect(isVariant(decodedDLOBOrders[0].order.marketType, 'perp')).to.equal(
+			true
+		);
+		expect(isVariant(decodedDLOBOrders[5].order.marketType, 'spot')).to.equal(
+			true
+		);
 	});
 });
 
