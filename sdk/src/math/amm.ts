@@ -479,8 +479,34 @@ export function calculateSpreadBN(
 	oracleStd: BN,
 	longIntensity: BN,
 	shortIntensity: BN,
-	volume24H: BN
-): [number, number] {
+	volume24H: BN,
+	returnTerms = false
+) {
+	assert(Number.isInteger(baseSpread));
+	assert(Number.isInteger(maxSpread));
+
+	const spreadTerms = {
+		longVolSpread: 0,
+		shortVolSpread: 0,
+		longSpreadwPS: 0,
+		shortSpreadwPS: 0,
+		maxTargetSpread: 0,
+		inventorySpreadScale: 0,
+		longSpreadwInvScale: 0,
+		shortSpreadwInvScale: 0,
+		effectiveLeverage: 0,
+		effectiveLeverageCapped: 0,
+		longSpreadwEL: 0,
+		shortSpreadwEL: 0,
+		revenueRetreatAmount: 0,
+		halfRevenueRetreatAmount: 0,
+		longSpreadwRevRetreat: 0,
+		shortSpreadwRevRetreat: 0,
+		totalSpread: 0,
+		longSpread: 0,
+		shortSpread: 0,
+	};
+
 	const [longVolSpread, shortVolSpread] = calculateVolSpreadBN(
 		lastOracleConfPct,
 		reservePrice,
@@ -490,6 +516,9 @@ export function calculateSpreadBN(
 		shortIntensity,
 		volume24H
 	);
+
+	spreadTerms.longVolSpread = longVolSpread.toNumber();
+	spreadTerms.shortVolSpread = shortVolSpread.toNumber();
 
 	let longSpread = Math.max(baseSpread / 2, longVolSpread.toNumber());
 	let shortSpread = Math.max(baseSpread / 2, shortVolSpread.toNumber());
@@ -507,10 +536,11 @@ export function calculateSpreadBN(
 				longVolSpread.toNumber()
 		);
 	}
+	spreadTerms.longSpreadwPS = longSpread;
+	spreadTerms.shortSpreadwPS = shortSpread;
 
-	const maxTargetSpread: number = Math.max(
-		maxSpread,
-		lastOracleReservePriceSpreadPct.abs().toNumber()
+	const maxTargetSpread: number = Math.floor(
+		Math.max(maxSpread, lastOracleReservePriceSpreadPct.abs().toNumber())
 	);
 
 	const inventorySpreadScale = calculateInventoryScale(
@@ -527,6 +557,10 @@ export function calculateSpreadBN(
 	} else if (baseAssetAmountWithAmm.lt(ZERO)) {
 		shortSpread *= inventorySpreadScale;
 	}
+	spreadTerms.maxTargetSpread = maxTargetSpread;
+	spreadTerms.inventorySpreadScale = inventorySpreadScale;
+	spreadTerms.longSpreadwInvScale = longSpread;
+	spreadTerms.shortSpreadwInvScale = shortSpread;
 
 	const MAX_SPREAD_SCALE = 10;
 	if (totalFeeMinusDistributions.gt(ZERO)) {
@@ -539,53 +573,76 @@ export function calculateSpreadBN(
 			reservePrice,
 			totalFeeMinusDistributions
 		);
+		spreadTerms.effectiveLeverage = effectiveLeverage;
+
 		const spreadScale = Math.min(MAX_SPREAD_SCALE, 1 + effectiveLeverage);
+		spreadTerms.effectiveLeverageCapped = spreadScale;
+
 		if (baseAssetAmountWithAmm.gt(ZERO)) {
 			longSpread *= spreadScale;
+			shortSpread = Math.floor(longSpread);
 		} else {
 			shortSpread *= spreadScale;
+			shortSpread = Math.floor(shortSpread);
 		}
 	} else {
 		longSpread *= MAX_SPREAD_SCALE;
 		shortSpread *= MAX_SPREAD_SCALE;
 	}
 
+	spreadTerms.longSpreadwEL = longSpread;
+	spreadTerms.shortSpreadwEL = shortSpread;
+
 	if (
 		netRevenueSinceLastFunding.lt(
 			DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
 		)
 	) {
-		const retreatAmount = Math.min(
+		const revenueRetreatAmount = Math.min(
 			maxTargetSpread / 10,
 			Math.floor(
 				(baseSpread * netRevenueSinceLastFunding.abs().toNumber()) /
 					DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.toNumber()
 			)
 		);
-		const halfRetreatAmount = Math.floor(retreatAmount / 2);
+		const halfRevenueRetreatAmount = Math.floor(revenueRetreatAmount / 2);
+
+		spreadTerms.revenueRetreatAmount = revenueRetreatAmount;
+		spreadTerms.halfRevenueRetreatAmount = halfRevenueRetreatAmount;
+
 		if (baseAssetAmountWithAmm.gt(ZERO)) {
-			longSpread += retreatAmount;
-			shortSpread += halfRetreatAmount;
+			longSpread += revenueRetreatAmount;
+			shortSpread += halfRevenueRetreatAmount;
 		} else if (baseAssetAmountWithAmm.lt(ZERO)) {
-			longSpread += halfRetreatAmount;
-			shortSpread += retreatAmount;
+			longSpread += halfRevenueRetreatAmount;
+			shortSpread += revenueRetreatAmount;
 		} else {
-			longSpread += halfRetreatAmount;
-			shortSpread += halfRetreatAmount;
+			longSpread += halfRevenueRetreatAmount;
+			shortSpread += halfRevenueRetreatAmount;
 		}
 	}
+
+	spreadTerms.longSpreadwRevRetreat = longSpread;
+	spreadTerms.shortSpreadwRevRetreat = shortSpread;
 
 	const totalSpread = longSpread + shortSpread;
 	if (totalSpread > maxTargetSpread) {
 		if (longSpread > shortSpread) {
 			longSpread = Math.ceil((longSpread * maxTargetSpread) / totalSpread);
-			shortSpread = maxTargetSpread - longSpread;
+			shortSpread = Math.floor(maxTargetSpread - longSpread);
 		} else {
 			shortSpread = Math.ceil((shortSpread * maxTargetSpread) / totalSpread);
-			longSpread = maxTargetSpread - shortSpread;
+			longSpread = Math.floor(maxTargetSpread - shortSpread);
 		}
 	}
 
+	spreadTerms.totalSpread = totalSpread;
+	spreadTerms.longSpread = longSpread;
+	spreadTerms.shortSpread = shortSpread;
+
+	if (returnTerms) {
+		return spreadTerms;
+	}
 	return [longSpread, shortSpread];
 }
 
@@ -617,7 +674,7 @@ export function calculateSpread(
 	const now = new BN(new Date().getTime() / 1000); //todo
 	const liveOracleStd = calculateLiveOracleStd(amm, oraclePriceData, now);
 
-	const [longSpread, shortSpread] = calculateSpreadBN(
+	const spreads = calculateSpreadBN(
 		amm.baseSpread,
 		targetMarkSpreadPct,
 		confIntervalPct,
@@ -638,6 +695,8 @@ export function calculateSpread(
 		amm.shortIntensityVolume,
 		amm.volume24H
 	);
+	const longSpread = spreads[0];
+	const shortSpread = spreads[1];
 
 	return [longSpread, shortSpread];
 }
