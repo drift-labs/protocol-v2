@@ -23,6 +23,7 @@ import {
 } from '../../src';
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
+import { isVariant } from '../../lib';
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -375,6 +376,167 @@ describe('DLOB Tests', () => {
 			thrown = true;
 		}
 		expect(thrown, 'should throw after clearing').to.equal(true);
+	});
+
+	it('get DLOB orders', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(10);
+
+		const user0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user3 = Keypair.generate();
+		const user4 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			1, // orderId
+			marketIndex,
+			new BN(11), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(12), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user2.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(13), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+
+		insertOrderToDLOB(
+			dlob,
+			user3.publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			4, // orderId
+			marketIndex,
+			new BN(12), // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user4.publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			5, // orderId
+			marketIndex,
+			new BN(12), // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+		// insert some limit buys above vamm bid, below ask
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.SPOT,
+			6, // orderId
+			marketIndex,
+			new BN(11), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.SPOT,
+			7, // orderId
+			marketIndex,
+			new BN(12), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user2.publicKey,
+			OrderType.LIMIT,
+			MarketType.SPOT,
+			8, // orderId
+			marketIndex,
+			new BN(13), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+
+		insertOrderToDLOB(
+			dlob,
+			user3.publicKey,
+			OrderType.MARKET,
+			MarketType.SPOT,
+			9, // orderId
+			marketIndex,
+			new BN(12), // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user4.publicKey,
+			OrderType.MARKET,
+			MarketType.SPOT,
+			10, // orderId
+			marketIndex,
+			new BN(12), // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+
+		const dlobOrders = dlob.getDLOBOrders();
+		expect(dlobOrders.length).to.equal(2);
+		expect(dlobOrders[0].marketIndex).to.equal(0);
+		expect(isVariant(dlobOrders[0].marketType, 'perp')).to.equal(true);
+		expect(
+			isVariant(dlobOrders[0].orders[0].order.marketType, 'perp')
+		).to.equal(true);
+		expect(dlobOrders[1].marketIndex).to.equal(0);
+		expect(isVariant(dlobOrders[1].marketType, 'spot')).to.equal(true);
+		expect(
+			isVariant(dlobOrders[1].orders[0].order.marketType, 'spot')
+		).to.equal(true);
 	});
 });
 

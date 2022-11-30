@@ -28,6 +28,7 @@ import {
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
 import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
+import { DLOBOrders, DLOBMarketOrders } from './DLOBOrders';
 
 export type MarketNodeLists = {
 	limit: {
@@ -1137,5 +1138,93 @@ export class DLOB {
 				`(${bidSpread.toFixed(4)}%)`
 			);
 		}
+	}
+
+	public getDLOBOrders(): DLOBOrders {
+		const dlobOrders: DLOBOrders = [];
+
+		for (const [marketIndex, nodeLists] of this.orderLists.get('perp')) {
+			dlobOrders.push(
+				this.getOrdersForMarket(marketIndex, MarketType.PERP, nodeLists)
+			);
+		}
+
+		for (const [marketIndex, nodeLists] of this.orderLists.get('spot')) {
+			dlobOrders.push(
+				this.getOrdersForMarket(marketIndex, MarketType.SPOT, nodeLists)
+			);
+		}
+
+		return dlobOrders;
+	}
+
+	getOrdersForMarket(
+		marketIndex: number,
+		marketType: MarketType,
+		nodeLists: MarketNodeLists
+	): DLOBMarketOrders {
+		const orders: { user: PublicKey; order: Order }[] = [];
+
+		for (const node of nodeLists.limit.bid.getGenerator()) {
+			orders.push({
+				user: node.userAccount,
+				order: node.order,
+			});
+		}
+
+		for (const node of nodeLists.limit.ask.getGenerator()) {
+			orders.push({
+				user: node.userAccount,
+				order: node.order,
+			});
+		}
+
+		for (const node of nodeLists.market.bid.getGenerator()) {
+			orders.push({
+				user: node.userAccount,
+				order: node.order,
+			});
+		}
+
+		for (const node of nodeLists.market.ask.getGenerator()) {
+			orders.push({
+				user: node.userAccount,
+				order: node.order,
+			});
+		}
+
+		for (const node of nodeLists.floatingLimit.bid.getGenerator()) {
+			orders.push({
+				user: node.userAccount,
+				order: node.order,
+			});
+		}
+
+		for (const node of nodeLists.floatingLimit.ask.getGenerator()) {
+			orders.push({
+				user: node.userAccount,
+				order: node.order,
+			});
+		}
+
+		for (const node of nodeLists.trigger.below.getGenerator()) {
+			orders.push({
+				user: node.userAccount,
+				order: node.order,
+			});
+		}
+
+		for (const node of nodeLists.trigger.above.getGenerator()) {
+			orders.push({
+				user: node.userAccount,
+				order: node.order,
+			});
+		}
+
+		return {
+			marketIndex,
+			marketType,
+			orders,
+		};
 	}
 }
