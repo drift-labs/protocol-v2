@@ -62,83 +62,14 @@ export type NodeToTrigger = {
 export class DLOB {
 	openOrders = new Map<MarketTypeStr, Set<string>>();
 	orderLists = new Map<MarketTypeStr, Map<number, MarketNodeLists>>();
-	stateAccount: StateAccount;
-	marketIndexToAccount = new Map<
-		MarketTypeStr,
-		Map<number, PerpMarketAccount | SpotMarketAccount>
-	>();
 
-	silent = false;
 	initialized = false;
 
-	/**
-	 *
-	 * @param perpMarkets The perp markets to maintain a DLOB for
-	 * @param spotMarkets The spot markets to maintain a DLOB for
-	 * @param silent set to true to prevent logging on inserts and removals
-	 */
-	public constructor(
-		perpMarkets: PerpMarketAccount[],
-		spotMarkets: SpotMarketAccount[],
-		stateAccount: StateAccount,
-		silent?: boolean
-	) {
-		this.stateAccount = stateAccount;
-		this.silent = silent;
-
+	public constructor() {
 		this.openOrders.set('perp', new Set<string>());
 		this.openOrders.set('spot', new Set<string>());
 		this.orderLists.set('perp', new Map<number, MarketNodeLists>());
 		this.orderLists.set('spot', new Map<number, MarketNodeLists>());
-		this.marketIndexToAccount.set('perp', new Map<number, PerpMarketAccount>());
-		this.marketIndexToAccount.set('spot', new Map<number, SpotMarketAccount>());
-
-		for (const market of perpMarkets) {
-			const marketIndex = market.marketIndex;
-			this.marketIndexToAccount.get('perp').set(marketIndex, market);
-
-			this.orderLists.get('perp').set(marketIndex, {
-				limit: {
-					ask: new NodeList('limit', 'asc'),
-					bid: new NodeList('limit', 'desc'),
-				},
-				floatingLimit: {
-					ask: new NodeList('floatingLimit', 'asc'),
-					bid: new NodeList('floatingLimit', 'desc'),
-				},
-				market: {
-					ask: new NodeList('market', 'asc'),
-					bid: new NodeList('market', 'asc'), // always sort ascending for market orders
-				},
-				trigger: {
-					above: new NodeList('trigger', 'asc'),
-					below: new NodeList('trigger', 'desc'),
-				},
-			});
-		}
-		for (const market of spotMarkets) {
-			const marketIndex = market.marketIndex;
-			this.marketIndexToAccount.get('spot').set(marketIndex, market);
-
-			this.orderLists.get('spot').set(marketIndex, {
-				limit: {
-					ask: new NodeList('limit', 'asc'),
-					bid: new NodeList('limit', 'desc'),
-				},
-				floatingLimit: {
-					ask: new NodeList('floatingLimit', 'asc'),
-					bid: new NodeList('floatingLimit', 'desc'),
-				},
-				market: {
-					ask: new NodeList('market', 'asc'),
-					bid: new NodeList('market', 'asc'), // always sort ascending for market orders
-				},
-				trigger: {
-					above: new NodeList('trigger', 'asc'),
-					below: new NodeList('trigger', 'desc'),
-				},
-			});
-		}
 	}
 
 	public clear() {
@@ -160,11 +91,6 @@ export class DLOB {
 			}
 		}
 		this.orderLists.clear();
-
-		for (const marketType of this.marketIndexToAccount.keys()) {
-			this.marketIndexToAccount.get(marketType).clear();
-		}
-		this.marketIndexToAccount.clear();
 	}
 
 	/**
@@ -202,21 +128,41 @@ export class DLOB {
 
 		const marketType = getVariant(order.marketType) as MarketTypeStr;
 
+		if (!this.orderLists.get(marketType).has(order.marketIndex)) {
+			this.addOrderList(marketType, order.marketIndex);
+		}
+
 		if (isVariant(order.status, 'open')) {
 			this.openOrders
 				.get(marketType)
 				.add(getOrderSignature(order.orderId, userAccount));
 		}
-		this.getListForOrder(order)?.insert(
-			order,
-			marketType,
-			this.marketIndexToAccount.get(marketType).get(order.marketIndex),
-			userAccount
-		);
+		this.getListForOrder(order)?.insert(order, marketType, userAccount);
 
 		if (onInsert) {
 			onInsert();
 		}
+	}
+
+	addOrderList(marketType: MarketTypeStr, marketIndex: number): void {
+		this.orderLists.get(marketType).set(marketIndex, {
+			limit: {
+				ask: new NodeList('limit', 'asc'),
+				bid: new NodeList('limit', 'desc'),
+			},
+			floatingLimit: {
+				ask: new NodeList('floatingLimit', 'asc'),
+				bid: new NodeList('floatingLimit', 'desc'),
+			},
+			market: {
+				ask: new NodeList('market', 'asc'),
+				bid: new NodeList('market', 'asc'), // always sort ascending for market orders
+			},
+			trigger: {
+				above: new NodeList('trigger', 'asc'),
+				below: new NodeList('trigger', 'desc'),
+			},
+		});
 	}
 
 	public trigger(
@@ -234,12 +180,7 @@ export class DLOB {
 			.trigger[isVariant(order.triggerCondition, 'above') ? 'above' : 'below'];
 		triggerList.remove(order, userAccount);
 
-		this.getListForOrder(order)?.insert(
-			order,
-			marketType,
-			this.marketIndexToAccount.get(marketType).get(order.marketIndex),
-			userAccount
-		);
+		this.getListForOrder(order)?.insert(order, marketType, userAccount);
 		if (onTrigger) {
 			onTrigger();
 		}
@@ -285,17 +226,15 @@ export class DLOB {
 		slot: number,
 		ts: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		stateAccount: StateAccount,
+		marketAccount: PerpMarketAccount | SpotMarketAccount
 	): NodeToFill[] {
-		const marketAccount = this.marketIndexToAccount
-			.get(getVariant(marketType) as MarketTypeStr)
-			.get(marketIndex);
-
-		if (fillPaused(this.stateAccount, marketAccount)) {
+		if (fillPaused(stateAccount, marketAccount)) {
 			return [];
 		}
 
-		const isAmmPaused = ammPaused(this.stateAccount, marketAccount);
+		const isAmmPaused = ammPaused(stateAccount, marketAccount);
 
 		const marketOrderNodesToFill: Array<NodeToFill> =
 			this.findMarketNodesToFill(
@@ -689,10 +628,12 @@ export class DLOB {
 		marketType: MarketType
 	): Generator<DLOBNode> {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
-		const generator = this.orderLists
-			.get(marketTypeStr)
-			.get(marketIndex)
-			.market.bid.getGenerator();
+		const orderLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+		if (!orderLists) {
+			return;
+		}
+
+		const generator = orderLists.market.bid.getGenerator();
 		for (const marketBidNode of generator) {
 			if (marketBidNode.isBaseFilled()) {
 				continue;
@@ -706,10 +647,12 @@ export class DLOB {
 		marketType: MarketType
 	): Generator<DLOBNode> {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
-		const generator = this.orderLists
-			.get(marketTypeStr)
-			.get(marketIndex)
-			.market.ask.getGenerator();
+		const orderLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+		if (!orderLists) {
+			return;
+		}
+
+		const generator = orderLists.market.ask.getGenerator();
 		for (const marketAskNode of generator) {
 			if (marketAskNode.isBaseFilled()) {
 				continue;
@@ -790,6 +733,10 @@ export class DLOB {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const nodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
 
+		if (!nodeLists) {
+			return;
+		}
+
 		const generatorList = [
 			nodeLists.limit.ask.getGenerator(),
 			nodeLists.floatingLimit.ask.getGenerator(),
@@ -817,6 +764,10 @@ export class DLOB {
 
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const nodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		if (!nodeLists) {
+			return;
+		}
 
 		const generatorList = [
 			nodeLists.limit.bid.getGenerator(),
@@ -1044,9 +995,10 @@ export class DLOB {
 		marketIndex: number,
 		slot: number,
 		oraclePrice: BN,
-		marketType: MarketType
+		marketType: MarketType,
+		stateAccount: StateAccount
 	): NodeToTrigger[] {
-		if (exchangePaused(this.stateAccount)) {
+		if (exchangePaused(stateAccount)) {
 			return [];
 		}
 
