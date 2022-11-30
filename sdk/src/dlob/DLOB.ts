@@ -99,7 +99,7 @@ export class DLOB {
 	 *
 	 * @returns a promise that resolves when the DLOB is initialized
 	 */
-	public async init(userMap: UserMap): Promise<boolean> {
+	public async initFromUserMap(userMap: UserMap): Promise<boolean> {
 		if (this.initialized) {
 			return false;
 		}
@@ -112,6 +112,19 @@ export class DLOB {
 			for (const order of userAccount.orders) {
 				this.insertOrder(order, userAccountPubkey);
 			}
+		}
+
+		this.initialized = true;
+		return true;
+	}
+
+	public initFromOrders(dlobOrders: DLOBOrders): boolean {
+		if (this.initialized) {
+			return false;
+		}
+
+		for (const { user, order } of dlobOrders) {
+			this.insertOrder(order, user);
 		}
 
 		this.initialized = true;
