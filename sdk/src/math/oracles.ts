@@ -113,8 +113,7 @@ export function calculateLiveOracleTwap(
 
 	const newOracleTwap = amm.historicalOracleData.lastOraclePriceTwap
 		.mul(sinceStart)
-		.add(clampedOraclePrice)
-		.mul(sinceLastUpdate)
+		.add(clampedOraclePrice.mul(sinceLastUpdate))
 		.div(sinceStart.add(sinceLastUpdate));
 
 	return newOracleTwap;
