@@ -466,7 +466,7 @@ export class DLOB {
 			);
 
 			for (const makerNode of makerNodeGenerator) {
-				// Can't match orders from the same authority
+				// Can't match orders from the same user
 				const sameUser = takerNode.userAccount.equals(makerNode.userAccount);
 				if (sameUser) {
 					continue;
@@ -891,7 +891,7 @@ export class DLOB {
 				const bidOrder = bidNode.order;
 				const askOrder = askNode.order;
 
-				// Can't match orders from the same authority
+				// Can't match orders from the same user
 				const sameUser = bidNode.userAccount.equals(askNode.userAccount);
 				if (sameUser || (bidOrder.postOnly && askOrder.postOnly)) {
 					continue;
