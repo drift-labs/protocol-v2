@@ -207,7 +207,7 @@ fn calculate_filler_reward(
 
 pub fn calculate_fee_for_fulfillment_with_match(
     taker_stats: &UserStats,
-    maker_stats: &UserStats,
+    maker_stats: &Option<&mut UserStats>,
     quote_asset_amount: u64,
     fee_structure: &FeeStructure,
     order_slot: u64,
@@ -218,7 +218,11 @@ pub fn calculate_fee_for_fulfillment_with_match(
     market_type: &MarketType,
 ) -> DriftResult<FillFees> {
     let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure, market_type)?;
-    let maker_fee_tier = determine_user_fee_tier(maker_stats, fee_structure, market_type)?;
+    let maker_fee_tier = if let Some(maker_stats) = maker_stats {
+        determine_user_fee_tier(maker_stats, fee_structure, market_type)?
+    } else {
+        determine_user_fee_tier(taker_stats, fee_structure, market_type)?
+    };
 
     let taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier)?;
 

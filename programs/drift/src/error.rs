@@ -449,6 +449,8 @@ pub enum ErrorCode {
     InvalidLiquidation,
     #[msg("Spot Fulfullment Config Disabled")]
     SpotFulfillmentConfigDisabled,
+    #[msg("Invalid Maker")]
+    InvalidMaker,
 }
 
 #[macro_export]
