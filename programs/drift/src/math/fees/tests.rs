@@ -8,7 +8,7 @@ mod calculate_fee_for_taker_and_maker {
     fn no_filler() {
         let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
         let taker_stats = UserStats::default();
-        let maker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
 
         let FillFees {
             user_fee: taker_fee,
@@ -20,7 +20,7 @@ mod calculate_fee_for_taker_and_maker {
             ..
         } = calculate_fee_for_fulfillment_with_match(
             &taker_stats,
-            &maker_stats,
+            &Some(&mut maker_stats),
             quote_asset_amount,
             &FeeStructure::test_default(),
             0,
@@ -45,7 +45,7 @@ mod calculate_fee_for_taker_and_maker {
         let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
         let taker_stats = UserStats::default();
-        let maker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
 
         let mut fee_structure = FeeStructure::test_default();
         fee_structure
@@ -62,7 +62,7 @@ mod calculate_fee_for_taker_and_maker {
             ..
         } = calculate_fee_for_fulfillment_with_match(
             &taker_stats,
-            &maker_stats,
+            &Some(&mut maker_stats),
             quote_asset_amount,
             &fee_structure,
             0,
@@ -87,7 +87,7 @@ mod calculate_fee_for_taker_and_maker {
         let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
         let taker_stats = UserStats::default();
-        let maker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
 
         let mut fee_structure = FeeStructure::test_default();
         fee_structure.filler_reward_structure.reward_numerator = 1; // will make size reward the whole fee
@@ -103,7 +103,7 @@ mod calculate_fee_for_taker_and_maker {
             ..
         } = calculate_fee_for_fulfillment_with_match(
             &taker_stats,
-            &maker_stats,
+            &Some(&mut maker_stats),
             quote_asset_amount,
             &fee_structure,
             0,
@@ -128,7 +128,7 @@ mod calculate_fee_for_taker_and_maker {
         let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
         let taker_stats = UserStats::default();
-        let maker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
 
         let mut fee_structure = FeeStructure::test_default();
         fee_structure.filler_reward_structure.reward_numerator = 1; // will make size reward the whole fee
@@ -144,7 +144,7 @@ mod calculate_fee_for_taker_and_maker {
             ..
         } = calculate_fee_for_fulfillment_with_match(
             &taker_stats,
-            &maker_stats,
+            &Some(&mut maker_stats),
             quote_asset_amount,
             &fee_structure,
             0,
@@ -169,7 +169,7 @@ mod calculate_fee_for_taker_and_maker {
         let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
         let taker_stats = UserStats::default();
-        let maker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
 
         let fee_structure = FeeStructure::test_default();
 
@@ -183,7 +183,7 @@ mod calculate_fee_for_taker_and_maker {
             ..
         } = calculate_fee_for_fulfillment_with_match(
             &taker_stats,
-            &maker_stats,
+            &Some(&mut maker_stats),
             quote_asset_amount,
             &fee_structure,
             0,
