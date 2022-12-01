@@ -106,10 +106,7 @@ pub fn calculate_utilization(
     Ok(utilization)
 }
 
-pub fn calculate_accumulated_interest(
-    spot_market: &SpotMarket,
-    now: i64,
-) -> DriftResult<InterestAccumulated> {
+pub fn calculate_spot_market_utilization(spot_market: &SpotMarket) -> DriftResult<u128> {
     let deposit_token_amount = get_token_amount(
         spot_market.deposit_balance,
         spot_market,
@@ -120,8 +117,16 @@ pub fn calculate_accumulated_interest(
         spot_market,
         &SpotBalanceType::Borrow,
     )?;
-
     let utilization = calculate_utilization(deposit_token_amount, borrow_token_amount)?;
+
+    Ok(utilization)
+}
+
+pub fn calculate_accumulated_interest(
+    spot_market: &SpotMarket,
+    now: i64,
+) -> DriftResult<InterestAccumulated> {
+    let utilization = calculate_spot_market_utilization(spot_market)?;
 
     if utilization == 0 {
         return Ok(InterestAccumulated {

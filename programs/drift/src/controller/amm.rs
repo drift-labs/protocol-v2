@@ -544,20 +544,8 @@ pub fn update_pool_balances(
         min(user_unsettled_pnl, pnl_pool_token_amount.cast::<i128>()?)
     } else {
         // dont settle negative pnl to spot borrows when utilization is high
-        let deposit_token_amount = get_token_amount(
-            spot_market.deposit_balance,
-            spot_market,
-            &SpotBalanceType::Deposit,
-        )?;
-        let borrow_token_amount = get_token_amount(
-            spot_market.borrow_balance,
-            spot_market,
-            &SpotBalanceType::Borrow,
-        )?;
-        let utilization = crate::math::spot_balance::calculate_utilization(
-            deposit_token_amount,
-            borrow_token_amount,
-        )?;
+        let utilization =
+            crate::math::spot_balance::calculate_spot_market_utilization(spot_market)?;
 
         // dont settle negative pnl past 80% util
         let eighty_percent = (SPOT_UTILIZATION_PRECISION / 10_u128) * 8;
