@@ -24,6 +24,8 @@ import {
 	isTriggered,
 	getLimitPrice,
 	UserMap,
+	OrderRecord,
+	OrderActionRecord,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -131,6 +133,68 @@ export class DLOB {
 		return true;
 	}
 
+	public handleOrderRecord(record: OrderRecord): void {
+		this.insertOrder(record.order, record.user);
+	}
+
+	public handleOrderActionRecord(record: OrderActionRecord): void {
+		if (isOneOfVariant(record.action, ['place', 'expire'])) {
+			return;
+		}
+
+		if (isVariant(record.action, 'trigger')) {
+			if (record.taker !== null) {
+				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
+				if (takerOrder) {
+					this.trigger(takerOrder, record.taker);
+				}
+			}
+
+			if (record.maker !== null) {
+				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
+				if (makerOrder) {
+					this.trigger(makerOrder, record.maker);
+				}
+			}
+		} else if (isVariant(record.action, 'fill')) {
+			if (record.taker !== null) {
+				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
+				if (takerOrder) {
+					this.updateOrder(
+						takerOrder,
+						record.taker,
+						record.takerOrderCumulativeBaseAssetAmountFilled
+					);
+				}
+			}
+
+			if (record.maker !== null) {
+				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
+				if (makerOrder) {
+					this.updateOrder(
+						makerOrder,
+						record.maker,
+						record.makerOrderCumulativeBaseAssetAmountFilled
+					);
+				}
+			}
+		} else if (isVariant(record.action, 'cancel')) {
+			if (record.taker !== null) {
+				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
+				if (takerOrder) {
+					this.delete(takerOrder, record.taker);
+				}
+			}
+
+			if (record.maker !== null) {
+				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
+				if (makerOrder) {
+					this.delete(makerOrder, record.maker);
+				}
+			}
+		}
+	}
+
 	public insertOrder(
 		order: Order,
 		userAccount: PublicKey,
@@ -179,12 +243,39 @@ export class DLOB {
 		});
 	}
 
+	public updateOrder(
+		order: Order,
+		userAccount: PublicKey,
+		cumulativeBaseAssetAmountFilled: BN,
+		onUpdate?: OrderBookCallback
+	): void {
+		if (order.baseAssetAmount.eq(cumulativeBaseAssetAmountFilled)) {
+			this.delete(order, userAccount);
+			return;
+		}
+
+		if (order.baseAssetAmountFilled.eq(cumulativeBaseAssetAmountFilled)) {
+			return;
+		}
+
+		order.baseAssetAmountFilled = cumulativeBaseAssetAmountFilled;
+		this.getListForOrder(order)?.update(order, userAccount);
+
+		if (onUpdate) {
+			onUpdate();
+		}
+	}
+
 	public trigger(
 		order: Order,
 		userAccount: PublicKey,
 		onTrigger?: OrderBookCallback
 	): void {
 		if (isVariant(order.status, 'init')) {
+			return;
+		}
+
+		if (isTriggered(order)) {
 			return;
 		}
 
@@ -197,6 +288,21 @@ export class DLOB {
 		this.getListForOrder(order)?.insert(order, marketType, userAccount);
 		if (onTrigger) {
 			onTrigger();
+		}
+	}
+
+	public delete(
+		order: Order,
+		userAccount: PublicKey,
+		onDelete?: OrderBookCallback
+	): void {
+		if (isVariant(order.status, 'init')) {
+			return;
+		}
+
+		this.getListForOrder(order)?.remove(order, userAccount);
+		if (onDelete) {
+			onDelete();
 		}
 	}
 
@@ -231,6 +337,17 @@ export class DLOB {
 		return this.orderLists.get(marketType).get(order.marketIndex)[type][
 			subType
 		];
+	}
+
+	public getOrder(orderId: number, userAccount: PublicKey): Order | undefined {
+		for (const nodeList of this.getNodeLists()) {
+			const node = nodeList.get(orderId, userAccount);
+			if (node) {
+				return node.order;
+			}
+		}
+
+		return undefined;
 	}
 
 	public findNodesToFill(
@@ -1164,86 +1281,41 @@ export class DLOB {
 	}
 
 	public getDLOBOrders(): DLOBOrders {
-		let dlobOrders: DLOBOrders = [];
+		const dlobOrders: DLOBOrders = [];
 
-		for (const [marketIndex, nodeLists] of this.orderLists.get('perp')) {
-			dlobOrders = dlobOrders.concat(
-				this.getOrdersForMarket(marketIndex, MarketType.PERP, nodeLists)
-			);
-		}
-
-		for (const [marketIndex, nodeLists] of this.orderLists.get('spot')) {
-			dlobOrders = dlobOrders.concat(
-				this.getOrdersForMarket(marketIndex, MarketType.SPOT, nodeLists)
-			);
+		for (const nodeList of this.getNodeLists()) {
+			for (const node of nodeList.getGenerator()) {
+				dlobOrders.push({
+					user: node.userAccount,
+					order: node.order,
+				});
+			}
 		}
 
 		return dlobOrders;
 	}
 
-	getOrdersForMarket(
-		marketIndex: number,
-		marketType: MarketType,
-		nodeLists: MarketNodeLists
-	): DLOBOrders {
-		const orders: { user: PublicKey; order: Order }[] = [];
-
-		for (const node of nodeLists.limit.bid.getGenerator()) {
-			orders.push({
-				user: node.userAccount,
-				order: node.order,
-			});
+	*getNodeLists(): Generator<NodeList<DLOBNodeType>> {
+		for (const [_, nodeLists] of this.orderLists.get('perp')) {
+			yield nodeLists.limit.bid;
+			yield nodeLists.limit.ask;
+			yield nodeLists.market.bid;
+			yield nodeLists.market.ask;
+			yield nodeLists.floatingLimit.bid;
+			yield nodeLists.floatingLimit.ask;
+			yield nodeLists.trigger.above;
+			yield nodeLists.trigger.below;
 		}
 
-		for (const node of nodeLists.limit.ask.getGenerator()) {
-			orders.push({
-				user: node.userAccount,
-				order: node.order,
-			});
+		for (const [_, nodeLists] of this.orderLists.get('spot')) {
+			yield nodeLists.limit.bid;
+			yield nodeLists.limit.ask;
+			yield nodeLists.market.bid;
+			yield nodeLists.market.ask;
+			yield nodeLists.floatingLimit.bid;
+			yield nodeLists.floatingLimit.ask;
+			yield nodeLists.trigger.above;
+			yield nodeLists.trigger.below;
 		}
-
-		for (const node of nodeLists.market.bid.getGenerator()) {
-			orders.push({
-				user: node.userAccount,
-				order: node.order,
-			});
-		}
-
-		for (const node of nodeLists.market.ask.getGenerator()) {
-			orders.push({
-				user: node.userAccount,
-				order: node.order,
-			});
-		}
-
-		for (const node of nodeLists.floatingLimit.bid.getGenerator()) {
-			orders.push({
-				user: node.userAccount,
-				order: node.order,
-			});
-		}
-
-		for (const node of nodeLists.floatingLimit.ask.getGenerator()) {
-			orders.push({
-				user: node.userAccount,
-				order: node.order,
-			});
-		}
-
-		for (const node of nodeLists.trigger.below.getGenerator()) {
-			orders.push({
-				user: node.userAccount,
-				order: node.order,
-			});
-		}
-
-		for (const node of nodeLists.trigger.above.getGenerator()) {
-			orders.push({
-				user: node.userAccount,
-				order: node.order,
-			});
-		}
-
-		return orders;
 	}
 }
