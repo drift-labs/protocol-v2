@@ -1018,33 +1018,39 @@ export class DLOB {
 
 		const nodesToTrigger = [];
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
-		for (const node of this.orderLists
-			.get(marketTypeStr)
-			.get(marketIndex)
-			.trigger.above.getGenerator()) {
-			if (oraclePrice.gt(node.order.triggerPrice)) {
-				if (isAuctionComplete(node.order, slot)) {
-					nodesToTrigger.push({
-						node: node,
-					});
+		const marketNodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		const triggerAboveList = marketNodeLists
+			? marketNodeLists.trigger.above
+			: undefined;
+		if (triggerAboveList) {
+			for (const node of triggerAboveList.getGenerator()) {
+				if (oraclePrice.gt(node.order.triggerPrice)) {
+					if (isAuctionComplete(node.order, slot)) {
+						nodesToTrigger.push({
+							node: node,
+						});
+					}
+				} else {
+					break;
 				}
-			} else {
-				break;
 			}
 		}
 
-		for (const node of this.orderLists
-			.get(marketTypeStr)
-			.get(marketIndex)
-			.trigger.below.getGenerator()) {
-			if (oraclePrice.lt(node.order.triggerPrice)) {
-				if (isAuctionComplete(node.order, slot)) {
-					nodesToTrigger.push({
-						node: node,
-					});
+		const triggerBelowList = marketNodeLists
+			? marketNodeLists.trigger.below
+			: undefined;
+		if (triggerBelowList) {
+			for (const node of triggerBelowList.getGenerator()) {
+				if (oraclePrice.lt(node.order.triggerPrice)) {
+					if (isAuctionComplete(node.order, slot)) {
+						nodesToTrigger.push({
+							node: node,
+						});
+					}
+				} else {
+					break;
 				}
-			} else {
-				break;
 			}
 		}
 
