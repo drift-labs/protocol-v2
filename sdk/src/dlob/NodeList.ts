@@ -146,6 +146,13 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		return this.nodeMap.has(getOrderSignature(order.orderId, userAccount));
 	}
 
+	public get(
+		orderId: number,
+		userAccount: PublicKey
+	): DLOBNodeMap[NodeType] | undefined {
+		return this.nodeMap.get(getOrderSignature(orderId, userAccount));
+	}
+
 	public print(): void {
 		let currentNode = this.head;
 		while (currentNode !== undefined) {
