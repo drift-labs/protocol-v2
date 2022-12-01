@@ -138,7 +138,7 @@ export class DLOB {
 	}
 
 	public handleOrderActionRecord(record: OrderActionRecord): void {
-		if (isVariant(record.action, 'place')) {
+		if (isOneOfVariant(record.action, ['place', 'expire'])) {
 			return;
 		}
 
@@ -156,9 +156,7 @@ export class DLOB {
 					this.trigger(makerOrder, record.maker);
 				}
 			}
-		}
-
-		if (isVariant(record.action, 'fill')) {
+		} else if (isVariant(record.action, 'fill')) {
 			if (record.taker !== null) {
 				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
 				if (takerOrder) {
@@ -180,9 +178,7 @@ export class DLOB {
 					);
 				}
 			}
-		}
-
-		if (isVariant(record.action, 'cancel')) {
+		} else if (isVariant(record.action, 'cancel')) {
 			if (record.taker !== null) {
 				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
 				if (takerOrder) {
