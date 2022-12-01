@@ -577,6 +577,10 @@ export class DLOB {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const nodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
 
+		if (!nodeLists) {
+			return nodesToFill;
+		}
+
 		// All bids/asks that can expire
 		const bidGenerators = [
 			nodeLists.limit.bid.getGenerator(),
