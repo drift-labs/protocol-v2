@@ -254,6 +254,10 @@ export class DLOB {
 			return;
 		}
 
+		if (order.baseAssetAmountFilled.eq(cumulativeBaseAssetAmountFilled)) {
+			return;
+		}
+
 		order.baseAssetAmountFilled = cumulativeBaseAssetAmountFilled;
 		this.getListForOrder(order)?.update(order, userAccount);
 
@@ -268,6 +272,10 @@ export class DLOB {
 		onTrigger?: OrderBookCallback
 	): void {
 		if (isVariant(order.status, 'init')) {
+			return;
+		}
+
+		if (isTriggered(order)) {
 			return;
 		}
 
