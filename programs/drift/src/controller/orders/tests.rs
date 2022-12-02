@@ -1706,7 +1706,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             &taker_key,
             &mut maker,
-            &mut maker_stats,
+            &mut Some(&mut maker_stats),
             0,
             &maker_key,
             &mut None,
@@ -1848,7 +1848,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             &taker_key,
             &mut maker,
-            &mut maker_stats,
+            &mut Some(&mut maker_stats),
             0,
             &maker_key,
             &mut None,
@@ -1978,7 +1978,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             &taker_key,
             &mut maker,
-            &mut maker_stats,
+            &mut Some(&mut maker_stats),
             0,
             &maker_key,
             &mut None,
@@ -2119,7 +2119,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             &taker_key,
             &mut maker,
-            &mut maker_stats,
+            &mut Some(&mut maker_stats),
             0,
             &maker_key,
             &mut None,
@@ -3818,7 +3818,6 @@ pub mod fill_order {
             AccountLoader::try_from(&user_stats_account_info).unwrap();
 
         let mut maker = User {
-            authority: Pubkey::from_str("My11111111111111111111111111111111111111112").unwrap(), // different authority than filler
             orders: get_orders(Order {
                 market_index: 0,
                 order_id: 1,
