@@ -149,6 +149,41 @@ describe('AMM Tests', () => {
 
     });
 
+    it('Corner Case Spreads', () => {
+
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+		// @ts-ignore
+        const terms2: AMMSpreadTerms = calculateSpreadBN(
+            1000,
+            new BN(5555),
+            new BN(1131),
+            20000,
+            new BN(1009967115003047),
+            new BN(1009811402660255),
+            new BN(13460124),
+            new BN(15328930153),
+            new BN(13667686),
+            new BN(1235066973),
+            new BN(88540713),
+            new BN(994097717724176),
+            new BN(974077854655784),
+            new BN(1014841945381208),
+            new BN(103320),
+            new BN(59975),
+            new BN(768323534),
+            new BN(243875031),
+            new BN(130017761029),
+            true
+        );
+
+        console.log(terms2);
+        assert(terms2.effectiveLeverageCapped<=1.000001);
+        assert(terms2.inventorySpreadScale==1.117371);
+        assert(terms2.longSpread==1263);
+        assert(terms2.shortSpread==6686);
+    });
+
+
     it('live update functions', () => {
 
         const mockAmm = mockPerpMarkets[0].amm;

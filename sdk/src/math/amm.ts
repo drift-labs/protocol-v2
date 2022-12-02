@@ -392,7 +392,7 @@ export function calculateEffectiveLeverage(
 	reservePrice: BN,
 	totalFeeMinusDistributions: BN
 ): number {
-	// inventory skew
+	// vAMM skew
 	const netBaseAssetValue = quoteAssetReserve
 		.sub(terminalQuoteAssetReserve)
 		.mul(pegMultiplier)
@@ -402,9 +402,13 @@ export function calculateEffectiveLeverage(
 		.mul(reservePrice)
 		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(PRICE_PRECISION));
 
+	const effectiveGap = Math.max(
+		0,
+		localBaseAssetValue.sub(netBaseAssetValue).toNumber()
+	);
+
 	const effectiveLeverage =
-		localBaseAssetValue.sub(netBaseAssetValue).toNumber() /
-			(Math.max(0, totalFeeMinusDistributions.toNumber()) + 1) +
+		effectiveGap / (Math.max(0, totalFeeMinusDistributions.toNumber()) + 1) +
 		1 / QUOTE_PRECISION.toNumber();
 
 	return effectiveLeverage;
@@ -580,7 +584,7 @@ export function calculateSpreadBN(
 
 		if (baseAssetAmountWithAmm.gt(ZERO)) {
 			longSpread *= spreadScale;
-			shortSpread = Math.floor(longSpread);
+			longSpread = Math.floor(longSpread);
 		} else {
 			shortSpread *= spreadScale;
 			shortSpread = Math.floor(shortSpread);
