@@ -180,14 +180,18 @@ fn calculate_auction_price_for_oracle_offset_auction(
         PositionDirection::Short => auction_start_price_offset.safe_sub(price_offset_delta)?,
     };
 
-    let price = oracle_price.safe_add(price_offset)?;
+    let price = standardize_price(
+        oracle_price.safe_add(price_offset)?.cast()?,
+        tick_size,
+        order.direction,
+    )?;
 
     if price <= 0 {
         msg!("Oracle offset auction price below zero: {}", price);
         return Err(ErrorCode::InvalidOracleOffset);
     }
 
-    standardize_price(price.cast()?, tick_size, order.direction)
+    Ok(price)
 }
 
 pub fn does_auction_satisfy_maker_order(
