@@ -131,16 +131,12 @@ export function getLimitPrice(
 	fallbackPrice?: BN
 ): BN | undefined {
 	let limitPrice;
-	if (order.oraclePriceOffset !== 0) {
+	if (hasAuctionPrice(order, slot)) {
+		limitPrice = getAuctionPrice(order, slot, oraclePriceData.price);
+	} else if (order.oraclePriceOffset !== 0) {
 		limitPrice = oraclePriceData.price.add(new BN(order.oraclePriceOffset));
-	} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
-		if (!isAuctionComplete(order, slot)) {
-			limitPrice = getAuctionPrice(order, slot);
-		} else if (!order.price.eq(ZERO)) {
-			limitPrice = order.price;
-		} else {
-			limitPrice = fallbackPrice;
-		}
+	} else if (order.price.eq(ZERO)) {
+		limitPrice = fallbackPrice;
 	} else {
 		limitPrice = order.price;
 	}
@@ -154,6 +150,10 @@ export function hasLimitPrice(order: Order, slot: number): boolean {
 		order.oraclePriceOffset != 0 ||
 		!isAuctionComplete(order, slot)
 	);
+}
+
+export function hasAuctionPrice(order: Order, slot: number): boolean {
+	return isMarketOrder(order) && !isAuctionComplete(order, slot);
 }
 
 export function isFillableByVAMM(
@@ -252,7 +252,7 @@ function isSameDirection(
 
 export function isOrderExpired(order: Order, ts: number): boolean {
 	if (
-		isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']) ||
+		mustBeTriggered(order) ||
 		!isVariant(order.status, 'open') ||
 		order.maxTs.eq(ZERO)
 	) {
@@ -263,7 +263,7 @@ export function isOrderExpired(order: Order, ts: number): boolean {
 }
 
 export function isMarketOrder(order: Order): boolean {
-	return isOneOfVariant(order.orderType, ['market', 'triggerMarket']);
+	return isOneOfVariant(order.orderType, ['market', 'triggerMarket', 'oracle']);
 }
 
 export function isLimitOrder(order: Order): boolean {

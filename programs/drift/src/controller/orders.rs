@@ -201,30 +201,8 @@ pub fn place_perp_order(
     };
 
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-    let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
-        let (auction_start_price, auction_end_price) =
-            match (params.auction_start_price, params.auction_end_price) {
-                (Some(auction_start_price), Some(auction_end_price)) => {
-                    (auction_start_price, auction_end_price)
-                }
-                _ => calculate_auction_prices(oracle_price_data, params.direction, params.price)?,
-            };
-
-        (
-            standardize_price(
-                auction_start_price,
-                market.amm.order_tick_size,
-                params.direction,
-            )?,
-            standardize_price(
-                auction_end_price,
-                market.amm.order_tick_size,
-                params.direction,
-            )?,
-        )
-    } else {
-        (0_u64, 0_u64)
-    };
+    let (auction_start_price, auction_end_price) =
+        get_auction_prices(&params, oracle_price_data, market.amm.order_tick_size)?;
 
     validate!(
         params.market_type == MarketType::Perp,
@@ -240,7 +218,7 @@ pub fn place_perp_order(
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
         None => match params.order_type {
-            OrderType::Market => now.safe_add(30)?,
+            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
             _ => 0_i64,
         },
     };
@@ -352,6 +330,33 @@ pub fn place_perp_order(
     emit!(order_record);
 
     Ok(())
+}
+
+fn get_auction_prices(
+    params: &OrderParams,
+    oracle_price_data: &OraclePriceData,
+    tick_size: u64,
+) -> DriftResult<(i64, i64)> {
+    if !matches!(params.order_type, OrderType::Market | OrderType::Oracle) {
+        return Ok((0_i64, 0_i64));
+    }
+
+    let (auction_start_price, auction_end_price) =
+        match (params.auction_start_price, params.auction_end_price) {
+            (Some(auction_start_price), Some(auction_end_price)) => {
+                (auction_start_price, auction_end_price)
+            }
+            _ if params.order_type == OrderType::Oracle => {
+                msg!("Oracle order must specify auction start and end price offsets");
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+            _ => calculate_auction_prices(oracle_price_data, params.direction, params.price)?,
+        };
+
+    Ok((
+        standardize_price_i64(auction_start_price, tick_size.cast()?, params.direction)?,
+        standardize_price_i64(auction_end_price, tick_size.cast()?, params.direction)?,
+    ))
 }
 
 pub fn cancel_orders(
@@ -2503,30 +2508,8 @@ pub fn place_spot_order(
         )
     };
 
-    let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
-        let (auction_start_price, auction_end_price) =
-            match (params.auction_start_price, params.auction_end_price) {
-                (Some(auction_start_price), Some(auction_end_price)) => {
-                    (auction_start_price, auction_end_price)
-                }
-                _ => calculate_auction_prices(&oracle_price_data, params.direction, params.price)?,
-            };
-
-        (
-            standardize_price(
-                auction_start_price,
-                spot_market.order_tick_size,
-                params.direction,
-            )?,
-            standardize_price(
-                auction_end_price,
-                spot_market.order_tick_size,
-                params.direction,
-            )?,
-        )
-    } else {
-        (0_u64, 0_u64)
-    };
+    let (auction_start_price, auction_end_price) =
+        get_auction_prices(&params, &oracle_price_data, spot_market.order_tick_size)?;
 
     validate!(spot_market.orders_enabled, ErrorCode::SpotOrdersDisabled)?;
 
@@ -2549,7 +2532,7 @@ pub fn place_spot_order(
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
         None => match params.order_type {
-            OrderType::Market => now.safe_add(30)?,
+            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
             _ => 0_i64,
         },
     };

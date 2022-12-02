@@ -1,11 +1,12 @@
 use crate::controller::position::PositionDirection;
-use crate::error::DriftResult;
+use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::AUCTION_DERIVE_PRICE_FRACTION;
 use crate::math::orders::standardize_price;
 use crate::math::safe_math::SafeMath;
 use crate::state::oracle::OraclePriceData;
-use crate::state::user::Order;
+use crate::state::user::{Order, OrderType};
+use solana_program::msg;
 
 use std::cmp::min;
 
@@ -16,8 +17,9 @@ pub fn calculate_auction_prices(
     oracle_price_data: &OraclePriceData,
     direction: PositionDirection,
     limit_price: u64,
-) -> DriftResult<(u64, u64)> {
-    let oracle_price = oracle_price_data.price.cast::<u64>()?;
+) -> DriftResult<(i64, i64)> {
+    let oracle_price = oracle_price_data.price;
+    let limit_price = limit_price.cast::<i64>()?;
     if limit_price > 0 {
         let (auction_start_price, auction_end_price) = match direction {
             // Long and limit price is better than oracle price
@@ -76,35 +78,120 @@ pub fn calculate_auction_prices(
     Ok((oracle_price, auction_end_price))
 }
 
-pub fn calculate_auction_price(order: &Order, slot: u64, tick_size: u64) -> DriftResult<u64> {
+pub fn calculate_auction_price(
+    order: &Order,
+    slot: u64,
+    tick_size: u64,
+    valid_oracle_price: Option<i64>,
+) -> DriftResult<u64> {
+    match order.order_type {
+        OrderType::Market | OrderType::TriggerMarket => {
+            calculate_auction_price_for_fixed_auction(order, slot, tick_size)
+        }
+        OrderType::Oracle => calculate_auction_price_for_oracle_offset_auction(
+            order,
+            slot,
+            tick_size,
+            valid_oracle_price,
+        ),
+        _ => unreachable!(),
+    }
+}
+
+fn calculate_auction_price_for_fixed_auction(
+    order: &Order,
+    slot: u64,
+    tick_size: u64,
+) -> DriftResult<u64> {
     let slots_elapsed = slot.safe_sub(order.slot)?;
 
     let delta_numerator = min(slots_elapsed, order.auction_duration.cast()?);
     let delta_denominator = order.auction_duration;
 
+    let auction_start_price = order.auction_start_price.cast::<u64>()?;
+    let auction_end_price = order.auction_end_price.cast::<u64>()?;
+
     if delta_denominator == 0 {
-        return Ok(order.auction_end_price);
+        return standardize_price(auction_end_price, tick_size, order.direction);
     }
 
     let price_delta = match order.direction {
-        PositionDirection::Long => order
-            .auction_end_price
-            .safe_sub(order.auction_start_price)?
+        PositionDirection::Long => auction_end_price
+            .safe_sub(auction_start_price)?
             .safe_mul(delta_numerator.cast()?)?
             .safe_div(delta_denominator.cast()?)?,
-        PositionDirection::Short => order
-            .auction_start_price
-            .safe_sub(order.auction_end_price)?
+        PositionDirection::Short => auction_start_price
+            .safe_sub(auction_end_price)?
             .safe_mul(delta_numerator.cast()?)?
             .safe_div(delta_denominator.cast()?)?,
     };
 
     let price = match order.direction {
-        PositionDirection::Long => order.auction_start_price.safe_add(price_delta)?,
-        PositionDirection::Short => order.auction_start_price.safe_sub(price_delta)?,
+        PositionDirection::Long => auction_start_price.safe_add(price_delta)?,
+        PositionDirection::Short => auction_start_price.safe_sub(price_delta)?,
     };
 
     standardize_price(price, tick_size, order.direction)
+}
+
+fn calculate_auction_price_for_oracle_offset_auction(
+    order: &Order,
+    slot: u64,
+    tick_size: u64,
+    valid_oracle_price: Option<i64>,
+) -> DriftResult<u64> {
+    let oracle_price = valid_oracle_price.ok_or_else(|| {
+        msg!("Could not find oracle too calculate oracle offset auction price");
+        ErrorCode::OracleNotFound
+    })?;
+
+    let slots_elapsed = slot.safe_sub(order.slot)?;
+
+    let delta_numerator = min(slots_elapsed, order.auction_duration.cast()?);
+    let delta_denominator = order.auction_duration;
+
+    let auction_start_price_offset = order.auction_start_price;
+    let auction_end_price_offset = order.auction_end_price;
+
+    if delta_denominator == 0 {
+        let price = oracle_price.safe_add(auction_end_price_offset)?;
+
+        if price <= 0 {
+            msg!("Oracle offset auction price below zero: {}", price);
+            return Err(ErrorCode::InvalidOracleOffset);
+        }
+
+        return standardize_price(price.cast()?, tick_size, order.direction);
+    }
+
+    let price_offset_delta = match order.direction {
+        PositionDirection::Long => auction_end_price_offset
+            .safe_sub(auction_start_price_offset)?
+            .safe_mul(delta_numerator.cast()?)?
+            .safe_div(delta_denominator.cast()?)?,
+        PositionDirection::Short => auction_start_price_offset
+            .safe_sub(auction_end_price_offset)?
+            .safe_mul(delta_numerator.cast()?)?
+            .safe_div(delta_denominator.cast()?)?,
+    };
+
+    let price_offset = match order.direction {
+        PositionDirection::Long => auction_start_price_offset.safe_add(price_offset_delta)?,
+        PositionDirection::Short => auction_start_price_offset.safe_sub(price_offset_delta)?,
+    };
+
+    let price = standardize_price(
+        oracle_price.safe_add(price_offset)?.max(0).cast()?,
+        tick_size,
+        order.direction,
+    )?;
+
+    if price == 0 {
+        msg!("Oracle offset auction price below zero: {}", price);
+        return Err(ErrorCode::InvalidOracleOffset);
+    }
+
+    Ok(price)
 }
 
 pub fn does_auction_satisfy_maker_order(

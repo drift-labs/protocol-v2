@@ -33,6 +33,9 @@ pub fn validate_order(
             market.amm.order_step_size,
             market.amm.min_order_size,
         )?,
+        OrderType::Oracle => {
+            validate_oracle_order(order, market.amm.order_step_size, market.amm.min_order_size)?
+        }
     }
 
     Ok(())
@@ -40,6 +43,12 @@ pub fn validate_order(
 
 fn validate_market_order(order: &Order, step_size: u64, min_order_size: u64) -> DriftResult {
     validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
+
+    validate!(
+        order.auction_start_price > 0 && order.auction_end_price > 0,
+        ErrorCode::InvalidOrderAuction,
+        "Auction start and end price must be greater than 0"
+    )?;
 
     match order.direction {
         PositionDirection::Long if order.auction_start_price >= order.auction_end_price => {
@@ -78,6 +87,77 @@ fn validate_market_order(order: &Order, step_size: u64, min_order_size: u64) -> 
 
     if order.immediate_or_cancel {
         msg!("Market order can not be immediate or cancel");
+        return Err(ErrorCode::InvalidOrderIOC);
+    }
+
+    Ok(())
+}
+
+fn validate_oracle_order(order: &Order, step_size: u64, min_order_size: u64) -> DriftResult {
+    validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
+
+    match order.direction {
+        PositionDirection::Long => {
+            if order.auction_start_price >= order.auction_end_price {
+                msg!(
+                    "Auction start price offset ({}) was greater than auction end price offset ({})",
+                    order.auction_start_price,
+                    order.auction_end_price
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+
+            if order.has_oracle_price_offset()
+                && order.auction_end_price > order.oracle_price_offset.cast()?
+            {
+                msg!(
+                    "Auction end price offset ({}) was greater than oracle price offset ({})",
+                    order.auction_end_price,
+                    order.oracle_price_offset
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+        }
+        PositionDirection::Short => {
+            if order.auction_start_price <= order.auction_end_price {
+                msg!(
+                    "Auction start price ({}) was less than auction end price ({})",
+                    order.auction_start_price,
+                    order.auction_end_price
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+
+            if order.has_oracle_price_offset()
+                && order.auction_end_price < order.oracle_price_offset.cast()?
+            {
+                msg!(
+                    "Auction end price offset ({}) was less than oracle price offset ({})",
+                    order.auction_end_price,
+                    order.oracle_price_offset
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+        }
+    }
+
+    if order.trigger_price > 0 {
+        msg!("Oracle order should not have trigger price");
+        return Err(ErrorCode::InvalidOrderTrigger);
+    }
+
+    if order.post_only {
+        msg!("Oracle order can not be post only");
+        return Err(ErrorCode::InvalidOrderPostOnly);
+    }
+
+    if order.price > 0 {
+        msg!("Oracle order can not have a price");
+        return Err(ErrorCode::InvalidOrderLimitPrice);
+    }
+
+    if order.immediate_or_cancel {
+        msg!("Oracle order can not be immediate or cancel");
         return Err(ErrorCode::InvalidOrderIOC);
     }
 
@@ -311,6 +391,7 @@ pub fn validate_spot_order(
             validate_trigger_market_order(order, step_size, min_order_size)?
         }
         OrderType::TriggerLimit => validate_trigger_limit_order(order, step_size, min_order_size)?,
+        OrderType::Oracle => validate_oracle_order(order, step_size, min_order_size)?,
     }
 
     Ok(())

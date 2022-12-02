@@ -148,7 +148,7 @@ pub mod amm_jit {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
@@ -319,7 +319,7 @@ pub mod amm_jit {
                 slot: 0,
                 price: 100 * PRICE_PRECISION as u64,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -502,7 +502,7 @@ pub mod amm_jit {
                 slot: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -699,7 +699,7 @@ pub mod amm_jit {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -892,7 +892,7 @@ pub mod amm_jit {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1087,8 +1087,8 @@ pub mod amm_jit {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
-                auction_start_price: 99 * PRICE_PRECISION_U64,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_start_price: 99 * PRICE_PRECISION_I64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1265,7 +1265,7 @@ pub mod amm_jit {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 50, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
@@ -1451,7 +1451,7 @@ pub mod amm_jit {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_end_price: 0,
-                auction_start_price: 200 * PRICE_PRECISION as u64,
+                auction_start_price: 200 * PRICE_PRECISION as i64,
                 auction_duration: 50, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
@@ -1666,8 +1666,8 @@ pub mod amm_jit {
             ..User::default()
         };
 
-        let auction_start_price = 95062500_u64;
-        let auction_end_price = 132154089_u64;
+        let auction_start_price = 95062500_i64;
+        let auction_end_price = 132154089_i64;
         taker.orders[0].auction_start_price = auction_start_price;
         taker.orders[0].auction_end_price = auction_end_price;
         println!("start stop {} {}", auction_start_price, auction_end_price);
@@ -1707,7 +1707,8 @@ pub mod amm_jit {
             }
 
             let auction_price =
-                crate::math::auction::calculate_auction_price(&taker.orders[0], slot, 1).unwrap();
+                crate::math::auction::calculate_auction_price(&taker.orders[0], slot, 1, None)
+                    .unwrap();
             let baa = market.amm.order_step_size * 4;
 
             let (mark, ask, bid) = {
@@ -1916,7 +1917,7 @@ pub mod amm_jit {
                 slot: 0,
                 auction_duration, // !! amm will bid before the ask spread price
                 auction_end_price: 0,
-                auction_start_price: 200 * PRICE_PRECISION as u64,
+                auction_start_price: 200 * PRICE_PRECISION as i64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1977,7 +1978,8 @@ pub mod amm_jit {
             }
 
             let auction_price =
-                crate::math::auction::calculate_auction_price(&taker.orders[0], slot, 1).unwrap();
+                crate::math::auction::calculate_auction_price(&taker.orders[0], slot, 1, None)
+                    .unwrap();
             let baa = 1000 * 4;
 
             let (mark, ask, bid) = {
@@ -2165,7 +2167,7 @@ pub mod amm_jit {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0, // expired auction
                 ..Order::default()
             }),

@@ -680,8 +680,8 @@ pub struct OrderParams {
     pub trigger_condition: OrderTriggerCondition,
     pub oracle_price_offset: Option<i32>,
     pub auction_duration: Option<u8>,
-    pub auction_start_price: Option<u64>,
-    pub auction_end_price: Option<u64>,
+    pub auction_start_price: Option<i64>,
+    pub auction_end_price: Option<i64>,
 }
 
 #[access_control(

@@ -62,6 +62,14 @@ export type NodeToTrigger = {
 	node: TriggerOrderNode;
 };
 
+const SUPPORTED_ORDER_TYPES = [
+	'market',
+	'limit',
+	'triggerMarket',
+	'triggerLimit',
+	'oracle',
+];
+
 export class DLOB {
 	openOrders = new Map<MarketTypeStr, Set<string>>();
 	orderLists = new Map<MarketTypeStr, Map<number, MarketNodeLists>>();
@@ -204,6 +212,10 @@ export class DLOB {
 			return;
 		}
 
+		if (!isOneOfVariant(order.orderType, SUPPORTED_ORDER_TYPES)) {
+			return;
+		}
+
 		const marketType = getVariant(order.marketType) as MarketTypeStr;
 
 		if (!this.orderLists.get(marketType).has(order.marketIndex)) {
@@ -313,7 +325,9 @@ export class DLOB {
 		let type: DLOBNodeType;
 		if (isInactiveTriggerOrder) {
 			type = 'trigger';
-		} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
+		} else if (
+			isOneOfVariant(order.orderType, ['market', 'triggerMarket', 'oracle'])
+		) {
 			type = 'market';
 		} else if (order.oraclePriceOffset !== 0) {
 			type = 'floatingLimit';
