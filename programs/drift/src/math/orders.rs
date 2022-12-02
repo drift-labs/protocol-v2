@@ -579,6 +579,7 @@ fn get_max_fill_amounts_for_market(user: &User, market: &SpotMarket) -> DriftRes
     get_max_withdraw_for_market_with_token_amount(token_amount, market)
 }
 
+#[inline(always)]
 pub fn get_max_withdraw_for_market_with_token_amount(
     token_amount: i128,
     market: &SpotMarket,

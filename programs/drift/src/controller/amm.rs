@@ -21,7 +21,7 @@ use crate::math::constants::{
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::spot_withdraw::validate_spot_balances;
 use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
 
@@ -543,16 +543,19 @@ pub fn update_pool_balances(
     let pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
         min(user_unsettled_pnl, pnl_pool_token_amount.cast::<i128>()?)
     } else {
-        let token_amount = get_token_amount(
-            user_quote_position.balance(),
-            spot_market,
+        let token_amount = get_signed_token_amount(
+            get_token_amount(
+                user_quote_position.balance(),
+                spot_market,
+                user_quote_position.balance_type(),
+            )?,
             user_quote_position.balance_type(),
         )?;
 
         // dont settle negative pnl to spot borrows when utilization is high (> 80%)
         let max_withdraw_amount =
             -crate::math::orders::get_max_withdraw_for_market_with_token_amount(
-                token_amount.cast()?,
+                token_amount,
                 spot_market,
             )?
             .cast::<i128>()?;
