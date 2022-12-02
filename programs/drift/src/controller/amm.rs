@@ -16,7 +16,7 @@ use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     CONCENTRATION_PRECISION, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE,
-    MAX_SQRT_K, PRICE_TO_PEG_PRECISION_RATIO, SPOT_UTILIZATION_PRECISION,
+    MAX_SQRT_K, PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -543,36 +543,21 @@ pub fn update_pool_balances(
     let pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
         min(user_unsettled_pnl, pnl_pool_token_amount.cast::<i128>()?)
     } else {
-        // dont settle negative pnl to spot borrows when utilization is high
-        let utilization =
-            crate::math::spot_balance::calculate_spot_market_utilization(spot_market)?;
+        let token_amount = get_token_amount(
+            user_quote_position.balance(),
+            spot_market,
+            user_quote_position.balance_type(),
+        )?;
 
-        // dont settle negative pnl past 80% util
-        let eighty_percent = (SPOT_UTILIZATION_PRECISION / 10_u128) * 8;
-        if utilization > eighty_percent {
-            // will it increase spot borrows?
-            // -> current position is borrow? => return zero
-            match user_quote_position.balance_type() {
-                SpotBalanceType::Borrow => 0,
-                SpotBalanceType::Deposit => {
-                    // current position is deposit? => will it turn into a borrow?
-                    let current_token_amount = get_token_amount(
-                        user_quote_position.balance(),
-                        spot_market,
-                        user_quote_position.balance_type(),
-                    )?;
-                    // user has enough usdc to pay off neg pnl => settle full amount
-                    // other wise settle full collateral amount
-                    if current_token_amount >= user_unsettled_pnl.unsigned_abs() {
-                        user_unsettled_pnl
-                    } else {
-                        -current_token_amount.cast::<i128>()?
-                    }
-                }
-            }
-        } else {
-            user_unsettled_pnl
-        }
+        // dont settle negative pnl to spot borrows when utilization is high (> 80%)
+        let max_withdraw_amount =
+            -crate::math::orders::get_max_withdraw_for_market_with_token_amount(
+                token_amount.cast()?,
+                spot_market,
+            )?
+            .cast::<i128>()?;
+
+        max_withdraw_amount.max(user_unsettled_pnl)
     };
 
     let pnl_fraction_for_amm = if fraction_for_amm > 0 && pnl_to_settle_with_user < 0 {

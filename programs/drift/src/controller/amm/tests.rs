@@ -363,6 +363,7 @@ fn update_pool_balances_test() {
         cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         ..SpotMarket::default()
     };
+    spot_market.deposit_balance = 10_u128.pow(19_u32);
 
     let spot_position = SpotPosition::default();
 
@@ -446,8 +447,8 @@ fn update_pool_balances_test() {
         market.pnl_pool.balance_type(),
     )
     .unwrap();
-    assert_eq!(pnl_pool_token_amount, 99_000_000_000 + 2);
-    assert_eq!(amm_fee_pool_token_amount, (1_000 * QUOTE_PRECISION));
+    assert_eq!(pnl_pool_token_amount, 1_650_000_000 + 3);
+    assert_eq!(amm_fee_pool_token_amount, 16_666_666);
 
     // negative fee pool
     market.amm.total_fee_minus_distributions = -8_008_123_456;
@@ -472,7 +473,7 @@ fn update_pool_balances_test() {
         market.pnl_pool.balance_type(),
     )
     .unwrap();
-    assert_eq!(pnl_pool_token_amount, 99_000_000_000 + 2 - 987_789);
+    assert_eq!(pnl_pool_token_amount, 665678880);
     assert_eq!(amm_fee_pool_token_amount, 0);
 }
 
