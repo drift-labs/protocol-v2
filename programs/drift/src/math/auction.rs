@@ -181,12 +181,12 @@ fn calculate_auction_price_for_oracle_offset_auction(
     };
 
     let price = standardize_price(
-        oracle_price.safe_add(price_offset)?.cast()?,
+        oracle_price.safe_add(price_offset)?.max(0).cast()?,
         tick_size,
         order.direction,
     )?;
 
-    if price <= 0 {
+    if price == 0 {
         msg!("Oracle offset auction price below zero: {}", price);
         return Err(ErrorCode::InvalidOracleOffset);
     }
