@@ -4,8 +4,6 @@ import {
 	convertToNumber,
 	getLimitPrice,
 	isVariant,
-	SpotMarketAccount,
-	PerpMarketAccount,
 	PRICE_PRECISION,
 	OraclePriceData,
 	Order,
@@ -21,24 +19,17 @@ export interface DLOBNode {
 	isBaseFilled(): boolean;
 	haveFilled: boolean;
 	userAccount: PublicKey | undefined;
-	market: SpotMarketAccount | PerpMarketAccount;
 }
 
 export abstract class OrderNode implements DLOBNode {
 	order: Order;
-	market: SpotMarketAccount | PerpMarketAccount;
 	userAccount: PublicKey;
 	sortValue: BN;
 	haveFilled = false;
 	haveTrigger = false;
 
-	constructor(
-		order: Order,
-		market: SpotMarketAccount | PerpMarketAccount,
-		userAccount: PublicKey
-	) {
+	constructor(order: Order, userAccount: PublicKey) {
 		this.order = order;
-		this.market = market;
 		this.userAccount = userAccount;
 		this.sortValue = this.getSortValue(order);
 	}
@@ -137,18 +128,17 @@ export type DLOBNodeType =
 export function createNode<T extends DLOBNodeType>(
 	nodeType: T,
 	order: Order,
-	market: SpotMarketAccount | PerpMarketAccount,
 	userAccount: PublicKey
 ): DLOBNodeMap[T] {
 	switch (nodeType) {
 		case 'floatingLimit':
-			return new FloatingLimitOrderNode(order, market, userAccount);
+			return new FloatingLimitOrderNode(order, userAccount);
 		case 'limit':
-			return new LimitOrderNode(order, market, userAccount);
+			return new LimitOrderNode(order, userAccount);
 		case 'market':
-			return new MarketOrderNode(order, market, userAccount);
+			return new MarketOrderNode(order, userAccount);
 		case 'trigger':
-			return new TriggerOrderNode(order, market, userAccount);
+			return new TriggerOrderNode(order, userAccount);
 		default:
 			throw Error(`Unknown DLOBNode type ${nodeType}`);
 	}

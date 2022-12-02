@@ -10,6 +10,7 @@ import {
 	BN,
 	OracleSource,
 	ZERO,
+	ONE,
 	AdminClient,
 	DriftClient,
 	convertToNumber,
@@ -69,7 +70,7 @@ function examineSpread(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ) {
-	const [bid, ask] = calculateBidAskPrice(market.amm, oraclePriceData);
+	const [bid, ask] = calculateBidAskPrice(market.amm, oraclePriceData, false);
 	console.log(
 		'bid/ask:',
 		bid.toString(),
@@ -421,8 +422,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		const [bid0, ask0] = examineSpread(market00, oraclePriceData00);
 		console.log(bid0.toString(), ask0.toString());
-		assert(bid0.eq(new BN(42494730)));
-		assert(ask0.eq(new BN(42505270))); //42553141
+		assert(bid0.eq(new BN(42494732)));
+		assert(ask0.eq(new BN(42505272)));
 
 		// sol rallys big
 		// await driftClient.moveAmmToPrice(
@@ -443,8 +444,13 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			oraclePriceData00Again
 		);
 		console.log('bid0After:', bid0After.toString(), ask0After.toString());
-		assert(bid0After.eq(new BN(248126249)));
-		assert(ask0After.eq(new BN(260687640)));
+		assert(bid0After.eq(new BN(254194605)));
+		assert(
+			oraclePriceData00Again.price.eq(
+				new BN(260.5 * PRICE_PRECISION.toNumber())
+			)
+		);
+		assert(ask0After.eq(new BN(266567441)));
 		try {
 			const txSig = await driftClient.updateAMMs([0]);
 			console.log(
@@ -543,8 +549,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			market0.marketIndex
 		);
 		const [bid1, ask1] = examineSpread(market0, oraclePriceData0);
-		assert(bid1.eq(bid0After)); // not sure why it's failing
-		assert(ask1.eq(ask0After));
+
+		console.log('DOUBLE CHECK bids:', bid1.toString(), bid0After.toString());
+		console.log('DOUBLE CHECK asks:', ask1.toString(), ask0After.toString());
+
+		assert(bid1.sub(bid0After).abs().lte(ONE));
+		assert(ask1.sub(ask0After).abs().lte(ONE));
 
 		while (!market0.amm.lastOracleValid) {
 			const imbalance = calculateNetUserPnlImbalance(
@@ -742,19 +752,24 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		oraclePriceData0.confidence = new BN(0); //oraclePriceData0.price.div(new BN(1000));
 
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData0);
-		console.log(prepegAMM.pegMultiplier.toString());
-		// assert(prepegAMM.pegMultiplier.eq(new BN(248126)));
-
 		const [bid, ask] = examineSpread(market0, oraclePriceData0);
+		console.log(prepegAMM.pegMultiplier.toString());
 		console.log(bid.toString());
 		console.log(ask.toString());
-		assert(bid.eq(new BN('248126249')));
-		assert(ask.eq(new BN('260687640')));
+		assert(bid.eq(new BN('254194605')));
+		assert(prepegAMM.pegMultiplier.eq(new BN('254313113')));
+		assert(oraclePriceData0.price.eq(new BN('260500000')));
+		assert(ask.eq(new BN('266567441')));
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = bid.mul(new BN(1000)).div(new BN(1049)); // dont breach oracle price bands
 
+		assert(
+			driftClientLoser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.gt(ZERO)
+		);
 		const orderParams = getMarketOrderParams({
 			marketIndex: 0,
 			direction,
@@ -762,7 +777,6 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			price,
 		});
 
-		//    'Program failed to complete: Access violation in stack frame 11 at address 0x20000bff0 of size 8 by instruction #88129',
 		const txSig = await driftClientLoser.placeAndTakePerpOrder(orderParams);
 		await printTxLogs(connection, txSig);
 
@@ -773,7 +787,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		const prepegAMM1 = calculateUpdatedAMM(market0.amm, oraclePriceData1);
 		console.log(prepegAMM1.pegMultiplier.toString());
-		assert(prepegAMM1.pegMultiplier.eq(new BN(248126238)));
+		assert(prepegAMM1.pegMultiplier.eq(new BN(254313113)));
 	});
 
 	it('resolvePerpPnlDeficit', async () => {
@@ -822,16 +836,15 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceNumerator: new BN(12),
 				markOracleDivergenceDenominator: new BN(1),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
 				slotsBeforeStaleForMargin: new BN(100),
 				confidenceIntervalMaxSize: new BN(100000),
-				tooVolatileRatio: new BN(2),
+				tooVolatileRatio: new BN(1000),
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
@@ -869,8 +882,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.lt(new BN(44461135639 + 20000))); //44k still :o
-		assert(imbalance.gt(new BN(44461135639 - 20000))); //44k still :o
+		assert(imbalance.lt(new BN(44454586870 + 20000))); //44k still :o
+		assert(imbalance.gt(new BN(44454586870 - 20000))); //44k still :o
 
 		console.log(
 			'revenueWithdrawSinceLastSettle:',

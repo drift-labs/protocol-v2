@@ -29,7 +29,7 @@ use crate::state::events::CurveRecord;
 use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
-use crate::state::user::User;
+use crate::state::user::{SpotPosition, User};
 use crate::validate;
 
 #[cfg(test)]
@@ -383,6 +383,7 @@ pub fn get_fee_pool_tokens(
 pub fn update_pool_balances(
     market: &mut PerpMarket,
     spot_market: &mut SpotMarket,
+    user_quote_position: &SpotPosition,
     user_unsettled_pnl: i128,
     now: i64,
 ) -> DriftResult<i128> {
@@ -542,7 +543,17 @@ pub fn update_pool_balances(
     let pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
         min(user_unsettled_pnl, pnl_pool_token_amount.cast::<i128>()?)
     } else {
-        user_unsettled_pnl
+        let token_amount = user_quote_position.get_signed_token_amount(spot_market)?;
+
+        // dont settle negative pnl to spot borrows when utilization is high (> 80%)
+        let max_withdraw_amount =
+            -crate::math::orders::get_max_withdraw_for_market_with_token_amount(
+                token_amount,
+                spot_market,
+            )?
+            .cast::<i128>()?;
+
+        max_withdraw_amount.max(user_unsettled_pnl)
     };
 
     let pnl_fraction_for_amm = if fraction_for_amm > 0 && pnl_to_settle_with_user < 0 {

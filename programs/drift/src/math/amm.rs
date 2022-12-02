@@ -463,7 +463,6 @@ pub fn update_amm_long_short_intensity(
     direction: PositionDirection,
 ) -> DriftResult<bool> {
     let since_last = max(1, now.safe_sub(amm.last_trade_ts)?);
-
     let (long_quote_amount, short_quote_amount) = if direction == PositionDirection::Long {
         (quote_asset_amount, 0_u64)
     } else {

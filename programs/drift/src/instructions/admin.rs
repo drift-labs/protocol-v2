@@ -794,20 +794,6 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         escrow_period_before_transfer
     )?;
 
-    let depositors_amount_before: u64 = get_token_amount(
-        spot_market.deposit_balance,
-        spot_market,
-        &SpotBalanceType::Deposit,
-    )?
-    .cast()?;
-
-    let borrowers_amount_before: u64 = get_token_amount(
-        spot_market.borrow_balance,
-        spot_market,
-        &SpotBalanceType::Borrow,
-    )?
-    .cast()?;
-
     let fee_pool_token_amount = get_token_amount(
         perp_market.amm.fee_pool.scaled_balance,
         spot_market,
@@ -839,27 +825,6 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         pnl_pool_token_amount.safe_add(fee_pool_token_amount)?,
         &SpotBalanceType::Deposit,
         spot_market,
-    )?;
-
-    let depositors_amount_after: u64 = get_token_amount(
-        spot_market.deposit_balance,
-        spot_market,
-        &SpotBalanceType::Deposit,
-    )?
-    .cast()?;
-
-    let borrowers_amount_after: u64 = get_token_amount(
-        spot_market.borrow_balance,
-        spot_market,
-        &SpotBalanceType::Borrow,
-    )?
-    .cast()?;
-
-    validate!(
-        borrowers_amount_before == borrowers_amount_after
-            && depositors_amount_before == depositors_amount_after,
-        ErrorCode::DefaultError,
-        "Bank token balances must be equal before and after"
     )?;
 
     math::spot_withdraw::validate_spot_balances(spot_market)?;

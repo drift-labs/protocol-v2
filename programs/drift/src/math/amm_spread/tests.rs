@@ -616,6 +616,44 @@ mod test {
         )
         .unwrap();
         assert_eq!(lscale, 1003087); // 1.003087x
+
+        let rra = calculate_spread_revenue_retreat_amount(
+            250,
+            30000,
+            (15 * QUOTE_PRECISION_I128 + 835) as i64,
+        )
+        .unwrap();
+        assert_eq!(rra, 0);
+
+        let rra = calculate_spread_revenue_retreat_amount(2150, 30000, 0).unwrap();
+        assert_eq!(rra, 0);
+
+        let rra = calculate_spread_revenue_retreat_amount(340, 30000, -1).unwrap();
+        assert_eq!(rra, 0);
+
+        let rra = calculate_spread_revenue_retreat_amount(
+            250,
+            30000,
+            (-10 * QUOTE_PRECISION_I128) as i64,
+        )
+        .unwrap();
+        assert_eq!(rra, 0);
+
+        let rra = calculate_spread_revenue_retreat_amount(
+            250,
+            30000,
+            (-91 * QUOTE_PRECISION_I128) as i64,
+        )
+        .unwrap();
+        assert_eq!(rra, 250 * 3 + 160); //every additional dollar adds
+
+        let rra = calculate_spread_revenue_retreat_amount(
+            250,
+            30000,
+            (-14000 * QUOTE_PRECISION_I128) as i64,
+        )
+        .unwrap();
+        assert_eq!(rra, 30000 / 10); //every additional dollar adds
     }
 
     #[test]
@@ -996,5 +1034,58 @@ mod test {
         .unwrap();
         assert_eq!(long_spread, 1639);
         assert_eq!(short_spread, 42977); // big
+    }
+
+    #[test]
+    fn various_spread_tests() {
+        let (long_spread, short_spread) = calculate_spread(
+            300,
+            0,
+            484,
+            47500,
+            923807816209694,
+            925117623772584,
+            13731157,
+            -1314027016625,
+            13667686,
+            115876379475,
+            91316628,
+            928097825691666,
+            907979542352912,
+            945977491145601,
+            161188,
+            1459632439,
+            12358265776,
+            72230366233,
+            432067603632,
+        )
+        .unwrap();
+        assert_eq!(long_spread, 798);
+        assert_eq!(short_spread, 46702);
+
+        let (long_spread, short_spread) = calculate_spread(
+            300,
+            0,
+            341,
+            47500,
+            923813838283625,
+            925117620897828,
+            13715312,
+            -1307974136691,
+            13652092,
+            115857021791,
+            71958944,
+            928091775691666,
+            907979545174412,
+            945977494085178,
+            11581,
+            54284474,
+            9520659647,
+            53979922148,
+            427588331503,
+        )
+        .unwrap();
+        assert_eq!(long_spread, 823);
+        assert_eq!(short_spread, 46677);
     }
 }

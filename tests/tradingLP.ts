@@ -80,7 +80,7 @@ async function createNewUser(
 	return [driftClient, driftClientUser];
 }
 
-describe('liquidity providing', () => {
+describe('trading liquidity providing', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
