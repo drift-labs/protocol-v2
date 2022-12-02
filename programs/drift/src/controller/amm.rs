@@ -543,14 +543,14 @@ pub fn update_pool_balances(
     let pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
         min(user_unsettled_pnl, pnl_pool_token_amount.cast::<i128>()?)
     } else {
-        let token_amount = get_signed_token_amount(
-            get_token_amount(
-                user_quote_position.balance(),
-                spot_market,
-                user_quote_position.balance_type(),
-            )?,
+        let unsigned_token_amount = get_token_amount(
+            user_quote_position.balance(),
+            spot_market,
             user_quote_position.balance_type(),
         )?;
+
+        let token_amount =
+            get_signed_token_amount(unsigned_token_amount, user_quote_position.balance_type())?;
 
         // dont settle negative pnl to spot borrows when utilization is high (> 80%)
         let max_withdraw_amount =
