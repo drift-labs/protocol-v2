@@ -11,5 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 - ts-sdk: fix bugs in calculateSpreadBN
+- ts-sdk: fix additional bug in calculateSpreadBN (negative nums)
 
 ### Breaking
