@@ -606,7 +606,7 @@ export function calculateSpreadBN(
 			maxTargetSpread / 10,
 			Math.floor(
 				(baseSpread * netRevenueSinceLastFunding.abs().toNumber()) /
-					DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.toNumber()
+					DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.abs().toNumber()
 			)
 		);
 		const halfRevenueRetreatAmount = Math.floor(revenueRetreatAmount / 2);
