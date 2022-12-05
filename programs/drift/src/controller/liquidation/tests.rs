@@ -584,7 +584,7 @@ pub mod liquidate_perp {
         assert_eq!(user.perp_positions[0].quote_asset_amount, -101000000);
         assert_eq!(user.perp_positions[0].quote_entry_amount, -75000000);
         assert_eq!(user.perp_positions[0].quote_break_even_amount, -76000000);
-        assert_eq!(user.perp_positions[0].open_orders, 0);
+        assert_eq!(user.perp_positions[0].open_orders, 1);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
         assert_eq!(
@@ -943,7 +943,7 @@ pub mod liquidate_perp {
 
         assert_eq!(user.perp_positions[0].base_asset_amount, 9999000000000);
         assert_eq!(user.perp_positions[0].quote_asset_amount, -1499902000000);
-        assert_eq!(user.perp_positions[0].open_orders, 0);
+        assert_eq!(user.perp_positions[0].open_orders, 1);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
         assert_eq!(

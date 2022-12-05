@@ -55,7 +55,6 @@ use crate::math::serum::{
 use crate::math::spot_balance::get_token_amount;
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
-
 use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
@@ -555,7 +554,10 @@ pub fn cancel_order(
         let position_index = get_position_index(&user.perp_positions, order_market_index)?;
 
         // only decrease open/bids ask if it's not a trigger order or if it's been triggered
-        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
+        if !user.orders[order_index].must_be_triggered()
+            || user.orders[order_index].triggered()
+            || user.orders[order_index].is_liquidation_order()
+        {
             let base_asset_amount_unfilled =
                 user.orders[order_index].get_base_asset_amount_unfilled(None)?;
             position::decrease_open_bids_and_asks(
@@ -571,7 +573,10 @@ pub fn cancel_order(
         let spot_position_index = user.get_spot_position_index(order_market_index)?;
 
         // only decrease open/bids ask if it's not a trigger order or if it's been triggered
-        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
+        if !user.orders[order_index].must_be_triggered()
+            || user.orders[order_index].triggered()
+            || user.orders[order_index].is_liquidation_order()
+        {
             let base_asset_amount_unfilled =
                 user.orders[order_index].get_base_asset_amount_unfilled(None)?;
             decrease_spot_open_bids_and_asks(
@@ -4201,6 +4206,89 @@ pub fn expire_orders(
             false,
         )?;
     }
+
+    Ok(())
+}
+
+pub fn place_liquidation_order(
+    user: &mut User,
+    user_key: &Pubkey,
+    market_index: u16,
+    market_type: MarketType,
+    order_direction: PositionDirection,
+    base_asset_amount: u64,
+    liquidation_fee: u32,
+    oracle_price: i64,
+    slot: u64,
+    now: i64,
+) -> DriftResult<()> {
+    let auction_end_price = match order_direction {
+        PositionDirection::Long => liquidation_fee.cast::<i64>()?,
+        PositionDirection::Short => -liquidation_fee.cast::<i64>()?,
+    };
+
+    let order_id = get_then_update_id!(user, next_order_id);
+    let order = Order {
+        slot,
+        base_asset_amount,
+        auction_start_price: 0,
+        auction_end_price,
+        oracle_price_offset: auction_end_price.cast()?,
+        order_id,
+        market_index,
+        status: OrderStatus::Open,
+        order_type: OrderType::Liquidation,
+        market_type,
+        existing_position_direction: match order_direction {
+            PositionDirection::Long => PositionDirection::Short,
+            PositionDirection::Short => PositionDirection::Long,
+        },
+        direction: order_direction,
+        reduce_only: true,
+        auction_duration: 10,
+        ..Order::default()
+    };
+
+    let new_order_index = user
+        .orders
+        .iter()
+        .position(|order| order.status.eq(&OrderStatus::Init))
+        .ok_or(ErrorCode::MaxNumberOfOrders)?;
+
+    user.orders[new_order_index] = order;
+
+    let perp_position = user.get_perp_position_mut(market_index)?;
+    perp_position.open_orders += 1;
+
+    let order_action_record = get_order_action_record(
+        now,
+        OrderAction::Place,
+        OrderActionExplanation::Liquidation,
+        market_index,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(*user_key),
+        Some(user.orders[new_order_index]),
+        None,
+        None,
+        oracle_price,
+    )?;
+    emit!(order_action_record);
+
+    let order_record = OrderRecord {
+        ts: now,
+        user: *user_key,
+        order: user.orders[new_order_index],
+    };
+    emit!(order_record);
 
     Ok(())
 }

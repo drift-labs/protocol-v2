@@ -271,16 +271,9 @@ pub fn liquidate_perp(
         return Ok(());
     }
 
-    let liquidator_max_base_asset_amount = standardize_base_asset_amount(
-        liquidator_max_base_asset_amount,
-        perp_market_map.get_ref(&market_index)?.amm.order_step_size,
-    )?;
-
-    validate!(
-        liquidator_max_base_asset_amount != 0,
-        ErrorCode::InvalidBaseAssetAmountForLiquidatePerp,
-        "liquidator_max_base_asset_amount cant be 0"
-    )?;
+    let order_step_size = perp_market_map.get_ref(&market_index)?.amm.order_step_size;
+    let liquidator_max_base_asset_amount =
+        standardize_base_asset_amount(liquidator_max_base_asset_amount, order_step_size)?;
 
     let user_base_asset_amount = user.perp_positions[position_index]
         .base_asset_amount
@@ -312,7 +305,7 @@ pub fn liquidate_perp(
             if_liquidation_fee,
             oracle_price,
         )?,
-        market.amm.order_step_size,
+        order_step_size,
     )?;
     drop(market);
 
@@ -349,10 +342,23 @@ pub fn liquidate_perp(
     let base_asset_amount = user_base_asset_amount
         .min(liquidator_max_base_asset_amount)
         .min(max_base_asset_amount_allowed_to_be_transferred.max(min_base_asset_amount));
-    let base_asset_amount = standardize_base_asset_amount_ceil(
-        base_asset_amount,
-        perp_market_map.get_ref(&market_index)?.amm.order_step_size,
-    )?;
+    let base_asset_amount = standardize_base_asset_amount_ceil(base_asset_amount, order_step_size)?;
+
+    if liquidator_max_base_asset_amount == 0 {
+        orders::place_liquidation_order(
+            user,
+            user_key,
+            market_index,
+            MarketType::Perp,
+            user.perp_positions[position_index].get_direction_to_close(),
+            base_asset_amount,
+            liquidation_fee,
+            oracle_price,
+            slot,
+            now,
+        )?;
+        return Ok(());
+    }
 
     // Make sure liquidator enters at better than limit price
     if let Some(limit_price) = limit_price {
@@ -606,6 +612,32 @@ pub fn liquidate_perp(
         },
         ..LiquidationRecord::default()
     });
+
+    let base_asset_amount_available_to_liquidate = if user.is_being_liquidated() {
+        let max_could_have_been_liquidated =
+            max_base_asset_amount_allowed_to_be_transferred.min(user_base_asset_amount);
+        standardize_base_asset_amount(
+            max_could_have_been_liquidated.saturating_sub(base_asset_amount),
+            order_step_size,
+        )?
+    } else {
+        0
+    };
+
+    if base_asset_amount_available_to_liquidate != 0 {
+        orders::place_liquidation_order(
+            user,
+            user_key,
+            market_index,
+            MarketType::Perp,
+            user_position_direction_to_close,
+            base_asset_amount_available_to_liquidate,
+            liquidation_fee,
+            oracle_price,
+            slot,
+            now,
+        )?;
+    }
 
     Ok(())
 }
