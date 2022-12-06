@@ -1,9 +1,10 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO,
-    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_PRECISION_U128,
-    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LIQUIDATION_PCT_PRECISION, PRICE_PRECISION,
+    AMM_RESERVE_PRECISION_I128, BASE_PRECISION_U64,
+    FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO, LIQUIDATION_FEE_PRECISION,
+    LIQUIDATION_FEE_PRECISION_U128, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO,
+    LIQUIDATION_PCT_PRECISION, MARGIN_PRECISION_U64, PRICE_PRECISION,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::margin::{
@@ -12,6 +13,7 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
+use crate::controller::position::PositionDirection;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -359,4 +361,37 @@ pub fn calculate_max_pct_to_liquidate(
     margin_freeable
         .safe_mul(LIQUIDATION_PCT_PRECISION)?
         .safe_div(margin_shortage)
+}
+
+pub fn calculate_margin_freed_by_perp_liquidation_order(
+    direction: &PositionDirection,
+    base_asset_amount: u64,
+    quote_asset_amount: u64,
+    margin_ratio: u32,
+    oracle_price: i64,
+    taker_fee: u64,
+) -> DriftResult<u64> {
+    let base_asset_value = base_asset_amount
+        .safe_mul(oracle_price.cast()?)?
+        .safe_div(BASE_PRECISION_U64)?;
+
+    let margin_requirement_reduced = base_asset_value
+        .safe_mul(margin_ratio.cast()?)?
+        .safe_div(MARGIN_PRECISION_U64)?;
+
+    let pnl = match direction {
+        PositionDirection::Long => quote_asset_amount
+            .cast::<i64>()?
+            .safe_sub(base_asset_value.cast()?)?,
+        PositionDirection::Short => base_asset_value
+            .cast::<i64>()?
+            .safe_sub(quote_asset_amount.cast()?)?,
+    };
+
+    margin_requirement_reduced
+        .cast::<i64>()?
+        .safe_add(pnl)?
+        .safe_sub(taker_fee.cast()?)?
+        .max(0)
+        .cast()
 }

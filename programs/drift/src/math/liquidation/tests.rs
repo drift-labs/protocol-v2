@@ -495,3 +495,149 @@ mod validate_transfer_satisfies_limit_price {
         .is_err());
     }
 }
+
+mod calculate_margin_freed_by_perp_liquidation_order {
+    use crate::controller::position::PositionDirection;
+    use crate::math::constants::{
+        BASE_PRECISION_U64, MARGIN_PRECISION, PRICE_PRECISION_I64, QUOTE_PRECISION_U64,
+    };
+    use crate::math::liquidation::calculate_margin_freed_by_perp_liquidation_order;
+
+    #[test]
+    fn long_order_with_more_negative_pnl_than_margin_requirement_reduced() {
+        let direction = PositionDirection::Long;
+        let base_asset_amount = 10 * BASE_PRECISION_U64;
+        let quote_asset_amount = 900 * QUOTE_PRECISION_U64;
+        let margin_ratio = MARGIN_PRECISION / 10;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let taker_fee = QUOTE_PRECISION_U64;
+
+        let margin_freed = calculate_margin_freed_by_perp_liquidation_order(
+            &direction,
+            base_asset_amount,
+            quote_asset_amount,
+            margin_ratio,
+            oracle_price,
+            taker_fee,
+        )
+        .unwrap();
+
+        // $1000 * .1 - 100 - 1 = -1
+        assert_eq!(margin_freed, 0);
+    }
+
+    #[test]
+    fn long_order_with_less_negative_pnl_than_margin_requirement_reduced() {
+        let direction = PositionDirection::Long;
+        let base_asset_amount = 10 * BASE_PRECISION_U64;
+        let quote_asset_amount = 990 * QUOTE_PRECISION_U64;
+        let margin_ratio = MARGIN_PRECISION / 10;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let taker_fee = QUOTE_PRECISION_U64;
+
+        let margin_freed = calculate_margin_freed_by_perp_liquidation_order(
+            &direction,
+            base_asset_amount,
+            quote_asset_amount,
+            margin_ratio,
+            oracle_price,
+            taker_fee,
+        )
+        .unwrap();
+
+        // $1000 * .1 - 10 - 1 = $89
+        assert_eq!(margin_freed, 89000000);
+    }
+
+    #[test]
+    fn long_order_with_positive_pnl() {
+        let direction = PositionDirection::Long;
+        let base_asset_amount = 10 * BASE_PRECISION_U64;
+        let quote_asset_amount = 1010 * QUOTE_PRECISION_U64;
+        let margin_ratio = MARGIN_PRECISION / 10;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let taker_fee = QUOTE_PRECISION_U64;
+
+        let margin_freed = calculate_margin_freed_by_perp_liquidation_order(
+            &direction,
+            base_asset_amount,
+            quote_asset_amount,
+            margin_ratio,
+            oracle_price,
+            taker_fee,
+        )
+        .unwrap();
+
+        // $1000 * .1 + 10 - 1 = $109
+        assert_eq!(margin_freed, 109000000);
+    }
+
+    #[test]
+    fn short_order_with_more_negative_pnl_than_margin_requirement_reduced() {
+        let direction = PositionDirection::Short;
+        let base_asset_amount = 10 * BASE_PRECISION_U64;
+        let quote_asset_amount = 1100 * QUOTE_PRECISION_U64;
+        let margin_ratio = MARGIN_PRECISION / 10;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let taker_fee = QUOTE_PRECISION_U64;
+
+        let margin_freed = calculate_margin_freed_by_perp_liquidation_order(
+            &direction,
+            base_asset_amount,
+            quote_asset_amount,
+            margin_ratio,
+            oracle_price,
+            taker_fee,
+        )
+        .unwrap();
+
+        // $1000 * .1 - 100 - 1 = -1
+        assert_eq!(margin_freed, 0);
+    }
+
+    #[test]
+    fn short_order_with_less_negative_pnl_than_margin_requirement_reduced() {
+        let direction = PositionDirection::Short;
+        let base_asset_amount = 10 * BASE_PRECISION_U64;
+        let quote_asset_amount = 1010 * QUOTE_PRECISION_U64;
+        let margin_ratio = MARGIN_PRECISION / 10;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let taker_fee = QUOTE_PRECISION_U64;
+
+        let margin_freed = calculate_margin_freed_by_perp_liquidation_order(
+            &direction,
+            base_asset_amount,
+            quote_asset_amount,
+            margin_ratio,
+            oracle_price,
+            taker_fee,
+        )
+        .unwrap();
+
+        // $1000 * .1 - 10 - 1 = $89
+        assert_eq!(margin_freed, 89000000);
+    }
+
+    #[test]
+    fn short_order_with_positive_pnl() {
+        let direction = PositionDirection::Short;
+        let base_asset_amount = 10 * BASE_PRECISION_U64;
+        let quote_asset_amount = 990 * QUOTE_PRECISION_U64;
+        let margin_ratio = MARGIN_PRECISION / 10;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let taker_fee = QUOTE_PRECISION_U64;
+
+        let margin_freed = calculate_margin_freed_by_perp_liquidation_order(
+            &direction,
+            base_asset_amount,
+            quote_asset_amount,
+            margin_ratio,
+            oracle_price,
+            taker_fee,
+        )
+        .unwrap();
+
+        // $1000 * .1 + 10 - 1 = $109
+        assert_eq!(margin_freed, 109000000);
+    }
+}

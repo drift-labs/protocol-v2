@@ -40,7 +40,9 @@ use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
 };
-use crate::math::liquidation::validate_user_not_being_liquidated;
+use crate::math::liquidation::{
+    calculate_margin_freed_by_perp_liquidation_order, validate_user_not_being_liquidated,
+};
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
@@ -1245,6 +1247,7 @@ fn fulfill_perp_order(
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
+    let mut taker_fee = 0_u64;
     let mut order_records: Vec<OrderActionRecord> = vec![];
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -1253,56 +1256,58 @@ fn fulfill_perp_order(
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
         let user_order_direction = user.orders[user_order_index].direction;
 
-        let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
-            PerpFulfillmentMethod::AMM(maker_price) => fulfill_perp_order_with_amm(
-                user,
-                user_stats,
-                user_order_index,
-                market.deref_mut(),
-                oracle_map,
-                reserve_price_before,
-                now,
-                slot,
-                valid_oracle_price,
-                user_key,
-                filler_key,
-                filler,
-                filler_stats,
-                referrer,
-                referrer_stats,
-                fee_structure,
-                &mut order_records,
-                None,
-                *maker_price,
-                true,
-            )?,
-            PerpFulfillmentMethod::Match => fulfill_perp_order_with_match(
-                market.deref_mut(),
-                user,
-                user_stats,
-                user_order_index,
-                user_key,
-                maker.as_deref_mut().unwrap(),
-                maker_stats,
-                maker_order_index.unwrap(),
-                maker_key.unwrap(),
-                filler,
-                filler_stats,
-                filler_key,
-                referrer,
-                referrer_stats,
-                reserve_price_before,
-                valid_oracle_price,
-                now,
-                slot,
-                fee_structure,
-                oracle_map,
-                &mut order_records,
-            )?,
-        };
+        let (fill_base_asset_amount, fill_quote_asset_amount, fill_taker_fee) =
+            match fulfillment_method {
+                PerpFulfillmentMethod::AMM(maker_price) => fulfill_perp_order_with_amm(
+                    user,
+                    user_stats,
+                    user_order_index,
+                    market.deref_mut(),
+                    oracle_map,
+                    reserve_price_before,
+                    now,
+                    slot,
+                    valid_oracle_price,
+                    user_key,
+                    filler_key,
+                    filler,
+                    filler_stats,
+                    referrer,
+                    referrer_stats,
+                    fee_structure,
+                    &mut order_records,
+                    None,
+                    *maker_price,
+                    true,
+                )?,
+                PerpFulfillmentMethod::Match => fulfill_perp_order_with_match(
+                    market.deref_mut(),
+                    user,
+                    user_stats,
+                    user_order_index,
+                    user_key,
+                    maker.as_deref_mut().unwrap(),
+                    maker_stats,
+                    maker_order_index.unwrap(),
+                    maker_key.unwrap(),
+                    filler,
+                    filler_stats,
+                    filler_key,
+                    referrer,
+                    referrer_stats,
+                    reserve_price_before,
+                    valid_oracle_price,
+                    now,
+                    slot,
+                    fee_structure,
+                    oracle_map,
+                    &mut order_records,
+                )?,
+            };
 
         base_asset_amount = base_asset_amount.safe_add(fill_base_asset_amount)?;
         quote_asset_amount = quote_asset_amount.safe_add(fill_quote_asset_amount)?;
+        taker_fee = taker_fee.safe_add(fill_taker_fee)?;
         market
             .amm
             .update_volume_24h(fill_quote_asset_amount, user_order_direction, now)?;
@@ -1318,6 +1323,7 @@ fn fulfill_perp_order(
     let maker_margin_buffer = initial_margin_ratio
         .safe_sub(maintenance_margin_ratio)?
         .safe_div(2)?;
+    let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
     drop(perp_market);
 
     let taker_being_liquidated = user.is_being_liquidated();
@@ -1342,6 +1348,16 @@ fn fulfill_perp_order(
     if taker_being_liquidated {
         if taker_covers_margin_requirement {
             user.exit_liquidation();
+        } else {
+            let margin_freed = calculate_margin_freed_by_perp_liquidation_order(
+                &order_direction,
+                base_asset_amount,
+                quote_asset_amount,
+                maintenance_margin_ratio,
+                oracle_price,
+                taker_fee,
+            )?;
+            user.increment_margin_freed(margin_freed)?;
         }
     } else if !taker_covers_margin_requirement {
         msg!(
@@ -1446,7 +1462,7 @@ pub fn fulfill_perp_order_with_amm(
     override_base_asset_amount: Option<u64>,
     override_fill_price: Option<u64>,
     split_with_lps: bool,
-) -> DriftResult<(u64, u64)> {
+) -> DriftResult<(u64, u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
 
     // Determine the base asset amount the market can fill
@@ -1487,7 +1503,7 @@ pub fn fulfill_perp_order_with_amm(
         if override_base_asset_amount.is_none() {
             msg!("Amm cant fulfill order");
         }
-        return Ok((0, 0));
+        return Ok((0, 0, 0));
     }
 
     let (order_post_only, order_slot, order_direction) =
@@ -1688,7 +1704,7 @@ pub fn fulfill_perp_order_with_amm(
         market_position.open_orders -= 1;
     }
 
-    Ok((base_asset_amount, quote_asset_amount))
+    Ok((base_asset_amount, quote_asset_amount, user_fee))
 }
 
 pub fn fulfill_perp_order_with_match(
@@ -1713,12 +1729,12 @@ pub fn fulfill_perp_order_with_match(
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     order_records: &mut Vec<OrderActionRecord>,
-) -> DriftResult<(u64, u64)> {
+) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
         &taker.orders[taker_order_index],
     ) {
-        return Ok((0_u64, 0_u64));
+        return Ok((0_u64, 0_u64, 0_u64));
     }
 
     let (bid_price, ask_price) = market.amm.bid_ask_price(market.amm.reserve_price()?)?;
@@ -1754,7 +1770,7 @@ pub fn fulfill_perp_order_with_match(
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
     if !orders_cross {
-        return Ok((0_u64, 0_u64));
+        return Ok((0_u64, 0_u64, 0_u64));
     }
 
     let (base_asset_amount, _) = calculate_fill_for_matched_orders(
@@ -1766,7 +1782,7 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     if base_asset_amount == 0 {
-        return Ok((0_u64, 0_u64));
+        return Ok((0_u64, 0_u64, 0_u64));
     }
 
     let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
@@ -1784,6 +1800,7 @@ pub fn fulfill_perp_order_with_match(
     };
 
     let mut total_quote_asset_amount = 0_u64;
+    let mut total_taker_fee = 0_u64;
     let base_asset_amount_left_to_fill = if amm_wants_to_make && market.amm.amm_jit_is_active() {
         let jit_base_asset_amount = if !taker.orders[taker_order_index].has_limit_price(slot)?
             && maker_base_asset_amount < taker_base_asset_amount
@@ -1800,31 +1817,35 @@ pub fn fulfill_perp_order_with_match(
         };
 
         if jit_base_asset_amount > 0 {
-            let (base_asset_amount_filled_by_amm, quote_asset_amount_filled_by_amm) =
-                fulfill_perp_order_with_amm(
-                    taker,
-                    taker_stats,
-                    taker_order_index,
-                    market,
-                    oracle_map,
-                    reserve_price_before,
-                    now,
-                    slot,
-                    valid_oracle_price,
-                    taker_key,
-                    filler_key,
-                    filler,
-                    filler_stats,
-                    &mut None,
-                    &mut None,
-                    fee_structure,
-                    order_records,
-                    Some(jit_base_asset_amount),
-                    Some(maker_price), // match the makers price
-                    false,             // dont split with the lps
-                )?;
+            let (
+                base_asset_amount_filled_by_amm,
+                quote_asset_amount_filled_by_amm,
+                taker_fee_for_amm,
+            ) = fulfill_perp_order_with_amm(
+                taker,
+                taker_stats,
+                taker_order_index,
+                market,
+                oracle_map,
+                reserve_price_before,
+                now,
+                slot,
+                valid_oracle_price,
+                taker_key,
+                filler_key,
+                filler,
+                filler_stats,
+                &mut None,
+                &mut None,
+                fee_structure,
+                order_records,
+                Some(jit_base_asset_amount),
+                Some(maker_price), // match the makers price
+                false,             // dont split with the lps
+            )?;
 
             total_quote_asset_amount = quote_asset_amount_filled_by_amm;
+            total_taker_fee = taker_fee_for_amm;
 
             base_asset_amount.safe_sub(base_asset_amount_filled_by_amm)?
         } else {
@@ -1933,6 +1954,8 @@ pub fn fulfill_perp_order_with_match(
         referrer_stats,
         &MarketType::Perp,
     )?;
+
+    total_taker_fee = total_taker_fee.safe_add(taker_fee)?;
 
     // Increment the markets house's total fee variables
     market.amm.total_fee = market.amm.total_fee.safe_add(fee_to_market.cast()?)?;
@@ -2064,7 +2087,7 @@ pub fn fulfill_perp_order_with_match(
         market_position.open_orders -= 1;
     }
 
-    Ok((base_asset_amount, total_quote_asset_amount))
+    Ok((base_asset_amount, total_quote_asset_amount, total_taker_fee))
 }
 
 pub fn update_order_after_fill(
