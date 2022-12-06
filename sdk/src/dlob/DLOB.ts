@@ -68,6 +68,7 @@ const SUPPORTED_ORDER_TYPES = [
 	'triggerMarket',
 	'triggerLimit',
 	'oracle',
+	'liquidation',
 ];
 
 export class DLOB {
