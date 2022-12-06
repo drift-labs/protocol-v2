@@ -88,12 +88,14 @@ pub fn calculate_auction_price(
         OrderType::Market | OrderType::TriggerMarket => {
             calculate_auction_price_for_fixed_auction(order, slot, tick_size)
         }
-        OrderType::Oracle => calculate_auction_price_for_oracle_offset_auction(
-            order,
-            slot,
-            tick_size,
-            valid_oracle_price,
-        ),
+        OrderType::Oracle | OrderType::Liquidation => {
+            calculate_auction_price_for_oracle_offset_auction(
+                order,
+                slot,
+                tick_size,
+                valid_oracle_price,
+            )
+        }
         _ => unreachable!(),
     }
 }
