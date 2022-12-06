@@ -327,7 +327,12 @@ export class DLOB {
 		if (isInactiveTriggerOrder) {
 			type = 'trigger';
 		} else if (
-			isOneOfVariant(order.orderType, ['market', 'triggerMarket', 'oracle'])
+			isOneOfVariant(order.orderType, [
+				'market',
+				'triggerMarket',
+				'oracle',
+				'liquidation',
+			])
 		) {
 			type = 'market';
 		} else if (order.oraclePriceOffset !== 0) {
