@@ -7,6 +7,7 @@
     <a href="https://docs.drift.trade/sdk-documentation"><img alt="Docs" src="https://img.shields.io/badge/docs-tutorials-blueviolet" /></a>
     <a href="https://discord.com/channels/849494028176588802/878700556904980500"><img alt="Discord Chat" src="https://img.shields.io/discord/889577356681945098?color=blueviolet" /></a>
     <a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/github/license/project-serum/anchor?color=blueviolet" /></a>
+    <a href="https://github.com/github/docs/actions/workflows/main.yml/badge.svg"><img alt="Tests" src="https://github.com/github/docs/actions/workflows/main.yml/badge.svg" /></a>
   </p>
 </div>
 
