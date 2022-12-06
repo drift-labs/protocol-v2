@@ -36,6 +36,10 @@ pub fn validate_order(
         OrderType::Oracle => {
             validate_oracle_order(order, market.amm.order_step_size, market.amm.min_order_size)?
         }
+        OrderType::Liquidation => {
+            msg!("User cannot submit liquidation orders");
+            return Err(ErrorCode::InvalidOrder);
+        }
     }
 
     Ok(())
@@ -392,6 +396,10 @@ pub fn validate_spot_order(
         }
         OrderType::TriggerLimit => validate_trigger_limit_order(order, step_size, min_order_size)?,
         OrderType::Oracle => validate_oracle_order(order, step_size, min_order_size)?,
+        OrderType::Liquidation => {
+            msg!("User cannot submit liquidation orders");
+            return Err(ErrorCode::InvalidOrder);
+        }
     }
 
     Ok(())

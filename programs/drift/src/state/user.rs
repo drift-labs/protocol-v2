@@ -719,12 +719,19 @@ impl Order {
     pub fn is_market_order(&self) -> bool {
         matches!(
             self.order_type,
-            OrderType::Market | OrderType::TriggerMarket | OrderType::Oracle
+            OrderType::Market
+                | OrderType::TriggerMarket
+                | OrderType::Oracle
+                | OrderType::Liquidation
         )
     }
 
     pub fn is_limit_order(&self) -> bool {
         matches!(self.order_type, OrderType::Limit | OrderType::TriggerLimit)
+    }
+
+    pub fn is_liquidation_order(&self) -> bool {
+        self.order_type == OrderType::Liquidation
     }
 }
 
@@ -774,6 +781,7 @@ pub enum OrderType {
     TriggerMarket,
     TriggerLimit,
     Oracle,
+    Liquidation,
 }
 
 impl Default for OrderType {

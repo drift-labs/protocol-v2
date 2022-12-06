@@ -16,7 +16,7 @@ export function getAuctionPrice(
 ): BN {
 	if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
 		return getAuctionPriceForFixedAuction(order, slot);
-	} else if (isVariant(order.orderType, 'oracle')) {
+	} else if (isOneOfVariant(order.orderType, ['oracle', 'liquidation'])) {
 		return getAuctionPriceForOracleOffsetAuction(order, slot, oraclePrice);
 	} else {
 		throw Error(`Cant get auction price for order type ${order.orderType}`);

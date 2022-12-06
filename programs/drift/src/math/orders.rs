@@ -341,6 +341,10 @@ pub fn should_cancel_reduce_only_order(
     Ok(should_cancel)
 }
 
+pub fn should_cancel_liquidation_order(user: &User, order_index: usize) -> DriftResult<bool> {
+    Ok(!user.is_being_liquidated() && user.orders[order_index].is_liquidation_order())
+}
+
 pub fn order_breaches_oracle_price_limits(
     order: &Order,
     oracle_price: i64,

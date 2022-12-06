@@ -36,6 +36,7 @@ pub const FUNDING_RATE_BUFFER: u128 = 1_000; // expo = -3
 pub const FUNDING_RATE_BUFFER_I128: i128 = FUNDING_RATE_BUFFER as i128; // expo = -3
 
 pub const MARGIN_PRECISION: u32 = 10_000; // expo = -4
+pub const MARGIN_PRECISION_U64: u64 = 10_000; // expo = -4
 pub const MARGIN_PRECISION_U128: u128 = 10_000; // expo = -4
 pub const SPOT_WEIGHT_PRECISION: u32 = MARGIN_PRECISION; // expo = -4
 pub const SPOT_WEIGHT_PRECISION_U128: u128 = SPOT_WEIGHT_PRECISION as u128; // expo = -4

@@ -573,7 +573,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -656,7 +656,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -740,7 +740,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -824,7 +824,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -1487,7 +1487,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -1601,7 +1601,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -2459,6 +2459,7 @@ pub mod fulfill_order {
             slot,
             false,
             true,
+            0,
         )
         .unwrap();
 
@@ -2671,6 +2672,7 @@ pub mod fulfill_order {
             slot,
             false,
             true,
+            0,
         )
         .unwrap();
 
@@ -2861,6 +2863,7 @@ pub mod fulfill_order {
             slot,
             false,
             true,
+            0,
         )
         .unwrap();
 
@@ -3022,6 +3025,7 @@ pub mod fulfill_order {
             slot,
             false,
             true,
+            0,
         )
         .unwrap();
 
@@ -3413,6 +3417,7 @@ pub mod fulfill_order {
             slot,
             false,
             true,
+            0,
         )
         .unwrap();
 
