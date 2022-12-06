@@ -120,7 +120,7 @@ jobs:
       - name: build deps
         run: |
           git submodule update --init --recursive
-          cd deps/serum-dex/dex && anchor build && cd ../../..
+          cd deps/serum-dex/dex && anchor build --skip-lint && cd ../../..
 
       - name: Setup node
         uses: actions/setup-node@v2
