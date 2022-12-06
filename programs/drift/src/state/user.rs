@@ -719,7 +719,10 @@ impl Order {
     pub fn is_market_order(&self) -> bool {
         matches!(
             self.order_type,
-            OrderType::Market | OrderType::TriggerMarket | OrderType::Oracle
+            OrderType::Market
+                | OrderType::TriggerMarket
+                | OrderType::Oracle
+                | OrderType::Liquidation
         )
     }
 
