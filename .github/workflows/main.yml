@@ -112,6 +112,7 @@ jobs:
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           echo Configuring bpf toolchain...
           (cd $HOME/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
+          solana-keygen new
         shell: bash
 
       - name: install anchor cli 
