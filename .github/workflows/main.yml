@@ -138,7 +138,7 @@ jobs:
       - name: install typescript
         run: npm install typescript -g
 
-      - run: npm install ts-mocha -g
+      - run: npm install ts-mocha
 
       - name: build sdk 
         run: cd sdk/ && yarn && yarn build && cd .. 
