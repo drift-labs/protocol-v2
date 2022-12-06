@@ -667,18 +667,10 @@ pub fn fill_perp_order(
         return Ok((0, false));
     }
 
-    match validate_user_not_being_liquidated(
-        user,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        state.liquidation_margin_buffer_ratio,
-    ) {
-        Ok(_) => {}
-        Err(_) => {
-            msg!("user is being liquidated");
-            return Ok((0, false));
-        }
+    // return eearly if user is being liquidated and order is not liquidation order
+    if user.is_being_liquidated() && !user.orders[order_index].is_liquidation_order() {
+        msg!("user is being liquidated");
+        return Ok((0, false));
     }
 
     let reserve_price_before: u64;
@@ -764,8 +756,9 @@ pub fn fill_perp_order(
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
     let should_cancel_reduce_only =
         should_cancel_reduce_only_order(&user.orders[order_index], existing_base_asset_amount)?;
+    let should_cancel_liquidation_order = should_cancel_liquidation_order(user, order_index)?;
 
-    if should_expire_order || should_cancel_reduce_only {
+    if should_expire_order || should_cancel_reduce_only || should_cancel_liquidation_order {
         let filler_reward = {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
             pay_keeper_flat_reward_for_perps(
@@ -778,8 +771,10 @@ pub fn fill_perp_order(
 
         let explanation = if should_expire_order {
             OrderActionExplanation::OrderExpired
-        } else {
+        } else if should_cancel_reduce_only {
             OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
+        } else {
+            OrderActionExplanation::NoLongerBeingLiquidated
         };
 
         cancel_order(
