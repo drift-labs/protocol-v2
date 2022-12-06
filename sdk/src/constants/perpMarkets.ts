@@ -57,6 +57,26 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1667560505000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Bitcoin',
+		category: ['L1', 'Payment'],
+		symbol: 'BTC-PERP',
+		baseAssetSymbol: 'BTC',
+		marketIndex: 1,
+		oracle: new PublicKey('GVXRSBjFk6e6J3NbVPXohDJetcTjaeeuykUpbQF8UoMU'),
+		launchTs: 1670347281000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Ethereum',
+		category: ['L1', 'Infra'],
+		symbol: 'ETH-PERP',
+		baseAssetSymbol: 'ETH',
+		marketIndex: 2,
+		oracle: new PublicKey('JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB'),
+		launchTs: 1670347281000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
