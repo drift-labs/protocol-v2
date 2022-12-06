@@ -819,6 +819,7 @@ pub fn fill_perp_order(
             slot,
             market_is_reduce_only,
             amm_is_available,
+            state.liquidation_margin_buffer_ratio,
         )?;
 
     let should_cancel_market_order =
@@ -1188,6 +1189,7 @@ fn fulfill_perp_order(
     slot: u64,
     market_is_reduce_only: bool,
     amm_is_available: bool,
+    liquidation_margin_buffer_ratio: u32,
 ) -> DriftResult<(u64, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1313,10 +1315,17 @@ fn fulfill_perp_order(
     let perp_market = perp_market_map.get_ref(&market_index)?;
     let initial_margin_ratio = perp_market.margin_ratio_initial;
     let maintenance_margin_ratio = perp_market.margin_ratio_maintenance;
-    let maintenance_margin_buffer = initial_margin_ratio
+    let maker_margin_buffer = initial_margin_ratio
         .safe_sub(maintenance_margin_ratio)?
         .safe_div(2)?;
     drop(perp_market);
+
+    let taker_being_liquidated = user.is_being_liquidated();
+    let taker_margin_buffer = if taker_being_liquidated {
+        liquidation_margin_buffer_ratio
+    } else {
+        maker_margin_buffer
+    };
 
     let (_, taker_total_collateral, taker_margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
@@ -1325,9 +1334,16 @@ fn fulfill_perp_order(
             MarginRequirementType::Maintenance,
             spot_market_map,
             oracle_map,
-            Some(maintenance_margin_buffer.cast()?),
+            Some(taker_margin_buffer.cast()?),
         )?;
-    if taker_total_collateral < taker_margin_requirement_plus_buffer.cast()? {
+
+    let taker_covers_margin_requirement =
+        taker_total_collateral >= taker_margin_requirement_plus_buffer.cast()?;
+    if taker_being_liquidated {
+        if taker_covers_margin_requirement {
+            user.exit_liquidation();
+        }
+    } else if !taker_covers_margin_requirement {
         msg!(
             "taker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
             taker_margin_requirement_plus_buffer,
@@ -1344,7 +1360,7 @@ fn fulfill_perp_order(
                 MarginRequirementType::Maintenance,
                 spot_market_map,
                 oracle_map,
-                Some(maintenance_margin_buffer.cast()?),
+                Some(maker_margin_buffer.cast()?),
             )?;
 
         if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {

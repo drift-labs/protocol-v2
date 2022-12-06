@@ -2459,6 +2459,7 @@ pub mod fulfill_order {
             slot,
             false,
             true,
+            0,
         )
         .unwrap();
 
@@ -2671,6 +2672,7 @@ pub mod fulfill_order {
             slot,
             false,
             true,
+            0,
         )
         .unwrap();
 
@@ -2861,6 +2863,7 @@ pub mod fulfill_order {
             slot,
             false,
             true,
+            0,
         )
         .unwrap();
 
@@ -3022,6 +3025,7 @@ pub mod fulfill_order {
             slot,
             false,
             true,
+            0,
         )
         .unwrap();
 
@@ -3413,6 +3417,7 @@ pub mod fulfill_order {
             slot,
             false,
             true,
+            0,
         )
         .unwrap();
 
