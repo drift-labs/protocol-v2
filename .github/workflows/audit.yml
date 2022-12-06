@@ -11,7 +11,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   SOLANA_VERSION: "1.9.5"
-  PROGRAM_PATH: "programs/clearing_house/" # Target clearing_house
+  PROGRAM_PATH: "programs/drift/" 
+  RUST_TOOLCHAIN: nightly-2022-02-07
 
 jobs:
   build:
@@ -35,16 +36,24 @@ jobs:
         uses: Swatinem/rust-cache@v1
         with:
           target-dir: ${{ env.PROGRAM_PATH }}.coderrect/build # Cache build files for performance
-          
+
+      - name: Install Rust nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          profile: minimal
+          override: true
+          components: rustfmt, clippy
+
       - name: Download Solana
         if: steps.solana-cache.outputs.cache-hit != 'true' # Skip this step if matched cached version is available
         run: |
           echo Downloading Solana v${{ env.SOLANA_VERSION }}... 🧬
           sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           echo Configuring bpf toolchain...
-          (cd /home/runner/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
+          (cd $HOME/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
         shell: bash
 
       - name: Download Soteria # Always grab the latest version
