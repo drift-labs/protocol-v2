@@ -96,12 +96,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           profile: minimal
           override: true
+
       - name: Download Solana
         run: |
           echo Downloading Solana v${{ env.SOLANA_VERSION }}... 🧬
@@ -111,21 +113,30 @@ jobs:
           echo Configuring bpf toolchain...
           (cd $HOME/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
         shell: bash
+
+      - name: install anchor cli 
+        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.25.0 anchor-cli --locked
+
+      - name: build deps
+        run: |
+          git submodule update --init --recursive
+          cd deps/serum-dex/dex && anchor build && cd ../../..
+
       - name: Setup node
         uses: actions/setup-node@v2
         with:
           node-version: '14.x'
           registry-url: 'https://registry.npmjs.org'
+
       - name: Setup yarn
         run: npm install -g yarn
+
       - name: Install yarn
         run: yarn
 
       - name: install typescript
         run: npm install typescript -g
 
-      - name: install anchor cli 
-        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.25.0 anchor-cli --locked
 
       - name: build sdk 
         run: cd sdk/ && yarn && yarn build && cd .. 
