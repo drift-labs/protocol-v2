@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "2.2.0-beta.2",
   "name": "drift",
   "instructions": [
     {
@@ -4672,13 +4672,13 @@
           {
             "name": "auctionStartPrice",
             "type": {
-              "option": "u64"
+              "option": "i64"
             }
           },
           {
             "name": "auctionEndPrice",
             "type": {
-              "option": "u64"
+              "option": "i64"
             }
           }
         ]
@@ -5708,11 +5708,11 @@
           },
           {
             "name": "auctionStartPrice",
-            "type": "u64"
+            "type": "i64"
           },
           {
             "name": "auctionEndPrice",
-            "type": "u64"
+            "type": "i64"
           },
           {
             "name": "maxTs",
@@ -6419,6 +6419,9 @@
           },
           {
             "name": "TriggerLimit"
+          },
+          {
+            "name": "Oracle"
           }
         ]
       }
