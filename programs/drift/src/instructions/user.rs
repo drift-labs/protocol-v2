@@ -35,9 +35,7 @@ use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::State;
-use crate::state::user::{
-    MarketType, OrderTriggerCondition, OrderType, User, UserStats, UserStatus,
-};
+use crate::state::user::{MarketType, OrderTriggerCondition, OrderType, User, UserStats};
 use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
@@ -160,6 +158,7 @@ pub fn handle_deposit(
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
+    let slot = clock.slot;
 
     let AccountMaps {
         perp_market_map,
@@ -257,7 +256,7 @@ pub fn handle_deposit(
 
     if user.is_being_liquidated() {
         // try to update liquidation status if user is was already being liq'd
-        let is_being_liquidated = is_user_being_liquidated(
+        let is_still_being_liquidated = is_user_being_liquidated(
             user,
             &perp_market_map,
             &spot_market_map,
@@ -265,10 +264,16 @@ pub fn handle_deposit(
             state.liquidation_margin_buffer_ratio,
         )?;
 
-        if is_being_liquidated {
-            user.status = UserStatus::BeingLiquidated;
-        } else {
-            user.status = UserStatus::Active;
+        if !is_still_being_liquidated {
+            user.exit_liquidation(
+                &user_key,
+                None,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                now,
+                slot,
+            )?;
         }
     }
 
@@ -334,6 +339,7 @@ pub fn handle_withdraw(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
+    let slot = clock.slot;
     let state = &ctx.accounts.state;
 
     let AccountMaps {
@@ -418,7 +424,17 @@ pub fn handle_withdraw(
 
     validate_spot_margin_trading(user, &spot_market_map, &mut oracle_map)?;
 
-    user.status = UserStatus::Active;
+    if user.is_being_liquidated() {
+        user.exit_liquidation(
+            &user_key,
+            None,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            slot,
+        )?;
+    }
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
@@ -477,6 +493,8 @@ pub fn handle_transfer_deposit(
 
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
+    let slot = clock.slot;
+    let now = clock.unix_timestamp;
 
     let to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
@@ -571,7 +589,17 @@ pub fn handle_transfer_deposit(
 
     validate_spot_margin_trading(from_user, &spot_market_map, &mut oracle_map)?;
 
-    from_user.status = UserStatus::Active;
+    if from_user.is_being_liquidated() {
+        from_user.exit_liquidation(
+            &from_user_key,
+            None,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            slot,
+        )?;
+    }
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
