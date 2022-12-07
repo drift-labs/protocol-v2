@@ -154,6 +154,7 @@ pub fn _update_amm(
     )?;
 
     let mut amm_update_cost = 0;
+    let mut amm_not_successfully_updated = false;
     if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateAMMCurve))? {
         let curve_update_intensity =
             min(market.amm.curve_update_intensity, 100_u8).cast::<i128>()?;
@@ -176,6 +177,8 @@ pub fn _update_amm(
                     repegged_market.amm.terminal_quote_asset_reserve;
                 market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
                 amm_update_cost = repegged_cost;
+            } else {
+                amm_not_successfully_updated = true;
             }
         }
     }
@@ -195,7 +198,9 @@ pub fn _update_amm(
     }
 
     if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmm))? {
-        market.amm.last_update_slot = clock_slot;
+        if !amm_not_successfully_updated {
+            market.amm.last_update_slot = clock_slot;
+        }
         market.amm.last_oracle_valid = true;
     } else {
         market.amm.last_oracle_valid = false;
