@@ -1,12 +1,12 @@
 name: Soteria
 
-on:
-  push:
-    branches: 
-      - master
-  pull_request:
-    branches: 
-      - master
+# on:
+#   push:
+#     branches: 
+#       - master
+#   pull_request:
+#     branches: 
+#       - master
 
 env:
   CARGO_TERM_COLOR: always
