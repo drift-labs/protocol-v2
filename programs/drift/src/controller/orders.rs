@@ -1051,6 +1051,12 @@ fn sanitize_maker_order<'a>(
     {
         let maker_order = &maker.orders[maker_order_index];
         if !is_maker_for_taker(maker_order, taker_order)? {
+            msg!("maker cant make for taker");
+            return Ok((None, None, None, None));
+        }
+
+        if !are_orders_same_market_but_different_sides(maker_order, taker_order) {
+            msg!("maker is not same market but different side for taker");
             return Ok((None, None, None, None));
         }
 
