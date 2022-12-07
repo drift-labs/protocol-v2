@@ -1810,10 +1810,7 @@ pub fn fulfill_perp_order_with_match(
 
             total_quote_asset_amount = quote_asset_amount_filled_by_amm;
 
-            // min so the maker can fill the rest of the order
-            base_asset_amount
-                .safe_sub(base_asset_amount_filled_by_amm)?
-                .min(maker_base_asset_amount)
+            base_asset_amount.safe_sub(base_asset_amount_filled_by_amm)?
         } else {
             base_asset_amount
         }
@@ -1822,9 +1819,9 @@ pub fn fulfill_perp_order_with_match(
     };
 
     let (base_asset_amount_fulfilled, quote_asset_amount) = calculate_fill_for_matched_orders(
-        base_asset_amount_left_to_fill,
+        maker_base_asset_amount,
         maker_price,
-        taker_base_asset_amount,
+        base_asset_amount_left_to_fill,
         PERP_DECIMALS,
         maker_direction,
     )?;
@@ -1854,7 +1851,7 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     let maker_position_delta = get_position_delta_for_fill(
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
         quote_asset_amount,
         maker.orders[maker_order_index].direction,
     )?;
@@ -1878,7 +1875,7 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     let taker_position_delta = get_position_delta_for_fill(
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
         quote_asset_amount,
         taker.orders[taker_order_index].direction,
     )?;
