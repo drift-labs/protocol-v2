@@ -1985,26 +1985,26 @@ pub fn fulfill_perp_order_with_match(
 
     update_order_after_fill(
         &mut taker.orders[taker_order_index],
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
         quote_asset_amount,
     )?;
 
     decrease_open_bids_and_asks(
         &mut taker.perp_positions[taker_position_index],
         &taker.orders[taker_order_index].direction,
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
     )?;
 
     update_order_after_fill(
         &mut maker.orders[maker_order_index],
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
         quote_asset_amount,
     )?;
 
     decrease_open_bids_and_asks(
         &mut maker.perp_positions[maker_position_index],
         &maker.orders[maker_order_index].direction,
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
     )?;
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
@@ -2021,7 +2021,7 @@ pub fn fulfill_perp_order_with_match(
         Some(*filler_key),
         Some(fill_record_id),
         Some(filler_reward),
-        Some(base_asset_amount_left_to_fill),
+        Some(base_asset_amount_fulfilled),
         Some(quote_asset_amount),
         Some(taker_fee),
         Some(maker_rebate),
