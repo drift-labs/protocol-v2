@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.2.1] - 2022-12-07
+
+### Fixes
+- ts-sdk: fix overflow in inventorySpreadScale
+
+- ts-sdk: fix bugs in calculateSpreadBN
+
 ## [2.2.0] - 2022-12-06
 
 ### Features
