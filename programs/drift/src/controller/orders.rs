@@ -1768,60 +1768,61 @@ pub fn fulfill_perp_order_with_match(
     };
 
     let mut total_quote_asset_amount = 0_u64;
-    let base_asset_amount_left_to_fill = if amm_wants_to_make && market.amm.amm_jit_is_active() {
-        let jit_base_asset_amount = if !taker.orders[taker_order_index].has_limit_price(slot)?
-            && maker_base_asset_amount < taker_base_asset_amount
-        {
-            0
-        } else {
-            crate::math::amm_jit::calculate_jit_base_asset_amount(
-                market,
-                base_asset_amount,
-                maker_price,
-                valid_oracle_price,
-                taker_direction,
-            )?
-        };
-
-        if jit_base_asset_amount > 0 {
-            let (base_asset_amount_filled_by_amm, quote_asset_amount_filled_by_amm) =
-                fulfill_perp_order_with_amm(
-                    taker,
-                    taker_stats,
-                    taker_order_index,
+    let taker_base_asset_amount_left_to_fill =
+        if amm_wants_to_make && market.amm.amm_jit_is_active() {
+            let jit_base_asset_amount = if !taker.orders[taker_order_index].has_limit_price(slot)?
+                && maker_base_asset_amount < taker_base_asset_amount
+            {
+                0
+            } else {
+                crate::math::amm_jit::calculate_jit_base_asset_amount(
                     market,
-                    oracle_map,
-                    reserve_price_before,
-                    now,
-                    slot,
+                    base_asset_amount,
+                    maker_price,
                     valid_oracle_price,
-                    taker_key,
-                    filler_key,
-                    filler,
-                    filler_stats,
-                    &mut None,
-                    &mut None,
-                    fee_structure,
-                    order_records,
-                    Some(jit_base_asset_amount),
-                    Some(maker_price), // match the makers price
-                    false,             // dont split with the lps
-                )?;
+                    taker_direction,
+                )?
+            };
 
-            total_quote_asset_amount = quote_asset_amount_filled_by_amm;
+            if jit_base_asset_amount > 0 {
+                let (base_asset_amount_filled_by_amm, quote_asset_amount_filled_by_amm) =
+                    fulfill_perp_order_with_amm(
+                        taker,
+                        taker_stats,
+                        taker_order_index,
+                        market,
+                        oracle_map,
+                        reserve_price_before,
+                        now,
+                        slot,
+                        valid_oracle_price,
+                        taker_key,
+                        filler_key,
+                        filler,
+                        filler_stats,
+                        &mut None,
+                        &mut None,
+                        fee_structure,
+                        order_records,
+                        Some(jit_base_asset_amount),
+                        Some(maker_price), // match the makers price
+                        false,             // dont split with the lps
+                    )?;
 
-            base_asset_amount.safe_sub(base_asset_amount_filled_by_amm)?
+                total_quote_asset_amount = quote_asset_amount_filled_by_amm;
+
+                taker_base_asset_amount.safe_sub(base_asset_amount_filled_by_amm)?
+            } else {
+                taker_base_asset_amount
+            }
         } else {
-            base_asset_amount
-        }
-    } else {
-        base_asset_amount
-    };
+            taker_base_asset_amount
+        };
 
     let (base_asset_amount_fulfilled, quote_asset_amount) = calculate_fill_for_matched_orders(
         maker_base_asset_amount,
         maker_price,
-        base_asset_amount_left_to_fill,
+        taker_base_asset_amount_left_to_fill,
         PERP_DECIMALS,
         maker_direction,
     )?;
