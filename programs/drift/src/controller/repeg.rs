@@ -164,11 +164,15 @@ pub fn _update_amm(
             let (optimal_peg, fee_budget, check_lower_bound) =
                 repeg::calculate_optimal_peg_and_budget(market, oracle_price_data)?;
 
+            crate::dlog!(fee_budget, optimal_peg, check_lower_bound);
+
             let (repegged_market, repegged_cost) =
                 repeg::adjust_amm(market, optimal_peg, fee_budget, true)?;
 
             let cost_applied = apply_cost_to_market(market, repegged_cost, check_lower_bound)?;
-
+            if repegged_cost > 0 {
+                crate::dlog!(repegged_market.amm.sqrt_k);
+            }
             if cost_applied {
                 cp_curve::update_k(
                     market,

@@ -251,18 +251,27 @@ pub fn calculate_per_peg_cost(
     quote_asset_reserve: u128,
     terminal_quote_asset_reserve: u128,
 ) -> DriftResult<i128> {
+    crate::dlog!(quote_asset_reserve, terminal_quote_asset_reserve);
     // returns a signed per_peg_cost relative to delta peg
+    // signed means that "cost" to amm is influenced whether delta_peg is the same sign
+
     let per_peg_cost = if quote_asset_reserve != terminal_quote_asset_reserve {
         quote_asset_reserve
             .cast::<i128>()?
             .safe_sub(terminal_quote_asset_reserve.cast::<i128>()?)?
-            .safe_div(AMM_RESERVE_PRECISION_I128 / PEG_PRECISION_I128)?
-            .safe_add(1)?
+            .safe_div_ceil(AMM_RESERVE_PRECISION_I128 / PEG_PRECISION_I128)?
     } else {
         0
     };
 
-    Ok(per_peg_cost)
+    // round to make magnitude higher
+    Ok(if per_peg_cost > 0 {
+        per_peg_cost.safe_add(1)?
+    } else if per_peg_cost < 0 {
+        per_peg_cost.safe_sub(1)?
+    } else {
+        per_peg_cost
+    })
 }
 
 pub fn adjust_amm(
@@ -302,15 +311,34 @@ pub fn adjust_amm(
         budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
     }
 
-    if (per_peg_cost == 0 || per_peg_cost > 0 && delta_peg < 0 || per_peg_cost < 0 && delta_peg > 0)
-        || (budget_delta_peg_magnitude > delta_peg.unsigned_abs())
-    {
+    let use_optimal_peg = (per_peg_cost == 0 // if per peg cost is 0 => free 
+        || per_peg_cost > 0 && delta_peg < 0 // or if per peg positive and the direction is down => revenue
+        || per_peg_cost < 0 && delta_peg > 0) // or if per peg negative and the direction is up => revenue
+        || (budget_delta_peg_magnitude > delta_peg.unsigned_abs()); // the peg movement from full budget usage exceeds delta to optimal
+
+    msg!("use_optimal_peg:{} because...", use_optimal_peg);
+    msg!("optimal is free:{}", per_peg_cost == 0);
+    msg!("optimal is revenue 1:{}", per_peg_cost > 0 && delta_peg < 0);
+    msg!("optimal is revenue 2:{}", per_peg_cost < 0 && delta_peg > 0);
+    msg!(
+        "delta peg exceeds budget:{}",
+        budget_delta_peg_magnitude > delta_peg.unsigned_abs()
+    );
+
+    msg!("budget:{}", budget);
+    msg!("per_peg_cost:{}", per_peg_cost);
+    msg!("delta_peg:{}", delta_peg);
+    msg!("budget_delta_peg_magnitude:{}", budget_delta_peg_magnitude);
+    msg!(" ");
+
+    if use_optimal_peg {
         // use optimal peg
         new_peg = optimal_peg;
         cost = calculate_repeg_cost(&market_clone.amm, new_peg)?;
     } else {
         // use full budget peg
         let can_lower_k = market.amm.can_lower_k()?;
+        msg!("can_lower_k:{}", can_lower_k);
 
         // equivalent to (but cheaper than) scaling down by .1%
         let adjustment_cost: i128 = if adjust_k && can_lower_k {
@@ -342,6 +370,14 @@ pub fn adjust_amm(
                 market_clone.amm.quote_asset_reserve,
                 market_clone.amm.terminal_quote_asset_reserve,
             )?;
+            crate::dlog!(
+                new_sqrt_k,
+                new_base_asset_reserve,
+                new_quote_asset_reserve,
+                adjustment_cost,
+                per_peg_cost
+            );
+
             adjustment_cost
         } else {
             0
@@ -369,7 +405,9 @@ pub fn adjust_amm(
         };
 
         cost = calculate_repeg_cost(&market_clone.amm, new_peg)?;
+        msg!("did lower k");
     }
+    crate::dlog!(budget_delta_peg_magnitude, new_peg, cost);
 
     market_clone.amm.peg_multiplier = new_peg;
 
@@ -390,10 +428,14 @@ pub fn calculate_optimal_peg_and_budget(
         market.amm.base_asset_reserve,
         target_price,
     )?;
+    msg!("first optimal_peg:{}", optimal_peg);
 
     let optimal_peg_cost = calculate_repeg_cost(&market.amm, optimal_peg)?;
 
     let mut check_lower_bound = true;
+
+    msg!("feeeeeeez: {} vs {}", fee_budget, optimal_peg_cost);
+
     if fee_budget < max(0, optimal_peg_cost).cast()? {
         let half_max_price_spread = target_price
             .cast::<u128>()?
@@ -421,7 +463,17 @@ pub fn calculate_optimal_peg_and_budget(
                 market.amm.base_asset_reserve,
                 target_price.cast()?,
             )?;
+            msg!("second optimal_peg:{}", optimal_peg);
+
             fee_budget = calculate_repeg_cost(&market.amm, optimal_peg)?.cast::<u128>()?;
+
+            crate::dlog!(
+                target_price_gap,
+                target_price,
+                market.amm.peg_multiplier,
+                optimal_peg,
+                fee_budget
+            );
             check_lower_bound = false;
         }
     }
