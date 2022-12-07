@@ -15,6 +15,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::{K_BPS_UPDATE_SCALE, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::cp_curve;
 use crate::math::cp_curve::get_update_k_result;
+use crate::math::cp_curve::UpdateKResult;
 use crate::math::oracle;
 use crate::math::oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction};
 use crate::math::repeg;
@@ -169,12 +170,19 @@ pub fn _update_amm(
             let cost_applied = apply_cost_to_market(market, repegged_cost, check_lower_bound)?;
 
             if cost_applied {
-                market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
-                market.amm.quote_asset_reserve = repegged_market.amm.quote_asset_reserve;
-                market.amm.sqrt_k = repegged_market.amm.sqrt_k;
-
-                market.amm.terminal_quote_asset_reserve =
-                    repegged_market.amm.terminal_quote_asset_reserve;
+                cp_curve::update_k(
+                    market,
+                    &UpdateKResult {
+                        sqrt_k: repegged_market.amm.sqrt_k,
+                        base_asset_reserve: repegged_market.amm.base_asset_reserve,
+                        quote_asset_reserve: repegged_market.amm.quote_asset_reserve,
+                    },
+                )?;
+                // market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
+                // market.amm.quote_asset_reserve = repegged_market.amm.quote_asset_reserve;
+                // market.amm.sqrt_k = repegged_market.amm.sqrt_k;
+                // market.amm.terminal_quote_asset_reserve =
+                //     repegged_market.amm.terminal_quote_asset_reserve;
                 market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
                 amm_update_cost = repegged_cost;
             } else {
