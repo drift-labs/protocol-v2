@@ -1,3 +1,4 @@
+use crate::controller::orders::cancel_orders;
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
 use crate::get_then_update_id;
@@ -14,8 +15,12 @@ use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_t
 use crate::math::stats::calculate_rolling_sum;
 use crate::math_error;
 use crate::safe_increment;
+use crate::state::events::OrderActionExplanation;
 use crate::state::oracle::OraclePriceData;
+use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::spot_market_map::SpotMarketMap;
 use crate::validate;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -250,14 +255,68 @@ impl User {
         Ok(get_then_update_id!(self, next_liquidation_id))
     }
 
-    pub fn exit_liquidation(&mut self) {
+    pub fn exit_liquidation(
+        &mut self,
+        user_key: &Pubkey,
+        filler_key: Option<&Pubkey>,
+        perp_market_map: &PerpMarketMap,
+        spot_market_map: &SpotMarketMap,
+        oracle_map: &mut OracleMap,
+        now: i64,
+        slot: u64,
+    ) -> DriftResult {
+        cancel_orders(
+            self,
+            user_key,
+            filler_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::NoLongerBeingLiquidated,
+            None,
+            None,
+            None,
+            Some(OrderType::Liquidation),
+        )?;
+
         self.status = UserStatus::Active;
         self.liquidation_margin_freed = 0;
         self.liquidation_start_slot = 0;
+
+        Ok(())
     }
 
-    pub fn enter_bankruptcy(&mut self) {
+    pub fn enter_bankruptcy(
+        &mut self,
+        user_key: &Pubkey,
+        filler_key: Option<&Pubkey>,
+        perp_market_map: &PerpMarketMap,
+        spot_market_map: &SpotMarketMap,
+        oracle_map: &mut OracleMap,
+        now: i64,
+        slot: u64,
+    ) -> DriftResult {
+        cancel_orders(
+            self,
+            user_key,
+            filler_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::EnteredBankruptcy,
+            None,
+            None,
+            None,
+            Some(OrderType::Liquidation),
+        )?;
+
         self.status = UserStatus::Bankrupt;
+
+        Ok(())
     }
 
     pub fn exit_bankruptcy(&mut self) {

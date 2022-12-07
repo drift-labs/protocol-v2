@@ -231,6 +231,7 @@ pub fn settle_expired_position(
         Some(MarketType::Perp),
         Some(perp_market_index),
         None,
+        None,
     )?;
 
     let position_index = get_position_index(&user.perp_positions, perp_market_index);

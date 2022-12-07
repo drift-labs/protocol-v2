@@ -832,6 +832,7 @@ pub fn handle_resolve_perp_bankruptcy(
 ) -> Result<()> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
+    let slot = clock.slot;
 
     let user_key = ctx.accounts.user.key();
     let liquidator_key = ctx.accounts.liquidator.key();
@@ -892,6 +893,7 @@ pub fn handle_resolve_perp_bankruptcy(
         &spot_market_map,
         &mut oracle_map,
         now,
+        slot,
         ctx.accounts.insurance_fund_vault.amount,
     )?;
 
@@ -997,6 +999,7 @@ pub fn handle_resolve_spot_bankruptcy(
         &spot_market_map,
         &mut oracle_map,
         now,
+        clock.slot,
         ctx.accounts.insurance_fund_vault.amount,
     )?;
 

@@ -828,6 +828,7 @@ pub fn handle_cancel_orders(
         market_type,
         market_index,
         direction,
+        None,
     )?;
 
     Ok(())
@@ -1326,10 +1327,14 @@ pub fn handle_add_perp_lp_shares<'info>(
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
     math::liquidation::validate_user_not_being_liquidated(
         user,
+        &user_key,
+        None,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         state.liquidation_margin_buffer_ratio,
+        now,
+        clock.slot,
     )?;
 
     {

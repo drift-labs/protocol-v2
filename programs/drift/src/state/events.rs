@@ -272,6 +272,7 @@ pub enum OrderActionExplanation {
     OrderFillWithSerum,
     NoBorrowLiquidity,
     NoLongerBeingLiquidated,
+    EnteredBankruptcy,
 }
 
 impl Default for OrderAction {

@@ -21,6 +21,7 @@ use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::User;
 use crate::validate;
+use anchor_lang::prelude::Pubkey;
 use solana_program::msg;
 
 #[cfg(test)]
@@ -218,10 +219,14 @@ pub fn get_margin_requirement_plus_buffer(
 
 pub fn validate_user_not_being_liquidated(
     user: &mut User,
+    user_key: &Pubkey,
+    filler_key: Option<&Pubkey>,
     market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
+    now: i64,
+    slot: u64,
 ) -> DriftResult {
     if !user.is_being_liquidated() {
         return Ok(());
@@ -238,7 +243,15 @@ pub fn validate_user_not_being_liquidated(
     if is_still_being_liquidated {
         return Err(ErrorCode::UserIsBeingLiquidated);
     } else {
-        user.exit_liquidation()
+        user.exit_liquidation(
+            user_key,
+            filler_key,
+            market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
     }
 
     Ok(())

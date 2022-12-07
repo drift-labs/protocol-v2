@@ -145,7 +145,15 @@ pub fn liquidate_perp(
     } else if user.is_being_liquidated()
         && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
-        user.exit_liquidation();
+        user.exit_liquidation(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
         return Ok(());
     }
 
@@ -170,6 +178,7 @@ pub fn liquidate_perp(
         now,
         slot,
         OrderActionExplanation::Liquidation,
+        None,
         None,
         None,
         None,
@@ -254,7 +263,15 @@ pub fn liquidate_perp(
                     ..LiquidationRecord::default()
                 });
 
-                user.exit_liquidation();
+                user.exit_liquidation(
+                    user_key,
+                    Some(liquidator_key),
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    now,
+                    slot,
+                )?;
                 return Ok(());
             }
 
@@ -482,9 +499,25 @@ pub fn liquidate_perp(
     user.increment_margin_freed(margin_freed_for_perp_position)?;
 
     if base_asset_amount >= base_asset_amount_to_cover_margin_shortage {
-        user.exit_liquidation();
+        user.exit_liquidation(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
     } else if is_user_bankrupt(user) {
-        user.enter_bankruptcy();
+        user.enter_bankruptcy(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -613,16 +646,17 @@ pub fn liquidate_perp(
         ..LiquidationRecord::default()
     });
 
-    let base_asset_amount_available_to_liquidate = if user.is_being_liquidated() {
-        let max_could_have_been_liquidated =
-            max_base_asset_amount_allowed_to_be_transferred.min(user_base_asset_amount);
-        standardize_base_asset_amount(
-            max_could_have_been_liquidated.saturating_sub(base_asset_amount),
-            order_step_size,
-        )?
-    } else {
-        0
-    };
+    let base_asset_amount_available_to_liquidate =
+        if user.is_being_liquidated() && !user.is_bankrupt() {
+            let max_could_have_been_liquidated =
+                max_base_asset_amount_allowed_to_be_transferred.min(user_base_asset_amount);
+            standardize_base_asset_amount(
+                max_could_have_been_liquidated.saturating_sub(base_asset_amount),
+                order_step_size,
+            )?
+        } else {
+            0
+        };
 
     if base_asset_amount_available_to_liquidate != 0 {
         orders::place_liquidation_order(
@@ -814,7 +848,15 @@ pub fn liquidate_spot(
     } else if user.is_being_liquidated()
         && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
-        user.exit_liquidation();
+        user.exit_liquidation(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
         return Ok(());
     }
 
@@ -831,6 +873,7 @@ pub fn liquidate_spot(
         now,
         slot,
         OrderActionExplanation::Liquidation,
+        None,
         None,
         None,
         None,
@@ -887,7 +930,15 @@ pub fn liquidate_spot(
                     ..LiquidationRecord::default()
                 });
 
-                user.exit_liquidation();
+                user.exit_liquidation(
+                    user_key,
+                    Some(liquidator_key),
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    now,
+                    slot,
+                )?;
                 return Ok(());
             }
 
@@ -1065,9 +1116,25 @@ pub fn liquidate_spot(
     user.increment_margin_freed(margin_freed_from_liability)?;
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
-        user.exit_liquidation();
+        user.exit_liquidation(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
     } else if is_user_bankrupt(user) {
-        user.enter_bankruptcy();
+        user.enter_bankruptcy(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -1291,7 +1358,15 @@ pub fn liquidate_borrow_for_perp_pnl(
     } else if user.is_being_liquidated()
         && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
-        user.exit_liquidation();
+        user.exit_liquidation(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
         return Ok(());
     }
 
@@ -1308,6 +1383,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         now,
         slot,
         OrderActionExplanation::Liquidation,
+        None,
         None,
         None,
         None,
@@ -1366,7 +1442,15 @@ pub fn liquidate_borrow_for_perp_pnl(
                     ..LiquidationRecord::default()
                 });
 
-                user.exit_liquidation();
+                user.exit_liquidation(
+                    user_key,
+                    Some(liquidator_key),
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    now,
+                    slot,
+                )?;
                 return Ok(());
             }
 
@@ -1523,9 +1607,25 @@ pub fn liquidate_borrow_for_perp_pnl(
     user.increment_margin_freed(margin_freed_from_liability)?;
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
-        user.exit_liquidation();
+        user.exit_liquidation(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
     } else if is_user_bankrupt(user) {
-        user.enter_bankruptcy();
+        user.enter_bankruptcy(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -1750,7 +1850,15 @@ pub fn liquidate_perp_pnl_for_deposit(
     } else if user.is_being_liquidated()
         && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
-        user.exit_liquidation();
+        user.exit_liquidation(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
         return Ok(());
     }
 
@@ -1767,6 +1875,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         now,
         slot,
         OrderActionExplanation::Liquidation,
+        None,
         None,
         None,
         None,
@@ -1825,7 +1934,15 @@ pub fn liquidate_perp_pnl_for_deposit(
                     ..LiquidationRecord::default()
                 });
 
-                user.exit_liquidation();
+                user.exit_liquidation(
+                    user_key,
+                    Some(liquidator_key),
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    now,
+                    slot,
+                )?;
                 return Ok(());
             }
 
@@ -1976,9 +2093,25 @@ pub fn liquidate_perp_pnl_for_deposit(
     user.increment_margin_freed(margin_freed_from_liability)?;
 
     if pnl_transfer >= pnl_transfer_to_cover_margin_shortage {
-        user.exit_liquidation();
+        user.exit_liquidation(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
     } else if is_user_bankrupt(user) {
-        user.enter_bankruptcy();
+        user.enter_bankruptcy(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -2029,10 +2162,19 @@ pub fn resolve_perp_bankruptcy(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     now: i64,
+    slot: u64,
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
     if !user.is_bankrupt() && is_user_bankrupt(user) {
-        user.enter_bankruptcy();
+        user.enter_bankruptcy(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
     }
 
     validate!(
@@ -2201,10 +2343,19 @@ pub fn resolve_spot_bankruptcy(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     now: i64,
+    slot: u64,
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
     if !user.is_bankrupt() && is_user_bankrupt(user) {
-        user.enter_bankruptcy();
+        user.enter_bankruptcy(
+            user_key,
+            Some(liquidator_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
     }
 
     validate!(

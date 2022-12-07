@@ -100,10 +100,14 @@ pub fn place_perp_order(
 
     validate_user_not_being_liquidated(
         user,
+        &user_key,
+        None,
         perp_market_map,
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
+        clock.unix_timestamp,
+        clock.slot,
     )?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
@@ -373,6 +377,7 @@ pub fn cancel_orders(
     market_type: Option<MarketType>,
     market_index: Option<u16>,
     direction: Option<PositionDirection>,
+    order_type: Option<OrderType>,
 ) -> DriftResult<Vec<u32>> {
     let mut canceled_order_ids: Vec<u32> = vec![];
     for order_index in 0..user.orders.len() {
@@ -392,6 +397,12 @@ pub fn cancel_orders(
 
         if let Some(direction) = direction {
             if user.orders[order_index].direction != direction {
+                continue;
+            }
+        }
+
+        if let Some(order_type) = order_type {
+            if user.orders[order_index].order_type != order_type {
                 continue;
             }
         }
@@ -1347,7 +1358,15 @@ fn fulfill_perp_order(
         taker_total_collateral >= taker_margin_requirement_plus_buffer.cast()?;
     if taker_being_liquidated {
         if taker_covers_margin_requirement {
-            user.exit_liquidation();
+            user.exit_liquidation(
+                user_key,
+                Some(filler_key),
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                now,
+                slot,
+            )?;
         } else {
             let margin_freed = calculate_margin_freed_by_perp_liquidation_order(
                 &order_direction,
@@ -2202,10 +2221,14 @@ pub fn trigger_order(
 
     validate_user_not_being_liquidated(
         user,
+        &user_key,
+        Some(&filler_key),
         perp_market_map,
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
+        clock.unix_timestamp,
+        clock.slot,
     )?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
@@ -2435,10 +2458,14 @@ pub fn place_spot_order(
 
     validate_user_not_being_liquidated(
         user,
+        &user_key,
+        None,
         perp_market_map,
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
+        clock.unix_timestamp,
+        clock.slot,
     )?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
@@ -2763,10 +2790,14 @@ pub fn fill_spot_order(
 
     match validate_user_not_being_liquidated(
         user,
+        &user_key,
+        Some(&filler_key),
         perp_market_map,
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
+        clock.unix_timestamp,
+        clock.slot,
     ) {
         Ok(_) => {}
         Err(_) => {
@@ -4076,10 +4107,14 @@ pub fn trigger_spot_order(
 
     validate_user_not_being_liquidated(
         user,
+        &user_key,
+        Some(&filler_key),
         perp_market_map,
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
+        clock.unix_timestamp,
+        clock.slot,
     )?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
