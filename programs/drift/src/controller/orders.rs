@@ -1016,12 +1016,35 @@ fn sanitize_maker_order<'a>(
         Some(maker_stats)
     };
 
+    let market = perp_market_map.get_ref(&taker_order.market_index)?;
+
     let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
     let maker_order_index = match maker.get_order_index(maker_order_id) {
         Ok(order_index) => order_index,
         Err(_) => {
             msg!("Maker has no order id {}", maker_order_id);
-            return Ok((None, None, None, None));
+            let fallback_order_index = find_fallback_maker_order(
+                &maker,
+                match taker_order.direction {
+                    PositionDirection::Long => &PositionDirection::Short,
+                    PositionDirection::Short => &PositionDirection::Long,
+                },
+                &MarketType::Perp,
+                taker_order.market_index,
+                Some(oracle_price),
+                slot,
+                market.amm.order_tick_size,
+            )?;
+
+            if let Some(order_index) = fallback_order_index {
+                msg!(
+                    "Using fallback maker order id {}",
+                    maker.orders[order_index].order_id
+                );
+                order_index
+            } else {
+                return Ok((None, None, None, None));
+            }
         }
     };
 
@@ -1049,8 +1072,6 @@ fn sanitize_maker_order<'a>(
     }
 
     let breaches_oracle_price_limits = {
-        let market = perp_market_map.get_ref(&maker.orders[maker_order_index].market_index)?;
-
         order_breaches_oracle_price_limits(
             &maker.orders[maker_order_index],
             oracle_price,
@@ -1060,6 +1081,8 @@ fn sanitize_maker_order<'a>(
             market.margin_ratio_maintenance,
         )?
     };
+
+    drop(market);
 
     let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
 
