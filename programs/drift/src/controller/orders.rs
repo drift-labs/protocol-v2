@@ -1810,7 +1810,10 @@ pub fn fulfill_perp_order_with_match(
 
             total_quote_asset_amount = quote_asset_amount_filled_by_amm;
 
-            base_asset_amount.safe_sub(base_asset_amount_filled_by_amm)?
+            // min so the maker can fill the rest of the order
+            base_asset_amount
+                .safe_sub(base_asset_amount_filled_by_amm)?
+                .min(maker_base_asset_amount)
         } else {
             base_asset_amount
         }
