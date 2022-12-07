@@ -31,6 +31,7 @@ use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_prices, is_auction_complete};
+use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_U64, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
@@ -1377,6 +1378,17 @@ fn fulfill_perp_order(
                 taker_fee,
             )?;
             user.increment_margin_freed(margin_freed)?;
+            if is_user_bankrupt(user) {
+                user.enter_bankruptcy(
+                    user_key,
+                    Some(filler_key),
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    now,
+                    slot,
+                )?;
+            }
         }
     } else if !taker_covers_margin_requirement {
         msg!(
