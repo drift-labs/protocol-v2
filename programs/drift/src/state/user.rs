@@ -175,7 +175,7 @@ impl User {
     pub fn get_order_index(&self, order_id: u32) -> DriftResult<usize> {
         self.orders
             .iter()
-            .position(|order| order.order_id == order_id)
+            .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
             .ok_or(ErrorCode::OrderDoesNotExist)
     }
 
