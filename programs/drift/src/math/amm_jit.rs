@@ -59,7 +59,8 @@ pub fn calculate_jit_base_asset_amount(
     let denominator = max_bids.min(max_asks);
     let ratio = numerator
         .safe_mul(AMM_RESERVE_PRECISION)?
-        .safe_div(denominator)?;
+        .safe_div(denominator)
+        .unwrap_or(u128::MAX);
 
     let imbalanced_bound = 15_u128.safe_mul(AMM_RESERVE_PRECISION.safe_div(10)?)?;
 
