@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.3.0] - 2022-12-07
+
+### Features
+
+### Fixes
+
+- program: update the amm min/max_base_asset_reserve upon k decreases within update_amm ([#282](https://github.com/drift-labs/protocol-v2/pull/282))
+- program: fix amm-jit erroring out when bids/asks are zero ([#279](https://github.com/drift-labs/protocol-v2/pull/279))
+- ts-sdk: fix overflow in inventorySpreadScale
+
+### Breaking
+
 ## [2.2.0] - 2022-12-06
 
 ### Features

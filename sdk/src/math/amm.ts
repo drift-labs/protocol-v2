@@ -361,23 +361,26 @@ export function calculateInventoryScale(
 		BN.min(openBids.abs(), openAsks.abs())
 	);
 
-	const inventoryScaleMax =
-		BN.max(
-			defaultLargeBidAskFactor,
-			new BN(maxSpread / 2)
-				.mul(BID_ASK_SPREAD_PRECISION)
-				.div(new BN(Math.max(directionalSpread, 1)))
-		).toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
+	const inventoryScaleMaxBN = BN.max(
+		defaultLargeBidAskFactor,
+		new BN(maxSpread / 2)
+			.mul(BID_ASK_SPREAD_PRECISION)
+			.div(new BN(Math.max(directionalSpread, 1)))
+	);
+
+	const inventoryScaleBN = baseAssetAmountWithAmm
+		.mul(BN.max(baseAssetAmountWithAmm.abs(), BASE_PRECISION))
+		.div(BASE_PRECISION)
+		.mul(defaultLargeBidAskFactor)
+		.div(minSideLiquidity)
+		.abs();
 
 	const inventoryScale =
-		baseAssetAmountWithAmm
-			.mul(BN.max(baseAssetAmountWithAmm.abs(), BASE_PRECISION))
-			.div(BASE_PRECISION)
-			.mul(defaultLargeBidAskFactor)
-			.div(minSideLiquidity)
-			.abs()
-			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
+		BN.min(inventoryScaleMaxBN, inventoryScaleBN).toNumber() /
+		BID_ASK_SPREAD_PRECISION.toNumber();
 
+	const inventoryScaleMax =
+		inventoryScaleMaxBN.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 	const inventorySpreadScale = Math.min(inventoryScaleMax, 1 + inventoryScale);
 
 	return inventorySpreadScale;
