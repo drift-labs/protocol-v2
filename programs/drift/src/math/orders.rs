@@ -18,7 +18,7 @@ use crate::math_error;
 use crate::print_error;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
-use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, User};
+use crate::state::user::{MarketType, Order, OrderStatus, OrderTriggerCondition, User};
 use crate::validate;
 
 #[cfg(test)]
@@ -584,4 +584,52 @@ pub fn get_max_withdraw_for_market_with_token_amount(
         .max(0)
         .unsigned_abs()
         .safe_add(available_borrow_liquidity)
+}
+
+pub fn find_fallback_maker_order(
+    user: &User,
+    direction: &PositionDirection,
+    market_type: &MarketType,
+    market_index: u16,
+    valid_oracle_price: Option<i64>,
+    slot: u64,
+    tick_size: u64,
+) -> DriftResult<Option<usize>> {
+    let mut best_limit_price = match direction {
+        PositionDirection::Long => 0,
+        PositionDirection::Short => u64::MAX,
+    };
+    let mut fallback_maker_order_index = None;
+
+    for (order_index, order) in user.orders.iter().enumerate() {
+        if order.status != OrderStatus::Open {
+            continue;
+        }
+
+        // if order direction is not same or market type is not same or market index is the same, skip
+        if order.direction != *direction
+            || order.market_type != *market_type
+            || order.market_index != market_index
+        {
+            continue;
+        }
+
+        // if order is not limit order or must be triggered and not triggered, skip
+        if !order.is_limit_order() || (order.must_be_triggered() && !order.triggered()) {
+            continue;
+        }
+
+        let limit_price = order.force_get_limit_price(valid_oracle_price, None, slot, tick_size)?;
+
+        // if fallback maker order is not set, set it else check if this order is better
+        if fallback_maker_order_index.is_none()
+            || *direction == PositionDirection::Long && limit_price > best_limit_price
+            || *direction == PositionDirection::Short && limit_price < best_limit_price
+        {
+            best_limit_price = limit_price;
+            fallback_maker_order_index = Some(order_index);
+        }
+    }
+
+    Ok(fallback_maker_order_index)
 }

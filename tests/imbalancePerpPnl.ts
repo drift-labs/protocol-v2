@@ -444,7 +444,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			oraclePriceData00Again
 		);
 		console.log('bid0After:', bid0After.toString(), ask0After.toString());
-		assert(bid0After.eq(new BN(254194605)));
+		assert(bid0After.eq(new BN(254194105)));
 		assert(
 			oraclePriceData00Again.price.eq(
 				new BN(260.5 * PRICE_PRECISION.toNumber())
@@ -756,7 +756,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log(prepegAMM.pegMultiplier.toString());
 		console.log(bid.toString());
 		console.log(ask.toString());
-		assert(bid.eq(new BN('254194605')));
+		assert(bid.eq(new BN('254194105')));
 		assert(prepegAMM.pegMultiplier.eq(new BN('254313113')));
 		assert(oraclePriceData0.price.eq(new BN('260500000')));
 		assert(ask.eq(new BN('266567441')));
@@ -882,8 +882,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.lt(new BN(44454586870 + 20000))); //44k still :o
-		assert(imbalance.gt(new BN(44454586870 - 20000))); //44k still :o
+		assert(imbalance.lt(new BN(44454575549 + 20000))); //44k still :o
+		assert(imbalance.gt(new BN(44454575549 - 20000))); //44k still :o
 
 		console.log(
 			'revenueWithdrawSinceLastSettle:',

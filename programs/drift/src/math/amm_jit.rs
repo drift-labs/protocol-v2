@@ -12,7 +12,6 @@ mod tests;
 
 // assumption: market.amm.amm_jit_is_active() == true
 // assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
-#[allow(clippy::if_same_then_else)]
 pub fn calculate_jit_base_asset_amount(
     market: &PerpMarket,
     maker_base_asset_amount: u64,
@@ -30,9 +29,9 @@ pub fn calculate_jit_base_asset_amount(
         // maker taking a short below oracle = likely to be a wash
         // so we want to take less than 50%
         let wash_reduction_const = 1000;
-        if taker_direction == PositionDirection::Long && auction_price < oracle_price {
-            max_jit_amount = max_jit_amount.safe_div(wash_reduction_const)?
-        } else if taker_direction == PositionDirection::Short && auction_price > oracle_price {
+        if taker_direction == PositionDirection::Long && auction_price < oracle_price
+            || taker_direction == PositionDirection::Short && auction_price > oracle_price
+        {
             max_jit_amount = max_jit_amount.safe_div(wash_reduction_const)?
         }
     } else {
@@ -59,7 +58,8 @@ pub fn calculate_jit_base_asset_amount(
     let denominator = max_bids.min(max_asks);
     let ratio = numerator
         .safe_mul(AMM_RESERVE_PRECISION)?
-        .safe_div(denominator)?;
+        .safe_div(denominator)
+        .unwrap_or(u128::MAX);
 
     let imbalanced_bound = 15_u128.safe_mul(AMM_RESERVE_PRECISION.safe_div(10)?)?;
 
