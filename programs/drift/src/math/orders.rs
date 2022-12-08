@@ -586,7 +586,6 @@ pub fn get_max_withdraw_for_market_with_token_amount(
         .safe_add(available_borrow_liquidity)
 }
 
-#[allow(clippy::if_same_then_else)]
 pub fn find_fallback_maker_order(
     user: &User,
     direction: &PositionDirection,
@@ -623,13 +622,10 @@ pub fn find_fallback_maker_order(
         let limit_price = order.force_get_limit_price(valid_oracle_price, None, slot, tick_size)?;
 
         // if fallback maker order is not set, set it else check if this order is better
-        if fallback_maker_order_index.is_none() {
-            best_limit_price = limit_price;
-            fallback_maker_order_index = Some(order_index);
-        } else if *direction == PositionDirection::Long && limit_price > best_limit_price {
-            best_limit_price = limit_price;
-            fallback_maker_order_index = Some(order_index);
-        } else if *direction == PositionDirection::Short && limit_price < best_limit_price {
+        if fallback_maker_order_index.is_none()
+            || *direction == PositionDirection::Long && limit_price > best_limit_price
+            || *direction == PositionDirection::Short && limit_price < best_limit_price
+        {
             best_limit_price = limit_price;
             fallback_maker_order_index = Some(order_index);
         }
