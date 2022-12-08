@@ -241,7 +241,7 @@ pub mod amm_jit {
     #[test]
     fn fulfill_with_amm_jit_small_maker_order() {
         let now = 0_i64;
-        let slot = 0_u64;
+        let slot = 5_u64;
 
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
@@ -267,7 +267,7 @@ pub mod amm_jit {
                 base_asset_amount_with_amm: -((AMM_RESERVE_PRECISION / 2) as i128),
                 base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                peg_multiplier: 90 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -315,18 +315,18 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION_U64 * 10, // if amm takes half it would flip
+                base_asset_amount: BASE_PRECISION_U64 / 2 + BASE_PRECISION_U64 * 2, // if amm takes half it would flip
                 slot: 0,
                 price: 100 * PRICE_PRECISION as u64,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_I64,
-                auction_duration: 0,
+                auction_end_price: 200 * PRICE_PRECISION_I64,
+                auction_duration: 10,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I64 * 10,
+                open_bids: BASE_PRECISION_I64 / 2 + BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -344,14 +344,14 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION_U64 * 2, // maker wants full = amm wants BASE_PERCISION
+                base_asset_amount: BASE_PRECISION_U64 + BASE_PRECISION_U64 / 2, // maker wants full = amm wants BASE_PERCISION
                 price: 99 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I64 * 2,
+                open_asks: -(BASE_PRECISION_I64 + BASE_PRECISION_I64 / 2),
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -406,20 +406,19 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        let market_after = market_map.get_ref(&0).unwrap();
+        // maker got full size
+        let maker_position = &maker.perp_positions[0];
+        assert_eq!(
+            maker_position.base_asset_amount,
+            -(BASE_PRECISION_I64 + BASE_PRECISION_I64 / 2)
+        );
+
         // nets to zero
+        let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
 
         // make sure lps didnt get anything
         assert_eq!(market_after.amm.base_asset_amount_per_lp, 0);
-
-        let maker_position = &maker.perp_positions[0];
-
-        // maker got full size
-        assert_eq!(
-            maker_position.base_asset_amount as i128,
-            -BASE_PRECISION_I128 * 2
-        );
     }
 
     #[test]

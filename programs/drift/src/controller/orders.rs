@@ -1765,64 +1765,59 @@ pub fn fulfill_perp_order_with_match(
     let amm_wants_to_make = match taker_direction {
         PositionDirection::Long => market.amm.base_asset_amount_with_amm < 0,
         PositionDirection::Short => market.amm.base_asset_amount_with_amm > 0,
-    };
+    } && market.amm.amm_jit_is_active();
+
+    let amm_will_fill_next_round = taker.orders[taker_order_index].is_auction_complete(slot)?
+        && maker_base_asset_amount < taker_base_asset_amount;
 
     let mut total_quote_asset_amount = 0_u64;
-    let taker_base_asset_amount_left_to_fill =
-        if amm_wants_to_make && market.amm.amm_jit_is_active() {
-            let jit_base_asset_amount = if !taker.orders[taker_order_index].has_limit_price(slot)?
-                && maker_base_asset_amount < taker_base_asset_amount
-            {
-                0
-            } else {
-                crate::math::amm_jit::calculate_jit_base_asset_amount(
-                    market,
-                    base_asset_amount,
-                    maker_price,
-                    valid_oracle_price,
-                    taker_direction,
-                )?
-            };
+    if amm_wants_to_make && !amm_will_fill_next_round {
+        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+            market,
+            base_asset_amount,
+            maker_price,
+            valid_oracle_price,
+            taker_direction,
+        )?;
 
-            if jit_base_asset_amount > 0 {
-                let (base_asset_amount_filled_by_amm, quote_asset_amount_filled_by_amm) =
-                    fulfill_perp_order_with_amm(
-                        taker,
-                        taker_stats,
-                        taker_order_index,
-                        market,
-                        oracle_map,
-                        reserve_price_before,
-                        now,
-                        slot,
-                        valid_oracle_price,
-                        taker_key,
-                        filler_key,
-                        filler,
-                        filler_stats,
-                        &mut None,
-                        &mut None,
-                        fee_structure,
-                        order_records,
-                        Some(jit_base_asset_amount),
-                        Some(maker_price), // match the makers price
-                        false,             // dont split with the lps
-                    )?;
-
-                total_quote_asset_amount = quote_asset_amount_filled_by_amm;
-
-                taker_base_asset_amount.safe_sub(base_asset_amount_filled_by_amm)?
-            } else {
-                taker_base_asset_amount
-            }
-        } else {
-            taker_base_asset_amount
+        if jit_base_asset_amount > 0 {
+            let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
+                taker,
+                taker_stats,
+                taker_order_index,
+                market,
+                oracle_map,
+                reserve_price_before,
+                now,
+                slot,
+                valid_oracle_price,
+                taker_key,
+                filler_key,
+                filler,
+                filler_stats,
+                &mut None,
+                &mut None,
+                fee_structure,
+                order_records,
+                Some(jit_base_asset_amount),
+                Some(maker_price), // match the makers price
+                false,             // dont split with the lps
+            )?;
+            total_quote_asset_amount = quote_asset_amount_filled_by_amm;
         };
+    };
+
+    let taker_existing_position = taker
+        .get_perp_position(market.market_index)?
+        .base_asset_amount;
+
+    let taker_base_asset_amount = taker.orders[taker_order_index]
+        .get_base_asset_amount_unfilled(Some(taker_existing_position))?;
 
     let (base_asset_amount_fulfilled, quote_asset_amount) = calculate_fill_for_matched_orders(
         maker_base_asset_amount,
         maker_price,
-        taker_base_asset_amount_left_to_fill,
+        taker_base_asset_amount,
         PERP_DECIMALS,
         maker_direction,
     )?;
@@ -1835,6 +1830,7 @@ pub fn fulfill_perp_order_with_match(
         taker_price,
         true,
     )?;
+
     validate_fill_price(
         quote_asset_amount,
         base_asset_amount_fulfilled,
