@@ -1767,7 +1767,9 @@ pub fn fulfill_perp_order_with_match(
         PositionDirection::Short => market.amm.base_asset_amount_with_amm > 0,
     } && market.amm.amm_jit_is_active();
 
-    let amm_will_fill_next_round = taker.orders[taker_order_index].is_auction_complete(slot)?
+    // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
+    // market order will always land and fill on amm next round
+    let amm_will_fill_next_round = !taker.orders[taker_order_index].has_limit_price(slot)?
         && maker_base_asset_amount < taker_base_asset_amount;
 
     let mut total_quote_asset_amount = 0_u64;
