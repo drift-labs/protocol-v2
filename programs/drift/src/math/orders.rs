@@ -622,14 +622,11 @@ pub fn find_fallback_maker_order(
 
         let limit_price = order.force_get_limit_price(valid_oracle_price, None, slot, tick_size)?;
 
-        // if fallback maker order is not set, set it
+        // if fallback maker order is not set, set it else check if this order is better
         if fallback_maker_order_index.is_none() {
             best_limit_price = limit_price;
             fallback_maker_order_index = Some(order_index);
-            continue;
-        }
-
-        if *direction == PositionDirection::Long && limit_price > best_limit_price {
+        } else if *direction == PositionDirection::Long && limit_price > best_limit_price {
             best_limit_price = limit_price;
             fallback_maker_order_index = Some(order_index);
         } else if *direction == PositionDirection::Short && limit_price < best_limit_price {
