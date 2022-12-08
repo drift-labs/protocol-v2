@@ -629,6 +629,10 @@ impl Order {
             || !is_auction_complete(self.slot, self.auction_duration, slot)?)
     }
 
+    pub fn is_auction_complete(self, slot: u64) -> DriftResult<bool> {
+        is_auction_complete(self.slot, self.auction_duration, slot)
+    }
+
     pub fn has_auction_price(
         &self,
         order_slot: u64,

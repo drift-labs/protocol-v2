@@ -1794,61 +1794,59 @@ pub fn fulfill_perp_order_with_match(
     let amm_wants_to_make = match taker_direction {
         PositionDirection::Long => market.amm.base_asset_amount_with_amm < 0,
         PositionDirection::Short => market.amm.base_asset_amount_with_amm > 0,
-    };
+    } && market.amm.amm_jit_is_active();
+
+    // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
+    // market order will always land and fill on amm next round
+    let amm_will_fill_next_round = !taker.orders[taker_order_index].has_limit_price(slot)?
+        && maker_base_asset_amount < taker_base_asset_amount;
 
     let mut total_quote_asset_amount = 0_u64;
-    let base_asset_amount_left_to_fill = if amm_wants_to_make && market.amm.amm_jit_is_active() {
-        let jit_base_asset_amount = if !taker.orders[taker_order_index].has_limit_price(slot)?
-            && maker_base_asset_amount < taker_base_asset_amount
-        {
-            0
-        } else {
-            crate::math::amm_jit::calculate_jit_base_asset_amount(
-                market,
-                base_asset_amount,
-                maker_price,
-                valid_oracle_price,
-                taker_direction,
-            )?
-        };
+    if amm_wants_to_make && !amm_will_fill_next_round {
+        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+            market,
+            base_asset_amount,
+            maker_price,
+            valid_oracle_price,
+            taker_direction,
+        )?;
 
         if jit_base_asset_amount > 0 {
-            let (base_asset_amount_filled_by_amm, quote_asset_amount_filled_by_amm) =
-                fulfill_perp_order_with_amm(
-                    taker,
-                    taker_stats,
-                    taker_order_index,
-                    market,
-                    oracle_map,
-                    reserve_price_before,
-                    now,
-                    slot,
-                    valid_oracle_price,
-                    taker_key,
-                    filler_key,
-                    filler,
-                    filler_stats,
-                    &mut None,
-                    &mut None,
-                    fee_structure,
-                    order_records,
-                    Some(jit_base_asset_amount),
-                    Some(maker_price), // match the makers price
-                    false,             // dont split with the lps
-                )?;
-
+            let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
+                taker,
+                taker_stats,
+                taker_order_index,
+                market,
+                oracle_map,
+                reserve_price_before,
+                now,
+                slot,
+                valid_oracle_price,
+                taker_key,
+                filler_key,
+                filler,
+                filler_stats,
+                &mut None,
+                &mut None,
+                fee_structure,
+                order_records,
+                Some(jit_base_asset_amount),
+                Some(maker_price), // match the makers price
+                false,             // dont split with the lps
+            )?;
             total_quote_asset_amount = quote_asset_amount_filled_by_amm;
-
-            base_asset_amount.safe_sub(base_asset_amount_filled_by_amm)?
-        } else {
-            base_asset_amount
-        }
-    } else {
-        base_asset_amount
+        };
     };
 
+    let taker_existing_position = taker
+        .get_perp_position(market.market_index)?
+        .base_asset_amount;
+
+    let taker_base_asset_amount = taker.orders[taker_order_index]
+        .get_base_asset_amount_unfilled(Some(taker_existing_position))?;
+
     let (base_asset_amount_fulfilled, quote_asset_amount) = calculate_fill_for_matched_orders(
-        base_asset_amount_left_to_fill,
+        maker_base_asset_amount,
         maker_price,
         taker_base_asset_amount,
         PERP_DECIMALS,
@@ -1863,6 +1861,7 @@ pub fn fulfill_perp_order_with_match(
         taker_price,
         true,
     )?;
+
     validate_fill_price(
         quote_asset_amount,
         base_asset_amount_fulfilled,
@@ -1880,7 +1879,7 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     let maker_position_delta = get_position_delta_for_fill(
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
         quote_asset_amount,
         maker.orders[maker_order_index].direction,
     )?;
@@ -1904,7 +1903,7 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     let taker_position_delta = get_position_delta_for_fill(
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
         quote_asset_amount,
         taker.orders[taker_order_index].direction,
     )?;
@@ -2014,26 +2013,26 @@ pub fn fulfill_perp_order_with_match(
 
     update_order_after_fill(
         &mut taker.orders[taker_order_index],
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
         quote_asset_amount,
     )?;
 
     decrease_open_bids_and_asks(
         &mut taker.perp_positions[taker_position_index],
         &taker.orders[taker_order_index].direction,
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
     )?;
 
     update_order_after_fill(
         &mut maker.orders[maker_order_index],
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
         quote_asset_amount,
     )?;
 
     decrease_open_bids_and_asks(
         &mut maker.perp_positions[maker_position_index],
         &maker.orders[maker_order_index].direction,
-        base_asset_amount_left_to_fill,
+        base_asset_amount_fulfilled,
     )?;
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
@@ -2050,7 +2049,7 @@ pub fn fulfill_perp_order_with_match(
         Some(*filler_key),
         Some(fill_record_id),
         Some(filler_reward),
-        Some(base_asset_amount_left_to_fill),
+        Some(base_asset_amount_fulfilled),
         Some(quote_asset_amount),
         Some(taker_fee),
         Some(maker_rebate),
