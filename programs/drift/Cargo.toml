@@ -13,6 +13,7 @@ path = "src/lib.rs"
 no-entrypoint = []
 cpi = ["no-entrypoint"]
 mainnet-beta=[]
+default=["mainnet-beta"]
 
 [dependencies]
 anchor-lang = "0.25.0"

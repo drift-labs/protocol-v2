@@ -12,7 +12,7 @@ const Account = web3.Account;
 const Transaction = web3.Transaction;
 const PublicKey = web3.PublicKey;
 const SystemProgram = web3.SystemProgram;
-const DEX_PID = new PublicKey('DESVgJVGajEgKGXhb6XmqDHGz3VjdgP7rEVESBgxmroY');
+const DEX_PID = new PublicKey('srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX');
 
 // Creates everything needed for an orderbook to be running
 //

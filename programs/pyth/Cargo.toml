@@ -12,7 +12,7 @@ name = "pyth"
 no-entrypoint = []
 no-idl = []
 cpi = ["no-entrypoint"]
-default = []
+default = ["mainnet-beta"]
 mainnet-beta=[]
 
 [dependencies]
