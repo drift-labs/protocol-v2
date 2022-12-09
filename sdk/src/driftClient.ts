@@ -590,12 +590,17 @@ export class DriftClient {
 		marginTradingEnabled: boolean,
 		subAccountId = 0
 	): Promise<TransactionSignature> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			subAccountId
+		);
 		return await this.program.rpc.updateUserMarginTradingEnabled(
 			subAccountId,
 			marginTradingEnabled,
 			{
 				accounts: {
-					user: await this.getUserAccountPublicKey(),
+					user: userAccountPublicKey,
 					authority: this.wallet.publicKey,
 				},
 			}
