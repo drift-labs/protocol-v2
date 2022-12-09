@@ -231,26 +231,6 @@ pub fn place_perp_order(
         now
     )?;
 
-    let max_oi = market.amm.max_open_interest;
-    let oi_plus_order = match params.direction {
-        PositionDirection::Long => market
-            .amm
-            .base_asset_amount_long
-            .safe_add(order_base_asset_amount.cast()?)?
-            .unsigned_abs(),
-        PositionDirection::Short => market
-            .amm
-            .base_asset_amount_short
-            .safe_sub(order_base_asset_amount.cast()?)?
-            .unsigned_abs(),
-    };
-
-    validate!(
-        oi_plus_order <= max_oi,
-        ErrorCode::MaxOpenInterest,
-        "order could lead to max oi being breach"
-    )?;
-
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
@@ -314,6 +294,28 @@ pub fn place_perp_order(
 
     if force_reduce_only && !risk_decreasing {
         return Err(ErrorCode::InvalidOrderNotRiskReducing);
+    }
+
+    let max_oi = market.amm.max_open_interest;
+    if max_oi != 0 && !risk_decreasing {
+        let oi_plus_order = match params.direction {
+            PositionDirection::Long => market
+                .amm
+                .base_asset_amount_long
+                .safe_add(order_base_asset_amount.cast()?)?
+                .unsigned_abs(),
+            PositionDirection::Short => market
+                .amm
+                .base_asset_amount_short
+                .safe_sub(order_base_asset_amount.cast()?)?
+                .unsigned_abs(),
+        };
+
+        validate!(
+            oi_plus_order <= max_oi,
+            ErrorCode::MaxOpenInterest,
+            "order could lead to max oi being breach"
+        )?;
     }
 
     let (taker, taker_order, maker, maker_order) =
