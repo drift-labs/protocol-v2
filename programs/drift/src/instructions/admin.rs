@@ -645,6 +645,9 @@ pub fn handle_initialize_perp_market(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_oracle(
     ctx: Context<AdminUpdateSpotMarketOracle>,
     oracle: Pubkey,
@@ -665,6 +668,9 @@ pub fn handle_update_spot_market_oracle(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_expiry(
     ctx: Context<AdminUpdateSpotMarket>,
     expiry_ts: i64,
@@ -685,7 +691,7 @@ pub fn handle_update_spot_market_expiry(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_expiry(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -707,7 +713,7 @@ pub fn handle_update_perp_market_expiry(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_move_amm_price(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -728,7 +734,7 @@ pub fn handle_move_amm_price(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_settle_expired_market_pools_to_revenue_pool(
     ctx: Context<SettleExpiredMarketPoolsToRevenuePool>,
@@ -835,7 +841,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_deposit_into_perp_market_fee_pool(
     ctx: Context<DepositIntoMarketFeePool>,
@@ -870,7 +876,7 @@ pub fn handle_deposit_into_perp_market_fee_pool(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128) -> Result<()> {
@@ -932,7 +938,7 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
@@ -995,7 +1001,7 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
@@ -1154,7 +1160,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
@@ -1198,7 +1204,7 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_margin_ratio(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1219,7 +1225,7 @@ pub fn handle_update_perp_market_margin_ratio(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_max_imbalances(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1278,6 +1284,9 @@ pub fn handle_update_perp_market_max_imbalances(
     Ok(())
 }
 
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
 pub fn handle_update_perp_market_name(
     ctx: Context<AdminUpdatePerpMarket>,
     name: [u8; 32],
@@ -1287,6 +1296,9 @@ pub fn handle_update_perp_market_name(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_name(
     ctx: Context<AdminUpdateSpotMarket>,
     name: [u8; 32],
@@ -1297,7 +1309,7 @@ pub fn handle_update_spot_market_name(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_liquidation_fee(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1329,6 +1341,9 @@ pub fn handle_update_perp_liquidation_fee(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_insurance_fund_unstaking_period(
     ctx: Context<AdminUpdateSpotMarket>,
     insurance_fund_unstaking_period: i64,
@@ -1338,6 +1353,9 @@ pub fn handle_update_insurance_fund_unstaking_period(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_liquidation_fee(
     ctx: Context<AdminUpdateSpotMarket>,
     liquidator_fee: u32,
@@ -1361,6 +1379,9 @@ pub fn handle_update_spot_market_liquidation_fee(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_withdraw_guard_threshold(
     ctx: Context<AdminUpdateSpotMarket>,
     withdraw_guard_threshold: u64,
@@ -1375,6 +1396,9 @@ pub fn handle_update_withdraw_guard_threshold(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_if_factor(
     ctx: Context<AdminUpdateSpotMarket>,
     spot_market_index: u16,
@@ -1418,6 +1442,9 @@ pub fn handle_update_spot_market_if_factor(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_revenue_settle_period(
     ctx: Context<AdminUpdateSpotMarket>,
     revenue_settle_period: i64,
@@ -1433,6 +1460,9 @@ pub fn handle_update_spot_market_revenue_settle_period(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_status(
     ctx: Context<AdminUpdateSpotMarket>,
     status: MarketStatus,
@@ -1442,6 +1472,9 @@ pub fn handle_update_spot_market_status(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_asset_tier(
     ctx: Context<AdminUpdateSpotMarket>,
     asset_tier: AssetTier,
@@ -1460,6 +1493,9 @@ pub fn handle_update_spot_market_asset_tier(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_margin_weights(
     ctx: Context<AdminUpdateSpotMarket>,
     initial_asset_weight: u32,
@@ -1488,6 +1524,9 @@ pub fn handle_update_spot_market_margin_weights(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_borrow_rate(
     ctx: Context<AdminUpdateSpotMarket>,
     optimal_utilization: u32,
@@ -1502,6 +1541,9 @@ pub fn handle_update_spot_market_borrow_rate(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_max_token_deposits(
     ctx: Context<AdminUpdateSpotMarket>,
     max_token_deposits: u64,
@@ -1511,6 +1553,9 @@ pub fn handle_update_spot_market_max_token_deposits(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_orders_enabled(
     ctx: Context<AdminUpdateSpotMarket>,
     orders_enabled: bool,
@@ -1521,7 +1566,7 @@ pub fn handle_update_spot_market_orders_enabled(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_status(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1539,7 +1584,7 @@ pub fn handle_update_perp_market_status(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_contract_tier(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1551,7 +1596,7 @@ pub fn handle_update_perp_market_contract_tier(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_imf_factor(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1575,7 +1620,7 @@ pub fn handle_update_perp_market_imf_factor(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_unrealized_asset_weight(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1604,7 +1649,7 @@ pub fn handle_update_perp_market_unrealized_asset_weight(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_concentration_coef(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1631,7 +1676,7 @@ pub fn handle_update_perp_market_concentration_coef(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_curve_update_intensity(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1707,7 +1752,7 @@ pub fn handle_update_state_settlement_duration(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_oracle(
     ctx: Context<RepegCurve>,
@@ -1731,7 +1776,7 @@ pub fn handle_update_perp_market_oracle(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_base_spread(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1745,7 +1790,7 @@ pub fn handle_update_perp_market_base_spread(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_amm_jit_intensity(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1764,7 +1809,7 @@ pub fn handle_update_amm_jit_intensity(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_max_spread(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1789,7 +1834,7 @@ pub fn handle_update_perp_market_max_spread(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_step_size_and_tick_size(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1804,7 +1849,7 @@ pub fn handle_update_perp_market_step_size_and_tick_size(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_min_order_size(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1816,6 +1861,9 @@ pub fn handle_update_perp_market_min_order_size(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_step_size_and_tick_size(
     ctx: Context<AdminUpdateSpotMarket>,
     step_size: u64,
@@ -1831,6 +1879,9 @@ pub fn handle_update_spot_market_step_size_and_tick_size(
     Ok(())
 }
 
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
 pub fn handle_update_spot_market_min_order_size(
     ctx: Context<AdminUpdateSpotMarket>,
     order_size: u64,
@@ -1845,7 +1896,7 @@ pub fn handle_update_spot_market_min_order_size(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_max_slippage_ratio(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1858,7 +1909,7 @@ pub fn handle_update_perp_market_max_slippage_ratio(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_max_fill_reserve_fraction(
     ctx: Context<AdminUpdatePerpMarket>,
@@ -1871,7 +1922,7 @@ pub fn handle_update_perp_market_max_fill_reserve_fraction(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_max_open_interest(
     ctx: Context<AdminUpdatePerpMarket>,
