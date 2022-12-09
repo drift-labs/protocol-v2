@@ -314,7 +314,9 @@ pub fn place_perp_order(
         validate!(
             oi_plus_order <= max_oi,
             ErrorCode::MaxOpenInterest,
-            "order could lead to max oi being breach"
+            "Order Base Amount={} could breach Max Open Interest for Perp Market={}",
+            order_base_asset_amount,
+            params.market_index
         )?;
     }
 
