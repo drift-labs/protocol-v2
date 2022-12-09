@@ -57,7 +57,7 @@
 		"prettier": "^2.4.1",
 		"ts-node": "^10.8.0"
 	},
-	"description": "SDK for Drift Protocol v1",
+	"description": "SDK for Drift Protocol",
 	"engines": {
 		"node": ">=12"
 	}
