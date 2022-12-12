@@ -9,6 +9,7 @@ import {
 	calculatePrice,
 	PEG_PRECISION,
 	BASE_PRECISION,
+	ONE,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
@@ -315,6 +316,7 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
+		console.log('oraclePriceData', oraclePriceData.price.toNumber());
 		assert(market0.amm.pegMultiplier.eq(new BN(1000000)));
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		console.log(prepegAMM.pegMultiplier.toString());
@@ -381,7 +383,11 @@ describe('prepeg', () => {
 
 		console.log(inventoryScale, effectiveLeverage);
 
-		const [longSpread, shortSpread] = calculateSpread(newAmm, oraclePriceData);
+		const [longSpread, shortSpread] = calculateSpread(
+			newAmm,
+			oraclePriceData,
+			newAmm.historicalOracleData.lastOraclePriceTwapTs.add(new BN(1))
+		);
 
 		console.log(newAmm.baseSpread, longSpread, shortSpread, newAmm.maxSpread);
 		console.log(inventoryScale);
@@ -390,7 +396,7 @@ describe('prepeg', () => {
 		assert(inventoryScale == 1.169035);
 		assert(effectiveLeverage == 0.03921528344303476);
 		assert(shortSpread == 500);
-		assert(longSpread.toString() == '39566');
+		assert(longSpread.toString() == '39568');
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 

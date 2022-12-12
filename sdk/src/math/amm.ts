@@ -655,7 +655,8 @@ export function calculateSpreadBN(
 
 export function calculateSpread(
 	amm: AMM,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: OraclePriceData,
+	now?: BN
 ): [number, number] {
 	if (amm.baseSpread == 0 || amm.curveUpdateIntensity == 0) {
 		return [amm.baseSpread / 2, amm.baseSpread / 2];
@@ -678,7 +679,7 @@ export function calculateSpread(
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(reservePrice);
 
-	const now = new BN(new Date().getTime() / 1000); //todo
+	now = now || new BN(new Date().getTime() / 1000); //todo
 	const liveOracleStd = calculateLiveOracleStd(amm, oraclePriceData, now);
 
 	const spreads = calculateSpreadBN(
