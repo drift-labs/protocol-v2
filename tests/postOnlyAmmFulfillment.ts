@@ -195,6 +195,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 		await fillerDriftClient.moveAmmToPrice(marketIndex, newOraclePriceBN);
 
+		await driftClientUser.fetchAccounts();
 		const reservePrice2 = calculateReservePrice(
 			driftClient.getPerpMarketAccount(marketIndex),
 			undefined

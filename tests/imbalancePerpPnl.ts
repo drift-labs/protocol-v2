@@ -49,6 +49,7 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
+import { TWO } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -152,18 +153,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		9 * AMM_RESERVE_PRECISION.toNumber()
 	).mul(new BN(1000000000));
 
-	console.log(ammInitialQuoteAssetReserve.toString());
-	console.log(ammInitialBaseAssetReserve.toString());
-
 	const ammInitialQuoteAssetReserve2 = new anchor.BN(9)
 		.mul(AMM_RESERVE_PRECISION)
 		.mul(AMM_RESERVE_PRECISION);
 	const ammInitialBaseAssetReserve2 = new anchor.BN(9)
 		.mul(AMM_RESERVE_PRECISION)
 		.mul(AMM_RESERVE_PRECISION);
-
-	console.log(ammInitialQuoteAssetReserve2.toString());
-	console.log(ammInitialBaseAssetReserve2.toString());
 
 	assert(ammInitialBaseAssetReserve.eq(ammInitialBaseAssetReserve2));
 	assert(ammInitialQuoteAssetReserve.eq(ammInitialQuoteAssetReserve2));
@@ -553,8 +548,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log('DOUBLE CHECK bids:', bid1.toString(), bid0After.toString());
 		console.log('DOUBLE CHECK asks:', ask1.toString(), ask0After.toString());
 
-		assert(bid1.sub(bid0After).abs().lte(ONE));
-		assert(ask1.sub(ask0After).abs().lte(ONE));
+		assert(bid1.sub(bid0After).abs().lte(TWO));
+		assert(ask1.sub(ask0After).abs().lte(TWO));
 
 		while (!market0.amm.lastOracleValid) {
 			const imbalance = calculateNetUserPnlImbalance(

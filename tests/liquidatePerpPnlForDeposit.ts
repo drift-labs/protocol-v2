@@ -123,7 +123,7 @@ describe('liquidate perp pnl for deposit', () => {
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceNumerator: new BN(100),
 				markOracleDivergenceDenominator: new BN(10),
 			},
 			validity: {
@@ -132,7 +132,6 @@ describe('liquidate perp pnl for deposit', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(55), // allow 55x change
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);

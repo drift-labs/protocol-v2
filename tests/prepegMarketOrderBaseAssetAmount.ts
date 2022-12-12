@@ -44,7 +44,11 @@ import {
 } from './testHelpers';
 
 describe('prepeg', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		commitment: 'confirmed',
+		skipPreflight: false,
+		preflightCommitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
@@ -314,7 +318,7 @@ describe('prepeg', () => {
 		assert(market0.amm.pegMultiplier.eq(new BN(1000000)));
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		console.log(prepegAMM.pegMultiplier.toString());
-		assert(prepegAMM.pegMultiplier.eq(new BN(1005509)));
+		assert(prepegAMM.pegMultiplier.eq(new BN(1003483)));
 		const estDist = prepegAMM.totalFee.sub(
 			prepegAMM.totalFeeMinusDistributions
 		);
@@ -383,10 +387,10 @@ describe('prepeg', () => {
 		console.log(inventoryScale);
 		console.log(effectiveLeverage);
 		assert(newAmm.maxSpread == (100000 / 2) * 0.95);
-		assert(inventoryScale == 0.003409);
-		assert(effectiveLeverage == 0.19905711326640804);
+		assert(inventoryScale == 1.169035);
+		assert(effectiveLeverage == 0.03921528344303476);
 		assert(shortSpread == 500);
-		assert(longSpread.toString() == '26785.610433069665');
+		assert(longSpread.toString() == '39566');
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
@@ -418,6 +422,8 @@ describe('prepeg', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
+
+		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
@@ -433,7 +439,7 @@ describe('prepeg', () => {
 		assert(bid1.lt(oraclePriceData.price));
 
 		console.log(market.amm.pegMultiplier.toString());
-		assert(market.amm.pegMultiplier.eq(new BN(1005509)));
+		assert(market.amm.pegMultiplier.eq(new BN(1003483)));
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);
