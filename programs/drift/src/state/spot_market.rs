@@ -18,6 +18,7 @@ use crate::math::spot_balance::get_token_amount;
 
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
+use crate::state::traits::Size;
 
 #[account(zero_copy)]
 #[derive(PartialEq, Eq, Debug)]
@@ -126,6 +127,10 @@ impl Default for SpotMarket {
             padding: [0; 86],
         }
     }
+}
+
+impl Size for SpotMarket {
+    const SIZE: usize = 776;
 }
 
 impl SpotMarket {
@@ -321,6 +326,10 @@ pub struct SerumV3FulfillmentConfig {
     pub fulfillment_type: SpotFulfillmentType,
     pub status: SpotFulfillmentConfigStatus,
     pub padding: [u8; 4],
+}
+
+impl Size for SerumV3FulfillmentConfig {
+    const SIZE: usize = 344;
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

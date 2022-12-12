@@ -23,6 +23,7 @@ use crate::math::stats;
 
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
+use crate::state::traits::Size;
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
@@ -135,6 +136,10 @@ impl Default for PerpMarket {
             padding: [0; 51],
         }
     }
+}
+
+impl Size for PerpMarket {
+    const SIZE: usize = 1216;
 }
 
 impl PerpMarket {
