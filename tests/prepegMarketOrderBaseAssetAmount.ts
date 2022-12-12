@@ -9,7 +9,6 @@ import {
 	calculatePrice,
 	PEG_PRECISION,
 	BASE_PRECISION,
-	ONE,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';

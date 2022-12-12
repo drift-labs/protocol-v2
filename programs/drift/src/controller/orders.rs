@@ -3323,8 +3323,10 @@ pub fn fulfill_spot_order_with_match(
         if let Some(taker_max_quote_asset_amount) = taker_max_quote_asset_amount {
             let taker_implied_max_base_asset_amount = standardize_base_asset_amount(
                 taker_max_quote_asset_amount
-                    .safe_mul(base_market.get_precision())?
-                    .safe_div(maker_price)?,
+                    .cast::<u128>()?
+                    .safe_mul(base_market.get_precision().cast()?)?
+                    .safe_div(maker_price.cast()?)?
+                    .cast::<u64>()?,
                 base_market.order_step_size,
             )?;
             taker_base_asset_amount.min(taker_implied_max_base_asset_amount)

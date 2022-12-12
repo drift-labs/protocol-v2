@@ -133,7 +133,6 @@ describe('liquidate borrow for perp pnl', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(55), // allow 55x change
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);

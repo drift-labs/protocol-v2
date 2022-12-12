@@ -252,6 +252,8 @@ describe('market orders', () => {
 			marketIndex
 		);
 
+		await driftClient.fetchAccounts();
+		console.log(driftClient.getQuoteAssetTokenAmount().toString());
 		assert.ok(driftClient.getQuoteAssetTokenAmount().eq(new BN(9879998)));
 		assert(
 			driftClient

@@ -605,7 +605,7 @@ describe('amm spread: market order', () => {
 
 		assert(firstPosition.baseAssetAmount.abs().eq(baseAssetAmount));
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
-		assert(firstPosition.quoteBreakEvenAmount.eq(new BN(1000750)));
+		assert(firstPosition.quoteBreakEvenAmount.eq(new BN(998750)));
 
 		await driftClient.closePosition(marketIndex);
 

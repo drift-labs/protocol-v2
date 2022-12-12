@@ -439,9 +439,10 @@ describe('drift client', () => {
 				.data.fees.totalFeePaid.eq(new BN(120001))
 		);
 		console.log(user.perpPositions[0].quoteBreakEvenAmount.toString());
+		console.log(user.perpPositions[0].quoteAssetAmount.toString());
 
 		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(24000000)));
-		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(24048000)));
+		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(23952000)));
 		assert.ok(user.perpPositions[0].quoteAssetAmount.eq(new BN(24000000)));
 		console.log(user.perpPositions[0].baseAssetAmount.toString());
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-24000000000)));
@@ -528,7 +529,7 @@ describe('drift client', () => {
 		);
 		console.log(user.perpPositions[0].quoteBreakEvenAmount.toString());
 		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(47999999)));
-		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(48047999)));
+		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(47951999)));
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-48000000000)));
 
 		const market = driftClient.getPerpMarketAccount(0);

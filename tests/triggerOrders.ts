@@ -17,6 +17,7 @@ import {
 	OrderTriggerCondition,
 	getTriggerMarketOrderParams,
 	getTriggerLimitOrderParams,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -93,6 +94,21 @@ describe('trigger orders', () => {
 		await fillerDriftClient.subscribe();
 		await initializeQuoteSpotMarket(fillerDriftClient, usdcMint.publicKey);
 		await fillerDriftClient.updatePerpAuctionDuration(new BN(0));
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(100),
+				markOracleDivergenceDenominator: new BN(10),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(55), // allow 55x change
+			},
+		};
+
+		await fillerDriftClient.updateOracleGuardRails(oracleGuardRails);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
