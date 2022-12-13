@@ -532,6 +532,7 @@ describe('insurance fund stake', () => {
 		);
 		await printTxLogs(connection, txSig);
 
+		await driftClient.fetchAccounts();
 		const spotMarket = await driftClient.getSpotMarketAccount(marketIndex);
 		const expectedBorrowBalance = new BN(500000000000001);
 		console.log(
