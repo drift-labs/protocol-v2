@@ -14,7 +14,7 @@ defaults:
 env:
   CARGO_TERM_COLOR: always 
   RUST_TOOLCHAIN: stable
-  SOLANA_VERSION: "1.14.7"
+  SOLANA_VERSION: "1.13.2"
 
 jobs:
   fmt-clippy:
