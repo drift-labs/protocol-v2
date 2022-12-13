@@ -655,6 +655,7 @@ describe('delist market, liquidation of expired position', () => {
 		console.log(txSigBankrupt);
 		await printTxLogs(connection, txSigBankrupt);
 
+		await driftClientLoser.fetchAccounts();
 		assert(!isVariant(driftClientLoser.getUserAccount().status, 'bankrupt'));
 		assert(
 			driftClientLoser
