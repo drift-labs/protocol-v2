@@ -66,6 +66,8 @@ describe('insurance fund stake', () => {
 	let secondUserDriftClientWSOLAccount: PublicKey;
 	let secondUserDriftClientUSDCAccount: PublicKey;
 
+	let driftClientUser: DriftClient;
+
 	const solAmount = new BN(10000 * 10 ** 9);
 
 	before(async () => {
@@ -135,6 +137,7 @@ describe('insurance fund stake', () => {
 		await driftClient.unsubscribe();
 		await secondUserDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
+		await driftClientUser.unsubscribe();
 	});
 
 	it('initialize if stake', async () => {
@@ -854,7 +857,7 @@ describe('insurance fund stake', () => {
 		assert(spotMarketBefore.borrowBalance.gt(ZERO));
 		assert(ifPoolBalance.eq(new BN(0)));
 
-		const driftClientUser = new User({
+		driftClientUser = new User({
 			driftClient: secondUserDriftClient,
 			userAccountPublicKey:
 				await secondUserDriftClient.getUserAccountPublicKey(),
