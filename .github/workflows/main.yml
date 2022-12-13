@@ -105,6 +105,8 @@ jobs:
           override: true
       - name: Cache build artefacts
         uses: Swatinem/rust-cache@v1
+        with:
+          cache-on-failure: "true"
 
       - name: Download Solana
         run: |
