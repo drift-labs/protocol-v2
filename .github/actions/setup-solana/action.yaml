@@ -7,7 +7,6 @@ runs:
       name: Cache Solana Tool Suite
       id: cache-solana
       with:
-        cache-on-failure: "true"
         path: |
           ~/.cache/solana/
           ~/.local/share/solana/
