@@ -105,8 +105,14 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		const orderId = getOrderSignature(order.orderId, userAccount);
 		if (this.nodeMap.has(orderId)) {
 			const node = this.nodeMap.get(orderId);
-			Object.assign(node.order, order);
-			node.haveFilled = false;
+
+			const newNode = {
+				...node,
+				...order,
+				haveFilled: false,
+			};
+
+			this.nodeMap.set(orderId, newNode);
 		}
 	}
 
