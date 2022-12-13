@@ -4,6 +4,8 @@ use crate::math::constants::{
     QUOTE_PRECISION,
 };
 use crate::math::repeg::*;
+use crate::state::oracle::HistoricalOracleData;
+use crate::state::state::{PriceDivergenceGuardRails, State, ValidityGuardRails};
 
 #[test]
 fn calc_peg_tests() {
@@ -156,6 +158,76 @@ fn calculate_optimal_peg_and_budget_test() {
     assert_eq!(optimal_peg, 42641967773);
     assert_eq!(budget, 22190932405); // $2219.032405
     assert!(!check_lb);
+}
+
+#[test]
+fn calculate_optimal_peg_and_budget_2_test() {
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 2270516211133,
+            quote_asset_reserve: 2270925669621,
+            terminal_quote_asset_reserve: 2270688451627,
+            sqrt_k: 2270720931148,
+            peg_multiplier: 17723081263,
+            base_asset_amount_with_amm: 237200000,
+            mark_std: 43112524,
+            last_mark_price_twap_ts: 0,
+            base_spread: 250,
+            curve_update_intensity: 100,
+            max_spread: 500 * 100,
+            total_exchange_fee: 298628987,
+            total_fee_minus_distributions: -242668966,
+            total_fee_withdrawn: 124247717,
+            concentration_coef: 1020710,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: 17765940050,
+                last_oracle_price_twap_5min: 17763317077,
+                ..HistoricalOracleData::default()
+            },
+            ..AMM::default()
+        },
+        margin_ratio_initial: 500,
+
+        ..PerpMarket::default()
+    };
+
+    let oracle_price_data = OraclePriceData {
+        price: (17_800 * PRICE_PRECISION) as i64,
+        confidence: 10233,
+        delay: 2,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    let (optimal_peg, budget, check_lb) =
+        calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
+
+    assert_eq!(optimal_peg, 17796790576);
+    assert_eq!(optimal_peg > oracle_price_data.price as u128, false);
+    assert_eq!(budget, 0);
+    assert_eq!(check_lb, false); // because market.amm.total_fee_minus_distributions < get_total_fee_lower_bound(market)?.cast()
+    use crate::controller::repeg::*;
+
+    let state = State {
+        oracle_guard_rails: OracleGuardRails {
+            price_divergence: PriceDivergenceGuardRails {
+                mark_oracle_divergence_numerator: 1,
+                mark_oracle_divergence_denominator: 10,
+            },
+            validity: ValidityGuardRails {
+                slots_before_stale_for_amm: 10,     // 5s
+                slots_before_stale_for_margin: 120, // 60s
+                confidence_interval_max_size: 1000,
+                too_volatile_ratio: 5,
+            },
+        },
+        ..State::default()
+    };
+
+    // test amm update
+    assert_eq!(market.amm.last_update_slot, 0);
+    let c = _update_amm(&mut market, &oracle_price_data, &state, 1, 1337).unwrap();
+    assert_eq!(c, 424);
+    assert_eq!(market.amm.last_update_slot, 1337);
 }
 
 #[test]

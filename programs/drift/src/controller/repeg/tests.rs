@@ -503,16 +503,16 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     };
 
     let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
-    assert_eq!(cost_of_update, 0);
-    assert_eq!(market.amm.long_spread, 377);
-    assert_eq!(market.amm.short_spread, 975 - 377);
+    assert_eq!(cost_of_update, 299407);
+    assert_eq!(market.amm.long_spread, 378);
+    assert_eq!(market.amm.short_spread, 975 - 378);
 
     let mrk = market.amm.reserve_price().unwrap();
     let (bid, ask) = market.amm.bid_ask_price(mrk).unwrap();
 
-    assert_eq!(bid, 18817611205);
-    assert_eq!(mrk, 18828870870);
-    assert_eq!(ask, 18835969354);
+    assert_eq!(bid, 18817335418);
+    assert_eq!(mrk, 18828576078);
+    assert_eq!(ask, 18835693279);
     assert_eq!((oracle_price_data.price as u64) > bid, true);
     assert_eq!((oracle_price_data.price as u64) < ask, true);
 }

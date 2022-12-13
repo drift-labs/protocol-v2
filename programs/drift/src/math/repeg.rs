@@ -437,6 +437,10 @@ pub fn calculate_optimal_peg_and_budget(
             fee_budget = calculate_repeg_cost(&market.amm, optimal_peg)?.cast::<u128>()?;
 
             check_lower_bound = false;
+        } else if market.amm.total_fee_minus_distributions
+            < get_total_fee_lower_bound(market)?.cast()?
+        {
+            check_lower_bound = false;
         }
     }
 
