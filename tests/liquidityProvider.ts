@@ -33,6 +33,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
+	sleep,
 } from './testHelpers';
 
 async function adjustOraclePostSwap(baa, swapDirection, market) {
@@ -1212,6 +1213,8 @@ describe('liquidity providing', () => {
 		const slot = await connection.getSlot();
 		const time = await connection.getBlockTime(slot);
 		const _2sig = await driftClient.updatePerpMarketExpiry(0, new BN(time + 5));
+
+		await sleep(5000);
 
 		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(0);
