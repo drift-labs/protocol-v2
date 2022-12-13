@@ -438,6 +438,7 @@ describe('insurance fund stake', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
+		await driftClient.fetchAccounts();
 		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
 		console.log(
 			'totalIfShares:',
