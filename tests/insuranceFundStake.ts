@@ -773,6 +773,7 @@ describe('insurance fund stake', () => {
 		console.log('letting interest accum (2s)');
 		await sleep(2000);
 		await driftClient.updateSpotMarketCumulativeInterest(0);
+		await driftClient.fetchAccounts();
 		const spotMarketIUpdate = await driftClient.getSpotMarketAccount(
 			marketIndex
 		);
