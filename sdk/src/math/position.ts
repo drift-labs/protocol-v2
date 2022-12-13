@@ -151,11 +151,9 @@ export function calculateClaimablePnl(
 		);
 
 		const maxPositivePnl = BN.max(
-			perpPosition.quoteAssetAmount
-				.sub(perpPosition.quoteEntryAmount)
-				.add(excessPnlPool),
+			perpPosition.quoteAssetAmount.sub(perpPosition.quoteEntryAmount),
 			ZERO
-		);
+		).add(excessPnlPool);
 
 		unsettledPnl = BN.min(maxPositivePnl, unrealizedPnl);
 	}

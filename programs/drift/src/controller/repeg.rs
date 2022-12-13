@@ -180,6 +180,7 @@ pub fn _update_amm(
                 market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
                 amm_update_cost = repegged_cost;
             } else {
+                msg!("amm_not_successfully_updated = true (repeg cost not applied for check_lower_bound={})", check_lower_bound);
                 amm_not_successfully_updated = true;
             }
         }
