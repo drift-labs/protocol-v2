@@ -270,8 +270,12 @@ export class DLOB {
 			return;
 		}
 
-		order.baseAssetAmountFilled = cumulativeBaseAssetAmountFilled;
-		this.getListForOrder(order)?.update(order, userAccount);
+		const newOrder = {
+			...order,
+		};
+		newOrder.baseAssetAmountFilled = cumulativeBaseAssetAmountFilled;
+
+		this.getListForOrder(order)?.update(newOrder, userAccount);
 
 		if (onUpdate) {
 			onUpdate();

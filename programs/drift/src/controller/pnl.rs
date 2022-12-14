@@ -93,7 +93,10 @@ pub fn settle_pnl(
         validate!(
             oracle_map.slot == perp_market.amm.last_update_slot,
             ErrorCode::AMMNotUpdatedInSameSlot,
-            "AMM must be updated in a prior instruction within same slot"
+            "AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
+            oracle_map.slot,
+            perp_market.amm.last_update_slot,
+            perp_market.amm.last_oracle_valid
         )?;
     }
 
