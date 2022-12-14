@@ -838,6 +838,7 @@ describe('spot deposit and withdraw', () => {
 
 		const marketIndex = 0;
 
+		await thirdUserDriftClient.fetchAccounts();
 		const spotPosition = thirdUserDriftClient.getSpotPosition(marketIndex);
 		console.log(spotPosition);
 		assert(spotPosition.scaledBalance.eq(ZERO));
