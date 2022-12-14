@@ -170,20 +170,8 @@ pub fn place_perp_order(
             market.amm.order_step_size
         )?;
 
-        let standardized_base_asset_amount =
+        let base_asset_amount =
             standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?;
-
-        let base_asset_amount = if params.reduce_only || force_reduce_only {
-            calculate_base_asset_amount_for_reduce_only_order(
-                standardized_base_asset_amount,
-                params.direction,
-                market_position.base_asset_amount,
-                market_position.open_bids,
-                market_position.open_asks,
-            )?
-        } else {
-            standardized_base_asset_amount
-        };
 
         if !matches!(
             &params.order_type,
@@ -2519,20 +2507,8 @@ pub fn place_spot_order(
             spot_market.order_step_size
         )?;
 
-        let standardized_base_asset_amount =
+        let base_asset_amount =
             standardize_base_asset_amount(params.base_asset_amount, spot_market.order_step_size)?;
-
-        let base_asset_amount = if params.reduce_only || force_reduce_only {
-            calculate_base_asset_amount_for_reduce_only_order(
-                standardized_base_asset_amount,
-                params.direction,
-                signed_token_amount,
-                spot_position.open_bids,
-                spot_position.open_asks,
-            )?
-        } else {
-            standardized_base_asset_amount
-        };
 
         validate!(
             is_multiple_of_step_size(base_asset_amount, spot_market.order_step_size)?,
