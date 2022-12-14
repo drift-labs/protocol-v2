@@ -1,3 +1,0 @@
-[submodule "deps/serum-dex"]
-	path = deps/serum-dex
-	url = https://github.com/project-serum/serum-dex.git

@@ -113,11 +113,6 @@ jobs:
       - name: install anchor cli
         run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.25.0 anchor-cli --locked
 
-      - name: build deps
-        run: |
-          git submodule update --init --recursive
-          cd deps/serum-dex/dex && anchor build --skip-lint && cd ../../..
-
       - name: Setup node
         uses: actions/setup-node@v2
         with:
