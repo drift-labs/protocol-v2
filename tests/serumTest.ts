@@ -152,6 +152,13 @@ describe('serum spot market', () => {
 			feeRateBps: 0,
 		});
 
+		await Market.load(
+			provider.connection,
+			serumMarketPublicKey,
+			{ commitment: 'confirmed' },
+			serumHelper.DEX_PID
+		);
+
 		await makerDriftClient.initializeSerumFulfillmentConfig(
 			solSpotMarketIndex,
 			serumMarketPublicKey,
