@@ -19,7 +19,7 @@ env:
 jobs:
   fmt-clippy:
     name: fmt & clippy
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust nightly
@@ -37,7 +37,7 @@ jobs:
         run: cargo clippy --all-targets
   unit:
     name: Unit tests
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust toolchain
@@ -54,7 +54,7 @@ jobs:
         run: cargo test --lib # run unit tests
   cargo-audit:
     name: Cargo audit
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Cache cargo-audit version
@@ -67,7 +67,7 @@ jobs:
       - name: Run cargo-audit # Using args from .cargo/audit.toml
         run: cargo audit
   yarn-prettier:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Setup node
@@ -80,7 +80,7 @@ jobs:
       - name: Run prettier
         run: yarn prettify
   yarn-lint:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Setup node
@@ -93,7 +93,7 @@ jobs:
       - name: Run lint
         run: yarn lint
   anchor-tests:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
