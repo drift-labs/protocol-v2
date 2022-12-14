@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- ts-sdk: add Oracle OrderType to dlob idl
+
 ### Breaking
 
 ## [2.5.0] - 2022-12-13
