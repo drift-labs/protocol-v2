@@ -485,7 +485,7 @@ describe('delist market', () => {
 		// }
 		await printTxLogs(connection, txSig);
 
-		driftClient.fetchAccounts();
+		await driftClient.fetchAccounts();
 
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
