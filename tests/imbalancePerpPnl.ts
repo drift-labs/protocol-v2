@@ -847,6 +847,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			marketIndex
 		);
 		await printTxLogs(connection, txSig2);
+		await eventSubscriber.awaitTx(txSig2);
 		const ifRecord: InsuranceFundRecord = eventSubscriber.getEventsArray(
 			'InsuranceFundRecord'
 		)[0];
