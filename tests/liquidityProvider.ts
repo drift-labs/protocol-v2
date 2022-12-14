@@ -1181,6 +1181,7 @@ describe('liquidity providing', () => {
 			trader.perpPositions[0].baseAssetAmount.toString()
 		);
 
+		await driftClientUser.fetchAccounts();
 		const sdkPnl = driftClientUser.getSettledLPPosition(0)[2];
 
 		console.log('settling...');
