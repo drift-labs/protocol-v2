@@ -20,7 +20,7 @@ import {
 	calculateSizePremiumLiabilityWeight,
 } from './margin';
 import { OraclePriceData } from '../oracles/types';
-import { PERCENTAGE_PRECISION } from '@drift-labs/sdk';
+import { PERCENTAGE_PRECISION } from '../constants/numericConstants';
 
 export function getBalance(
 	tokenAmount: BN,
