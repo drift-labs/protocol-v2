@@ -47,6 +47,7 @@ import {
 	getTokenValue,
 	SpotBalanceType,
 	MarketType,
+	getSpotMarketMarginRatio,
 } from '.';
 import {
 	getTokenAmount,
@@ -1512,6 +1513,10 @@ export class User {
 			targetMarketIndex,
 			targetMarketType
 		);
+
+		const totalCollateral = this.getTotalCollateral();
+		const marginRequirement = this.getInitialMarginRequirement();
+
 		if (maxPositionSize.gte(ZERO)) {
 			if (oppositeSizeValueUSDC.eq(ZERO)) {
 				// case 1 : Regular trade where current total position less than max, and no opposite position to account for
@@ -1524,15 +1529,13 @@ export class User {
 			}
 		} else {
 			// current leverage is greater than max leverage - can only reduce position size
-
-			if (!targetingSameSide) {
+			if (!targetingSameSide && tradeIsPerp) {
 				const market = this.driftClient.getPerpMarketAccount(targetMarketIndex);
 				const perpPositionValue = this.getPerpPositionValue(
 					targetMarketIndex,
 					oracleData
 				);
-				const totalCollateral = this.getTotalCollateral();
-				const marginRequirement = this.getInitialMarginRequirement();
+
 				const marginFreedByClosing = perpPositionValue
 					.mul(new BN(market.marginRatioInitial))
 					.div(MARGIN_PRECISION);
@@ -1548,7 +1551,32 @@ export class User {
 					const buyingPowerAfterClose = freeCollateralAfterClose
 						.mul(this.getMaxLeverage(targetMarketIndex, targetMarketType))
 						.div(TEN_THOUSAND);
+
 					maxPositionSize = perpPositionValue.add(buyingPowerAfterClose);
+				}
+			} else if (!targetingSameSide && !tradeIsPerp) {
+				const market = this.driftClient.getSpotMarketAccount(targetMarketIndex);
+				const spotPositionValue = this.getNetSpotMarketValue(targetMarketIndex);
+
+				const marginRatio = getSpotMarketMarginRatio(market, 'Initial');
+
+				const marginFreedByClosing = spotPositionValue
+					.mul(new BN(marginRatio))
+					.div(MARGIN_PRECISION);
+				const marginRequirementAfterClosing =
+					marginRequirement.sub(marginFreedByClosing);
+
+				if (marginRequirementAfterClosing.gt(totalCollateral)) {
+					maxPositionSize = spotPositionValue;
+				} else {
+					const freeCollateralAfterClose = totalCollateral.sub(
+						marginRequirementAfterClosing
+					);
+					const buyingPowerAfterClose = freeCollateralAfterClose
+						.mul(this.getMaxLeverage(targetMarketIndex, targetMarketType))
+						.div(TEN_THOUSAND);
+
+					maxPositionSize = spotPositionValue.add(buyingPowerAfterClose);
 				}
 			} else {
 				// do nothing if targetting same side
@@ -1572,10 +1600,69 @@ export class User {
 	 */
 	public accountLeverageRatioAfterTrade(
 		targetMarketIndex: number,
+		targetMarketType: MarketType,
 		tradeQuoteAmount: BN,
 		tradeSide: PositionDirection,
 		includeOpenOrders = true
 	): BN {
+		const tradeIsPerp = isVariant(targetMarketType, 'perp');
+
+		if (!tradeIsPerp) {
+			const currentSpotPosition = this.getNetSpotMarketValue(targetMarketIndex);
+			const currentSide =
+				currentSpotPosition && currentSpotPosition.isNeg()
+					? PositionDirection.SHORT
+					: PositionDirection.LONG;
+
+			const totalLiabilityValue = this.getTotalLiabilityValue();
+			const totalAssetValue = this.getTotalAssetValue();
+
+			const totalPerpPositionValue = this.getTotalPerpPositionValue();
+
+			const tradeIncreasesLiability =
+				currentSide == PositionDirection.SHORT &&
+				tradeSide == PositionDirection.SHORT;
+			const tradeDecreasesLiability =
+				currentSide == PositionDirection.SHORT &&
+				tradeSide == PositionDirection.LONG;
+
+			const spotMarketLiabilityValueAfterTrade = tradeIncreasesLiability
+				? totalLiabilityValue.add(tradeQuoteAmount)
+				: tradeDecreasesLiability
+				? totalLiabilityValue.sub(tradeQuoteAmount)
+				: totalLiabilityValue;
+
+			const totalLiabilitiesAfterTrade = totalPerpPositionValue.add(
+				spotMarketLiabilityValueAfterTrade
+			);
+
+			const tradeIncreasesAssetValue =
+				currentSide == PositionDirection.LONG &&
+				tradeSide == PositionDirection.LONG;
+			const tradeDecreasesAssetValue =
+				currentSide == PositionDirection.LONG &&
+				tradeSide == PositionDirection.SHORT;
+
+			const spotMarketAssetValueAfterTrade = tradeIncreasesAssetValue
+				? totalAssetValue.add(tradeQuoteAmount)
+				: tradeDecreasesAssetValue
+				? totalAssetValue.sub(tradeQuoteAmount)
+				: totalAssetValue;
+
+			if (
+				spotMarketAssetValueAfterTrade.eq(ZERO) &&
+				totalLiabilitiesAfterTrade.eq(ZERO)
+			) {
+				return ZERO;
+			}
+
+			const newLeverage = totalLiabilitiesAfterTrade
+				.mul(TEN_THOUSAND)
+				.div(spotMarketAssetValueAfterTrade);
+
+			return newLeverage;
+		}
+
 		const currentPosition =
 			this.getPerpPosition(targetMarketIndex) ||
 			this.getEmptyPosition(targetMarketIndex);
