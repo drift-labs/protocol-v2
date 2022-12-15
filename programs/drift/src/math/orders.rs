@@ -334,7 +334,7 @@ pub fn should_cancel_reduce_only_order(
     order: &Order,
     existing_base_asset_amount: i64,
 ) -> DriftResult<bool> {
-    let should_cancel = order.status != OrderStatus::Open
+    let should_cancel = order.status == OrderStatus::Open
         && order.reduce_only
         && order.get_base_asset_amount_unfilled(Some(existing_base_asset_amount))? == 0;
 
