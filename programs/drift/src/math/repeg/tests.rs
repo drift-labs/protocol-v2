@@ -190,6 +190,14 @@ fn calculate_optimal_peg_and_budget_2_test() {
 
         ..PerpMarket::default()
     };
+    let (new_terminal_quote_reserve, new_terminal_base_reserve) =
+        amm::calculate_terminal_reserves(&market.amm).unwrap();
+    market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)
+            .unwrap();
+    market.amm.min_base_asset_reserve = min_base_asset_reserve;
+    market.amm.max_base_asset_reserve = max_base_asset_reserve;
 
     let oracle_price_data = OraclePriceData {
         price: (17_800 * PRICE_PRECISION) as i64,
@@ -271,7 +279,7 @@ fn calc_adjust_amm_tests_repeg_in_favour() {
 #[test]
 fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
     // btc-esque market
-    let market = PerpMarket {
+    let mut market = PerpMarket {
         amm: AMM {
             order_step_size: 1000,
             base_asset_reserve: 60437939720095,
@@ -299,6 +307,14 @@ fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
 
         ..PerpMarket::default()
     };
+    let (new_terminal_quote_reserve, new_terminal_base_reserve) =
+        amm::calculate_terminal_reserves(&market.amm).unwrap();
+    market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)
+            .unwrap();
+    market.amm.min_base_asset_reserve = min_base_asset_reserve;
+    market.amm.max_base_asset_reserve = max_base_asset_reserve;
 
     let px = 35768 * PRICE_PRECISION_U64 / 1000;
     let optimal_peg = calculate_peg_from_target_price(

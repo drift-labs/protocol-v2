@@ -30,8 +30,7 @@ pub fn update_amm_test() {
             base_spread: 250,
             curve_update_intensity: 100,
             max_spread: 55500,
-            concentration_coef: 1020710,
-
+            concentration_coef: 31020710, //unrealistic but for poc
             ..AMM::default()
         },
         status: MarketStatus::Initialized,
@@ -39,6 +38,15 @@ pub fn update_amm_test() {
         margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage
         ..PerpMarket::default()
     };
+    let (new_terminal_quote_reserve, new_terminal_base_reserve) =
+        amm::calculate_terminal_reserves(&market.amm).unwrap();
+    // market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+    assert_eq!(new_terminal_quote_reserve, 64000000000);
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)
+            .unwrap();
+    market.amm.min_base_asset_reserve = min_base_asset_reserve;
+    market.amm.max_base_asset_reserve = max_base_asset_reserve;
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
@@ -86,6 +94,7 @@ pub fn update_amm_test() {
 
     let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
 
+    assert_eq!(market.amm.sqrt_k, 63936000000);
     let is_oracle_valid = oracle::oracle_validity(
         market.amm.historical_oracle_data.last_oracle_price_twap,
         &oracle_price_data,
@@ -144,10 +153,10 @@ pub fn update_amm_test() {
         (market.margin_ratio_initial * 100) as u32
     );
 
-    assert_eq!(bid, 12038871123);
+    assert_eq!(bid, 12055425452);
     assert!(bid < (oracle_price_data.price as u64));
     assert_eq!(reserve_price, 12743902015);
-    assert_eq!(ask, 12746157685);
+    assert_eq!(ask, 12762712014);
     assert!(ask >= (oracle_price_data.price as u64));
     assert!((ask - bid) * 1000000 / reserve_price == market.amm.max_spread as u64);
 }
