@@ -272,6 +272,8 @@ describe('serum spot market', () => {
 			serumFulfillmentConfigAccount
 		);
 
+		await eventSubscriber.awaitTx(txSig);
+
 		await printTxLogs(connection, txSig);
 
 		await takerDriftClient.fetchAccounts();
@@ -378,6 +380,8 @@ describe('serum spot market', () => {
 			takerDriftClient.getOrderByUserId(1),
 			serumFulfillmentConfigAccount
 		);
+
+		await eventSubscriber.awaitTx(txSig);
 
 		await printTxLogs(connection, txSig);
 
@@ -490,6 +494,8 @@ describe('serum spot market', () => {
 
 		await printTxLogs(connection, txSig);
 
+		await eventSubscriber.awaitTx(txSig);
+
 		await takerDriftClient.fetchAccounts();
 
 		const takerQuoteSpotBalance = takerDriftClient.getSpotPosition(0);
@@ -581,6 +587,8 @@ describe('serum spot market', () => {
 		);
 
 		await printTxLogs(connection, txSig);
+
+		await eventSubscriber.awaitTx(txSig);
 
 		await takerDriftClient.fetchAccounts();
 
