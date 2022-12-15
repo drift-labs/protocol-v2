@@ -26,6 +26,7 @@ import {
 	QUOTE_SPOT_MARKET_INDEX,
 	TEN,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
+	ONE,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -45,6 +46,7 @@ import {
 	SpotMarketAccount,
 	getTokenValue,
 	SpotBalanceType,
+	MarketType,
 } from '.';
 import {
 	getTokenAmount,
@@ -360,9 +362,9 @@ export class User {
 	 * calculates Buying Power = FC * MAX_LEVERAGE
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getBuyingPower(marketIndex: number): BN {
+	public getBuyingPower(marketIndex: number, marketType: MarketType): BN {
 		return this.getFreeCollateral()
-			.mul(this.getMaxLeverage(marketIndex, 'Initial'))
+			.mul(this.getMaxLeverage(marketIndex, marketType, 'Initial'))
 			.div(TEN_THOUSAND);
 	}
 
@@ -752,12 +754,15 @@ export class User {
 		return assetValue;
 	}
 
-	public getNetSpotMarketValue(withWeightMarginCategory?: MarginCategory): BN {
+	public getNetSpotMarketValue(
+		marketIndex?: number,
+		withWeightMarginCategory?: MarginCategory
+	): BN {
 		return this.getSpotMarketAssetValue(
-			undefined,
+			marketIndex,
 			withWeightMarginCategory
 		).sub(
-			this.getSpotMarketLiabilityValue(undefined, withWeightMarginCategory)
+			this.getSpotMarketLiabilityValue(marketIndex, withWeightMarginCategory)
 		);
 	}
 
@@ -875,6 +880,7 @@ export class User {
 					let marginRatio = new BN(
 						calculateMarketMarginRatio(
 							market,
+							MarketType.PERP,
 							baseAssetAmount.abs(),
 							marginCategory
 						)
@@ -1046,21 +1052,31 @@ export class User {
 	 */
 	public getMaxLeverage(
 		marketIndex: number,
+		marketType: MarketType,
 		category: MarginCategory = 'Initial'
 	): BN {
-		const market = this.driftClient.getPerpMarketAccount(marketIndex);
+		const marketIsPerp = isVariant(marketType, 'perp');
+
+		const market = marketIsPerp
+			? this.driftClient.getPerpMarketAccount(marketIndex)
+			: this.driftClient.getSpotMarketAccount(marketIndex);
 
 		const totalAssetValue = this.getTotalAssetValue();
 		if (totalAssetValue.eq(ZERO)) {
 			return ZERO;
 		}
 
+		// if spot trade w/ no margin, max lev = 1
+		if (!marketIsPerp && !this.getUserAccount().isMarginTradingEnabled) {
+			return ONE;
+		}
+
 		const totalLiabilityValue = this.getTotalLiabilityValue();
 
 		const marginRatio = calculateMarketMarginRatio(
 			market,
-			// worstCaseBaseAssetAmount.abs(),
-			ZERO, // todo
+			marketType,
+			ZERO, // is this still todo?
 			category
 		);
 		const freeCollateral = this.getFreeCollateral();
@@ -1299,6 +1315,7 @@ export class User {
 								new BN(
 									calculateMarketMarginRatio(
 										market,
+										MarketType.PERP,
 										position.baseAssetAmount.abs(),
 										'Maintenance'
 									)
@@ -1333,6 +1350,7 @@ export class User {
 						new BN(
 							calculateMarketMarginRatio(
 								market,
+								MarketType.PERP,
 								proposedPerpPosition.baseAssetAmount.abs(),
 								'Maintenance'
 							)
@@ -1447,30 +1465,53 @@ export class User {
 	 */
 	public getMaxTradeSizeUSDC(
 		targetMarketIndex: number,
+		targetMarketType: MarketType,
 		tradeSide: PositionDirection
 	): BN {
-		const currentPosition =
-			this.getPerpPosition(targetMarketIndex) ||
-			this.getEmptyPosition(targetMarketIndex);
+		let currentPosition;
+		let currentPositionSide;
+
+		const tradeIsPerp = isVariant(targetMarketType, 'perp');
+
+		if (tradeIsPerp) {
+			currentPosition =
+				this.getPerpPosition(targetMarketIndex) ||
+				this.getEmptyPosition(targetMarketIndex);
+			currentPositionSide = currentPosition?.baseAssetAmount.isNeg()
+				? 'short'
+				: 'long';
+		} else {
+			if (!this.getUserAccount().isMarginTradingEnabled) {
+				// if margin disabled, max spot position size would be user free usdc balance
+				const usdcBalance = BN.max(ZERO, this.getNetSpotMarketValue(0));
+				return BN.min(this.getFreeCollateral(), usdcBalance);
+			}
+
+			currentPosition = this.getNetSpotMarketValue(targetMarketIndex);
+			currentPositionSide = currentPosition.isNeg() ? 'short' : 'long';
+		}
 
 		const targetSide = isVariant(tradeSide, 'short') ? 'short' : 'long';
-
-		const currentPositionSide = currentPosition?.baseAssetAmount.isNeg()
-			? 'short'
-			: 'long';
 
 		const targetingSameSide = !currentPosition
 			? true
 			: targetSide === currentPositionSide;
 
-		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
+		const oracleData = tradeIsPerp
+			? this.getOracleDataForPerpMarket(targetMarketIndex)
+			: this.getOracleDataForSpotMarket(targetMarketIndex);
 
 		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
 		const oppositeSizeValueUSDC = targetingSameSide
 			? ZERO
-			: this.getPerpPositionValue(targetMarketIndex, oracleData);
+			: tradeIsPerp
+			? this.getPerpPositionValue(targetMarketIndex, oracleData)
+			: currentPosition.abs();
 
-		let maxPositionSize = this.getBuyingPower(targetMarketIndex);
+		let maxPositionSize = this.getBuyingPower(
+			targetMarketIndex,
+			targetMarketType
+		);
 		if (maxPositionSize.gte(ZERO)) {
 			if (oppositeSizeValueUSDC.eq(ZERO)) {
 				// case 1 : Regular trade where current total position less than max, and no opposite position to account for
@@ -1505,7 +1546,7 @@ export class User {
 						marginRequirementAfterClosing
 					);
 					const buyingPowerAfterClose = freeCollateralAfterClose
-						.mul(this.getMaxLeverage(targetMarketIndex))
+						.mul(this.getMaxLeverage(targetMarketIndex, targetMarketType))
 						.div(TEN_THOUSAND);
 					maxPositionSize = perpPositionValue.add(buyingPowerAfterClose);
 				}

@@ -5,6 +5,8 @@ import {
 	MarginCategory,
 	SpotMarketAccount,
 	SpotBalanceType,
+	MarketType,
+	isVariant,
 } from '../types';
 import {
 	calculateAmmReservesAfterSwap,
@@ -121,26 +123,46 @@ export function calculateOracleSpread(
 	return price.sub(oraclePriceData.price);
 }
 
+export function getSpotMarketMarginRatio(
+	market: SpotMarketAccount,
+	marginCategory: MarginCategory
+): number {
+	const liabilityWeight =
+		marginCategory == 'Initial'
+			? market.initialLiabilityWeight
+			: market.maintenanceLiabilityWeight;
+	return 1 / (liabilityWeight / 10000 - 1);
+}
+
 export function calculateMarketMarginRatio(
-	market: PerpMarketAccount,
+	market: PerpMarketAccount | SpotMarketAccount,
+	marketType: MarketType,
 	size: BN,
 	marginCategory: MarginCategory
 ): number {
 	let marginRatio;
 	switch (marginCategory) {
 		case 'Initial':
+			const marginRatioInitial = isVariant(marketType, 'perp')
+				? (market as PerpMarketAccount).marginRatioInitial
+				: getSpotMarketMarginRatio(market as SpotMarketAccount, marginCategory);
+
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
 				new BN(market.imfFactor),
-				new BN(market.marginRatioInitial),
+				new BN(marginRatioInitial),
 				MARGIN_PRECISION
 			).toNumber();
 			break;
 		case 'Maintenance':
+			const marginRatioMaintenance = isVariant(marketType, 'perp')
+				? (market as PerpMarketAccount).marginRatioMaintenance
+				: getSpotMarketMarginRatio(market as SpotMarketAccount, marginCategory);
+
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
 				new BN(market.imfFactor),
-				new BN(market.marginRatioMaintenance),
+				new BN(marginRatioMaintenance),
 				MARGIN_PRECISION
 			).toNumber();
 			break;
