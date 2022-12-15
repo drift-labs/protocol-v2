@@ -144,44 +144,6 @@ pub fn calculate_quote_asset_amount_for_maker_order(
     }
 }
 
-pub fn calculate_base_asset_amount_for_reduce_only_order(
-    order_base_asset_amount: u64,
-    order_direction: PositionDirection,
-    existing_position: i64,
-    open_bids: i64,
-    open_asks: i64,
-) -> DriftResult<u64> {
-    let position_plus_open_orders = if existing_position > 0 {
-        existing_position.safe_add(open_asks)?
-    } else if existing_position < 0 {
-        existing_position.safe_add(open_bids)?
-    } else {
-        0
-    };
-
-    let signed_order_base_asset_amount: i64 = match order_direction {
-        PositionDirection::Long => order_base_asset_amount.cast()?,
-        PositionDirection::Short => -order_base_asset_amount.cast()?,
-    };
-
-    if position_plus_open_orders == 0
-        || position_plus_open_orders.signum() == signed_order_base_asset_amount.signum()
-    {
-        msg!("Reduce Only Order must decrease existing position size");
-        msg!(
-            "position_plus_open_orders = {} signed_order_base_asset_amount = {}",
-            position_plus_open_orders,
-            signed_order_base_asset_amount
-        );
-        return Err(ErrorCode::InvalidOrderNotRiskReducing);
-    }
-
-    Ok(min(
-        position_plus_open_orders.unsigned_abs(),
-        signed_order_base_asset_amount.unsigned_abs(),
-    ))
-}
-
 pub fn standardize_base_asset_amount_with_remainder_i128(
     base_asset_amount: i128,
     step_size: u128,
