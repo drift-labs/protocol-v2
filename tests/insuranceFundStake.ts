@@ -500,7 +500,8 @@ describe('insurance fund stake', () => {
 					publicKey: solOracle,
 					source: OracleSource.PYTH,
 				},
-			]
+			],
+			bulkAccountLoader
 		);
 
 		const marketIndex = 1;
