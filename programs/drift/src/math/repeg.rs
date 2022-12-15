@@ -330,7 +330,8 @@ pub fn adjust_amm(
             let new_sqrt_k = market
                 .amm
                 .sqrt_k
-                .safe_sub(market.amm.sqrt_k.safe_div(1000)?)?;
+                .safe_sub(market.amm.sqrt_k.safe_div(1000)?)?
+                .max(market.amm.user_lp_shares.safe_add(1)?);
 
             let update_k_result =
                 cp_curve::get_update_k_result(market, bn::U192::from(new_sqrt_k), true)?;

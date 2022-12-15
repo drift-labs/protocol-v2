@@ -1062,6 +1062,14 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         perp_market.amm.sqrt_k
     )?;
 
+    validate!(
+        perp_market.amm.sqrt_k > perp_market.amm.user_lp_shares,
+        ErrorCode::InvalidUpdateK,
+        "cannot decrease sqrt_k={} below user_lp_shares={}",
+        perp_market.amm.sqrt_k,
+        perp_market.amm.user_lp_shares
+    )?;
+
     perp_market.amm.total_fee_minus_distributions = perp_market
         .amm
         .total_fee_minus_distributions
