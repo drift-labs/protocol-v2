@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, User, OracleSource, Wallet } from '../sdk';
+import { BN, User, OracleSource, Wallet, BulkAccountLoader } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -28,7 +28,8 @@ async function createNewUser(
 	usdcMint,
 	usdcAmount,
 	oracleInfos,
-	wallet
+	wallet,
+	bulkAccountLoader
 ) {
 	let walletFlag = true;
 	if (wallet == undefined) {
@@ -58,6 +59,10 @@ async function createNewUser(
 		perpMarketIndexes: [0, 1],
 		spotMarketIndexes: [0],
 		oracleInfos,
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+		},
 	});
 	await driftClient.subscribe();
 
@@ -107,6 +112,8 @@ describe('trading liquidity providing', () => {
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+
 	let usdcMint: web3.Keypair;
 
 	let driftClientUser: User;
@@ -131,7 +138,8 @@ describe('trading liquidity providing', () => {
 			usdcMint,
 			usdcAmount,
 			oracleInfos,
-			provider.wallet
+			provider.wallet,
+			bulkAccountLoader
 		);
 		// used for trading / taking on baa
 		await driftClient.initializePerpMarket(
@@ -177,7 +185,8 @@ describe('trading liquidity providing', () => {
 			usdcMint,
 			usdcAmount,
 			oracleInfos,
-			undefined
+			undefined,
+			bulkAccountLoader
 		);
 	});
 

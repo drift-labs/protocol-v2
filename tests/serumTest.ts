@@ -34,7 +34,7 @@ import {
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { Market } from '@project-serum/serum';
-import { getMarketOrderParams, ZERO } from '../sdk';
+import { BulkAccountLoader, getMarketOrderParams, ZERO } from '../sdk';
 
 describe('serum spot market', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -51,6 +51,8 @@ describe('serum spot market', () => {
 
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let solOracle: PublicKey;
 
@@ -99,6 +101,10 @@ describe('serum spot market', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await makerDriftClient.initialize(usdcMint.publicKey, true);

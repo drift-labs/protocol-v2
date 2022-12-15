@@ -48,7 +48,7 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
-import { TWO } from '../sdk';
+import { BulkAccountLoader, TWO } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -131,6 +131,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+
 	let usdcMint;
 	let userUSDCAccount;
 	let userUSDCAccount2;
@@ -191,6 +193,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

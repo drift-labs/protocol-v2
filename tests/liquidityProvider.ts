@@ -35,6 +35,7 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 async function adjustOraclePostSwap(baa, swapDirection, market) {
 	const price = calculatePrice(
@@ -65,7 +66,8 @@ async function createNewUser(
 	usdcMint,
 	usdcAmount,
 	oracleInfos,
-	wallet
+	wallet,
+	bulkAccountLoader
 ) {
 	let walletFlag = true;
 	if (wallet == undefined) {
@@ -95,6 +97,14 @@ async function createNewUser(
 		perpMarketIndexes: [0, 1],
 		spotMarketIndexes: [0],
 		oracleInfos,
+		accountSubscription: bulkAccountLoader
+			? {
+					type: 'polling',
+					accountLoader: bulkAccountLoader,
+			  }
+			: {
+					type: 'websocket',
+			  },
 	});
 	await driftClient.subscribe();
 
@@ -169,6 +179,8 @@ describe('liquidity providing', () => {
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+
 	let usdcMint: web3.Keypair;
 
 	let driftClientUser: User;
@@ -196,7 +208,8 @@ describe('liquidity providing', () => {
 			usdcMint,
 			usdcAmount,
 			oracleInfos,
-			provider.wallet
+			provider.wallet,
+			bulkAccountLoader
 		);
 		// used for trading / taking on baa
 		await driftClient.initializePerpMarket(
@@ -244,7 +257,8 @@ describe('liquidity providing', () => {
 			usdcMint,
 			usdcAmount,
 			oracleInfos,
-			undefined
+			undefined,
+			bulkAccountLoader
 		);
 		[poorDriftClient, poorDriftClientUser] = await createNewUser(
 			chProgram,
@@ -252,7 +266,8 @@ describe('liquidity providing', () => {
 			usdcMint,
 			QUOTE_PRECISION,
 			oracleInfos,
-			undefined
+			undefined,
+			bulkAccountLoader
 		);
 	});
 

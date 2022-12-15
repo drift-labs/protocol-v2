@@ -35,7 +35,7 @@ import {
 	getOraclePriceData,
 	sleep,
 } from './testHelpers';
-import { isVariant } from '../sdk';
+import { BulkAccountLoader, isVariant } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
@@ -90,6 +90,8 @@ describe('delist market', () => {
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+
 	let usdcMint;
 	let userUSDCAccount;
 	let userUSDCAccount2;
@@ -139,6 +141,10 @@ describe('delist market', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

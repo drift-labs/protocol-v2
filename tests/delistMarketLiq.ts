@@ -39,7 +39,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { Keypair } from '@solana/web3.js';
-import { calculateReservePrice } from '../sdk';
+import { BulkAccountLoader, calculateReservePrice } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -69,6 +69,8 @@ describe('delist market, liquidation of expired position', () => {
 	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -121,6 +123,10 @@ describe('delist market, liquidation of expired position', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

@@ -33,6 +33,7 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('post only maker order w/ amm fulfillments', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -47,6 +48,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 	let fillerDriftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -88,6 +91,10 @@ describe('post only maker order w/ amm fulfillments', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.initialize(usdcMint.publicKey, true);
 		await fillerDriftClient.subscribe();

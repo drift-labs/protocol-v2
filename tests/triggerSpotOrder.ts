@@ -25,7 +25,12 @@ import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BASE_PRECISION, isVariant, OracleSource } from '../sdk';
+import {
+	BASE_PRECISION,
+	BulkAccountLoader,
+	isVariant,
+	OracleSource,
+} from '../sdk';
 
 describe('trigger orders', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -35,6 +40,8 @@ describe('trigger orders', () => {
 
 	let fillerDriftClient: AdminClient;
 	let fillerDriftClientUser: User;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -81,6 +88,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.initialize(usdcMint.publicKey, true);
 		await fillerDriftClient.subscribe();
