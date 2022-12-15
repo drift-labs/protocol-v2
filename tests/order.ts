@@ -38,6 +38,7 @@ import {
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
+	BulkAccountLoader,
 	calculateReservePrice,
 	findComputeUnitConsumption,
 	getMarketOrderParams,
@@ -69,6 +70,8 @@ describe('orders', () => {
 	let driftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let userAccountPublicKey: PublicKey;
 
@@ -134,6 +137,10 @@ describe('orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -212,6 +219,10 @@ describe('orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.subscribe();
 
@@ -244,6 +255,10 @@ describe('orders', () => {
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await whaleDriftClient.subscribe();
 

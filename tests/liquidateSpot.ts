@@ -34,6 +34,7 @@ import {
 	initializeSolSpotMarket,
 	sleep,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('liquidate spot', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -47,6 +48,8 @@ describe('liquidate spot', () => {
 	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -87,6 +90,10 @@ describe('liquidate spot', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -119,7 +126,8 @@ describe('liquidate spot', () => {
 						publicKey: solOracle,
 						source: OracleSource.PYTH,
 					},
-				]
+				],
+				bulkAccountLoader
 			);
 
 		const marketIndex = 1;

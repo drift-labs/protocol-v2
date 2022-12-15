@@ -18,7 +18,13 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import { BN, Wallet, OraclePriceData, OracleInfo } from '../sdk';
+import {
+	BN,
+	Wallet,
+	OraclePriceData,
+	OracleInfo,
+	BulkAccountLoader,
+} from '../sdk';
 import {
 	AdminClient,
 	SPOT_MARKET_RATE_PRECISION,
@@ -210,7 +216,8 @@ export async function initializeAndSubscribeDriftClient(
 	userKeyPair: Keypair,
 	marketIndexes: number[],
 	bankIndexes: number[],
-	oracleInfos: OracleInfo[] = []
+	oracleInfos: OracleInfo[] = [],
+	accountLoader?: BulkAccountLoader
 ): Promise<DriftClient> {
 	const driftClient = new DriftClient({
 		connection,
@@ -223,6 +230,14 @@ export async function initializeAndSubscribeDriftClient(
 		perpMarketIndexes: marketIndexes,
 		spotMarketIndexes: bankIndexes,
 		oracleInfos,
+		accountSubscription: accountLoader
+			? {
+					type: 'polling',
+					accountLoader,
+			  }
+			: {
+					type: 'websocket',
+			  },
 	});
 	await driftClient.subscribe();
 	await driftClient.initializeUserAccount();
@@ -236,7 +251,8 @@ export async function createUserWithUSDCAccount(
 	usdcAmount: BN,
 	marketIndexes: number[],
 	bankIndexes: number[],
-	oracleInfos: OracleInfo[] = []
+	oracleInfos: OracleInfo[] = [],
+	accountLoader?: BulkAccountLoader
 ): Promise<[DriftClient, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
 	const usdcAccount = await createUSDCAccountForUser(
@@ -251,7 +267,8 @@ export async function createUserWithUSDCAccount(
 		userKeyPair,
 		marketIndexes,
 		bankIndexes,
-		oracleInfos
+		oracleInfos,
+		accountLoader
 	);
 
 	return [driftClient, usdcAccount, userKeyPair];
@@ -285,7 +302,8 @@ export async function createUserWithUSDCAndWSOLAccount(
 	usdcAmount: BN,
 	marketIndexes: number[],
 	bankIndexes: number[],
-	oracleInfos: OracleInfo[] = []
+	oracleInfos: OracleInfo[] = [],
+	accountLoader?: BulkAccountLoader
 ): Promise<[DriftClient, PublicKey, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
 	const solAccount = await createWSolTokenAccountForUser(
@@ -305,7 +323,8 @@ export async function createUserWithUSDCAndWSOLAccount(
 		userKeyPair,
 		marketIndexes,
 		bankIndexes,
-		oracleInfos
+		oracleInfos,
+		accountLoader
 	);
 
 	return [driftClient, solAccount, usdcAccount, userKeyPair];

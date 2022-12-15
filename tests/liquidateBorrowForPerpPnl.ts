@@ -31,7 +31,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { isVariant } from '../sdk';
+import { BulkAccountLoader, isVariant } from '../sdk';
 
 describe('liquidate borrow for perp pnl', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -45,6 +45,8 @@ describe('liquidate borrow for perp pnl', () => {
 	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -94,6 +96,10 @@ describe('liquidate borrow for perp pnl', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -163,7 +169,8 @@ describe('liquidate borrow for perp pnl', () => {
 						publicKey: solOracle,
 						source: OracleSource.PYTH,
 					},
-				]
+				],
+				bulkAccountLoader
 			);
 		await liquidatorDriftClient.subscribe();
 

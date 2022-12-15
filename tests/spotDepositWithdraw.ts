@@ -42,6 +42,7 @@ import {
 	ONE,
 	SPOT_MARKET_BALANCE_PRECISION,
 	PRICE_PRECISION,
+	BulkAccountLoader,
 } from '../sdk';
 import { PRICE_PRECISION } from '@drift-labs/sdk';
 
@@ -54,6 +55,8 @@ describe('spot deposit and withdraw', () => {
 	let admin: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let solOracle: PublicKey;
 
@@ -96,6 +99,10 @@ describe('spot deposit and withdraw', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await admin.initialize(usdcMint.publicKey, true);
@@ -251,7 +258,8 @@ describe('spot deposit and withdraw', () => {
 				usdcAmount,
 				marketIndexes,
 				spotMarketIndexes,
-				oracleInfos
+				oracleInfos,
+				bulkAccountLoader
 			);
 
 		const marketIndex = 0;
@@ -303,7 +311,8 @@ describe('spot deposit and withdraw', () => {
 			ZERO,
 			marketIndexes,
 			spotMarketIndexes,
-			oracleInfos
+			oracleInfos,
+			bulkAccountLoader
 		);
 
 		const marketIndex = 1;
@@ -833,7 +842,8 @@ describe('spot deposit and withdraw', () => {
 			largeUsdcAmount,
 			marketIndexes,
 			spotMarketIndexes,
-			oracleInfos
+			oracleInfos,
+			bulkAccountLoader
 		);
 
 		const marketIndex = 0;

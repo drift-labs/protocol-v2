@@ -25,6 +25,7 @@ import {
 } from './testHelpers';
 import {
 	BASE_PRECISION,
+	BulkAccountLoader,
 	getMarketOrderParams,
 	PEG_PRECISION,
 	PositionDirection,
@@ -49,6 +50,8 @@ describe('referrer', () => {
 
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let referrerUSDCAccount;
@@ -96,6 +99,10 @@ describe('referrer', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await referrerDriftClient.initialize(usdcMint.publicKey, true);
@@ -139,6 +146,10 @@ describe('referrer', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await refereeDriftClient.subscribe();
 

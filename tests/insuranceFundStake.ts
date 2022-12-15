@@ -44,6 +44,7 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('insurance fund stake', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -54,6 +55,8 @@ describe('insurance fund stake', () => {
 	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let userUSDCAccount: Keypair;
@@ -97,6 +100,10 @@ describe('insurance fund stake', () => {
 				},
 			],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

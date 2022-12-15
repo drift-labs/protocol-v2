@@ -31,6 +31,7 @@ import {
 	initializeQuoteSpotMarket,
 	printTxLogs,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('liquidate perp and lp', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -44,6 +45,8 @@ describe('liquidate perp and lp', () => {
 	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -86,6 +89,10 @@ describe('liquidate perp and lp', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -156,6 +163,10 @@ describe('liquidate perp and lp', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await liquidatorDriftClient.subscribe();
 

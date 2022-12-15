@@ -121,7 +121,8 @@ describe('liquidate spot w/ social loss', () => {
 						publicKey: solOracle,
 						source: OracleSource.PYTH,
 					},
-				]
+				],
+				bulkAccountLoader
 			);
 
 		const marketIndex = 1;
