@@ -458,7 +458,12 @@ pub fn update_pool_balances(
             market.amm.fee_pool.balance_type(),
         )?;
 
-        if market.amm.total_fee_minus_distributions < 0 {
+        let terminal_state_surplus = market
+            .amm
+            .total_fee_minus_distributions
+            .safe_sub(market.amm.total_fee_withdrawn.cast()?)?;
+
+        if terminal_state_surplus < 0 {
             // market can perform withdraw from revenue pool
             if spot_market.insurance_fund.last_revenue_settle_ts
                 > market.insurance_claim.last_revenue_withdraw_ts
@@ -486,9 +491,7 @@ pub fn update_pool_balances(
                     &SpotBalanceType::Deposit,
                 )?;
 
-                let revenue_pool_transfer = market
-                    .amm
-                    .total_fee_minus_distributions
+                let revenue_pool_transfer = terminal_state_surplus
                     .unsigned_abs()
                     .min(spot_market_revenue_pool_amount)
                     .min(max_revenue_withdraw_allowed);
