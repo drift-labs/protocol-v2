@@ -26,6 +26,7 @@ import {
 } from './testHelpers';
 import {
 	BASE_PRECISION,
+	BulkAccountLoader,
 	calculateReservePrice,
 	getLimitOrderParams,
 	isVariant,
@@ -41,6 +42,8 @@ describe('post only', () => {
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let fillerDriftClient: AdminClient;
 	let fillerDriftClientUser: User;
@@ -87,6 +90,10 @@ describe('post only', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.initialize(usdcMint.publicKey, true);
 		await fillerDriftClient.subscribe();
@@ -154,6 +161,10 @@ describe('post only', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -239,6 +250,10 @@ describe('post only', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(

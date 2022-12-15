@@ -9,6 +9,7 @@ import {
 	calculatePrice,
 	PEG_PRECISION,
 	BASE_PRECISION,
+	BulkAccountLoader,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
@@ -56,6 +57,8 @@ describe('prepeg', () => {
 	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let userAccountPublicKey: PublicKey;
 
@@ -108,6 +111,10 @@ describe('prepeg', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

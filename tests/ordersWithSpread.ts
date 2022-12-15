@@ -29,6 +29,7 @@ import {
 	setFeedPrice,
 } from './testHelpers';
 import {
+	BulkAccountLoader,
 	calculateReservePrice,
 	getLimitOrderParams,
 	getSwapDirection,
@@ -49,6 +50,8 @@ describe('amm spread: market order', () => {
 	let driftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -88,6 +91,10 @@ describe('amm spread: market order', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();

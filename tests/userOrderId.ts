@@ -23,12 +23,15 @@ import {
 	mockUserUSDCAccount,
 } from './testHelpers';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { BulkAccountLoader } from '../sdk';
 
 describe('user order id', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let driftClient: AdminClient;
 	let driftClientUser: User;
@@ -79,6 +82,10 @@ describe('user order id', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();

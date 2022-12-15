@@ -29,7 +29,12 @@ import {
 	mockUserUSDCAccount,
 	setFeedPrice,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION, OracleSource, ZERO } from '../sdk';
+import {
+	AMM_RESERVE_PRECISION,
+	BulkAccountLoader,
+	OracleSource,
+	ZERO,
+} from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const enumsAreEqual = (
@@ -49,6 +54,8 @@ describe('stop limit', () => {
 	let driftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let userAccountPublicKey: PublicKey;
 
@@ -109,6 +116,10 @@ describe('stop limit', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -188,6 +199,10 @@ describe('stop limit', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.subscribe();
 

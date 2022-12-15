@@ -16,6 +16,7 @@ import {
 	OraclePriceData,
 	OracleGuardRails,
 	BASE_PRECISION,
+	BulkAccountLoader,
 } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
@@ -136,6 +137,8 @@ describe('repeg and spread amm', () => {
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+
 	// let userAccountPublicKey: PublicKeys;
 
 	let usdcMint;
@@ -191,6 +194,10 @@ describe('repeg and spread amm', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

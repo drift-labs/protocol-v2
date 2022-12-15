@@ -3,6 +3,7 @@ import { assert } from 'chai';
 import {
 	BASE_PRECISION,
 	BN,
+	BulkAccountLoader,
 	getMarketOrderParams,
 	OracleSource,
 	PEG_PRECISION,
@@ -96,6 +97,8 @@ describe('update amm', () => {
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+
 	// let userAccountPublicKey: PublicKeys;
 
 	let usdcMint;
@@ -146,6 +149,10 @@ describe('update amm', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

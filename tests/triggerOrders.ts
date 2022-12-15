@@ -29,6 +29,7 @@ import {
 } from './testHelpers';
 import {
 	BASE_PRECISION,
+	BulkAccountLoader,
 	convertToNumber,
 	OracleSource,
 	QUOTE_PRECISION,
@@ -40,6 +41,8 @@ describe('trigger orders', () => {
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let fillerDriftClient: AdminClient;
 	let fillerDriftClientUser: User;
@@ -89,6 +92,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.initialize(usdcMint.publicKey, true);
 		await fillerDriftClient.subscribe();
@@ -166,6 +173,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -261,6 +272,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -359,6 +374,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -454,6 +473,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -569,6 +592,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -664,6 +691,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -762,6 +793,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -857,6 +892,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(

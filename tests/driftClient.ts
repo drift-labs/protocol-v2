@@ -7,6 +7,7 @@ import {
 	PerpMarketAccount,
 	OracleSource,
 	ZERO,
+	BulkAccountLoader,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
@@ -44,6 +45,8 @@ describe('drift client', () => {
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+
 	let userAccountPublicKey: PublicKey;
 
 	let usdcMint;
@@ -80,6 +83,10 @@ describe('drift client', () => {
 			spotMarketIndexes: [0],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 	});
 
