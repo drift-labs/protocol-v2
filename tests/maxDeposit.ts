@@ -11,6 +11,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('max deposit', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -29,6 +30,8 @@ describe('max deposit', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+
 		const solUsd = await mockOracle(1);
 
 		driftClient = new AdminClient({
@@ -43,6 +46,10 @@ describe('max deposit', () => {
 			spotMarketIndexes: [0],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();

@@ -1,6 +1,12 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, OracleSource, ZERO } from '../sdk';
+import {
+	BN,
+	BulkAccountLoader,
+	getMarketOrderParams,
+	OracleSource,
+	ZERO,
+} from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -25,6 +31,8 @@ describe('market orders', () => {
 	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let userAccountPublicKey: PublicKey;
 
@@ -67,6 +75,10 @@ describe('market orders', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

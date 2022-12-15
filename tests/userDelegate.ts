@@ -24,6 +24,7 @@ import {
 } from './testHelpers';
 import { assert } from 'chai';
 import { Keypair } from '@solana/web3.js';
+import { BulkAccountLoader } from '../sdk';
 
 describe('user delegate', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -34,6 +35,8 @@ describe('user delegate', () => {
 	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 
@@ -78,6 +81,10 @@ describe('user delegate', () => {
 				},
 			],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -137,6 +144,10 @@ describe('user delegate', () => {
 				},
 			],
 			authority: provider.wallet.publicKey,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await delegateDriftClient.subscribe();
 	});

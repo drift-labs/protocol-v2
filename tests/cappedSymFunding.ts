@@ -35,6 +35,7 @@ import {
 import { Program } from '@project-serum/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
+import { BulkAccountLoader } from '../sdk';
 
 async function updateFundingRateHelper(
 	driftClient: DriftClient,
@@ -450,6 +451,8 @@ describe('capped funding', () => {
 
 	const chProgram = anchor.workspace.Drift as Program;
 
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+
 	let driftClient: AdminClient;
 	let driftClient2: DriftClient;
 
@@ -482,6 +485,10 @@ describe('capped funding', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

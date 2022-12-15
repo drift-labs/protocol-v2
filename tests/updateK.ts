@@ -4,6 +4,7 @@ import {
 	AMM_RESERVE_PRECISION,
 	BASE_PRECISION,
 	BN,
+	BulkAccountLoader,
 	calculateTradeSlippage,
 } from '../sdk';
 
@@ -41,6 +42,8 @@ describe('update k', () => {
 
 	let driftClient: AdminClient;
 
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
 	const initialSOLPrice = 150;
@@ -71,6 +74,10 @@ describe('update k', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();

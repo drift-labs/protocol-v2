@@ -21,6 +21,7 @@ import {
 	initializeQuoteSpotMarket,
 	printTxLogs,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('cancel all orders', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -34,6 +35,8 @@ describe('cancel all orders', () => {
 	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -71,6 +74,10 @@ describe('cancel all orders', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

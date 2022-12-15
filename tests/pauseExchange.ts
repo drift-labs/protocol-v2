@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
+import { BN, BulkAccountLoader, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -27,6 +27,8 @@ describe('admin withdraw', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: AdminClient;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -66,6 +68,10 @@ describe('admin withdraw', () => {
 				},
 			],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

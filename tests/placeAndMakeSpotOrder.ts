@@ -28,6 +28,7 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('place and make spot order', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -42,6 +43,8 @@ describe('place and make spot order', () => {
 	let makerDriftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -74,6 +77,10 @@ describe('place and make spot order', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await makerDriftClient.initialize(usdcMint.publicKey, true);
 		await makerDriftClient.subscribe();
@@ -125,6 +132,10 @@ describe('place and make spot order', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await takerDriftClient.subscribe();
 		await takerDriftClient.initializeUserAccountAndDepositCollateral(

@@ -40,6 +40,7 @@ import {
 	// getFeedData,
 	// sleep,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('asset tiers', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -50,6 +51,8 @@ describe('asset tiers', () => {
 	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let dogeMint;
@@ -96,6 +99,10 @@ describe('asset tiers', () => {
 				},
 			],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

@@ -21,7 +21,7 @@ import {
 } from './testHelpers';
 import { decodeName } from '../sdk/src/userName';
 import { assert } from 'chai';
-import { MARGIN_PRECISION } from '../sdk';
+import { BulkAccountLoader, MARGIN_PRECISION } from '../sdk';
 
 describe('subaccounts', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -32,6 +32,8 @@ describe('subaccounts', () => {
 	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint;
 	let usdcAccount;
@@ -56,6 +58,10 @@ describe('subaccounts', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

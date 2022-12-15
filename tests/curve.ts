@@ -27,12 +27,15 @@ import {
 	mockUserUSDCAccount,
 	setFeedPrice,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('AMM Curve', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	const driftClient = new AdminClient({
 		connection,
@@ -44,6 +47,10 @@ describe('AMM Curve', () => {
 		activeSubAccountId: 0,
 		perpMarketIndexes: [0],
 		spotMarketIndexes: [0],
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+		},
 	});
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(10 ** 8).mul(BASE_PRECISION);

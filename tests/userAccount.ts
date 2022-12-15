@@ -29,6 +29,7 @@ import {
 	calculatePrice,
 	AMM_RESERVE_PRECISION,
 } from '../sdk/src';
+import { BulkAccountLoader } from '../sdk';
 
 describe('User Account', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -37,6 +38,8 @@ describe('User Account', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 9).mul(
 		new BN(10 ** 5)
@@ -77,6 +80,10 @@ describe('User Account', () => {
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 			oracleInfos: [{ publicKey: solUsdOracle, source: OracleSource.PYTH }],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();

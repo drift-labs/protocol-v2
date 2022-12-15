@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BASE_PRECISION, BN, OracleSource } from '../sdk';
+import { BASE_PRECISION, BN, BulkAccountLoader, OracleSource } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -21,6 +21,8 @@ describe('whitelist', () => {
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let driftClient: AdminClient;
 
@@ -61,6 +63,10 @@ describe('whitelist', () => {
 			spotMarketIndexes: [0],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();

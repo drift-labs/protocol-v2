@@ -19,6 +19,7 @@ import {
 	initializeQuoteSpotMarket,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
+import { BulkAccountLoader } from '../sdk';
 
 describe('admin', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -28,6 +29,8 @@ describe('admin', () => {
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let driftClient: AdminClient;
 
@@ -46,6 +49,10 @@ describe('admin', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
