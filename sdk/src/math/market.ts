@@ -142,7 +142,7 @@ export function calculateMarketMarginRatio(
 ): number {
 	let marginRatio;
 	switch (marginCategory) {
-		case 'Initial':
+		case 'Initial': {
 			const marginRatioInitial = isVariant(marketType, 'perp')
 				? (market as PerpMarketAccount).marginRatioInitial
 				: getSpotMarketMarginRatio(market as SpotMarketAccount, marginCategory);
@@ -154,7 +154,8 @@ export function calculateMarketMarginRatio(
 				MARGIN_PRECISION
 			).toNumber();
 			break;
-		case 'Maintenance':
+		}
+		case 'Maintenance': {
 			const marginRatioMaintenance = isVariant(marketType, 'perp')
 				? (market as PerpMarketAccount).marginRatioMaintenance
 				: getSpotMarketMarginRatio(market as SpotMarketAccount, marginCategory);
@@ -166,6 +167,7 @@ export function calculateMarketMarginRatio(
 				MARGIN_PRECISION
 			).toNumber();
 			break;
+		}
 	}
 
 	return marginRatio;
