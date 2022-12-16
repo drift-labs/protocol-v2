@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: more precise update k in prepeg ([#294](https://github.com/drift-labs/protocol-v2/pull/294))
 - program: allow duplicative reduce only orders ([#293](https://github.com/drift-labs/protocol-v2/pull/293))
 - program: fix should_cancel_reduce_only_order
 - ts-sdk: add Oracle OrderType to dlob idl
