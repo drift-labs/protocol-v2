@@ -96,24 +96,6 @@ pub fn liquidate_perp(
         "liquidator bankrupt",
     )?;
 
-    user.get_perp_position(market_index).map_err(|e| {
-        msg!(
-            "User does not have a position for perp market {}",
-            market_index
-        );
-        e
-    })?;
-
-    liquidator
-        .force_get_perp_position_mut(market_index)
-        .map_err(|e| {
-            msg!(
-                "Liquidator has no available positions to take on perp position in market {}",
-                market_index
-            );
-            e
-        })?;
-
     // Settle user's funding payments so that collateral is up to date
     settle_funding_payment(
         user,
@@ -148,6 +130,24 @@ pub fn liquidate_perp(
         user.exit_liquidation();
         return Ok(());
     }
+
+    user.get_perp_position(market_index).map_err(|e| {
+        msg!(
+            "User does not have a position for perp market {}",
+            market_index
+        );
+        e
+    })?;
+
+    liquidator
+        .force_get_perp_position_mut(market_index)
+        .map_err(|e| {
+            msg!(
+                "Liquidator has no available positions to take on perp position in market {}",
+                market_index
+            );
+            e
+        })?;
 
     let liquidation_id = user.enter_liquidation(slot)?;
     let mut margin_freed = 0_u64;
