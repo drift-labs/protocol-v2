@@ -128,10 +128,10 @@ export function getSpotMarketMarginRatio(
 	marginCategory: MarginCategory
 ): number {
 	const liabilityWeight =
-		marginCategory == 'Initial'
+		(marginCategory == 'Initial'
 			? market.initialLiabilityWeight
-			: market.maintenanceLiabilityWeight;
-	return 1 / (liabilityWeight / 10000 - 1);
+			: market.maintenanceLiabilityWeight) / 10000;
+	return 1 / (liabilityWeight - 1);
 }
 
 export function calculateMarketMarginRatio(
@@ -145,7 +145,10 @@ export function calculateMarketMarginRatio(
 		case 'Initial': {
 			const marginRatioInitial = isVariant(marketType, 'perp')
 				? (market as PerpMarketAccount).marginRatioInitial
-				: getSpotMarketMarginRatio(market as SpotMarketAccount, marginCategory);
+				: getSpotMarketMarginRatio(
+						market as SpotMarketAccount,
+						marginCategory
+				  ) * 100;
 
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
@@ -158,7 +161,10 @@ export function calculateMarketMarginRatio(
 		case 'Maintenance': {
 			const marginRatioMaintenance = isVariant(marketType, 'perp')
 				? (market as PerpMarketAccount).marginRatioMaintenance
-				: getSpotMarketMarginRatio(market as SpotMarketAccount, marginCategory);
+				: getSpotMarketMarginRatio(
+						market as SpotMarketAccount,
+						marginCategory
+				  ) * 100;
 
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
