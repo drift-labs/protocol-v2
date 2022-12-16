@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+program: allow keeper to switch user status to active by calling liquidate perp ([#296](https://github.com/drift-labs/protocol-v2/pull/296))
+
 ### Fixes
 
 - program: more precise update k in prepeg ([#294](https://github.com/drift-labs/protocol-v2/pull/294))
