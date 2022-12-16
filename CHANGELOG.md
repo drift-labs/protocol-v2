@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.6.0] - 2022-12-16
+
+### Features
+
 program: allow keeper to switch user status to active by calling liquidate perp ([#296](https://github.com/drift-labs/protocol-v2/pull/296))
 
 ### Fixes
