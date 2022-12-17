@@ -1266,6 +1266,7 @@ fn fulfill_perp_order(
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
     let mut order_records: Vec<OrderActionRecord> = vec![];
+    let mut maker_filled = false;
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
             break;
@@ -1321,6 +1322,10 @@ fn fulfill_perp_order(
             )?,
         };
 
+        if fulfillment_method == &PerpFulfillmentMethod::Match && fill_base_asset_amount != 0 {
+            maker_filled = true;
+        }
+
         base_asset_amount = base_asset_amount.safe_add(fill_base_asset_amount)?;
         quote_asset_amount = quote_asset_amount.safe_add(fill_quote_asset_amount)?;
         market
@@ -1363,7 +1368,7 @@ fn fulfill_perp_order(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    if let Some(maker) = maker {
+    if let (Some(maker), true) = (maker, maker_filled) {
         let (_, maker_total_collateral, maker_margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
                 maker,
