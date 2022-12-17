@@ -692,12 +692,10 @@ pub fn fill_perp_order(
     let oracle_reserve_price_spread_pct_before: i64;
     let is_oracle_valid: bool;
     let oracle_price: i64;
-    let market_is_reduce_only: bool;
     let mut amm_is_available = state.exchange_status != ExchangeStatus::AmmPaused;
 
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-        market_is_reduce_only = market.is_reduce_only()?;
         amm_is_available &= market.status != MarketStatus::AmmPaused;
         validation::perp_market::validate_perp_market(market)?;
         validate!(
@@ -829,7 +827,6 @@ pub fn fill_perp_order(
             valid_oracle_price,
             now,
             slot,
-            market_is_reduce_only,
             amm_is_available,
         )?;
 
@@ -1227,7 +1224,6 @@ fn fulfill_perp_order(
     valid_oracle_price: Option<i64>,
     now: i64,
     slot: u64,
-    _market_is_reduce_only: bool,
     amm_is_available: bool,
 ) -> DriftResult<(u64, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;

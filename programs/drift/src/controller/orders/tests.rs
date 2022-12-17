@@ -2457,7 +2457,6 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -2669,7 +2668,6 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -2859,7 +2857,6 @@ pub mod fulfill_order {
             None,
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -3020,7 +3017,6 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -3411,7 +3407,6 @@ pub mod fulfill_order {
             None,
             now,
             slot,
-            false,
             true,
         )
         .unwrap();

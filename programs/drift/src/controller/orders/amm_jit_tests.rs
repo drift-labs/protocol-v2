@@ -294,7 +294,6 @@ pub mod amm_jit {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -470,7 +469,6 @@ pub mod amm_jit {
             Some(PRICE_PRECISION_I64),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -653,7 +651,6 @@ pub mod amm_jit {
             Some(PRICE_PRECISION_I64),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -836,7 +833,6 @@ pub mod amm_jit {
             Some(200 * PRICE_PRECISION_I64),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -1027,7 +1023,6 @@ pub mod amm_jit {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -1226,7 +1221,6 @@ pub mod amm_jit {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -1425,7 +1419,6 @@ pub mod amm_jit {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -1600,7 +1593,6 @@ pub mod amm_jit {
             Some(1),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -1786,7 +1778,6 @@ pub mod amm_jit {
             Some(200 * PRICE_PRECISION_I64),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
@@ -2023,7 +2014,6 @@ pub mod amm_jit {
                 Some(1),
                 now,
                 slot,
-                false,
                 true,
             )
             .unwrap();
@@ -2294,7 +2284,6 @@ pub mod amm_jit {
                 Some(200 * PRICE_PRECISION_I64),
                 now,
                 slot,
-                false,
                 true,
             )
             .unwrap();
@@ -2507,7 +2496,6 @@ pub mod amm_jit {
             Some(1),
             now,
             slot,
-            false,
             true,
         )
         .unwrap();
