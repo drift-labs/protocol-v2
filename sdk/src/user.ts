@@ -1365,6 +1365,7 @@ export class User {
 
 		const marketMaxLeverage = this.getMaxLeverage(
 			proposedPerpPosition.marketIndex,
+			MarketType.PERP,
 			'Maintenance'
 		);
 
