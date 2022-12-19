@@ -692,12 +692,10 @@ pub fn fill_perp_order(
     let oracle_reserve_price_spread_pct_before: i64;
     let is_oracle_valid: bool;
     let oracle_price: i64;
-    let market_is_reduce_only: bool;
     let mut amm_is_available = state.exchange_status != ExchangeStatus::AmmPaused;
 
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-        market_is_reduce_only = market.is_reduce_only()?;
         amm_is_available &= market.status != MarketStatus::AmmPaused;
         validation::perp_market::validate_perp_market(market)?;
         validate!(
@@ -829,7 +827,6 @@ pub fn fill_perp_order(
             valid_oracle_price,
             now,
             slot,
-            market_is_reduce_only,
             amm_is_available,
         )?;
 
@@ -1227,38 +1224,22 @@ fn fulfill_perp_order(
     valid_oracle_price: Option<i64>,
     now: i64,
     slot: u64,
-    market_is_reduce_only: bool,
     amm_is_available: bool,
 ) -> DriftResult<(u64, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
-    let position_index = get_position_index(&user.perp_positions, market_index)?;
-    let order_direction = user.orders[user_order_index].direction;
-    let position_base_asset_amount_before = user.perp_positions[position_index].base_asset_amount;
-    let risk_decreasing = is_order_risk_decreasing(
-        &order_direction,
-        user.orders[user_order_index]
-            .get_base_asset_amount_unfilled(Some(position_base_asset_amount_before))?,
-        position_base_asset_amount_before.cast()?,
-    )?;
+    let user_position_index = get_position_index(&user.perp_positions, market_index)?;
+    let position_base_asset_amount_before =
+        user.perp_positions[user_position_index].base_asset_amount;
+    let user_order_risk_decreasing =
+        determine_if_user_order_is_risk_decreasing(user, market_index, user_order_index)?;
 
-    if !risk_decreasing && market_is_reduce_only {
-        cancel_risk_increasing_order(
-            user,
-            user_order_index,
-            user_key,
-            filler,
-            filler_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            fee_structure,
-            now,
-            slot,
-        )?;
-
-        return Ok((0, false, true));
-    }
+    let maker_order_risk_decreasing =
+        if let (Some(maker), Some(maker_order_index)) = (maker.as_ref(), maker_order_index) {
+            determine_if_user_order_is_risk_decreasing(maker, market_index, maker_order_index)?
+        } else {
+            false
+        };
 
     let fulfillment_methods = {
         let market = perp_market_map.get_ref(&market_index)?;
@@ -1285,6 +1266,7 @@ fn fulfill_perp_order(
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
     let mut order_records: Vec<OrderActionRecord> = vec![];
+    let mut maker_filled = false;
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
             break;
@@ -1340,6 +1322,10 @@ fn fulfill_perp_order(
             )?,
         };
 
+        if fulfillment_method == &PerpFulfillmentMethod::Match && fill_base_asset_amount != 0 {
+            maker_filled = true;
+        }
+
         base_asset_amount = base_asset_amount.safe_add(fill_base_asset_amount)?;
         quote_asset_amount = quote_asset_amount.safe_add(fill_quote_asset_amount)?;
         market
@@ -1352,11 +1338,16 @@ fn fulfill_perp_order(
     }
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
-    let initial_margin_ratio = perp_market.margin_ratio_initial;
-    let maintenance_margin_ratio = perp_market.margin_ratio_maintenance;
-    let maintenance_margin_buffer = initial_margin_ratio
-        .safe_sub(maintenance_margin_ratio)?
-        .safe_div(2)?;
+    let taker_maintenance_margin_buffer = calculate_maintenance_buffer_ratio(
+        perp_market.margin_ratio_initial,
+        perp_market.margin_ratio_maintenance,
+        user_order_risk_decreasing,
+    )?;
+    let maker_maintenance_margin_buffer = calculate_maintenance_buffer_ratio(
+        perp_market.margin_ratio_initial,
+        perp_market.margin_ratio_maintenance,
+        maker_order_risk_decreasing,
+    )?;
     drop(perp_market);
 
     let (_, taker_total_collateral, taker_margin_requirement_plus_buffer, _) =
@@ -1366,7 +1357,7 @@ fn fulfill_perp_order(
             MarginRequirementType::Maintenance,
             spot_market_map,
             oracle_map,
-            Some(maintenance_margin_buffer.cast()?),
+            Some(taker_maintenance_margin_buffer.cast()?),
         )?;
     if taker_total_collateral < taker_margin_requirement_plus_buffer.cast()? {
         msg!(
@@ -1377,7 +1368,7 @@ fn fulfill_perp_order(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    if let Some(maker) = maker {
+    if let (Some(maker), true) = (maker, maker_filled) {
         let (_, maker_total_collateral, maker_margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
                 maker,
@@ -1385,7 +1376,7 @@ fn fulfill_perp_order(
                 MarginRequirementType::Maintenance,
                 spot_market_map,
                 oracle_map,
-                Some(maintenance_margin_buffer.cast()?),
+                Some(maker_maintenance_margin_buffer.cast()?),
             )?;
 
         if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
@@ -1398,7 +1389,8 @@ fn fulfill_perp_order(
         }
     }
 
-    let position_base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
+    let position_base_asset_amount_after =
+        user.perp_positions[user_position_index].base_asset_amount;
     let risk_increasing = position_base_asset_amount_before == 0
         || position_base_asset_amount_before.signum() != position_base_asset_amount_after.signum()
         || position_base_asset_amount_before.abs() < position_base_asset_amount_after.abs();
@@ -1408,46 +1400,34 @@ fn fulfill_perp_order(
     Ok((base_asset_amount, risk_increasing, updated_user_state))
 }
 
-fn cancel_risk_increasing_order(
-    user: &mut User,
-    user_order_index: usize,
-    user_key: &Pubkey,
-    filler: &mut Option<&mut User>,
-    filler_key: &Pubkey,
-    perp_market_map: &PerpMarketMap,
-    spot_market_map: &SpotMarketMap,
-    oracle_map: &mut OracleMap,
-    fee_structure: &FeeStructure,
-    now: i64,
-    slot: u64,
-) -> DriftResult {
-    let market_index = user.orders[user_order_index].market_index;
-    let filler_reward = {
-        let mut market = perp_market_map.get_ref_mut(&market_index)?;
-        pay_keeper_flat_reward_for_perps(
-            user,
-            filler.as_deref_mut(),
-            market.deref_mut(),
-            fee_structure.flat_filler_fee,
-        )?
-    };
+fn determine_if_user_order_is_risk_decreasing(
+    user: &User,
+    market_index: u16,
+    order_index: usize,
+) -> DriftResult<bool> {
+    let position_index = get_position_index(&user.perp_positions, market_index)?;
+    let order_direction = user.orders[order_index].direction;
+    let position_base_asset_amount_before = user.perp_positions[position_index].base_asset_amount;
+    is_order_risk_decreasing(
+        &order_direction,
+        user.orders[order_index]
+            .get_base_asset_amount_unfilled(Some(position_base_asset_amount_before))?,
+        position_base_asset_amount_before.cast()?,
+    )
+}
 
-    cancel_order(
-        user_order_index,
-        user,
-        user_key,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        now,
-        slot,
-        OrderActionExplanation::RiskingIncreasingOrder,
-        Some(filler_key),
-        filler_reward,
-        false,
-    )?;
+fn calculate_maintenance_buffer_ratio(
+    initial_margin_ratio: u32,
+    maintenance_margin_ratio: u32,
+    order_is_risk_decreasing: bool,
+) -> DriftResult<u32> {
+    if order_is_risk_decreasing {
+        return Ok(0);
+    }
 
-    Ok(())
+    initial_margin_ratio
+        .safe_sub(maintenance_margin_ratio)?
+        .safe_div(2)
 }
 
 pub fn fulfill_perp_order_with_amm(
