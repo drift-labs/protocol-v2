@@ -101,7 +101,7 @@ export class BulkAccountLoader {
 			.map((begin) => array.slice(begin, begin + size));
 	}
 
-	public async load(mustSucceed = false): Promise<boolean> {
+	public async load(mustSucceed = true): Promise<boolean> {
 		let lockReleaser: MutexInterface.Releaser;
 		let didGetLock = false;
 		let successfulLoad = false;
@@ -247,7 +247,8 @@ export class BulkAccountLoader {
 		if (this.pollingFrequency !== 0)
 			this.intervalId = setInterval(
 				this.load.bind(this),
-				this.pollingFrequency
+				this.pollingFrequency,
+				false
 			);
 	}
 

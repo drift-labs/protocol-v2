@@ -103,7 +103,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	}
 
 	async fetch(): Promise<void> {
-		await this.accountLoader.load();
+		await this.accountLoader.load(false);
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
 				accountToPoll.publicKey

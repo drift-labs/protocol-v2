@@ -106,7 +106,7 @@ export class PollingUserStatsAccountSubscriber
 	}
 
 	async fetch(): Promise<void> {
-		await this.accountLoader.load(true);
+		await this.accountLoader.load();
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
 				accountToPoll.publicKey
