@@ -267,7 +267,7 @@ export class PollingDriftClientAccountSubscriber
 	}
 
 	public async fetch(): Promise<void> {
-		await this.accountLoader.load();
+		await this.accountLoader.load(true);
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
 				accountToPoll.publicKey

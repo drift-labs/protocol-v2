@@ -82,7 +82,7 @@ export class PollingOracleAccountSubscriber implements OracleAccountSubscriber {
 	}
 
 	async fetch(): Promise<void> {
-		await this.accountLoader.load();
+		await this.accountLoader.load(true);
 		const { buffer, slot } = this.accountLoader.getBufferAndSlot(
 			this.publicKey
 		);

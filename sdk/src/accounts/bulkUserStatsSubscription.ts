@@ -11,7 +11,7 @@ export async function bulkPollingUserStatsSubscribe(
 	accountLoader: BulkAccountLoader
 ): Promise<void> {
 	if (userStats.length === 0) {
-		await accountLoader.load();
+		await accountLoader.load(true);
 		return;
 	}
 
