@@ -27,7 +27,6 @@ import {
 	TEN,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
 	ONE,
-	QUOTE_PRECISION_EXP,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -1486,8 +1485,11 @@ export class User {
 		} else {
 			if (!this.getUserAccount().isMarginTradingEnabled) {
 				// if margin disabled, max spot position size would be user free usdc balance
-				const usdcBalance = BN.max(ZERO, this.getNetSpotMarketValue(0));
-				return BN.min(this.getFreeCollateral(), usdcBalance);
+				const quoteBalance = BN.max(
+					ZERO,
+					this.getNetSpotMarketValue(QUOTE_SPOT_MARKET_INDEX)
+				);
+				return BN.min(this.getFreeCollateral(), quoteBalance);
 			}
 
 			currentPosition = this.getNetSpotMarketValue(targetMarketIndex);
@@ -1614,9 +1616,15 @@ export class User {
 			const totalLiabilityValue = this.getTotalLiabilityValue();
 			const totalAssetValue = this.getTotalAssetValue();
 
-			const currentUsdcNetValue = this.getNetSpotMarketValue(0);
-			const currentUsdcAssetValue = this.getSpotMarketAssetValue(0);
-			const currentUsdcLiabilityValue = this.getSpotMarketLiabilityValue(0);
+			const currentQuoteNetValue = this.getNetSpotMarketValue(
+				QUOTE_SPOT_MARKET_INDEX
+			);
+			const currentQuoteAssetValue = this.getSpotMarketAssetValue(
+				QUOTE_SPOT_MARKET_INDEX
+			);
+			const currentQuoteLiabilityValue = this.getSpotMarketLiabilityValue(
+				QUOTE_SPOT_MARKET_INDEX
+			);
 
 			const currentSpotMarketNetValue =
 				this.getNetSpotMarketValue(targetMarketIndex);
@@ -1628,18 +1636,18 @@ export class User {
 			let assetValueToAdd = ZERO;
 			let liabilityValueToAdd = ZERO;
 
-			const newUsdcNetValue =
+			const newQuoteNetValue =
 				tradeSide == PositionDirection.SHORT
-					? currentUsdcNetValue.add(tradeQuoteAmount)
-					: currentUsdcNetValue.sub(tradeQuoteAmount);
-			const newUsdcAssetValue = BN.max(newUsdcNetValue, ZERO);
-			const newUsdcLiabilityValue = BN.min(newUsdcNetValue, ZERO).abs();
+					? currentQuoteNetValue.add(tradeQuoteAmount)
+					: currentQuoteNetValue.sub(tradeQuoteAmount);
+			const newQuoteAssetValue = BN.max(newQuoteNetValue, ZERO);
+			const newQuoteLiabilityValue = BN.min(newQuoteNetValue, ZERO).abs();
 
 			assetValueToAdd = assetValueToAdd.add(
-				newUsdcAssetValue.sub(currentUsdcAssetValue)
+				newQuoteAssetValue.sub(currentQuoteAssetValue)
 			);
 			liabilityValueToAdd = liabilityValueToAdd.add(
-				newUsdcLiabilityValue.sub(currentUsdcLiabilityValue)
+				newQuoteLiabilityValue.sub(currentQuoteLiabilityValue)
 			);
 
 			const newSpotMarketNetValue =
