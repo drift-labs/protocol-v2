@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+program: fix is_user_being_liquidated in deposit
+
 ### Breaking
 
 ## [2.6.0] - 2022-12-16
