@@ -385,11 +385,12 @@ export class BigNum {
 			);
 		}
 
-		const printString = this.print();
+		const isNeg = this.isNeg();
+
+		const printString = this.abs().print();
+		const thisString = this.abs().toString();
 
 		let precisionPrintString = printString.slice(0, fixedPrecision + 1);
-
-		const thisString = this.toString();
 
 		if (
 			!printString.includes(BigNum.delim) &&
@@ -397,7 +398,7 @@ export class BigNum {
 		) {
 			const precisionMismatch = fixedPrecision - thisString.length;
 			return BigNum.from(
-				thisString + this.getZeroes(precisionMismatch),
+				(isNeg ? '-' : '') + thisString + this.getZeroes(precisionMismatch),
 				precisionMismatch
 			).toPrecision(fixedPrecision, trailingZeroes);
 		}
@@ -455,7 +456,7 @@ export class BigNum {
 			}
 		}
 
-		return precisionPrintString;
+		return `${isNeg ? '-' : ''}${precisionPrintString}`;
 	}
 
 	public toTradePrecision(rounded = false): string {
@@ -501,7 +502,9 @@ export class BigNum {
 			return this.toRounded(precision).toMillified(precision);
 		}
 
-		const stringVal = this.print();
+		const isNeg = this.isNeg();
+
+		const stringVal = this.abs().print();
 
 		const [leftSide] = stringVal.split(BigNum.delim);
 
@@ -542,7 +545,7 @@ export class BigNum {
 			}${leadDigits.slice(decimalLocation)}`;
 		}
 
-		return `${leadString}${unit}`;
+		return `${isNeg ? '-' : ''}${leadString}${unit}`;
 	}
 
 	public toJSON() {
@@ -618,7 +621,7 @@ export class BigNum {
 
 		const sides = val.split(BigNum.delim);
 		const rightSide = sides[1];
-		const leftSide = sides[0].replace(/\D/g, '');
+		const leftSide = sides[0].replace(/\s/g, '');
 		const bnInput = `${leftSide ?? ''}${rightSide ?? ''}`;
 
 		const rawBn = new BN(bnInput);
