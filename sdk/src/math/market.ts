@@ -131,7 +131,7 @@ export function getSpotMarketMarginRatio(
 		(marginCategory == 'Initial'
 			? market.initialLiabilityWeight
 			: market.maintenanceLiabilityWeight) / 10000;
-	return 1 / (1 / (liabilityWeight - 1));
+	return liabilityWeight - 1;
 }
 
 export function calculateMarketMarginRatio(
