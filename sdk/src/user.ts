@@ -27,6 +27,7 @@ import {
 	TEN,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
 	ONE,
+	QUOTE_PRECISION_EXP,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -1609,57 +1610,69 @@ export class User {
 		const tradeIsPerp = isVariant(targetMarketType, 'perp');
 
 		if (!tradeIsPerp) {
-			const currentSpotPosition = this.getNetSpotMarketValue(targetMarketIndex);
-			const currentSide =
-				currentSpotPosition && currentSpotPosition.isNeg()
-					? PositionDirection.SHORT
-					: PositionDirection.LONG;
-
+			// calculate new asset/liability values for base and quote market to find new account leverage
 			const totalLiabilityValue = this.getTotalLiabilityValue();
 			const totalAssetValue = this.getTotalAssetValue();
 
-			const totalPerpPositionValue = this.getTotalPerpPositionValue();
+			const currentUsdcNetValue = this.getNetSpotMarketValue(0);
+			const currentUsdcAssetValue = this.getSpotMarketAssetValue(0);
+			const currentUsdcLiabilityValue = this.getSpotMarketLiabilityValue(0);
 
-			const tradeIncreasesLiability =
-				currentSide == PositionDirection.SHORT &&
-				tradeSide == PositionDirection.SHORT;
-			const tradeDecreasesLiability =
-				currentSide == PositionDirection.SHORT &&
-				tradeSide == PositionDirection.LONG;
+			const currentSpotMarketNetValue =
+				this.getNetSpotMarketValue(targetMarketIndex);
+			const currentSpotMarketAssetValue =
+				this.getSpotMarketAssetValue(targetMarketIndex);
+			const currentSpotMarketLiabilityValue =
+				this.getSpotMarketLiabilityValue(targetMarketIndex);
 
-			const spotMarketLiabilityValueAfterTrade = tradeIncreasesLiability
-				? totalLiabilityValue.add(tradeQuoteAmount)
-				: tradeDecreasesLiability
-				? totalLiabilityValue.sub(tradeQuoteAmount)
-				: totalLiabilityValue;
+			let assetValueToAdd = ZERO;
+			let liabilityValueToAdd = ZERO;
 
-			const totalLiabilitiesAfterTrade = totalPerpPositionValue.add(
-				spotMarketLiabilityValueAfterTrade
+			const newUsdcNetValue =
+				tradeSide == PositionDirection.SHORT
+					? currentUsdcNetValue.add(tradeQuoteAmount)
+					: currentUsdcNetValue.sub(tradeQuoteAmount);
+			const newUsdcAssetValue = BN.max(newUsdcNetValue, ZERO);
+			const newUsdcLiabilityValue = BN.min(newUsdcNetValue, ZERO).abs();
+
+			assetValueToAdd = assetValueToAdd.add(
+				newUsdcAssetValue.sub(currentUsdcAssetValue)
+			);
+			liabilityValueToAdd = liabilityValueToAdd.add(
+				newUsdcLiabilityValue.sub(currentUsdcLiabilityValue)
 			);
 
-			const tradeIncreasesAssetValue =
-				currentSide == PositionDirection.LONG &&
-				tradeSide == PositionDirection.LONG;
-			const tradeDecreasesAssetValue =
-				currentSide == PositionDirection.LONG &&
-				tradeSide == PositionDirection.SHORT;
+			const newSpotMarketNetValue =
+				tradeSide == PositionDirection.LONG
+					? currentSpotMarketNetValue.add(tradeQuoteAmount)
+					: currentSpotMarketNetValue.sub(tradeQuoteAmount);
+			const newSpotMarketAssetValue = BN.max(newSpotMarketNetValue, ZERO);
+			const newSpotMarketLiabilityValue = BN.min(
+				newSpotMarketNetValue,
+				ZERO
+			).abs();
 
-			const spotMarketAssetValueAfterTrade = tradeIncreasesAssetValue
-				? totalAssetValue.add(tradeQuoteAmount)
-				: tradeDecreasesAssetValue
-				? totalAssetValue.sub(tradeQuoteAmount)
-				: totalAssetValue;
+			assetValueToAdd = assetValueToAdd.add(
+				newSpotMarketAssetValue.sub(currentSpotMarketAssetValue)
+			);
+			liabilityValueToAdd = liabilityValueToAdd.add(
+				newSpotMarketLiabilityValue.sub(currentSpotMarketLiabilityValue)
+			);
+
+			const totalAssetValueAfterTrade = totalAssetValue.add(assetValueToAdd);
+			const totalLiabilityValueAfterTrade =
+				totalLiabilityValue.add(liabilityValueToAdd);
 
 			if (
-				spotMarketAssetValueAfterTrade.eq(ZERO) &&
-				totalLiabilitiesAfterTrade.eq(ZERO)
+				totalAssetValueAfterTrade.eq(ZERO) &&
+				totalLiabilityValueAfterTrade.eq(ZERO)
 			) {
 				return ZERO;
 			}
 
-			const newLeverage = totalLiabilitiesAfterTrade
+			const newLeverage = totalLiabilityValueAfterTrade
 				.mul(TEN_THOUSAND)
-				.div(spotMarketAssetValueAfterTrade);
+				.div(totalAssetValueAfterTrade);
 
 			return newLeverage;
 		}
