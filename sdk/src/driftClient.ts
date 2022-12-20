@@ -1741,22 +1741,29 @@ export class DriftClient {
 	 * @param orderParams
 	 * @param userAccountPublicKey
 	 * @param userAccount
+	 * @param makerInfo
 	 * @returns
 	 */
 	public async sendMarketOrderAndGetSignedFillTx(
 		orderParams: OptionalOrderParams,
 		userAccountPublicKey: PublicKey,
-		userAccount: UserAccount
+		userAccount: UserAccount,
+		makerInfo?: MakerInfo
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
 
 		const marketOrderTx = wrapInTx(await this.getPlacePerpOrderIx(orderParams));
 		const fillTx = wrapInTx(
-			await this.getFillPerpOrderIx(userAccountPublicKey, userAccount, {
-				orderId,
-				marketIndex,
-			})
+			await this.getFillPerpOrderIx(
+				userAccountPublicKey,
+				userAccount,
+				{
+					orderId,
+					marketIndex,
+				},
+				makerInfo
+			)
 		);
 
 		// Apply the latest blockhash to the txs so that we can sign before sending them

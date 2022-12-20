@@ -72,7 +72,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         .abs();
 
     validate!(
-        rounding_diff <= 10,
+        rounding_diff <= 15,
         ErrorCode::InvalidAmmDetected,
         "qar/bar/k out of wack: k={}, bar={}, qar={}, qar'={} (rounding: {})",
         invariant,

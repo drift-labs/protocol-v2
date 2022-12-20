@@ -10,7 +10,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 ### Fixes
+- sdk: fix BulkAccountLoader starvation ([#300](https://github.com/drift-labs/protocol-v2/pull/300))
 
+### Breaking
+
+## [2.7.0] - 2022-12-19
+
+### Features
+
+### Fixes
+
+program: more leniency in allowing risk decreasing trades for perps ([#297](https://github.com/drift-labs/protocol-v2/pull/297))
+program: fix is_user_being_liquidated in deposit
+
+### Breaking
+
+## [2.6.0] - 2022-12-16
+
+### Features
+
+program: allow keeper to switch user status to active by calling liquidate perp ([#296](https://github.com/drift-labs/protocol-v2/pull/296))
+
+### Fixes
+
+- program: more precise update k in prepeg ([#294](https://github.com/drift-labs/protocol-v2/pull/294))
+- program: allow duplicative reduce only orders ([#293](https://github.com/drift-labs/protocol-v2/pull/293))
+- program: fix should_cancel_reduce_only_order
 - ts-sdk: add Oracle OrderType to dlob idl
 
 ### Breaking

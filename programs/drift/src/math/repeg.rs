@@ -330,22 +330,11 @@ pub fn adjust_amm(
             let new_sqrt_k = market
                 .amm
                 .sqrt_k
-                .safe_sub(market.amm.sqrt_k.safe_div(1000)?)?;
+                .safe_sub(market.amm.sqrt_k.safe_div(1000)?)?
+                .max(market.amm.user_lp_shares.safe_add(1)?);
 
-            let new_base_asset_reserve = market
-                .amm
-                .base_asset_reserve
-                .safe_sub(market.amm.base_asset_reserve.safe_div(1000)?)?;
-            let new_quote_asset_reserve = market
-                .amm
-                .quote_asset_reserve
-                .safe_sub(market.amm.quote_asset_reserve.safe_div(1000)?)?;
-
-            let update_k_result = cp_curve::UpdateKResult {
-                sqrt_k: new_sqrt_k,
-                base_asset_reserve: new_base_asset_reserve,
-                quote_asset_reserve: new_quote_asset_reserve,
-            };
+            let update_k_result =
+                cp_curve::get_update_k_result(market, bn::U192::from(new_sqrt_k), true)?;
 
             let adjustment_cost =
                 cp_curve::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;

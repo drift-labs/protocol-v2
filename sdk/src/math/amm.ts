@@ -711,7 +711,8 @@ export function calculateSpread(
 
 export function calculateSpreadReserves(
 	amm: AMM,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: OraclePriceData,
+	now?: BN
 ) {
 	function calculateSpreadReserve(
 		spread: number,
@@ -746,7 +747,7 @@ export function calculateSpreadReserves(
 		};
 	}
 
-	const [longSpread, shortSpread] = calculateSpread(amm, oraclePriceData);
+	const [longSpread, shortSpread] = calculateSpread(amm, oraclePriceData, now);
 	const askReserves = calculateSpreadReserve(
 		longSpread,
 		PositionDirection.LONG,
@@ -839,7 +840,8 @@ export function calculateMaxBaseAssetAmountToTrade(
 	amm: AMM,
 	limit_price: BN,
 	direction: PositionDirection,
-	oraclePriceData?: OraclePriceData
+	oraclePriceData?: OraclePriceData,
+	now?: BN
 ): [BN, PositionDirection] {
 	const invariant = amm.sqrtK.mul(amm.sqrtK);
 
@@ -852,7 +854,8 @@ export function calculateMaxBaseAssetAmountToTrade(
 	const newBaseAssetReserve = squareRootBN(newBaseAssetReserveSquared);
 	const [shortSpreadReserves, longSpreadReserves] = calculateSpreadReserves(
 		amm,
-		oraclePriceData
+		oraclePriceData,
+		now
 	);
 
 	const baseAssetReserveBefore: BN = isVariant(direction, 'long')

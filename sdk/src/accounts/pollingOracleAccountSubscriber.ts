@@ -41,7 +41,7 @@ export class PollingOracleAccountSubscriber implements OracleAccountSubscriber {
 			return true;
 		}
 
-		this.addToAccountLoader();
+		await this.addToAccountLoader();
 
 		let subscriptionSucceeded = false;
 		let retries = 0;
@@ -59,12 +59,12 @@ export class PollingOracleAccountSubscriber implements OracleAccountSubscriber {
 		return subscriptionSucceeded;
 	}
 
-	addToAccountLoader(): void {
+	async addToAccountLoader(): Promise<void> {
 		if (this.callbackId) {
 			return;
 		}
 
-		this.callbackId = this.accountLoader.addAccount(
+		this.callbackId = await this.accountLoader.addAccount(
 			this.publicKey,
 			async (buffer, slot) => {
 				const oraclePriceData =
