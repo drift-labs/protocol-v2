@@ -23,7 +23,7 @@ export async function bulkPollingUserStatsSubscribe(
 		})
 	);
 
-	await accountLoader.load(false);
+	await accountLoader.load();
 
 	await Promise.all(
 		userStats.map(async (userStat) => {

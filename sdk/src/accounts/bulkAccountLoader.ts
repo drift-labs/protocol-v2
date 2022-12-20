@@ -2,12 +2,6 @@ import { Commitment, Connection, PublicKey } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BufferAndSlot } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
-import {
-	E_ALREADY_LOCKED,
-	Mutex,
-	MutexInterface,
-	tryAcquire,
-} from 'async-mutex';
 
 type AccountToLoad = {
 	publicKey: PublicKey;
@@ -15,6 +9,8 @@ type AccountToLoad = {
 };
 
 const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
+
+const oneMinute = 60 * 1000;
 
 export class BulkAccountLoader {
 	connection: Connection;
@@ -24,7 +20,10 @@ export class BulkAccountLoader {
 	bufferAndSlotMap = new Map<string, BufferAndSlot>();
 	errorCallbacks = new Map<string, (e) => void>();
 	intervalId?: NodeJS.Timer;
-	loadLock: Mutex = new Mutex();
+	// to handle clients spamming load
+	loadPromise?: Promise<void>;
+	loadPromiseResolver: () => void;
+	lastTimeLoadingPromiseCleared = Date.now();
 	mostRecentSlot = 0;
 
 	public constructor(
@@ -37,18 +36,16 @@ export class BulkAccountLoader {
 		this.pollingFrequency = pollingFrequency;
 	}
 
-	public addAccount(
+	public async addAccount(
 		publicKey: PublicKey,
 		callback: (buffer: Buffer, slot: number) => void
-	): string {
-		console.log(`ADDING ACCOUNT: ${publicKey.toString()}`);
+	): Promise<string> {
 		const existingSize = this.accountsToLoad.size;
 
 		const callbackId = uuidv4();
 		const existingAccountToLoad = this.accountsToLoad.get(publicKey.toString());
 		if (existingAccountToLoad) {
 			existingAccountToLoad.callbacks.set(callbackId, callback);
-			console.log(` . exists: ${publicKey.toString()}`);
 		} else {
 			const callbacks = new Map<
 				string,
@@ -60,12 +57,14 @@ export class BulkAccountLoader {
 				callbacks,
 			};
 			this.accountsToLoad.set(publicKey.toString(), newAccountToLoad);
-			console.log(` . added: ${publicKey.toString()}`);
 		}
 
 		if (existingSize === 0) {
 			this.startPolling();
 		}
+
+		// resolve the current loadPromise in case client wants to call load
+		await this.loadPromise;
 
 		return callbackId;
 	}
@@ -101,63 +100,42 @@ export class BulkAccountLoader {
 			.map((begin) => array.slice(begin, begin + size));
 	}
 
-	public async load(mustSucceed = true): Promise<boolean> {
-		let lockReleaser: MutexInterface.Releaser;
-		let didGetLock = false;
-		let successfulLoad = false;
-		if (mustSucceed) {
-			const start = Date.now();
-			lockReleaser = await this.loadLock.acquire();
-			didGetLock = true;
-			console.log(`loadPromiseLock acquired in ${Date.now() - start}ms`);
-			try {
-				throw new Error(`Got lock, stack:`);
-			} catch (e) {
-				console.log(e.stack);
-			}
-		} else {
-			try {
-				lockReleaser = await tryAcquire(this.loadLock).acquire();
-				didGetLock = true;
-			} catch (e) {
-				if (e === E_ALREADY_LOCKED) {
-					console.warn('loadPromiseLock already taken, skipping load');
-					try {
-						throw new Error(`Skipped lock, stack:`);
-					} catch (e) {
-						console.log(e.stack);
-					}
-					return false;
-				}
+	public async load(): Promise<void> {
+		if (this.loadPromise) {
+			const now = Date.now();
+			if (now - this.lastTimeLoadingPromiseCleared > oneMinute) {
+				this.loadPromise = undefined;
+			} else {
+				return this.loadPromise;
 			}
 		}
 
-		if (didGetLock) {
-			try {
-				const chunks = this.chunks(
-					Array.from(this.accountsToLoad.values()),
-					GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
-				);
+		this.loadPromise = new Promise((resolver) => {
+			this.loadPromiseResolver = resolver;
+		});
+		this.lastTimeLoadingPromiseCleared = Date.now();
 
-				await Promise.all(
-					chunks.map((chunk) => {
-						return this.loadChunk(chunk);
-					})
-				);
+		try {
+			const chunks = this.chunks(
+				Array.from(this.accountsToLoad.values()),
+				GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
+			);
 
-				successfulLoad = true;
-			} catch (e) {
-				console.error(`Error in bulkAccountLoader.load()`);
-				console.error(e);
-				for (const [_, callback] of this.errorCallbacks) {
-					callback(e);
-				}
-			} finally {
-				lockReleaser();
+			await Promise.all(
+				chunks.map((chunk) => {
+					return this.loadChunk(chunk);
+				})
+			);
+		} catch (e) {
+			console.error(`Error in bulkAccountLoader.load()`);
+			console.error(e);
+			for (const [_, callback] of this.errorCallbacks) {
+				callback(e);
 			}
+		} finally {
+			this.loadPromiseResolver();
+			this.loadPromise = undefined;
 		}
-
-		return successfulLoad;
 	}
 
 	async loadChunk(accountsToLoad: AccountToLoad[]): Promise<void> {
@@ -247,8 +225,7 @@ export class BulkAccountLoader {
 		if (this.pollingFrequency !== 0)
 			this.intervalId = setInterval(
 				this.load.bind(this),
-				this.pollingFrequency,
-				false
+				this.pollingFrequency
 			);
 	}
 

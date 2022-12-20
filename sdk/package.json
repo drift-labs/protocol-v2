@@ -39,7 +39,6 @@
 		"@solana/spl-token": "^0.1.6",
 		"@solana/web3.js": "1.66.2",
 		"@switchboard-xyz/switchboard-v2": "^0.0.67",
-		"async-mutex": "^0.4.0",
 		"strict-event-emitter-types": "^2.0.0",
 		"uuid": "^8.3.2"
 	},

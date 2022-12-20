@@ -65,7 +65,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		});
 
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			accountToPoll.callbackId = this.accountLoader.addAccount(
+			accountToPoll.callbackId = await this.accountLoader.addAccount(
 				accountToPoll.publicKey,
 				(buffer, slot) => {
 					if (!buffer) {
@@ -103,7 +103,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	}
 
 	async fetch(): Promise<void> {
-		await this.accountLoader.load(false);
+		await this.accountLoader.load();
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
 				accountToPoll.publicKey
