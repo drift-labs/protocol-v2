@@ -194,11 +194,11 @@ export class PollingDriftClientAccountSubscriber
 
 	async addToAccountLoader(): Promise<void> {
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			this.addAccountToAccountLoader(accountToPoll);
+			await this.addAccountToAccountLoader(accountToPoll);
 		}
 
 		for (const [_, oracleToPoll] of this.oraclesToPoll) {
-			this.addOracleToAccountLoader(oracleToPoll);
+			await this.addOracleToAccountLoader(oracleToPoll);
 		}
 
 		this.errorCallbackId = this.accountLoader.addErrorCallbacks((error) => {
@@ -206,8 +206,8 @@ export class PollingDriftClientAccountSubscriber
 		});
 	}
 
-	addAccountToAccountLoader(accountToPoll: AccountToPoll): void {
-		accountToPoll.callbackId = this.accountLoader.addAccount(
+	async addAccountToAccountLoader(accountToPoll: AccountToPoll): Promise<void> {
+		accountToPoll.callbackId = await this.accountLoader.addAccount(
 			accountToPoll.publicKey,
 			(buffer: Buffer, slot: number) => {
 				if (!buffer) return;
@@ -236,13 +236,13 @@ export class PollingDriftClientAccountSubscriber
 		);
 	}
 
-	addOracleToAccountLoader(oracleToPoll: OraclesToPoll): void {
+	async addOracleToAccountLoader(oracleToPoll: OraclesToPoll): Promise<void> {
 		const oracleClient = this.oracleClientCache.get(
 			oracleToPoll.source,
 			this.program.provider.connection
 		);
 
-		oracleToPoll.callbackId = this.accountLoader.addAccount(
+		oracleToPoll.callbackId = await this.accountLoader.addAccount(
 			oracleToPoll.publicKey,
 			(buffer: Buffer, slot: number) => {
 				if (!buffer) return;
@@ -342,14 +342,14 @@ export class PollingDriftClientAccountSubscriber
 	async addSpotMarket(marketIndex: number): Promise<boolean> {
 		await this.addSpotMarketAccountToPoll(marketIndex);
 		const accountToPoll = this.accountsToPoll.get(marketIndex.toString());
-		this.addAccountToAccountLoader(accountToPoll);
+		await this.addAccountToAccountLoader(accountToPoll);
 		return true;
 	}
 
 	async addPerpMarket(marketIndex: number): Promise<boolean> {
 		await this.addPerpMarketAccountToPoll(marketIndex);
 		const accountToPoll = this.accountsToPoll.get(marketIndex.toString());
-		this.addAccountToAccountLoader(accountToPoll);
+		await this.addAccountToAccountLoader(accountToPoll);
 		return true;
 	}
 
@@ -362,7 +362,7 @@ export class PollingDriftClientAccountSubscriber
 		const oracleToPoll = this.oraclesToPoll.get(
 			oracleInfo.publicKey.toString()
 		);
-		this.addOracleToAccountLoader(oracleToPoll);
+		await this.addOracleToAccountLoader(oracleToPoll);
 		return true;
 	}
 
