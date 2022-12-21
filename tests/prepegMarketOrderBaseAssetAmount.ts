@@ -250,7 +250,7 @@ describe('prepeg', () => {
 		const position0 = driftClient.getUserAccount().perpPositions[0];
 
 		console.log(position0.quoteAssetAmount.toString());
-		console.log('quoteEntryAmount:', position0.quoteBreakEvenAmount.toString());
+		console.log('quoteEntryAmount:', position0.quoteEntryAmount.toString());
 		assert.ok(position0.quoteEntryAmount.eq(new BN(-49999074)));
 		assert.ok(acquiredQuoteAssetAmount.eq(position0.quoteEntryAmount.abs()));
 		assert.ok(position0.quoteBreakEvenAmount.eq(new BN(-50049074)));
@@ -370,21 +370,14 @@ describe('prepeg', () => {
 			newAmm.baseAssetAmountWithAmm,
 			newAmm.baseAssetReserve,
 			newAmm.minBaseAssetReserve,
-			newAmm.maxBaseAssetReserve
+			newAmm.maxBaseAssetReserve,
+			0,
+			1e6
 		);
 
 		console.log(inventoryScale, effectiveLeverage);
 
-		const longSpread = calculateSpread(
-			newAmm,
-			PositionDirection.LONG,
-			oraclePriceData
-		);
-		const shortSpread = calculateSpread(
-			newAmm,
-			PositionDirection.SHORT,
-			oraclePriceData
-		);
+		const [longSpread, shortSpread] = calculateSpread(newAmm, oraclePriceData);
 
 		console.log(newAmm.baseSpread, longSpread, shortSpread, newAmm.maxSpread);
 		console.log(inventoryScale);

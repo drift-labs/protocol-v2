@@ -299,6 +299,7 @@ fn calculate_k_tests_wrapper_fcn() {
         &mut market,
         (QUOTE_PRECISION / 500) as i128, // positive budget
         1100000,
+        1000000 - 22000,
     )
     .unwrap();
 
@@ -347,9 +348,9 @@ fn calculate_k_with_lps_tests() {
 
     assert_eq!(position.base_asset_amount, 0);
     assert_eq!(position.quote_asset_amount, -QUOTE_PRECISION_I64);
-    assert_eq!(position.last_net_base_asset_amount_per_lp, 1);
+    assert_eq!(position.last_base_asset_amount_per_lp, 1);
     assert_eq!(
-        position.last_net_quote_asset_amount_per_lp,
+        position.last_quote_asset_amount_per_lp,
         -QUOTE_PRECISION_I64
     );
 

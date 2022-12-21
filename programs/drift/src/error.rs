@@ -437,6 +437,20 @@ pub enum ErrorCode {
     InvalidUserSubAccountId,
     #[msg("Invalid Trigger Order Condition")]
     InvalidTriggerOrderCondition,
+    #[msg("Invalid Spot Position")]
+    InvalidSpotPosition,
+    #[msg("Cant transfer between same user account")]
+    CantTransferBetweenSameUserAccount,
+    #[msg("Invalid Perp Position")]
+    InvalidPerpPosition,
+    #[msg("Unable To Get Limit Price")]
+    UnableToGetLimitPrice,
+    #[msg("Invalid Liquidation")]
+    InvalidLiquidation,
+    #[msg("Spot Fulfullment Config Disabled")]
+    SpotFulfillmentConfigDisabled,
+    #[msg("Invalid Maker")]
+    InvalidMaker,
 }
 
 #[macro_export]

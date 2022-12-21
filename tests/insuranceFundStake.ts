@@ -30,6 +30,7 @@ import {
 	AMM_RESERVE_PRECISION,
 	unstakeSharesToAmount,
 	MarketStatus,
+	LIQUIDATION_PCT_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -98,6 +99,10 @@ describe('insurance fund stake', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
+
+		await driftClient.updateInitialPctToLiquidate(
+			LIQUIDATION_PCT_PRECISION.toNumber()
+		);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
@@ -258,6 +263,12 @@ describe('insurance fund stake', () => {
 	it('user if unstake (half)', async () => {
 		const marketIndex = 0;
 		// const nShares = usdcAmount.div(new BN(2));
+		await driftClient.updateInsuranceFundUnstakingPeriod(
+			marketIndex,
+			new BN(1)
+		);
+		await sleep(1000);
+
 		const txSig = await driftClient.removeInsuranceFundStake(
 			marketIndex,
 			userUSDCAccount.publicKey

@@ -1,5 +1,4 @@
 #![allow(clippy::too_many_arguments)]
-#![allow(unaligned_references)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::comparison_chain)]
 
@@ -15,6 +14,7 @@ use state::oracle::OracleSource;
 use crate::controller::position::PositionDirection;
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
+use crate::state::spot_market::SpotFulfillmentConfigStatus;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::MarketType;
@@ -32,13 +32,14 @@ mod test_utils;
 mod validation;
 
 #[cfg(feature = "mainnet-beta")]
-declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
+declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("4PzAUP84r19y2whicgTysCiqxw5aHabLHyDh3oJiAtqe");
+declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 
 #[program]
 pub mod drift {
     use super::*;
+    use crate::state::spot_market::SpotFulfillmentConfigStatus;
 
     // User Instructions
 
@@ -177,6 +178,14 @@ pub mod drift {
         margin_ratio: u32,
     ) -> Result<()> {
         handle_update_user_custom_margin_ratio(ctx, _sub_account_id, margin_ratio)
+    }
+
+    pub fn update_user_margin_trading_enabled(
+        ctx: Context<UpdateUser>,
+        _sub_account_id: u16,
+        margin_trading_enabled: bool,
+    ) -> Result<()> {
+        handle_update_user_margin_trading_enabled(ctx, _sub_account_id, margin_trading_enabled)
     }
 
     pub fn update_user_delegate(
@@ -431,6 +440,13 @@ pub mod drift {
         market_index: u16,
     ) -> Result<()> {
         handle_initialize_serum_fulfillment_config(ctx, market_index)
+    }
+
+    pub fn update_serum_fulfillment_config_status(
+        ctx: Context<UpdateSerumFulfillmentConfig>,
+        status: SpotFulfillmentConfigStatus,
+    ) -> Result<()> {
+        handle_update_serum_fulfillment_config_status(ctx, status)
     }
 
     pub fn update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
@@ -735,6 +751,20 @@ pub mod drift {
         fee_structure: FeeStructure,
     ) -> Result<()> {
         handle_update_spot_fee_structure(ctx, fee_structure)
+    }
+
+    pub fn update_initial_pct_to_liquidate(
+        ctx: Context<AdminUpdateState>,
+        initial_pct_to_liquidate: u16,
+    ) -> Result<()> {
+        handle_update_initial_pct_to_liquidate(ctx, initial_pct_to_liquidate)
+    }
+
+    pub fn update_liquidation_duration(
+        ctx: Context<AdminUpdateState>,
+        liquidation_duration: u8,
+    ) -> Result<()> {
+        handle_update_liquidation_duration(ctx, liquidation_duration)
     }
 
     pub fn update_oracle_guard_rails(

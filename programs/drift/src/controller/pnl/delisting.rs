@@ -25,10 +25,11 @@ pub mod delisting_test {
     use crate::create_anchor_account_info;
     use crate::math::amm::calculate_net_user_pnl;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, PEG_PRECISION,
-        PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
-        QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION,
-        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, LIQUIDATION_PCT_PRECISION,
+        PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
+        PRICE_PRECISION_U64, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX,
+        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::math::funding::calculate_funding_payment;
     use crate::math::margin::{
@@ -131,8 +132,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -257,8 +256,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -371,8 +368,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -489,8 +484,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -607,8 +600,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -731,7 +722,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -766,8 +757,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -789,7 +778,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 100000000);
-        assert_eq!(margin_requirement, 7500000);
+        assert_eq!(margin_requirement, 7510000);
 
         // put in settlement mode
         settle_expired_market(
@@ -820,7 +809,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 100000000);
-        assert_eq!(margin_requirement, 0);
+        assert_eq!(margin_requirement, 10000);
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
@@ -950,7 +939,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -985,8 +974,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -1008,7 +995,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 100000000);
-        assert_eq!(margin_requirement, 7500000);
+        assert_eq!(margin_requirement, 7510000);
 
         // put in settlement mode
         settle_expired_market(
@@ -1039,7 +1026,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 100000000);
-        assert_eq!(margin_requirement, 0); // settlement in margin now
+        assert_eq!(margin_requirement, 10000); // settlement in margin now
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
@@ -1172,7 +1159,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1207,8 +1194,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -1247,7 +1232,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 100000000);
-        assert_eq!(margin_requirement, 0);
+        assert_eq!(margin_requirement, 10000);
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
@@ -1402,7 +1387,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1490,8 +1475,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -1513,7 +1496,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
-        assert_eq!(margin_requirement, 10005000000);
+        assert_eq!(margin_requirement, 10005010000);
 
         // put in settlement mode
         settle_expired_market(
@@ -1627,7 +1610,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
-        assert_eq!(margin_requirement, 0);
+        assert_eq!(margin_requirement, 10000);
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 2019997999000);
@@ -1827,7 +1810,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1901,8 +1884,6 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
             ..State::default()
         };
@@ -1924,7 +1905,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
-        assert_eq!(margin_requirement, 1005000000);
+        assert_eq!(margin_requirement, 1005010000);
 
         let (margin_requirement_short, total_collateral_short, _, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -1938,7 +1919,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral_short, 17_000_000_000);
-        assert_eq!(margin_requirement_short, 16002500000);
+        assert_eq!(margin_requirement_short, 16002510000);
         assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), false);
         assert_eq!(market.is_reduce_only().unwrap(), false);
 
@@ -1975,7 +1956,7 @@ pub mod delisting_test {
                 .unwrap();
 
             assert_eq!(total_collateral, 20000000000);
-            assert_eq!(margin_requirement, 0);
+            assert_eq!(margin_requirement, 10000);
 
             let market = market_map.get_ref_mut(&0).unwrap();
             assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
@@ -2208,7 +2189,7 @@ pub mod delisting_test {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -2293,9 +2274,9 @@ pub mod delisting_test {
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
-                use_for_liquidations: true,
-                padding: [0; 7],
             },
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
             ..State::default()
         };
 
@@ -2311,7 +2292,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
-        assert_eq!(margin_requirement, 1005000000);
+        assert_eq!(margin_requirement, 1005010000);
 
         // put in settlement mode
         settle_expired_market(
@@ -2508,6 +2489,8 @@ pub mod delisting_test {
                 clock.unix_timestamp,
                 clock.slot,
                 10,
+                PERCENTAGE_PRECISION,
+                150,
             )
             .unwrap();
 
@@ -2595,6 +2578,8 @@ pub mod delisting_test {
                 clock.unix_timestamp,
                 clock.slot,
                 10,
+                PERCENTAGE_PRECISION,
+                150,
             )
             .unwrap();
 
@@ -2769,7 +2754,7 @@ pub mod delisting_test {
                 .unwrap();
 
             assert_eq!(total_collateral, 20000000000);
-            assert_eq!(margin_requirement, 0);
+            assert_eq!(margin_requirement, 10000);
             assert_eq!(longer.spot_positions[0].scaled_balance, 20000000000000);
             assert_eq!(longer.perp_positions[0].last_cumulative_funding_rate, 0);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);

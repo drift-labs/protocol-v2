@@ -300,9 +300,28 @@ export class DriftClient {
 		return this.accountSubscriber.getStateAccountAndSlot().data;
 	}
 
+	/**
+	 * Forces a fetch to rpc before returning accounts. Useful for anchor tests.
+	 */
+	public async forceGetStateAccount(): Promise<StateAccount> {
+		await this.accountSubscriber.fetch();
+		return this.accountSubscriber.getStateAccountAndSlot().data;
+	}
+
 	public getPerpMarketAccount(
 		marketIndex: number
 	): PerpMarketAccount | undefined {
+		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
+	}
+
+	/**
+	 * Forces a fetch to rpc before returning accounts. Useful for anchor tests.
+	 * @param marketIndex
+	 */
+	public async forceGetPerpMarketAccount(
+		marketIndex: number
+	): Promise<PerpMarketAccount | undefined> {
+		await this.accountSubscriber.fetch();
 		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
 	}
 
@@ -315,6 +334,17 @@ export class DriftClient {
 	public getSpotMarketAccount(
 		marketIndex: number
 	): SpotMarketAccount | undefined {
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+	}
+
+	/**
+	 * Forces a fetch to rpc before returning accounts. Useful for anchor tests.
+	 * @param marketIndex
+	 */
+	public async forceGetSpotMarketAccount(
+		marketIndex: number
+	): Promise<SpotMarketAccount | undefined> {
+		await this.accountSubscriber.fetch();
 		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
 	}
 
@@ -556,6 +586,27 @@ export class DriftClient {
 		);
 	}
 
+	public async updateUserMarginTradingEnabled(
+		marginTradingEnabled: boolean,
+		subAccountId = 0
+	): Promise<TransactionSignature> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			subAccountId
+		);
+		return await this.program.rpc.updateUserMarginTradingEnabled(
+			subAccountId,
+			marginTradingEnabled,
+			{
+				accounts: {
+					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+	}
+
 	public async updateUserDelegate(
 		delegate: PublicKey,
 		subAccountId = 0
@@ -660,6 +711,17 @@ export class DriftClient {
 	}
 
 	public getUserAccount(subAccountId?: number): UserAccount | undefined {
+		return this.getUser(subAccountId).getUserAccount();
+	}
+
+	/**
+	 * Forces a fetch to rpc before returning accounts. Useful for anchor tests.
+	 * @param subAccountId
+	 */
+	public async forceGetUserAccount(
+		subAccountId?: number
+	): Promise<UserAccount | undefined> {
+		await this.getUser(subAccountId).fetchAccounts();
 		return this.getUser(subAccountId).getUserAccount();
 	}
 
@@ -867,7 +929,7 @@ export class DriftClient {
 						!spotPosition.openAsks.eq(ZERO) ||
 						!spotPosition.openBids.eq(ZERO)
 					) {
-						spotMarketAccountMap.set(spotPosition.marketIndex, {
+						spotMarketAccountMap.set(QUOTE_SPOT_MARKET_INDEX, {
 							pubkey: this.getQuoteSpotMarketAccount().pubkey,
 							isSigner: false,
 							isWritable: false,
@@ -1679,22 +1741,29 @@ export class DriftClient {
 	 * @param orderParams
 	 * @param userAccountPublicKey
 	 * @param userAccount
+	 * @param makerInfo
 	 * @returns
 	 */
 	public async sendMarketOrderAndGetSignedFillTx(
 		orderParams: OptionalOrderParams,
 		userAccountPublicKey: PublicKey,
-		userAccount: UserAccount
+		userAccount: UserAccount,
+		makerInfo?: MakerInfo
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
 
 		const marketOrderTx = wrapInTx(await this.getPlacePerpOrderIx(orderParams));
 		const fillTx = wrapInTx(
-			await this.getFillPerpOrderIx(userAccountPublicKey, userAccount, {
-				orderId,
-				marketIndex,
-			})
+			await this.getFillPerpOrderIx(
+				userAccountPublicKey,
+				userAccount,
+				{
+					orderId,
+					marketIndex,
+				},
+				makerInfo
+			)
 		);
 
 		// Apply the latest blockhash to the txs so that we can sign before sending them

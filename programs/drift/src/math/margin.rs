@@ -209,13 +209,17 @@ pub fn calculate_perp_position_value_and_pnl(
         margin_requirement_type,
     )?);
 
-    let margin_requirement = if market.status == MarketStatus::Settlement {
+    let mut margin_requirement = if market.status == MarketStatus::Settlement {
         0
     } else {
         worse_case_base_asset_value
             .safe_mul(margin_ratio.cast()?)?
             .safe_div(MARGIN_PRECISION_U128)?
     };
+
+    // add small margin requirement for every open order
+    margin_requirement =
+        margin_requirement.safe_add(market_position.margin_requirement_for_open_orders()?)?;
 
     let unrealized_asset_weight =
         market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
@@ -358,9 +362,12 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 get_token_value(
                     worst_case_token_amount,
                     spot_market.decimals,
-                    oracle_price_data,
+                    oracle_price_data.price,
                 )?
             };
+
+            margin_requirement =
+                margin_requirement.safe_add(spot_position.margin_requirement_for_open_orders()?)?;
 
             match worst_case_token_amount.cmp(&0) {
                 Ordering::Greater => {
@@ -421,7 +428,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     num_spot_liabilities += 1;
                     with_isolated_liability &= spot_market.asset_tier == AssetTier::Isolated;
                 }
-                Ordering::Equal => {}
+                Ordering::Equal => {
+                    if spot_position.has_open_order() {
+                        num_spot_liabilities += 1;
+                    }
+                }
             }
 
             match worst_cast_quote_token_amount.cmp(&0) {
@@ -495,7 +506,10 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         total_collateral = total_collateral.safe_add(weighted_pnl)?;
 
-        if market_position.base_asset_amount != 0 || market_position.quote_asset_amount < 0 {
+        if market_position.base_asset_amount != 0
+            || market_position.quote_asset_amount < 0
+            || market_position.has_open_order()
+        {
             num_perp_liabilities += 1;
         }
 
@@ -798,7 +812,7 @@ pub fn validate_spot_margin_trading(
             let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
             let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
             let open_bids_value =
-                get_token_value(-bids as i128, spot_market.decimals, oracle_price_data)?;
+                get_token_value(-bids as i128, spot_market.decimals, oracle_price_data.price)?;
 
             total_open_bids_value = total_open_bids_value.safe_add(open_bids_value)?;
         }

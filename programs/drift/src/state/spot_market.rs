@@ -244,6 +244,7 @@ impl SpotMarket {
             initial_asset_weight: 8000,
             maintenance_asset_weight: 9000,
             decimals: 9,
+            order_step_size: 1,
             order_tick_size: 1,
             status: MarketStatus::Active,
             ..SpotMarket::default()
@@ -318,19 +319,19 @@ pub struct SerumV3FulfillmentConfig {
     pub serum_signer_nonce: u64,
     pub market_index: u16,
     pub fulfillment_type: SpotFulfillmentType,
-    pub status: SpotFulfillmentStatus,
+    pub status: SpotFulfillmentConfigStatus,
     pub padding: [u8; 4],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
-pub enum SpotFulfillmentStatus {
+pub enum SpotFulfillmentConfigStatus {
     Enabled,
     Disabled,
 }
 
-impl Default for SpotFulfillmentStatus {
+impl Default for SpotFulfillmentConfigStatus {
     fn default() -> Self {
-        SpotFulfillmentStatus::Enabled
+        SpotFulfillmentConfigStatus::Enabled
     }
 }
 

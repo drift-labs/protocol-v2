@@ -7,27 +7,20 @@ use crate::math::constants::{BID_ASK_SPREAD_PRECISION_I128, TEN_BPS_I64};
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::safe_math::SafeMath;
 
-use crate::math::auction::is_auction_complete;
 use crate::state::user::Order;
 
 #[cfg(test)]
 mod tests;
 
 #[allow(clippy::if_same_then_else)]
-pub fn is_maker_for_taker(
-    maker_order: &Order,
-    taker_order: &Order,
-    slot: u64,
-) -> DriftResult<bool> {
+pub fn is_maker_for_taker(maker_order: &Order, taker_order: &Order) -> DriftResult<bool> {
     if taker_order.post_only {
         Err(ErrorCode::CantMatchTwoPostOnlys)
     } else if maker_order.post_only && !taker_order.post_only {
         Ok(true)
     } else if maker_order.is_limit_order() && taker_order.is_market_order() {
         Ok(true)
-    } else if maker_order.is_market_order()
-        && is_auction_complete(maker_order.slot, maker_order.auction_duration, slot)?
-    {
+    } else if maker_order.is_market_order() {
         Ok(false)
     } else {
         Ok(maker_order.slot < taker_order.slot)

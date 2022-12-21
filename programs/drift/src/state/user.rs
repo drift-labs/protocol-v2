@@ -1,10 +1,11 @@
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
+use crate::get_then_update_id;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, PRICE_PRECISION_I128,
-    QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT,
+    PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::orders::standardize_price;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
@@ -20,6 +21,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 use std::cmp::max;
+use std::panic::Location;
 
 #[cfg(test)]
 mod tests;
@@ -56,8 +58,8 @@ pub struct User {
     // Fees (taker fees, maker rebate, filler reward) for spot
     pub cumulative_spot_fees: i64,
     pub cumulative_perp_funding: i64,
-    pub liquidation_margin_freed: u64, // currently unimplemented
-    pub liquidation_start_ts: i64,     // currently unimplemented
+    pub liquidation_margin_freed: u64,
+    pub liquidation_start_slot: u64,
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
@@ -173,7 +175,7 @@ impl User {
     pub fn get_order_index(&self, order_id: u32) -> DriftResult<usize> {
         self.orders
             .iter()
-            .position(|order| order.order_id == order_id)
+            .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
             .ok_or(ErrorCode::OrderDoesNotExist)
     }
 
@@ -234,6 +236,38 @@ impl User {
 
     pub fn update_cumulative_perp_funding(&mut self, amount: i64) -> DriftResult {
         safe_increment!(self.cumulative_perp_funding, amount);
+        Ok(())
+    }
+
+    pub fn enter_liquidation(&mut self, slot: u64) -> DriftResult<u16> {
+        if self.is_being_liquidated() {
+            return self.next_liquidation_id.safe_sub(1);
+        }
+
+        self.status = UserStatus::BeingLiquidated;
+        self.liquidation_margin_freed = 0;
+        self.liquidation_start_slot = slot;
+        Ok(get_then_update_id!(self, next_liquidation_id))
+    }
+
+    pub fn exit_liquidation(&mut self) {
+        self.status = UserStatus::Active;
+        self.liquidation_margin_freed = 0;
+        self.liquidation_start_slot = 0;
+    }
+
+    pub fn enter_bankruptcy(&mut self) {
+        self.status = UserStatus::Bankrupt;
+    }
+
+    pub fn exit_bankruptcy(&mut self) {
+        self.status = UserStatus::Active;
+        self.liquidation_margin_freed = 0;
+        self.liquidation_start_slot = 0;
+    }
+
+    pub fn increment_margin_freed(&mut self, margin_free: u64) -> DriftResult {
+        self.liquidation_margin_freed = self.liquidation_margin_freed.safe_add(margin_free)?;
         Ok(())
     }
 }
@@ -298,6 +332,16 @@ impl SpotPosition {
         self.scaled_balance == 0 && self.open_orders == 0
     }
 
+    pub fn has_open_order(&self) -> bool {
+        self.open_orders != 0 || self.open_bids != 0 || self.open_asks != 0
+    }
+
+    pub fn margin_requirement_for_open_orders(&self) -> DriftResult<u128> {
+        self.open_orders
+            .cast::<u128>()?
+            .safe_mul(OPEN_ORDER_MARGIN_REQUIREMENT)
+    }
+
     pub fn get_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
         get_token_amount(self.scaled_balance.cast()?, spot_market, &self.balance_type)
     }
@@ -328,14 +372,14 @@ impl SpotPosition {
             let worst_case_quote_token_amount = get_token_value(
                 -self.open_bids as i128,
                 spot_market.decimals,
-                oracle_price_data,
+                oracle_price_data.price,
             )?;
             Ok((token_amount_all_bids_fill, worst_case_quote_token_amount))
         } else {
             let worst_case_quote_token_amount = get_token_value(
                 -self.open_asks as i128,
                 spot_market.decimals,
-                oracle_price_data,
+                oracle_price_data.price,
             )?;
             Ok((token_amount_all_asks_fill, worst_case_quote_token_amount))
         }
@@ -355,8 +399,8 @@ pub struct PerpPosition {
     pub open_asks: i64,
     pub settled_pnl: i64,
     pub lp_shares: u64,
-    pub last_net_base_asset_amount_per_lp: i64,
-    pub last_net_quote_asset_amount_per_lp: i64,
+    pub last_base_asset_amount_per_lp: i64,
+    pub last_quote_asset_amount_per_lp: i64,
     pub remainder_base_asset_amount: i32,
     pub market_index: u16,
     pub open_orders: u8,
@@ -381,6 +425,12 @@ impl PerpPosition {
 
     pub fn has_open_order(&self) -> bool {
         self.open_orders != 0 || self.open_bids != 0 || self.open_asks != 0
+    }
+
+    pub fn margin_requirement_for_open_orders(&self) -> DriftResult<u128> {
+        self.open_orders
+            .cast::<u128>()?
+            .safe_mul(OPEN_ORDER_MARGIN_REQUIREMENT)
     }
 
     pub fn is_lp(&self) -> bool {
@@ -475,8 +525,8 @@ pub struct Order {
     pub base_asset_amount_filled: u64,
     pub quote_asset_amount_filled: u64,
     pub trigger_price: u64,
-    pub auction_start_price: u64,
-    pub auction_end_price: u64,
+    pub auction_start_price: i64,
+    pub auction_end_price: i64,
     pub max_ts: i64,
     pub oracle_price_offset: i32,
     pub order_id: u32,
@@ -506,72 +556,70 @@ impl Order {
         self.oracle_price_offset != 0
     }
 
-    /// Always returns a price, even if order.price is 0, which can be the case for market orders
     pub fn get_limit_price(
         &self,
         valid_oracle_price: Option<i64>,
+        fallback_price: Option<u64>,
         slot: u64,
         tick_size: u64,
-    ) -> DriftResult<u64> {
-        // the limit price can be hardcoded on order or derived based on oracle/slot
-        let price = if self.has_oracle_price_offset() {
-            if let Some(oracle_price) = valid_oracle_price {
-                let limit_price = oracle_price.safe_add(self.oracle_price_offset.cast()?)?;
-
-                if limit_price <= 0 {
-                    msg!("Oracle offset limit price below zero: {}", limit_price);
-                    return Err(crate::error::ErrorCode::InvalidOracleOffset);
-                }
-
-                standardize_price(limit_price.cast::<u64>()?, tick_size, self.direction)?
-            } else {
+    ) -> DriftResult<Option<u64>> {
+        let price = if self.has_auction_price(self.slot, self.auction_duration, slot)? {
+            Some(calculate_auction_price(
+                self,
+                slot,
+                tick_size,
+                valid_oracle_price,
+            )?)
+        } else if self.has_oracle_price_offset() {
+            let oracle_price = valid_oracle_price.ok_or_else(|| {
                 msg!("Could not find oracle too calculate oracle offset limit price");
-                return Err(crate::error::ErrorCode::OracleNotFound);
+                ErrorCode::OracleNotFound
+            })?;
+
+            let limit_price = oracle_price.safe_add(self.oracle_price_offset.cast()?)?;
+
+            if limit_price <= 0 {
+                msg!("Oracle offset limit price below zero: {}", limit_price);
+                return Err(crate::error::ErrorCode::InvalidOracleOffset);
             }
-        } else if matches!(
-            self.order_type,
-            OrderType::Market | OrderType::TriggerMarket
-        ) {
-            if !is_auction_complete(self.slot, self.auction_duration, slot)? {
-                calculate_auction_price(self, slot, tick_size)?
-            } else if self.price != 0 {
-                self.price
-            } else {
-                let oracle_price = valid_oracle_price
-                    .ok_or_else(|| {
-                        msg!("No oracle found to generate dynamic limit price");
-                        ErrorCode::OracleNotFound
-                    })?
-                    .unsigned_abs();
 
-                let oracle_price_1pct = oracle_price / 100;
-
-                let price = match self.direction {
-                    PositionDirection::Long => oracle_price.safe_add(oracle_price_1pct)?,
-                    PositionDirection::Short => oracle_price.safe_sub(oracle_price_1pct)?,
-                };
-
-                standardize_price(price.cast()?, tick_size, self.direction)?
+            Some(standardize_price(
+                limit_price.cast::<u64>()?,
+                tick_size,
+                self.direction,
+            )?)
+        } else if self.price == 0 {
+            match fallback_price {
+                Some(price) => Some(standardize_price(price, tick_size, self.direction)?),
+                None => None,
             }
         } else {
-            self.price
+            Some(self.price)
         };
 
         Ok(price)
     }
 
-    /// Unlike get_limit_price, returns None if order.price is 0, which can be the case for market orders
-    pub fn get_optional_limit_price(
+    #[track_caller]
+    #[inline(always)]
+    pub fn force_get_limit_price(
         &self,
         valid_oracle_price: Option<i64>,
+        fallback_price: Option<u64>,
         slot: u64,
         tick_size: u64,
-    ) -> DriftResult<Option<u64>> {
-        if self.has_limit_price(slot)? {
-            self.get_limit_price(valid_oracle_price, slot, tick_size)
-                .map(Some)
-        } else {
-            Ok(None)
+    ) -> DriftResult<u64> {
+        match self.get_limit_price(valid_oracle_price, fallback_price, slot, tick_size)? {
+            Some(price) => Ok(price),
+            None => {
+                let caller = Location::caller();
+                msg!(
+                    "Could not get limit price at {}:{}",
+                    caller.file(),
+                    caller.line()
+                );
+                Err(ErrorCode::UnableToGetLimitPrice)
+            }
         }
     }
 
@@ -581,9 +629,62 @@ impl Order {
             || !is_auction_complete(self.slot, self.auction_duration, slot)?)
     }
 
-    pub fn get_base_asset_amount_unfilled(&self) -> DriftResult<u64> {
-        self.base_asset_amount
-            .safe_sub(self.base_asset_amount_filled)
+    pub fn is_auction_complete(self, slot: u64) -> DriftResult<bool> {
+        is_auction_complete(self.slot, self.auction_duration, slot)
+    }
+
+    pub fn has_auction_price(
+        &self,
+        order_slot: u64,
+        auction_duration: u8,
+        slot: u64,
+    ) -> DriftResult<bool> {
+        let has_auction_price =
+            self.is_market_order() && !is_auction_complete(order_slot, auction_duration, slot)?;
+        Ok(has_auction_price)
+    }
+
+    /// Passing in an existing_position forces the function to consider the order's reduce only status
+    pub fn get_base_asset_amount_unfilled(
+        &self,
+        existing_position: Option<i64>,
+    ) -> DriftResult<u64> {
+        let base_asset_amount_unfilled = self
+            .base_asset_amount
+            .safe_sub(self.base_asset_amount_filled)?;
+
+        let existing_position = match existing_position {
+            Some(existing_position) => existing_position,
+            None => {
+                return Ok(base_asset_amount_unfilled);
+            }
+        };
+
+        // if order is post only, can disregard reduce only
+        if !self.reduce_only || self.post_only {
+            return Ok(base_asset_amount_unfilled);
+        }
+
+        if existing_position == 0 {
+            return Ok(0);
+        }
+
+        match self.direction {
+            PositionDirection::Long => {
+                if existing_position > 0 {
+                    Ok(0)
+                } else {
+                    Ok(base_asset_amount_unfilled.min(existing_position.unsigned_abs()))
+                }
+            }
+            PositionDirection::Short => {
+                if existing_position < 0 {
+                    Ok(0)
+                } else {
+                    Ok(base_asset_amount_unfilled.min(existing_position.unsigned_abs()))
+                }
+            }
+        }
     }
 
     pub fn must_be_triggered(&self) -> bool {
@@ -622,7 +723,7 @@ impl Order {
     pub fn is_market_order(&self) -> bool {
         matches!(
             self.order_type,
-            OrderType::Market | OrderType::TriggerMarket
+            OrderType::Market | OrderType::TriggerMarket | OrderType::Oracle
         )
     }
 
@@ -676,6 +777,7 @@ pub enum OrderType {
     Limit,
     TriggerMarket,
     TriggerLimit,
+    Oracle,
 }
 
 impl Default for OrderType {

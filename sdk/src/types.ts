@@ -83,6 +83,7 @@ export class OrderType {
 	static readonly TRIGGER_MARKET = { triggerMarket: {} };
 	static readonly TRIGGER_LIMIT = { triggerLimit: {} };
 	static readonly MARKET = { market: {} };
+	static readonly ORACLE = { oracle: {} };
 }
 
 export declare type MarketTypeStr = 'perp' | 'spot';
@@ -122,13 +123,16 @@ export class OrderActionExplanation {
 		liquidation: {},
 	};
 	static readonly ORDER_FILLED_WITH_AMM = {
-		orderFilledWithAMM: {},
+		orderFilledWithAmm: {},
 	};
 	static readonly ORDER_FILLED_WITH_AMM_JIT = {
-		orderFilledWithAMMJit: {},
+		orderFilledWithAmmJit: {},
 	};
 	static readonly ORDER_FILLED_WITH_MATCH = {
 		orderFilledWithMatch: {},
+	};
+	static readonly ORDER_FILLED_WITH_MATCH_JIT = {
+		orderFilledWithMatchJit: {},
 	};
 	static readonly MARKET_EXPIRED = {
 		marketExpired: {},
@@ -138,6 +142,9 @@ export class OrderActionExplanation {
 	};
 	static readonly ORDER_FILLED_WITH_SERUM = {
 		orderFillWithSerum: {},
+	};
+	static readonly REDUCE_ONLY_ORDER_INCREASED_POSITION = {
+		reduceOnlyOrderIncreasedPosition: {},
 	};
 }
 
@@ -165,6 +172,11 @@ export class DepositExplanation {
 export class SettlePnlExplanation {
 	static readonly NONE = { none: {} };
 	static readonly EXPIRED_POSITION = { expiredPosition: {} };
+}
+
+export class SpotFulfillmentConfigStatus {
+	static readonly ENABLED = { enabled: {} };
+	static readonly DISABLED = { disabled: {} };
 }
 
 export class StakeAction {
@@ -364,7 +376,6 @@ export type LiquidationRecord = {
 
 export class LiquidationType {
 	static readonly LIQUIDATE_PERP = { liquidatePerp: {} };
-	static readonly LIQUIDATE_BORROW = { liquidateBorrow: {} };
 	static readonly LIQUIDATE_BORROW_FOR_PERP_PNL = {
 		liquidateBorrowForPerpPnl: {},
 	};
@@ -376,6 +387,9 @@ export class LiquidationType {
 	};
 	static readonly BORROW_BANKRUPTCY = {
 		borrowBankruptcy: {},
+	};
+	static readonly LIQUIDATE_SPOT = {
+		liquidateSpot: {},
 	};
 }
 
@@ -506,6 +520,8 @@ export type StateAccount = {
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
 	lpCooldownTime: BN;
+	initialPctToLiquidate: number;
+	liquidationDuration: number;
 };
 
 export type PerpMarketAccount = {
@@ -732,8 +748,8 @@ export type PerpPosition = {
 	settledPnl: BN;
 	lpShares: BN;
 	remainderBaseAssetAmount: number;
-	lastNetBaseAssetAmountPerLp: BN;
-	lastNetQuoteAssetAmountPerLp: BN;
+	lastBaseAssetAmountPerLp: BN;
+	lastQuoteAssetAmountPerLp: BN;
 };
 
 export type UserStatsAccount = {
@@ -777,6 +793,9 @@ export type UserAccount = {
 	totalWithdraws: BN;
 	totalSocialLoss: BN;
 	cumulativePerpFunding: BN;
+	liquidationMarginFreed: BN;
+	liquidationStartSlot: BN;
+	isMarginTradingEnabled: boolean;
 };
 
 export type SpotPosition = {
@@ -932,7 +951,6 @@ export type OracleGuardRails = {
 		confidenceIntervalMaxSize: BN;
 		tooVolatileRatio: BN;
 	};
-	useForLiquidations: boolean;
 };
 
 export type MarginCategory = 'Initial' | 'Maintenance';

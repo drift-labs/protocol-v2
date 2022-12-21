@@ -11,9 +11,9 @@ watch_build = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c 
 watch_cargo = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c cargo test -- --show-output'
 
 [programs.localnet]
-drift = "4PzAUP84r19y2whicgTysCiqxw5aHabLHyDh3oJiAtqe"
-pyth = "gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s"
+drift = "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
+pyth = "FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"
 
 [[test.genesis]]
-address = "DESVgJVGajEgKGXhb6XmqDHGz3VjdgP7rEVESBgxmroY"
-program = "./deps/serum-dex/dex/target/deploy/serum_dex.so"
+address = "srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"
+program = "./deps/serum_dex.so"

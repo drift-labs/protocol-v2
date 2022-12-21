@@ -19,7 +19,7 @@ use crate::math::constants::{
     DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
     DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
     INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
-    MAX_CONCENTRATION_COEFFICIENT, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
     TWENTY_FOUR_HOUR,
 };
@@ -41,8 +41,8 @@ use crate::state::perp_market::{
 };
 use crate::state::serum::{load_open_orders, load_serum_market};
 use crate::state::spot_market::{
-    AssetTier, InsuranceFund, SerumV3FulfillmentConfig, SpotBalanceType, SpotFulfillmentStatus,
-    SpotMarket,
+    AssetTier, InsuranceFund, SerumV3FulfillmentConfig, SpotBalanceType,
+    SpotFulfillmentConfigStatus, SpotMarket,
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::validate;
@@ -77,7 +77,9 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         perp_fee_structure: FeeStructure::perps_default(),
         spot_fee_structure: FeeStructure::spot_default(),
         lp_cooldown_time: 0,
-        padding: [0; 17],
+        liquidation_duration: 0,
+        initial_pct_to_liquidate: 0,
+        padding: [0; 14],
     };
 
     Ok(())
@@ -390,7 +392,7 @@ pub fn handle_initialize_serum_fulfillment_config(
     let mut serum_fulfillment_config = ctx.accounts.serum_fulfillment_config.load_init()?;
     *serum_fulfillment_config = SerumV3FulfillmentConfig {
         fulfillment_type: SpotFulfillmentType::SerumV3,
-        status: SpotFulfillmentStatus::Enabled,
+        status: SpotFulfillmentConfigStatus::Enabled,
         pubkey: serum_fulfillment_config_key,
         market_index,
         serum_program_id,
@@ -406,6 +408,15 @@ pub fn handle_initialize_serum_fulfillment_config(
         padding: [0; 4],
     };
 
+    Ok(())
+}
+
+pub fn handle_update_serum_fulfillment_config_status(
+    ctx: Context<UpdateSerumFulfillmentConfig>,
+    status: SpotFulfillmentConfigStatus,
+) -> Result<()> {
+    let mut config = load_mut!(ctx.accounts.serum_fulfillment_config)?;
+    config.status = status;
     Ok(())
 }
 
@@ -783,20 +794,6 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         escrow_period_before_transfer
     )?;
 
-    let depositors_amount_before: u64 = get_token_amount(
-        spot_market.deposit_balance,
-        spot_market,
-        &SpotBalanceType::Deposit,
-    )?
-    .cast()?;
-
-    let borrowers_amount_before: u64 = get_token_amount(
-        spot_market.borrow_balance,
-        spot_market,
-        &SpotBalanceType::Borrow,
-    )?
-    .cast()?;
-
     let fee_pool_token_amount = get_token_amount(
         perp_market.amm.fee_pool.scaled_balance,
         spot_market,
@@ -828,27 +825,6 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         pnl_pool_token_amount.safe_add(fee_pool_token_amount)?,
         &SpotBalanceType::Deposit,
         spot_market,
-    )?;
-
-    let depositors_amount_after: u64 = get_token_amount(
-        spot_market.deposit_balance,
-        spot_market,
-        &SpotBalanceType::Deposit,
-    )?
-    .cast()?;
-
-    let borrowers_amount_after: u64 = get_token_amount(
-        spot_market.borrow_balance,
-        spot_market,
-        &SpotBalanceType::Borrow,
-    )?
-    .cast()?;
-
-    validate!(
-        borrowers_amount_before == borrowers_amount_after
-            && depositors_amount_before == depositors_amount_after,
-        ErrorCode::DefaultError,
-        "Bank token balances must be equal before and after"
     )?;
 
     math::spot_withdraw::validate_spot_balances(spot_market)?;
@@ -1078,6 +1054,21 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
             return Err(ErrorCode::InvalidUpdateK.into());
         }
     }
+
+    validate!(
+        perp_market.amm.sqrt_k < MAX_SQRT_K,
+        ErrorCode::InvalidUpdateK,
+        "cannot increase sqrt_k={} past MAX_SQRT_K",
+        perp_market.amm.sqrt_k
+    )?;
+
+    validate!(
+        perp_market.amm.sqrt_k > perp_market.amm.user_lp_shares,
+        ErrorCode::InvalidUpdateK,
+        "cannot decrease sqrt_k={} below user_lp_shares={}",
+        perp_market.amm.sqrt_k,
+        perp_market.amm.user_lp_shares
+    )?;
 
     perp_market.amm.total_fee_minus_distributions = perp_market
         .amm
@@ -1691,6 +1682,22 @@ pub fn handle_update_spot_fee_structure(
     Ok(())
 }
 
+pub fn handle_update_initial_pct_to_liquidate(
+    ctx: Context<AdminUpdateState>,
+    initial_pct_to_liquidate: u16,
+) -> Result<()> {
+    ctx.accounts.state.initial_pct_to_liquidate = initial_pct_to_liquidate;
+    Ok(())
+}
+
+pub fn handle_update_liquidation_duration(
+    ctx: Context<AdminUpdateState>,
+    liquidation_duration: u8,
+) -> Result<()> {
+    ctx.accounts.state.liquidation_duration = liquidation_duration;
+    Ok(())
+}
+
 pub fn handle_update_oracle_guard_rails(
     ctx: Context<AdminUpdateState>,
     oracle_guard_rails: OracleGuardRails,
@@ -2100,6 +2107,18 @@ pub struct InitializeSerumFulfillmentConfig<'info> {
     pub admin: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateSerumFulfillmentConfig<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub serum_fulfillment_config: AccountLoader<'info, SerumV3FulfillmentConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
 }
 
 #[derive(Accounts)]

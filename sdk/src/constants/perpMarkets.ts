@@ -46,9 +46,40 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 	},
 ];
 
-export const MainnetMarkets: PerpMarketConfig[] = [];
+export const MainnetPerpMarkets: PerpMarketConfig[] = [
+	{
+		fullName: 'Solana',
+		category: ['L1', 'Infra'],
+		symbol: 'SOL-PERP',
+		baseAssetSymbol: 'SOL',
+		marketIndex: 0,
+		oracle: new PublicKey('H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG'),
+		launchTs: 1667560505000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Bitcoin',
+		category: ['L1', 'Payment'],
+		symbol: 'BTC-PERP',
+		baseAssetSymbol: 'BTC',
+		marketIndex: 1,
+		oracle: new PublicKey('GVXRSBjFk6e6J3NbVPXohDJetcTjaeeuykUpbQF8UoMU'),
+		launchTs: 1670347281000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Ethereum',
+		category: ['L1', 'Infra'],
+		symbol: 'ETH-PERP',
+		baseAssetSymbol: 'ETH',
+		marketIndex: 2,
+		oracle: new PublicKey('JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB'),
+		launchTs: 1670347281000,
+		oracleSource: OracleSource.PYTH,
+	},
+];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
 	devnet: DevnetPerpMarkets,
-	'mainnet-beta': [],
+	'mainnet-beta': MainnetPerpMarkets,
 };

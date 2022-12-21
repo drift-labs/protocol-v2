@@ -1,7 +1,7 @@
 <div align="center">
   <img height="120x" src="https://uploads-ssl.webflow.com/611580035ad59b20437eb024/616f97a42f5637c4517d0193_Logo%20(1)%20(1).png" />
 
-  <h1 style="margin-top:20px;">Drift Protocol v1</h1>
+  <h1 style="margin-top:20px;">Drift Protocol v2</h1>
 
   <p>
     <a href="https://www.npmjs.com/package/@drift-labs/sdk"><img alt="SDK npm package" src="https://img.shields.io/npm/v/@drift-labs/sdk" /></a>
@@ -11,13 +11,13 @@
   </p>
 </div>
 
-# Drift Protocol v1
+# Drift Protocol v2
 
 This repository provides open source access to Drift's Typescript SDK, Solana Programs, and more.
 
 # SDK Guide
 
-The technical documentation for the SDK can be found [here](https://drift-labs.github.io/protocol-v1/sdk/), and you can visit Drift's general purpose documentation [here](https://docs.drift.trade/drift-sdk-documentation).
+The technical documentation for the SDK can be found [here](https://drift-labs.github.io/protocol-v2/sdk/), and you can visit Drift's general purpose documentation [here](https://docs.drift.trade/sdk-documentation).
 
 ## Installation
 
@@ -142,9 +142,7 @@ const main = async () => {
 	);
 
 	// Set up the Drift Client
-	const driftClientPublicKey = new PublicKey(
-		sdkConfig.CLEARING_HOUSE_PROGRAM_ID
-	);
+	const driftClientPublicKey = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
 	const driftClient = DriftClient.from(
 		connection,
 		provider.wallet,
@@ -230,3 +228,4 @@ Drift Protocol v1 is licensed under [Apache 2.0](./LICENSE).
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in Drift SDK by you, as defined in the Apache-2.0 license, shall be
 licensed as above, without any additional terms or conditions.
+

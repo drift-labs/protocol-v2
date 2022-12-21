@@ -1,8 +1,8 @@
 import { PublicKey } from '@solana/web3.js';
 import { BN, DriftEnv, OracleSource } from '../';
 import {
-	SPOT_MARKET_BALANCE_PRECISION,
-	SPOT_MARKET_BALANCE_PRECISION_EXP,
+	QUOTE_PRECISION,
+	QUOTE_PRECISION_EXP,
 	LAMPORTS_EXP,
 	LAMPORTS_PRECISION,
 	SIX,
@@ -62,8 +62,18 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		oracle: PublicKey.default,
 		oracleSource: OracleSource.QUOTE_ASSET,
 		mint: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
-		precision: SPOT_MARKET_BALANCE_PRECISION,
-		precisionExp: SPOT_MARKET_BALANCE_PRECISION_EXP,
+		precision: QUOTE_PRECISION,
+		precisionExp: QUOTE_PRECISION_EXP,
+	},
+	{
+		symbol: 'SOL',
+		marketIndex: 1,
+		oracle: new PublicKey('H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey(WRAPPED_SOL_MINT),
+		precision: LAMPORTS_PRECISION,
+		precisionExp: LAMPORTS_EXP,
+		serumMarket: new PublicKey('8BnEgHoWFysVcuFFX7QztDmzuH8r5ZFvyP3sYwn1XTh6'),
 	},
 ];
 

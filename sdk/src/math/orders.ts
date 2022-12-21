@@ -3,6 +3,7 @@ import {
 	isOneOfVariant,
 	isVariant,
 	PerpMarketAccount,
+	AMM,
 	Order,
 	PositionDirection,
 } from '../types';
@@ -13,6 +14,7 @@ import { getAuctionPrice, isAuctionComplete } from './auction';
 import {
 	calculateMaxBaseAssetAmountFillable,
 	calculateMaxBaseAssetAmountToTrade,
+	calculateUpdatedAMM,
 } from './amm';
 
 export function isOrderRiskIncreasing(user: User, order: Order): boolean {
@@ -125,42 +127,21 @@ export function standardizeBaseAssetAmount(
 export function getLimitPrice(
 	order: Order,
 	oraclePriceData: OraclePriceData,
-	slot: number
-): BN {
+	slot: number,
+	fallbackPrice?: BN
+): BN | undefined {
 	let limitPrice;
-	if (order.oraclePriceOffset !== 0) {
+	if (hasAuctionPrice(order, slot)) {
+		limitPrice = getAuctionPrice(order, slot, oraclePriceData.price);
+	} else if (order.oraclePriceOffset !== 0) {
 		limitPrice = oraclePriceData.price.add(new BN(order.oraclePriceOffset));
-	} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
-		if (!isAuctionComplete(order, slot)) {
-			limitPrice = getAuctionPrice(order, slot);
-		} else if (!order.price.eq(ZERO)) {
-			limitPrice = order.price;
-		} else {
-			// check oracle validity?
-			const oraclePrice1Pct = oraclePriceData.price.div(new BN(100));
-			if (isVariant(order.direction, 'long')) {
-				limitPrice = oraclePriceData.price.add(oraclePrice1Pct);
-			} else {
-				limitPrice = oraclePriceData.price.sub(oraclePrice1Pct);
-			}
-		}
+	} else if (order.price.eq(ZERO)) {
+		limitPrice = fallbackPrice;
 	} else {
 		limitPrice = order.price;
 	}
 
 	return limitPrice;
-}
-
-export function getOptionalLimitPrice(
-	order: Order,
-	oraclePriceData: OraclePriceData,
-	slot: number
-): BN | undefined {
-	if (hasLimitPrice(order, slot)) {
-		return getLimitPrice(order, oraclePriceData, slot);
-	} else {
-		return undefined;
-	}
 }
 
 export function hasLimitPrice(order: Order, slot: number): boolean {
@@ -169,6 +150,10 @@ export function hasLimitPrice(order: Order, slot: number): boolean {
 		order.oraclePriceOffset != 0 ||
 		!isAuctionComplete(order, slot)
 	);
+}
+
+export function hasAuctionPrice(order: Order, slot: number): boolean {
+	return isMarketOrder(order) && !isAuctionComplete(order, slot);
 }
 
 export function isFillableByVAMM(
@@ -200,12 +185,14 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 		return ZERO;
 	}
 
-	const limitPrice = getOptionalLimitPrice(order, oraclePriceData, slot);
+	const limitPrice = getLimitPrice(order, oraclePriceData, slot);
 	let baseAssetAmount;
+
+	const updatedAMM = calculateUpdatedAMM(market.amm, oraclePriceData);
 	if (limitPrice !== undefined) {
 		baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
 			order,
-			market,
+			updatedAMM,
 			limitPrice,
 			oraclePriceData
 		);
@@ -214,7 +201,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 	}
 
 	const maxBaseAssetAmount = calculateMaxBaseAssetAmountFillable(
-		market.amm,
+		updatedAMM,
 		order.direction
 	);
 
@@ -223,12 +210,12 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 
 export function calculateBaseAssetAmountToFillUpToLimitPrice(
 	order: Order,
-	market: PerpMarketAccount,
+	amm: AMM,
 	limitPrice: BN,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
-		market.amm,
+		amm,
 		limitPrice,
 		order.direction,
 		oraclePriceData
@@ -236,7 +223,7 @@ export function calculateBaseAssetAmountToFillUpToLimitPrice(
 
 	const baseAssetAmount = standardizeBaseAssetAmount(
 		maxAmountToTrade,
-		market.amm.orderStepSize
+		amm.orderStepSize
 	);
 
 	// Check that directions are the same
@@ -265,7 +252,7 @@ function isSameDirection(
 
 export function isOrderExpired(order: Order, ts: number): boolean {
 	if (
-		isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']) ||
+		mustBeTriggered(order) ||
 		!isVariant(order.status, 'open') ||
 		order.maxTs.eq(ZERO)
 	) {
@@ -276,7 +263,7 @@ export function isOrderExpired(order: Order, ts: number): boolean {
 }
 
 export function isMarketOrder(order: Order): boolean {
-	return isOneOfVariant(order.orderType, ['market', 'triggerMarket']);
+	return isOneOfVariant(order.orderType, ['market', 'triggerMarket', 'oracle']);
 }
 
 export function isLimitOrder(order: Order): boolean {
@@ -288,5 +275,8 @@ export function mustBeTriggered(order: Order): boolean {
 }
 
 export function isTriggered(order: Order): boolean {
-	return isOneOfVariant(order.orderType, ['triggeredAbove', 'triggeredBelow']);
+	return isOneOfVariant(order.triggerCondition, [
+		'triggeredAbove',
+		'triggeredBelow',
+	]);
 }

@@ -1,13 +1,13 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "0.2.0-master.43",
+	"version": "2.8.0-beta.1",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
 	"homepage": "https://www.drift.trade/",
 	"repository": {
 		"type": "git",
-		"url": "git@github.com:drift-labs/protocol-v1.git"
+		"url": "git@github.com:drift-labs/protocol-v2.git"
 	},
 	"scripts": {
 		"lint": "eslint './**/*.{ts,tsx}' --quiet",
@@ -37,9 +37,8 @@
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "2.5.3",
 		"@solana/spl-token": "^0.1.6",
-		"@solana/web3.js": "1.41.0",
+		"@solana/web3.js": "1.66.2",
 		"@switchboard-xyz/switchboard-v2": "^0.0.67",
-		"async-mutex": "^0.4.0",
 		"strict-event-emitter-types": "^2.0.0",
 		"uuid": "^8.3.2"
 	},
@@ -57,7 +56,7 @@
 		"prettier": "^2.4.1",
 		"ts-node": "^10.8.0"
 	},
-	"description": "SDK for Drift Protocol v1",
+	"description": "SDK for Drift Protocol",
 	"engines": {
 		"node": ">=12"
 	}

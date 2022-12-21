@@ -16,7 +16,7 @@ use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     CONCENTRATION_PRECISION, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE,
-    PRICE_TO_PEG_PRECISION_RATIO,
+    MAX_SQRT_K, PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -29,7 +29,7 @@ use crate::state::events::CurveRecord;
 use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
-use crate::state::user::User;
+use crate::state::user::{SpotPosition, User};
 use crate::validate;
 
 #[cfg(test)]
@@ -206,9 +206,15 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u3
             amm.base_asset_amount_with_amm,
             reserve_price,
             amm.total_fee_minus_distributions,
+            amm.net_revenue_since_last_funding,
             amm.base_asset_reserve,
             amm.min_base_asset_reserve,
             amm.max_base_asset_reserve,
+            amm.mark_std,
+            amm.oracle_std,
+            amm.long_intensity_volume,
+            amm.short_intensity_volume,
+            amm.volume_24h,
         )?
     } else {
         let half_base_spread = amm.base_spread.safe_div(2)?;
@@ -303,16 +309,24 @@ pub fn formulaic_update_k(
         0
     };
 
-    if budget > 0 || (budget < 0 && market.amm.can_lower_k()?) {
-        // single k scale is capped by .1% increase and 2.2% decrease (regardless of budget)
-        let k_update_max = K_BPS_UPDATE_SCALE
+    if (budget > 0 && market.amm.sqrt_k < MAX_SQRT_K) || (budget < 0 && market.amm.can_lower_k()?) {
+        // single k scale is capped by .1% increase and .1% decrease (regardless of budget)
+        let k_pct_upper_bound = K_BPS_UPDATE_SCALE
             + MAX_K_BPS_INCREASE * (market.amm.curve_update_intensity as i128) / 100;
-        let (k_scale_numerator, k_scale_denominator) =
-            cp_curve::calculate_budgeted_k_scale(market, budget.cast::<i128>()?, k_update_max)?;
+        let k_pct_lower_bound = K_BPS_UPDATE_SCALE
+            - MAX_K_BPS_INCREASE * (market.amm.curve_update_intensity as i128) / 100;
+
+        let (k_scale_numerator, k_scale_denominator) = cp_curve::calculate_budgeted_k_scale(
+            market,
+            budget.cast::<i128>()?,
+            k_pct_upper_bound,
+            k_pct_lower_bound,
+        )?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .safe_mul(bn::U192::from(k_scale_numerator))?
-            .safe_div(bn::U192::from(k_scale_denominator))?;
+            .safe_div(bn::U192::from(k_scale_denominator))?
+            .max(bn::U192::from(market.amm.user_lp_shares.safe_add(1)?));
 
         let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 
@@ -370,6 +384,7 @@ pub fn get_fee_pool_tokens(
 pub fn update_pool_balances(
     market: &mut PerpMarket,
     spot_market: &mut SpotMarket,
+    user_quote_position: &SpotPosition,
     user_unsettled_pnl: i128,
     now: i64,
 ) -> DriftResult<i128> {
@@ -529,7 +544,17 @@ pub fn update_pool_balances(
     let pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
         min(user_unsettled_pnl, pnl_pool_token_amount.cast::<i128>()?)
     } else {
-        user_unsettled_pnl
+        let token_amount = user_quote_position.get_signed_token_amount(spot_market)?;
+
+        // dont settle negative pnl to spot borrows when utilization is high (> 80%)
+        let max_withdraw_amount =
+            -crate::math::orders::get_max_withdraw_for_market_with_token_amount(
+                token_amount,
+                spot_market,
+            )?
+            .cast::<i128>()?;
+
+        max_withdraw_amount.max(user_unsettled_pnl)
     };
 
     let pnl_fraction_for_amm = if fraction_for_amm > 0 && pnl_to_settle_with_user < 0 {

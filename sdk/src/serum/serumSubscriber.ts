@@ -46,7 +46,7 @@ export class SerumSubscriber {
 		this.asksAddress = this.market.asksAddress;
 		this.asks = await this.market.loadAsks(this.connection);
 
-		this.asksCallbackId = this.accountLoader.addAccount(
+		this.asksCallbackId = await this.accountLoader.addAccount(
 			this.asksAddress,
 			(buffer, slot) => {
 				this.lastAsksSlot = slot;
@@ -57,7 +57,7 @@ export class SerumSubscriber {
 		this.bidsAddress = this.market.bidsAddress;
 		this.bids = await this.market.loadBids(this.connection);
 
-		this.bidsCallbackId = this.accountLoader.addAccount(
+		this.bidsCallbackId = await this.accountLoader.addAccount(
 			this.bidsAddress,
 			(buffer, slot) => {
 				this.lastBidsSlot = slot;

@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "2.8.0-beta.1",
   "name": "drift",
   "instructions": [
     {
@@ -734,6 +734,31 @@
       ]
     },
     {
+      "name": "updateUserMarginTradingEnabled",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "marginTradingEnabled",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "updateUserDelegate",
       "accounts": [
         {
@@ -1407,7 +1432,7 @@
         },
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2042,6 +2067,34 @@
         {
           "name": "marketIndex",
           "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateSerumFulfillmentConfigStatus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "SpotFulfillmentConfigStatus"
+          }
         }
       ]
     },
@@ -3181,6 +3234,48 @@
       ]
     },
     {
+      "name": "updateInitialPctToLiquidate",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "initialPctToLiquidate",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateLiquidationDuration",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidationDuration",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateOracleGuardRails",
       "accounts": [
         {
@@ -4159,7 +4254,7 @@
           {
             "name": "status",
             "type": {
-              "defined": "SpotFulfillmentStatus"
+              "defined": "SpotFulfillmentConfigStatus"
             }
           },
           {
@@ -4268,11 +4363,19 @@
             }
           },
           {
+            "name": "liquidationDuration",
+            "type": "u8"
+          },
+          {
+            "name": "initialPctToLiquidate",
+            "type": "u16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                17
+                14
               ]
             }
           }
@@ -4367,8 +4470,8 @@
             "type": "u64"
           },
           {
-            "name": "liquidationStartTs",
-            "type": "i64"
+            "name": "liquidationStartSlot",
+            "type": "u64"
           },
           {
             "name": "nextOrderId",
@@ -4569,13 +4672,13 @@
           {
             "name": "auctionStartPrice",
             "type": {
-              "option": "u64"
+              "option": "i64"
             }
           },
           {
             "name": "auctionEndPrice",
             "type": {
-              "option": "u64"
+              "option": "i64"
             }
           }
         ]
@@ -5285,19 +5388,6 @@
             "type": {
               "defined": "ValidityGuardRails"
             }
-          },
-          {
-            "name": "useForLiquidations",
-            "type": "bool"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
           }
         ]
       }
@@ -5309,11 +5399,11 @@
         "fields": [
           {
             "name": "markOracleDivergenceNumerator",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "markOracleDivergenceDenominator",
-            "type": "u128"
+            "type": "u64"
           }
         ]
       }
@@ -5556,11 +5646,11 @@
             "type": "u64"
           },
           {
-            "name": "lastNetBaseAssetAmountPerLp",
+            "name": "lastBaseAssetAmountPerLp",
             "type": "i64"
           },
           {
-            "name": "lastNetQuoteAssetAmountPerLp",
+            "name": "lastQuoteAssetAmountPerLp",
             "type": "i64"
           },
           {
@@ -5618,11 +5708,11 @@
           },
           {
             "name": "auctionStartPrice",
-            "type": "u64"
+            "type": "i64"
           },
           {
             "name": "auctionEndPrice",
-            "type": "u64"
+            "type": "i64"
           },
           {
             "name": "maxTs",
@@ -5963,13 +6053,22 @@
             "name": "OrderFilledWithMatch"
           },
           {
+            "name": "OrderFilledWithMatchJit"
+          },
+          {
             "name": "MarketExpired"
           },
           {
             "name": "RiskingIncreasingOrder"
           },
           {
+            "name": "ReduceOnlyOrderIncreasedPosition"
+          },
+          {
             "name": "OrderFillWithSerum"
+          },
+          {
+            "name": "NoBorrowLiquidity"
           }
         ]
       }
@@ -6188,7 +6287,7 @@
       }
     },
     {
-      "name": "SpotFulfillmentStatus",
+      "name": "SpotFulfillmentConfigStatus",
       "type": {
         "kind": "enum",
         "variants": [
@@ -6320,6 +6419,9 @@
           },
           {
             "name": "TriggerLimit"
+          },
+          {
+            "name": "Oracle"
           }
         ]
       }
@@ -8390,6 +8492,41 @@
       "code": 6215,
       "name": "InvalidTriggerOrderCondition",
       "msg": "Invalid Trigger Order Condition"
+    },
+    {
+      "code": 6216,
+      "name": "InvalidSpotPosition",
+      "msg": "Invalid Spot Position"
+    },
+    {
+      "code": 6217,
+      "name": "CantTransferBetweenSameUserAccount",
+      "msg": "Cant transfer between same user account"
+    },
+    {
+      "code": 6218,
+      "name": "InvalidPerpPosition",
+      "msg": "Invalid Perp Position"
+    },
+    {
+      "code": 6219,
+      "name": "UnableToGetLimitPrice",
+      "msg": "Unable To Get Limit Price"
+    },
+    {
+      "code": 6220,
+      "name": "InvalidLiquidation",
+      "msg": "Invalid Liquidation"
+    },
+    {
+      "code": 6221,
+      "name": "SpotFulfillmentConfigDisabled",
+      "msg": "Spot Fulfullment Config Disabled"
+    },
+    {
+      "code": 6222,
+      "name": "InvalidMaker",
+      "msg": "Invalid Maker"
     }
   ]
 }

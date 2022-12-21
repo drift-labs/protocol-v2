@@ -164,3 +164,170 @@ mod calculate_auction_prices {
         assert_eq!(auction_end_price, 99999999);
     }
 }
+
+mod calculate_auction_price {
+    use crate::math::auction::calculate_auction_price;
+    use crate::math::constants::{PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+    use crate::state::user::{Order, OrderType};
+
+    #[test]
+    fn long_oracle_order() {
+        let tick_size = 1;
+
+        // auction starts $.10 below oracle and ends $.1 above oracle
+        let order = Order {
+            order_type: OrderType::Oracle,
+            auction_duration: 10,
+            slot: 0,
+            auction_start_price: -PRICE_PRECISION_I64 / 10,
+            auction_end_price: PRICE_PRECISION_I64 / 10,
+            ..Order::default()
+        };
+        let oracle_price = Some(PRICE_PRECISION_I64);
+
+        let slot = 0;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 9 * PRICE_PRECISION_U64 / 10);
+
+        let slot = 5;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, PRICE_PRECISION_U64);
+
+        let slot = 10;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 11 * PRICE_PRECISION_U64 / 10);
+
+        // auction starts $.20 below oracle and ends $.1 below oracle
+        let order = Order {
+            order_type: OrderType::Oracle,
+            auction_duration: 10,
+            slot: 0,
+            auction_start_price: -PRICE_PRECISION_I64 / 5,
+            auction_end_price: -PRICE_PRECISION_I64 / 10,
+            ..Order::default()
+        };
+
+        let slot = 0;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 8 * PRICE_PRECISION_U64 / 10);
+
+        let slot = 5;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 85 * PRICE_PRECISION_U64 / 100);
+
+        let slot = 10;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 9 * PRICE_PRECISION_U64 / 10);
+
+        // auction starts $.10 above oracle and ends $.2 above oracle
+        let order = Order {
+            order_type: OrderType::Oracle,
+            auction_duration: 10,
+            slot: 0,
+            auction_start_price: PRICE_PRECISION_I64 / 10,
+            auction_end_price: PRICE_PRECISION_I64 / 5,
+            ..Order::default()
+        };
+
+        let slot = 0;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 11 * PRICE_PRECISION_U64 / 10);
+
+        let slot = 5;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 115 * PRICE_PRECISION_U64 / 100);
+
+        let slot = 10;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 12 * PRICE_PRECISION_U64 / 10);
+    }
+
+    #[test]
+    fn short_oracle_order() {
+        let tick_size = 1;
+        // auction starts $.10 above oracle and ends $.1 below oracle
+        let order = Order {
+            order_type: OrderType::Oracle,
+            auction_duration: 10,
+            slot: 0,
+            auction_start_price: PRICE_PRECISION_I64 / 10,
+            auction_end_price: -PRICE_PRECISION_I64 / 10,
+            ..Order::default()
+        };
+        let oracle_price = Some(PRICE_PRECISION_I64);
+
+        let slot = 0;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 11 * PRICE_PRECISION_U64 / 10);
+
+        let slot = 5;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, PRICE_PRECISION_U64);
+
+        let slot = 10;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 9 * PRICE_PRECISION_U64 / 10);
+
+        // auction starts $.20 above oracle and ends $.1 above oracle
+        let order = Order {
+            order_type: OrderType::Oracle,
+            auction_duration: 10,
+            slot: 0,
+            auction_start_price: PRICE_PRECISION_I64 / 5,
+            auction_end_price: PRICE_PRECISION_I64 / 10,
+            ..Order::default()
+        };
+
+        let slot = 0;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 12 * PRICE_PRECISION_U64 / 10);
+
+        let slot = 5;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 115 * PRICE_PRECISION_U64 / 100);
+
+        let slot = 10;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 11 * PRICE_PRECISION_U64 / 10);
+
+        // auction starts $.10 below oracle and ends $.2 below oracle
+        let order = Order {
+            order_type: OrderType::Oracle,
+            auction_duration: 10,
+            slot: 0,
+            auction_start_price: -PRICE_PRECISION_I64 / 10,
+            auction_end_price: -PRICE_PRECISION_I64 / 5,
+            ..Order::default()
+        };
+
+        let slot = 0;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 9 * PRICE_PRECISION_U64 / 10);
+
+        let slot = 5;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 85 * PRICE_PRECISION_U64 / 100);
+
+        let slot = 10;
+        let price = calculate_auction_price(&order, slot, tick_size, oracle_price).unwrap();
+
+        assert_eq!(price, 8 * PRICE_PRECISION_U64 / 10);
+    }
+}

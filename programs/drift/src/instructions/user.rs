@@ -179,7 +179,7 @@ pub fn handle_deposit(
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
-    let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+    let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?.clone();
 
     validate!(
@@ -189,7 +189,7 @@ pub fn handle_deposit(
     )?;
 
     controller::spot_balance::update_spot_market_cumulative_interest(
-        spot_market,
+        &mut spot_market,
         Some(oracle_price_data),
         now,
     )?;
@@ -203,7 +203,7 @@ pub fn handle_deposit(
         && user.spot_positions[position_index].balance_type == SpotBalanceType::Borrow
     {
         user.spot_positions[position_index]
-            .get_token_amount(spot_market)?
+            .get_token_amount(&spot_market)?
             .cast::<u64>()?
             .min(amount)
     } else {
@@ -223,11 +223,22 @@ pub fn handle_deposit(
     controller::spot_position::update_spot_balances_and_cumulative_deposits(
         amount as u128,
         &SpotBalanceType::Deposit,
-        spot_market,
+        &mut spot_market,
         spot_position,
         false,
         None,
     )?;
+
+    let token_amount = spot_position.get_token_amount(&spot_market)?;
+    if token_amount == 0 {
+        validate!(
+            spot_position.scaled_balance == 0,
+            ErrorCode::InvalidSpotPosition,
+            "deposit left user with invalid position. scaled balance = {} token amount = {}",
+            spot_position.scaled_balance,
+            token_amount
+        )?;
+    }
 
     if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.scaled_balance > 0 {
         validate!(
@@ -244,6 +255,7 @@ pub fn handle_deposit(
         )?;
     }
 
+    drop(spot_market);
     if user.is_being_liquidated() {
         // try to update liquidation status if user is was already being liq'd
         let is_being_liquidated = is_user_being_liquidated(
@@ -260,6 +272,7 @@ pub fn handle_deposit(
             user.status = UserStatus::Active;
         }
     }
+    let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
     controller::token::receive(
         &ctx.accounts.token_program,
@@ -481,6 +494,12 @@ pub fn handle_transfer_deposit(
         "from_user bankrupt"
     )?;
 
+    validate!(
+        from_user_key != to_user_key,
+        ErrorCode::CantTransferBetweenSameUserAccount,
+        "cant transfer between the same user account"
+    )?;
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
@@ -604,6 +623,17 @@ pub fn handle_transfer_deposit(
             None,
         )?;
 
+        let token_amount = to_spot_position.get_token_amount(spot_market)?;
+        if token_amount == 0 {
+            validate!(
+                to_spot_position.scaled_balance == 0,
+                ErrorCode::InvalidSpotPosition,
+                "deposit left to_user with invalid position. scaled balance = {} token amount = {}",
+                to_spot_position.scaled_balance,
+                token_amount
+            )?;
+        }
+
         let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
@@ -652,8 +682,8 @@ pub struct OrderParams {
     pub trigger_condition: OrderTriggerCondition,
     pub oracle_price_offset: Option<i32>,
     pub auction_duration: Option<u8>,
-    pub auction_start_price: Option<u64>,
-    pub auction_end_price: Option<u64>,
+    pub auction_start_price: Option<i64>,
+    pub auction_end_price: Option<i64>,
 }
 
 #[access_control(
@@ -1475,6 +1505,16 @@ pub fn handle_update_user_custom_margin_ratio(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
     user.max_margin_ratio = margin_ratio;
+    Ok(())
+}
+
+pub fn handle_update_user_margin_trading_enabled(
+    ctx: Context<UpdateUser>,
+    _sub_account_id: u16,
+    margin_trading_enabled: bool,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+    user.is_margin_trading_enabled = margin_trading_enabled;
     Ok(())
 }
 

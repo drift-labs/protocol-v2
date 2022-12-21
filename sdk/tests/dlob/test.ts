@@ -22,12 +22,9 @@ import {
 	ZERO,
 } from '../../src';
 
-import {
-	mockPerpMarkets,
-	mockSpotMarkets,
-	mockStateAccount,
-	MockUserMap,
-} from './helpers';
+import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
+import { isVariant } from '../../lib';
+import { DLOBOrdersCoder } from '../../src/dlob/DLOBOrders';
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -234,20 +231,13 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 
 describe('DLOB Tests', () => {
 	it('Fresh DLOB is empty', () => {
-		const mockUserMap = new MockUserMap();
-
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const vAsk = new BN(11);
 		const vBid = new BN(10);
+		const slot = 12;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)),
-			slot: new BN(12),
+			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
@@ -258,7 +248,7 @@ describe('DLOB Tests', () => {
 			for (const _ask of dlob.getAsks(
 				market.marketIndex,
 				vAsk,
-				0,
+				slot,
 				MarketType.PERP,
 				oracle
 			)) {
@@ -310,30 +300,11 @@ describe('DLOB Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
-		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
-		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -387,7 +358,7 @@ describe('DLOB Tests', () => {
 		const bids = dlob.getBids(
 			marketIndex,
 			undefined,
-			0,
+			slot,
 			MarketType.PERP,
 			oracle
 		);
@@ -407,20 +378,177 @@ describe('DLOB Tests', () => {
 		}
 		expect(thrown, 'should throw after clearing').to.equal(true);
 	});
+
+	it('DLOB orders', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(10);
+
+		const user0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user3 = Keypair.generate();
+		const user4 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			1, // orderId
+			marketIndex,
+			new BN(11), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(12), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user2.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(13), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+
+		insertOrderToDLOB(
+			dlob,
+			user3.publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			4, // orderId
+			marketIndex,
+			new BN(12), // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user4.publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			5, // orderId
+			marketIndex,
+			new BN(12), // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+		// insert some limit buys above vamm bid, below ask
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.SPOT,
+			6, // orderId
+			marketIndex,
+			new BN(11), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.SPOT,
+			7, // orderId
+			marketIndex,
+			new BN(12), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user2.publicKey,
+			OrderType.LIMIT,
+			MarketType.SPOT,
+			8, // orderId
+			marketIndex,
+			new BN(13), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+
+		insertOrderToDLOB(
+			dlob,
+			user3.publicKey,
+			OrderType.MARKET,
+			MarketType.SPOT,
+			9, // orderId
+			marketIndex,
+			new BN(12), // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user4.publicKey,
+			OrderType.MARKET,
+			MarketType.SPOT,
+			10, // orderId
+			marketIndex,
+			new BN(12), // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+
+		const dlobOrders = dlob.getDLOBOrders();
+		expect(dlobOrders.length).to.equal(10);
+		expect(isVariant(dlobOrders[0].order.marketType, 'perp')).to.equal(true);
+		expect(isVariant(dlobOrders[5].order.marketType, 'spot')).to.equal(true);
+
+		const coder = DLOBOrdersCoder.create();
+		const encodedOrders = coder.encode(dlobOrders);
+		const decodedDLOBOrders = coder.decode(encodedOrders);
+		expect(decodedDLOBOrders.length).to.equal(10);
+		expect(isVariant(decodedDLOBOrders[0].order.marketType, 'perp')).to.equal(
+			true
+		);
+		expect(isVariant(decodedDLOBOrders[5].order.marketType, 'spot')).to.equal(
+			true
+		);
+	});
 });
 
 describe('DLOB Perp Tests', () => {
 	it('Test proper bids', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -503,8 +631,6 @@ describe('DLOB Perp Tests', () => {
 			}
 
 			const user = Keypair.generate();
-			const userAuth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -525,16 +651,15 @@ describe('DLOB Perp Tests', () => {
 			// ascending order
 			return a.expectedIdx - b.expectedIdx;
 		});
-		const bids = dlob.getBids(marketIndex, vBid, slot, MarketType.PERP, oracle);
-
-		console.log('The Book Bids:');
-		const gotBids: Array<DLOBNode> = [];
+		const allBids = dlob.getBids(
+			marketIndex,
+			vBid,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
 		let countBids = 0;
-		for (const bid of bids) {
-			gotBids.push(bid);
-			printOrderNode(bid, oracle, slot);
-		}
-		for (const bid of gotBids) {
+		for (const bid of allBids) {
 			expect(bid.isVammNode(), `expected vAMM node`).to.be.eq(
 				expectedTestCase[countBids].isVamm
 			);
@@ -552,21 +677,67 @@ describe('DLOB Perp Tests', () => {
 			);
 			countBids++;
 		}
-
 		expect(countBids).to.equal(testCases.length);
+
+		const marketBids = dlob.getMarketBids(marketIndex, MarketType.PERP);
+		countBids = 0;
+		for (const bid of marketBids) {
+			expect(bid.isVammNode(), `expected vAMM node`).to.be.eq(
+				expectedTestCase.slice(0, 3)[countBids].isVamm
+			);
+			expect(bid.order?.orderId, `expected orderId`).to.equal(
+				expectedTestCase.slice(0, 3)[countBids].orderId
+			);
+			expect(bid.order?.price.toNumber(), `expected price`).to.equal(
+				expectedTestCase.slice(0, 3)[countBids].price?.toNumber()
+			);
+			expect(bid.order?.direction, `expected order direction`).to.equal(
+				expectedTestCase.slice(0, 3)[countBids].direction
+			);
+			expect(bid.order?.orderType, `expected order type`).to.equal(
+				expectedTestCase.slice(0, 3)[countBids].orderType
+			);
+			countBids++;
+		}
+		expect(countBids).to.equal(expectedTestCase.slice(0, 3).length);
+
+		const limitBids = dlob.getLimitBids(
+			marketIndex,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
+		countBids = 0;
+		let idx = 0;
+		for (const bid of limitBids) {
+			if (expectedTestCase.slice(3)[idx].isVamm) {
+				idx++;
+			}
+			expect(bid.isVammNode(), `expected vAMM node`).to.be.eq(
+				expectedTestCase.slice(3)[idx].isVamm
+			);
+			expect(bid.order?.orderId, `expected orderId`).to.equal(
+				expectedTestCase.slice(3)[idx].orderId
+			);
+			expect(bid.order?.price.toNumber(), `expected price`).to.equal(
+				expectedTestCase.slice(3)[idx].price?.toNumber()
+			);
+			expect(bid.order?.direction, `expected order direction`).to.equal(
+				expectedTestCase.slice(3)[idx].direction
+			);
+			expect(bid.order?.orderType, `expected order type`).to.equal(
+				expectedTestCase.slice(3)[idx].orderType
+			);
+			countBids++;
+			idx++;
+		}
+		expect(countBids).to.equal(expectedTestCase.slice(3).length - 1); // subtract one since test case 5 is vAMM node
 	});
 
 	it('Test proper bids on multiple markets', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex0 = 0;
 		const marketIndex1 = 1;
 
@@ -649,8 +820,6 @@ describe('DLOB Perp Tests', () => {
 			}
 
 			const user = Keypair.generate();
-			const userAuth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -714,14 +883,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test proper asks', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -804,8 +966,6 @@ describe('DLOB Perp Tests', () => {
 			}
 
 			const user = Keypair.generate();
-			const userAuth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -826,20 +986,10 @@ describe('DLOB Perp Tests', () => {
 			// ascending order
 			return a.expectedIdx - b.expectedIdx;
 		});
-		const asks = dlob.getAsks(marketIndex, vAsk, slot, MarketType.PERP, oracle);
 
-		console.log('The Book Asks:');
+		const asks = dlob.getAsks(marketIndex, vAsk, slot, MarketType.PERP, oracle);
 		let countAsks = 0;
 		for (const ask of asks) {
-			console.log(
-				` . vAMMNode? ${ask.isVammNode()}, ${JSON.stringify(
-					ask.order?.orderType
-				)} , ${ask.order?.orderId.toString()} , vammTestgetPRice: ${ask.getPrice(
-					oracle,
-					slot
-				)}, price: ${ask.order?.price.toString()}, quantity: ${ask.order?.baseAssetAmountFilled.toString()}/${ask.order?.baseAssetAmount.toString()}`
-			);
-
 			expect(ask.isVammNode()).to.be.eq(expectedTestCase[countAsks].isVamm);
 			expect(ask.order?.orderId).to.equal(expectedTestCase[countAsks].orderId);
 			expect(ask.order?.price.toNumber()).to.equal(
@@ -853,21 +1003,65 @@ describe('DLOB Perp Tests', () => {
 			);
 			countAsks++;
 		}
-
 		expect(countAsks).to.equal(testCases.length);
+
+		const marketAsks = dlob.getMarketAsks(marketIndex, MarketType.PERP);
+		countAsks = 0;
+		for (const ask of marketAsks) {
+			expect(ask.isVammNode()).to.be.eq(
+				expectedTestCase.slice(0, 3)[countAsks].isVamm
+			);
+			expect(ask.order?.orderId).to.equal(
+				expectedTestCase.slice(0, 3)[countAsks].orderId
+			);
+			expect(ask.order?.price.toNumber()).to.equal(
+				expectedTestCase.slice(0, 3)[countAsks].price?.toNumber()
+			);
+			expect(ask.order?.direction).to.equal(
+				expectedTestCase.slice(0, 3)[countAsks].direction
+			);
+			expect(ask.order?.orderType).to.equal(
+				expectedTestCase.slice(0, 3)[countAsks].orderType
+			);
+			countAsks++;
+		}
+		expect(countAsks).to.equal(expectedTestCase.slice(0, 3).length);
+
+		const limitAsks = dlob.getLimitAsks(
+			marketIndex,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
+		countAsks = 0;
+		let idx = 0;
+		for (const ask of limitAsks) {
+			if (expectedTestCase.slice(3)[idx].isVamm) {
+				idx++;
+			}
+			expect(ask.isVammNode()).to.be.eq(expectedTestCase.slice(3)[idx].isVamm);
+			expect(ask.order?.orderId).to.equal(
+				expectedTestCase.slice(3)[idx].orderId
+			);
+			expect(ask.order?.price.toNumber()).to.equal(
+				expectedTestCase.slice(3)[idx].price?.toNumber()
+			);
+			expect(ask.order?.direction).to.equal(
+				expectedTestCase.slice(3)[idx].direction
+			);
+			expect(ask.order?.orderType).to.equal(
+				expectedTestCase.slice(3)[idx].orderType
+			);
+			countAsks++;
+			idx++;
+		}
+		expect(countAsks).to.equal(expectedTestCase.slice(3).length - 1); // subtract one since test case includes vAMM node
 	});
 
 	it('Test insert market orders', () => {
 		const vAsk = new BN(11);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)),
@@ -879,8 +1073,6 @@ describe('DLOB Perp Tests', () => {
 		// 3 mkt buys
 		for (let i = 0; i < 3; i++) {
 			const user = Keypair.generate();
-			const userAuth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -900,8 +1092,6 @@ describe('DLOB Perp Tests', () => {
 		// 3 mkt sells
 		for (let i = 0; i < 3; i++) {
 			const user = Keypair.generate();
-			const userAuth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -940,6 +1130,7 @@ describe('DLOB Perp Tests', () => {
 		expect(asks).to.equal(4); // vamm ask + 3 orders
 
 		let bids = 0;
+		const expectedBidOrderIds = [1, 2, 3];
 		for (const bid of dlob.getBids(
 			marketIndex,
 			vBid,
@@ -947,17 +1138,15 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle
 		)) {
-			if (bids === 0) {
-				// vamm node
-				expect(bid.order).to.equal(undefined);
-			} else {
-				// market orders
-				expect(getVariant(bid.order?.status)).to.equal('open');
-				expect(getVariant(bid.order?.orderType)).to.equal('market');
-				expect(getVariant(bid.order?.direction)).to.equal('long');
-				expect(bid.order?.orderId).to.equal(bids);
-			}
 			bids++;
+			if (bid.isVammNode()) {
+				continue;
+			}
+			// market orders
+			expect(getVariant(bid.order?.status)).to.equal('open');
+			expect(getVariant(bid.order?.orderType)).to.equal('market');
+			expect(getVariant(bid.order?.direction)).to.equal('long');
+			expect(bid.order?.orderId).to.equal(expectedBidOrderIds[bids - 1]);
 		}
 		expect(bids).to.equal(4); // vamm bid + 3 orders
 	});
@@ -973,34 +1162,14 @@ describe('DLOB Perp Tests', () => {
 			hasSufficientNumberOfDataPoints: true,
 		};
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 		const user5 = Keypair.generate();
-		const userAuth5 = Keypair.generate();
 
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
-
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 		insertOrderToDLOB(
 			dlob,
@@ -1145,34 +1314,14 @@ describe('DLOB Perp Tests', () => {
 			hasSufficientNumberOfDataPoints: true,
 		};
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 		const user5 = Keypair.generate();
-		const userAuth5 = Keypair.generate();
 
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
-
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		// insert floating bids
@@ -1337,30 +1486,13 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		// insert some limit buys above vamm bid, below ask
@@ -1405,7 +1537,7 @@ describe('DLOB Perp Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			12, // auction over
 			MarketType.PERP,
@@ -1414,7 +1546,10 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -1446,16 +1581,21 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			12, // auction over
+			Date.now(),
 			MarketType.PERP,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		console.log(`Filled nodes: ${nodesToFillAfter.length}`);
 		for (const n of nodesToFillAfter) {
@@ -1476,27 +1616,12 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		// insert some limit sells below vAMM ask, above bid
@@ -1544,7 +1669,7 @@ describe('DLOB Perp Tests', () => {
 		const endSlot = 12;
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			endSlot,
 			MarketType.PERP,
@@ -1553,7 +1678,10 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(endSlot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -1572,16 +1700,21 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			endSlot,
+			Date.now(),
 			MarketType.PERP,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
 				slot: new BN(endSlot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		console.log(`Filled nodes: ${nodesToFillAfter.length}`);
 		for (const n of nodesToFillAfter) {
@@ -1614,30 +1747,13 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -1689,12 +1805,16 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
-			12, // auction over
+			undefined,
+			undefined,
+			slot, // auction over
+			Date.now(),
 			MarketType.PERP,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -1726,11 +1846,16 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			slot, // auction over
+			Date.now(),
 			MarketType.PERP,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
@@ -1760,51 +1885,20 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
 		const user5 = Keypair.generate();
-		const user5Auth = Keypair.generate();
 		const user6 = Keypair.generate();
-		const user6Auth = Keypair.generate();
 		const user7 = Keypair.generate();
-		const user7Auth = Keypair.generate();
 		const user8 = Keypair.generate();
-		const user8Auth = Keypair.generate();
 		const user9 = Keypair.generate();
-		const user9Auth = Keypair.generate();
 		const user10 = Keypair.generate();
-		const user10Auth = Keypair.generate();
 		const user11 = Keypair.generate();
-		const user11Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, user5Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user6.publicKey, user6Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user7.publicKey, user7Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user8.publicKey, user8Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user9.publicKey, user9Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user10.publicKey, user10Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user11.publicKey, user11Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 20;
@@ -2016,12 +2110,12 @@ describe('DLOB Perp Tests', () => {
 			marketIndex,
 			slot,
 			oracle.price,
-			MarketType.PERP
+			MarketType.PERP,
+			mockStateAccount
 		);
 		console.log(`nodesToTriggeR: ${nodesToTrigger.length}`);
 		for (const [idx, n] of nodesToTrigger.entries()) {
 			expect(n.node.order?.orderId).to.equal(orderIdsToTrigger[idx]);
-			console.log(`nodeToTrigger: ${n.node.order?.orderId.toString()}`);
 		}
 	});
 
@@ -2029,21 +2123,10 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 20;
@@ -2097,7 +2180,9 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(slot0),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -2116,7 +2201,9 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(slot1),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		console.log(`Filled nodes: ${nodesToFillAfter.length}`);
 		for (const n of nodesToFillAfter) {
@@ -2133,30 +2220,13 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2231,7 +2301,9 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(slot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -2275,7 +2347,9 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(slot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
@@ -2309,30 +2383,13 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2397,11 +2454,14 @@ describe('DLOB Perp Tests', () => {
 		// should have no crossing orders
 		const auctionOverSlot = slot * 10;
 		const auctionOverTs = ts * 10;
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
 			marketIndex,
 			auctionOverSlot, // auction over
 			MarketType.PERP,
-			oracle
+			oracle,
+			false,
+			undefined,
+			undefined
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -2444,7 +2504,9 @@ describe('DLOB Perp Tests', () => {
 			auctionOverTs, // auction in progress
 			ts,
 			MarketType.PERP,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 
 		console.log(`Filled nodes: ${nodesToFillAfter.length}`);
@@ -2466,30 +2528,13 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2551,11 +2596,16 @@ describe('DLOB Perp Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			slot,
+			Date.now(),
 			MarketType.PERP,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -2587,11 +2637,16 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			slot, // auction in progress
+			Date.now(),
 			MarketType.PERP,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
@@ -2643,30 +2698,13 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
 		const user3 = Keypair.generate();
-		const user3Auth = Keypair.generate();
 		const user4 = Keypair.generate();
-		const user4Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2738,7 +2776,9 @@ describe('DLOB Perp Tests', () => {
 			slot,
 			ts,
 			MarketType.PERP,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -2785,7 +2825,9 @@ describe('DLOB Perp Tests', () => {
 			afterAuctionSlot,
 			afterAuctionTs,
 			MarketType.PERP,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 
 		console.log(`Filled nodes: ${nodesToFillAfter.length}`);
@@ -2820,24 +2862,11 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
 		const user2 = Keypair.generate();
-		const user2Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2905,7 +2934,9 @@ describe('DLOB Perp Tests', () => {
 			slot,
 			ts,
 			MarketType.PERP,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -2920,7 +2951,9 @@ describe('DLOB Perp Tests', () => {
 			afterAuctionSlot,
 			afterAuctionTs,
 			MarketType.PERP,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 
 		console.log(`Book state after fill:`);
@@ -2958,21 +2991,10 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(20).mul(PRICE_PRECISION);
 		const vBid = new BN(5).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		const user1Auth = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -3027,7 +3049,9 @@ describe('DLOB Perp Tests', () => {
 			slot,
 			ts,
 			MarketType.PERP,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 		console.log(`Filled nodes: ${nodesToFillBefore.length}`);
 		for (const n of nodesToFillBefore) {
@@ -3046,52 +3070,26 @@ describe('DLOB Perp Tests', () => {
 		).to.equal(3);
 	});
 
-	it('Test will not fill two limit orders by same authority', () => {
+	it('Test fills 0 price market order with limit orders better than vAMM', () => {
 		const vAsk = new BN(20).mul(PRICE_PRECISION);
 		const vBid = new BN(5).mul(PRICE_PRECISION);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const user0Auth = Keypair.generate();
 		const user1 = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, user0Auth.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
 		const ts = 12;
 		const oracle = {
-			price: vBid.add(vAsk).div(new BN(2)), // 11.5
+			price: vBid.add(vAsk).div(new BN(2)),
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
 
-		// insert a sell below the bid, but above vBid
-		insertOrderToDLOB(
-			dlob,
-			user0.publicKey,
-			OrderType.LIMIT,
-			MarketType.PERP,
-			3, // orderId
-			marketIndex,
-			new BN(10).mul(PRICE_PRECISION), // price; crosses bid
-			new BN(1).mul(BASE_PRECISION), // quantity
-			PositionDirection.SHORT,
-			vAsk,
-			vBid,
-			new BN(slot),
-			new BN(200)
-		);
-		// insert a buy above the vBid
+		// resting bid above vBid (better)
 		insertOrderToDLOB(
 			dlob,
 			user1.publicKey,
@@ -3100,7 +3098,7 @@ describe('DLOB Perp Tests', () => {
 			2, // orderId
 			marketIndex,
 			new BN(15).mul(PRICE_PRECISION), // price,
-			new BN(8768).mul(BASE_PRECISION).div(new BN(10000)), // quantity
+			new BN(10).mul(BASE_PRECISION), // quantity
 			PositionDirection.LONG,
 			vBid,
 			vAsk,
@@ -3108,24 +3106,57 @@ describe('DLOB Perp Tests', () => {
 			new BN(200)
 		);
 
-		console.log(`Book state before fill:`);
+		// market sell into the resting bid
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(0), // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vAsk,
+			vBid,
+			new BN(slot),
+			new BN(200)
+		);
+
+		console.log(`Book state before taker auction ends:`);
 		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
+
+		console.log(``);
+		const auctionEndSlot = slot * 2;
+		console.log(`Book state after taker auction ends:`);
+		printBookState(dlob, marketIndex, vBid, vAsk, auctionEndSlot, oracle);
 
 		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
 			vBid,
 			vAsk,
-			slot,
+			auctionEndSlot, // auction ends
 			ts,
 			MarketType.PERP,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
-		console.log(`Filled nodes: ${nodesToFillBefore.length}`);
+		console.log(`Nodes to fill: ${nodesToFillBefore.length}`);
 		for (const n of nodesToFillBefore) {
 			printCrossedNodes(n, slot);
 		}
+		expect(nodesToFillBefore.length).to.equal(1);
 
-		expect(nodesToFillBefore.length).to.equal(0);
+		// first order is maker, second is taker
+		expect(
+			nodesToFillBefore[0].node.order?.orderId,
+			'wrong taker orderId'
+		).to.equal(3);
+		expect(
+			nodesToFillBefore[0].makerNode?.order?.orderId,
+			'wrong maker orderId'
+		).to.equal(2);
 	});
 });
 
@@ -3133,14 +3164,7 @@ describe('DLOB Spot Tests', () => {
 	it('Test proper bids', () => {
 		const vAsk = new BN(115);
 		const vBid = new BN(100);
-		const mockUserMap = new MockUserMap();
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -3152,35 +3176,35 @@ describe('DLOB Spot Tests', () => {
 		};
 		const testCases = [
 			{
-				expectedIdx: 3,
+				expectedIdx: 0,
 				orderId: 5,
 				price: new BN(0), // will calc 108
 				direction: PositionDirection.LONG,
 				orderType: OrderType.MARKET,
 			},
 			{
-				expectedIdx: 4,
+				expectedIdx: 1,
 				orderId: 6,
 				price: new BN(0), // will calc 108
 				direction: PositionDirection.LONG,
 				orderType: OrderType.MARKET,
 			},
 			{
-				expectedIdx: 5,
+				expectedIdx: 2,
 				orderId: 7,
 				price: new BN(0), // will calc 108
 				direction: PositionDirection.LONG,
 				orderType: OrderType.MARKET,
 			},
 			{
-				expectedIdx: 0,
+				expectedIdx: 4,
 				orderId: 1,
 				price: new BN(110),
 				direction: PositionDirection.LONG,
 				orderType: OrderType.LIMIT,
 			},
 			{
-				expectedIdx: 1,
+				expectedIdx: 5,
 				orderId: 2,
 				price: new BN(109),
 				direction: PositionDirection.LONG,
@@ -3204,8 +3228,6 @@ describe('DLOB Spot Tests', () => {
 
 		for (const t of testCases) {
 			const user0 = Keypair.generate();
-			const user0Auth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -3258,14 +3280,7 @@ describe('DLOB Spot Tests', () => {
 	it('Test proper bids on multiple markets', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex0 = 0;
 		const marketIndex1 = 1;
 
@@ -3337,8 +3352,6 @@ describe('DLOB Spot Tests', () => {
 
 		for (const t of testCases) {
 			const user0 = Keypair.generate();
-			const user0Auth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -3402,14 +3415,7 @@ describe('DLOB Spot Tests', () => {
 	it('Test proper asks', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const mockUserMap = new MockUserMap();
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -3473,8 +3479,6 @@ describe('DLOB Spot Tests', () => {
 
 		for (const t of testCases) {
 			const user0 = Keypair.generate();
-			const user0Auth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -3535,21 +3539,12 @@ describe('DLOB Spot Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		const mockUserMap = new MockUserMap();
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		// 3 mkt buys
 		for (let i = 0; i < 3; i++) {
 			const user0 = Keypair.generate();
-			const user0Auth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -3569,8 +3564,6 @@ describe('DLOB Spot Tests', () => {
 		// 3 mkt sells
 		for (let i = 0; i < 3; i++) {
 			const user0 = Keypair.generate();
-			const user0Auth = Keypair.generate();
-			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
 
 			insertOrderToDLOB(
 				dlob,
@@ -3637,34 +3630,14 @@ describe('DLOB Spot Tests', () => {
 			hasSufficientNumberOfDataPoints: true,
 		};
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 		const user5 = Keypair.generate();
-		const userAuth5 = Keypair.generate();
 
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
-
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 		insertOrderToDLOB(
 			dlob,
@@ -3801,34 +3774,13 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
-		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 		const user5 = Keypair.generate();
-		const userAuth5 = Keypair.generate();
 
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
-
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		// insert some limit buys above vamm bid, below ask
@@ -3873,8 +3825,11 @@ describe('DLOB Spot Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
+			Date.now(),
 			12, // auction over
 			MarketType.SPOT,
 			{
@@ -3882,7 +3837,9 @@ describe('DLOB Spot Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockSpotMarkets[marketIndex]
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -3914,16 +3871,21 @@ describe('DLOB Spot Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			12, // auction over
+			Date.now(),
 			MarketType.SPOT,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockSpotMarkets[marketIndex]
 		);
 		for (const n of nodesToFillAfter) {
 			console.log(
@@ -3945,28 +3907,12 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		// insert some limit sells below vAMM ask, above bid
@@ -4011,16 +3957,21 @@ describe('DLOB Spot Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			12, // auction over
+			Date.now(),
 			MarketType.SPOT,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockSpotMarkets[marketIndex]
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -4039,16 +3990,21 @@ describe('DLOB Spot Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			12, // auction over
+			Date.now(),
 			MarketType.SPOT,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockSpotMarkets[marketIndex]
 		);
 		for (const n of nodesToFillAfter) {
 			console.log(
@@ -4070,31 +4026,13 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
-
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -4147,11 +4085,16 @@ describe('DLOB Spot Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			12, // auction over
+			Date.now(),
 			MarketType.SPOT,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockSpotMarkets[marketIndex]
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -4183,11 +4126,16 @@ describe('DLOB Spot Tests', () => {
 			vAsk
 		);
 
-		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
+			undefined,
+			undefined,
 			slot, // auction over
+			Date.now(),
 			MarketType.SPOT,
-			oracle
+			oracle,
+			mockStateAccount,
+			mockSpotMarkets[marketIndex]
 		);
 		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
@@ -4214,56 +4162,260 @@ describe('DLOB Spot Tests', () => {
 		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(3);
 	});
 
+	it('Test market orders skipping maker with same authority', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(8);
+
+		const user0 = Keypair.generate();
+		const user1 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+
+		const slot = 12;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		// insert some limit sells below vAMM ask, above bid
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			1, // orderId
+			marketIndex,
+			new BN(14), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(13), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+
+		// should have no crossing orders
+		const nodesToFillBefore = dlob.findNodesToFill(
+			marketIndex,
+			undefined,
+			undefined,
+			12, // auction over
+			Date.now(),
+			MarketType.PERP,
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
+		);
+		expect(nodesToFillBefore.length).to.equal(0);
+
+		// place two market buy orders to eat the best ask
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(0), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			4, // orderId
+			marketIndex,
+			new BN(0), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+
+		const nodesToFillAfter = dlob.findNodesToFill(
+			marketIndex,
+			undefined,
+			undefined,
+			slot, // auction over
+			Date.now(),
+			MarketType.PERP,
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
+		);
+
+		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
+
+		for (const n of nodesToFillAfter) {
+			console.log(
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: BAA: ${n.makerNode?.order?.baseAssetAmountFilled.toString()}/${n.makerNode?.order?.baseAssetAmount.toString()}`
+			);
+		}
+		expect(nodesToFillAfter.length).to.equal(2);
+
+		// taker should fill completely with best maker
+		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(3);
+		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(1);
+
+		// taker should fill completely with second best maker
+		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(4);
+		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(2);
+	});
+
+	it('Test limit orders skipping maker with same authority', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(8);
+
+		const user0 = Keypair.generate();
+		const user1 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+
+		const slot = 12;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		// insert some limit sells below vAMM ask, above bid
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			1, // orderId
+			marketIndex,
+			new BN(14), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(13), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+
+		// should have no crossing orders
+		const nodesToFillBefore = dlob.findNodesToFill(
+			marketIndex,
+			undefined,
+			undefined,
+			12, // auction over
+			Date.now(),
+			MarketType.PERP,
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
+		);
+		expect(nodesToFillBefore.length).to.equal(0);
+
+		// place two market buy orders to eat the best ask
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(15), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			4, // orderId
+			marketIndex,
+			new BN(14), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+
+		const nodesToFillAfter = dlob.findNodesToFill(
+			marketIndex,
+			undefined,
+			undefined,
+			slot, // auction over
+			Date.now(),
+			MarketType.PERP,
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
+		);
+
+		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
+
+		for (const n of nodesToFillAfter) {
+			console.log(
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: BAA: ${n.makerNode?.order?.baseAssetAmountFilled.toString()}/${n.makerNode?.order?.baseAssetAmount.toString()}`
+			);
+		}
+		expect(nodesToFillAfter.length).to.equal(2);
+
+		// taker should fill completely with best maker
+		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(2);
+		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(4);
+
+		// taker should fill completely with second best maker
+		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(1);
+		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(3);
+	});
+
 	it('Test trigger orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
 		const user2 = Keypair.generate();
-		const userAuth2 = Keypair.generate();
 		const user3 = Keypair.generate();
-		const userAuth3 = Keypair.generate();
 		const user4 = Keypair.generate();
-		const userAuth4 = Keypair.generate();
 		const user5 = Keypair.generate();
-		const userAuth5 = Keypair.generate();
 		const user6 = Keypair.generate();
-		const userAuth6 = Keypair.generate();
 		const user7 = Keypair.generate();
-		const userAuth7 = Keypair.generate();
 		const user8 = Keypair.generate();
-		const userAuth8 = Keypair.generate();
 		const user9 = Keypair.generate();
-		const userAuth9 = Keypair.generate();
 		const user10 = Keypair.generate();
-		const userAuth10 = Keypair.generate();
 		const user11 = Keypair.generate();
-		const userAuth11 = Keypair.generate();
 
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
-		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
-		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
-		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
-		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
-		mockUserMap.addUserAccountAuthority(user6.publicKey, userAuth6.publicKey);
-		mockUserMap.addUserAccountAuthority(user7.publicKey, userAuth7.publicKey);
-		mockUserMap.addUserAccountAuthority(user8.publicKey, userAuth8.publicKey);
-		mockUserMap.addUserAccountAuthority(user9.publicKey, userAuth9.publicKey);
-		mockUserMap.addUserAccountAuthority(user10.publicKey, userAuth10.publicKey);
-		mockUserMap.addUserAccountAuthority(user11.publicKey, userAuth11.publicKey);
-
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 20;
@@ -4475,12 +4627,11 @@ describe('DLOB Spot Tests', () => {
 			marketIndex,
 			slot,
 			oracle.price,
-			MarketType.SPOT
+			MarketType.SPOT,
+			mockStateAccount
 		);
-		console.log(`nodesToTriggeR: ${nodesToTrigger.length}`);
 		for (const [idx, n] of nodesToTrigger.entries()) {
 			expect(n.node.order?.orderId).to.equal(orderIdsToTrigger[idx]);
-			console.log(`nodeToTrigger: ${n.node.order?.orderId}`);
 		}
 	});
 
@@ -4488,21 +4639,10 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 
-		const mockUserMap = new MockUserMap();
 		const user0 = Keypair.generate();
-		const userAuth0 = Keypair.generate();
 		const user1 = Keypair.generate();
-		const userAuth1 = Keypair.generate();
-		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
-		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
 
-		const dlob = new DLOB(
-			mockPerpMarkets,
-			mockSpotMarkets,
-			mockStateAccount,
-			mockUserMap,
-			false
-		);
+		const dlob = new DLOB();
 		const marketIndex = 0;
 
 		const slot = 20;
@@ -4556,7 +4696,9 @@ describe('DLOB Spot Tests', () => {
 				slot: new BN(slot0),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockSpotMarkets[marketIndex]
 		);
 		expect(nodesToFillBefore.length).to.equal(0);
 
@@ -4575,7 +4717,9 @@ describe('DLOB Spot Tests', () => {
 				slot: new BN(slot1),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
-			}
+			},
+			mockStateAccount,
+			mockSpotMarkets[marketIndex]
 		);
 		expect(nodesToFillAfter.length).to.equal(2);
 

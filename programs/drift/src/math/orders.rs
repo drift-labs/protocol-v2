@@ -13,11 +13,12 @@ use crate::math::casting::Cast;
 use crate::math::constants::MARGIN_PRECISION_U128;
 use crate::math::position::calculate_entry_price;
 use crate::math::safe_math::SafeMath;
+use crate::math::spot_withdraw::calculate_availability_borrow_liquidity;
 use crate::math_error;
 use crate::print_error;
 use crate::state::perp_market::PerpMarket;
-use crate::state::spot_market::SpotBalanceType;
-use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
+use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+use crate::state::user::{MarketType, Order, OrderStatus, OrderTriggerCondition, User};
 use crate::validate;
 
 #[cfg(test)]
@@ -29,10 +30,11 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     valid_oracle_price: Option<i64>,
     slot: u64,
     override_limit_price: Option<u64>,
+    existing_base_asset_amount: i64,
 ) -> DriftResult<(u64, Option<u64>)> {
     let limit_price = if let Some(override_limit_price) = override_limit_price {
         if let Some(limit_price) =
-            order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?
+            order.get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?
         {
             validate!(
                 (limit_price >= override_limit_price && order.direction == PositionDirection::Long)
@@ -47,15 +49,19 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
 
         Some(override_limit_price)
     } else {
-        order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?
+        order.get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?
     };
 
     if order.must_be_triggered() && !order.triggered() {
         return Ok((0, limit_price));
     }
 
-    let base_asset_amount =
-        calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, limit_price)?;
+    let base_asset_amount = calculate_base_asset_amount_to_fill_up_to_limit_price(
+        order,
+        market,
+        limit_price,
+        Some(existing_base_asset_amount),
+    )?;
     let max_base_asset_amount =
         calculate_max_base_asset_amount_fillable(&market.amm, &order.direction)?;
 
@@ -66,8 +72,10 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     order: &Order,
     market: &PerpMarket,
     limit_price: Option<u64>,
+    existing_base_asset_amount: Option<i64>,
 ) -> DriftResult<u64> {
-    let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
+    let base_asset_amount_unfilled =
+        order.get_base_asset_amount_unfilled(existing_base_asset_amount)?;
 
     let (max_trade_base_asset_amount, max_trade_direction) = if let Some(limit_price) = limit_price
     {
@@ -136,25 +144,6 @@ pub fn calculate_quote_asset_amount_for_maker_order(
     }
 }
 
-pub fn calculate_base_asset_amount_for_reduce_only_order(
-    proposed_base_asset_amount: u64,
-    order_direction: PositionDirection,
-    existing_position: i64,
-) -> DriftResult<u64> {
-    if proposed_base_asset_amount > 0
-        && (order_direction == PositionDirection::Long && existing_position >= 0)
-        || (order_direction == PositionDirection::Short && existing_position <= 0)
-    {
-        msg!("Reduce Only Order must decrease existing position size");
-        Err(ErrorCode::InvalidOrderNotRiskReducing)
-    } else {
-        Ok(min(
-            proposed_base_asset_amount,
-            existing_position.unsigned_abs(),
-        ))
-    }
-}
-
 pub fn standardize_base_asset_amount_with_remainder_i128(
     base_asset_amount: i128,
     step_size: u128,
@@ -180,9 +169,9 @@ pub fn standardize_base_asset_amount(base_asset_amount: u64, step_size: u64) -> 
 }
 
 pub fn standardize_base_asset_amount_ceil(
-    base_asset_amount: u128,
-    step_size: u128,
-) -> DriftResult<u128> {
+    base_asset_amount: u64,
+    step_size: u64,
+) -> DriftResult<u64> {
     let remainder = base_asset_amount
         .checked_rem_euclid(step_size)
         .ok_or_else(math_error!())?;
@@ -280,32 +269,38 @@ pub fn get_position_delta_for_fill(
     })
 }
 
-pub fn should_cancel_order_after_fulfill(
+pub fn should_cancel_market_order_after_fill(
     user: &User,
     user_order_index: usize,
     slot: u64,
 ) -> DriftResult<bool> {
     let order = &user.orders[user_order_index];
-    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
+    if !order.is_market_order() || order.status != OrderStatus::Open {
         return Ok(false);
     }
 
-    Ok(order.price != 0 && is_auction_complete(order.slot, order.auction_duration, slot)?)
+    Ok(order.has_limit_price(slot)?
+        && is_auction_complete(order.slot, order.auction_duration, slot)?)
 }
 
 pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> DriftResult<bool> {
     let order = &user.orders[user_order_index];
-    if order.status != OrderStatus::Open
-        || order.max_ts == 0
-        || matches!(
-            order.order_type,
-            OrderType::TriggerMarket | OrderType::TriggerLimit
-        )
-    {
+    if order.status != OrderStatus::Open || order.max_ts == 0 || order.must_be_triggered() {
         return Ok(false);
     }
 
     Ok(now > order.max_ts)
+}
+
+pub fn should_cancel_reduce_only_order(
+    order: &Order,
+    existing_base_asset_amount: i64,
+) -> DriftResult<bool> {
+    let should_cancel = order.status == OrderStatus::Open
+        && order.reduce_only
+        && order.get_base_asset_amount_unfilled(Some(existing_base_asset_amount))? == 0;
+
+    Ok(should_cancel)
 }
 
 pub fn order_breaches_oracle_price_limits(
@@ -316,7 +311,8 @@ pub fn order_breaches_oracle_price_limits(
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
 ) -> DriftResult<bool> {
-    let order_limit_price = order.get_limit_price(Some(oracle_price), slot, tick_size)?;
+    let order_limit_price =
+        order.force_get_limit_price(Some(oracle_price), None, slot, tick_size)?;
     let oracle_price = oracle_price.unsigned_abs();
 
     let max_percent_diff = margin_ratio_initial.safe_sub(margin_ratio_maintenance)?;
@@ -437,6 +433,24 @@ pub fn is_order_risk_increasing(
     .map(|risk_decreasing| !risk_decreasing)
 }
 
+pub fn is_order_position_reducing(
+    order_direction: &PositionDirection,
+    order_base_asset_amount: u64,
+    position_base_asset_amount: i64,
+) -> DriftResult<bool> {
+    Ok(match order_direction {
+        // User is short and order is long
+        PositionDirection::Long if position_base_asset_amount < 0 => {
+            order_base_asset_amount <= position_base_asset_amount.unsigned_abs()
+        }
+        // User is long and order is short
+        PositionDirection::Short if position_base_asset_amount > 0 => {
+            order_base_asset_amount <= position_base_asset_amount.unsigned_abs()
+        }
+        _ => false,
+    })
+}
+
 pub fn validate_fill_price(
     quote_asset_amount: u64,
     base_asset_amount: u64,
@@ -485,4 +499,99 @@ pub fn validate_fill_price(
     }
 
     Ok(())
+}
+
+pub fn get_fallback_price(direction: &PositionDirection, bid_price: u64, ask_price: u64) -> u64 {
+    match direction {
+        PositionDirection::Long => ask_price,
+        PositionDirection::Short => bid_price,
+    }
+}
+
+pub fn get_max_fill_amounts(
+    user: &User,
+    user_order_index: usize,
+    base_market: &SpotMarket,
+    quote_market: &SpotMarket,
+) -> DriftResult<(Option<u64>, Option<u64>)> {
+    let direction: PositionDirection = user.orders[user_order_index].direction;
+    match direction {
+        PositionDirection::Long => {
+            let max_quote = get_max_fill_amounts_for_market(user, quote_market)?.cast::<u64>()?;
+            Ok((None, Some(max_quote)))
+        }
+        PositionDirection::Short => {
+            let max_base = standardize_base_asset_amount(
+                get_max_fill_amounts_for_market(user, base_market)?.cast::<u64>()?,
+                base_market.order_step_size,
+            )?;
+            Ok((Some(max_base), None))
+        }
+    }
+}
+
+fn get_max_fill_amounts_for_market(user: &User, market: &SpotMarket) -> DriftResult<u128> {
+    let position_index = user.get_spot_position_index(market.market_index)?;
+    let token_amount = user.spot_positions[position_index].get_signed_token_amount(market)?;
+    get_max_withdraw_for_market_with_token_amount(token_amount, market)
+}
+
+#[inline(always)]
+pub fn get_max_withdraw_for_market_with_token_amount(
+    token_amount: i128,
+    market: &SpotMarket,
+) -> DriftResult<u128> {
+    let available_borrow_liquidity = calculate_availability_borrow_liquidity(market)?;
+    token_amount
+        .max(0)
+        .unsigned_abs()
+        .safe_add(available_borrow_liquidity)
+}
+
+pub fn find_fallback_maker_order(
+    user: &User,
+    direction: &PositionDirection,
+    market_type: &MarketType,
+    market_index: u16,
+    valid_oracle_price: Option<i64>,
+    slot: u64,
+    tick_size: u64,
+) -> DriftResult<Option<usize>> {
+    let mut best_limit_price = match direction {
+        PositionDirection::Long => 0,
+        PositionDirection::Short => u64::MAX,
+    };
+    let mut fallback_maker_order_index = None;
+
+    for (order_index, order) in user.orders.iter().enumerate() {
+        if order.status != OrderStatus::Open {
+            continue;
+        }
+
+        // if order direction is not same or market type is not same or market index is the same, skip
+        if order.direction != *direction
+            || order.market_type != *market_type
+            || order.market_index != market_index
+        {
+            continue;
+        }
+
+        // if order is not limit order or must be triggered and not triggered, skip
+        if !order.is_limit_order() || (order.must_be_triggered() && !order.triggered()) {
+            continue;
+        }
+
+        let limit_price = order.force_get_limit_price(valid_oracle_price, None, slot, tick_size)?;
+
+        // if fallback maker order is not set, set it else check if this order is better
+        if fallback_maker_order_index.is_none()
+            || *direction == PositionDirection::Long && limit_price > best_limit_price
+            || *direction == PositionDirection::Short && limit_price < best_limit_price
+        {
+            best_limit_price = limit_price;
+            fallback_maker_order_index = Some(order_index);
+        }
+    }
+
+    Ok(fallback_maker_order_index)
 }

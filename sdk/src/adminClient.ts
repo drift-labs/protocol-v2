@@ -11,6 +11,7 @@ import {
 	MarketStatus,
 	ContractTier,
 	AssetTier,
+	SpotFulfillmentConfigStatus,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@project-serum/anchor';
@@ -605,6 +606,34 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
+	public async updateInitialPctToLiquidate(
+		initialPctToLiquidate: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateInitialPctToLiquidate(
+			initialPctToLiquidate,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async updateLiquidationDuration(
+		liquidationDuration: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateLiquidationDuration(
+			liquidationDuration,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateOracleGuardRails(
 		oracleGuardRails: OracleGuardRails
 	): Promise<TransactionSignature> {
@@ -852,7 +881,7 @@ export class AdminClient extends DriftClient {
 		oracle: PublicKey,
 		oracleSource: OracleSource
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketOracle(oracle, oracleSource, {
+		return await this.program.rpc.updateSpotMarketOracle(oracle, oracleSource, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -861,6 +890,35 @@ export class AdminClient extends DriftClient {
 					spotMarketIndex
 				),
 				oracle: oracle,
+			},
+		});
+	}
+
+	public async updateSpotMarketOrdersEnabled(
+		spotMarketIndex: number,
+		ordersEnabled: boolean
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketOrdersEnabled(ordersEnabled, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				spotMarket: await getSpotMarketPublicKey(
+					this.program.programId,
+					spotMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updateSerumFulfillmentConfigStatus(
+		serumFulfillmentConfig: PublicKey,
+		status: SpotFulfillmentConfigStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSerumFulfillmentConfigStatus(status, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				serumFulfillmentConfig,
 			},
 		});
 	}

@@ -6,6 +6,7 @@ fi
 
 test_files=(
   dustPosition.ts
+  serumTest.ts
   postOnlyAmmFulfillment.ts
   imbalancePerpPnl.ts
   delistMarket.ts

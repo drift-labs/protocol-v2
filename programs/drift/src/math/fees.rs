@@ -6,9 +6,8 @@ use crate::error::DriftResult;
 use crate::math::casting::Cast;
 
 use crate::math::constants::{
-    FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE,
-    ONE_MILLION_QUOTE, ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE,
-    TWENTY_FIVE_THOUSAND_QUOTE, TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
+    FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_MILLION_QUOTE,
+    ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE,
 };
 use crate::math::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
@@ -50,7 +49,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             0_u64
         } else {
             calculate_filler_reward(
-                quote_asset_amount,
+                fee,
                 order_slot,
                 clock_slot,
                 0,
@@ -207,7 +206,7 @@ fn calculate_filler_reward(
 
 pub fn calculate_fee_for_fulfillment_with_match(
     taker_stats: &UserStats,
-    maker_stats: &UserStats,
+    maker_stats: &Option<&mut UserStats>,
     quote_asset_amount: u64,
     fee_structure: &FeeStructure,
     order_slot: u64,
@@ -218,7 +217,11 @@ pub fn calculate_fee_for_fulfillment_with_match(
     market_type: &MarketType,
 ) -> DriftResult<FillFees> {
     let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure, market_type)?;
-    let maker_fee_tier = determine_user_fee_tier(maker_stats, fee_structure, market_type)?;
+    let maker_fee_tier = if let Some(maker_stats) = maker_stats {
+        determine_user_fee_tier(maker_stats, fee_structure, market_type)?
+    } else {
+        determine_user_fee_tier(taker_stats, fee_structure, market_type)?
+    };
 
     let taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier)?;
 
@@ -347,28 +350,28 @@ fn determine_perp_fee_tier<'a>(
     let staked_quote_asset_amount = user_stats.if_staked_quote_asset_amount;
 
     if total_30d_volume >= ONE_HUNDRED_MILLION_QUOTE
-        || staked_quote_asset_amount >= TWO_HUNDRED_FIFTY_THOUSAND_QUOTE
+        || staked_quote_asset_amount >= TEN_THOUSAND_QUOTE
     {
         return Ok(&fee_structure.fee_tiers[5]);
     }
 
     if total_30d_volume >= FIFTY_MILLION_QUOTE
-        || staked_quote_asset_amount >= ONE_HUNDRED_THOUSAND_QUOTE
+        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 5
     {
         return Ok(&fee_structure.fee_tiers[4]);
     }
 
-    if total_30d_volume >= TEN_MILLION_QUOTE
-        || staked_quote_asset_amount >= TWENTY_FIVE_THOUSAND_QUOTE
+    if total_30d_volume >= TEN_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 2
     {
         return Ok(&fee_structure.fee_tiers[3]);
     }
 
-    if total_30d_volume >= FIVE_MILLION_QUOTE || staked_quote_asset_amount >= TEN_THOUSAND_QUOTE {
+    if total_30d_volume >= FIVE_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE {
         return Ok(&fee_structure.fee_tiers[2]);
     }
 
-    if total_30d_volume >= ONE_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE {
+    if total_30d_volume >= ONE_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE / 2
+    {
         return Ok(&fee_structure.fee_tiers[1]);
     }
 

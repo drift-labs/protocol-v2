@@ -1,6 +1,6 @@
 [package]
 name = "drift"
-version = "2.0.0"
+version = "2.8.0-beta.1"
 description = "Created with Anchor"
 edition = "2018"
 
@@ -13,6 +13,7 @@ path = "src/lib.rs"
 no-entrypoint = []
 cpi = ["no-entrypoint"]
 mainnet-beta=[]
+default=["mainnet-beta"]
 
 [dependencies]
 anchor-lang = "0.25.0"
@@ -33,4 +34,4 @@ serum_dex = { git = "https://github.com/project-serum/serum-dex", rev = "85b4f14
 
 [dev-dependencies]
 bytes = "1.2.0"
-pyth = { path = "../pyth" }
+pyth = { path = "../pyth", features = ["no-entrypoint"]}

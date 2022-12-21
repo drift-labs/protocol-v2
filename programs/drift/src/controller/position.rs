@@ -8,7 +8,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, LP_FEE_SLICE_DENOMINATOR,
-    LP_FEE_SLICE_NUMERATOR, PERP_DECIMALS,
+    LP_FEE_SLICE_NUMERATOR, MAX_BASE_ASSET_AMOUNT_WITH_AMM, PERP_DECIMALS,
 };
 use crate::math::helpers::get_proportion_i128;
 use crate::math::orders::{
@@ -486,6 +486,13 @@ pub fn update_position_with_base_asset_amount(
         .base_asset_amount_with_amm
         .safe_add(position_delta.base_asset_amount.cast()?)?;
 
+    validate!(
+        market.amm.base_asset_amount_with_amm.unsigned_abs() <= MAX_BASE_ASSET_AMOUNT_WITH_AMM,
+        ErrorCode::InvalidAmmDetected,
+        "market.amm.base_asset_amount_with_amm={} cannot exceed MAX_BASE_ASSET_AMOUNT_WITH_AMM",
+        market.amm.base_asset_amount_with_amm
+    )?;
+
     controller::amm::update_spread_reserves(&mut market.amm)?;
 
     Ok((quote_asset_amount, quote_asset_amount_surplus, pnl))
@@ -558,20 +565,19 @@ pub fn update_quote_break_even_amount(
         return Ok(());
     }
 
+    position.quote_break_even_amount = position.quote_break_even_amount.safe_add(delta)?;
     match position.get_direction() {
         PositionDirection::Long => {
-            position.quote_break_even_amount = position.quote_break_even_amount.safe_add(delta)?;
             market.amm.quote_break_even_amount_long = market
                 .amm
                 .quote_break_even_amount_long
                 .safe_add(delta.cast()?)?
         }
         PositionDirection::Short => {
-            position.quote_break_even_amount = position.quote_break_even_amount.safe_sub(delta)?;
             market.amm.quote_break_even_amount_short = market
                 .amm
                 .quote_break_even_amount_short
-                .safe_sub(delta.cast()?)?
+                .safe_add(delta.cast()?)?
         }
     }
 

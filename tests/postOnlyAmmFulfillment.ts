@@ -281,7 +281,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const orderRecord2 = orderRecords[1];
 		console.log(orderRecord2);
 		assert(isVariant(orderRecord2.action, 'fill'));
-		assert(isVariant(orderRecord2.actionExplanation, 'none'));
+		assert(isVariant(orderRecord2.actionExplanation, 'orderFilledWithMatch'));
 		// assert(orderRecord2.maker == await fillerDriftClient.getUserAccountPublicKey());
 		// assert(orderRecord2.taker == await driftClient.getUserAccountPublicKey());
 		assert(orderRecord2.baseAssetAmountFilled.eq(new BN(1000000000 / 2)));
@@ -311,7 +311,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		console.log(positionMaker.quoteBreakEvenAmount.toString());
 		assert(positionMaker.quoteAssetAmount.eq(new BN(16089577)));
 		assert(positionMaker.quoteEntryAmount.eq(new BN(16086360)));
-		assert(positionMaker.quoteBreakEvenAmount.eq(new BN(16083143)));
+		assert(positionMaker.quoteBreakEvenAmount.eq(new BN(16089577)));
 
 		await fillerDriftClient.fetchAccounts();
 		const perpMarket = fillerDriftClient.getPerpMarketAccount(0);

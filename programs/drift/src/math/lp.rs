@@ -49,7 +49,7 @@ pub fn calculate_settled_lp_base_quote(
     // give them slice of the damm market position
     let amm_net_base_asset_amount_per_lp = amm
         .base_asset_amount_per_lp
-        .safe_sub(position.last_net_base_asset_amount_per_lp.cast()?)?;
+        .safe_sub(position.last_base_asset_amount_per_lp.cast()?)?;
 
     let base_asset_amount = amm_net_base_asset_amount_per_lp
         .cast::<i128>()?
@@ -58,7 +58,7 @@ pub fn calculate_settled_lp_base_quote(
 
     let amm_net_quote_asset_amount_per_lp = amm
         .quote_asset_amount_per_lp
-        .safe_sub(position.last_net_quote_asset_amount_per_lp.cast()?)?;
+        .safe_sub(position.last_quote_asset_amount_per_lp.cast()?)?;
 
     let quote_asset_amount = amm_net_quote_asset_amount_per_lp
         .cast::<i128>()?

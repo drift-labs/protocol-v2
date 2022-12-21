@@ -37,8 +37,8 @@ export const mockPerpPosition: PerpPosition = {
 	settledPnl: new BN(0),
 	lpShares: new BN(0),
 	remainderBaseAssetAmount: 0,
-	lastNetBaseAssetAmountPerLp: new BN(0),
-	lastNetQuoteAssetAmountPerLp: new BN(0),
+	lastBaseAssetAmountPerLp: new BN(0),
+	lastQuoteAssetAmountPerLp: new BN(0),
 };
 
 export const mockAMM: AMM = {
@@ -486,6 +486,8 @@ export const mockStateAccount: StateAccount = {
 	numberOfSpotMarkets: 0,
 	numberOfSubAccounts: new BN(0),
 	numberOfAuthorities: new BN(0),
+	initialPctToLiquidate: 0,
+	liquidationDuration: 0,
 	oracleGuardRails: {
 		priceDivergence: {
 			markOracleDivergenceNumerator: new BN(0),
@@ -497,7 +499,6 @@ export const mockStateAccount: StateAccount = {
 			confidenceIntervalMaxSize: new BN(0),
 			tooVolatileRatio: new BN(0),
 		},
-		useForLiquidations: true,
 	},
 	perpFeeStructure: {
 		feeTiers: [

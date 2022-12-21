@@ -1,11 +1,4 @@
-import {
-	BN,
-	isVariant,
-	MarketTypeStr,
-	Order,
-	PerpMarketAccount,
-	SpotMarketAccount,
-} from '..';
+import { BN, isVariant, MarketTypeStr, Order } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { createNode, DLOBNode, DLOBNodeMap } from './DLOBNode';
 
@@ -43,20 +36,13 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 	public insert(
 		order: Order,
 		marketType: MarketTypeStr,
-		market: PerpMarketAccount | SpotMarketAccount,
 		userAccount: PublicKey
 	): void {
 		if (isVariant(order.status, 'init')) {
 			return;
 		}
 
-		if (marketType === 'spot') {
-			market = market as SpotMarketAccount;
-		} else if (marketType === 'perp') {
-			market = market as PerpMarketAccount;
-		}
-
-		const newNode = createNode(this.nodeType, order, market, userAccount);
+		const newNode = createNode(this.nodeType, order, userAccount);
 
 		const orderSignature = getOrderSignature(order.orderId, userAccount);
 		if (this.nodeMap.has(orderSignature)) {
@@ -160,6 +146,13 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		return this.nodeMap.has(getOrderSignature(order.orderId, userAccount));
 	}
 
+	public get(
+		orderId: number,
+		userAccount: PublicKey
+	): DLOBNodeMap[NodeType] | undefined {
+		return this.nodeMap.get(getOrderSignature(orderId, userAccount));
+	}
+
 	public print(): void {
 		let currentNode = this.head;
 		while (currentNode !== undefined) {
@@ -187,7 +180,6 @@ export function* getVammNodeGenerator(
 		getPrice: () => price,
 		isVammNode: () => true,
 		order: undefined,
-		market: undefined,
 		userAccount: undefined,
 		isBaseFilled: () => false,
 		haveFilled: false,

@@ -63,6 +63,7 @@ export * from './constants/spotMarkets';
 export * from './driftClientConfig';
 export * from './dlob/DLOB';
 export * from './dlob/DLOBNode';
+export * from './dlob/DLOBOrders';
 export * from './dlob/NodeList';
 export * from './userMap/userMap';
 export * from './userMap/userStatsMap';

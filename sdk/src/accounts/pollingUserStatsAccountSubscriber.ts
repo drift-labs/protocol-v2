@@ -68,7 +68,7 @@ export class PollingUserStatsAccountSubscriber
 		});
 
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			accountToPoll.callbackId = this.accountLoader.addAccount(
+			accountToPoll.callbackId = await this.accountLoader.addAccount(
 				accountToPoll.publicKey,
 				(buffer, slot) => {
 					if (!buffer) {
@@ -132,10 +132,6 @@ export class PollingUserStatsAccountSubscriber
 	}
 
 	async unsubscribe(): Promise<void> {
-		if (!this.isSubscribed) {
-			return;
-		}
-
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			this.accountLoader.removeAccount(
 				accountToPoll.publicKey,

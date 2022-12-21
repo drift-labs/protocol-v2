@@ -11,7 +11,7 @@ use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
     CONCENTRATION_PRECISION, DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    PRICE_TO_PEG_PRECISION_RATIO,
+    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION_I64,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
@@ -463,16 +463,17 @@ pub fn update_amm_long_short_intensity(
     direction: PositionDirection,
 ) -> DriftResult<bool> {
     let since_last = max(1, now.safe_sub(amm.last_trade_ts)?);
-
     let (long_quote_amount, short_quote_amount) = if direction == PositionDirection::Long {
         (quote_asset_amount, 0_u64)
     } else {
         (0_u64, quote_asset_amount)
     };
 
-    amm.long_intensity_count = calculate_rolling_sum(
+    amm.long_intensity_count = calculate_weighted_average(
         amm.long_intensity_count.cast()?,
-        (long_quote_amount != 0).cast()?,
+        long_quote_amount
+            .cast::<i64>()?
+            .safe_div(QUOTE_PRECISION_I64)?,
         since_last,
         ONE_HOUR,
     )?
@@ -484,9 +485,11 @@ pub fn update_amm_long_short_intensity(
         ONE_HOUR,
     )?;
 
-    amm.short_intensity_count = calculate_rolling_sum(
+    amm.short_intensity_count = calculate_weighted_average(
         amm.short_intensity_count.cast()?,
-        (short_quote_amount != 0).cast()?,
+        short_quote_amount
+            .cast::<i64>()?
+            .safe_div(QUOTE_PRECISION_I64)?,
         since_last,
         ONE_HOUR,
     )?
@@ -690,8 +693,13 @@ pub fn is_oracle_mark_too_divergent(
 ) -> DriftResult<bool> {
     let max_divergence = oracle_guard_rails
         .mark_oracle_divergence_numerator
+        .cast::<u128>()?
         .safe_mul(BID_ASK_SPREAD_PRECISION_U128)?
-        .safe_div(oracle_guard_rails.mark_oracle_divergence_denominator)?
+        .safe_div(
+            oracle_guard_rails
+                .mark_oracle_divergence_denominator
+                .cast()?,
+        )?
         .cast::<u64>()?;
 
     Ok(price_spread_pct.unsigned_abs() > max_divergence)

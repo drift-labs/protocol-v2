@@ -29,7 +29,9 @@ pub struct State {
     pub default_market_order_time_in_force: u8,
     pub default_spot_auction_duration: u8,
     pub exchange_status: ExchangeStatus,
-    pub padding: [u8; 17],
+    pub liquidation_duration: u8,
+    pub initial_pct_to_liquidate: u16,
+    pub padding: [u8; 14],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
@@ -53,8 +55,6 @@ impl Default for ExchangeStatus {
 pub struct OracleGuardRails {
     pub price_divergence: PriceDivergenceGuardRails,
     pub validity: ValidityGuardRails,
-    pub use_for_liquidations: bool,
-    pub padding: [u8; 7],
 }
 
 impl Default for OracleGuardRails {
@@ -70,16 +70,14 @@ impl Default for OracleGuardRails {
                 confidence_interval_max_size: 20_000, // 2% of price
                 too_volatile_ratio: 5,                // 5x or 80% down
             },
-            use_for_liquidations: true,
-            padding: [0; 7],
         }
     }
 }
 
 #[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct PriceDivergenceGuardRails {
-    pub mark_oracle_divergence_numerator: u128,
-    pub mark_oracle_divergence_denominator: u128,
+    pub mark_oracle_divergence_numerator: u64,
+    pub mark_oracle_divergence_denominator: u64,
 }
 
 #[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Default)]
@@ -152,7 +150,7 @@ impl FeeStructure {
             referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
         };
         fee_tiers[1] = FeeTier {
-            fee_numerator: 80,
+            fee_numerator: 90,
             fee_denominator: FEE_DENOMINATOR, // 8 bps
             maker_rebate_numerator: 20,
             maker_rebate_denominator: FEE_DENOMINATOR, // 2bps
@@ -162,7 +160,7 @@ impl FeeStructure {
             referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
         };
         fee_tiers[2] = FeeTier {
-            fee_numerator: 60,
+            fee_numerator: 80,
             fee_denominator: FEE_DENOMINATOR, // 6 bps
             maker_rebate_numerator: 20,
             maker_rebate_denominator: FEE_DENOMINATOR, // 2bps
@@ -172,7 +170,7 @@ impl FeeStructure {
             referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
         };
         fee_tiers[3] = FeeTier {
-            fee_numerator: 50,
+            fee_numerator: 70,
             fee_denominator: FEE_DENOMINATOR, // 5 bps
             maker_rebate_numerator: 20,
             maker_rebate_denominator: FEE_DENOMINATOR, // 2bps
@@ -182,7 +180,7 @@ impl FeeStructure {
             referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
         };
         fee_tiers[4] = FeeTier {
-            fee_numerator: 40,
+            fee_numerator: 60,
             fee_denominator: FEE_DENOMINATOR, // 4 bps
             maker_rebate_numerator: 20,
             maker_rebate_denominator: FEE_DENOMINATOR, // 2bps
@@ -192,7 +190,7 @@ impl FeeStructure {
             referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
         };
         fee_tiers[5] = FeeTier {
-            fee_numerator: 35,
+            fee_numerator: 50,
             fee_denominator: FEE_DENOMINATOR, // 3.5 bps
             maker_rebate_numerator: 20,
             maker_rebate_denominator: FEE_DENOMINATOR, // 2bps
