@@ -1272,6 +1272,12 @@ export class DriftClient {
 			this.opts
 		);
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
+
+		const user = this.getUser(subAccountId);
+		if (user) {
+			await user.fetchAccounts();
+		}
+
 		return [txSig, userAccountPublicKey];
 	}
 
