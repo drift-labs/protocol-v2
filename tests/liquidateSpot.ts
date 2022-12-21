@@ -151,7 +151,7 @@ describe('liquidate spot', () => {
 
 		console.log(
 			'spotLiquidationPrice:',
-			convertToNumber(user.spotLiquidationPrice(1)
+			convertToNumber(user.spotLiquidationPrice(1))
 		);
 
 		await setFeedPrice(anchor.workspace.Pyth, 179, solOracle);
@@ -198,10 +198,7 @@ describe('liquidate spot', () => {
 		assert(healthBefore181 == 0.02);
 		console.log(
 			'spotLiquidationPrice:',
-			convertToNumber(
-				user.spotLiquidationPrice(1),
-				PRICE_PRECISION
-			)
+			convertToNumber(user.spotLiquidationPrice(1), PRICE_PRECISION)
 		);
 
 		await setFeedPrice(anchor.workspace.Pyth, 190, solOracle);
