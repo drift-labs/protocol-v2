@@ -516,7 +516,7 @@ describe('oracle offset', () => {
 		await driftClient.placePerpOrder(orderParams);
 
 		await driftClientUser.fetchAccounts();
-		const orderId = await driftClientUser.forceGetUserAccount().orders[0]
+		const orderId = (await driftClientUser.forceGetUserAccount()).orders[0]
 			.orderId;
 		await driftClient.cancelOrder(orderId);
 

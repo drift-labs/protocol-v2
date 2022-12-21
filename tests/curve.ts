@@ -107,7 +107,7 @@ describe('AMM Curve', () => {
 		await userAccount.unsubscribe();
 	});
 
-	const showCurve = (marketIndex) => {
+	const showCurve = async (marketIndex) => {
 		const marketData = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 
@@ -136,7 +136,7 @@ describe('AMM Curve', () => {
 		return totalFeeNum - cumFeeNum;
 	};
 
-	const showBook = (marketIndex) => {
+	const showBook = async (marketIndex) => {
 		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		const currentMark = calculateReservePrice(market, undefined);
 
@@ -177,7 +177,7 @@ describe('AMM Curve', () => {
 			userUSDCAccount.publicKey
 		);
 
-		showBook(marketIndex);
+		await showBook(marketIndex);
 	});
 
 	it('After Position Taken', async () => {
@@ -187,7 +187,7 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 
-		showBook(marketIndex);
+		await showBook(marketIndex);
 	});
 
 	it('After Position Price Moves', async () => {
@@ -197,7 +197,7 @@ describe('AMM Curve', () => {
 			new BN(initialSOLPrice * PRICE_PRECISION.toNumber() * 1.0001)
 		);
 
-		showBook(marketIndex);
+		await showBook(marketIndex);
 	});
 	it('Arb back to Oracle Price Moves', async () => {
 		const [direction, basesize] = calculateTargetPriceTrade(
@@ -210,7 +210,7 @@ describe('AMM Curve', () => {
 		console.log('arbing', direction, basesize.toString());
 		await driftClient.openPosition(direction, basesize, marketIndex);
 
-		showBook(marketIndex);
+		await showBook(marketIndex);
 	});
 
 	it('Repeg Curve LONG', async () => {
@@ -252,7 +252,7 @@ describe('AMM Curve', () => {
 		assert(newOraclePriceWithMantissa.gt(priceAfter));
 
 		console.log('\n post repeg: \n --------');
-		showCurve(marketIndex);
+		await showCurve(marketIndex);
 		// showBook(marketIndex);
 
 		marketData = await driftClient.forceGetPerpMarketAccount(marketIndex);
@@ -264,7 +264,7 @@ describe('AMM Curve', () => {
 
 		const newPeg = marketData.amm.pegMultiplier;
 
-		const userPerpPosition = await userAccount.forceGetUserAccount()
+		const userPerpPosition = (await userAccount.forceGetUserAccount())
 			.perpPositions[0];
 		const linearApproxCostToAMM = convertToNumber(
 			newPeg
@@ -276,7 +276,7 @@ describe('AMM Curve', () => {
 
 		// console.log('cur user position:', convertBaseAssetAmountToNumber(userPerpPosition.baseAssetAmount));
 
-		const totalCostToAMMChain = showCurve(marketIndex);
+		const totalCostToAMMChain = await showCurve(marketIndex);
 
 		assert(linearApproxCostToAMM > totalCostToAMMChain);
 		assert(linearApproxCostToAMM / totalCostToAMMChain < 1.1);

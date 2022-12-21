@@ -187,7 +187,7 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
-		const position0Before = await driftClient.forceGetUserAccount()
+		const position0Before = (await driftClient.forceGetUserAccount())
 			.perpPositions[0];
 		console.log(position0Before.quoteAssetAmount.eq(ZERO));
 
@@ -259,7 +259,8 @@ describe('prepeg', () => {
 			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 
-		const position0 = await driftClient.forceGetUserAccount().perpPositions[0];
+		const position0 = (await driftClient.forceGetUserAccount())
+			.perpPositions[0];
 
 		console.log(position0.quoteAssetAmount.toString());
 		console.log('quoteEntryAmount:', position0.quoteEntryAmount.toString());
@@ -490,7 +491,8 @@ describe('prepeg', () => {
 		// console.log(orderRecord);
 
 		await driftClient.fetchAccounts();
-		const position0 = await driftClient.forceGetUserAccount().perpPositions[0];
+		const position0 = (await driftClient.forceGetUserAccount())
+			.perpPositions[0];
 		const position0qea = position0.quoteEntryAmount;
 		console.log(
 			'position0qea:',

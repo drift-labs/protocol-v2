@@ -228,7 +228,7 @@ describe('market order', () => {
 		assert(order.price.eq(new BN(0)));
 		assert(order.marketIndex === 0);
 
-		const firstPosition = await driftClientUser.forceGetUserAccount()
+		const firstPosition = (await driftClientUser.forceGetUserAccount())
 			.perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 
@@ -275,7 +275,7 @@ describe('market order', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const firstPosition = await driftClientUser.forceGetUserAccount()
+		const firstPosition = (await driftClientUser.forceGetUserAccount())
 			.perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
 

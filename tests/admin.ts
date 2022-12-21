@@ -124,7 +124,7 @@ describe('admin', () => {
 	});
 
 	it('Update perp fee structure', async () => {
-		const newFeeStructure = await driftClient.forceGetStateAccount()
+		const newFeeStructure = (await driftClient.forceGetStateAccount())
 			.perpFeeStructure;
 		newFeeStructure.flatFillerFee = new BN(0);
 
@@ -139,7 +139,7 @@ describe('admin', () => {
 	});
 
 	it('Update spot fee structure', async () => {
-		const newFeeStructure = await driftClient.forceGetStateAccount()
+		const newFeeStructure = (await driftClient.forceGetStateAccount())
 			.spotFeeStructure;
 		newFeeStructure.flatFillerFee = new BN(1);
 

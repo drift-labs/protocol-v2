@@ -273,7 +273,7 @@ describe('stop limit', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		order = await driftClientUser.forceGetUserAccount().orders[
+		order = (await driftClientUser.forceGetUserAccount()).orders[
 			orderIndex.toString()
 		];
 
@@ -283,7 +283,7 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = await driftClientUser.forceGetUserAccount()
+		const firstPosition = (await driftClientUser.forceGetUserAccount())
 			.perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
@@ -359,7 +359,7 @@ describe('stop limit', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		order = await driftClientUser.forceGetUserAccount().orders[
+		order = (await driftClientUser.forceGetUserAccount()).orders[
 			orderIndex.toString()
 		];
 
@@ -369,7 +369,7 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = await driftClientUser.forceGetUserAccount()
+		const firstPosition = (await driftClientUser.forceGetUserAccount())
 			.perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));

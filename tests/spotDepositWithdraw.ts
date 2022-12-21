@@ -291,7 +291,7 @@ describe('spot deposit and withdraw', () => {
 			spotMarket,
 			SpotBalanceType.DEPOSIT
 		);
-		const spotPosition = await firstUserDriftClient.forceGetUserAccount()
+		const spotPosition = (await firstUserDriftClient.forceGetUserAccount())
 			.spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));

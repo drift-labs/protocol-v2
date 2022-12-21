@@ -331,9 +331,7 @@ async function cappedSymFundingScenario(
 	await driftClient.fetchAccounts();
 	await driftClient2.fetchAccounts();
 
-	const marketNew = await await driftClient.forceGetPerpMarketAccount(
-		marketIndex
-	);
+	const marketNew = await driftClient.forceGetPerpMarketAccount(marketIndex);
 
 	const fundingRateLong = marketNew.amm.cumulativeFundingRateLong; //.sub(prevFRL);
 	const fundingRateShort = marketNew.amm.cumulativeFundingRateShort; //.sub(prevFRS);
