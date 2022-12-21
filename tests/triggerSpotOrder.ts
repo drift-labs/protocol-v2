@@ -192,6 +192,7 @@ describe('trigger orders', () => {
 			order
 		);
 
+		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 		await fillerDriftClient.fetchAccounts();
 
