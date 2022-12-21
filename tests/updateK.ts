@@ -121,7 +121,7 @@ describe('update k', () => {
 			driftClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
-		const ammOld = driftClient.getPerpMarketAccount(0).amm;
+		const ammOld = await driftClient.forceGetPerpMarketAccount(0).amm;
 		const newSqrtK = ammInitialBaseAssetReserve.mul(new BN(10));
 		await driftClient.updateK(marketIndex, newSqrtK);
 
@@ -131,7 +131,7 @@ describe('update k', () => {
 			undefined
 		);
 
-		const amm = driftClient.getPerpMarketAccount(0).amm;
+		const amm = await driftClient.forceGetPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(100);
 
@@ -168,7 +168,7 @@ describe('update k', () => {
 		await driftClient.moveAmmToPrice(marketIndex, targetPriceUp);
 		await driftClient.fetchAccounts();
 
-		const marketOld = driftClient.getPerpMarketAccount(0);
+		const marketOld = await driftClient.forceGetPerpMarketAccount(0);
 
 		const oldKPrice = calculateReservePrice(
 			driftClient.getPerpMarketAccount(marketIndex),
@@ -188,7 +188,7 @@ describe('update k', () => {
 			undefined
 		);
 
-		const amm = driftClient.getPerpMarketAccount(0).amm;
+		const amm = await driftClient.forceGetPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -239,7 +239,7 @@ describe('update k', () => {
 		);
 		console.log('$1 position taken');
 		await driftClient.fetchAccounts();
-		const marketOld = driftClient.getPerpMarketAccount(0);
+		const marketOld = await driftClient.forceGetPerpMarketAccount(0);
 		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
@@ -261,7 +261,9 @@ describe('update k', () => {
 			assert(false);
 		} catch {
 			await driftClient.fetchAccounts();
-			const marketKChange = await driftClient.getPerpMarketAccount(0);
+			const marketKChange = await await driftClient.forceGetPerpMarketAccount(
+				0
+			);
 			const ammKChange = marketKChange.amm;
 
 			const newKPrice = calculateReservePrice(
@@ -274,7 +276,7 @@ describe('update k', () => {
 			await driftClient.closePosition(marketIndex);
 			console.log('$1 position closed');
 
-			const amm = driftClient.getPerpMarketAccount(0).amm;
+			const amm = await driftClient.forceGetPerpMarketAccount(0).amm;
 
 			const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -339,7 +341,7 @@ describe('update k', () => {
 		);
 		console.log('$1000 position taken');
 		await driftClient.fetchAccounts();
-		const marketOld = await driftClient.getPerpMarketAccount(0);
+		const marketOld = await await driftClient.forceGetPerpMarketAccount(0);
 		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
@@ -369,7 +371,7 @@ describe('update k', () => {
 		}
 
 		await driftClient.fetchAccounts();
-		const marketKChange = await driftClient.getPerpMarketAccount(0);
+		const marketKChange = await await driftClient.forceGetPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 
 		const newKPrice = calculateReservePrice(
@@ -396,7 +398,7 @@ describe('update k', () => {
 		await driftClient.closePosition(marketIndex);
 		console.log('$1 position closed');
 
-		const amm = driftClient.getPerpMarketAccount(0).amm;
+		const amm = await driftClient.forceGetPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -454,7 +456,7 @@ describe('update k', () => {
 		);
 		console.log('$1 position taken');
 		await driftClient.fetchAccounts();
-		const marketOld = await driftClient.getPerpMarketAccount(0);
+		const marketOld = await await driftClient.forceGetPerpMarketAccount(0);
 		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
@@ -479,7 +481,7 @@ describe('update k', () => {
 		await driftClient.updateK(marketIndex, newSqrtK);
 
 		await driftClient.fetchAccounts();
-		const marketKChange = await driftClient.getPerpMarketAccount(0);
+		const marketKChange = await await driftClient.forceGetPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 		const newKPrice = calculateReservePrice(
 			driftClient.getPerpMarketAccount(marketIndex),
@@ -506,7 +508,7 @@ describe('update k', () => {
 		console.log('$1 position closed');
 
 		await driftClient.fetchAccounts();
-		const markets = driftClient.getPerpMarketAccount(0);
+		const markets = await driftClient.forceGetPerpMarketAccount(0);
 		const amm = markets.amm;
 
 		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places

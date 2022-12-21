@@ -201,7 +201,7 @@ describe('trading liquidity providing', () => {
 	});
 
 	it('lp trades with short', async () => {
-		let market = driftClient.getPerpMarketAccount(0);
+		let market = await driftClient.forceGetPerpMarketAccount(0);
 
 		console.log('adding liquidity...');
 		const _sig = await driftClient.addPerpLpShares(
@@ -219,7 +219,8 @@ describe('trading liquidity providing', () => {
 		);
 
 		await traderDriftClient.fetchAccounts();
-		const position = traderDriftClient.getUserAccount().perpPositions[0];
+		const position = await traderDriftClient.forceGetUserAccount()
+			.perpPositions[0];
 		console.log(
 			'trader position:',
 			position.baseAssetAmount.toString(),
@@ -247,7 +248,8 @@ describe('trading liquidity providing', () => {
 		await driftClientUser.fetchAccounts();
 
 		// lp now has a long
-		const newLpPosition = driftClientUser.getUserAccount().perpPositions[0];
+		const newLpPosition = await driftClientUser.forceGetUserAccount()
+			.perpPositions[0];
 		console.log(
 			'lp position:',
 			newLpPosition.baseAssetAmount.toString(),
@@ -257,7 +259,7 @@ describe('trading liquidity providing', () => {
 		assert(newLpPosition.quoteAssetAmount.lt(ZERO));
 		// is still an lp
 		assert(newLpPosition.lpShares.gt(ZERO));
-		market = driftClient.getPerpMarketAccount(0);
+		market = await driftClient.forceGetPerpMarketAccount(0);
 
 		console.log('done!');
 	});

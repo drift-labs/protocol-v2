@@ -55,7 +55,9 @@ async function updateFundingRateHelper(
 		// 	marketIndex
 		// );
 		await driftClient.fetchAccounts();
-		const marketData0 = driftClient.getPerpMarketAccount(marketIndex);
+		const marketData0 = await driftClient.forceGetPerpMarketAccount(
+			marketIndex
+		);
 		const ammAccountState0 = marketData0.amm;
 		const oraclePx0 = await getFeedData(
 			anchor.workspace.Pyth,
@@ -91,10 +93,10 @@ async function updateFundingRateHelper(
 		const cumulativeFundingRateShortOld =
 			ammAccountState0.cumulativeFundingRateShort;
 
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 		assert(isVariant(state.exchangeStatus, 'active'));
 
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		assert(isVariant(market.status, 'active'));
 
 		await driftClient.updateFundingRate(marketIndex, priceFeedAddress);
@@ -102,7 +104,7 @@ async function updateFundingRateHelper(
 		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
 		await driftClient.fetchAccounts();
-		const marketData = driftClient.getPerpMarketAccount(marketIndex);
+		const marketData = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.amm.fundingPeriod;
 
@@ -279,7 +281,7 @@ async function cappedSymFundingScenario(
 
 	console.log(longShortSizes[0], longShortSizes[1]);
 	await userAccount.fetchAccounts();
-	const uA = userAccount.getUserAccount();
+	const uA = await userAccount.forceGetUserAccount();
 	console.log(
 		'userAccount.getTotalPositionValue():',
 		userAccount.getTotalPerpPositionValue().toString(),
@@ -314,7 +316,7 @@ async function cappedSymFundingScenario(
 	}
 
 	await driftClient.fetchAccounts();
-	const market = driftClient.getPerpMarketAccount(marketIndex);
+	const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
 
 	await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
 
@@ -329,7 +331,9 @@ async function cappedSymFundingScenario(
 	await driftClient.fetchAccounts();
 	await driftClient2.fetchAccounts();
 
-	const marketNew = await driftClient.getPerpMarketAccount(marketIndex);
+	const marketNew = await await driftClient.forceGetPerpMarketAccount(
+		marketIndex
+	);
 
 	const fundingRateLong = marketNew.amm.cumulativeFundingRateLong; //.sub(prevFRL);
 	const fundingRateShort = marketNew.amm.cumulativeFundingRateShort; //.sub(prevFRS);
@@ -793,7 +797,7 @@ describe('capped funding', () => {
 
 		//ensure it was clamped :)
 		await driftClient.fetchAccounts();
-		const marketNew = driftClient.getPerpMarketAccount(marketIndex);
+		const marketNew = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		console.log(
 			'marketNew.amm.historicalOracleData.lastOraclePriceTwap:',
 			marketNew.amm.historicalOracleData.lastOraclePriceTwap.toString()
@@ -891,7 +895,7 @@ describe('capped funding', () => {
 
 		//ensure it was clamped :)
 		await driftClient.fetchAccounts();
-		const _marketNew = driftClient.getPerpMarketAccount(marketIndex);
+		const _marketNew = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		const clampedFundingRatePct = new BN(
 			(0.03 * PRICE_PRECISION.toNumber()) / 24
 		).mul(FUNDING_RATE_BUFFER_PRECISION);

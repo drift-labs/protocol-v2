@@ -227,7 +227,7 @@ describe('delist market, liquidation of expired position', () => {
 			console.error(e);
 		}
 
-		const uL = driftClientLoserUser.getUserAccount();
+		const uL = await driftClientLoserUser.forceGetUserAccount();
 		console.log(
 			'uL.spotPositions[0].scaledBalance:',
 			uL.spotPositions[0].scaledBalance.toString()
@@ -270,7 +270,8 @@ describe('delist market, liquidation of expired position', () => {
 
 		await driftClientLoser.fetchAccounts();
 		await driftClientLoserUser.fetchAccounts();
-		const userPos = driftClientLoser.getUserAccount().perpPositions[0];
+		const userPos = await driftClientLoser.forceGetUserAccount()
+			.perpPositions[0];
 		console.log(userPos.baseAssetAmount.toString());
 		console.log(userPos.quoteAssetAmount.toString());
 		assert(userPos.baseAssetAmount.eq(new BN(205).mul(BASE_PRECISION)));
@@ -298,7 +299,7 @@ describe('delist market, liquidation of expired position', () => {
 		assert(driftClientLoserUserLiqPrice < 41);
 		assert(driftClientLoserUserLiqPrice > 40.5);
 
-		const market00 = driftClient.getPerpMarketAccount(0);
+		const market00 = await driftClient.forceGetPerpMarketAccount(0);
 		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
 
 		const bank0Value1p5 = driftClientLoserUser.getSpotMarketAssetValue(0);
@@ -388,9 +389,9 @@ describe('delist market, liquidation of expired position', () => {
 			driftClientLoserUserValue2.toString()
 		);
 
-		const market0 = driftClient.getPerpMarketAccount(0);
-		const winnerUser = driftClient.getUserAccount();
-		const loserUser = driftClientLoser.getUserAccount();
+		const market0 = await driftClient.forceGetPerpMarketAccount(0);
+		const winnerUser = await driftClient.forceGetUserAccount();
+		const loserUser = await driftClientLoser.forceGetUserAccount();
 		console.log(winnerUser.perpPositions[0].quoteAssetAmount.toString());
 		console.log(loserUser.perpPositions[0].quoteAssetAmount.toString());
 
@@ -415,14 +416,14 @@ describe('delist market, liquidation of expired position', () => {
 		// 	new BN(43.1337 * PRICE_PRECISION.toNumber())
 		// );
 
-		const market0 = driftClient.getPerpMarketAccount(marketIndex);
+		const market0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
 		await driftClient.updatePerpMarketExpiry(marketIndex, expiryTs);
 		await sleep(1000);
 		driftClient.fetchAccounts();
 
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'reduceOnly'));
 		console.log(
@@ -474,7 +475,7 @@ describe('delist market, liquidation of expired position', () => {
 		let slot = await connection.getSlot();
 		let now = await connection.getBlockTime(slot);
 
-		const market0 = driftClient.getPerpMarketAccount(marketIndex);
+		const market0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		console.log('market0.status:', market0.status);
 		while (market0.expiryTs.gte(new BN(now))) {
 			console.log(market0.expiryTs.toString(), '>', now);
@@ -492,7 +493,7 @@ describe('delist market, liquidation of expired position', () => {
 
 		driftClient.fetchAccounts();
 
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'settlement'));
 		console.log('market.expiryPrice:', convertToNumber(market.expiryPrice));
@@ -507,7 +508,7 @@ describe('delist market, liquidation of expired position', () => {
 
 	it('liq and settle expired market position', async () => {
 		const marketIndex = 0;
-		const loserUser0 = driftClientLoser.getUserAccount();
+		const loserUser0 = await driftClientLoser.forceGetUserAccount();
 		assert(loserUser0.perpPositions[0].baseAssetAmount.gt(new BN(0)));
 		assert(loserUser0.perpPositions[0].quoteAssetAmount.lt(new BN(0)));
 		// console.log(loserUser0.perpPositions[0]);
@@ -720,11 +721,13 @@ describe('delist market, liquidation of expired position', () => {
 		// console.log(settleRecord);
 
 		await driftClientLoser.fetchAccounts();
-		const liqUser = liquidatorDriftClient.getUserAccount();
+		const liqUser = await liquidatorDriftClient.forceGetUserAccount();
 		// console.log(loserUser.perpPositions[0]);
 		assert(liqUser.perpPositions[0].baseAssetAmount.eq(new BN(0)));
 		assert(liqUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
-		const marketAfter0 = driftClient.getPerpMarketAccount(marketIndex);
+		const marketAfter0 = await driftClient.forceGetPerpMarketAccount(
+			marketIndex
+		);
 		console.log(marketAfter0);
 		assert(marketAfter0.numberOfUsersWithBase === 0);
 

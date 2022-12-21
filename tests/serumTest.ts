@@ -296,7 +296,7 @@ describe('serum spot market', () => {
 		);
 		assert(baseTokenAmount.eq(new BN(1000000000)));
 
-		const takerOrder = takerDriftClient.getUserAccount().orders[0];
+		const takerOrder = await takerDriftClient.forceGetUserAccount().orders[0];
 		assert(isVariant(takerOrder.status, 'init'));
 
 		const orderActionRecord =
@@ -405,7 +405,7 @@ describe('serum spot market', () => {
 		);
 		assert(baseTokenAmount.eq(new BN(0)));
 
-		const takerOrder = takerDriftClient.getUserAccount().orders[0];
+		const takerOrder = await takerDriftClient.forceGetUserAccount().orders[0];
 		assert(isVariant(takerOrder.status, 'init'));
 
 		const orderActionRecord =
@@ -516,7 +516,7 @@ describe('serum spot market', () => {
 		);
 		assert(baseTokenAmount.eq(new BN(1000000000)));
 
-		const takerOrder = takerDriftClient.getUserAccount().orders[0];
+		const takerOrder = await takerDriftClient.forceGetUserAccount().orders[0];
 		assert(isVariant(takerOrder.status, 'init'));
 
 		const orderActionRecord =
@@ -610,7 +610,7 @@ describe('serum spot market', () => {
 		);
 		assert(baseTokenAmount.eq(ZERO));
 
-		const takerOrder = takerDriftClient.getUserAccount().orders[0];
+		const takerOrder = await takerDriftClient.forceGetUserAccount().orders[0];
 		assert(isVariant(takerOrder.status, 'init'));
 
 		const orderActionRecord =

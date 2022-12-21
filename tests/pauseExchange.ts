@@ -106,7 +106,7 @@ describe('admin withdraw', () => {
 
 	it('Pause exchange', async () => {
 		await driftClient.updateExchangeStatus(ExchangeStatus.PAUSED);
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 		assert(isVariant(state.exchangeStatus, 'paused'));
 	});
 

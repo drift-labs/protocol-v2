@@ -143,8 +143,8 @@ describe('liquidate spot w/ social loss', () => {
 
 	it('liquidate', async () => {
 		await setFeedPrice(anchor.workspace.Pyth, 200, solOracle);
-		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
-		const spotMarket1Before = driftClient.getSpotMarketAccount(1);
+		const spotMarketBefore = await driftClient.forceGetSpotMarketAccount(0);
+		const spotMarket1Before = await driftClient.forceGetSpotMarketAccount(1);
 
 		const txSig = await liquidatorDriftClient.liquidateSpot(
 			await driftClient.getUserAccountPublicKey(),
@@ -206,8 +206,8 @@ describe('liquidate spot w/ social loss', () => {
 			)
 		);
 		await driftClient.fetchAccounts();
-		const spotMarket = driftClient.getSpotMarketAccount(0);
-		const spotMarket1 = driftClient.getSpotMarketAccount(1);
+		const spotMarket = await driftClient.forceGetSpotMarketAccount(0);
+		const spotMarket1 = await driftClient.forceGetSpotMarketAccount(1);
 
 		console.log(
 			'usdc borrows in spotMarket:',
@@ -299,8 +299,8 @@ describe('liquidate spot w/ social loss', () => {
 	});
 
 	it('resolve bankruptcy', async () => {
-		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
-		const spotMarket1Before = driftClient.getSpotMarketAccount(1);
+		const spotMarketBefore = await driftClient.forceGetSpotMarketAccount(0);
+		const spotMarket1Before = await driftClient.forceGetSpotMarketAccount(1);
 
 		const spotMarketCumulativeDepositInterestBefore =
 			driftClient.getSpotMarketAccount(1).cumulativeDepositInterest;
@@ -331,7 +331,7 @@ describe('liquidate spot w/ social loss', () => {
 			bankruptcyRecord.spotBankruptcy.borrowAmount.eq(new BN(5001586)) ||
 				bankruptcyRecord.spotBankruptcy.borrowAmount.eq(new BN(5001269))
 		);
-		const spotMarket = driftClient.getSpotMarketAccount(1);
+		const spotMarket = await driftClient.forceGetSpotMarketAccount(1);
 		assert(
 			spotMarket.cumulativeDepositInterest.eq(
 				spotMarketCumulativeDepositInterestBefore.sub(
@@ -341,8 +341,8 @@ describe('liquidate spot w/ social loss', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		const spotMarket0 = driftClient.getSpotMarketAccount(0);
-		const spotMarket1 = driftClient.getSpotMarketAccount(1);
+		const spotMarket0 = await driftClient.forceGetSpotMarketAccount(0);
+		const spotMarket1 = await driftClient.forceGetSpotMarketAccount(1);
 
 		console.log(
 			'usdc borrows in spotMarket:',

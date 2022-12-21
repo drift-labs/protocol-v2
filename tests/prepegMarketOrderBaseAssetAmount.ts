@@ -178,7 +178,7 @@ describe('prepeg', () => {
 		const marketIndex = 0;
 		const baseAssetAmount = new BN(49745050000);
 		const direction = PositionDirection.LONG;
-		const market0 = driftClient.getPerpMarketAccount(0);
+		const market0 = await driftClient.forceGetPerpMarketAccount(0);
 
 		// await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
@@ -187,7 +187,8 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
-		const position0Before = driftClient.getUserAccount().perpPositions[0];
+		const position0Before = await driftClient.forceGetUserAccount()
+			.perpPositions[0];
 		console.log(position0Before.quoteAssetAmount.eq(ZERO));
 
 		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
@@ -245,7 +246,7 @@ describe('prepeg', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 
@@ -258,7 +259,7 @@ describe('prepeg', () => {
 			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 
-		const position0 = driftClient.getUserAccount().perpPositions[0];
+		const position0 = await driftClient.forceGetUserAccount().perpPositions[0];
 
 		console.log(position0.quoteAssetAmount.toString());
 		console.log('quoteEntryAmount:', position0.quoteEntryAmount.toString());
@@ -312,7 +313,7 @@ describe('prepeg', () => {
 	it('Long even more', async () => {
 		const marketIndex = 0;
 		const baseAssetAmount = new BN(49745050367 / 50);
-		const market0 = driftClient.getPerpMarketAccount(0);
+		const market0 = await driftClient.forceGetPerpMarketAccount(0);
 
 		await setFeedPrice(anchor.workspace.Pyth, 1.0281, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
@@ -436,7 +437,7 @@ describe('prepeg', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -489,7 +490,7 @@ describe('prepeg', () => {
 		// console.log(orderRecord);
 
 		await driftClient.fetchAccounts();
-		const position0 = driftClient.getUserAccount().perpPositions[0];
+		const position0 = await driftClient.forceGetUserAccount().perpPositions[0];
 		const position0qea = position0.quoteEntryAmount;
 		console.log(
 			'position0qea:',
@@ -557,7 +558,7 @@ describe('prepeg', () => {
 	it('Reduce long position', async () => {
 		const marketIndex = 0;
 		const baseAssetAmount = new BN(24872525000);
-		const market0 = driftClient.getPerpMarketAccount(0);
+		const market0 = await driftClient.forceGetPerpMarketAccount(0);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -611,7 +612,7 @@ describe('prepeg', () => {
 				.logMessages
 		);
 
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -641,7 +642,7 @@ describe('prepeg', () => {
 			const thisUsd = mockOracles[i];
 			const marketIndex = i;
 			const baseAssetAmount = new BN(31.02765 * BASE_PRECISION.toNumber());
-			const market0 = driftClient.getPerpMarketAccount(i);
+			const market0 = await driftClient.forceGetPerpMarketAccount(i);
 			const orderParams = getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.LONG,
@@ -693,7 +694,7 @@ describe('prepeg', () => {
 				assert(false);
 			}
 
-			const market = driftClient.getPerpMarketAccount(i);
+			const market = await driftClient.forceGetPerpMarketAccount(i);
 			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 			console.log(
 				'after trade bid/ask:',
@@ -708,7 +709,7 @@ describe('prepeg', () => {
 	});
 
 	it('Many market expensive prepeg margin', async () => {
-		const user = driftClient.getUserAccount();
+		const user = await driftClient.forceGetUserAccount();
 
 		// todo cheapen margin peg enough to make this work w/ 5 positions
 		for (let i = 1; i <= 4; i++) {

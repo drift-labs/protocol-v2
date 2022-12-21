@@ -43,7 +43,9 @@ async function updateFundingRateHelper(
 		const newprice = prices[i];
 		setFeedPrice(anchor.workspace.Pyth, newprice, priceFeedAddress);
 
-		const marketData0 = driftClient.getPerpMarketAccount(marketIndex);
+		const marketData0 = await driftClient.forceGetPerpMarketAccount(
+			marketIndex
+		);
 		const ammAccountState0 = marketData0.amm;
 		const oraclePx0 = await getFeedData(
 			anchor.workspace.Pyth,
@@ -90,7 +92,7 @@ async function updateFundingRateHelper(
 
 		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
-		const marketData = driftClient.getPerpMarketAccount(marketIndex);
+		const marketData = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.amm.fundingPeriod;
 
@@ -328,7 +330,7 @@ describe('pyth-oracle', () => {
 		);
 		await driftClient.fetchAccounts();
 
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
 
 		console.log('PRICE AFTER', convertToNumber(calculateReservePrice(market)));
 
@@ -341,7 +343,7 @@ describe('pyth-oracle', () => {
 		await sleep(1000);
 		await driftClient.fetchAccounts();
 
-		const marketNew = driftClient.getPerpMarketAccount(marketIndex);
+		const marketNew = await driftClient.forceGetPerpMarketAccount(marketIndex);
 
 		console.log(
 			'lastOraclePriceTwap before:',

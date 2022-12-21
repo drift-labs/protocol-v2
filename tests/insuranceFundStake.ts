@@ -170,7 +170,9 @@ describe('insurance fund stake', () => {
 
 	it('user if stake', async () => {
 		const marketIndex = 0;
-		const spotMarketBefore = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarketBefore = await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		// console.log(spotMarketBefore);
 		console.log(
 			'spotMarketBefore.totalIfShares:',
@@ -192,7 +194,9 @@ describe('insurance fund stake', () => {
 			console.error(e);
 		}
 
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0 = await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		console.log(
 			'spotMarket0.insurance.totalIfShares:',
 			spotMarket0.insuranceFund.totalShares.toString()
@@ -213,7 +217,9 @@ describe('insurance fund stake', () => {
 		const marketIndex = 0;
 		const nShares = usdcAmount.div(new BN(2));
 
-		const spotMarket0Before = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0Before = await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		const insuranceVaultAmountBefore = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
@@ -244,7 +250,9 @@ describe('insurance fund stake', () => {
 			console.error(e);
 		}
 
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0 = await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		assert(spotMarket0.insuranceFund.totalShares.gt(ZERO));
 		assert(spotMarket0.insuranceFund.totalShares.eq(usdcAmount));
 		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount));
@@ -289,7 +297,9 @@ describe('insurance fund stake', () => {
 				.logMessages
 		);
 
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0 = await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		console.log(
 			'totalIfShares:',
 			spotMarket0.insuranceFund.totalShares.toString()
@@ -363,7 +373,9 @@ describe('insurance fund stake', () => {
 
 		await driftClient.fetchAccounts();
 
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0 = await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		assert(spotMarket0.insuranceFund.unstakingPeriod.eq(new BN(10)));
 		assert(spotMarket0.insuranceFund.totalShares.gt(ZERO));
 		assert(spotMarket0.insuranceFund.totalShares.eq(usdcAmount.div(new BN(2))));
@@ -401,7 +413,9 @@ describe('insurance fund stake', () => {
 			assert(false);
 		}
 
-		const spotMarket0Pre = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0Pre = await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		assert(spotMarket0Pre.insuranceFund.unstakingPeriod.eq(new BN(10)));
 
 		let slot = await connection.getSlot();
@@ -446,7 +460,9 @@ describe('insurance fund stake', () => {
 				.logMessages
 		);
 		await driftClient.fetchAccounts();
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0 = await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		console.log(
 			'totalIfShares:',
 			spotMarket0.insuranceFund.totalShares.toString()
@@ -512,7 +528,9 @@ describe('insurance fund stake', () => {
 		);
 		await printTxLogs(connection, txSig);
 
-		const spotMarket = await driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket = await await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		console.log(spotMarket.depositBalance.toString());
 		// assert(spotMarket.depositBalance.eq('10000000000'));
 
@@ -545,7 +563,9 @@ describe('insurance fund stake', () => {
 		await printTxLogs(connection, txSig);
 
 		await driftClient.fetchAccounts();
-		const spotMarket = await driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket = await await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		const expectedBorrowBalance = new BN(500000000000001);
 		console.log(
 			'spotMarket.borrowBalance:',
@@ -584,7 +604,7 @@ describe('insurance fund stake', () => {
 	});
 
 	it('if pool revenue from borrows', async () => {
-		let spotMarket = driftClient.getSpotMarketAccount(0);
+		let spotMarket = await driftClient.forceGetSpotMarketAccount(0);
 
 		// await mintToInsuranceFund(
 		// 	spotMarket.insurance.vault,
@@ -605,7 +625,7 @@ describe('insurance fund stake', () => {
 		await driftClient.updateSpotMarketCumulativeInterest(0);
 
 		await driftClient.fetchAccounts();
-		spotMarket = driftClient.getSpotMarketAccount(0);
+		spotMarket = await driftClient.forceGetSpotMarketAccount(0);
 
 		console.log(
 			'cumulativeBorrowInterest:',
@@ -663,7 +683,7 @@ describe('insurance fund stake', () => {
 		assert(insuranceVaultAmount.gt(ONE));
 
 		await driftClient.fetchAccounts();
-		spotMarket = driftClient.getSpotMarketAccount(0);
+		spotMarket = await driftClient.forceGetSpotMarketAccount(0);
 		const ifPoolBalanceAfterSettle = getTokenAmount(
 			spotMarket.revenuePool.scaledBalance,
 			spotMarket,
@@ -674,7 +694,9 @@ describe('insurance fund stake', () => {
 
 	it('no user -> user stake when there is a vault balance', async () => {
 		const marketIndex = 0;
-		const spotMarket0Before = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0Before = await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		const insuranceVaultAmountBefore = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
@@ -709,7 +731,9 @@ describe('insurance fund stake', () => {
 			assert(false);
 		}
 
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0 = await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		assert(spotMarket0.revenuePool.scaledBalance.eq(ZERO));
 		const insuranceVaultAmountAfter = new BN(
 			(
@@ -742,7 +766,9 @@ describe('insurance fund stake', () => {
 
 	it('user stake misses out on gains during escrow period after cancel', async () => {
 		const marketIndex = 0;
-		const spotMarket0Before = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0Before = await driftClient.forceGetSpotMarketAccount(
+			marketIndex
+		);
 		const insuranceVaultAmountBefore = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
@@ -787,7 +813,7 @@ describe('insurance fund stake', () => {
 		await sleep(2000);
 		await driftClient.updateSpotMarketCumulativeInterest(0);
 		await driftClient.fetchAccounts();
-		const spotMarketIUpdate = await driftClient.getSpotMarketAccount(
+		const spotMarketIUpdate = await await driftClient.forceGetSpotMarketAccount(
 			marketIndex
 		);
 
@@ -855,7 +881,7 @@ describe('insurance fund stake', () => {
 	});
 
 	it('liquidate borrow (w/ IF revenue)', async () => {
-		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
+		const spotMarketBefore = await driftClient.forceGetSpotMarketAccount(0);
 
 		const ifPoolBalance = getTokenAmount(
 			spotMarketBefore.revenuePool.scaledBalance,
@@ -905,8 +931,8 @@ describe('insurance fund stake', () => {
 
 		assert(driftClientUser.canBeLiquidated());
 
-		const beforecbb0 = driftClient.getUserAccount().spotPositions[0];
-		const beforecbb1 = driftClient.getUserAccount().spotPositions[1];
+		const beforecbb0 = await driftClient.forceGetUserAccount().spotPositions[0];
+		const beforecbb1 = await driftClient.forceGetUserAccount().spotPositions[1];
 
 		const beforeLiquiderUSDCDeposit = getTokenAmount(
 			beforecbb0.scaledBalance,
@@ -931,8 +957,10 @@ describe('insurance fund stake', () => {
 		assert(isVariant(beforecbb0.balanceType, 'deposit'));
 		// assert(isVariant(beforecbb1.balanceType, 'deposit'));
 
-		const beforebb0 = secondUserDriftClient.getUserAccount().spotPositions[0];
-		const beforebb1 = secondUserDriftClient.getUserAccount().spotPositions[1];
+		const beforebb0 = await secondUserDriftClient.forceGetUserAccount()
+			.spotPositions[0];
+		const beforebb1 = await secondUserDriftClient.forceGetUserAccount()
+			.spotPositions[1];
 
 		const usdcDepositsBefore = getTokenAmount(
 			spotMarketBefore.depositBalance,
@@ -992,10 +1020,10 @@ describe('insurance fund stake', () => {
 		await driftClient.fetchAccounts();
 		await secondUserDriftClient.fetchAccounts();
 
-		const spotMarket = driftClient.getSpotMarketAccount(0);
+		const spotMarket = await driftClient.forceGetSpotMarketAccount(0);
 
-		const cbb0 = driftClient.getUserAccount().spotPositions[0];
-		const cbb1 = driftClient.getUserAccount().spotPositions[1];
+		const cbb0 = await driftClient.forceGetUserAccount().spotPositions[0];
+		const cbb1 = await driftClient.forceGetUserAccount().spotPositions[1];
 
 		const afterLiquiderUSDCDeposit = getTokenAmount(
 			cbb0.scaledBalance,
@@ -1020,8 +1048,10 @@ describe('insurance fund stake', () => {
 		assert(isVariant(cbb0.balanceType, 'deposit'));
 		assert(isVariant(cbb1.balanceType, 'deposit'));
 
-		const bb0 = secondUserDriftClient.getUserAccount().spotPositions[0];
-		const bb1 = secondUserDriftClient.getUserAccount().spotPositions[1];
+		const bb0 = await secondUserDriftClient.forceGetUserAccount()
+			.spotPositions[0];
+		const bb1 = await secondUserDriftClient.forceGetUserAccount()
+			.spotPositions[1];
 
 		const afterLiquiteeUSDCBorrow = getTokenAmount(
 			bb0.scaledBalance,
@@ -1162,7 +1192,7 @@ describe('insurance fund stake', () => {
 	// it('settle spotMarket to insurance vault', async () => {
 	// 	const marketIndex = new BN(0);
 
-	// 	const spotMarket0Before = driftClient.getspotMarketAccount(marketIndex);
+	// 	const spotMarket0Before = await driftClient.forceGetSpotMarketAccount(marketIndex);
 
 	// 	const insuranceVaultAmountBefore = new BN(
 	// 		(
@@ -1196,7 +1226,7 @@ describe('insurance fund stake', () => {
 	// 		assert(false);
 	// 	}
 
-	// 	const spotMarket0 = driftClient.getspotMarketAccount(marketIndex);
+	// 	const spotMarket0 = await driftClient.forceGetSpotMarketAccount(marketIndex);
 	// 	assert(spotMarket0.revenuePool.scaledBalance.eq(ZERO));
 	// 	assert(spotMarket0.insurance.totalIfShares.eq(ZERO));
 	// });

@@ -95,13 +95,13 @@ describe('whitelist', () => {
 	});
 
 	it('Assert whitelist mint null', async () => {
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 		assert(state.whitelistMint.equals(PublicKey.default));
 	});
 
 	it('enable whitelist mint', async () => {
 		await driftClient.updateWhitelistMint(whitelistMint.publicKey);
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 		console.assert(state.whitelistMint.equals(whitelistMint.publicKey));
 	});
 
@@ -146,7 +146,7 @@ describe('whitelist', () => {
 
 	it('disable whitelist mint', async () => {
 		await driftClient.updateWhitelistMint(PublicKey.default);
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 		console.assert(state.whitelistMint.equals(PublicKey.default));
 	});
 });

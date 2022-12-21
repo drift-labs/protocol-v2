@@ -129,13 +129,13 @@ async function createNewUser(
 
 async function fullClosePosition(driftClient, userPosition) {
 	console.log('=> closing:', userPosition.baseAssetAmount.toString());
-	let position = driftClient.getUserAccount().perpPositions[0];
+	let position = await driftClient.forceGetUserAccount().perpPositions[0];
 	let sig;
 	let flag = true;
 	while (flag) {
 		sig = await driftClient.closePosition(0);
 		await driftClient.fetchAccounts();
-		position = driftClient.getUserAccount().perpPositions[0];
+		position = await driftClient.forceGetUserAccount().perpPositions[0];
 		if (position.baseAssetAmount.eq(ZERO)) {
 			flag = false;
 		}
@@ -291,7 +291,7 @@ describe('liquidity providing', () => {
 		const initMarginReq = driftClientUser.getInitialMarginRequirement();
 		assert(initMarginReq.eq(ZERO));
 
-		let market = driftClient.getPerpMarketAccount(0);
+		let market = await driftClient.forceGetPerpMarketAccount(0);
 		const lpAmount = new BN(100 * BASE_PRECISION.toNumber()); // 100 / (100 + 300) = 1/4
 		const _sig = await driftClient.addPerpLpShares(
 			lpAmount,
@@ -368,7 +368,7 @@ describe('liquidity providing', () => {
 			driftClient.getPerpMarketAccount(0).amm.orderTickSize
 		);
 
-		let user = driftClientUser.getUserAccount();
+		let user = await driftClientUser.forceGetUserAccount();
 		console.log('lpUser lpShares:', user.perpPositions[0].lpShares.toString());
 		console.log(
 			'lpUser baa:',
@@ -380,7 +380,7 @@ describe('liquidity providing', () => {
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
 
-		market = driftClient.getPerpMarketAccount(0);
+		market = await driftClient.forceGetPerpMarketAccount(0);
 		assert(market.amm.sqrtK.eq(new BN('400000000000')));
 
 		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
@@ -414,7 +414,7 @@ describe('liquidity providing', () => {
 		// lp gets stepSize (1/4 * 50 = 12.5 => 10 with remainder 2.5)
 		// 2.5 / 12.5 = 0.2
 
-		const traderUserAccount = traderDriftClient.getUserAccount();
+		const traderUserAccount = await traderDriftClient.forceGetUserAccount();
 		const position = traderUserAccount.perpPositions[0];
 		console.log(
 			'trader position:',
@@ -453,13 +453,13 @@ describe('liquidity providing', () => {
 				.amm.baseAssetAmountWithAmm.eq(marketNetBaa)
 		);
 
-		const marketAfter = driftClient.getPerpMarketAccount(0);
+		const marketAfter = await driftClient.forceGetPerpMarketAccount(0);
 		assert(
 			marketAfter.amm.baseAssetAmountWithUnsettledLp.eq(new BN('-250000000'))
 		);
 		assert(marketAfter.amm.baseAssetAmountWithAmm.eq(new BN('-3750000000')));
 
-		user = driftClientUser.getUserAccount();
+		user = await driftClientUser.forceGetUserAccount();
 		const lpPosition = user.perpPositions[0];
 
 		assert(
@@ -494,7 +494,7 @@ describe('liquidity providing', () => {
 		assert(user.perpPositions[0].lastBaseAssetAmountPerLp.eq(new BN(12500000)));
 		assert(user.perpPositions[0].lastQuoteAssetAmountPerLp.eq(new BN(-12336)));
 
-		market = await driftClient.getPerpMarketAccount(0);
+		market = await await driftClient.forceGetPerpMarketAccount(0);
 		console.log(
 			market.amm.quoteAssetAmountPerLp.toString(),
 			market.amm.baseAssetAmountPerLp.toString()
@@ -557,7 +557,7 @@ describe('liquidity providing', () => {
 			market.amm.orderTickSize
 		);
 
-		const user2 = driftClientUser.getUserAccount();
+		const user2 = await driftClientUser.forceGetUserAccount();
 		const position2 = user2.perpPositions[0];
 		console.log(
 			position2.lpShares.toString(),
@@ -580,14 +580,14 @@ describe('liquidity providing', () => {
 	it('settles lp', async () => {
 		console.log('adding liquidity...');
 
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 		const _sig = await driftClient.addPerpLpShares(
 			new BN(100 * BASE_PRECISION.toNumber()),
 			market.marketIndex
 		);
 		await delay(lpCooldown + 1000);
 
-		let user = driftClientUser.getUserAccount();
+		let user = await driftClientUser.forceGetUserAccount();
 		console.log(user.perpPositions[0].lpShares.toString());
 
 		// some user goes long (lp should get a short)
@@ -606,7 +606,7 @@ describe('liquidity providing', () => {
 			console.log(e);
 		}
 
-		const trader = traderDriftClient.getUserAccount();
+		const trader = await traderDriftClient.forceGetUserAccount();
 		console.log(
 			'trader size',
 			trader.perpPositions[0].baseAssetAmount.toString()
@@ -625,7 +625,7 @@ describe('liquidity providing', () => {
 		} catch (e) {
 			console.log(e);
 		}
-		user = await driftClientUser.getUserAccount();
+		user = await await driftClientUser.forceGetUserAccount();
 		const position = user.perpPositions[0];
 
 		const settleLiquidityRecord: LPRecord =
@@ -671,7 +671,7 @@ describe('liquidity providing', () => {
 		const _txSig = await driftClient.removePerpLpShares(market.marketIndex);
 		await _viewLogs(_txSig);
 
-		user = driftClientUser.getUserAccount();
+		user = await driftClientUser.forceGetUserAccount();
 		const lpPosition = user.perpPositions[0];
 		const lpTokenAmount = lpPosition.lpShares;
 		assert(lpTokenAmount.eq(ZERO));
@@ -690,7 +690,8 @@ describe('liquidity providing', () => {
 		);
 		await _viewLogs(_txsig);
 
-		const traderPosition = traderDriftClient.getUserAccount().perpPositions[0];
+		const traderPosition = await traderDriftClient.forceGetUserAccount()
+			.perpPositions[0];
 		console.log(
 			'trader position:',
 			traderPosition.baseAssetAmount.toString(),
@@ -698,7 +699,7 @@ describe('liquidity providing', () => {
 		);
 
 		console.log('closing lp ...');
-		const market2 = driftClient.getPerpMarketAccount(0);
+		const market2 = await driftClient.forceGetPerpMarketAccount(0);
 		await adjustOraclePostSwap(
 			user.perpPositions[0].baseAssetAmount,
 			SwapDirection.ADD,
@@ -719,7 +720,7 @@ describe('liquidity providing', () => {
 	});
 
 	it('provides and removes liquidity', async () => {
-		let market = driftClient.getPerpMarketAccount(0);
+		let market = await driftClient.forceGetPerpMarketAccount(0);
 		const prevSqrtK = market.amm.sqrtK;
 		const prevbar = market.amm.baseAssetReserve;
 		const prevqar = market.amm.quoteAssetReserve;
@@ -737,7 +738,7 @@ describe('liquidity providing', () => {
 		}
 		await delay(lpCooldown + 1000);
 
-		market = driftClient.getPerpMarketAccount(0);
+		market = await driftClient.forceGetPerpMarketAccount(0);
 		console.log(
 			'sqrtK:',
 			prevSqrtK.toString(),
@@ -762,15 +763,16 @@ describe('liquidity providing', () => {
 		assert(prevqar.lt(market.amm.quoteAssetReserve));
 		assert(prevbar.lt(market.amm.baseAssetReserve));
 
-		const lpShares = driftClientUser.getUserAccount().perpPositions[0].lpShares;
+		const lpShares = await driftClientUser.forceGetUserAccount()
+			.perpPositions[0].lpShares;
 		console.log('lpShares:', lpShares.toString());
 		assert(lpShares.gt(ZERO));
 
 		console.log('removing liquidity...');
 		const _txSig = await driftClient.removePerpLpShares(market.marketIndex);
 		await driftClient.fetchAccounts();
-		market = driftClient.getPerpMarketAccount(0);
-		const user = driftClientUser.getUserAccount();
+		market = await driftClient.forceGetPerpMarketAccount(0);
+		const user = await driftClientUser.forceGetUserAccount();
 		const lpTokenAmount = user.perpPositions[0].lpShares;
 		console.log('lp token amount:', lpTokenAmount.toString());
 		assert(lpTokenAmount.eq(ZERO));
@@ -797,7 +799,7 @@ describe('liquidity providing', () => {
 
 	it('mints too many lp tokens', async () => {
 		console.log('adding liquidity...');
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 		try {
 			const _sig = await poorDriftClient.addPerpLpShares(
 				market.amm.sqrtK.mul(new BN(5)),
@@ -814,7 +816,7 @@ describe('liquidity providing', () => {
 	it('provides lp, users shorts, removes lp, lp has long', async () => {
 		console.log('adding liquidity...');
 
-		const traderUserAccount3 = driftClient.getUserAccount();
+		const traderUserAccount3 = await driftClient.forceGetUserAccount();
 		const position3 = traderUserAccount3.perpPositions[0];
 		console.log(
 			'lp position:',
@@ -822,7 +824,7 @@ describe('liquidity providing', () => {
 			position3.quoteAssetAmount.toString()
 		);
 
-		const traderUserAccount0 = traderDriftClient.getUserAccount();
+		const traderUserAccount0 = await traderDriftClient.forceGetUserAccount();
 		const position0 = traderUserAccount0.perpPositions[0];
 		console.log(
 			'trader position:',
@@ -831,7 +833,7 @@ describe('liquidity providing', () => {
 		);
 		assert(position0.baseAssetAmount.eq(new BN('0')));
 
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 		console.log(
 			'market.amm.netBaseAssetAmount:',
 			market.amm.baseAssetAmountWithAmm.toString()
@@ -843,7 +845,7 @@ describe('liquidity providing', () => {
 		);
 		// await delay(lpCooldown + 1000);
 
-		let user = driftClientUser.getUserAccount();
+		let user = await driftClientUser.forceGetUserAccount();
 		console.log('lpUser lpShares:', user.perpPositions[0].lpShares.toString());
 		console.log(
 			'lpUser baa:',
@@ -870,7 +872,7 @@ describe('liquidity providing', () => {
 		}
 
 		await traderDriftClient.fetchAccounts();
-		const market1 = driftClient.getPerpMarketAccount(0);
+		const market1 = await driftClient.forceGetPerpMarketAccount(0);
 		console.log(
 			'market1.amm.netBaseAssetAmount:',
 			market1.amm.baseAssetAmountWithAmm.toString()
@@ -882,7 +884,7 @@ describe('liquidity providing', () => {
 
 		assert(market1.amm.baseAssetAmountWithAmm.eq(new BN('-30000000000')));
 
-		const traderUserAccount = traderDriftClient.getUserAccount();
+		const traderUserAccount = await traderDriftClient.forceGetUserAccount();
 		// console.log(traderUserAccount);
 		const position = traderUserAccount.perpPositions[0];
 		console.log(
@@ -895,7 +897,7 @@ describe('liquidity providing', () => {
 		const _txSig = await driftClient.removePerpLpShares(market.marketIndex);
 		await _viewLogs(_txSig);
 
-		user = driftClientUser.getUserAccount();
+		user = await driftClientUser.forceGetUserAccount();
 		const lpPosition = user.perpPositions[0];
 		const lpTokenAmount = lpPosition.lpShares;
 
@@ -948,7 +950,7 @@ describe('liquidity providing', () => {
 		);
 		await fullClosePosition(driftClient, user.perpPositions[0]);
 
-		const user2 = driftClientUser.getUserAccount();
+		const user2 = await driftClientUser.forceGetUserAccount();
 		const position2 = user2.perpPositions[0];
 		console.log(
 			position2.lpShares.toString(),
@@ -960,7 +962,7 @@ describe('liquidity providing', () => {
 	});
 
 	it('provides lp, users longs, removes lp, lp has short', async () => {
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 
 		console.log('adding liquidity...');
 		const _sig = await driftClient.addPerpLpShares(
@@ -984,7 +986,8 @@ describe('liquidity providing', () => {
 			// new BN(newPrice0 * PRICE_PRECISION.toNumber())
 		);
 
-		const position = traderDriftClient.getUserAccount().perpPositions[0];
+		const position = await traderDriftClient.forceGetUserAccount()
+			.perpPositions[0];
 		console.log(
 			'trader position:',
 			position.baseAssetAmount.toString(),
@@ -995,7 +998,7 @@ describe('liquidity providing', () => {
 		const _txSig = await driftClient.removePerpLpShares(market.marketIndex);
 		await _viewLogs(_txSig);
 
-		const user = driftClientUser.getUserAccount();
+		const user = await driftClientUser.forceGetUserAccount();
 		const lpPosition = user.perpPositions[0];
 		const lpTokenAmount = lpPosition.lpShares;
 
@@ -1028,7 +1031,7 @@ describe('liquidity providing', () => {
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
-		const user2 = driftClientUser.getUserAccount();
+		const user2 = await driftClientUser.forceGetUserAccount();
 		const lpPosition2 = user2.perpPositions[0];
 
 		console.log('lp tokens', lpPosition2.lpShares.toString());
@@ -1047,7 +1050,7 @@ describe('liquidity providing', () => {
 	});
 
 	it('lp burns a partial position', async () => {
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 
 		console.log('adding liquidity...');
 		await driftClient.addPerpLpShares(
@@ -1059,7 +1062,7 @@ describe('liquidity providing', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 
-		const user0 = driftClient.getUserAccount();
+		const user0 = await driftClient.forceGetUserAccount();
 		const position0 = user0.perpPositions[0];
 		console.log(
 			'assert LP has 0 position in market index',
@@ -1088,7 +1091,7 @@ describe('liquidity providing', () => {
 		);
 
 		console.log('removing liquidity...');
-		let user = driftClient.getUserAccount();
+		let user = await driftClient.forceGetUserAccount();
 		let position = user.perpPositions[0];
 
 		const fullShares = position.lpShares;
@@ -1104,7 +1107,7 @@ describe('liquidity providing', () => {
 			console.log(e);
 		}
 		await driftClient.fetchAccounts();
-		user = driftClient.getUserAccount();
+		user = await driftClient.forceGetUserAccount();
 		position = user.perpPositions[0];
 		console.log(
 			'lp first half burn:',
@@ -1123,7 +1126,7 @@ describe('liquidity providing', () => {
 
 		await driftClient.fetchAccounts();
 
-		user = driftClient.getUserAccount();
+		user = await driftClient.forceGetUserAccount();
 		console.log(
 			'lp second half burn:',
 			user.perpPositions[0].baseAssetAmount.toString(),
@@ -1136,7 +1139,7 @@ describe('liquidity providing', () => {
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
 		// await traderDriftClient.closePosition(new BN(0));
-		const trader = traderDriftClient.getUserAccount();
+		const trader = await traderDriftClient.forceGetUserAccount();
 		const _txsig = await fullClosePosition(
 			traderDriftClient,
 			trader.perpPositions[0]
@@ -1150,14 +1153,14 @@ describe('liquidity providing', () => {
 	it('settles lp with pnl', async () => {
 		console.log('adding liquidity...');
 
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 		const _sig = await driftClient.addPerpLpShares(
 			new BN(100 * BASE_PRECISION.toNumber()),
 			market.marketIndex
 		);
 		await delay(lpCooldown + 1000);
 
-		let user = driftClientUser.getUserAccount();
+		let user = await driftClientUser.forceGetUserAccount();
 		console.log(user.perpPositions[0].lpShares.toString());
 
 		// lp goes long
@@ -1190,7 +1193,7 @@ describe('liquidity providing', () => {
 			console.log(e);
 		}
 
-		const trader = traderDriftClient.getUserAccount();
+		const trader = await traderDriftClient.forceGetUserAccount();
 		console.log(
 			'trader size',
 			trader.perpPositions[0].baseAssetAmount.toString()
@@ -1209,7 +1212,7 @@ describe('liquidity providing', () => {
 		} catch (e) {
 			console.log(e);
 		}
-		user = await driftClientUser.getUserAccount();
+		user = await await driftClientUser.forceGetUserAccount();
 
 		const settleLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
@@ -1233,7 +1236,7 @@ describe('liquidity providing', () => {
 		await sleep(5000);
 
 		await driftClient.fetchAccounts();
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 		console.log(market.status);
 
 		await traderDriftClient.removePerpLpSharesInExpiringMarket(
@@ -1248,7 +1251,7 @@ describe('liquidity providing', () => {
 	return;
 
 	it('lp gets paid in funding (todo)', async () => {
-		const market = driftClient.getPerpMarketAccount(1);
+		const market = await driftClient.forceGetPerpMarketAccount(1);
 		const marketIndex = market.marketIndex;
 
 		console.log('adding liquidity to market ', marketIndex, '...');
@@ -1263,7 +1266,7 @@ describe('liquidity providing', () => {
 		await delay(lpCooldown + 1000);
 
 		console.log('user trading...');
-		// const trader0 = traderDriftClient.getUserAccount();
+		// const trader0 = await traderDriftClient.forceGetUserAccount();
 		const tradeSize = new BN(100).mul(AMM_RESERVE_PRECISION);
 
 		const newPrice = await adjustOraclePostSwap(
@@ -1295,7 +1298,7 @@ describe('liquidity providing', () => {
 		}
 		await driftClient.fetchAccounts();
 
-		const user = driftClientUser.getUserAccount();
+		const user = await driftClientUser.forceGetUserAccount();
 		// const feePayment = new BN(1300000);
 		// const fundingPayment = new BN(900000);
 
@@ -1314,7 +1317,7 @@ describe('liquidity providing', () => {
 		assert(
 			user.perpPositions[1].baseAssetAmount.abs().lt(market.amm.orderStepSize)
 		);
-		// const trader = traderDriftClient.getUserAccount();
+		// const trader = await traderDriftClient.forceGetUserAccount();
 		// await adjustOraclePostSwap(
 		// 	trader.perpPositions[1].baseAssetAmount,
 		// 	SwapDirection.ADD,
@@ -1333,7 +1336,7 @@ describe('liquidity providing', () => {
 
 	// // TODO
 	// it('provides and removes liquidity too fast', async () => {
-	// 	const market = driftClient.getPerpMarketAccount(0);
+	// 	const market = await driftClient.forceGetPerpMarketAccount(0);
 
 	// 	const lpShares = new BN(100 * AMM_RESERVE_PRECISION);
 	// 	const addLpIx = await driftClient.getAddLiquidityIx(
@@ -1369,7 +1372,7 @@ describe('liquidity providing', () => {
 	// 	console.log('removing liquidity...');
 	// 	await driftClient.removeLiquidity(new BN(0));
 	//
-	// 	const user = driftClient.getUserAccount();
+	// 	const user = await driftClient.forceGetUserAccount();
 	// 	const position = user.perpPositions[0];
 	//
 	// 	// small loss
@@ -1392,9 +1395,9 @@ describe('liquidity providing', () => {
 				.logMessages
 		);
 
-		const init_user = driftClientUser.getUserAccount();
+		const init_user = await driftClientUser.forceGetUserAccount();
 		await driftClient.addLiquidity(lp_amount, new BN(0));
-		const user = driftClientUser.getUserAccount();
+		const user = await driftClientUser.forceGetUserAccount();
 
 		const init_tokens = init_user.perpPositions[0].lpTokens;
 		const tokens = user.perpPositions[0].lpTokens;
@@ -1408,7 +1411,7 @@ describe('liquidity providing', () => {
         console.log('adding liquidity...');
         await driftClient.addLiquidity(usdcAmount, new BN(0));
 
-        let user = driftClient.getUserAccount();
+        let user = await driftClient.forceGetUserAccount();
         const baa = user.perpPositions[0].baseAssetAmount;
         const qaa = user.perpPositions[0].quoteAssetAmount;
         const upnl = user.perpPositions[0].unsettledPnl;
@@ -1426,7 +1429,7 @@ describe('liquidity providing', () => {
 			new BN(0)
 		);
 
-		user = driftClient.getUserAccount();
+		user = await driftClient.forceGetUserAccount();
 		const position = user.perpPositions[0];
 		const post_baa = position.baseAssetAmount;
 		const post_qaa = position.quoteAssetAmount;
@@ -1441,7 +1444,7 @@ describe('liquidity providing', () => {
 		assert(!post_upnl.eq(upnl));
 
 		// other sht was updated
-		const market = driftClient.getPerpMarketAccount(new BN(0));
+		const market = await driftClient.forceGetPerpMarketAccount(new BN(0));
 		assert(market.amm.netBaseAssetAmount.eq(position.lastNetBaseAssetAmount));
 		assert(
 			market.amm.totalFeeMinusDistributions.eq(
@@ -1455,7 +1458,7 @@ describe('liquidity providing', () => {
 	}); */
 
 	/* it('simulates a settle via sdk', async () => {
-		const userPosition2 = driftClient.getUserAccount().perpPositions[0];
+		const userPosition2 = await driftClient.forceGetUserAccount().perpPositions[0];
 		console.log(
 			userPosition2.baseAssetAmount.toString(),
 			userPosition2.quoteAssetAmount.toString(),
@@ -1486,7 +1489,7 @@ describe('liquidity providing', () => {
 			(await connection.getTransaction(txsig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const userPosition = driftClient.getUserAccount().perpPositions[0];
+		const userPosition = await driftClient.forceGetUserAccount().perpPositions[0];
 
 		console.log(
 			userPosition.baseAssetAmount.toString(),

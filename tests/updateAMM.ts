@@ -39,7 +39,7 @@ import {
 } from './testHelpers';
 
 async function feePoolInjection(fees, marketIndex, driftClient) {
-	let market0 = driftClient.getPerpMarketAccount(marketIndex);
+	let market0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
 	await driftClient.updatePerpMarketCurveUpdateIntensity(marketIndex, 0);
 	const connection = anchor.AnchorProvider.local().connection;
 
@@ -76,7 +76,7 @@ async function feePoolInjection(fees, marketIndex, driftClient) {
 			driftClient.getUserAccount(),
 			marketIndex
 		);
-		market0 = driftClient.getPerpMarketAccount(marketIndex);
+		market0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		console.log(
 			market0.amm.totalFeeMinusDistributions.toString(),
 			'<',
@@ -208,7 +208,7 @@ describe('update amm', () => {
 		const baseAssetAmount = new BN(
 			(49.7450503674885 * AMM_RESERVE_PRECISION.toNumber()) / 50
 		);
-		const market0 = driftClient.getPerpMarketAccount(0);
+		const market0 = await driftClient.forceGetPerpMarketAccount(0);
 		await setFeedPrice(anchor.workspace.Pyth, 1.003, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
@@ -262,7 +262,7 @@ describe('update amm', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -316,7 +316,7 @@ describe('update amm', () => {
 		const baseAssetAmount = new BN(
 			(49.7450503674885 * AMM_RESERVE_PRECISION.toNumber()) / 50
 		);
-		const market0 = driftClient.getPerpMarketAccount(1);
+		const market0 = await driftClient.forceGetPerpMarketAccount(1);
 		await setFeedPrice(anchor.workspace.Pyth, 0.9378, mockOracles[1]);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, mockOracles[1]))
 			.price;
@@ -368,7 +368,7 @@ describe('update amm', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const market = driftClient.getPerpMarketAccount(1);
+		const market = await driftClient.forceGetPerpMarketAccount(1);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -424,7 +424,7 @@ describe('update amm', () => {
 			1,
 			driftClient
 		);
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
 
 		const oraclePriceData = await getOraclePriceData(
 			anchor.workspace.Pyth,
@@ -476,7 +476,7 @@ describe('update amm', () => {
 		console.log('new oracle price:', curPrice);
 
 		const _txSig2 = await driftClient.updateAMMs([marketIndex]);
-		const market2 = driftClient.getPerpMarketAccount(marketIndex);
+		const market2 = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		console.log(
 			'market2.amm.pegMultiplier = ',
 			market2.amm.pegMultiplier.toString()
@@ -512,7 +512,7 @@ describe('update amm', () => {
 			const baseAssetAmount = new BN(
 				31.02765 * AMM_RESERVE_PRECISION.toNumber()
 			);
-			const market0 = driftClient.getPerpMarketAccount(i);
+			const market0 = await driftClient.forceGetPerpMarketAccount(i);
 			const orderParams = getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.LONG,
@@ -564,7 +564,7 @@ describe('update amm', () => {
 					.meta.logMessages
 			);
 
-			const market = driftClient.getPerpMarketAccount(i);
+			const market = await driftClient.forceGetPerpMarketAccount(i);
 			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 			console.log(
 				'after trade bid/ask:',
@@ -587,7 +587,7 @@ describe('update amm', () => {
 		for (let i = 0; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
 			const marketIndex = i;
-			const market0 = driftClient.getPerpMarketAccount(marketIndex);
+			const market0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
 			market0s.push(market0);
 			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
 				.price;
@@ -664,7 +664,7 @@ describe('update amm', () => {
 				anchor.workspace.Pyth,
 				thisUsd
 			);
-			const market = driftClient.getPerpMarketAccount(i);
+			const market = await driftClient.forceGetPerpMarketAccount(i);
 			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 			console.log(
 				'after trade bid/ask:',

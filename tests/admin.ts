@@ -75,7 +75,7 @@ describe('admin', () => {
 	});
 
 	it('checks market name', async () => {
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 		const name = decodeName(market.name);
 		assert(name == DEFAULT_MARKET_NAME);
 
@@ -83,7 +83,7 @@ describe('admin', () => {
 		await driftClient.updatePerpMarketName(0, newName);
 
 		await driftClient.fetchAccounts();
-		const newMarket = driftClient.getPerpMarketAccount(0);
+		const newMarket = await driftClient.forceGetPerpMarketAccount(0);
 		assert(decodeName(newMarket.name) == newName);
 	});
 
@@ -117,20 +117,21 @@ describe('admin', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 
 		assert(market.marginRatioInitial === marginRatioInitial);
 		assert(market.marginRatioMaintenance === marginRatioMaintenance);
 	});
 
 	it('Update perp fee structure', async () => {
-		const newFeeStructure = driftClient.getStateAccount().perpFeeStructure;
+		const newFeeStructure = await driftClient.forceGetStateAccount()
+			.perpFeeStructure;
 		newFeeStructure.flatFillerFee = new BN(0);
 
 		await driftClient.updatePerpFeeStructure(newFeeStructure);
 
 		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 
 		assert(
 			JSON.stringify(newFeeStructure) === JSON.stringify(state.perpFeeStructure)
@@ -138,13 +139,14 @@ describe('admin', () => {
 	});
 
 	it('Update spot fee structure', async () => {
-		const newFeeStructure = driftClient.getStateAccount().spotFeeStructure;
+		const newFeeStructure = await driftClient.forceGetStateAccount()
+			.spotFeeStructure;
 		newFeeStructure.flatFillerFee = new BN(1);
 
 		await driftClient.updateSpotFeeStructure(newFeeStructure);
 
 		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 
 		assert(
 			JSON.stringify(newFeeStructure) === JSON.stringify(state.spotFeeStructure)
@@ -168,7 +170,7 @@ describe('admin', () => {
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
 		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 
 		assert(
 			JSON.stringify(oracleGuardRails) ===
@@ -182,7 +184,7 @@ describe('admin', () => {
 		await driftClient.updateDiscountMint(mint);
 
 		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 
 		assert(state.discountMint.equals(mint));
 	});
@@ -193,7 +195,7 @@ describe('admin', () => {
 	// 	await driftClient.updateMaxDeposit(maxDeposit);
 
 	// 	await driftClient.fetchAccounts();
-	// 	const state = driftClient.getStateAccount();
+	// 	const state = await driftClient.forceGetStateAccount();
 
 	// 	assert(state.maxDeposit.eq(maxDeposit));
 	// });
@@ -205,7 +207,7 @@ describe('admin', () => {
 		await driftClient.updatePerpMarketOracle(0, newOracle, newOracleSource);
 
 		await driftClient.fetchAccounts();
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 		assert(market.amm.oracle.equals(PublicKey.default));
 		assert(
 			JSON.stringify(market.amm.oracleSource) ===
@@ -224,7 +226,7 @@ describe('admin', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = await driftClient.forceGetPerpMarketAccount(0);
 		assert(market.amm.orderStepSize.eq(stepSize));
 		assert(market.amm.orderTickSize.eq(tickSize));
 	});
@@ -232,14 +234,14 @@ describe('admin', () => {
 	it('Pause liq', async () => {
 		await driftClient.updateExchangeStatus(ExchangeStatus.LIQ_PAUSED);
 		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 		assert(isVariant(state.exchangeStatus, 'liqPaused'));
 
 		console.log('paused liq!');
 		// unpause
 		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
 		await driftClient.fetchAccounts();
-		const state2 = driftClient.getStateAccount();
+		const state2 = await driftClient.forceGetStateAccount();
 		assert(isVariant(state2.exchangeStatus, 'active'));
 		console.log('unpaused liq!');
 	});
@@ -247,14 +249,14 @@ describe('admin', () => {
 	it('Pause amm', async () => {
 		await driftClient.updateExchangeStatus(ExchangeStatus.AMM_PAUSED);
 		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 		assert(isVariant(state.exchangeStatus, 'ammPaused'));
 
 		console.log('paused amm!');
 		// unpause
 		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
 		await driftClient.fetchAccounts();
-		const state2 = driftClient.getStateAccount();
+		const state2 = await driftClient.forceGetStateAccount();
 		assert(isVariant(state2.exchangeStatus, 'active'));
 		console.log('unpaused amm!');
 	});
@@ -262,14 +264,14 @@ describe('admin', () => {
 	it('Pause funding', async () => {
 		await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
 		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 		assert(isVariant(state.exchangeStatus, 'fundingPaused'));
 
 		console.log('paused funding!');
 		// unpause
 		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
 		await driftClient.fetchAccounts();
-		const state2 = driftClient.getStateAccount();
+		const state2 = await driftClient.forceGetStateAccount();
 		assert(isVariant(state2.exchangeStatus, 'active'));
 		console.log('unpaused funding!');
 	});
@@ -280,7 +282,7 @@ describe('admin', () => {
 		await driftClient.updateAdmin(newAdminKey);
 
 		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+		const state = await driftClient.forceGetStateAccount();
 
 		assert(state.admin.equals(newAdminKey));
 	});

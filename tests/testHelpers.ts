@@ -800,7 +800,7 @@ export async function initializeQuoteSpotMarket(
 	const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
 	const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
 	const imfFactor = 0;
-	const marketIndex = admin.getStateAccount().numberOfSpotMarkets;
+	const marketIndex = await admin.forceGetStateAccount().numberOfSpotMarkets;
 
 	await admin.initializeSpotMarket(
 		usdcMint,
@@ -845,7 +845,7 @@ export async function initializeSolSpotMarket(
 	)
 		.div(new BN(10))
 		.toNumber();
-	const marketIndex = admin.getStateAccount().numberOfSpotMarkets;
+	const marketIndex = await admin.forceGetStateAccount().numberOfSpotMarkets;
 
 	const txSig = await admin.initializeSpotMarket(
 		solMint,

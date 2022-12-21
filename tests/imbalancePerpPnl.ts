@@ -280,7 +280,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	});
 
 	it('update amm', async () => {
-		const marketAccount0 = driftClient.getPerpMarketAccount(0);
+		const marketAccount0 = await driftClient.forceGetPerpMarketAccount(0);
 		assert(marketAccount0.amm.totalFee.eq(ZERO));
 		assert(marketAccount0.amm.pegMultiplier.eq(new BN(42500000)));
 		assert(marketAccount0.amm.totalFeeMinusDistributions.eq(ZERO));
@@ -306,12 +306,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		await printTxLogs(connection, txSig);
 		await driftClient.fetchAccounts();
-		const userAccount = driftClient.getUserAccount();
+		const userAccount = await driftClient.forceGetUserAccount();
 		assert(
 			userAccount.perpPositions[0].baseAssetAmount.abs().eq(BASE_PRECISION)
 		);
 
-		const marketAccount = driftClient.getPerpMarketAccount(0);
+		const marketAccount = await driftClient.forceGetPerpMarketAccount(0);
 		assert(marketAccount.amm.totalFee.gt(ZERO));
 		assert(marketAccount.amm.pegMultiplier.eq(new BN(42520000)));
 		assert(marketAccount.amm.totalFeeMinusDistributions.gt(ZERO));
@@ -329,7 +329,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	});
 
 	it('put market in big drawdown and net user negative pnl', async () => {
-		const uL = driftClientLoserUser.getUserAccount();
+		const uL = await driftClientLoserUser.forceGetUserAccount();
 		console.log(
 			'uL.spotPositions[0].scaledBalance:',
 			uL.spotPositions[0].scaledBalance.toString()
@@ -393,8 +393,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(driftClientLoserUserLiqPrice < 41);
 		assert(driftClientLoserUserLiqPrice > 30.5);
 
-		const bank00 = driftClient.getSpotMarketAccount(0);
-		const market00 = driftClient.getPerpMarketAccount(0);
+		const bank00 = await driftClient.forceGetSpotMarketAccount(0);
+		const market00 = await driftClient.forceGetPerpMarketAccount(0);
 		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
 
 		const oraclePriceData00 = driftClient.getOracleDataForPerpMarket(
@@ -531,10 +531,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			liquidatorDriftClientWUSDCAccount
 		);
 
-		const bank0 = driftClient.getSpotMarketAccount(0);
-		let market0 = driftClient.getPerpMarketAccount(0);
-		const winnerUser = driftClient.getUserAccount();
-		const loserUser = driftClientLoser.getUserAccount();
+		const bank0 = await driftClient.forceGetSpotMarketAccount(0);
+		let market0 = await driftClient.forceGetPerpMarketAccount(0);
+		const winnerUser = await driftClient.forceGetUserAccount();
+		const loserUser = await driftClientLoser.forceGetUserAccount();
 		console.log(winnerUser.perpPositions[0].quoteAssetAmount.toString());
 		console.log(loserUser.perpPositions[0].quoteAssetAmount.toString());
 
@@ -592,7 +592,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			}
 			driftClient.fetchAccounts();
 
-			market0 = driftClient.getPerpMarketAccount(0);
+			market0 = await driftClient.forceGetPerpMarketAccount(0);
 		}
 		const oraclePriceData = driftClient.getOracleDataForPerpMarket(
 			market0.marketIndex
@@ -639,7 +639,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			console.error(e);
 		}
 
-		const market0 = driftClient.getPerpMarketAccount(marketIndex);
+		const market0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
 		const oraclePriceData0 = driftClient.getOracleDataForPerpMarket(
@@ -668,8 +668,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await sleep(1000);
 		driftClient.fetchAccounts();
 
-		const perpMarket = driftClient.getPerpMarketAccount(marketIndex);
-		const quoteSpotMarket = driftClient.getSpotMarketAccount(
+		const perpMarket = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const quoteSpotMarket = await driftClient.forceGetSpotMarketAccount(
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
@@ -742,7 +742,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	});
 
 	it('whale takes tiny profit', async () => {
-		const market0 = driftClient.getPerpMarketAccount(0);
+		const market0 = await driftClient.forceGetPerpMarketAccount(0);
 		assert(market0.marginRatioInitial == 1000);
 		assert(market0.marginRatioMaintenance == 500);
 
@@ -780,7 +780,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const txSig = await driftClientLoser.placeAndTakePerpOrder(orderParams);
 		await printTxLogs(connection, txSig);
 
-		const market1 = driftClient.getPerpMarketAccount(0);
+		const market1 = await driftClient.forceGetPerpMarketAccount(0);
 
 		const oraclePriceData1 = driftClient.getOracleDataForPerpMarket(
 			market1.marketIndex
@@ -821,7 +821,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		await printTxLogs(connection, txSig);
 
-		const market0 = driftClient.getPerpMarketAccount(marketIndex);
+		const market0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
 
 		//will fail
 		try {
@@ -867,8 +867,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await driftClient.fetchAccounts();
 		const slot = await connection.getSlot();
 		const now = await connection.getBlockTime(slot);
-		const perpMarket = driftClient.getPerpMarketAccount(marketIndex);
-		const quoteSpotMarket = driftClient.getSpotMarketAccount(
+		const perpMarket = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const quoteSpotMarket = await driftClient.forceGetSpotMarketAccount(
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
@@ -946,7 +946,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 	// it('liq and settle expired market position', async () => {
 	// 	const marketIndex = 0;
-	// 	const loserUser0 = driftClientLoser.getUserAccount();
+	// 	const loserUser0 = await driftClientLoser.forceGetUserAccount();
 	// 	assert(loserUser0.perpPositions[0].baseAssetAmount.gt(0));
 	// 	assert(loserUser0.perpPositions[0].quoteAssetAmount.lt(0));
 	// 	// console.log(loserUser0.perpPositions[0]);
@@ -1012,11 +1012,11 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	// 	// console.log(settleRecord);
 
 	// 	await driftClientLoser.fetchAccounts();
-	// 	const loserUser = driftClientLoser.getUserAccount();
+	// 	const loserUser = await driftClientLoser.forceGetUserAccount();
 	// 	// console.log(loserUser.perpPositions[0]);
 	// 	assert(loserUser.perpPositions[0].baseAssetAmount.eq(0));
 	// 	assert(loserUser.perpPositions[0].quoteAssetAmount.eq(0));
-	// 	const marketAfter0 = driftClient.getPerpMarketAccount(marketIndex);
+	// 	const marketAfter0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
 
 	// 	const finalPnlResultMin0 = new BN(1415296436 - 11090);
 	// 	const finalPnlResultMax0 = new BN(1415296436 + 111090);
