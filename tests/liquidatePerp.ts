@@ -9,8 +9,7 @@ import {
 	ZERO,
 	OracleGuardRails,
 	ContractTier,
-	AdminClient,
-	DriftClient,
+	TestClient,
 	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -42,7 +41,7 @@ describe('liquidate perp and lp', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -53,7 +52,7 @@ describe('liquidate perp and lp', () => {
 
 	const liquidatorKeyPair = new Keypair();
 	let liquidatorUSDCAccount: Keypair;
-	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClient: TestClient;
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
@@ -73,7 +72,7 @@ describe('liquidate perp and lp', () => {
 
 		const oracle = await mockOracle(1);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -147,7 +146,7 @@ describe('liquidate perp and lp', () => {
 			provider,
 			liquidatorKeyPair.publicKey
 		);
-		liquidatorDriftClient = new DriftClient({
+		liquidatorDriftClient = new TestClient({
 			connection,
 			wallet: new Wallet(liquidatorKeyPair),
 			programID: chProgram.programId,

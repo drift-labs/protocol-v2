@@ -2,7 +2,7 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import {
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	PEG_PRECISION,
 	QUOTE_PRECISION,
@@ -37,7 +37,7 @@ describe('AMM Curve', () => {
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
-	const driftClient = new AdminClient({
+	const driftClient = new TestClient({
 		connection,
 		wallet: provider.wallet,
 		programID: chProgram.programId,

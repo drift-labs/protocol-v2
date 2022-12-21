@@ -5,7 +5,7 @@ import {
 	getLimitOrderParams,
 	isVariant,
 	OracleSource,
-	AdminClient,
+	TestClient,
 	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -32,7 +32,7 @@ describe('cancel all orders', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -58,7 +58,7 @@ describe('cancel all orders', () => {
 
 		const oracle = await mockOracle(1);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

@@ -12,7 +12,7 @@ import {
 import { Keypair } from '@solana/web3.js';
 import { assert } from 'chai';
 import {
-	AdminClient,
+	TestClient,
 	User,
 	PEG_PRECISION,
 	MAX_LEVERAGE,
@@ -69,7 +69,7 @@ describe('User Account', () => {
 			expo: -10,
 		});
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

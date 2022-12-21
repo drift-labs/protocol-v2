@@ -7,9 +7,8 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 const serumHelper = require('./serumHelper');
 
 import {
-	AdminClient,
 	BN,
-	DriftClient,
+	TestClient,
 	EventSubscriber,
 	OracleSource,
 	OracleInfo,
@@ -46,7 +45,7 @@ describe('serum spot market', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let makerDriftClient: AdminClient;
+	let makerDriftClient: TestClient;
 	let makerWSOL: PublicKey;
 
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
@@ -61,7 +60,7 @@ describe('serum spot market', () => {
 	let usdcMint;
 	let makerUSDC;
 
-	let takerDriftClient: DriftClient;
+	let takerDriftClient: TestClient;
 	let _takerWSOL: PublicKey;
 	let takerUSDC: PublicKey;
 
@@ -90,7 +89,7 @@ describe('serum spot market', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
-		makerDriftClient = new AdminClient({
+		makerDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -134,7 +133,8 @@ describe('serum spot market', () => {
 						publicKey: solOracle,
 						source: OracleSource.PYTH,
 					},
-				]
+				],
+				bulkAccountLoader
 			);
 
 		await takerDriftClient.deposit(usdcAmount, 0, takerUSDC);

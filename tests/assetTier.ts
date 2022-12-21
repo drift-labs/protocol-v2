@@ -6,9 +6,9 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey, Keypair } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
-	DriftClient,
+	TestClient,
 	EventSubscriber,
 	ZERO,
 	// SPOT_MARKET_RATE_PRECISION,
@@ -48,7 +48,7 @@ describe('asset tiers', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -62,7 +62,7 @@ describe('asset tiers', () => {
 	let dogeOracle: PublicKey;
 	const usdcAmount = new BN(1000000 * 10 ** 6); //1M
 
-	let secondUserDriftClient: DriftClient;
+	let secondUserDriftClient: TestClient;
 	let secondUserDriftClientWSOLAccount: PublicKey;
 	let secondUserDriftClientUSDCAccount: PublicKey;
 	let secondUserDriftClientDogeAccount: PublicKey;
@@ -82,7 +82,7 @@ describe('asset tiers', () => {
 		solOracle = await mockOracle(22500); // a future we all need to believe in
 		dogeOracle = await mockOracle(0.05);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

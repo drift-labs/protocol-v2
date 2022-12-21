@@ -12,7 +12,7 @@ import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { AdminClient, PositionDirection, EventSubscriber } from '../sdk/src';
+import { TestClient, PositionDirection, EventSubscriber } from '../sdk/src';
 
 import {
 	mockUSDCMint,
@@ -28,7 +28,7 @@ describe('market orders', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -63,7 +63,7 @@ describe('market orders', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

@@ -4,7 +4,7 @@ import { assert } from 'chai';
 import { Program } from '@project-serum/anchor';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -46,7 +46,7 @@ describe('amm spread: market order', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	let driftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
@@ -80,7 +80,7 @@ describe('amm spread: market order', () => {
 		const spotMarketIndexes = [0];
 		const oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

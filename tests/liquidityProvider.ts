@@ -6,7 +6,7 @@ import { Program } from '@project-serum/anchor';
 import * as web3 from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	QUOTE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	EventSubscriber,
@@ -86,7 +86,7 @@ async function createNewUser(
 		wallet.publicKey
 	);
 
-	const driftClient = new AdminClient({
+	const driftClient = new TestClient({
 		connection: provider.connection,
 		wallet: wallet,
 		programID: program.programId,
@@ -175,7 +175,7 @@ describe('liquidity providing', () => {
 
 	const usdcAmount = new BN(1_000_000_000 * 1e6);
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -184,10 +184,10 @@ describe('liquidity providing', () => {
 	let usdcMint: web3.Keypair;
 
 	let driftClientUser: User;
-	let traderDriftClient: AdminClient;
+	let traderDriftClient: TestClient;
 	let traderDriftClientUser: User;
 
-	let poorDriftClient: AdminClient;
+	let poorDriftClient: TestClient;
 	let poorDriftClientUser: User;
 
 	let solusdc;

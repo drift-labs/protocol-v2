@@ -3,7 +3,7 @@ import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import { BN } from '../sdk';
 import {
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	calculateReservePrice,
 	calculateTradeSlippage,
@@ -167,7 +167,7 @@ describe('AMM Curve', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	const driftClient = new AdminClient({
+	const driftClient = new TestClient({
 		connection,
 		wallet: provider.wallet,
 		programID: chProgram.programId,

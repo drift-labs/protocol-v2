@@ -5,7 +5,7 @@ import { BN, BulkAccountLoader, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
 import { Program } from '@project-serum/anchor';
 
 import {
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	PositionDirection,
 	ExchangeStatus,
@@ -26,7 +26,7 @@ describe('admin withdraw', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
@@ -51,7 +51,7 @@ describe('admin withdraw', () => {
 		const solOracle = await mockOracle(30);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

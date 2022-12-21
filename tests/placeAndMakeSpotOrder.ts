@@ -6,10 +6,10 @@ import { Program } from '@project-serum/anchor';
 import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
-	DriftClient,
+	TestClient,
 	PositionDirection,
 	User,
 	Wallet,
@@ -39,7 +39,7 @@ describe('place and make spot order', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let makerDriftClient: AdminClient;
+	let makerDriftClient: TestClient;
 	let makerDriftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
@@ -66,7 +66,7 @@ describe('place and make spot order', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		makerDriftClient = new AdminClient({
+		makerDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -120,7 +120,7 @@ describe('place and make spot order', () => {
 			provider,
 			keypair.publicKey
 		);
-		const takerDriftClient = new DriftClient({
+		const takerDriftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,

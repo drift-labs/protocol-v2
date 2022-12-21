@@ -6,9 +6,8 @@ import { Program } from '@project-serum/anchor';
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
-	DriftClient,
 	EventSubscriber,
 	SPOT_MARKET_RATE_PRECISION,
 	SpotBalanceType,
@@ -52,7 +51,7 @@ describe('spot deposit and withdraw', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let admin: AdminClient;
+	let admin: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -62,10 +61,10 @@ describe('spot deposit and withdraw', () => {
 
 	let usdcMint;
 
-	let firstUserDriftClient: DriftClient;
+	let firstUserDriftClient: TestClient;
 	let firstUserDriftClientUSDCAccount: PublicKey;
 
-	let secondUserDriftClient: DriftClient;
+	let secondUserDriftClient: TestClient;
 	let secondUserDriftClientWSOLAccount: PublicKey;
 	let secondUserDriftClientUSDCAccount: PublicKey;
 
@@ -88,7 +87,7 @@ describe('spot deposit and withdraw', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
-		admin = new AdminClient({
+		admin = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

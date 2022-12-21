@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
 
-import { AdminClient, QUOTE_PRECISION, BN, OracleSource } from '../sdk/src';
+import { TestClient, QUOTE_PRECISION, BN, OracleSource } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -19,7 +19,7 @@ describe('max deposit', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -34,7 +34,7 @@ describe('max deposit', () => {
 
 		const solUsd = await mockOracle(1);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

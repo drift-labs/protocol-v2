@@ -13,13 +13,13 @@ import {
 	printTxLogs,
 } from './testHelpers';
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	QUOTE_SPOT_MARKET_INDEX,
 	PRICE_PRECISION,
 	FUNDING_RATE_BUFFER_PRECISION,
 	PEG_PRECISION,
-	DriftClient,
+	TestClient,
 	User,
 	PositionDirection,
 	QUOTE_PRECISION,
@@ -38,7 +38,7 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from '../sdk';
 
 async function updateFundingRateHelper(
-	driftClient: DriftClient,
+	driftClient: TestClient,
 	marketIndex: number,
 	priceFeedAddress: PublicKey,
 	prices: Array<number>
@@ -185,9 +185,9 @@ async function updateFundingRateHelper(
 }
 
 async function cappedSymFundingScenario(
-	driftClient: AdminClient,
+	driftClient: TestClient,
 	userAccount: User,
-	driftClient2: DriftClient,
+	driftClient2: TestClient,
 	userAccount2: User,
 	marketIndex: number,
 	kSqrt: BN,
@@ -455,8 +455,8 @@ describe('capped funding', () => {
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
-	let driftClient: AdminClient;
-	let driftClient2: DriftClient;
+	let driftClient: TestClient;
+	let driftClient2: TestClient;
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -477,7 +477,7 @@ describe('capped funding', () => {
 
 		const spotMarketIndexes = [0];
 		const marketIndexes = Array.from({ length: 15 }, (_, i) => i);
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -521,7 +521,8 @@ describe('capped funding', () => {
 				provider,
 				marketIndexes,
 				spotMarketIndexes,
-				[]
+				[],
+				bulkAccountLoader
 			);
 
 		driftClient2 = driftClients[0];

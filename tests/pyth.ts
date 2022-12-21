@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 
-import { BASE_PRECISION, BN } from '../sdk';
+import { BASE_PRECISION, BN, BulkAccountLoader } from '../sdk';
 
 import {
 	getFeedData,
@@ -23,16 +23,16 @@ import {
 	PositionDirection,
 	convertToNumber,
 	MarketStatus,
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	FUNDING_RATE_BUFFER_PRECISION,
-	DriftClient,
+	TestClient,
 	User,
 	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
 
 async function updateFundingRateHelper(
-	driftClient: DriftClient,
+	driftClient: TestClient,
 	marketIndex: number,
 	priceFeedAddress: PublicKey,
 	prices: Array<number>
@@ -168,8 +168,10 @@ describe('pyth-oracle', () => {
 
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	let driftClient2: DriftClient;
+	let driftClient: TestClient;
+	let driftClient2: TestClient;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -188,7 +190,7 @@ describe('pyth-oracle', () => {
 		const price = 50000;
 		await mockOracle(price, -6);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -198,6 +200,10 @@ describe('pyth-oracle', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0, 1],
 			spotMarketIndexes: [0],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -220,7 +226,16 @@ describe('pyth-oracle', () => {
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
 		const [_userUSDCAccounts, _user_keys, driftClients, userAccountInfos] =
-			await initUserAccounts(1, usdcMint, usdcAmount, provider, [0, 1], [0]);
+			await initUserAccounts(
+				1,
+				usdcMint,
+				usdcAmount,
+				provider,
+				[0, 1],
+				[0],
+				[],
+				bulkAccountLoader
+			);
 
 		driftClient2 = driftClients[0];
 		userAccount2 = userAccountInfos[0];

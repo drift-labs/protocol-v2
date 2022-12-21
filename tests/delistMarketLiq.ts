@@ -11,8 +11,7 @@ import {
 	BN,
 	OracleSource,
 	ZERO,
-	AdminClient,
-	DriftClient,
+	TestClient,
 	convertToNumber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -43,7 +42,7 @@ import { BulkAccountLoader, calculateReservePrice } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
-	driftClient: AdminClient,
+	driftClient: TestClient,
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
@@ -66,7 +65,7 @@ describe('delist market, liquidation of expired position', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -76,10 +75,10 @@ describe('delist market, liquidation of expired position', () => {
 	let userUSDCAccount;
 	let userUSDCAccount2;
 
-	let driftClientLoser: DriftClient;
+	let driftClientLoser: TestClient;
 	let driftClientLoserUser: User;
 
-	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClient: TestClient;
 	let liquidatorDriftClientWSOLAccount: PublicKey;
 	let liquidatorDriftClientWUSDCAccount: PublicKey;
 
@@ -107,7 +106,7 @@ describe('delist market, liquidation of expired position', () => {
 
 		solOracle = await mockOracle(43.1337);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -170,7 +169,7 @@ describe('delist market, liquidation of expired position', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		driftClientLoser = new AdminClient({
+		driftClientLoser = new TestClient({
 			connection,
 			wallet: new Wallet(userKeypair),
 			programID: chProgram.programId,
@@ -186,6 +185,10 @@ describe('delist market, liquidation of expired position', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClientLoser.subscribe();
 		await driftClientLoser.initializeUserAccountAndDepositCollateral(
@@ -330,7 +333,8 @@ describe('delist market, liquidation of expired position', () => {
 					publicKey: solOracle,
 					source: OracleSource.PYTH,
 				},
-			]
+			],
+			bulkAccountLoader
 		);
 		await liquidatorDriftClient.subscribe();
 

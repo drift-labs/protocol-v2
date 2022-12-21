@@ -4,7 +4,7 @@ import { assert } from 'chai';
 import { Program } from '@project-serum/anchor';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -33,7 +33,7 @@ describe('user order id', () => {
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	let driftClientUser: User;
 
 	let usdcMint;
@@ -71,7 +71,7 @@ describe('user order id', () => {
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
 		];
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

@@ -12,7 +12,7 @@ import {
 	SpotBalanceType,
 	ZERO,
 	getLimitOrderParams,
-	DriftClient,
+	TestClient,
 	OraclePriceData,
 	OracleGuardRails,
 	BASE_PRECISION,
@@ -22,7 +22,6 @@ import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
 
 import {
-	AdminClient,
 	User,
 	// PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
@@ -53,7 +52,7 @@ import {
 
 async function depositToFeePoolFromIF(
 	amount: number,
-	driftClient: AdminClient,
+	driftClient: TestClient,
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
@@ -74,7 +73,7 @@ async function depositToFeePoolFromIF(
 }
 
 async function iterClosePosition(
-	driftClient: DriftClient,
+	driftClient: TestClient,
 	marketIndex: number,
 	oraclePriceData: OraclePriceData
 ) {
@@ -133,7 +132,7 @@ describe('repeg and spread amm', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -183,7 +182,7 @@ describe('repeg and spread amm', () => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -730,7 +729,8 @@ describe('repeg and spread amm', () => {
 				provider,
 				marketIndexes,
 				spotMarketIndexes,
-				[]
+				[],
+				bulkAccountLoader
 			);
 		let count = 0;
 		let btcPrice = 19790;

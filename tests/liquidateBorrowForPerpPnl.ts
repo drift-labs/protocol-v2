@@ -10,8 +10,7 @@ import {
 	BN,
 	OracleSource,
 	ZERO,
-	AdminClient,
-	DriftClient,
+	TestClient,
 	findComputeUnitConsumption,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -42,7 +41,7 @@ describe('liquidate borrow for perp pnl', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -52,7 +51,7 @@ describe('liquidate borrow for perp pnl', () => {
 	let userUSDCAccount;
 	let userWSOLAccount;
 
-	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClient: TestClient;
 	let liquidatorDriftClientWSOLAccount: PublicKey;
 
 	let solOracle: PublicKey;
@@ -80,7 +79,7 @@ describe('liquidate borrow for perp pnl', () => {
 
 		solOracle = await mockOracle(1);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

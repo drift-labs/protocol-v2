@@ -6,9 +6,8 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey, Keypair } from '@solana/web3.js';
 
 import {
-	AdminClient,
 	OracleGuardRails,
-	DriftClient,
+	TestClient,
 	User,
 	BN,
 	OracleSource,
@@ -52,7 +51,7 @@ describe('insurance fund stake', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -65,11 +64,11 @@ describe('insurance fund stake', () => {
 
 	const usdcAmount = new BN(1000000 * 10 ** 6); //1M
 
-	let secondUserDriftClient: DriftClient;
+	let secondUserDriftClient: TestClient;
 	let secondUserDriftClientWSOLAccount: PublicKey;
 	let secondUserDriftClientUSDCAccount: PublicKey;
 
-	let driftClientUser: DriftClient;
+	let driftClientUser: TestClient;
 
 	const solAmount = new BN(10000 * 10 ** 9);
 
@@ -83,7 +82,7 @@ describe('insurance fund stake', () => {
 
 		solOracle = await mockOracle(22500); // a future we all need to believe in
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

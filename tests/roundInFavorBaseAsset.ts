@@ -7,8 +7,7 @@ import {
 	OracleSource,
 	Wallet,
 	MarketStatus,
-	AdminClient,
-	DriftClient,
+	TestClient,
 	PositionDirection,
 } from '../sdk/src';
 
@@ -34,7 +33,7 @@ describe('round in favor', () => {
 
 	let usdcMint;
 
-	let primaryDriftClient: AdminClient;
+	let primaryDriftClient: TestClient;
 
 	// ammInvariant == k == x * y
 	const ammInitialQuoteAssetReserve = new anchor.BN(
@@ -59,7 +58,7 @@ describe('round in favor', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		primaryDriftClient = new AdminClient({
+		primaryDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -107,7 +106,7 @@ describe('round in favor', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -167,7 +166,7 @@ describe('round in favor', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,

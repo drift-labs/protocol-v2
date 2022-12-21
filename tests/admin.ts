@@ -3,7 +3,7 @@ import { Program } from '@project-serum/anchor';
 import { assert } from 'chai';
 
 import {
-	AdminClient,
+	TestClient,
 	ExchangeStatus,
 	OracleGuardRails,
 	OracleSource,
@@ -32,14 +32,14 @@ describe('admin', () => {
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 
 	let usdcMint;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

@@ -6,8 +6,7 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	AdminClient,
-	DriftClient,
+	TestClient,
 	findComputeUnitConsumption,
 	BN,
 	OracleSource,
@@ -40,7 +39,7 @@ describe('liquidate spot w/ social loss', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -50,7 +49,7 @@ describe('liquidate spot w/ social loss', () => {
 	let userUSDCAccount;
 	let userWSOLAccount;
 
-	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClient: TestClient;
 	let liquidatorDriftClientWSOLAccount: PublicKey;
 
 	let solOracle: PublicKey;
@@ -69,7 +68,7 @@ describe('liquidate spot w/ social loss', () => {
 
 		solOracle = await mockOracle(100);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

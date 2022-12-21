@@ -6,10 +6,10 @@ import { Program } from '@project-serum/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
-	DriftClient,
+	TestClient,
 	PositionDirection,
 	User,
 	Wallet,
@@ -50,7 +50,7 @@ describe('stop limit', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	let driftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
@@ -78,7 +78,7 @@ describe('stop limit', () => {
 
 	const fillerKeyPair = new Keypair();
 	let fillerUSDCAccount: Keypair;
-	let fillerDriftClient: DriftClient;
+	let fillerDriftClient: TestClient;
 	let fillerUser: User;
 
 	const marketIndex = 0;
@@ -105,7 +105,7 @@ describe('stop limit', () => {
 			},
 		];
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -188,7 +188,7 @@ describe('stop limit', () => {
 			provider,
 			fillerKeyPair.publicKey
 		);
-		fillerDriftClient = new DriftClient({
+		fillerDriftClient = new TestClient({
 			connection,
 			wallet: new Wallet(fillerKeyPair),
 			programID: chProgram.programId,

@@ -6,10 +6,10 @@ import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
-	DriftClient,
+	TestClient,
 	PositionDirection,
 	User,
 	Wallet,
@@ -44,7 +44,7 @@ describe('trigger orders', () => {
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
-	let fillerDriftClient: AdminClient;
+	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
 
 	let usdcMint;
@@ -81,7 +81,7 @@ describe('trigger orders', () => {
 			},
 		];
 
-		fillerDriftClient = new AdminClient({
+		fillerDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -162,7 +162,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -261,7 +261,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -363,7 +363,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -462,7 +462,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -581,7 +581,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -680,7 +680,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -782,7 +782,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -881,7 +881,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,

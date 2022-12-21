@@ -7,7 +7,7 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
-import { AdminClient, PRICE_PRECISION } from '../sdk/src';
+import { TestClient, PRICE_PRECISION } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -24,7 +24,7 @@ describe('whitelist', () => {
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 
 	let userAccountPublicKey: PublicKey;
 
@@ -51,7 +51,7 @@ describe('whitelist', () => {
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

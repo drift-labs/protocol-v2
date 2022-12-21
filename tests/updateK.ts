@@ -11,7 +11,7 @@ import {
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
 import {
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	calculateReservePrice,
 	User,
@@ -40,7 +40,7 @@ describe('update k', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
 
@@ -64,7 +64,7 @@ describe('update k', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
