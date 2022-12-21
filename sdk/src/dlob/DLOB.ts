@@ -77,6 +77,10 @@ export class DLOB {
 	initialized = false;
 
 	public constructor() {
+		this.init();
+	}
+
+	private init() {
 		this.openOrders.set('perp', new Set<string>());
 		this.openOrders.set('spot', new Set<string>());
 		this.orderLists.set('perp', new Map<number, MarketNodeLists>());
@@ -102,6 +106,8 @@ export class DLOB {
 			}
 		}
 		this.orderLists.clear();
+
+		this.init();
 	}
 
 	/**
