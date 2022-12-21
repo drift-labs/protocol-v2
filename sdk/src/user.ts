@@ -124,6 +124,11 @@ export class User {
 		return this.accountSubscriber.getUserAccountAndSlot().data;
 	}
 
+	public async forceGetUserAccount(): Promise<UserAccount> {
+		await this.fetchAccounts();
+		return this.accountSubscriber.getUserAccountAndSlot().data;
+	}
+
 	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
 		return this.accountSubscriber.getUserAccountAndSlot();
 	}
