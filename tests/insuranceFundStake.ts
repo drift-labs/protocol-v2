@@ -931,8 +931,10 @@ describe('insurance fund stake', () => {
 
 		assert(driftClientUser.canBeLiquidated());
 
-		const beforecbb0 = await driftClient.forceGetUserAccount().spotPositions[0];
-		const beforecbb1 = await driftClient.forceGetUserAccount().spotPositions[1];
+		const beforecbb0 = (await driftClient.forceGetUserAccount())
+			.spotPositions[0];
+		const beforecbb1 = (await driftClient.forceGetUserAccount())
+			.spotPositions[1];
 
 		const beforeLiquiderUSDCDeposit = getTokenAmount(
 			beforecbb0.scaledBalance,
@@ -957,9 +959,9 @@ describe('insurance fund stake', () => {
 		assert(isVariant(beforecbb0.balanceType, 'deposit'));
 		// assert(isVariant(beforecbb1.balanceType, 'deposit'));
 
-		const beforebb0 = await secondUserDriftClient.forceGetUserAccount()
+		const beforebb0 = (await secondUserDriftClient.forceGetUserAccount())
 			.spotPositions[0];
-		const beforebb1 = await secondUserDriftClient.forceGetUserAccount()
+		const beforebb1 = (await secondUserDriftClient.forceGetUserAccount())
 			.spotPositions[1];
 
 		const usdcDepositsBefore = getTokenAmount(
@@ -1022,8 +1024,8 @@ describe('insurance fund stake', () => {
 
 		const spotMarket = await driftClient.forceGetSpotMarketAccount(0);
 
-		const cbb0 = await driftClient.forceGetUserAccount().spotPositions[0];
-		const cbb1 = await driftClient.forceGetUserAccount().spotPositions[1];
+		const cbb0 = (await driftClient.forceGetUserAccount()).spotPositions[0];
+		const cbb1 = (await driftClient.forceGetUserAccount()).spotPositions[1];
 
 		const afterLiquiderUSDCDeposit = getTokenAmount(
 			cbb0.scaledBalance,
@@ -1048,9 +1050,9 @@ describe('insurance fund stake', () => {
 		assert(isVariant(cbb0.balanceType, 'deposit'));
 		assert(isVariant(cbb1.balanceType, 'deposit'));
 
-		const bb0 = await secondUserDriftClient.forceGetUserAccount()
+		const bb0 = (await secondUserDriftClient.forceGetUserAccount())
 			.spotPositions[0];
-		const bb1 = await secondUserDriftClient.forceGetUserAccount()
+		const bb1 = (await secondUserDriftClient.forceGetUserAccount())
 			.spotPositions[1];
 
 		const afterLiquiteeUSDCBorrow = getTokenAmount(

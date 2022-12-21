@@ -270,7 +270,7 @@ describe('delist market, liquidation of expired position', () => {
 
 		await driftClientLoser.fetchAccounts();
 		await driftClientLoserUser.fetchAccounts();
-		const userPos = await driftClientLoser.forceGetUserAccount()
+		const userPos = (await driftClientLoser.forceGetUserAccount())
 			.perpPositions[0];
 		console.log(userPos.baseAssetAmount.toString());
 		console.log(userPos.quoteAssetAmount.toString());

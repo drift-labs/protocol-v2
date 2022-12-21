@@ -184,11 +184,11 @@ describe('liquidate perp and lp', () => {
 
 	it('liquidate', async () => {
 		const marketIndex = 0;
-		const lpShares = await driftClient.forceGetUserAccount().perpPositions[0]
+		const lpShares = (await driftClient.forceGetUserAccount()).perpPositions[0]
 			.lpShares;
 		assert(lpShares.eq(nLpShares));
 
-		const oracle = await driftClient.forceGetPerpMarketAccount(0).amm.oracle;
+		const oracle = (await driftClient.forceGetPerpMarketAccount(0)).amm.oracle;
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
 
 		const oracleGuardRails: OracleGuardRails = {

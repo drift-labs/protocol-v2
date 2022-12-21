@@ -219,7 +219,7 @@ describe('trading liquidity providing', () => {
 		);
 
 		await traderDriftClient.fetchAccounts();
-		const position = await traderDriftClient.forceGetUserAccount()
+		const position = (await traderDriftClient.forceGetUserAccount())
 			.perpPositions[0];
 		console.log(
 			'trader position:',
@@ -248,7 +248,7 @@ describe('trading liquidity providing', () => {
 		await driftClientUser.fetchAccounts();
 
 		// lp now has a long
-		const newLpPosition = await driftClientUser.forceGetUserAccount()
+		const newLpPosition = (await driftClientUser.forceGetUserAccount())
 			.perpPositions[0];
 		console.log(
 			'lp position:',

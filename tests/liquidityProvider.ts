@@ -129,13 +129,13 @@ async function createNewUser(
 
 async function fullClosePosition(driftClient, userPosition) {
 	console.log('=> closing:', userPosition.baseAssetAmount.toString());
-	let position = await driftClient.forceGetUserAccount().perpPositions[0];
+	let position = (await driftClient.forceGetUserAccount()).perpPositions[0];
 	let sig;
 	let flag = true;
 	while (flag) {
 		sig = await driftClient.closePosition(0);
 		await driftClient.fetchAccounts();
-		position = await driftClient.forceGetUserAccount().perpPositions[0];
+		position = (await driftClient.forceGetUserAccount()).perpPositions[0];
 		if (position.baseAssetAmount.eq(ZERO)) {
 			flag = false;
 		}
@@ -690,7 +690,7 @@ describe('liquidity providing', () => {
 		);
 		await _viewLogs(_txsig);
 
-		const traderPosition = await traderDriftClient.forceGetUserAccount()
+		const traderPosition = (await traderDriftClient.forceGetUserAccount())
 			.perpPositions[0];
 		console.log(
 			'trader position:',
@@ -763,7 +763,7 @@ describe('liquidity providing', () => {
 		assert(prevqar.lt(market.amm.quoteAssetReserve));
 		assert(prevbar.lt(market.amm.baseAssetReserve));
 
-		const lpShares = await driftClientUser.forceGetUserAccount()
+		const lpShares = (await driftClientUser.forceGetUserAccount())
 			.perpPositions[0].lpShares;
 		console.log('lpShares:', lpShares.toString());
 		assert(lpShares.gt(ZERO));
@@ -986,7 +986,7 @@ describe('liquidity providing', () => {
 			// new BN(newPrice0 * PRICE_PRECISION.toNumber())
 		);
 
-		const position = await traderDriftClient.forceGetUserAccount()
+		const position = (await traderDriftClient.forceGetUserAccount())
 			.perpPositions[0];
 		console.log(
 			'trader position:',
