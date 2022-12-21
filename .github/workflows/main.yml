@@ -93,7 +93,7 @@ jobs:
       - name: Run lint
         run: yarn lint
   anchor-tests:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
