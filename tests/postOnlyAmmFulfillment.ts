@@ -6,7 +6,7 @@ import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
 	DriftClient,
@@ -44,7 +44,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let fillerDriftClient: AdminClient;
+	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
@@ -80,7 +80,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		fillerDriftClient = new AdminClient({
+		fillerDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
