@@ -388,7 +388,7 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 
-		amm = await driftClient.forceGetPerpMarketAccount(marketIndex).amm;
+		amm = (await driftClient.forceGetPerpMarketAccount(marketIndex)).amm;
 
 		const candidatePegUp = calculateBudgetedPeg(
 			amm,
@@ -419,7 +419,7 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 		await driftClient.fetchAccounts();
-		amm = await driftClient.forceGetPerpMarketAccount(marketIndex).amm;
+		amm = (await driftClient.forceGetPerpMarketAccount(marketIndex)).amm;
 
 		const candidatePegUp2 = calculateBudgetedPeg(
 			amm,
