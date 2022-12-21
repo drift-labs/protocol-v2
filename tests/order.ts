@@ -1552,22 +1552,19 @@ describe('orders', () => {
 			baseAssetAmount: AMM_RESERVE_PRECISION,
 		});
 		await driftClient.placeAndTakePerpOrder(openPositionOrderParams);
-		console.log('1');
+		console.log(driftClient.getUser().getPerpPosition(marketIndexEth));
 		const reduceMarketOrderParams = getMarketOrderParams({
 			marketIndex: marketIndexEth,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: TWO.mul(AMM_RESERVE_PRECISION),
 			reduceOnly: true,
 		});
-		const txSig = await driftClient.placeAndTakePerpOrder(
-			reduceMarketOrderParams
-		);
+		await driftClient.placeAndTakePerpOrder(reduceMarketOrderParams);
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 		console.log('2');
 
-		await eventSubscriber.awaitTx(txSig);
-		let orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		let orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[1];
 		console.log(orderRecord);
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
@@ -1603,7 +1600,7 @@ describe('orders', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 
-		orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[1];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
 			isVariant(driftClientUser.getUserAccount().orders[0].status, 'init')
