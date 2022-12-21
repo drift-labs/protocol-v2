@@ -1082,7 +1082,7 @@ describe('insurance fund stake', () => {
 		console.log(afterLiquiteeUSDCBorrow.toString());
 		console.log(afterLiquiteeSOLDeposit.toString());
 		assert(afterLiquiteeUSDCBorrow.gte(new BN('499406460000')));
-		assert(afterLiquiteeSOLDeposit.gte(new BN('9733337362')));
+		assert(afterLiquiteeSOLDeposit.gte(new BN('9733337361')));
 
 		// console.log(
 		// 	secondUserDriftClient
