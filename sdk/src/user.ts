@@ -1153,25 +1153,20 @@ export class User {
 	}
 
 	/**
-	 * Calculate the liquidation price of a perp position, with optional parameter to calculate the liquidation price after a trade
-	 * @param PerpPosition
-	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for : Precision 10^13
-	 * @param partial
+	 * Calculate the liquidation price of a spot position
+	 * @param spotMarketIndex
 	 * @returns Precision : PRICE_PRECISION
 	 */
-	public spotLiquidationPrice(
-		spotPosition: Pick<SpotPosition, 'marketIndex'>
-	): BN {
-		const currentSpotPosition = this.getSpotPosition(spotPosition.marketIndex);
+	public spotLiquidationPrice(spotMarketIndex: number): BN {
+		const currentSpotPosition = this.getSpotPosition(spotMarketIndex);
 
 		const mtc = this.getTotalCollateral('Maintenance');
 		const mmr = this.getMaintenanceMarginRequirement();
 
 		const deltaValueToLiq = mtc.sub(mmr); // QUOTE_PRECISION
 
-		const currentSpotMarket = this.driftClient.getSpotMarketAccount(
-			spotPosition.marketIndex
-		);
+		const currentSpotMarket =
+			this.driftClient.getSpotMarketAccount(spotMarketIndex);
 		const tokenAmount = getTokenAmount(
 			currentSpotPosition.scaledBalance,
 			currentSpotMarket,
@@ -1200,9 +1195,8 @@ export class User {
 				.mul(new BN(-1));
 		}
 
-		const currentPrice = this.driftClient.getOracleDataForSpotMarket(
-			spotPosition.marketIndex
-		).price;
+		const currentPrice =
+			this.driftClient.getOracleDataForSpotMarket(spotMarketIndex).price;
 
 		const liqPrice = currentPrice.add(liqPriceDelta);
 
