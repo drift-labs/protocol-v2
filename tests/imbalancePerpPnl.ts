@@ -757,7 +757,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log(bid.toString());
 		console.log(ask.toString());
 		assert(bid.eq(new BN('254194105')));
-		assert(prepegAMM.pegMultiplier.eq(new BN('254313113')));
+		assert(prepegAMM.pegMultiplier.eq(new BN('254313115')));
 		assert(oraclePriceData0.price.eq(new BN('260500000')));
 		assert(ask.eq(new BN('266567441')));
 
@@ -787,7 +787,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		const prepegAMM1 = calculateUpdatedAMM(market0.amm, oraclePriceData1);
 		console.log(prepegAMM1.pegMultiplier.toString());
-		assert(prepegAMM1.pegMultiplier.eq(new BN(254313113)));
+		assert(prepegAMM1.pegMultiplier.eq(new BN(254313115)));
 	});
 
 	it('resolvePerpPnlDeficit', async () => {
