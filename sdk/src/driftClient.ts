@@ -2470,6 +2470,40 @@ export class DriftClient {
 		});
 	}
 
+	public async forceCancelOrders(
+		userAccountPublicKey: PublicKey,
+		user: UserAccount
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getForceCancelOrdersIx(userAccountPublicKey, user)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getForceCancelOrdersIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount
+	): Promise<TransactionInstruction> {
+		const fillerPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
+		});
+
+		return await this.program.instruction.forceCancelOrders({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				filler: fillerPublicKey,
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async placeAndTakePerpOrder(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo,

@@ -306,6 +306,35 @@ pub fn handle_trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) ->
 }
 
 #[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_force_cancel_orders<'info>(ctx: Context<ForceCancelOrder>) -> Result<()> {
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    controller::orders::force_cancel_orders(
+        &ctx.accounts.state,
+        &ctx.accounts.user,
+        &spot_market_map,
+        &perp_market_map,
+        &mut oracle_map,
+        &ctx.accounts.filler,
+        &Clock::get()?,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
@@ -1261,6 +1290,19 @@ pub struct FillOrder<'info> {
 
 #[derive(Accounts)]
 pub struct TriggerOrder<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&filler, &authority)?
+    )]
+    pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct ForceCancelOrder<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(
