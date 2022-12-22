@@ -1731,12 +1731,24 @@ pub fn fulfill_perp_order_with_match(
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     let taker_direction = taker.orders[taker_order_index].direction;
     let taker_fallback_price = get_fallback_price(&taker_direction, bid_price, ask_price);
-    let taker_price = taker.orders[taker_order_index].force_get_limit_price(
+    let mut taker_price = taker.orders[taker_order_index].force_get_limit_price(
         Some(oracle_price),
         Some(taker_fallback_price),
         slot,
         market.amm.order_tick_size,
     )?;
+
+    // if the auction isn't complete, cant fill against vamm yet
+    // use the vamm price to guard against bad fill for taker
+    if taker.orders[taker_order_index].is_limit_order()
+        && !taker.orders[taker_order_index].is_auction_complete()
+    {
+        taker_price = match taker_direction {
+            PositionDirection::Long => taker_price.min(ask_price),
+            PositionDirection::Short => taker_price.max(bid_price),
+        };
+    }
+
     let taker_existing_position = taker
         .get_perp_position(market.market_index)?
         .base_asset_amount;
