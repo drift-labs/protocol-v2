@@ -1744,8 +1744,22 @@ pub fn fulfill_perp_order_with_match(
         && !taker.orders[taker_order_index].is_auction_complete(slot)?
     {
         taker_price = match taker_direction {
-            PositionDirection::Long => taker_price.min(ask_price),
-            PositionDirection::Short => taker_price.max(bid_price),
+            PositionDirection::Long => {
+                msg!(
+                    "taker limit order auction incomplete. vamm ask {} taker price {}",
+                    ask_price,
+                    taker_price
+                );
+                taker_price.min(ask_price)
+            }
+            PositionDirection::Short => {
+                msg!(
+                    "taker limit order auction incomplete. vamm bid {} taker price {}",
+                    bid_price,
+                    taker_price
+                );
+                taker_price.max(bid_price)
+            }
         };
     }
 
