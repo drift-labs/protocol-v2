@@ -1741,7 +1741,7 @@ pub fn fulfill_perp_order_with_match(
     // if the auction isn't complete, cant fill against vamm yet
     // use the vamm price to guard against bad fill for taker
     if taker.orders[taker_order_index].is_limit_order()
-        && !taker.orders[taker_order_index].is_auction_complete()
+        && !taker.orders[taker_order_index].is_auction_complete(slot)?
     {
         taker_price = match taker_direction {
             PositionDirection::Long => taker_price.min(ask_price),
