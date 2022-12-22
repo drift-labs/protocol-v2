@@ -26,6 +26,9 @@ import {
 	UserMap,
 	OrderRecord,
 	OrderActionRecord,
+	isLimitOrder,
+	ZERO,
+	BN_MAX,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -1009,7 +1012,9 @@ export class DLOB {
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		fallbackAsk: BN | undefined,
+		fallbackBid: BN | undefined
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -1046,6 +1051,33 @@ export class DLOB {
 					askNode,
 					bidNode
 				);
+
+				// extra guard against bad fills for perp limit orders where auction is incomplete
+				if (
+					isVariant(takerNode.order.marketType, 'perp') &&
+					isLimitOrder(takerNode.order) &&
+					!isAuctionComplete(takerNode.order, slot)
+				) {
+					let bidPrice: BN;
+					let askPrice: BN;
+					if (isVariant(takerNode.order.direction, 'long')) {
+						bidPrice = BN.min(
+							takerNode.getPrice(oraclePriceData, slot),
+							fallbackAsk || BN_MAX
+						);
+						askPrice = makerNode.getPrice(oraclePriceData, slot);
+					} else {
+						bidPrice = makerNode.getPrice(oraclePriceData, slot);
+						askPrice = BN.max(
+							takerNode.getPrice(oraclePriceData, slot),
+							fallbackBid || ZERO
+						);
+					}
+
+					if (bidPrice.lt(askPrice)) {
+						continue;
+					}
+				}
 
 				const bidBaseRemaining = bidOrder.baseAssetAmount.sub(
 					bidOrder.baseAssetAmountFilled
