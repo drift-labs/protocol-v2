@@ -26,7 +26,6 @@ import {
 	UserMap,
 	OrderRecord,
 	OrderActionRecord,
-	isLimitOrder,
 	ZERO,
 	BN_MAX,
 } from '..';
@@ -443,7 +442,9 @@ export class DLOB {
 			marketIndex,
 			slot,
 			marketType,
-			oraclePriceData
+			oraclePriceData,
+			fallbackAsk,
+			fallbackBid
 		);
 
 		for (const crossingNode of crossingNodes) {
@@ -1052,12 +1053,8 @@ export class DLOB {
 					bidNode
 				);
 
-				// extra guard against bad fills for perp limit orders where auction is incomplete
-				if (
-					isVariant(takerNode.order.marketType, 'perp') &&
-					isLimitOrder(takerNode.order) &&
-					!isAuctionComplete(takerNode.order, slot)
-				) {
+				// extra guard against bad fills for limit orders where auction is incomplete
+				if (!isAuctionComplete(takerNode.order, slot)) {
 					let bidPrice: BN;
 					let askPrice: BN;
 					if (isVariant(takerNode.order.direction, 'long')) {
