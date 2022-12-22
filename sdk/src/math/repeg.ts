@@ -8,6 +8,8 @@ import {
 	PRICE_DIV_PEG,
 	QUOTE_PRECISION,
 	ZERO,
+	ONE,
+	PERCENTAGE_PRECISION,
 } from '../constants/numericConstants';
 import { AMM } from '../types';
 /**
@@ -34,18 +36,50 @@ export function calculateAdjustKCost(
 	const p = numerator.mul(PRICE_PRECISION).div(denomenator);
 
 	const cost = quoteScale
+		.mul(PERCENTAGE_PRECISION)
+		.mul(PERCENTAGE_PRECISION)
 		.div(x.add(d))
 		.sub(
 			quoteScale
 				.mul(p)
+				.mul(PERCENTAGE_PRECISION)
+				.mul(PERCENTAGE_PRECISION)
 				.div(PRICE_PRECISION)
 				.div(x.mul(p).div(PRICE_PRECISION).add(d))
 		)
+		.div(PERCENTAGE_PRECISION)
+		.div(PERCENTAGE_PRECISION)
 		.div(AMM_TO_QUOTE_PRECISION_RATIO)
 		.div(PEG_PRECISION);
 
 	return cost.mul(new BN(-1));
 }
+
+// /**
+//  * Helper function calculating adjust k cost
+//  * @param amm
+//  * @param numerator
+//  * @param denomenator
+//  * @returns cost : Precision QUOTE_ASSET_PRECISION
+//  */
+// export function calculateAdjustKCost2(
+// 	amm: AMM,
+// 	numerator: BN,
+// 	denomenator: BN
+// ): BN {
+// 	// const k = market.amm.sqrtK.mul(market.amm.sqrtK);
+// 	const directionToClose = amm.baseAssetAmountWithAmm.gt(ZERO)
+// 		? PositionDirection.SHORT
+// 		: PositionDirection.LONG;
+
+// 	const [newQuoteAssetReserve, _newBaseAssetReserve] =
+// 		calculateAmmReservesAfterSwap(
+// 			amm,
+// 			'base',
+// 			amm.baseAssetAmountWithAmm.abs(),
+// 			getSwapDirection('base', directionToClose)
+// 		);
+// }
 
 /**
  * Helper function calculating adjust pegMultiplier (repeg) cost
@@ -181,6 +215,23 @@ export function calculateBudgetedPeg(amm: AMM, cost: BN, targetPrice: BN): BN {
 	const newPeg = Q.sub(
 		deltaPegMultiplier.mul(PEG_PRECISION).div(PRICE_PRECISION)
 	);
+
+	return newPeg;
+}
+
+export function calculateBudgetedPeg2(amm: AMM, budget: BN): BN {
+	let perPegCost = amm.quoteAssetReserve
+		.sub(amm.terminalQuoteAssetReserve)
+		.div(AMM_RESERVE_PRECISION.div(PRICE_PRECISION));
+
+	if (perPegCost.gt(ZERO)) {
+		perPegCost = perPegCost.add(ONE);
+	} else if (perPegCost.lt(ZERO)) {
+		perPegCost = perPegCost.sub(ONE);
+	}
+
+	const budgetDeltaPeg = budget.mul(PEG_PRECISION).div(perPegCost);
+	const newPeg = BN.max(ONE, amm.pegMultiplier.add(budgetDeltaPeg));
 
 	return newPeg;
 }

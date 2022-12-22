@@ -314,7 +314,13 @@ pub fn adjust_amm(
         || per_peg_cost > 0 && delta_peg < 0 // or if per peg positive and the direction is down => revenue
         || per_peg_cost < 0 && delta_peg > 0) // or if per peg negative and the direction is up => revenue
         || (budget_delta_peg_magnitude > delta_peg.unsigned_abs()); // the peg movement from full budget usage exceeds delta to optimal
-
+    crate::dlog!(
+        optimal_peg,
+        use_optimal_peg,
+        per_peg_cost,
+        budget_delta_peg_magnitude,
+        delta_peg
+    );
     if use_optimal_peg {
         // use optimal peg
         new_peg = optimal_peg;
@@ -342,11 +348,13 @@ pub fn adjust_amm(
                 market_clone.amm.quote_asset_reserve,
                 market_clone.amm.terminal_quote_asset_reserve,
             )?;
+            crate::dlog!(new_sqrt_k, adjustment_cost);
 
             adjustment_cost
         } else {
             0
         };
+
         budget_delta_peg = budget_i128
             .safe_add(adjustment_cost.abs())?
             .safe_mul(PEG_PRECISION_I128)?
@@ -369,9 +377,12 @@ pub fn adjust_amm(
             1
         };
 
+        crate::dlog!(new_peg);
+
         cost = calculate_repeg_cost(&market_clone.amm, new_peg)?;
     }
     market_clone.amm.peg_multiplier = new_peg;
+    crate::dlog!(cost);
 
     Ok((market_clone, cost))
 }
