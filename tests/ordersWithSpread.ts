@@ -48,7 +48,9 @@ describe('amm spread: market order', () => {
 
 	let driftClient: TestClient;
 	let driftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);

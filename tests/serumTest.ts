@@ -48,7 +48,9 @@ describe('serum spot market', () => {
 	let makerDriftClient: TestClient;
 	let makerWSOL: PublicKey;
 
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);

@@ -33,7 +33,9 @@ describe('cancel all orders', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);

@@ -52,7 +52,9 @@ describe('spot deposit and withdraw', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let admin: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);

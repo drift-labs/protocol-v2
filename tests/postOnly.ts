@@ -47,7 +47,9 @@ describe('post only', () => {
 
 	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
 
 	let usdcMint;

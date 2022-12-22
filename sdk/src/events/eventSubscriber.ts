@@ -53,8 +53,7 @@ export class EventSubscriber {
 			this.logProvider = new WebSocketLogProvider(
 				this.connection,
 				this.program.programId,
-				'recent'
-				// this.options.commitment
+				this.options.commitment
 			);
 		} else {
 			this.logProvider = new PollingLogProvider(

@@ -45,7 +45,9 @@ describe('post only maker order w/ amm fulfillments', () => {
 
 	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
