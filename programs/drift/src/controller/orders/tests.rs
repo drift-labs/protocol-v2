@@ -2172,6 +2172,202 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.amm.total_fee_minus_distributions, 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
+
+    #[test]
+    fn taker_limit_bid_fails_to_cross_because_of_vamm_guard() {
+        let now = 5_i64;
+        let slot = 5_u64;
+
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                post_only: true,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                price: 150 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_asks: -BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                price: 150 * PRICE_PRECISION_U64,
+                auction_duration: 10,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket::default_test();
+        market.amm.peg_multiplier = 100 * PEG_PRECISION;
+        market.amm.oracle = oracle_price_key;
+
+        let fee_structure = get_fee_structure();
+        let (maker_key, taker_key, filler_key) = get_user_keys();
+
+        let mut order_records = vec![];
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+
+        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+            &mut market,
+            &mut taker,
+            &mut taker_stats,
+            0,
+            &taker_key,
+            &mut maker,
+            &mut Some(&mut maker_stats),
+            0,
+            &maker_key,
+            &mut None,
+            &mut None,
+            &filler_key,
+            &mut None,
+            &mut None,
+            0,
+            Some(oracle_price),
+            now,
+            slot,
+            &fee_structure,
+            &mut oracle_map,
+            &mut order_records,
+        )
+        .unwrap();
+
+        assert_eq!(base_asset_amount, 0);
+    }
+
+    #[test]
+    fn taker_limit_ask_fails_to_cross_because_of_vamm_guard() {
+        let now = 5_i64;
+        let slot = 5_u64;
+
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                post_only: true,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                price: 50 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_asks: -BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                price: 50 * PRICE_PRECISION_U64,
+                auction_duration: 10,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket::default_test();
+        market.amm.peg_multiplier = 100 * PEG_PRECISION;
+        market.amm.oracle = oracle_price_key;
+
+        let fee_structure = get_fee_structure();
+        let (maker_key, taker_key, filler_key) = get_user_keys();
+
+        let mut order_records = vec![];
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+
+        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+            &mut market,
+            &mut taker,
+            &mut taker_stats,
+            0,
+            &taker_key,
+            &mut maker,
+            &mut Some(&mut maker_stats),
+            0,
+            &maker_key,
+            &mut None,
+            &mut None,
+            &filler_key,
+            &mut None,
+            &mut None,
+            0,
+            Some(oracle_price),
+            now,
+            slot,
+            &fee_structure,
+            &mut oracle_map,
+            &mut order_records,
+        )
+        .unwrap();
+
+        assert_eq!(base_asset_amount, 0);
+    }
 }
 
 pub mod fulfill_order {
