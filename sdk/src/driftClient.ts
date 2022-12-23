@@ -662,7 +662,7 @@ export class DriftClient {
 			subAccountId
 		);
 
-		const txSig = await this.program.rpc.deleteUser({
+		const ix = await this.program.instruction.deleteUser({
 			accounts: {
 				user: userAccountPublicKey,
 				userStats: this.getUserStatsAccountPublicKey(),
@@ -670,6 +670,8 @@ export class DriftClient {
 				state: await this.getStatePublicKey(),
 			},
 		});
+
+		const { txSig } = await this.sendTransaction(wrapInTx(ix), [], this.opts);
 
 		await this.users.get(subAccountId)?.unsubscribe();
 		this.users.delete(subAccountId);
