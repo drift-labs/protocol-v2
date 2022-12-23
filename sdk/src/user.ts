@@ -1138,7 +1138,7 @@ export class User {
 		// how much more liabilities can be opened w remaining free collateral
 		const additionalLiabilities = freeCollateral
 			.mul(MARGIN_PRECISION)
-			.div(new BN(liabilityWeight));
+			.div(liabilityWeight);
 
 		return totalLiabilityValue
 			.add(additionalLiabilities)
