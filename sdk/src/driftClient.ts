@@ -166,7 +166,7 @@ export class DriftClient {
 			const {
 				perpMarketIndexes: envPerpMarketIndexes,
 				spotMarketIndexes: envSpotMarketIndexes,
-				oracleInfos: envOralceInfos,
+				oracleInfos: envOracleInfos,
 			} = getMarketsAndOraclesForSubscription(config.env);
 			perpMarketIndexes = perpMarketIndexes
 				? perpMarketIndexes
@@ -174,7 +174,7 @@ export class DriftClient {
 			spotMarketIndexes = spotMarketIndexes
 				? spotMarketIndexes
 				: envSpotMarketIndexes;
-			oracleInfos = oracleInfos ? oracleInfos : envOralceInfos;
+			oracleInfos = oracleInfos ? oracleInfos : envOracleInfos;
 		}
 
 		if (config.accountSubscription?.type === 'polling') {
@@ -188,9 +188,9 @@ export class DriftClient {
 		} else {
 			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
 				this.program,
-				config.perpMarketIndexes ?? [],
-				config.spotMarketIndexes ?? [],
-				config.oracleInfos ?? []
+				perpMarketIndexes ?? [],
+				spotMarketIndexes ?? [],
+				oracleInfos ?? []
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
