@@ -322,7 +322,13 @@ export class DriftClient {
 		marketIndex: number
 	): Promise<PerpMarketAccount | undefined> {
 		await this.accountSubscriber.fetch();
-		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
+		let data =
+			this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
+		while (data !== undefined) {
+			await this.accountSubscriber.fetch();
+			data = this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
+		}
+		return data;
 	}
 
 	public getPerpMarketAccounts(): PerpMarketAccount[] {
