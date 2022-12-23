@@ -123,17 +123,6 @@ export function calculateOracleSpread(
 	return price.sub(oraclePriceData.price);
 }
 
-export function getSpotMarketMarginRatio(
-	market: SpotMarketAccount,
-	marginCategory: MarginCategory
-): number {
-	const liabilityWeight =
-		(marginCategory == 'Initial'
-			? market.initialLiabilityWeight
-			: market.maintenanceLiabilityWeight) / 10000;
-	return liabilityWeight - 1;
-}
-
 export function calculateMarketMarginRatio(
 	market: PerpMarketAccount | SpotMarketAccount,
 	marketType: MarketType,
@@ -145,10 +134,7 @@ export function calculateMarketMarginRatio(
 		case 'Initial': {
 			const marginRatioInitial = isVariant(marketType, 'perp')
 				? (market as PerpMarketAccount).marginRatioInitial
-				: getSpotMarketMarginRatio(
-						market as SpotMarketAccount,
-						marginCategory
-				  ) * 10000;
+				: (market as SpotMarketAccount).initialLiabilityWeight;
 
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
@@ -161,10 +147,7 @@ export function calculateMarketMarginRatio(
 		case 'Maintenance': {
 			const marginRatioMaintenance = isVariant(marketType, 'perp')
 				? (market as PerpMarketAccount).marginRatioMaintenance
-				: getSpotMarketMarginRatio(
-						market as SpotMarketAccount,
-						marginCategory
-				  ) * 10000;
+				: (market as SpotMarketAccount).maintenanceLiabilityWeight;
 
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
