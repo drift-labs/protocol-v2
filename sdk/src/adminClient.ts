@@ -60,7 +60,7 @@ export class AdminClient extends DriftClient {
 			},
 		});
 
-		const { txSig: initializeTxSig } = await this.txSender.send(
+		const { txSig: initializeTxSig } = await this.sendTransaction(
 			initializeTx,
 			[],
 			this.opts
@@ -132,7 +132,7 @@ export class AdminClient extends DriftClient {
 			}
 		);
 
-		const { txSig } = await this.txSender.send(initializeTx, [], this.opts);
+		const { txSig } = await this.sendTransaction(initializeTx, [], this.opts);
 
 		await this.accountSubscriber.addSpotMarket(spotMarketIndex);
 		await this.accountSubscriber.addOracle({
@@ -220,7 +220,7 @@ export class AdminClient extends DriftClient {
 					},
 				}
 			);
-		const { txSig } = await this.txSender.send(
+		const { txSig } = await this.sendTransaction(
 			initializeMarketTx,
 			[],
 			this.opts
