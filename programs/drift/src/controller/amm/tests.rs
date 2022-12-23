@@ -115,6 +115,14 @@ fn formualic_k_tests() {
         },
         ..PerpMarket::default()
     };
+    let (new_terminal_quote_reserve, new_terminal_base_reserve) =
+        amm::calculate_terminal_reserves(&market.amm).unwrap();
+    market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)
+            .unwrap();
+    market.amm.min_base_asset_reserve = min_base_asset_reserve;
+    market.amm.max_base_asset_reserve = max_base_asset_reserve;
 
     let prev_sqrt_k = market.amm.sqrt_k;
 
@@ -139,8 +147,8 @@ fn formualic_k_tests() {
     // positive means amm supossedly paid $500 in funding payments for interval
     let funding_cost_2: i128 = (500 * QUOTE_PRECISION) as i128;
     formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
-    assert!(prev_sqrt_k > market.amm.sqrt_k);
     assert_eq!(market.amm.sqrt_k, 499500000000); // max k decrease (.1%)
+    assert!(prev_sqrt_k > market.amm.sqrt_k);
     assert_eq!(market.amm.total_fee_minus_distributions, 1000014768); //$.014768 acquired from slippage increase
 
     // negative means amm recieved $500 in funding payments for interval
@@ -245,6 +253,62 @@ fn iterative_no_bounds_formualic_k_tests() {
     assert_eq!(market.amm.base_asset_amount_with_amm, -12295081967);
     assert_eq!(market.amm.sqrt_k, 1000880506218211275599);
     assert_eq!(market.amm.total_fee_minus_distributions, 985625040);
+}
+
+#[test]
+fn decrease_k_up_to_user_lp_shares() {
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 512295081967,
+            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+            sqrt_k: 500 * AMM_RESERVE_PRECISION,
+            user_lp_shares: 150 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 50000000,
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+            base_asset_amount_with_amm: -12295081967,
+            total_fee_minus_distributions: -100 * QUOTE_PRECISION as i128,
+            total_fee_withdrawn: 100 * QUOTE_PRECISION,
+            curve_update_intensity: 100,
+            ..AMM::default()
+        },
+        ..PerpMarket::default()
+    };
+    // let prev_sqrt_k = market.amm.sqrt_k;
+    let (new_terminal_quote_reserve, new_terminal_base_reserve) =
+        amm::calculate_terminal_reserves(&market.amm).unwrap();
+    market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)
+            .unwrap();
+    market.amm.min_base_asset_reserve = min_base_asset_reserve;
+    market.amm.max_base_asset_reserve = max_base_asset_reserve;
+
+    // let reserve_price = market.amm.reserve_price().unwrap();
+    let now = 10000;
+    let oracle_price_data = OraclePriceData {
+        price: 50 * PRICE_PRECISION_I64,
+        confidence: 0,
+        delay: 2,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    // negative funding cost
+    let mut count = 0;
+    let mut prev_k = market.amm.sqrt_k;
+    let mut new_k = 0;
+    while prev_k != new_k && count < 100000 {
+        let funding_cost = (QUOTE_PRECISION * 100000) as i128;
+        prev_k = market.amm.sqrt_k;
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
+        new_k = market.amm.sqrt_k;
+        msg!("quote_asset_reserve:{}", market.amm.quote_asset_reserve);
+        msg!("new_k:{}", new_k);
+        count += 1
+    }
+
+    assert_eq!(market.amm.base_asset_amount_with_amm, -12295081967);
+    assert_eq!(market.amm.sqrt_k, 162234889619);
+    assert_eq!(market.amm.total_fee_minus_distributions, 29796232175);
 }
 
 #[test]

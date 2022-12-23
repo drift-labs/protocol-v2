@@ -325,7 +325,8 @@ pub fn formulaic_update_k(
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .safe_mul(bn::U192::from(k_scale_numerator))?
-            .safe_div(bn::U192::from(k_scale_denominator))?;
+            .safe_div(bn::U192::from(k_scale_denominator))?
+            .max(bn::U192::from(market.amm.user_lp_shares.safe_add(1)?));
 
         let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 

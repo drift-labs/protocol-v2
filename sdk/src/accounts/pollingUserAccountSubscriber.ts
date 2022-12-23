@@ -65,7 +65,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		});
 
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			accountToPoll.callbackId = this.accountLoader.addAccount(
+			accountToPoll.callbackId = await this.accountLoader.addAccount(
 				accountToPoll.publicKey,
 				(buffer, slot) => {
 					if (!buffer) {
