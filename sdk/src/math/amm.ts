@@ -122,22 +122,10 @@ export function calculateNewAmm(
 	let prePegCost = calculateRepegCost(amm, _newPeg);
 	let newPeg = _newPeg;
 
-	console.log(
-		'optimal peg:',
-		_newPeg.toString(),
-		'prePegCost:',
-		prePegCost.toString(),
-		'budget:',
-		budget.toString(),
-		'amm.totalFeeMinusDistributions:',
-		amm.totalFeeMinusDistributions.toString()
-	);
 	if (prePegCost.gte(budget) && prePegCost.gt(ZERO)) {
 		[pKNumer, pKDenom] = [new BN(999), new BN(1000)];
 		const deficitMadeup = calculateAdjustKCost(amm, pKNumer, pKDenom);
 		assert(deficitMadeup.lte(new BN(0)));
-		console.log('new deficitMadeup:', deficitMadeup.toString());
-
 		prePegCost = budget.add(deficitMadeup.abs());
 		const newAmm = Object.assign({}, amm);
 		newAmm.baseAssetReserve = newAmm.baseAssetReserve.mul(pKNumer).div(pKDenom);
@@ -157,16 +145,8 @@ export function calculateNewAmm(
 			);
 
 		newAmm.terminalQuoteAssetReserve = newQuoteAssetReserve;
-		console.log('new budget:', prePegCost.toString());
 		newPeg = calculateBudgetedPeg2(newAmm, prePegCost);
 		prePegCost = calculateRepegCost(newAmm, newPeg);
-
-		console.log(
-			'newPeg:',
-			newPeg.toString(),
-			'prepegCost:',
-			prePegCost.toString()
-		);
 	}
 
 	return [prePegCost, pKNumer, pKDenom, newPeg];
@@ -185,22 +165,8 @@ export function calculateUpdatedAMM(
 		oraclePriceData
 	);
 
-	console.log(
-		'pKNumer:',
-		pKNumer.toString(),
-		'pKDenom:',
-		pKDenom.toString(),
-		'newPeg:',
-		newPeg.toString(),
-		'prepegCost:',
-		prepegCost.toString()
-	);
-	assert(prepegCost.toNumber() != 7974);
-
 	newAmm.baseAssetReserve = newAmm.baseAssetReserve.mul(pKNumer).div(pKDenom);
-	console.log('newAmm.sqrtK old:', newAmm.sqrtK.toString());
 	newAmm.sqrtK = newAmm.sqrtK.mul(pKNumer).div(pKDenom);
-	console.log('newAmm.sqrtK new:', newAmm.sqrtK.toString());
 	const invariant = newAmm.sqrtK.mul(newAmm.sqrtK);
 	newAmm.quoteAssetReserve = invariant.div(newAmm.baseAssetReserve);
 	newAmm.pegMultiplier = newPeg;
@@ -223,7 +189,6 @@ export function calculateUpdatedAMM(
 		newAmm.totalFeeMinusDistributions.sub(prepegCost);
 	newAmm.netRevenueSinceLastFunding =
 		newAmm.netRevenueSinceLastFunding.sub(prepegCost);
-	console.log('newAmm.sqrtK new again:', newAmm.sqrtK.toString());
 	return newAmm;
 }
 
@@ -647,13 +612,22 @@ export function calculateSpreadBN(
 			DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
 		)
 	) {
-		const revenueRetreatAmount = Math.min(
-			maxTargetSpread / 10,
-			Math.floor(
-				(baseSpread * netRevenueSinceLastFunding.abs().toNumber()) /
-					DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.abs().toNumber()
+		const maxRetreat = maxTargetSpread / 10;
+		let revenueRetreatAmount = maxRetreat;
+		if (
+			netRevenueSinceLastFunding.gte(
+				DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.mul(new BN(1000))
 			)
-		);
+		) {
+			revenueRetreatAmount = Math.min(
+				maxRetreat,
+				Math.floor(
+					(baseSpread * netRevenueSinceLastFunding.abs().toNumber()) /
+						DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.abs().toNumber()
+				)
+			);
+		}
+
 		const halfRevenueRetreatAmount = Math.floor(revenueRetreatAmount / 2);
 
 		spreadTerms.revenueRetreatAmount = revenueRetreatAmount;

@@ -234,7 +234,6 @@ pub fn calculate_spread_revenue_retreat_amount(
     let revenue_retreat_amount = if net_revenue_since_last_funding
         < DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
     {
-        crate::dlog!(net_revenue_since_last_funding);
         let max_retreat = max_spread.safe_div(10)?;
         if net_revenue_since_last_funding
             >= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 1000
