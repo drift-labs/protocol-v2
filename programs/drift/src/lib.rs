@@ -223,6 +223,10 @@ pub mod drift {
         handle_trigger_order(ctx, order_id)
     }
 
+    pub fn force_cancel_orders(ctx: Context<ForceCancelOrder>) -> Result<()> {
+        handle_force_cancel_orders(ctx)
+    }
+
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         handle_settle_pnl(ctx, market_index)
     }

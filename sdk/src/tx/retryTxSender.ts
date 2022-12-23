@@ -52,11 +52,11 @@ export class RetryTxSender implements TxSender {
 			opts = this.provider.opts;
 		}
 
-		if (!preSigned) {
-			await this.prepareTx(tx, additionalSigners, opts);
-		}
+		const signedTx = preSigned
+			? tx
+			: await this.prepareTx(tx, additionalSigners, opts);
 
-		const rawTransaction = tx.serialize();
+		const rawTransaction = signedTx.serialize();
 		const startTime = this.getTimestamp();
 
 		let txid: TransactionSignature;
@@ -123,14 +123,14 @@ export class RetryTxSender implements TxSender {
 			)
 		).blockhash;
 
-		await this.provider.wallet.signTransaction(tx);
+		const signedTx = await this.provider.wallet.signTransaction(tx);
 		additionalSigners
 			.filter((s): s is Signer => s !== undefined)
 			.forEach((kp) => {
-				tx.partialSign(kp);
+				signedTx.partialSign(kp);
 			});
 
-		return tx;
+		return signedTx;
 	}
 
 	async confirmTransaction(
