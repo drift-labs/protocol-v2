@@ -176,14 +176,6 @@ describe('liquidate spot w/ social loss', () => {
 		assert(
 			driftClient.getUserAccount().spotPositions[0].scaledBalance.eq(ZERO)
 		);
-		assert(
-			driftClient
-				.getUserAccount()
-				.spotPositions[1].scaledBalance.gt(new BN(5001000)) &&
-				driftClient
-					.getUserAccount()
-					.spotPositions[1].scaledBalance.lt(new BN(5002000))
-		);
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
