@@ -549,8 +549,7 @@ describe('amm spread: market order', () => {
 	});
 
 	it('fill limit order below bid', async () => {
-		const initialAmmTotalFee = (await driftClient.forceGetPerpMarketAccount(0))
-			.amm.totalFee;
+		const initialAmmTotalFee = driftClient.getPerpMarketAccount(0).amm.totalFee;
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
