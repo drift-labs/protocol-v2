@@ -21,6 +21,7 @@ import {
 	OracleSource,
 	PEG_PRECISION,
 	ZERO,
+	BulkAccountLoader,
 } from '../sdk/src';
 
 import {
@@ -32,7 +33,6 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
 
 describe('post only maker order w/ amm fulfillments', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -207,9 +207,12 @@ describe('post only maker order w/ amm fulfillments', () => {
 		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 		await fillerDriftClient.moveAmmToPrice(marketIndex, newOraclePriceBN);
 
+		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
+		await fillerDriftClient.fetchAccounts();
+
 		const reservePrice2 = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			fillerDriftClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 		console.log(
@@ -218,6 +221,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 			'vs',
 			reservePrice2.toString()
 		);
+		assert(reservePrice2.eq(new BN('32172703')));
+
 		const makerOrderParams2 = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,

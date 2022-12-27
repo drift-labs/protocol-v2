@@ -156,7 +156,7 @@ export function calculateUpdatedAMM(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): AMM {
-	if (amm.curveUpdateIntensity == 0) {
+	if (amm.curveUpdateIntensity == 0 || oraclePriceData === undefined) {
 		return amm;
 	}
 	const newAmm = Object.assign({}, amm);
