@@ -570,19 +570,25 @@ export class DriftClient {
 		);
 
 		const nameBuffer = encodeName(name);
-		return await this.program.rpc.updateUserName(subAccountId, nameBuffer, {
-			accounts: {
-				user: userAccountPublicKey,
-				authority: this.wallet.publicKey,
-			},
-		});
+		const tx = await this.program.transaction.updateUserName(
+			subAccountId,
+			nameBuffer,
+			{
+				accounts: {
+					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async updateUserCustomMarginRatio(
 		marginRatio: number,
 		subAccountId = 0
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateUserCustomMarginRatio(
+		const tx = await this.program.transaction.updateUserCustomMarginRatio(
 			subAccountId,
 			marginRatio,
 			{
@@ -592,6 +598,8 @@ export class DriftClient {
 				},
 			}
 		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async updateUserMarginTradingEnabled(
@@ -603,7 +611,7 @@ export class DriftClient {
 			this.wallet.publicKey,
 			subAccountId
 		);
-		return await this.program.rpc.updateUserMarginTradingEnabled(
+		const tx = await this.program.transaction.updateUserMarginTradingEnabled(
 			subAccountId,
 			marginTradingEnabled,
 			{
@@ -613,18 +621,28 @@ export class DriftClient {
 				},
 			}
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async updateUserDelegate(
 		delegate: PublicKey,
 		subAccountId = 0
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateUserDelegate(subAccountId, delegate, {
-			accounts: {
-				user: await this.getUserAccountPublicKey(),
-				authority: this.wallet.publicKey,
-			},
-		});
+		const tx = await this.program.transaction.updateUserDelegate(
+			subAccountId,
+			delegate,
+			{
+				accounts: {
+					user: await this.getUserAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async getUserAccountsForDelegate(
