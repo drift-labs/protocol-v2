@@ -356,7 +356,7 @@ export class AdminClient extends DriftClient {
 		);
 		const ammData = this.getPerpMarketAccount(perpMarketIndex).amm;
 
-		return await this.program.rpc.repegAmmCurve(newPeg, {
+		const tx = await this.program.transaction.repegAmmCurve(newPeg, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
@@ -364,6 +364,8 @@ export class AdminClient extends DriftClient {
 				perpMarket: perpMarketPublicKey,
 			},
 		});
+		const { txSig } = await super.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async updatePerpMarketAmmOracleTwap(
