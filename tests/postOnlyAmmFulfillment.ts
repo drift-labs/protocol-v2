@@ -254,6 +254,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
 		console.log(position.quoteAssetAmount.toString());
 		console.log(position.quoteBreakEvenAmount.toString());
+		console.log(position.quoteEntryAmount.toString());
 
 		assert(position.quoteAssetAmount.eq(new BN(-32208912)));
 		assert(position.quoteEntryAmount.eq(new BN(-32176734)));
