@@ -324,7 +324,7 @@ export class DriftClient {
 		await this.accountSubscriber.fetch();
 		let data =
 			this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
-		while (data !== undefined) {
+		while (data === undefined) {
 			await this.accountSubscriber.fetch();
 			data = this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
 		}
