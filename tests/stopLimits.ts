@@ -9,7 +9,6 @@ import {
 	TestClient,
 	BN,
 	PRICE_PRECISION,
-	TestClient,
 	PositionDirection,
 	User,
 	Wallet,
@@ -45,7 +44,11 @@ const enumsAreEqual = (
 };
 
 describe('stop limit', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		skipPreflight: false,
+		preflightCommitment: 'confirmed',
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
@@ -342,6 +345,7 @@ describe('stop limit', () => {
 		await driftClient.placePerpOrder(orderParams);
 		const orderId = 4;
 		const orderIndex = new BN(0);
+		await driftClientUser.forceGetUserAccount();
 		let order = driftClientUser.getOrder(orderId);
 
 		await setFeedPrice(anchor.workspace.Pyth, 0.99, solUsd);
