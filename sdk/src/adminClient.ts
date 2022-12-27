@@ -191,9 +191,10 @@ export class AdminClient extends DriftClient {
 		activeStatus = true,
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
+		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
-			this.getStateAccount().numberOfMarkets
+			currentPerpMarketIndex
 		);
 
 		const nameBuffer = encodeName(name);
@@ -226,9 +227,11 @@ export class AdminClient extends DriftClient {
 			this.opts
 		);
 
-		await this.accountSubscriber.addPerpMarket(
-			this.getStateAccount().numberOfMarkets
-		);
+		while (this.getStateAccount().numberOfMarkets <= currentPerpMarketIndex) {
+			await this.fetchAccounts();
+		}
+
+		await this.accountSubscriber.addPerpMarket(currentPerpMarketIndex);
 		await this.accountSubscriber.addOracle({
 			source: oracleSource,
 			publicKey: priceOracle,
