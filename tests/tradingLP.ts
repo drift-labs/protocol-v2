@@ -114,7 +114,7 @@ describe('trading liquidity providing', () => {
 	});
 	eventSubscriber.subscribe();
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint: web3.Keypair;
 

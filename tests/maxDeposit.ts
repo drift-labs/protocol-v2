@@ -30,7 +30,7 @@ describe('max deposit', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+		const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 		const solUsd = await mockOracle(1);
 

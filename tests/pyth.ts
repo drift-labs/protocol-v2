@@ -171,7 +171,7 @@ describe('pyth-oracle', () => {
 	let driftClient: TestClient;
 	let driftClient2: TestClient;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;

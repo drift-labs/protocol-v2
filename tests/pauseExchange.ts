@@ -28,7 +28,7 @@ describe('admin withdraw', () => {
 
 	let driftClient: TestClient;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let userUSDCAccount;

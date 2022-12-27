@@ -43,7 +43,7 @@ describe('post only', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;

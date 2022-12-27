@@ -453,7 +453,7 @@ describe('capped funding', () => {
 
 	const chProgram = anchor.workspace.Drift as Program;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'recent', 1);
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let driftClient: TestClient;
 	let driftClient2: TestClient;
