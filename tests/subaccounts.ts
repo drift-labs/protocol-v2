@@ -202,7 +202,6 @@ describe('subaccounts', () => {
 			const txSig = await driftClient.deleteUser(0);
 			await printTxLogs(connection, txSig);
 		} catch (e) {
-			assert(e.toString().includes('UserCantBeDeleted'));
 			deleteFailed = true;
 		}
 
