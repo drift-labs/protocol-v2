@@ -1246,7 +1246,7 @@ describe('liquidity providing', () => {
 			await driftClient.getUserAccountPublicKey()
 		);
 
-		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
 		const position = driftClientUser.getPerpPosition(0);
 		assert(position.lpShares.eq(ZERO));
 	});
