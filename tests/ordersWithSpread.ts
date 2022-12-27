@@ -637,10 +637,12 @@ describe('amm spread: market order', () => {
 	});
 
 	it('Long market order base w/ variable reduce/close', async () => {
+		console.log('here');
 		const marketIndex2Num = 1;
 		const marketIndex2 = marketIndex2Num;
 		const peg = 40000;
 		const btcUsd = await mockOracle(peg);
+		console.log('here2');
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
@@ -658,14 +660,17 @@ describe('amm spread: market order', () => {
 			periodicity,
 			new BN(peg * PEG_PRECISION.toNumber())
 		);
+		console.log('here3');
 
 		await driftClient.updatePerpMarketBaseSpread(marketIndex2, 500);
+		console.log('here4');
 		const initialCollateral = driftClient.getQuoteAssetTokenAmount();
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION.toNumber() / 10000); // ~$4 of btc
 		const market2 = await driftClient.forceGetPerpMarketAccount(
 			marketIndex2Num
 		);
+		console.log('here5');
 
 		const tradeAcquiredAmountsNoSpread = calculateTradeAcquiredAmounts(
 			direction,
