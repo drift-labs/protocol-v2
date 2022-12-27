@@ -8,7 +8,6 @@ import { PublicKey, Keypair } from '@solana/web3.js';
 import {
 	TestClient,
 	BN,
-	TestClient,
 	EventSubscriber,
 	ZERO,
 	// SPOT_MARKET_RATE_PRECISION,
@@ -160,7 +159,8 @@ describe('asset tiers', () => {
 					publicKey: dogeOracle,
 					source: OracleSource.PYTH,
 				},
-			]
+			],
+			bulkAccountLoader
 		);
 
 		secondUserDriftClientDogeAccount = await createUSDCAccountForUser(
