@@ -5,15 +5,6 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
-  assetTier.ts
-  pauseExchange.ts
-  whitelist.ts
-  updateK.ts
-  curve.ts
-  cappedSymFunding.ts
-  maxDeposit.ts
-  cancelAllOrders.ts
-  ordersWithSpread.ts
   postOnlyAmmFulfillment.ts
   imbalancePerpPnl.ts
   delistMarket.ts
