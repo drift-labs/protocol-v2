@@ -78,7 +78,7 @@ describe('amm spread: market order', () => {
 
 		solUsd = await mockOracle(1);
 
-		const marketIndexes = [0];
+		const marketIndexes = [0, 1];
 		const spotMarketIndexes = [0];
 		const oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
