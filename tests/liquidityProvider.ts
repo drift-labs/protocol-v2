@@ -106,11 +106,13 @@ async function createNewUser(
 					type: 'websocket',
 			  },
 	});
-	await driftClient.subscribe();
 
 	if (walletFlag) {
 		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+	} else {
+		await driftClient.subscribe();
 	}
 
 	await driftClient.initializeUserAccountAndDepositCollateral(
