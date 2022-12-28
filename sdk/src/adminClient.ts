@@ -722,7 +722,7 @@ export class AdminClient extends DriftClient {
 		spotMarketIndex: number,
 		withdrawGuardThreshold: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateWithdrawGuardThreshold(
+		const tx = await this.program.transaction.updateWithdrawGuardThreshold(
 			withdrawGuardThreshold,
 			{
 				accounts: {
@@ -735,6 +735,9 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async updateSpotMarketIfFactor(
@@ -742,7 +745,7 @@ export class AdminClient extends DriftClient {
 		userIfFactor: BN,
 		totalIfFactor: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketIfFactor(
+		const tx = await this.program.transaction.updateSpotMarketIfFactor(
 			spotMarketIndex,
 			userIfFactor,
 			totalIfFactor,
@@ -757,25 +760,32 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async updateSpotMarketRevenueSettlePeriod(
 		spotMarketIndex: number,
 		revenueSettlePeriod: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketRevenueSettlePeriod(
-			revenueSettlePeriod,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					spotMarket: await getSpotMarketPublicKey(
-						this.program.programId,
-						spotMarketIndex
-					),
-				},
-			}
-		);
+		const tx =
+			await this.program.transaction.updateSpotMarketRevenueSettlePeriod(
+				revenueSettlePeriod,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						spotMarket: await getSpotMarketPublicKey(
+							this.program.programId,
+							spotMarketIndex
+						),
+					},
+				}
+			);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async updateSpotMarketMaxTokenDeposits(
@@ -804,19 +814,23 @@ export class AdminClient extends DriftClient {
 		spotMarketIndex: number,
 		insuranceWithdrawEscrowPeriod: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateInsuranceFundUnstakingPeriod(
-			insuranceWithdrawEscrowPeriod,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					spotMarket: await getSpotMarketPublicKey(
-						this.program.programId,
-						spotMarketIndex
-					),
-				},
-			}
-		);
+		const tx =
+			await this.program.transaction.updateInsuranceFundUnstakingPeriod(
+				insuranceWithdrawEscrowPeriod,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						spotMarket: await getSpotMarketPublicKey(
+							this.program.programId,
+							spotMarketIndex
+						),
+					},
+				}
+			);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async updateLpCooldownTime(

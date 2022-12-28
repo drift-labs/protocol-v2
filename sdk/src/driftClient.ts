@@ -3545,21 +3545,28 @@ export class DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
-		return await this.program.rpc.addInsuranceFundStake(marketIndex, amount, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				spotMarket: spotMarket.pubkey,
-				insuranceFundStake: ifStakeAccountPublicKey,
-				userStats: this.getUserStatsAccountPublicKey(),
-				authority: this.wallet.publicKey,
-				spotMarketVault: spotMarket.vault,
-				insuranceFundVault: spotMarket.insuranceFund.vault,
-				driftSigner: this.getSignerPublicKey(),
-				userTokenAccount: collateralAccountPublicKey,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-			remainingAccounts,
-		});
+		const tx = await this.program.transaction.addInsuranceFundStake(
+			marketIndex,
+			amount,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					spotMarket: spotMarket.pubkey,
+					insuranceFundStake: ifStakeAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					spotMarketVault: spotMarket.vault,
+					insuranceFundVault: spotMarket.insuranceFund.vault,
+					driftSigner: this.getSignerPublicKey(),
+					userTokenAccount: collateralAccountPublicKey,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts,
+			}
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async requestRemoveInsuranceFundStake(
@@ -3579,7 +3586,7 @@ export class DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
-		return await this.program.rpc.requestRemoveInsuranceFundStake(
+		const tx = await this.program.transaction.requestRemoveInsuranceFundStake(
 			marketIndex,
 			amount,
 			{
@@ -3594,6 +3601,9 @@ export class DriftClient {
 				remainingAccounts,
 			}
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async cancelRequestRemoveInsuranceFundStake(
@@ -3612,20 +3622,24 @@ export class DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
-		return await this.program.rpc.cancelRequestRemoveInsuranceFundStake(
-			marketIndex,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					spotMarket: spotMarketAccount.pubkey,
-					insuranceFundStake: ifStakeAccountPublicKey,
-					userStats: this.getUserStatsAccountPublicKey(),
-					authority: this.wallet.publicKey,
-					insuranceFundVault: spotMarketAccount.insuranceFund.vault,
-				},
-				remainingAccounts,
-			}
-		);
+		const tx =
+			await this.program.transaction.cancelRequestRemoveInsuranceFundStake(
+				marketIndex,
+				{
+					accounts: {
+						state: await this.getStatePublicKey(),
+						spotMarket: spotMarketAccount.pubkey,
+						insuranceFundStake: ifStakeAccountPublicKey,
+						userStats: this.getUserStatsAccountPublicKey(),
+						authority: this.wallet.publicKey,
+						insuranceFundVault: spotMarketAccount.insuranceFund.vault,
+					},
+					remainingAccounts,
+				}
+			);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async removeInsuranceFundStake(
@@ -3645,20 +3659,26 @@ export class DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
-		return await this.program.rpc.removeInsuranceFundStake(marketIndex, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				spotMarket: spotMarketAccount.pubkey,
-				insuranceFundStake: ifStakeAccountPublicKey,
-				userStats: this.getUserStatsAccountPublicKey(),
-				authority: this.wallet.publicKey,
-				insuranceFundVault: spotMarketAccount.insuranceFund.vault,
-				driftSigner: this.getSignerPublicKey(),
-				userTokenAccount: collateralAccountPublicKey,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-			remainingAccounts,
-		});
+		const tx = await this.program.transaction.removeInsuranceFundStake(
+			marketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					spotMarket: spotMarketAccount.pubkey,
+					insuranceFundStake: ifStakeAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					insuranceFundVault: spotMarketAccount.insuranceFund.vault,
+					driftSigner: this.getSignerPublicKey(),
+					userTokenAccount: collateralAccountPublicKey,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts,
+			}
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async settleRevenueToInsuranceFund(
@@ -3672,17 +3692,23 @@ export class DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
-		return await this.program.rpc.settleRevenueToInsuranceFund(marketIndex, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				spotMarket: spotMarketAccount.pubkey,
-				spotMarketVault: spotMarketAccount.vault,
-				driftSigner: this.getSignerPublicKey(),
-				insuranceFundVault: spotMarketAccount.insuranceFund.vault,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-			remainingAccounts,
-		});
+		const tx = await this.program.rpc.settleRevenueToInsuranceFund(
+			marketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					spotMarket: spotMarketAccount.pubkey,
+					spotMarketVault: spotMarketAccount.vault,
+					driftSigner: this.getSignerPublicKey(),
+					insuranceFundVault: spotMarketAccount.insuranceFund.vault,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts,
+			}
+		);
+
+		const { txSig } = await this.sendTransaction(wrapInTx(tx), [], this.opts);
+		return txSig;
 	}
 
 	public async resolvePerpPnlDeficit(
