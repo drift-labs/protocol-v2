@@ -369,14 +369,16 @@ describe('DLOB Tests', () => {
 		expect(b).to.equal(3);
 
 		dlob.clear();
-		let thrown = false;
-		try {
-			const bids1 = dlob.getBids(marketIndex, vBid, 0, MarketType.PERP, oracle);
-			bids1.next();
-		} catch (e) {
-			thrown = true;
-		}
-		expect(thrown, 'should throw after clearing').to.equal(true);
+
+		const bids1 = dlob.getBids(
+			marketIndex,
+			undefined,
+			0,
+			MarketType.PERP,
+			oracle
+		);
+		bids1.next();
+		expect(bids1.next().done, 'bid generator should be done').to.equal(true);
 	});
 
 	it('DLOB orders', () => {

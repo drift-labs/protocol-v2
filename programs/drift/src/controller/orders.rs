@@ -1731,12 +1731,13 @@ pub fn fulfill_perp_order_with_match(
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     let taker_direction = taker.orders[taker_order_index].direction;
     let taker_fallback_price = get_fallback_price(&taker_direction, bid_price, ask_price);
-    let taker_price = taker.orders[taker_order_index].force_get_limit_price(
+    let mut taker_price = taker.orders[taker_order_index].force_get_limit_price(
         Some(oracle_price),
         Some(taker_fallback_price),
         slot,
         market.amm.order_tick_size,
     )?;
+
     let taker_existing_position = taker
         .get_perp_position(market.market_index)?
         .base_asset_amount;
@@ -1755,6 +1756,33 @@ pub fn fulfill_perp_order_with_match(
         .base_asset_amount;
     let maker_base_asset_amount = maker.orders[maker_order_index]
         .get_base_asset_amount_unfilled(Some(maker_existing_position))?;
+
+    // if the auction isn't complete, cant fill against vamm yet
+    // use the vamm price to guard against bad fill for taker
+    if taker.orders[taker_order_index].is_limit_order()
+        && !taker.orders[taker_order_index].is_auction_complete(slot)?
+    {
+        taker_price = match taker_direction {
+            PositionDirection::Long => {
+                msg!(
+                    "taker limit order auction incomplete. vamm ask {} taker bid {} maker ask {}",
+                    ask_price,
+                    taker_price,
+                    maker_price,
+                );
+                taker_price.min(ask_price)
+            }
+            PositionDirection::Short => {
+                msg!(
+                    "taker limit order auction incomplete. vamm bid {} taker ask {} make bid {}",
+                    bid_price,
+                    taker_price,
+                    maker_price,
+                );
+                taker_price.max(bid_price)
+            }
+        };
+    }
 
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
@@ -2319,6 +2347,101 @@ pub fn trigger_order(
             false,
         )?;
     }
+
+    Ok(())
+}
+
+pub fn force_cancel_orders(
+    state: &State,
+    user: &AccountLoader<User>,
+    spot_market_map: &SpotMarketMap,
+    perp_market_map: &PerpMarketMap,
+    oracle_map: &mut OracleMap,
+    filler: &AccountLoader<User>,
+    clock: &Clock,
+) -> DriftResult {
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+
+    let filler_key = filler.key();
+    let user_key = user.key();
+    let user = &mut load_mut!(user)?;
+    let filler = &mut load_mut!(filler)?;
+
+    validate!(
+        !user.is_being_liquidated(),
+        ErrorCode::UserIsBeingLiquidated
+    )?;
+
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+
+    let meets_initial_margin_requirement =
+        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+
+    validate!(
+        !meets_initial_margin_requirement,
+        ErrorCode::SufficientCollateral
+    )?;
+
+    let mut total_fee = 0_u64;
+
+    for order_index in 0..user.orders.len() {
+        if user.orders[order_index].status != OrderStatus::Open {
+            continue;
+        }
+
+        let market_index = user.orders[order_index].market_index;
+        let market_type = user.orders[order_index].market_type;
+
+        let fee = match market_type {
+            MarketType::Spot => {
+                let spot_market = spot_market_map.get_ref(&market_index)?;
+                let is_risk_decreasing = determine_if_user_spot_order_is_risk_decreasing(
+                    user,
+                    &spot_market,
+                    order_index,
+                )?;
+                if is_risk_decreasing {
+                    continue;
+                }
+
+                state.spot_fee_structure.flat_filler_fee
+            }
+            MarketType::Perp => {
+                let is_risk_decreasing =
+                    determine_if_user_order_is_risk_decreasing(user, market_index, order_index)?;
+                if is_risk_decreasing {
+                    continue;
+                }
+
+                state.perp_fee_structure.flat_filler_fee
+            }
+        };
+
+        total_fee = total_fee.safe_add(fee)?;
+
+        cancel_order(
+            order_index,
+            user,
+            &user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::InsufficientFreeCollateral,
+            Some(&filler_key),
+            fee,
+            false,
+        )?;
+    }
+
+    pay_keeper_flat_reward_for_spot(
+        user,
+        Some(filler),
+        spot_market_map.get_quote_spot_market_mut()?.deref_mut(),
+        total_fee,
+    )?;
 
     Ok(())
 }
@@ -3204,6 +3327,20 @@ fn fulfill_spot_order(
     Ok((base_asset_amount, base_asset_amount != 0))
 }
 
+fn determine_if_user_spot_order_is_risk_decreasing(
+    user: &User,
+    spot_market: &SpotMarket,
+    order_index: usize,
+) -> DriftResult<bool> {
+    let position_index = user.get_spot_position_index(spot_market.market_index)?;
+    let token_amount = user.spot_positions[position_index].get_token_amount(spot_market)?;
+    is_spot_order_risk_decreasing(
+        &user.orders[order_index],
+        &user.spot_positions[position_index].balance_type,
+        token_amount,
+    )
+}
+
 pub fn fulfill_spot_order_with_match(
     base_market: &mut SpotMarket,
     quote_market: &mut SpotMarket,
@@ -3299,8 +3436,10 @@ pub fn fulfill_spot_order_with_match(
         if let Some(maker_max_quote_asset_amount) = maker_max_quote_asset_amount {
             let maker_implied_max_base_asset_amount = standardize_base_asset_amount(
                 maker_max_quote_asset_amount
-                    .safe_mul(base_market.get_precision())?
-                    .safe_div(maker_price)?,
+                    .cast::<u128>()?
+                    .safe_mul(base_market.get_precision().cast()?)?
+                    .safe_div(maker_price.cast()?)?
+                    .cast::<u64>()?,
                 base_market.order_step_size,
             )?;
             maker_base_asset_amount.min(maker_implied_max_base_asset_amount)
