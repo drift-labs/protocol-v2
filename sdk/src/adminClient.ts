@@ -1020,16 +1020,22 @@ export class AdminClient extends DriftClient {
 		spotMarketIndex: number,
 		assetTier: AssetTier
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketAssetTier(assetTier, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: await getSpotMarketPublicKey(
-					this.program.programId,
-					spotMarketIndex
-				),
-			},
-		});
+		const tx = await this.program.transaction.updateSpotMarketAssetTier(
+			assetTier,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+
+		const { txSig } = await this.sendTransaction(tx);
+		return txSig;
 	}
 
 	public async updateSpotMarketStatus(
