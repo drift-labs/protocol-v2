@@ -7,8 +7,7 @@ use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_TO_QUOTE_PRECISION_RATIO_I128, K_BPS_UPDATE_SCALE,
-    MAX_K_BPS_DECREASE, PEG_PRECISION, PEG_PRECISION_I128, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I128, PRICE_PRECISION_I128, QUOTE_PRECISION,
+    MAX_K_BPS_DECREASE, PEG_PRECISION, PERCENTAGE_PRECISION_I128, QUOTE_PRECISION,
 };
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
 use crate::math::safe_math::SafeMath;
@@ -166,34 +165,6 @@ pub fn _calculate_budgeted_k_scale(
 
     Ok((numerator.cast::<u128>()?, denominator.cast::<u128>()?))
 }
-
-pub fn calculate_adjust_k_cost(market: &PerpMarket, p: u128) -> DriftResult<i128> {
-    let x = market.amm.base_asset_reserve;
-    let y = market.amm.quote_asset_reserve;
-    let d = market.amm.base_asset_amount_with_amm;
-    let q = market.amm.peg_multiplier;
-
-    let quote_scale = y.cast::<i128>()?.safe_mul(d)?.safe_mul(q.cast::<i128>()?)?;
-    let cost = quote_scale
-        .safe_div(x.cast::<i128>()?.safe_add(d)?)?
-        .safe_sub(
-            (quote_scale.safe_mul(p.cast::<i128>()?)?)
-                .safe_div(PRICE_PRECISION_I128)?
-                .safe_div(
-                    x.safe_mul(p)?
-                        .cast::<i128>()?
-                        .safe_div(PRICE_PRECISION_I128)?
-                        .safe_add(d)?,
-                )?,
-        )?
-        .safe_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-        .safe_div(PEG_PRECISION_I128)?;
-
-    let cost_signed = -cost;
-
-    Ok(cost_signed)
-}
-
 /// To find the cost of adjusting k, compare the the net market value before and after adjusting k
 /// Increasing k costs the protocol terminal money because it reduces slippage and improves the exit price for net market position
 /// Decreasing k relieves the protocol terminal money because it increases slippage and hurts the exit price for net market position
@@ -242,27 +213,6 @@ pub fn adjust_k_cost_and_update(
         &market.amm,
         false,
     )?;
-
-    Ok(cost)
-}
-
-/// To find the cost of adjusting k, compare the the net market value before and after adjusting k
-/// Increasing k costs the protocol money because it reduces slippage and improves the exit price for net market position
-/// Decreasing k costs the protocol money because it increases slippage and hurts the exit price for net market position
-pub fn adjust_k_cost_and_update2(
-    market: &mut PerpMarket,
-    update_k_result: &UpdateKResult,
-) -> DriftResult<i128> {
-    // Find the net market value before adjusting k
-    let cost = calculate_adjust_k_cost(
-        market,
-        update_k_result
-            .sqrt_k
-            .safe_mul(PERCENTAGE_PRECISION)?
-            .safe_div(market.amm.sqrt_k)?,
-    )?;
-
-    update_k(market, update_k_result)?;
 
     Ok(cost)
 }

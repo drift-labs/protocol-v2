@@ -28,8 +28,7 @@ import { OraclePriceData } from '../oracles/types';
 import {
 	calculateRepegCost,
 	calculateAdjustKCost,
-	// calculateBudgetedPeg,
-	calculateBudgetedPeg2,
+	calculateBudgetedPeg,
 } from './repeg';
 
 import { calculateLiveOracleStd } from './oracles';
@@ -145,7 +144,7 @@ export function calculateNewAmm(
 			);
 
 		newAmm.terminalQuoteAssetReserve = newQuoteAssetReserve;
-		newPeg = calculateBudgetedPeg2(newAmm, prePegCost);
+		newPeg = calculateBudgetedPeg(newAmm, prePegCost);
 		prePegCost = calculateRepegCost(newAmm, newPeg);
 	}
 

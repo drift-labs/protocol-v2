@@ -5,7 +5,6 @@ import {
 	AMM_RESERVE_PRECISION,
 	PEG_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
-	PRICE_DIV_PEG,
 	QUOTE_PRECISION,
 	ZERO,
 	ONE,
@@ -177,49 +176,7 @@ export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 	return [numerator, denominator];
 }
 
-export function calculateBudgetedPeg(amm: AMM, cost: BN, targetPrice: BN): BN {
-	// wolframalpha.com
-	// (1/(x+d) - p/(x*p+d))*y*d*Q = C solve for p
-	// p = (d(y*d*Q - C(x+d))) / (C*x(x+d) + y*y*d*Q)
-
-	// todo: assumes k = x * y
-	// otherwise use: (y(1-p) + (kp^2/(x*p+d)) - k/(x+d)) * Q = C solve for p
-	const targetPeg = targetPrice
-		.mul(amm.baseAssetReserve)
-		.div(amm.quoteAssetReserve)
-		.div(PRICE_DIV_PEG);
-
-	const k = amm.sqrtK.mul(amm.sqrtK);
-	const x = amm.baseAssetReserve;
-	const y = amm.quoteAssetReserve;
-
-	const d = amm.baseAssetAmountWithAmm;
-	const Q = amm.pegMultiplier;
-
-	const C = cost.mul(new BN(-1));
-
-	const deltaQuoteAssetReserves = y.sub(k.div(x.add(d)));
-	const pegChangeDirection = targetPeg.sub(Q);
-
-	const useTargetPeg =
-		(deltaQuoteAssetReserves.lt(ZERO) && pegChangeDirection.gt(ZERO)) ||
-		(deltaQuoteAssetReserves.gt(ZERO) && pegChangeDirection.lt(ZERO));
-
-	if (deltaQuoteAssetReserves.eq(ZERO) || useTargetPeg) {
-		return targetPeg;
-	}
-
-	const deltaPegMultiplier = C.mul(PRICE_PRECISION).div(
-		deltaQuoteAssetReserves.div(AMM_TO_QUOTE_PRECISION_RATIO)
-	);
-	const newPeg = Q.sub(
-		deltaPegMultiplier.mul(PEG_PRECISION).div(PRICE_PRECISION)
-	);
-
-	return newPeg;
-}
-
-export function calculateBudgetedPeg2(amm: AMM, budget: BN): BN {
+export function calculateBudgetedPeg(amm: AMM, budget: BN): BN {
 	let perPegCost = amm.quoteAssetReserve
 		.sub(amm.terminalQuoteAssetReserve)
 		.div(AMM_RESERVE_PRECISION.div(PRICE_PRECISION));
