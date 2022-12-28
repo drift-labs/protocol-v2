@@ -5,6 +5,7 @@ import {
 	AMM_RESERVE_PRECISION,
 	PEG_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
+	PRICE_DIV_PEG,
 	QUOTE_PRECISION,
 	ZERO,
 	ONE,
@@ -176,7 +177,11 @@ export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 	return [numerator, denominator];
 }
 
-export function calculateBudgetedPeg(amm: AMM, budget: BN): BN {
+export function calculateBudgetedPeg(
+	amm: AMM,
+	budget: BN,
+	targetPrice: BN
+): BN {
 	let perPegCost = amm.quoteAssetReserve
 		.sub(amm.terminalQuoteAssetReserve)
 		.div(AMM_RESERVE_PRECISION.div(PRICE_PRECISION));
@@ -185,6 +190,21 @@ export function calculateBudgetedPeg(amm: AMM, budget: BN): BN {
 		perPegCost = perPegCost.add(ONE);
 	} else if (perPegCost.lt(ZERO)) {
 		perPegCost = perPegCost.sub(ONE);
+	}
+
+	const targetPeg = targetPrice
+		.mul(amm.baseAssetReserve)
+		.div(amm.quoteAssetReserve)
+		.div(PRICE_DIV_PEG);
+
+	const pegChangeDirection = targetPeg.sub(amm.pegMultiplier);
+
+	const useTargetPeg =
+		(perPegCost.lt(ZERO) && pegChangeDirection.gt(ZERO)) ||
+		(perPegCost.gt(ZERO) && pegChangeDirection.lt(ZERO));
+
+	if (perPegCost.eq(ZERO) || useTargetPeg) {
+		return targetPeg;
 	}
 
 	const budgetDeltaPeg = budget.mul(PEG_PRECISION).div(perPegCost);

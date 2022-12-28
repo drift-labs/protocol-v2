@@ -116,7 +116,7 @@ export function calculateNewAmm(
 	let pKNumer = new BN(1);
 	let pKDenom = new BN(1);
 
-	const [_targetPrice, _newPeg, budget, _checkLowerBound] =
+	const [targetPrice, _newPeg, budget, _checkLowerBound] =
 		calculateOptimalPegAndBudget(amm, oraclePriceData);
 	let prePegCost = calculateRepegCost(amm, _newPeg);
 	let newPeg = _newPeg;
@@ -144,7 +144,7 @@ export function calculateNewAmm(
 			);
 
 		newAmm.terminalQuoteAssetReserve = newQuoteAssetReserve;
-		newPeg = calculateBudgetedPeg(newAmm, prePegCost);
+		newPeg = calculateBudgetedPeg(newAmm, prePegCost, targetPrice);
 		prePegCost = calculateRepegCost(newAmm, newPeg);
 	}
 

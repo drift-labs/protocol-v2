@@ -409,7 +409,7 @@ describe('AMM Curve', () => {
 			'->',
 			candidatePegDown.toString()
 		);
-		assert(candidatePegDown.eq(new BN(148987812)));
+		assert(candidatePegDown.eq(new BN(148987813)));
 
 		await driftClient.closePosition(marketIndex);
 
@@ -433,7 +433,7 @@ describe('AMM Curve', () => {
 			'->',
 			candidatePegUp2.toString()
 		);
-		assert(candidatePegUp2.eq(new BN(151014188)));
+		assert(candidatePegUp2.eq(new BN(151014187)));
 
 		const candidatePegDown2 = calculateBudgetedPeg(
 			amm,
