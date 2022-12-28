@@ -26,7 +26,11 @@ import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { BulkAccountLoader } from '../sdk';
 
 describe('user order id', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;

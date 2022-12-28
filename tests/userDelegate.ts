@@ -27,7 +27,11 @@ import { Keypair } from '@solana/web3.js';
 import { BulkAccountLoader } from '../sdk';
 
 describe('user delegate', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
