@@ -109,11 +109,7 @@ export function calculateAssetWeight(
 			);
 			break;
 		case 'Maintenance':
-			assetWeight = calculateSizeDiscountAssetWeight(
-				sizeInAmmReservePrecision,
-				new BN(spotMarket.imfFactor),
-				new BN(spotMarket.maintenanceAssetWeight)
-			);
+			assetWeight = new BN(spotMarket.maintenanceAssetWeight);
 			break;
 		default:
 			assetWeight = new BN(spotMarket.initialAssetWeight);
