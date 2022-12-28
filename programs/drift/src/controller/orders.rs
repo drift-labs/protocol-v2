@@ -1738,31 +1738,6 @@ pub fn fulfill_perp_order_with_match(
         market.amm.order_tick_size,
     )?;
 
-    // if the auction isn't complete, cant fill against vamm yet
-    // use the vamm price to guard against bad fill for taker
-    if taker.orders[taker_order_index].is_limit_order()
-        && !taker.orders[taker_order_index].is_auction_complete(slot)?
-    {
-        taker_price = match taker_direction {
-            PositionDirection::Long => {
-                msg!(
-                    "taker limit order auction incomplete. vamm ask {} taker price {}",
-                    ask_price,
-                    taker_price
-                );
-                taker_price.min(ask_price)
-            }
-            PositionDirection::Short => {
-                msg!(
-                    "taker limit order auction incomplete. vamm bid {} taker price {}",
-                    bid_price,
-                    taker_price
-                );
-                taker_price.max(bid_price)
-            }
-        };
-    }
-
     let taker_existing_position = taker
         .get_perp_position(market.market_index)?
         .base_asset_amount;
@@ -1781,6 +1756,33 @@ pub fn fulfill_perp_order_with_match(
         .base_asset_amount;
     let maker_base_asset_amount = maker.orders[maker_order_index]
         .get_base_asset_amount_unfilled(Some(maker_existing_position))?;
+
+    // if the auction isn't complete, cant fill against vamm yet
+    // use the vamm price to guard against bad fill for taker
+    if taker.orders[taker_order_index].is_limit_order()
+        && !taker.orders[taker_order_index].is_auction_complete(slot)?
+    {
+        taker_price = match taker_direction {
+            PositionDirection::Long => {
+                msg!(
+                    "taker limit order auction incomplete. vamm ask {} taker bid {} maker ask {}",
+                    ask_price,
+                    taker_price,
+                    maker_price,
+                );
+                taker_price.min(ask_price)
+            }
+            PositionDirection::Short => {
+                msg!(
+                    "taker limit order auction incomplete. vamm bid {} taker ask {} make bid {}",
+                    bid_price,
+                    taker_price,
+                    maker_price,
+                );
+                taker_price.max(bid_price)
+            }
+        };
+    }
 
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
