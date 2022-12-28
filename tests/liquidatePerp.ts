@@ -185,11 +185,10 @@ describe('liquidate perp and lp', () => {
 
 	it('liquidate', async () => {
 		const marketIndex = 0;
-		const lpShares = (await driftClient.forceGetUserAccount()).perpPositions[0]
-			.lpShares;
+		const lpShares = driftClient.getUserAccount().perpPositions[0].lpShares;
 		assert(lpShares.eq(nLpShares));
 
-		const oracle = (await driftClient.forceGetPerpMarketAccount(0)).amm.oracle;
+		const oracle = driftClient.getPerpMarketAccount(0).amm.oracle;
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
 
 		const oracleGuardRails: OracleGuardRails = {
@@ -344,9 +343,7 @@ describe('liquidate perp and lp', () => {
 
 		await driftClient.fetchAccounts();
 		// all social loss
-		const marketAfterBankruptcy = await driftClient.forceGetPerpMarketAccount(
-			marketIndex
-		);
+		const marketAfterBankruptcy = driftClient.getPerpMarketAccount(marketIndex);
 		assert(
 			marketAfterBankruptcy.insuranceClaim.revenueWithdrawSinceLastSettle.eq(
 				ZERO
@@ -383,7 +380,7 @@ describe('liquidate perp and lp', () => {
 			)
 		);
 
-		const market = await driftClient.forceGetPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		console.log(
 			market.amm.cumulativeFundingRateLong.toString(),
 			market.amm.cumulativeFundingRateShort.toString()

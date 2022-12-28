@@ -211,7 +211,7 @@ describe('amm spread: market order', () => {
 		const unrealizedPnl = driftClientUser.getUnrealizedPNL();
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const expectedQuoteAssetSurplus = new BN(250);
 		const expectedExchangeFee = new BN(1001);
 		const expectedFeeToMarket = expectedExchangeFee.add(
@@ -220,8 +220,7 @@ describe('amm spread: market order', () => {
 		console.log(market.amm.totalFee.toString());
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
-		const firstPosition = (await driftClient.forceGetUserAccount())
-			.perpPositions[0];
+		const firstPosition = driftClient.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		console.log(
 			'expectedQuoteAssetAmount:',
@@ -260,8 +259,7 @@ describe('amm spread: market order', () => {
 
 	it('short market order base', async () => {
 		const initialCollateral = driftClient.getQuoteAssetTokenAmount();
-		const initialAmmTotalFee = (await driftClient.forceGetPerpMarketAccount(0))
-			.amm.totalFee;
+		const initialAmmTotalFee = driftClient.getPerpMarketAccount(0).amm.totalFee;
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
@@ -389,8 +387,7 @@ describe('amm spread: market order', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 
-		const unfilledOrder = (await driftClientUser.forceGetUserAccount())
-			.orders[0];
+		const unfilledOrder = driftClientUser.getUserAccount().orders[0];
 		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
 			unfilledOrder,
 			driftClient.getPerpMarketAccount(0),
@@ -434,8 +431,7 @@ describe('amm spread: market order', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 
-		const unfilledOrder = (await driftClientUser.forceGetUserAccount())
-			.orders[0];
+		const unfilledOrder = driftClientUser.getUserAccount().orders[0];
 		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
 			unfilledOrder,
 			driftClient.getPerpMarketAccount(0),
@@ -460,8 +456,7 @@ describe('amm spread: market order', () => {
 	});
 
 	it('fill limit order above ask', async () => {
-		const initialAmmTotalFee = (await driftClient.forceGetPerpMarketAccount(0))
-			.amm.totalFee;
+		const initialAmmTotalFee = driftClient.getPerpMarketAccount(0).amm.totalFee;
 
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
@@ -482,7 +477,7 @@ describe('amm spread: market order', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 
-		const order = (await driftClientUser.forceGetUserAccount()).orders[0];
+		const order = driftClientUser.getUserAccount().orders[0];
 
 		console.log(order.baseAssetAmount.toString());
 		console.log(
@@ -524,9 +519,8 @@ describe('amm spread: market order', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 
-		const firstOrder = (await driftClientUser.forceGetUserAccount()).orders[0];
-		const firstPosition = (await driftClientUser.forceGetUserAccount())
-			.perpPositions[0];
+		const firstOrder = driftClientUser.getUserAccount().orders[0];
+		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		console.log(firstOrder.baseAssetAmount.toString());
 		console.log(firstPosition.baseAssetAmount.toString());
 		console.log(firstPosition.quoteBreakEvenAmount.toString());
@@ -570,7 +564,7 @@ describe('amm spread: market order', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 
-		const order = (await driftClientUser.forceGetUserAccount()).orders[0];
+		const order = driftClientUser.getUserAccount().orders[0];
 
 		console.log(order.baseAssetAmount.toString());
 		console.log(
@@ -612,9 +606,8 @@ describe('amm spread: market order', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 
-		const firstOrder = (await driftClientUser.forceGetUserAccount()).orders[0];
-		const firstPosition = (await driftClientUser.forceGetUserAccount())
-			.perpPositions[0];
+		const firstOrder = driftClientUser.getUserAccount().orders[0];
+		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		console.log(firstOrder.baseAssetAmount.toString());
 		console.log(firstPosition.baseAssetAmount.toString());
 		console.log(firstPosition.quoteBreakEvenAmount.toString());
@@ -663,9 +656,7 @@ describe('amm spread: market order', () => {
 		const initialCollateral = driftClient.getQuoteAssetTokenAmount();
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION.toNumber() / 10000); // ~$4 of btc
-		const market2 = await driftClient.forceGetPerpMarketAccount(
-			marketIndex2Num
-		);
+		const market2 = driftClient.getPerpMarketAccount(marketIndex2Num);
 
 		const tradeAcquiredAmountsNoSpread = calculateTradeAcquiredAmounts(
 			direction,
@@ -732,8 +723,7 @@ describe('amm spread: market order', () => {
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
 		const expectedFeeToMarket = new BN(1040);
-		const firstPosition = (await driftClient.forceGetUserAccount())
-			.perpPositions[1];
+		const firstPosition = driftClient.getUserAccount().perpPositions[1];
 		console.log(
 			convertToNumber(firstPosition.baseAssetAmount),
 			convertToNumber(baseAssetAmount)

@@ -180,7 +180,7 @@ describe('place and make spot order', () => {
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				order: takerDriftClient.getOrderByUserId(1),
-				takerUserAccount: await takerDriftClient.forceGetUserAccount(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 			}
 		);

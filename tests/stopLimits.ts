@@ -278,9 +278,7 @@ describe('stop limit', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		order = (await driftClientUser.forceGetUserAccount()).orders[
-			orderIndex.toString()
-		];
+		order = driftClientUser.getUserAccount().orders[orderIndex.toString()];
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
@@ -288,8 +286,7 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = (await driftClientUser.forceGetUserAccount())
-			.perpPositions[0];
+		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
@@ -345,7 +342,7 @@ describe('stop limit', () => {
 		await driftClient.placePerpOrder(orderParams);
 		const orderId = 4;
 		const orderIndex = new BN(0);
-		await driftClientUser.forceGetUserAccount();
+		driftClientUser.getUserAccount();
 		let order = driftClientUser.getOrder(orderId);
 
 		await setFeedPrice(anchor.workspace.Pyth, 0.99, solUsd);
@@ -365,9 +362,7 @@ describe('stop limit', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		order = (await driftClientUser.forceGetUserAccount()).orders[
-			orderIndex.toString()
-		];
+		order = driftClientUser.getUserAccount().orders[orderIndex.toString()];
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
@@ -375,8 +370,7 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = (await driftClientUser.forceGetUserAccount())
-			.perpPositions[0];
+		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 

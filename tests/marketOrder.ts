@@ -229,7 +229,7 @@ describe('market order', () => {
 		const order =
 			driftClientUser.getUserAccount().orders[orderIndex.toString()];
 
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const expectedFeeToMarket = new BN(1001);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
@@ -237,8 +237,7 @@ describe('market order', () => {
 		assert(order.price.eq(new BN(0)));
 		assert(order.marketIndex === 0);
 
-		const firstPosition = (await driftClientUser.forceGetUserAccount())
-			.perpPositions[0];
+		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(-1000001);
@@ -284,8 +283,7 @@ describe('market order', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const firstPosition = (await driftClientUser.forceGetUserAccount())
-			.perpPositions[0];
+		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
 
 		assert(firstPosition.quoteBreakEvenAmount.eq(ZERO));

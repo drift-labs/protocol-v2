@@ -314,7 +314,7 @@ describe('orders', () => {
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
-		const order = (await driftClientUser.forceGetUserAccount()).orders[0];
+		const order = driftClientUser.getUserAccount().orders[0];
 		const expectedOrderId = 1;
 
 		assert(order.baseAssetAmount.eq(baseAssetAmount));
@@ -326,8 +326,7 @@ describe('orders', () => {
 		assert(enumsAreEqual(order.status, OrderStatus.OPEN));
 		assert(order.orderId === expectedOrderId);
 
-		const position = (await driftClientUser.forceGetUserAccount())
-			.perpPositions[0];
+		const position = driftClientUser.getUserAccount().perpPositions[0];
 		assert(position.openOrders === 1);
 		assert(position.openBids.eq(baseAssetAmount));
 		assert(position.openAsks.eq(ZERO));
@@ -355,8 +354,7 @@ describe('orders', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const position = (await driftClientUser.forceGetUserAccount())
-			.perpPositions[0];
+		const position = driftClientUser.getUserAccount().perpPositions[0];
 		assert(position.openOrders === 0);
 		assert(position.openBids.eq(ZERO));
 		assert(position.openAsks.eq(ZERO));
@@ -375,7 +373,7 @@ describe('orders', () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = PRICE_PRECISION.add(PRICE_PRECISION.div(new BN(100)));
-		const market0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market0 = driftClient.getPerpMarketAccount(marketIndex);
 
 		console.log('markPrice:', calculateReservePrice(market0).toString());
 
@@ -407,12 +405,12 @@ describe('orders', () => {
 				{
 					settleeUserAccountPublicKey:
 						await driftClient.getUserAccountPublicKey(),
-					settleeUserAccount: await driftClient.forceGetUserAccount(),
+					settleeUserAccount: driftClient.getUserAccount(),
 				},
 				{
 					settleeUserAccountPublicKey:
 						await fillerDriftClient.getUserAccountPublicKey(),
-					settleeUserAccount: await fillerDriftClient.forceGetUserAccount(),
+					settleeUserAccount: fillerDriftClient.getUserAccount(),
 				},
 			],
 			marketIndex
@@ -425,9 +423,7 @@ describe('orders', () => {
 		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
 
-		order = (await driftClientUser.forceGetUserAccount()).orders[
-			orderIndex.toString()
-		];
+		order = driftClientUser.getUserAccount().orders[orderIndex.toString()];
 
 		const expectedFillerReward = new BN(100);
 		console.log(
@@ -445,7 +441,7 @@ describe('orders', () => {
 				.eq(expectedFillerReward)
 		);
 
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log('markPrice After:', calculateReservePrice(market).toString());
 
 		const expectedFeeToMarket = new BN(901);
@@ -457,8 +453,7 @@ describe('orders', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = (await driftClientUser.forceGetUserAccount())
-			.perpPositions[0];
+		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		assert(firstPosition.openBids.eq(new BN(0)));
 
@@ -501,7 +496,7 @@ describe('orders', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const triggerPrice = PRICE_PRECISION.sub(PRICE_PRECISION.div(new BN(10)));
 		const triggerCondition = OrderTriggerCondition.ABOVE;
-		const market0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market0 = driftClient.getPerpMarketAccount(marketIndex);
 
 		console.log('markPrice:', calculateReservePrice(market0).toString());
 
@@ -550,12 +545,12 @@ describe('orders', () => {
 				{
 					settleeUserAccountPublicKey:
 						await driftClient.getUserAccountPublicKey(),
-					settleeUserAccount: await driftClient.forceGetUserAccount(),
+					settleeUserAccount: driftClient.getUserAccount(),
 				},
 				{
 					settleeUserAccountPublicKey:
 						await fillerDriftClient.getUserAccountPublicKey(),
-					settleeUserAccount: await fillerDriftClient.forceGetUserAccount(),
+					settleeUserAccount: fillerDriftClient.getUserAccount(),
 				},
 			],
 			marketIndex
@@ -568,9 +563,7 @@ describe('orders', () => {
 		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
 		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
-		order = (await driftClientUser.forceGetUserAccount()).orders[
-			orderIndex.toString()
-		];
+		order = driftClientUser.getUserAccount().orders[orderIndex.toString()];
 
 		const expectedFillerReward = new BN(10200);
 		console.log(
@@ -587,7 +580,7 @@ describe('orders', () => {
 				.eq(expectedFillerReward)
 		);
 
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log('markPrice after:', calculateReservePrice(market).toString());
 
 		console.log('market.amm.totalFee:', market.amm.totalFee.toString());
@@ -600,8 +593,7 @@ describe('orders', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = (await driftClientUser.forceGetUserAccount())
-			.perpPositions[0];
+		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
@@ -643,7 +635,7 @@ describe('orders', () => {
 	it('Fail to fill limit short order', async () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const limitPrice = calculateReservePrice(market); // 0 liquidity at current mark price
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -656,7 +648,7 @@ describe('orders', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 
-		let order = (await driftClientUser.forceGetUserAccount()).orders[0];
+		let order = driftClientUser.getUserAccount().orders[0];
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			market,
@@ -700,7 +692,7 @@ describe('orders', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		await driftClient.fetchAccounts();
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const limitPrice = calculateReservePrice(market).sub(
 			market.amm.orderTickSize
 		); // 0 liquidity at current mark price
@@ -733,7 +725,7 @@ describe('orders', () => {
 		await driftClient.placePerpOrder(orderParams);
 
 		await driftClientUser.fetchAccounts();
-		const order = (await driftClientUser.forceGetUserAccount()).orders[0];
+		const order = driftClientUser.getUserAccount().orders[0];
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			market,
@@ -761,8 +753,8 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const market2 = await driftClient.forceGetPerpMarketAccount(marketIndex);
-		const order2 = (await driftClientUser.forceGetUserAccount()).orders[0];
+		const market2 = driftClient.getPerpMarketAccount(marketIndex);
+		const order2 = driftClientUser.getUserAccount().orders[0];
 		console.log(
 			'order filled: ',
 			convertToNumber(order.baseAssetAmount),
@@ -770,8 +762,7 @@ describe('orders', () => {
 			convertToNumber(order2.baseAssetAmount)
 		);
 		console.log(order2);
-		const position = (await driftClientUser.forceGetUserAccount())
-			.perpPositions[0];
+		const position = driftClientUser.getUserAccount().perpPositions[0];
 		console.log(
 			'curPosition',
 			convertToNumber(position.baseAssetAmount, AMM_RESERVE_PRECISION)
@@ -815,7 +806,7 @@ describe('orders', () => {
 
 		const direction = PositionDirection.SHORT;
 
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const limitPrice = calculateReservePrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = new BN(27571723885);
 
@@ -864,7 +855,7 @@ describe('orders', () => {
 		console.log('user leverage:', convertToNumber(userLeverage0, TEN_THOUSAND));
 
 		await driftClientUser.fetchAccounts();
-		const order = (await driftClientUser.forceGetUserAccount()).orders[0];
+		const order = driftClientUser.getUserAccount().orders[0];
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			market,
@@ -898,8 +889,8 @@ describe('orders', () => {
 		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
 		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
 
-		const order1 = (await driftClientUser.forceGetUserAccount()).orders[0];
-		const newMarket1 = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const order1 = driftClientUser.getUserAccount().orders[0];
+		const newMarket1 = driftClient.getPerpMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateReservePrice(newMarket1); // 0 liquidity at current mark price
 
 		const userLeverage = driftClientUser.getLeverage();
@@ -930,7 +921,7 @@ describe('orders', () => {
 
 		const direction = PositionDirection.LONG;
 
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const limitPrice = calculateReservePrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = prePosition.baseAssetAmount.abs(); //new BN(AMM_RESERVE_PRECISION.mul(new BN(50)));
 		//long 50 base amount at $1 with ~$10 collateral (max leverage = 5x)
@@ -981,7 +972,7 @@ describe('orders', () => {
 			new BN(newPrice * PRICE_PRECISION.toNumber())
 		);
 
-		const order = (await driftClientUser.forceGetUserAccount()).orders[0];
+		const order = driftClientUser.getUserAccount().orders[0];
 		console.log(order.status);
 		// assert(order.status == OrderStatus.INIT);
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
@@ -996,11 +987,8 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const orderPriceMove = (await driftClientUser.forceGetUserAccount())
-			.orders[0];
-		const newMarketPriceMove = await driftClient.forceGetPerpMarketAccount(
-			marketIndex
-		);
+		const orderPriceMove = driftClientUser.getUserAccount().orders[0];
+		const newMarketPriceMove = driftClient.getPerpMarketAccount(marketIndex);
 		const newMarkPricePriceMove = calculateReservePrice(newMarketPriceMove);
 
 		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
@@ -1042,8 +1030,8 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const order1 = (await driftClientUser.forceGetUserAccount()).orders[0];
-		const newMarket1 = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const order1 = driftClientUser.getUserAccount().orders[0];
+		const newMarket1 = driftClient.getPerpMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateReservePrice(newMarket1); // 0 liquidity at current mark price
 
 		const userLeverage = driftClientUser.getLeverage();
@@ -1089,7 +1077,7 @@ describe('orders', () => {
 		assert(driftClientUser.getPerpPosition(marketIndex).openOrders == 0);
 		const direction = PositionDirection.LONG;
 
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 
 		const limitPrice = calculateReservePrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = new BN(37711910000);
@@ -1142,7 +1130,7 @@ describe('orders', () => {
 			console.error(e);
 		}
 
-		const order = (await driftClientUser.forceGetUserAccount()).orders[0];
+		const order = driftClientUser.getUserAccount().orders[0];
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			market,
@@ -1178,8 +1166,8 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const order1 = (await driftClientUser.forceGetUserAccount()).orders[0];
-		const newMarket1 = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const order1 = driftClientUser.getUserAccount().orders[0];
+		const newMarket1 = driftClient.getPerpMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateReservePrice(newMarket1); // 0 liquidity at current mark price
 
 		const userLeverage = driftClientUser.getLeverage();
@@ -1215,7 +1203,7 @@ describe('orders', () => {
 		);
 		const direction = PositionDirection.SHORT;
 
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		// const limitPrice = calculateReservePrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = prePosition.baseAssetAmount.abs().mul(new BN(2)); //new BN(AMM_RESERVE_PRECISION.mul(new BN(50)));
 		const limitPrice = calculateTradeSlippage(
@@ -1267,7 +1255,7 @@ describe('orders', () => {
 		// );
 
 		await driftClientUser.fetchAccounts();
-		const order = (await driftClient.forceGetUserAccount()).orders[0];
+		const order = driftClient.getUserAccount().orders[0];
 		console.log(order.status);
 		// assert(order.status == OrderStatus.INIT);
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
@@ -1292,11 +1280,8 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const orderPriceMove = (await driftClientUser.forceGetUserAccount())
-			.orders[0];
-		const newMarketPriceMove = await driftClient.forceGetPerpMarketAccount(
-			marketIndex
-		);
+		const orderPriceMove = driftClientUser.getUserAccount().orders[0];
+		const newMarketPriceMove = driftClient.getPerpMarketAccount(marketIndex);
 		const newMarkPricePriceMove = calculateReservePrice(newMarketPriceMove);
 
 		const userLeveragePriceMove = driftClientUser.getLeverage();
@@ -1334,8 +1319,8 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const order1 = (await driftClientUser.forceGetUserAccount()).orders[0];
-		const newMarket1 = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const order1 = driftClientUser.getUserAccount().orders[0];
+		const newMarket1 = driftClient.getPerpMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateReservePrice(newMarket1); // 0 liquidity at current mark price
 
 		const userTC = driftClientUser.getTotalCollateral();
@@ -1492,9 +1477,7 @@ describe('orders', () => {
 		await fillerUser.fetchAccounts();
 
 		const orderIndex = new BN(0);
-		const order = (await whaleUser.forceGetUserAccount()).orders[
-			orderIndex.toString()
-		];
+		const order = whaleUser.getUserAccount().orders[orderIndex.toString()];
 
 		const fillerCollateralBefore = fillerDriftClient.getQuoteAssetTokenAmount();
 		const fillerUnsettledPNLBefore =

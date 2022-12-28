@@ -241,7 +241,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const makerInfo = {
 			maker: await fillerDriftClient.getUserAccountPublicKey(),
 			makerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
-			makerUserAccount: await fillerDriftClient.forceGetUserAccount(),
+			makerUserAccount: fillerDriftClient.getUserAccount(),
 			order: order2,
 		};
 
@@ -333,7 +333,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(positionMaker.quoteBreakEvenAmount.eq(new BN(16089577)));
 
 		await fillerDriftClient.fetchAccounts();
-		const perpMarket = await fillerDriftClient.forceGetPerpMarketAccount(0);
+		const perpMarket = fillerDriftClient.getPerpMarketAccount(0);
 		console.log(perpMarket.amm.totalFee.toString());
 		console.log(perpMarket.amm.totalFeeMinusDistributions.toString());
 		console.log(perpMarket.amm.totalExchangeFee.toString());

@@ -101,7 +101,7 @@ describe('drift client', () => {
 		await driftClient.initialize(usdcMint.publicKey, true);
 
 		await driftClient.subscribe();
-		const state = await driftClient.forceGetStateAccount();
+		const state = driftClient.getStateAccount();
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		assert.ok(state.admin.equals(provider.wallet.publicKey));
@@ -260,7 +260,7 @@ describe('drift client', () => {
 			marketIndex
 		);
 		await printTxLogs(connection, txSig);
-		const marketData = await driftClient.forceGetPerpMarketAccount(0);
+		const marketData = driftClient.getPerpMarketAccount(0);
 		await setFeedPrice(anchor.workspace.Pyth, 1.01, marketData.amm.oracle);
 
 		await eventSubscriber.awaitTx(txSig);
@@ -295,7 +295,7 @@ describe('drift client', () => {
 		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(-48048002)));
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(48000000000)));
 
-		const market = await driftClient.forceGetPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		console.log(market.amm.baseAssetAmountWithAmm.toNumber());
 		console.log(market);
 
@@ -360,7 +360,7 @@ describe('drift client', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		const user = await driftClient.forceGetUserAccount();
+		const user = driftClient.getUserAccount();
 		console.log(
 			'quoteAssetAmount:',
 			user.perpPositions[0].quoteAssetAmount.toNumber()
@@ -390,7 +390,7 @@ describe('drift client', () => {
 				.data.fees.totalFeePaid.eq(new BN(72001))
 		);
 
-		const market = await driftClient.forceGetPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(24000000000)));
 		assert.ok(market.amm.totalFee.eq(new BN(72001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72001)));
@@ -406,7 +406,7 @@ describe('drift client', () => {
 	});
 
 	it('Reverse long position', async () => {
-		const marketData = await driftClient.forceGetPerpMarketAccount(0);
+		const marketData = driftClient.getPerpMarketAccount(0);
 		await setFeedPrice(anchor.workspace.Pyth, 1.0, marketData.amm.oracle);
 
 		const baseAssetAmount = new BN(48000000000);
@@ -424,7 +424,7 @@ describe('drift client', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		const user = await driftClient.forceGetUserAccount();
+		const user = driftClient.getUserAccount();
 		console.log(
 			'quoteAssetAmount:',
 			user.perpPositions[0].quoteAssetAmount.toNumber()
@@ -456,7 +456,7 @@ describe('drift client', () => {
 		console.log(user.perpPositions[0].baseAssetAmount.toString());
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-24000000000)));
 
-		const market = await driftClient.forceGetPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-24000000000)));
 		assert.ok(market.amm.totalFee.eq(new BN(120001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));
@@ -503,7 +503,7 @@ describe('drift client', () => {
 				.data.fees.totalFeePaid.eq(new BN(144001))
 		);
 
-		const market = await driftClient.forceGetPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(0)));
 		assert.ok(market.amm.totalFee.eq(new BN(144001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));
@@ -541,7 +541,7 @@ describe('drift client', () => {
 		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(47951999)));
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-48000000000)));
 
-		const market = await driftClient.forceGetPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-48000000000)));
 
 		await eventSubscriber.awaitTx(txSig);
@@ -583,7 +583,7 @@ describe('drift client', () => {
 	it('Short order succeeds due to realiziable limit price ', async () => {
 		const baseAssetAmount = BASE_PRECISION;
 		const marketIndex = 0;
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.SHORT,
 			baseAssetAmount,
@@ -608,7 +608,7 @@ describe('drift client', () => {
 	it('Long order succeeds due to realiziable limit price ', async () => {
 		const baseAssetAmount = BASE_PRECISION;
 		const marketIndex = 0;
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.LONG,
 			baseAssetAmount,

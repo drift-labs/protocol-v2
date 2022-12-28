@@ -197,13 +197,13 @@ describe('asset tiers', () => {
 	it('fail trying to borrow protected asset', async () => {
 		const usdcBorrowAmount = QUOTE_PRECISION;
 
-		const quoteMarket = await driftClient.forceGetSpotMarketAccount(0);
+		const quoteMarket = driftClient.getSpotMarketAccount(0);
 		assert(isVariant(quoteMarket.assetTier, 'collateral'));
 
 		await driftClient.updateSpotMarketAssetTier(0, AssetTier.PROTECTED);
 		await driftClient.fetchAccounts();
 
-		const quoteMarketAfter = await driftClient.forceGetSpotMarketAccount(0);
+		const quoteMarketAfter = driftClient.getSpotMarketAccount(0);
 		assert(isVariant(quoteMarketAfter.assetTier, 'protected'));
 		console.log('updateSpotMarketAssetTier for USDC to PROTECTED');
 
@@ -227,8 +227,7 @@ describe('asset tiers', () => {
 
 		await secondUserDriftClient.fetchAccounts();
 
-		const quoteMarketAfterAgain =
-			await secondUserDriftClient.forceGetSpotMarketAccount(0);
+		const quoteMarketAfterAgain = secondUserDriftClient.getSpotMarketAccount(0);
 		assert(isVariant(quoteMarketAfterAgain.assetTier, 'collateral'));
 		console.log('USDC tier:', quoteMarketAfterAgain.assetTier);
 
@@ -249,8 +248,7 @@ describe('asset tiers', () => {
 		await driftClient.fetchAccounts();
 		await secondUserDriftClient.fetchAccounts();
 		console.log('updateSpotMarketAssetTier for DOGE to isolated');
-		const dogeMarketAfter =
-			await secondUserDriftClient.forceGetSpotMarketAccount(2);
+		const dogeMarketAfter = secondUserDriftClient.getSpotMarketAccount(2);
 		assert(isVariant(dogeMarketAfter.assetTier, 'isolated'));
 		console.log('DOGE asset tier:', dogeMarketAfter.assetTier);
 
@@ -282,7 +280,7 @@ describe('asset tiers', () => {
 
 		// make doge CROSS
 		await driftClient.updateSpotMarketAssetTier(2, AssetTier.CROSS);
-		const dogeMarketAfterAgain = await driftClient.forceGetSpotMarketAccount(2);
+		const dogeMarketAfterAgain = driftClient.getSpotMarketAccount(2);
 		assert(isVariant(dogeMarketAfterAgain.assetTier, 'cross'));
 
 		await secondUserDriftClient.fetchAccounts();

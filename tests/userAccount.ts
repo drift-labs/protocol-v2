@@ -217,9 +217,7 @@ describe('User Account', () => {
 		await userAccount.fetchAccounts();
 		const perpPosition = userAccount.getPerpPosition(marketIndex);
 
-		const market = await driftClient.forceGetPerpMarketAccount(
-			perpPosition.marketIndex
-		);
+		const market = driftClient.getPerpMarketAccount(perpPosition.marketIndex);
 
 		const oraclePrice = driftClient.getOracleDataForPerpMarket(
 			market.marketIndex
@@ -297,9 +295,7 @@ describe('User Account', () => {
 		);
 		const perpPosition = userAccount.getPerpPosition(marketIndex);
 
-		const market = await driftClient.forceGetPerpMarketAccount(
-			perpPosition.marketIndex
-		);
+		const market = driftClient.getPerpMarketAccount(perpPosition.marketIndex);
 
 		const oraclePrice = driftClient.getOracleDataForPerpMarket(
 			market.marketIndex

@@ -43,7 +43,7 @@ async function depositToFeePoolFromIF(
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
-	// const state = await await driftClient.forceGetStateAccount();
+	// const state = await driftClient.getStateAccount();
 	// const tokenIx = Token.createTransferInstruction(
 	// 	TOKEN_PROGRAM_ID,
 	// 	userUSDCAccount.publicKey,
@@ -255,7 +255,7 @@ describe('delist market', () => {
 		// }
 
 		await driftClient.fetchAccounts();
-		const market00 = await driftClient.forceGetPerpMarketAccount(0);
+		const market00 = driftClient.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
 
 		const solAmount = new BN(1 * 10 ** 9);
@@ -285,9 +285,9 @@ describe('delist market', () => {
 			liquidatorDriftClientWSOLAccount
 		);
 
-		const market0 = await driftClient.forceGetPerpMarketAccount(0);
-		const winnerUser = await driftClient.forceGetUserAccount();
-		const loserUser = await driftClientLoser.forceGetUserAccount();
+		const market0 = driftClient.getPerpMarketAccount(0);
+		const winnerUser = driftClient.getUserAccount();
+		const loserUser = driftClientLoser.getUserAccount();
 		console.log(winnerUser.perpPositions[0].quoteAssetAmount.toString());
 		console.log(loserUser.perpPositions[0].quoteAssetAmount.toString());
 
@@ -321,9 +321,7 @@ describe('delist market', () => {
 		await driftClient.updateFundingRate(marketIndex, solOracle);
 
 		await driftClient.fetchAccounts();
-		const perpMarket = await await driftClient.forceGetPerpMarketAccount(
-			marketIndex
-		);
+		const perpMarket = await driftClient.getPerpMarketAccount(marketIndex);
 		console.log(perpMarket.amm.cumulativeFundingRateLong.toString());
 		assert(!perpMarket.amm.cumulativeFundingRateLong.eq(ZERO));
 
@@ -372,14 +370,14 @@ describe('delist market', () => {
 		const now = await connection.getBlockTime(slot);
 		const expiryTs = new BN(now + 3);
 
-		const market0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market0 = driftClient.getPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
 		await driftClient.updatePerpMarketExpiry(marketIndex, expiryTs);
 		await sleep(1000);
 		driftClient.fetchAccounts();
 
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'reduceOnly'));
 		console.log(
@@ -430,13 +428,11 @@ describe('delist market', () => {
 
 		await driftClientLoser.fetchAccounts();
 
-		const loserUser0 = await driftClientLoser.forceGetUserAccount();
+		const loserUser0 = driftClientLoser.getUserAccount();
 		console.log(loserUser0.perpPositions[0]);
 
 		await driftClient.fetchAccounts();
-		const marketBeforeReduceUser = await driftClient.forceGetPerpMarketAccount(
-			0
-		);
+		const marketBeforeReduceUser = driftClient.getPerpMarketAccount(0);
 		console.log(
 			'lastOraclePriceTwap:',
 			marketBeforeReduceUser.amm.historicalOracleData.lastOraclePriceTwap.toString()
@@ -455,9 +451,7 @@ describe('delist market', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		const marketBeforeReduceUser2 = await driftClient.forceGetPerpMarketAccount(
-			0
-		);
+		const marketBeforeReduceUser2 = driftClient.getPerpMarketAccount(0);
 		console.log(
 			'lastOraclePriceTwap:',
 			marketBeforeReduceUser2.amm.historicalOracleData.lastOraclePriceTwap.toString()
@@ -475,7 +469,7 @@ describe('delist market', () => {
 		let slot = await connection.getSlot();
 		let now = await connection.getBlockTime(slot);
 
-		const market0 = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market0 = driftClient.getPerpMarketAccount(marketIndex);
 		console.log('market0.status:', market0.status);
 		while (market0.expiryTs.gte(new BN(now))) {
 			console.log(market0.expiryTs.toString(), '>', now);
@@ -484,7 +478,7 @@ describe('delist market', () => {
 			now = await connection.getBlockTime(slot);
 		}
 
-		const winningUserBefore = await driftClient.forceGetUserAccount();
+		const winningUserBefore = driftClient.getUserAccount();
 		console.log(winningUserBefore.perpPositions[0]);
 		const oraclePriceDataBefore = await getOraclePriceData(
 			anchor.workspace.Pyth,
@@ -505,7 +499,7 @@ describe('delist market', () => {
 
 		await driftClient.fetchAccounts();
 
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'settlement'));
 		console.log('market.expirytPrice:', convertToNumber(market.expiryPrice));
@@ -539,7 +533,7 @@ describe('delist market', () => {
 			)
 		);
 
-		const winningUser = await driftClient.forceGetUserAccount();
+		const winningUser = driftClient.getUserAccount();
 		console.log(winningUser.perpPositions[0]);
 		const afterExpiryValue = calculateBaseAssetValueWithOracle(
 			market,
@@ -560,7 +554,7 @@ describe('delist market', () => {
 		const marketIndex = 0;
 		await driftClientLoser.fetchAccounts();
 
-		const loserUser0 = await driftClientLoser.forceGetUserAccount();
+		const loserUser0 = driftClientLoser.getUserAccount();
 		console.log(loserUser0.perpPositions[0]);
 
 		assert(loserUser0.perpPositions[0].baseAssetAmount.gt(new BN(0)));
@@ -577,13 +571,11 @@ describe('delist market', () => {
 		// console.log(settleRecord);
 
 		await driftClientLoser.fetchAccounts();
-		const loserUser = await driftClientLoser.forceGetUserAccount();
+		const loserUser = driftClientLoser.getUserAccount();
 		// console.log(loserUser.perpPositions[0]);
 		assert(loserUser.perpPositions[0].baseAssetAmount.eq(new BN(0)));
 		assert(loserUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
-		const marketAfter0 = await driftClient.forceGetPerpMarketAccount(
-			marketIndex
-		);
+		const marketAfter0 = driftClient.getPerpMarketAccount(marketIndex);
 
 		const finalPnlResultMin0 = new BN(1000021789000 - 100090);
 		console.log(marketAfter0.pnlPool.scaledBalance.toString());
@@ -599,7 +591,7 @@ describe('delist market', () => {
 		);
 		await printTxLogs(connection, txSig2);
 		await driftClient.fetchAccounts();
-		const winnerUser = await driftClient.forceGetUserAccount();
+		const winnerUser = driftClient.getUserAccount();
 		// console.log(winnerUser.perpPositions[0]);
 		assert(winnerUser.perpPositions[0].baseAssetAmount.eq(new BN(0)));
 		// assert(winnerUser.perpPositions[0].quoteAssetAmount.gt(new BN(0))); // todo they lose money too after fees
@@ -610,9 +602,7 @@ describe('delist market', () => {
 		// 	marketIndex
 		// );
 
-		const marketAfter = await driftClient.forceGetPerpMarketAccount(
-			marketIndex
-		);
+		const marketAfter = driftClient.getPerpMarketAccount(marketIndex);
 
 		const finalPnlResultMin = new BN(969700933000 - 109000);
 		console.log('pnlPool:', marketAfter.pnlPool.scaledBalance.toString());
@@ -631,7 +621,7 @@ describe('delist market', () => {
 
 	it('put settle market pools to revenue pool', async () => {
 		const marketIndex = 0;
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const userCostBasis = market.amm.quoteAssetAmount;
 
 		console.log('userCostBasis:', userCostBasis.toString());
@@ -653,9 +643,7 @@ describe('delist market', () => {
 		await driftClient.settleExpiredMarketPoolsToRevenuePool(marketIndex);
 
 		await driftClient.fetchAccounts();
-		const marketAfter = await driftClient.forceGetPerpMarketAccount(
-			marketIndex
-		);
+		const marketAfter = driftClient.getPerpMarketAccount(marketIndex);
 
 		console.log(
 			marketAfter.amm.baseAssetReserve.toString(),

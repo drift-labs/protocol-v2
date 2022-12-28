@@ -192,7 +192,7 @@ describe('user order id', () => {
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
-		const order = (await driftClientUser.forceGetUserAccount()).orders[0];
+		const order = driftClientUser.getUserAccount().orders[0];
 
 		assert(order.userOrderId === userOrderId);
 	});
@@ -227,7 +227,7 @@ describe('user order id', () => {
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
-		const order = (await driftClientUser.forceGetUserAccount()).orders[0];
+		const order = driftClientUser.getUserAccount().orders[0];
 
 		assert(order.userOrderId === 0);
 	});

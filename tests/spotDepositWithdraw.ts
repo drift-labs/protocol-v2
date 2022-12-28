@@ -145,7 +145,7 @@ describe('spot deposit and withdraw', () => {
 		);
 		await printTxLogs(connection, txSig);
 		await admin.fetchAccounts();
-		const spotMarket = await await admin.forceGetSpotMarketAccount(0);
+		const spotMarket = await admin.getSpotMarketAccount(0);
 		assert(spotMarket.marketIndex === 0);
 		assert(spotMarket.optimalUtilization === optimalUtilization);
 		assert(spotMarket.optimalBorrowRate === optimalRate);
@@ -208,7 +208,7 @@ describe('spot deposit and withdraw', () => {
 		);
 		await printTxLogs(connection, txSig);
 		await admin.fetchAccounts();
-		const spotMarket = await await admin.forceGetSpotMarketAccount(1);
+		const spotMarket = await admin.getSpotMarketAccount(1);
 		assert(spotMarket.marketIndex === 1);
 		assert(spotMarket.optimalUtilization === optimalUtilization);
 		assert(spotMarket.optimalBorrowRate === optimalRate);
@@ -273,7 +273,7 @@ describe('spot deposit and withdraw', () => {
 		);
 		await printTxLogs(connection, txSig);
 
-		const spotMarket = await await admin.forceGetSpotMarketAccount(marketIndex);
+		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
 		assert(
 			spotMarket.depositBalance.eq(
 				new BN(10 * SPOT_MARKET_BALANCE_PRECISION.toNumber())
@@ -292,8 +292,7 @@ describe('spot deposit and withdraw', () => {
 			spotMarket,
 			SpotBalanceType.DEPOSIT
 		);
-		const spotPosition = (await firstUserDriftClient.forceGetUserAccount())
-			.spotPositions[0];
+		const spotPosition = firstUserDriftClient.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
@@ -325,7 +324,7 @@ describe('spot deposit and withdraw', () => {
 		);
 		await printTxLogs(connection, txSig);
 
-		const spotMarket = await await admin.forceGetSpotMarketAccount(marketIndex);
+		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
 		assert(spotMarket.depositBalance.eq(SPOT_MARKET_BALANCE_PRECISION));
 		console.log(spotMarket.historicalOracleData);
 		assert(spotMarket.historicalOracleData.lastOraclePriceTwapTs.gt(ZERO));
@@ -379,7 +378,7 @@ describe('spot deposit and withdraw', () => {
 		);
 		await printTxLogs(connection, txSig);
 
-		const spotMarket = await await admin.forceGetSpotMarketAccount(marketIndex);
+		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
 		const expectedBorrowBalance = new BN(5000000001);
 		assert(spotMarket.borrowBalance.eq(expectedBorrowBalance));
 
@@ -496,9 +495,7 @@ describe('spot deposit and withdraw', () => {
 		);
 		await printTxLogs(connection, txSig);
 
-		spotMarketAccount = await secondUserDriftClient.forceGetSpotMarketAccount(
-			marketIndex
-		);
+		spotMarketAccount = secondUserDriftClient.getSpotMarketAccount(marketIndex);
 		const increaseInspotPosition = getBalance(
 			withdrawAmount,
 			spotMarketAccount,
@@ -857,9 +854,7 @@ describe('spot deposit and withdraw', () => {
 		console.log(spotPosition);
 		assert(spotPosition.scaledBalance.eq(ZERO));
 
-		const spotMarket = await thirdUserDriftClient.forceGetSpotMarketAccount(
-			marketIndex
-		);
+		const spotMarket = thirdUserDriftClient.getSpotMarketAccount(marketIndex);
 
 		console.log(spotMarket.cumulativeDepositInterest.toString());
 		console.log(spotMarket.cumulativeBorrowInterest.toString());

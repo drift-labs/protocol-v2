@@ -216,8 +216,8 @@ describe('liquidate spot', () => {
 		await setFeedPrice(anchor.workspace.Pyth, 190, solOracle);
 		await sleep(1000);
 
-		const spotMarketBefore = await driftClient.forceGetSpotMarketAccount(0);
-		const spotMarket1Before = await driftClient.forceGetSpotMarketAccount(1);
+		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
+		const spotMarket1Before = driftClient.getSpotMarketAccount(1);
 		await driftClient.fetchAccounts();
 		await user.fetchAccounts();
 
@@ -305,8 +305,8 @@ describe('liquidate spot', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		const spotMarket = await driftClient.forceGetSpotMarketAccount(0);
-		const spotMarket1 = await driftClient.forceGetSpotMarketAccount(1);
+		const spotMarket = driftClient.getSpotMarketAccount(0);
+		const spotMarket1 = driftClient.getSpotMarketAccount(1);
 
 		console.log(
 			'usdc borrows in spotMarket:',

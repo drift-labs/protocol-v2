@@ -268,7 +268,7 @@ describe('repeg and spread amm', () => {
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
 		await driftClient.fetchAccounts();
-		const state = await driftClient.forceGetStateAccount();
+		const state = driftClient.getStateAccount();
 
 		assert(
 			JSON.stringify(oracleGuardRails) ===
@@ -301,7 +301,7 @@ describe('repeg and spread amm', () => {
 		await depositToFeePoolFromIF(50, driftClient, userUSDCAccount);
 
 		await driftClient.fetchAccounts();
-		const btcPerpAccount = await driftClient.forceGetPerpMarketAccount(0);
+		const btcPerpAccount = driftClient.getPerpMarketAccount(0);
 		assert(btcPerpAccount.numberOfUsersWithBase == 1);
 		assert(btcPerpAccount.numberOfUsers == 1);
 		assert(btcPerpAccount.amm.baseAssetAmountWithAmm.lt(ZERO));
@@ -324,7 +324,7 @@ describe('repeg and spread amm', () => {
 			anchor.workspace.Pyth,
 			btcUsd
 		);
-		const market0 = await driftClient.forceGetPerpMarketAccount(0);
+		const market0 = driftClient.getPerpMarketAccount(0);
 		console.log(
 			'market0.amm.totalFeeMinusDistributions:',
 			market0.amm.totalFeeMinusDistributions.toNumber() /
@@ -508,7 +508,7 @@ describe('repeg and spread amm', () => {
 			console.error(e);
 		}
 
-		const market = await driftClient.forceGetPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(
 			market.amm,
 			oraclePriceData,
@@ -642,7 +642,7 @@ describe('repeg and spread amm', () => {
 			'getSpotMarketAssetValue:',
 			driftClientUser.getSpotMarketAssetValue().toString()
 		);
-		const spotMarketAccount0 = await driftClient.forceGetSpotMarketAccount(0);
+		const spotMarketAccount0 = driftClient.getSpotMarketAccount(0);
 
 		const feePoolBalance0 = getTokenAmount(
 			market.amm.feePool.scaledBalance,
@@ -690,7 +690,7 @@ describe('repeg and spread amm', () => {
 
 		await depositToFeePoolFromIF(157.476328, driftClient, userUSDCAccount);
 
-		const market1 = await driftClient.forceGetPerpMarketAccount(0);
+		const market1 = driftClient.getPerpMarketAccount(0);
 		console.log(
 			'after fee pool deposit totalFeeMinusDistributions:',
 			market1.amm.totalFeeMinusDistributions.toString()
@@ -698,7 +698,7 @@ describe('repeg and spread amm', () => {
 
 		assert(!market1.amm.totalFeeMinusDistributions.eq(ZERO));
 
-		const spotMarketAccount = await driftClient.forceGetSpotMarketAccount(0);
+		const spotMarketAccount = driftClient.getSpotMarketAccount(0);
 
 		const revPoolBalance = getTokenAmount(
 			spotMarketAccount.revenuePool.scaledBalance,
@@ -764,7 +764,7 @@ describe('repeg and spread amm', () => {
 				btcUsd
 			);
 
-			const market0 = await driftClient.forceGetPerpMarketAccount(0);
+			const market0 = driftClient.getPerpMarketAccount(0);
 			const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 			const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 			const [longSpread, shortSpread] = calculateSpread(
@@ -891,7 +891,7 @@ describe('repeg and spread amm', () => {
 			await driftClientUserI.unsubscribe();
 		}
 
-		const market0 = await driftClientOld.forceGetPerpMarketAccount(0);
+		const market0 = driftClientOld.getPerpMarketAccount(0);
 
 		console.log('total Fees:', market0.amm.totalFee.toString());
 		console.log(
@@ -899,7 +899,7 @@ describe('repeg and spread amm', () => {
 			market0.amm.totalFeeMinusDistributions.toString()
 		);
 
-		const spotMarketAccount = await driftClientOld.forceGetSpotMarketAccount(
+		const spotMarketAccount = driftClientOld.getSpotMarketAccount(
 			QUOTE_SPOT_MARKET_INDEX
 		);
 

@@ -108,7 +108,7 @@ describe('AMM Curve', () => {
 	});
 
 	const showCurve = async (marketIndex) => {
-		const marketData = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const marketData = driftClient.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 
 		console.log(
@@ -137,7 +137,7 @@ describe('AMM Curve', () => {
 	};
 
 	const showBook = async (marketIndex) => {
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const currentMark = calculateReservePrice(market, undefined);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
@@ -214,7 +214,7 @@ describe('AMM Curve', () => {
 	});
 
 	it('Repeg Curve LONG', async () => {
-		let marketData = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		let marketData = driftClient.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 		assert(ammAccountState.totalFee.eq(ammAccountState.totalFee));
 
@@ -255,7 +255,7 @@ describe('AMM Curve', () => {
 		await showCurve(marketIndex);
 		// showBook(marketIndex);
 
-		marketData = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		marketData = driftClient.getPerpMarketAccount(marketIndex);
 		console.log(marketData.amm);
 		console.log();
 		assert(
@@ -264,8 +264,7 @@ describe('AMM Curve', () => {
 
 		const newPeg = marketData.amm.pegMultiplier;
 
-		const userPerpPosition = (await userAccount.forceGetUserAccount())
-			.perpPositions[0];
+		const userPerpPosition = userAccount.getUserAccount().perpPositions[0];
 		const linearApproxCostToAMM = convertToNumber(
 			newPeg
 				.sub(oldPeg)
@@ -302,7 +301,7 @@ describe('AMM Curve', () => {
 	// 		BASE_PRECISION.div(new BN(1000)),
 	// 		marketIndex
 	// 	);
-	// 	const marketData1 = await driftClient.forceGetPerpMarketAccount(marketIndex);
+	// 	const marketData1 = driftClient.getPerpMarketAccount(marketIndex);
 	// 	const ammAccountState = marketData1.amm;
 	// 	const oldPeg = ammAccountState.pegMultiplier;
 
@@ -323,10 +322,10 @@ describe('AMM Curve', () => {
 	// 	assert(priceAfter.lt(priceBefore));
 	// 	assert(newOraclePriceWithMantissa.lt(priceAfter));
 
-	// 	const marketData = await driftClient.forceGetPerpMarketAccount(marketIndex);
+	// 	const marketData = driftClient.getPerpMarketAccount(marketIndex);
 	// 	const newPeg = marketData.amm.pegMultiplier;
 
-	// 	const userPerpPosition = await userAccount.forceGetUserAccount().perpPositions[0];
+	// 	const userPerpPosition = userAccount.getUserAccount().perpPositions[0];
 
 	// 	console.log('\n post repeg: \n --------');
 
@@ -353,9 +352,7 @@ describe('AMM Curve', () => {
 	// });
 
 	it('calculateBudgetedPeg (sdk tests)', async () => {
-		const marketData1 = await driftClient.forceGetPerpMarketAccount(
-			marketIndex
-		);
+		const marketData1 = driftClient.getPerpMarketAccount(marketIndex);
 
 		let amm = marketData1.amm;
 
@@ -388,7 +385,7 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 
-		amm = (await driftClient.forceGetPerpMarketAccount(marketIndex)).amm;
+		amm = driftClient.getPerpMarketAccount(marketIndex).amm;
 
 		const candidatePegUp = calculateBudgetedPeg(
 			amm,
@@ -419,7 +416,7 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 		await driftClient.fetchAccounts();
-		amm = (await driftClient.forceGetPerpMarketAccount(marketIndex)).amm;
+		amm = driftClient.getPerpMarketAccount(marketIndex).amm;
 
 		const candidatePegUp2 = calculateBudgetedPeg(
 			amm,

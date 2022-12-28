@@ -62,7 +62,7 @@ describe('max deposit', () => {
 
 	it('update max deposit', async () => {
 		await driftClient.updateSpotMarketMaxTokenDeposits(0, QUOTE_PRECISION);
-		const market = await driftClient.forceGetSpotMarketAccount(0);
+		const market = driftClient.getSpotMarketAccount(0);
 		console.assert(market.maxTokenDeposits.eq(QUOTE_PRECISION));
 	});
 

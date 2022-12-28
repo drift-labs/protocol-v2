@@ -224,7 +224,7 @@ describe('AMM Curve', () => {
 	});
 
 	const showBook = (marketIndex) => {
-		const market = await driftClient.forceGetPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const currentMark = calculateReservePrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(

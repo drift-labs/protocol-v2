@@ -166,7 +166,7 @@ describe('market orders', () => {
 				.perpPositions[0].baseAssetAmount.eq(baseAssetAmount)
 		);
 
-		const market = await driftClient.forceGetPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(48000000000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(48000000000)));
 		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
@@ -232,7 +232,7 @@ describe('market orders', () => {
 				.fees.totalFeePaid.eq(new BN(72001))
 		);
 
-		const market = await driftClient.forceGetPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		console.log(market.amm.baseAssetAmountWithAmm.toString());
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(24000000000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(24000000000)));
@@ -299,7 +299,7 @@ describe('market orders', () => {
 				.perpPositions[0].baseAssetAmount.eq(new BN(-24000000000))
 		);
 
-		const market = await driftClient.forceGetPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-24000000000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(ZERO));
 		assert.ok(market.amm.baseAssetAmountShort.eq(new BN(-24000000000)));
@@ -359,7 +359,7 @@ describe('market orders', () => {
 				.fees.totalFeePaid.eq(new BN(144001))
 		);
 
-		const market = await driftClient.forceGetPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(0)));
 		assert.ok(market.amm.totalFee.eq(new BN(144001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));
