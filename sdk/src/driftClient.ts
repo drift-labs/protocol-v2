@@ -3692,7 +3692,7 @@ export class DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
-		const tx = await this.program.rpc.settleRevenueToInsuranceFund(
+		const tx = await this.program.transaction.settleRevenueToInsuranceFund(
 			marketIndex,
 			{
 				accounts: {
@@ -3707,7 +3707,7 @@ export class DriftClient {
 			}
 		);
 
-		const { txSig } = await this.sendTransaction(wrapInTx(tx), [], this.opts);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
 	}
 
