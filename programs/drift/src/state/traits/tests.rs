@@ -63,3 +63,41 @@ mod size {
         assert_eq!(actual_size, expected_size);
     }
 }
+
+mod market_index_offset {
+    use crate::create_anchor_account_info;
+    use crate::state::perp_market::PerpMarket;
+    use crate::state::spot_market::SpotMarket;
+    use crate::state::traits::MarketIndexOffset;
+    use crate::test_utils::*;
+    use anchor_lang::prelude::*;
+    use arrayref::array_ref;
+
+    #[test]
+    fn spot_market() {
+        let mut spot_market = SpotMarket {
+            market_index: 11,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+
+        let data = spot_market_account_info.try_borrow_data().unwrap();
+        let market_index =
+            u16::from_le_bytes(*array_ref![data, SpotMarket::MARKET_INDEX_OFFSET, 2]);
+        assert_eq!(market_index, spot_market.market_index);
+    }
+
+    #[test]
+    fn perp_market() {
+        let mut perp_market = PerpMarket {
+            market_index: 11,
+            ..PerpMarket::default()
+        };
+        create_anchor_account_info!(perp_market, PerpMarket, perp_market_account_info);
+
+        let data = perp_market_account_info.try_borrow_data().unwrap();
+        let market_index =
+            u16::from_le_bytes(*array_ref![data, PerpMarket::MARKET_INDEX_OFFSET, 2]);
+        assert_eq!(market_index, perp_market.market_index);
+    }
+}
