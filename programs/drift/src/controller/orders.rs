@@ -69,6 +69,7 @@ use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
+use crate::state::traits::Size;
 use crate::state::user::{
     AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
 };
@@ -559,7 +560,7 @@ pub fn cancel_order(
             maker_order,
             oracle_map.get_price_data(&oracle)?.price,
         )?;
-        emit_stack::<_, 424>(order_action_record);
+        emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record);
     }
 
     if is_perp_order {

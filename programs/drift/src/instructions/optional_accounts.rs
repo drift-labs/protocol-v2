@@ -9,6 +9,7 @@ use crate::state::spot_market::{
 };
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::{OracleGuardRails, State};
+use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
 use crate::validate;
 use anchor_lang::accounts::account::Account;
@@ -93,7 +94,7 @@ pub fn get_referrer_and_referrer_stats<'a>(
         ErrorCode::CouldNotDeserializeReferrer
     })?;
 
-    if data.len() < std::mem::size_of::<User>() + 8 {
+    if data.len() < User::SIZE {
         return Ok((None, None));
     }
 
@@ -124,7 +125,7 @@ pub fn get_referrer_and_referrer_stats<'a>(
         ErrorCode::CouldNotDeserializeReferrerStats
     })?;
 
-    if data.len() < std::mem::size_of::<UserStats>() + 8 {
+    if data.len() < UserStats::SIZE {
         return Ok((None, None));
     }
 
