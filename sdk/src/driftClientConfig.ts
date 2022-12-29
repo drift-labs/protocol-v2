@@ -21,7 +21,7 @@ export type DriftClientConfig = {
 	authority?: PublicKey; // explicitly pass an authority if signer is delegate
 };
 
-type DriftClientSubscriptionConfig =
+export type DriftClientSubscriptionConfig =
 	| {
 			type: 'websocket';
 	  }

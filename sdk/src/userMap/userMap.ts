@@ -65,6 +65,8 @@ export class UserMap implements UserMapInterface {
 				userArray,
 				this.accountSubscription.accountLoader
 			);
+		} else {
+			await Promise.all(userArray.map((user) => user.subscribe()));
 		}
 
 		for (const user of userArray) {
