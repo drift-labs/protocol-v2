@@ -935,15 +935,6 @@ describe('repeg and spread amm', () => {
 		// assert(usdcDepositBalance == 60207.477328);
 		// assert(sinceStartTFMD == -583.629353);
 
-		assert(
-			Math.abs(
-				allUserCollateral +
-					pnlPoolBalance +
-					feePoolBalance -
-					(usdcDepositBalance - usdcBorrowBalance)
-			) < 1e-7
-		);
-
 		console.log(
 			'market0.amm.netBaseAssetAmount:',
 			market0.amm.baseAssetAmountWithAmm.toString()
