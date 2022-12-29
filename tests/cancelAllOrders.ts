@@ -5,7 +5,7 @@ import {
 	getLimitOrderParams,
 	isVariant,
 	OracleSource,
-	AdminClient,
+	TestClient,
 	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -21,6 +21,7 @@ import {
 	initializeQuoteSpotMarket,
 	printTxLogs,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('cancel all orders', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -31,9 +32,13 @@ describe('cancel all orders', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -55,7 +60,7 @@ describe('cancel all orders', () => {
 
 		const oracle = await mockOracle(1);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -71,6 +76,10 @@ describe('cancel all orders', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

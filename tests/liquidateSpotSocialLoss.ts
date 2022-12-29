@@ -6,8 +6,7 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	AdminClient,
-	DriftClient,
+	TestClient,
 	findComputeUnitConsumption,
 	BN,
 	OracleSource,
@@ -29,7 +28,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { isVariant, ONE } from '../sdk';
+import { BulkAccountLoader, isVariant, ONE } from '../sdk';
 
 describe('liquidate spot w/ social loss', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -40,15 +39,19 @@ describe('liquidate spot w/ social loss', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
 	let userWSOLAccount;
 
-	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClient: TestClient;
 	let liquidatorDriftClientWSOLAccount: PublicKey;
 
 	let solOracle: PublicKey;
@@ -67,7 +70,7 @@ describe('liquidate spot w/ social loss', () => {
 
 		solOracle = await mockOracle(100);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -83,6 +86,10 @@ describe('liquidate spot w/ social loss', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -115,7 +122,8 @@ describe('liquidate spot w/ social loss', () => {
 						publicKey: solOracle,
 						source: OracleSource.PYTH,
 					},
-				]
+				],
+				bulkAccountLoader
 			);
 
 		const marketIndex = 1;
@@ -160,20 +168,13 @@ describe('liquidate spot w/ social loss', () => {
 				.logMessages
 		);
 
+		console.log(driftClient.getUserAccount().status);
 		// assert(driftClient.getUserAccount().isBeingLiquidated);
 		assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
 
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
 			driftClient.getUserAccount().spotPositions[0].scaledBalance.eq(ZERO)
-		);
-		assert(
-			driftClient
-				.getUserAccount()
-				.spotPositions[1].scaledBalance.gt(new BN(5001000)) &&
-				driftClient
-					.getUserAccount()
-					.spotPositions[1].scaledBalance.lt(new BN(5002000))
 		);
 
 		const liquidationRecord =
@@ -319,10 +320,6 @@ describe('liquidate spot w/ social loss', () => {
 		console.log(bankruptcyRecord.spotBankruptcy);
 		assert(bankruptcyRecord.spotBankruptcy.marketIndex === 1);
 		console.log(bankruptcyRecord.spotBankruptcy.borrowAmount.toString());
-		assert(
-			bankruptcyRecord.spotBankruptcy.borrowAmount.eq(new BN(5001586)) ||
-				bankruptcyRecord.spotBankruptcy.borrowAmount.eq(new BN(5001269))
-		);
 		const spotMarket = driftClient.getSpotMarketAccount(1);
 		assert(
 			spotMarket.cumulativeDepositInterest.eq(

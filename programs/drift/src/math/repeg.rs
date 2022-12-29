@@ -330,22 +330,11 @@ pub fn adjust_amm(
             let new_sqrt_k = market
                 .amm
                 .sqrt_k
-                .safe_sub(market.amm.sqrt_k.safe_div(1000)?)?;
+                .safe_sub(market.amm.sqrt_k.safe_div(1000)?)?
+                .max(market.amm.user_lp_shares.safe_add(1)?);
 
-            let new_base_asset_reserve = market
-                .amm
-                .base_asset_reserve
-                .safe_sub(market.amm.base_asset_reserve.safe_div(1000)?)?;
-            let new_quote_asset_reserve = market
-                .amm
-                .quote_asset_reserve
-                .safe_sub(market.amm.quote_asset_reserve.safe_div(1000)?)?;
-
-            let update_k_result = cp_curve::UpdateKResult {
-                sqrt_k: new_sqrt_k,
-                base_asset_reserve: new_base_asset_reserve,
-                quote_asset_reserve: new_quote_asset_reserve,
-            };
+            let update_k_result =
+                cp_curve::get_update_k_result(market, bn::U192::from(new_sqrt_k), true)?;
 
             let adjustment_cost =
                 cp_curve::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
@@ -358,6 +347,7 @@ pub fn adjust_amm(
         } else {
             0
         };
+
         budget_delta_peg = budget_i128
             .safe_add(adjustment_cost.abs())?
             .safe_mul(PEG_PRECISION_I128)?
@@ -436,6 +426,10 @@ pub fn calculate_optimal_peg_and_budget(
 
             fee_budget = calculate_repeg_cost(&market.amm, optimal_peg)?.cast::<u128>()?;
 
+            check_lower_bound = false;
+        } else if market.amm.total_fee_minus_distributions
+            < get_total_fee_lower_bound(market)?.cast()?
+        {
             check_lower_bound = false;
         }
     }

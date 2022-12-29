@@ -3,6 +3,7 @@ import { assert } from 'chai';
 import {
 	BASE_PRECISION,
 	BN,
+	BulkAccountLoader,
 	getMarketOrderParams,
 	OracleSource,
 	PEG_PRECISION,
@@ -11,7 +12,7 @@ import {
 import { Program } from '@project-serum/anchor';
 
 import {
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
@@ -87,14 +88,22 @@ async function feePoolInjection(fees, marketIndex, driftClient) {
 }
 
 describe('update amm', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	// let userAccountPublicKey: PublicKeys;
 
@@ -135,7 +144,7 @@ describe('update amm', () => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -146,6 +155,10 @@ describe('update amm', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

@@ -7,10 +7,10 @@ import { Keypair } from '@solana/web3.js';
 import { assert } from 'chai';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
-	DriftClient,
+	TestClient,
 	PositionDirection,
 	User,
 	Wallet,
@@ -29,7 +29,7 @@ import {
 	setFeedPrice,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
-import { calculateEntryPrice } from '../sdk';
+import { BulkAccountLoader, calculateEntryPrice } from '../sdk';
 
 describe('oracle offset', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -40,7 +40,9 @@ describe('oracle offset', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let fillerDriftClient: AdminClient;
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+
+	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
 
 	let usdcMint;
@@ -73,7 +75,7 @@ describe('oracle offset', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		fillerDriftClient = new AdminClient({
+		fillerDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -84,6 +86,10 @@ describe('oracle offset', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.initialize(usdcMint.publicKey, true);
 		await fillerDriftClient.subscribe();
@@ -136,7 +142,7 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -147,6 +153,10 @@ describe('oracle offset', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -212,7 +222,7 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -223,6 +233,10 @@ describe('oracle offset', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -293,7 +307,7 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -304,6 +318,10 @@ describe('oracle offset', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -354,7 +372,7 @@ describe('oracle offset', () => {
 		const entryPrice = calculateEntryPrice(position);
 		console.log(breakEvenPrice.toString());
 		console.log(entryPrice.toString());
-		assert(breakEvenPrice.eq(new BN(1099997)));
+		assert(breakEvenPrice.eq(new BN(1098897)));
 		assert(entryPrice.eq(new BN(1099997)));
 
 		await driftClient.unsubscribe();
@@ -371,7 +389,7 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -382,6 +400,10 @@ describe('oracle offset', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -449,7 +471,7 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -460,6 +482,10 @@ describe('oracle offset', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -507,7 +533,7 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -518,6 +544,10 @@ describe('oracle offset', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(

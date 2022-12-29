@@ -29,7 +29,8 @@ export abstract class OrderNode implements DLOBNode {
 	haveTrigger = false;
 
 	constructor(order: Order, userAccount: PublicKey) {
-		this.order = order;
+		// Copy the order over to the node
+		this.order = { ...order };
 		this.userAccount = userAccount;
 		this.sortValue = this.getSortValue(order);
 	}

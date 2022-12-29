@@ -128,6 +128,16 @@ describe('BigNum Tests', () => {
 		expect(BigNum.fromPrint('12345678').toMillified(5)).to.equal('12.345M');
 		expect(BigNum.fromPrint('123456789').toMillified(5)).to.equal('123.45M');
 
+		expect(BigNum.fromPrint('-1').toMillified(5)).to.equal('-1.0000');
+		expect(BigNum.fromPrint('-12').toMillified(5)).to.equal('-12.000');
+		expect(BigNum.fromPrint('-123').toMillified(5)).to.equal('-123.00');
+		expect(BigNum.fromPrint('-1234').toMillified(5)).to.equal('-1234.0');
+		expect(BigNum.fromPrint('-12345').toMillified(5)).to.equal('-12345');
+		expect(BigNum.fromPrint('-123456').toMillified(5)).to.equal('-123.45K');
+		expect(BigNum.fromPrint('-1234567').toMillified(5)).to.equal('-1.2345M');
+		expect(BigNum.fromPrint('-12345678').toMillified(5)).to.equal('-12.345M');
+		expect(BigNum.fromPrint('-123456789').toMillified(5)).to.equal('-123.45M');
+
 		expect(BigNum.from(-95, 2).print()).to.equal('-0.95');
 
 		// Case 6 strange numbers
