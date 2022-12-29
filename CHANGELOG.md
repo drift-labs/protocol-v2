@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+program: add size trait to accounts and events ([#286](https://github.com/drift-labs/protocol-v2/pull/286))
+
 ### Fixes
 
 - anchor tests: make deterministic to run in ci ([#289](https://github.com/drift-labs/protocol-v2/pull/289))
