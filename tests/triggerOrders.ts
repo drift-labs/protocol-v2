@@ -6,10 +6,10 @@ import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
-	DriftClient,
+	TestClient,
 	PositionDirection,
 	User,
 	Wallet,
@@ -17,6 +17,7 @@ import {
 	OrderTriggerCondition,
 	getTriggerMarketOrderParams,
 	getTriggerLimitOrderParams,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -28,6 +29,7 @@ import {
 } from './testHelpers';
 import {
 	BASE_PRECISION,
+	BulkAccountLoader,
 	convertToNumber,
 	OracleSource,
 	QUOTE_PRECISION,
@@ -35,12 +37,18 @@ import {
 } from '../sdk';
 
 describe('trigger orders', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let fillerDriftClient: AdminClient;
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+
+	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
 
 	let usdcMint;
@@ -77,7 +85,7 @@ describe('trigger orders', () => {
 			},
 		];
 
-		fillerDriftClient = new AdminClient({
+		fillerDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -88,11 +96,30 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.initialize(usdcMint.publicKey, true);
 		await fillerDriftClient.subscribe();
 		await initializeQuoteSpotMarket(fillerDriftClient, usdcMint.publicKey);
 		await fillerDriftClient.updatePerpAuctionDuration(new BN(0));
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(100),
+				markOracleDivergenceDenominator: new BN(10),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(55), // allow 55x change
+			},
+		};
+
+		await fillerDriftClient.updateOracleGuardRails(oracleGuardRails);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -139,7 +166,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -150,6 +177,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -234,7 +265,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -245,6 +276,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -332,7 +367,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -343,6 +378,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -427,7 +466,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -438,6 +477,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -542,7 +585,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -553,6 +596,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -637,7 +684,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -648,6 +695,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -735,7 +786,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -746,6 +797,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -830,7 +885,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -841,6 +896,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(

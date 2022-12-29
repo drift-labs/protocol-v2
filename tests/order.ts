@@ -6,10 +6,9 @@ import { Program } from '@project-serum/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
-	DriftClient,
 	PositionDirection,
 	User,
 	OrderStatus,
@@ -38,6 +37,7 @@ import {
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
+	BulkAccountLoader,
 	calculateReservePrice,
 	findComputeUnitConsumption,
 	getMarketOrderParams,
@@ -65,10 +65,14 @@ describe('orders', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	let driftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let userAccountPublicKey: PublicKey;
 
@@ -91,12 +95,12 @@ describe('orders', () => {
 	const whaleKeyPair = new Keypair();
 	const usdcAmountWhale = new BN(10000000 * 10 ** 6);
 	let whaleUSDCAccount: Keypair;
-	let whaleDriftClient: DriftClient;
+	let whaleDriftClient: TestClient;
 	let whaleUser: User;
 
 	const fillerKeyPair = new Keypair();
 	let fillerUSDCAccount: Keypair;
-	let fillerDriftClient: DriftClient;
+	let fillerDriftClient: TestClient;
 	let fillerUser: User;
 
 	const marketIndex = 0;
@@ -123,7 +127,7 @@ describe('orders', () => {
 			{ publicKey: ethUsd, source: OracleSource.PYTH },
 		];
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -134,6 +138,10 @@ describe('orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -201,7 +209,7 @@ describe('orders', () => {
 			provider,
 			fillerKeyPair.publicKey
 		);
-		fillerDriftClient = new DriftClient({
+		fillerDriftClient = new TestClient({
 			connection,
 			wallet: new Wallet(fillerKeyPair),
 			programID: chProgram.programId,
@@ -212,6 +220,10 @@ describe('orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.subscribe();
 
@@ -233,7 +245,7 @@ describe('orders', () => {
 			provider,
 			whaleKeyPair.publicKey
 		);
-		whaleDriftClient = new AdminClient({
+		whaleDriftClient = new TestClient({
 			connection,
 			wallet: new Wallet(whaleKeyPair),
 			programID: chProgram.programId,
@@ -244,6 +256,10 @@ describe('orders', () => {
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await whaleDriftClient.subscribe();
 

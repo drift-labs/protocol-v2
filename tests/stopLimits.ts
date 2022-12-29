@@ -6,10 +6,9 @@ import { Program } from '@project-serum/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
-	DriftClient,
 	PositionDirection,
 	User,
 	Wallet,
@@ -29,7 +28,12 @@ import {
 	mockUserUSDCAccount,
 	setFeedPrice,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION, OracleSource, ZERO } from '../sdk';
+import {
+	AMM_RESERVE_PRECISION,
+	BulkAccountLoader,
+	OracleSource,
+	ZERO,
+} from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const enumsAreEqual = (
@@ -40,15 +44,23 @@ const enumsAreEqual = (
 };
 
 describe('stop limit', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		skipPreflight: false,
+		preflightCommitment: 'confirmed',
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	let driftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let userAccountPublicKey: PublicKey;
 
@@ -71,7 +83,7 @@ describe('stop limit', () => {
 
 	const fillerKeyPair = new Keypair();
 	let fillerUSDCAccount: Keypair;
-	let fillerDriftClient: DriftClient;
+	let fillerDriftClient: TestClient;
 	let fillerUser: User;
 
 	const marketIndex = 0;
@@ -98,7 +110,7 @@ describe('stop limit', () => {
 			},
 		];
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -109,6 +121,10 @@ describe('stop limit', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -177,7 +193,7 @@ describe('stop limit', () => {
 			provider,
 			fillerKeyPair.publicKey
 		);
-		fillerDriftClient = new DriftClient({
+		fillerDriftClient = new TestClient({
 			connection,
 			wallet: new Wallet(fillerKeyPair),
 			programID: chProgram.programId,
@@ -188,6 +204,10 @@ describe('stop limit', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.subscribe();
 
@@ -322,6 +342,7 @@ describe('stop limit', () => {
 		await driftClient.placePerpOrder(orderParams);
 		const orderId = 4;
 		const orderIndex = new BN(0);
+		driftClientUser.getUserAccount();
 		let order = driftClientUser.getOrder(orderId);
 
 		await setFeedPrice(anchor.workspace.Pyth, 0.99, solUsd);

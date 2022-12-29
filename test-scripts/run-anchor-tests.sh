@@ -5,7 +5,6 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
-  serumTest.ts
   postOnlyAmmFulfillment.ts
   imbalancePerpPnl.ts
   delistMarket.ts
@@ -43,8 +42,7 @@ test_files=(
   userAccount.ts
   admin.ts
   assetTier.ts
-  pauseExchange.ts 
-  adminWithdraw.ts 
+  pauseExchange.ts
   whitelist.ts
   updateK.ts 
   curve.ts 

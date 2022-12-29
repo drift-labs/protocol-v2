@@ -340,21 +340,44 @@ export class PollingDriftClientAccountSubscriber
 	}
 
 	async addSpotMarket(marketIndex: number): Promise<boolean> {
+		const marketPublicKey = await getSpotMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		if (this.accountsToPoll.has(marketPublicKey.toString())) {
+			return true;
+		}
+
 		await this.addSpotMarketAccountToPoll(marketIndex);
-		const accountToPoll = this.accountsToPoll.get(marketIndex.toString());
+
+		const accountToPoll = this.accountsToPoll.get(marketPublicKey.toString());
+
 		await this.addAccountToAccountLoader(accountToPoll);
 		return true;
 	}
 
 	async addPerpMarket(marketIndex: number): Promise<boolean> {
+		const marketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		if (this.accountsToPoll.has(marketPublicKey.toString())) {
+			return true;
+		}
+
 		await this.addPerpMarketAccountToPoll(marketIndex);
-		const accountToPoll = this.accountsToPoll.get(marketIndex.toString());
+		const accountToPoll = this.accountsToPoll.get(marketPublicKey.toString());
 		await this.addAccountToAccountLoader(accountToPoll);
 		return true;
 	}
 
 	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {
-		if (oracleInfo.publicKey.equals(PublicKey.default)) {
+		if (
+			oracleInfo.publicKey.equals(PublicKey.default) ||
+			this.oraclesToPoll.has(oracleInfo.publicKey.toString())
+		) {
 			return true;
 		}
 

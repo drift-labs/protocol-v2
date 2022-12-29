@@ -1,12 +1,18 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, OracleSource, ZERO } from '../sdk';
+import {
+	BN,
+	BulkAccountLoader,
+	getMarketOrderParams,
+	OracleSource,
+	ZERO,
+} from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { AdminClient, PositionDirection, EventSubscriber } from '../sdk/src';
+import { TestClient, PositionDirection, EventSubscriber } from '../sdk/src';
 
 import {
 	mockUSDCMint,
@@ -17,14 +23,22 @@ import {
 } from './testHelpers';
 
 describe('market orders', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let userAccountPublicKey: PublicKey;
 
@@ -55,7 +69,7 @@ describe('market orders', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -67,6 +81,10 @@ describe('market orders', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -252,6 +270,8 @@ describe('market orders', () => {
 			marketIndex
 		);
 
+		await driftClient.fetchAccounts();
+		console.log(driftClient.getQuoteAssetTokenAmount().toString());
 		assert.ok(driftClient.getQuoteAssetTokenAmount().eq(new BN(9879998)));
 		assert(
 			driftClient

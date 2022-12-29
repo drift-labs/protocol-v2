@@ -7,8 +7,7 @@ import {
 	OracleSource,
 	Wallet,
 	MarketStatus,
-	AdminClient,
-	DriftClient,
+	TestClient,
 	PositionDirection,
 } from '../sdk/src';
 
@@ -22,16 +21,23 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('round in favor', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+
 	let usdcMint;
 
-	let primaryDriftClient: AdminClient;
+	let primaryDriftClient: TestClient;
 
 	// ammInvariant == k == x * y
 	const ammInitialQuoteAssetReserve = new anchor.BN(
@@ -56,7 +62,7 @@ describe('round in favor', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		primaryDriftClient = new AdminClient({
+		primaryDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -67,6 +73,10 @@ describe('round in favor', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await primaryDriftClient.initialize(usdcMint.publicKey, true);
 		await primaryDriftClient.subscribe();
@@ -100,7 +110,7 @@ describe('round in favor', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -111,6 +121,10 @@ describe('round in favor', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -156,7 +170,7 @@ describe('round in favor', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -167,6 +181,10 @@ describe('round in favor', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 
