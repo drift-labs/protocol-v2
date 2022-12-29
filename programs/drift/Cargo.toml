@@ -33,4 +33,4 @@ serum_dex = { git = "https://github.com/project-serum/serum-dex", rev = "85b4f14
 
 [dev-dependencies]
 bytes = "1.2.0"
-pyth = { path = "../pyth" }
+pyth = { path = "../pyth", features = ["no-entrypoint"]}
