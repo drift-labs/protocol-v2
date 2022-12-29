@@ -996,6 +996,13 @@ fn sanitize_maker_order<'a>(
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
     let maker_stats = load_mut!(maker_stats)?;
+
+    validate!(
+        maker.authority.eq(&maker_stats.authority),
+        ErrorCode::MakerStatsNotFound,
+        "maker authority != maker stats authority"
+    )?;
+
     let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
     let maker_order_index = match maker.get_order_index(maker_order_id) {
         Ok(order_index) => order_index,
@@ -2862,6 +2869,13 @@ fn sanitize_spot_maker_order<'a>(
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
     let maker_stats = load_mut!(maker_stats)?;
+
+    validate!(
+        maker.authority.eq(&maker_stats.authority),
+        ErrorCode::MakerStatsNotFound,
+        "maker authority != maker stats authority"
+    )?;
+
     let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
     let maker_order_index = match maker.get_order_index(maker_order_id) {
         Ok(order_index) => order_index,
