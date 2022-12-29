@@ -1,13 +1,13 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BASE_PRECISION, BN, OracleSource } from '../sdk';
+import { BASE_PRECISION, BN, BulkAccountLoader, OracleSource } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
-import { AdminClient, PRICE_PRECISION } from '../sdk/src';
+import { TestClient, PRICE_PRECISION } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -17,12 +17,18 @@ import {
 } from './testHelpers';
 
 describe('whitelist', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+
+	let driftClient: TestClient;
 
 	let userAccountPublicKey: PublicKey;
 
@@ -49,7 +55,7 @@ describe('whitelist', () => {
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -61,6 +67,10 @@ describe('whitelist', () => {
 			spotMarketIndexes: [0],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();

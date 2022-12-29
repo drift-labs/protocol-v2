@@ -62,6 +62,8 @@ export function calculateOptimalPegAndBudget(
 
 	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
+
+	let checkLowerBound = true;
 	if (budget.lt(prePegCost)) {
 		const maxPriceSpread = new BN(amm.maxSpread)
 			.mul(targetPrice)
@@ -88,11 +90,17 @@ export function calculateOptimalPegAndBudget(
 			);
 
 			newBudget = calculateRepegCost(amm, newOptimalPeg);
+			checkLowerBound = false;
+
 			return [newTargetPrice, newOptimalPeg, newBudget, false];
+		} else if (
+			amm.totalFeeMinusDistributions.lt(amm.totalExchangeFee.div(new BN(2)))
+		) {
+			checkLowerBound = false;
 		}
 	}
 
-	return [targetPrice, newPeg, budget, true];
+	return [targetPrice, newPeg, budget, checkLowerBound];
 }
 
 export function calculateNewAmm(
@@ -102,12 +110,12 @@ export function calculateNewAmm(
 	let pKNumer = new BN(1);
 	let pKDenom = new BN(1);
 
-	const [targetPrice, _newPeg, budget, checkLowerBound] =
+	const [targetPrice, _newPeg, budget, _checkLowerBound] =
 		calculateOptimalPegAndBudget(amm, oraclePriceData);
 	let prePegCost = calculateRepegCost(amm, _newPeg);
 	let newPeg = _newPeg;
 
-	if (prePegCost.gt(budget) && checkLowerBound) {
+	if (prePegCost.gte(budget) && prePegCost.gt(ZERO)) {
 		[pKNumer, pKDenom] = [new BN(999), new BN(1000)];
 		const deficitMadeup = calculateAdjustKCost(amm, pKNumer, pKDenom);
 		assert(deficitMadeup.lte(new BN(0)));
@@ -130,7 +138,6 @@ export function calculateNewAmm(
 			);
 
 		newAmm.terminalQuoteAssetReserve = newQuoteAssetReserve;
-
 		newPeg = calculateBudgetedPeg(newAmm, prePegCost, targetPrice);
 		prePegCost = calculateRepegCost(newAmm, newPeg);
 	}
@@ -142,7 +149,7 @@ export function calculateUpdatedAMM(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): AMM {
-	if (amm.curveUpdateIntensity == 0) {
+	if (amm.curveUpdateIntensity == 0 || oraclePriceData === undefined) {
 		return amm;
 	}
 	const newAmm = Object.assign({}, amm);

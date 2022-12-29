@@ -36,7 +36,7 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 			return true;
 		}
 
-		this.addToAccountLoader();
+		await this.addToAccountLoader();
 		let subscriptionSucceeded = false;
 		let retries = 0;
 		while (!subscriptionSucceeded && retries < 5) {
@@ -53,12 +53,12 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		return subscriptionSucceeded;
 	}
 
-	addToAccountLoader(): void {
+	async addToAccountLoader(): Promise<void> {
 		if (this.callbackId) {
 			return;
 		}
 
-		this.callbackId = this.accountLoader.addAccount(
+		this.callbackId = await this.accountLoader.addAccount(
 			this.publicKey,
 			(buffer, slot: number) => {
 				const tokenAccount = parseTokenAccount(buffer);

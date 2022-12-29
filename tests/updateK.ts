@@ -4,13 +4,14 @@ import {
 	AMM_RESERVE_PRECISION,
 	BASE_PRECISION,
 	BN,
+	BulkAccountLoader,
 	calculateTradeSlippage,
 } from '../sdk';
 
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
 import {
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	calculateReservePrice,
 	User,
@@ -34,12 +35,18 @@ import { QUOTE_PRECISION } from '../sdk/lib';
 const ZERO = new BN(0);
 
 describe('update k', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -61,7 +68,7 @@ describe('update k', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -71,6 +78,10 @@ describe('update k', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -332,7 +343,7 @@ describe('update k', () => {
 		);
 		console.log('$1000 position taken');
 		await driftClient.fetchAccounts();
-		const marketOld = await driftClient.getPerpMarketAccount(0);
+		const marketOld = driftClient.getPerpMarketAccount(0);
 		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
@@ -362,7 +373,7 @@ describe('update k', () => {
 		}
 
 		await driftClient.fetchAccounts();
-		const marketKChange = await driftClient.getPerpMarketAccount(0);
+		const marketKChange = driftClient.getPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 
 		const newKPrice = calculateReservePrice(
@@ -447,7 +458,7 @@ describe('update k', () => {
 		);
 		console.log('$1 position taken');
 		await driftClient.fetchAccounts();
-		const marketOld = await driftClient.getPerpMarketAccount(0);
+		const marketOld = driftClient.getPerpMarketAccount(0);
 		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
@@ -472,7 +483,7 @@ describe('update k', () => {
 		await driftClient.updateK(marketIndex, newSqrtK);
 
 		await driftClient.fetchAccounts();
-		const marketKChange = await driftClient.getPerpMarketAccount(0);
+		const marketKChange = driftClient.getPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 		const newKPrice = calculateReservePrice(
 			driftClient.getPerpMarketAccount(marketIndex),
