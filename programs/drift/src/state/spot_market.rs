@@ -18,7 +18,7 @@ use crate::math::spot_balance::get_token_amount;
 
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
-use crate::state::traits::Size;
+use crate::state::traits::{MarketIndexOffset, Size};
 
 #[account(zero_copy)]
 #[derive(PartialEq, Eq, Debug)]
@@ -131,6 +131,10 @@ impl Default for SpotMarket {
 
 impl Size for SpotMarket {
     const SIZE: usize = 776;
+}
+
+impl MarketIndexOffset for SpotMarket {
+    const MARKET_INDEX_OFFSET: usize = 684;
 }
 
 impl SpotMarket {
