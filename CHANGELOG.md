@@ -14,6 +14,7 @@ program: add size trait to accounts and events ([#286](https://github.com/drift-
 
 ### Fixes
 
+- ts-sdk: always add market account for cancelOrders if market index included
 - anchor tests: make deterministic to run in ci ([#289](https://github.com/drift-labs/protocol-v2/pull/289))
 - ts-sdk: fix deprecated calls to `@solana/web3.js` ([#299](https://github.com/drift-labs/protocol-v2/pull/307))
 - ts-sdk: fix calculateAssetWeight for Maintenance Margin ([#308](https://github.com/drift-labs/protocol-v2/pull/308))
