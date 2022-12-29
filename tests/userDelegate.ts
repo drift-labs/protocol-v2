@@ -4,11 +4,11 @@ import { Program } from '@project-serum/anchor';
 
 import {
 	QUOTE_SPOT_MARKET_INDEX,
-	AdminClient,
+	TestClient,
 	BN,
 	EventSubscriber,
 	PRICE_PRECISION,
-	DriftClient,
+	TestClient,
 	OracleSource,
 	PositionDirection,
 	Wallet,
@@ -24,23 +24,32 @@ import {
 } from './testHelpers';
 import { assert } from 'chai';
 import { Keypair } from '@solana/web3.js';
+import { BulkAccountLoader } from '../sdk';
 
 describe('user delegate', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	let delegateKeyPair: Keypair;
-	let delegateDriftClient: DriftClient;
+	let delegateDriftClient: TestClient;
 	let delegateUsdcAccount: Keypair;
 
 	const marketIndexes = [0];
@@ -61,7 +70,7 @@ describe('user delegate', () => {
 		usdcMint = await mockUSDCMint(provider);
 
 		solUsd = await mockOracle(1);
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -78,6 +87,10 @@ describe('user delegate', () => {
 				},
 			],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -120,7 +133,7 @@ describe('user delegate', () => {
 		)[0];
 		assert(delegateUserAccount.delegate.equals(delegateKeyPair.publicKey));
 
-		delegateDriftClient = new DriftClient({
+		delegateDriftClient = new TestClient({
 			connection,
 			wallet: new Wallet(delegateKeyPair),
 			programID: chProgram.programId,
@@ -137,6 +150,10 @@ describe('user delegate', () => {
 				},
 			],
 			authority: provider.wallet.publicKey,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await delegateDriftClient.subscribe();
 	});

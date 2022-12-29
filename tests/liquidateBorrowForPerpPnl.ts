@@ -10,8 +10,7 @@ import {
 	BN,
 	OracleSource,
 	ZERO,
-	AdminClient,
-	DriftClient,
+	TestClient,
 	findComputeUnitConsumption,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -30,7 +29,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { isVariant } from '../sdk';
+import { BulkAccountLoader, isVariant } from '../sdk';
 
 describe('liquidate borrow for perp pnl', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -41,15 +40,19 @@ describe('liquidate borrow for perp pnl', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
 	let userWSOLAccount;
 
-	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClient: TestClient;
 	let liquidatorDriftClientWSOLAccount: PublicKey;
 
 	let solOracle: PublicKey;
@@ -77,7 +80,7 @@ describe('liquidate borrow for perp pnl', () => {
 
 		solOracle = await mockOracle(1);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -93,6 +96,10 @@ describe('liquidate borrow for perp pnl', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -128,7 +135,6 @@ describe('liquidate borrow for perp pnl', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(55), // allow 55x change
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
@@ -159,7 +165,8 @@ describe('liquidate borrow for perp pnl', () => {
 						publicKey: solOracle,
 						source: OracleSource.PYTH,
 					},
-				]
+				],
+				bulkAccountLoader
 			);
 		await liquidatorDriftClient.subscribe();
 

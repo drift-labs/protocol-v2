@@ -10,8 +10,7 @@ import {
 	BN,
 	OracleSource,
 	ZERO,
-	AdminClient,
-	DriftClient,
+	TestClient,
 	convertToNumber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -48,10 +47,11 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
-	driftClient: AdminClient,
+	driftClient: TestClient,
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
@@ -126,18 +126,22 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
 	let userUSDCAccount2;
 
-	let driftClientLoser: DriftClient;
+	let driftClientLoser: TestClient;
 	let driftClientLoserUser: User;
 
-	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClient: TestClient;
 	let liquidatorDriftClientWSOLAccount: PublicKey;
 	let liquidatorDriftClientWUSDCAccount: PublicKey;
 
@@ -151,18 +155,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		9 * AMM_RESERVE_PRECISION.toNumber()
 	).mul(new BN(1000000000));
 
-	console.log(ammInitialQuoteAssetReserve.toString());
-	console.log(ammInitialBaseAssetReserve.toString());
-
 	const ammInitialQuoteAssetReserve2 = new anchor.BN(9)
 		.mul(AMM_RESERVE_PRECISION)
 		.mul(AMM_RESERVE_PRECISION);
 	const ammInitialBaseAssetReserve2 = new anchor.BN(9)
 		.mul(AMM_RESERVE_PRECISION)
 		.mul(AMM_RESERVE_PRECISION);
-
-	console.log(ammInitialQuoteAssetReserve2.toString());
-	console.log(ammInitialBaseAssetReserve2.toString());
 
 	assert(ammInitialBaseAssetReserve.eq(ammInitialBaseAssetReserve2));
 	assert(ammInitialQuoteAssetReserve.eq(ammInitialQuoteAssetReserve2));
@@ -180,7 +178,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		solOracle = await mockOracle(43.1337);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -196,6 +194,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -238,7 +240,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		driftClientLoser = new AdminClient({
+		driftClientLoser = new TestClient({
 			connection,
 			wallet: new Wallet(userKeypair),
 			programID: chProgram.programId,
@@ -254,6 +256,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClientLoser.subscribe();
 		await sleep(100);
@@ -509,7 +515,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 					publicKey: solOracle,
 					source: OracleSource.PYTH,
 				},
-			]
+			],
+			bulkAccountLoader
 		);
 		await liquidatorDriftClient.subscribe();
 
@@ -543,6 +550,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			market0.marketIndex
 		);
 		const [bid1, ask1] = examineSpread(market0, oraclePriceData0);
+
 		assert(bid1.eq(bid0After)); // not sure why it's failing
 		assert(ask1.eq(ask0After));
 
@@ -748,6 +756,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const [bid, ask] = examineSpread(market0, oraclePriceData0);
 		console.log(bid.toString());
 		console.log(ask.toString());
+
 		assert(bid.eq(new BN('248126249')));
 		assert(ask.eq(new BN('260687640')));
 
@@ -773,6 +782,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		const prepegAMM1 = calculateUpdatedAMM(market0.amm, oraclePriceData1);
 		console.log(prepegAMM1.pegMultiplier.toString());
+
 		assert(prepegAMM1.pegMultiplier.eq(new BN(248126238)));
 	});
 
@@ -840,6 +850,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			marketIndex
 		);
 		await printTxLogs(connection, txSig2);
+		await eventSubscriber.awaitTx(txSig2);
 		const ifRecord: InsuranceFundRecord = eventSubscriber.getEventsArray(
 			'InsuranceFundRecord'
 		)[0];

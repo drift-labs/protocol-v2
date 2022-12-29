@@ -9,13 +9,14 @@ import {
 	calculatePrice,
 	PEG_PRECISION,
 	BASE_PRECISION,
+	BulkAccountLoader,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 import {
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	calculateReservePrice,
 	calculateTradeSlippage,
@@ -44,14 +45,22 @@ import {
 } from './testHelpers';
 
 describe('prepeg', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		commitment: 'confirmed',
+		skipPreflight: false,
+		preflightCommitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let userAccountPublicKey: PublicKey;
 
@@ -93,7 +102,7 @@ describe('prepeg', () => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -104,6 +113,10 @@ describe('prepeg', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -311,6 +324,7 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
+		console.log('oraclePriceData', oraclePriceData.price.toNumber());
 		assert(market0.amm.pegMultiplier.eq(new BN(1000000)));
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		console.log(prepegAMM.pegMultiplier.toString());
@@ -425,6 +439,8 @@ describe('prepeg', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
+
+		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
@@ -444,7 +460,13 @@ describe('prepeg', () => {
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);
-		console.log('actual distribution:', actualDist.toString());
+
+		console.log(
+			'actual vs est distribution:',
+			actualDist.toString(),
+			'==',
+			estDist.toString()
+		);
 
 		console.log(prepegAMM.sqrtK.toString(), '==', market.amm.sqrtK.toString());
 		const marketInvariant = market.amm.sqrtK.mul(market.amm.sqrtK);
@@ -528,7 +550,7 @@ describe('prepeg', () => {
 		// 		.abs()
 		// 		.eq(acquiredQuoteAssetAmount.add(new BN(49999074)).add(new BN(-1001)))
 		// );
-		assert(acquiredQuoteAssetAmount.eq(new BN(1027809)));
+
 		console.log(
 			'position0.quoteAssetAmount:',
 			position0.quoteAssetAmount.toNumber()

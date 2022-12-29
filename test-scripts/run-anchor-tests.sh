@@ -30,7 +30,7 @@ test_files=(
   marketOrder.ts
   triggerOrders.ts
   stopLimits.ts 
-  userOrderId.ts 
+  userOrderId.ts
   postOnly.ts
   placeAndMakeSpotOrder.ts
   roundInFavorBaseAsset.ts
@@ -42,8 +42,7 @@ test_files=(
   userAccount.ts
   admin.ts
   assetTier.ts
-  pauseExchange.ts 
-  adminWithdraw.ts 
+  pauseExchange.ts
   whitelist.ts
   updateK.ts 
   curve.ts 

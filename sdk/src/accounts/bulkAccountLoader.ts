@@ -2,7 +2,6 @@ import { Commitment, Connection, PublicKey } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BufferAndSlot } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
-import { Mutex } from 'async-mutex';
 
 type AccountToLoad = {
 	publicKey: PublicKey;
@@ -23,7 +22,6 @@ export class BulkAccountLoader {
 	intervalId?: NodeJS.Timer;
 	// to handle clients spamming load
 	loadPromise?: Promise<void>;
-	loadPromiseLock: Mutex = new Mutex();
 	loadPromiseResolver: () => void;
 	lastTimeLoadingPromiseCleared = Date.now();
 	mostRecentSlot = 0;
@@ -38,10 +36,10 @@ export class BulkAccountLoader {
 		this.pollingFrequency = pollingFrequency;
 	}
 
-	public addAccount(
+	public async addAccount(
 		publicKey: PublicKey,
 		callback: (buffer: Buffer, slot: number) => void
-	): string {
+	): Promise<string> {
 		const existingSize = this.accountsToLoad.size;
 
 		const callbackId = uuidv4();
@@ -65,10 +63,8 @@ export class BulkAccountLoader {
 			this.startPolling();
 		}
 
-		// if a new account needs to be polled, remove the cached loadPromise in case client calls load immediately after
-		this.loadPromiseLock.runExclusive(() => {
-			this.loadPromise = undefined;
-		});
+		// resolve the current loadPromise in case client wants to call load
+		await this.loadPromise;
 
 		return callbackId;
 	}
@@ -105,43 +101,41 @@ export class BulkAccountLoader {
 	}
 
 	public async load(): Promise<void> {
-		await this.loadPromiseLock.runExclusive(async () => {
-			if (this.loadPromise) {
-				const now = Date.now();
-				if (now - this.lastTimeLoadingPromiseCleared > oneMinute) {
-					this.loadPromise = undefined;
-				} else {
-					return this.loadPromise;
-				}
-			}
-
-			this.loadPromise = new Promise((resolver) => {
-				this.loadPromiseResolver = resolver;
-			});
-			this.lastTimeLoadingPromiseCleared = Date.now();
-
-			try {
-				const chunks = this.chunks(
-					Array.from(this.accountsToLoad.values()),
-					GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
-				);
-
-				await Promise.all(
-					chunks.map((chunk) => {
-						return this.loadChunk(chunk);
-					})
-				);
-			} catch (e) {
-				console.error(`Error in bulkAccountLoader.load()`);
-				console.error(e);
-				for (const [_, callback] of this.errorCallbacks) {
-					callback(e);
-				}
-			} finally {
-				this.loadPromiseResolver();
+		if (this.loadPromise) {
+			const now = Date.now();
+			if (now - this.lastTimeLoadingPromiseCleared > oneMinute) {
 				this.loadPromise = undefined;
+			} else {
+				return this.loadPromise;
 			}
+		}
+
+		this.loadPromise = new Promise((resolver) => {
+			this.loadPromiseResolver = resolver;
 		});
+		this.lastTimeLoadingPromiseCleared = Date.now();
+
+		try {
+			const chunks = this.chunks(
+				Array.from(this.accountsToLoad.values()),
+				GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
+			);
+
+			await Promise.all(
+				chunks.map((chunk) => {
+					return this.loadChunk(chunk);
+				})
+			);
+		} catch (e) {
+			console.error(`Error in bulkAccountLoader.load()`);
+			console.error(e);
+			for (const [_, callback] of this.errorCallbacks) {
+				callback(e);
+			}
+		} finally {
+			this.loadPromiseResolver();
+			this.loadPromise = undefined;
+		}
 	}
 
 	async loadChunk(accountsToLoad: AccountToLoad[]): Promise<void> {
