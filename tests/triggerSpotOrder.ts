@@ -6,10 +6,9 @@ import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
-	DriftClient,
 	PositionDirection,
 	User,
 	Wallet,
@@ -25,16 +24,27 @@ import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BASE_PRECISION, isVariant, OracleSource } from '../sdk';
+import {
+	BASE_PRECISION,
+	BulkAccountLoader,
+	isVariant,
+	OracleSource,
+} from '../sdk';
 
 describe('trigger orders', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let fillerDriftClient: AdminClient;
+	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -70,7 +80,7 @@ describe('trigger orders', () => {
 			},
 		];
 
-		fillerDriftClient = new AdminClient({
+		fillerDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -81,6 +91,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.initialize(usdcMint.publicKey, true);
 		await fillerDriftClient.subscribe();
@@ -133,7 +147,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -144,6 +158,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -181,6 +199,7 @@ describe('trigger orders', () => {
 			order
 		);
 
+		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 		await fillerDriftClient.fetchAccounts();
 
@@ -206,7 +225,7 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -217,6 +236,10 @@ describe('trigger orders', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(

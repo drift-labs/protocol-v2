@@ -16,4 +16,4 @@ pyth = "FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"
 
 [[test.genesis]]
 address = "srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"
-program = "./deps/serum-dex/dex/target/deploy/serum_dex.so"
+program = "./deps/serum_dex.so"

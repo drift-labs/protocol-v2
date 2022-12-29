@@ -109,7 +109,7 @@ export class EventSubscriber {
 			this.awaitTxResolver.delete(txSig);
 		}
 
-		if (slot > this.lastSeenSlot) {
+		if (!this.lastSeenSlot || slot > this.lastSeenSlot) {
 			this.lastSeenTxSig = txSig;
 		}
 

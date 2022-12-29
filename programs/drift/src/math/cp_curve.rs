@@ -165,7 +165,6 @@ pub fn _calculate_budgeted_k_scale(
 
     Ok((numerator.cast::<u128>()?, denominator.cast::<u128>()?))
 }
-
 /// To find the cost of adjusting k, compare the the net market value before and after adjusting k
 /// Increasing k costs the protocol terminal money because it reduces slippage and improves the exit price for net market position
 /// Decreasing k relieves the protocol terminal money because it increases slippage and hurts the exit price for net market position

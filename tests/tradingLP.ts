@@ -1,13 +1,13 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, User, OracleSource, Wallet } from '../sdk';
+import { BN, User, OracleSource, Wallet, BulkAccountLoader } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
 import * as web3 from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -28,7 +28,8 @@ async function createNewUser(
 	usdcMint,
 	usdcAmount,
 	oracleInfos,
-	wallet
+	wallet,
+	bulkAccountLoader
 ) {
 	let walletFlag = true;
 	if (wallet == undefined) {
@@ -47,7 +48,7 @@ async function createNewUser(
 		wallet.publicKey
 	);
 
-	const driftClient = new AdminClient({
+	const driftClient = new TestClient({
 		connection: provider.connection,
 		wallet: wallet,
 		programID: program.programId,
@@ -58,12 +59,18 @@ async function createNewUser(
 		perpMarketIndexes: [0, 1],
 		spotMarketIndexes: [0],
 		oracleInfos,
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+		},
 	});
-	await driftClient.subscribe();
 
 	if (walletFlag) {
 		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+	} else {
+		await driftClient.subscribe();
 	}
 
 	await driftClient.initializeUserAccountAndDepositCollateral(
@@ -103,14 +110,18 @@ describe('trading liquidity providing', () => {
 
 	const usdcAmount = new BN(1_000_000_000 * 1e6);
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint: web3.Keypair;
 
 	let driftClientUser: User;
-	let traderDriftClient: AdminClient;
+	let traderDriftClient: TestClient;
 	let traderDriftClientUser: User;
 
 	let solusdc;
@@ -131,7 +142,8 @@ describe('trading liquidity providing', () => {
 			usdcMint,
 			usdcAmount,
 			oracleInfos,
-			provider.wallet
+			provider.wallet,
+			bulkAccountLoader
 		);
 		// used for trading / taking on baa
 		await driftClient.initializePerpMarket(
@@ -177,7 +189,8 @@ describe('trading liquidity providing', () => {
 			usdcMint,
 			usdcAmount,
 			oracleInfos,
-			undefined
+			undefined,
+			bulkAccountLoader
 		);
 	});
 

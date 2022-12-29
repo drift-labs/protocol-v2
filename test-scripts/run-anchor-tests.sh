@@ -42,8 +42,7 @@ test_files=(
   userAccount.ts
   admin.ts
   assetTier.ts
-  pauseExchange.ts 
-  adminWithdraw.ts 
+  pauseExchange.ts
   whitelist.ts
   updateK.ts 
   curve.ts 

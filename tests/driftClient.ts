@@ -7,6 +7,7 @@ import {
 	PerpMarketAccount,
 	OracleSource,
 	ZERO,
+	BulkAccountLoader,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
@@ -15,7 +16,7 @@ import { getTokenAccount } from '@project-serum/common';
 import { PublicKey, TransactionSignature } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	calculateTradeSlippage,
 	PositionDirection,
 	getPerpMarketPublicKey,
@@ -35,14 +36,22 @@ import {
 } from './testHelpers';
 
 describe('drift client', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let userAccountPublicKey: PublicKey;
 
@@ -68,7 +77,7 @@ describe('drift client', () => {
 
 		solUsd = await mockOracle(1);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -80,6 +89,10 @@ describe('drift client', () => {
 			spotMarketIndexes: [0],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 	});
 
@@ -439,9 +452,10 @@ describe('drift client', () => {
 				.data.fees.totalFeePaid.eq(new BN(120001))
 		);
 		console.log(user.perpPositions[0].quoteBreakEvenAmount.toString());
+		console.log(user.perpPositions[0].quoteAssetAmount.toString());
 
 		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(24000000)));
-		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(24048000)));
+		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(23952000)));
 		assert.ok(user.perpPositions[0].quoteAssetAmount.eq(new BN(24000000)));
 		console.log(user.perpPositions[0].baseAssetAmount.toString());
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-24000000000)));
@@ -528,7 +542,7 @@ describe('drift client', () => {
 		);
 		console.log(user.perpPositions[0].quoteBreakEvenAmount.toString());
 		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(47999999)));
-		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(48047999)));
+		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(47951999)));
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-48000000000)));
 
 		const market = driftClient.getPerpMarketAccount(0);
