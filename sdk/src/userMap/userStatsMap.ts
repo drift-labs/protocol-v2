@@ -187,5 +187,4 @@ export class UserStatsMap {
 	public size(): number {
 		return this.userStatsMap.size;
 	}
-	export;
 }
