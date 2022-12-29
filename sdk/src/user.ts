@@ -1636,7 +1636,7 @@ export class User {
 					ZERO,
 					this.getSpotPositionValue(targetMarketIndex)
 				);
-				return BN.min(this.getFreeCollateral(), assetValue);
+				return BN.min(this.getTotalCollateral(), assetValue);
 			}
 		}
 
