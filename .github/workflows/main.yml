@@ -132,6 +132,7 @@ jobs:
         run: |
           npm install ts-mocha -g
           npm install --global mocha
+
       - name: build sdk
         run: cd sdk/ && yarn && yarn build && cd ..
 

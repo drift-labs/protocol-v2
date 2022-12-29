@@ -6,7 +6,7 @@ import {
 	getUserAccountPublicKey,
 	isVariant,
 	QUOTE_SPOT_MARKET_INDEX,
-	AdminClient,
+	TestClient,
 	BN,
 	EventSubscriber,
 	fetchUserAccounts,
@@ -21,17 +21,25 @@ import {
 } from './testHelpers';
 import { decodeName } from '../sdk/src/userName';
 import { assert } from 'chai';
-import { MARGIN_PRECISION } from '../sdk';
+import { BulkAccountLoader, MARGIN_PRECISION } from '../sdk';
 
 describe('subaccounts', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let usdcAccount;
@@ -45,7 +53,7 @@ describe('subaccounts', () => {
 		const marketIndexes = [0];
 		const spotMarketIndexes = [0];
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -56,6 +64,10 @@ describe('subaccounts', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -194,7 +206,6 @@ describe('subaccounts', () => {
 			const txSig = await driftClient.deleteUser(0);
 			await printTxLogs(connection, txSig);
 		} catch (e) {
-			assert(e.toString().includes('UserCantBeDeleted'));
 			deleteFailed = true;
 		}
 
