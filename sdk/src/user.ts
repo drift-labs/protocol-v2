@@ -1624,12 +1624,20 @@ export class User {
 		let currentPositionSide;
 
 		if (!this.getUserAccount().isMarginTradingEnabled) {
-			// if margin disabled, max spot position size would be user free usdc balance
-			const quoteBalance = BN.max(
-				ZERO,
-				this.getSpotPositionValue(QUOTE_SPOT_MARKET_INDEX)
-			);
-			return BN.min(this.getFreeCollateral(), quoteBalance);
+			// if margin disabled, max spot position size would be user free usdc balance if buying, free asset balance if selling
+			if (isVariant(tradeSide, 'long')) {
+				const quoteBalance = BN.max(
+					ZERO,
+					this.getSpotPositionValue(QUOTE_SPOT_MARKET_INDEX)
+				);
+				return BN.min(this.getFreeCollateral(), quoteBalance);
+			} else {
+				const assetValue = BN.max(
+					ZERO,
+					this.getSpotPositionValue(targetMarketIndex)
+				);
+				return BN.min(this.getFreeCollateral(), assetValue);
+			}
 		}
 
 		currentPosition = this.getSpotPositionValue(targetMarketIndex);
