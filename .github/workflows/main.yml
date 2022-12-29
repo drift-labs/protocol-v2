@@ -2,9 +2,9 @@ name: main
 
 on:
   push:
-    branches: master
+    branches: [master, tob-audit]
   pull_request:
-    branches: master
+    branches: [master, tob-audit]
 
 defaults:
   run:
