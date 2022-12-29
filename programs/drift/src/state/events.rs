@@ -4,6 +4,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode::InvalidOrder};
 use crate::math::casting::Cast;
+use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
 use std::io::Write;
@@ -173,6 +174,10 @@ pub struct OrderActionRecord {
     pub maker_order_cumulative_quote_asset_amount_filled: Option<u64>,
 
     pub oracle_price: i64,
+}
+
+impl Size for OrderActionRecord {
+    const SIZE: usize = 384;
 }
 
 pub fn get_order_action_record(

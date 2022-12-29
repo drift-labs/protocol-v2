@@ -4,6 +4,7 @@ use crate::math_error;
 use crate::safe_decrement;
 use crate::safe_increment;
 use crate::state::spot_market::SpotMarket;
+use crate::state::traits::Size;
 use crate::validate;
 use anchor_lang::prelude::*;
 
@@ -21,6 +22,11 @@ pub struct InsuranceFundStake {
     pub cost_basis: i64,
     pub market_index: u16,
     pub padding: [u8; 14],
+}
+
+// implement SIZE const for InsuranceFundStake
+impl Size for InsuranceFundStake {
+    const SIZE: usize = 136;
 }
 
 impl InsuranceFundStake {

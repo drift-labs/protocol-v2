@@ -7,6 +7,7 @@ use crate::load_mut;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::State;
+use crate::state::traits::Size;
 use crate::state::user::UserStats;
 use crate::validate;
 use crate::{controller, math};
@@ -241,7 +242,7 @@ pub struct InitializeInsuranceFundStake<'info> {
     #[account(
         init,
         seeds = [b"insurance_fund_stake", authority.key.as_ref(), market_index.to_le_bytes().as_ref()],
-        space = std::mem::size_of::<InsuranceFundStake>() + 8,
+        space = InsuranceFundStake::SIZE,
         bump,
         payer = payer
     )]

@@ -13,6 +13,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPositions;
 
+use crate::state::traits::Size;
 use solana_program::msg;
 use std::panic::Location;
 
@@ -97,7 +98,7 @@ impl<'a> PerpMarketMap<'a> {
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadMarketData))?;
 
-            let expected_data_len = std::mem::size_of::<PerpMarket>() + 8;
+            let expected_data_len = PerpMarket::SIZE;
             if data.len() < expected_data_len {
                 break;
             }
@@ -144,7 +145,7 @@ impl<'a> PerpMarketMap<'a> {
             .try_borrow_data()
             .or(Err(ErrorCode::CouldNotLoadMarketData))?;
 
-        let expected_data_len = std::mem::size_of::<PerpMarket>() + 8;
+        let expected_data_len = PerpMarket::SIZE;
         if data.len() < expected_data_len {
             return Err(ErrorCode::CouldNotLoadMarketData);
         }
@@ -186,7 +187,7 @@ impl<'a> PerpMarketMap<'a> {
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadMarketData))?;
 
-            let expected_data_len = std::mem::size_of::<PerpMarket>() + 8;
+            let expected_data_len = PerpMarket::SIZE;
             if data.len() < expected_data_len {
                 return Err(ErrorCode::CouldNotLoadMarketData);
             }

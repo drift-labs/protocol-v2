@@ -11,6 +11,7 @@ use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use anchor_lang::Discriminator;
 use arrayref::array_ref;
 
+use crate::state::traits::Size;
 use solana_program::msg;
 use std::panic::Location;
 
@@ -161,7 +162,7 @@ impl<'a> SpotMarketMap<'a> {
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadSpotMarketData))?;
 
-            let expected_data_len = std::mem::size_of::<SpotMarket>() + 8;
+            let expected_data_len = SpotMarket::SIZE;
             if data.len() < expected_data_len {
                 break;
             }
@@ -208,7 +209,7 @@ impl<'a> SpotMarketMap<'a> {
             .try_borrow_data()
             .or(Err(ErrorCode::CouldNotLoadSpotMarketData))?;
 
-        let expected_data_len = std::mem::size_of::<SpotMarket>() + 8;
+        let expected_data_len = SpotMarket::SIZE;
         if data.len() < expected_data_len {
             return Err(ErrorCode::CouldNotLoadSpotMarketData);
         }
@@ -246,7 +247,7 @@ impl<'a> SpotMarketMap<'a> {
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadSpotMarketData))?;
 
-            let expected_data_len = std::mem::size_of::<SpotMarket>() + 8;
+            let expected_data_len = SpotMarket::SIZE;
             if data.len() < expected_data_len {
                 return Err(ErrorCode::CouldNotLoadSpotMarketData);
             }
