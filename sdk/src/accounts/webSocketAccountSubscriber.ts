@@ -47,7 +47,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 
 	setData(data: T): void {
 		if (this.dataAndSlot) {
-			throw Error('Cannot set data on subscriber that has already has data');
+			return;
 		}
 
 		this.dataAndSlot = {
