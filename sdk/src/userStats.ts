@@ -33,8 +33,12 @@ export class UserStats {
 		}
 	}
 
-	public async subscribe(): Promise<boolean> {
-		this.isSubscribed = await this.accountSubscriber.subscribe();
+	public async subscribe(
+		userStatsAccount?: UserStatsAccount
+	): Promise<boolean> {
+		this.isSubscribed = await this.accountSubscriber.subscribe(
+			userStatsAccount
+		);
 		return this.isSubscribed;
 	}
 

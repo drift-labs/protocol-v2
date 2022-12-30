@@ -27,7 +27,7 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		this.eventEmitter = new EventEmitter();
 	}
 
-	async subscribe(): Promise<boolean> {
+	async subscribe(userAccount?: UserAccount): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
 		}
@@ -37,6 +37,11 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 			this.program,
 			this.userAccountPublicKey
 		);
+
+		if (userAccount) {
+			this.userDataAccountSubscriber.setData(userAccount);
+		}
+
 		await this.userDataAccountSubscriber.subscribe((data: UserAccount) => {
 			this.eventEmitter.emit('userAccountUpdate', data);
 			this.eventEmitter.emit('update');

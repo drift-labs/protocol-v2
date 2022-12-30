@@ -103,8 +103,8 @@ export class User {
 	 * Subscribe to User state accounts
 	 * @returns SusbcriptionSuccess result
 	 */
-	public async subscribe(): Promise<boolean> {
-		this.isSubscribed = await this.accountSubscriber.subscribe();
+	public async subscribe(userAccount?: UserAccount): Promise<boolean> {
+		this.isSubscribed = await this.accountSubscriber.subscribe(userAccount);
 		return this.isSubscribed;
 	}
 
