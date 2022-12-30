@@ -65,6 +65,8 @@ export class UserStatsMap {
 				userStatArray,
 				this.accountSubscription.accountLoader
 			);
+		} else {
+			await Promise.all(userStatArray.map((userStat) => userStat.subscribe()));
 		}
 
 		for (const userStat of userStatArray) {
