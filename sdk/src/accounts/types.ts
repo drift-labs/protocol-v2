@@ -17,6 +17,8 @@ export interface AccountSubscriber<T> {
 	subscribe(onChange: (data: T) => void): Promise<void>;
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
+
+	setData(userAccount: T): void;
 }
 
 export class NotSubscribedError extends Error {
@@ -69,7 +71,7 @@ export interface UserAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 	isSubscribed: boolean;
 
-	subscribe(): Promise<boolean>;
+	subscribe(userAccount?: UserAccount): Promise<boolean>;
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
