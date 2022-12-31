@@ -25,6 +25,7 @@ pub mod position;
 pub mod quote_asset;
 pub mod repeg;
 pub mod safe_math;
+pub mod safe_unwrap;
 pub mod serum;
 pub mod spot_balance;
 pub mod spot_withdraw;

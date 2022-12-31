@@ -104,24 +104,28 @@ impl User {
             .ok_or(ErrorCode::CouldNotFindSpotPosition)
     }
 
-    pub fn get_spot_position(&self, market_index: u16) -> Option<&SpotPosition> {
+    pub fn get_spot_position(&self, market_index: u16) -> DriftResult<&SpotPosition> {
         self.get_spot_position_index(market_index)
-            .ok()
             .map(|market_index| &self.spot_positions[market_index])
     }
 
-    pub fn get_spot_position_mut(&mut self, market_index: u16) -> Option<&mut SpotPosition> {
+    pub fn get_spot_position_mut(&mut self, market_index: u16) -> DriftResult<&mut SpotPosition> {
         self.get_spot_position_index(market_index)
-            .ok()
             .map(move |market_index| &mut self.spot_positions[market_index])
     }
 
     pub fn get_quote_spot_position(&self) -> &SpotPosition {
-        self.get_spot_position(QUOTE_SPOT_MARKET_INDEX).unwrap()
+        match self.get_spot_position(QUOTE_SPOT_MARKET_INDEX) {
+            Ok(position) => position,
+            Err(_) => unreachable!(),
+        }
     }
 
     pub fn get_quote_spot_position_mut(&mut self) -> &mut SpotPosition {
-        self.get_spot_position_mut(QUOTE_SPOT_MARKET_INDEX).unwrap()
+        match self.get_spot_position_mut(QUOTE_SPOT_MARKET_INDEX) {
+            Ok(position) => position,
+            Err(_) => unreachable!(),
+        }
     }
 
     pub fn add_spot_position(
