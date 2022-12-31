@@ -244,7 +244,7 @@ pub fn get_update_k_result(
         sqrt_k_ratio = sqrt_k_ratio + 1;
     }
 
-    let sqrt_k = new_sqrt_k.try_to_u128().unwrap();
+    let sqrt_k = new_sqrt_k.try_to_u128()?;
 
     // only allow too small when market is in reduce only mode
     if market.status != MarketStatus::ReduceOnly

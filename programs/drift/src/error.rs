@@ -451,6 +451,8 @@ pub enum ErrorCode {
     SpotFulfillmentConfigDisabled,
     #[msg("Invalid Maker")]
     InvalidMaker,
+    #[msg("Failed Unwrap")]
+    FailedUnwrap,
 }
 
 #[macro_export]

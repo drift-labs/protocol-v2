@@ -33,8 +33,8 @@ use crate::math::{amm, bn, oracle};
 use crate::math_error;
 use crate::state::events::CurveRecord;
 use crate::state::oracle::{
-    get_oracle_price, get_pyth_price, get_switchboard_price, HistoricalIndexData,
-    HistoricalOracleData, OraclePriceData, OracleSource,
+    get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
+    OracleSource,
 };
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
@@ -179,7 +179,7 @@ pub fn handle_initialize_spot_market(
 
             (
                 HistoricalOracleData::default_with_current_oracle(oracle_price_data?),
-                HistoricalIndexData::default_with_current_oracle(oracle_price_data?),
+                HistoricalIndexData::default_with_current_oracle(oracle_price_data?)?,
             )
         };
 
@@ -482,22 +482,24 @@ pub fn handle_initialize_perp_market(
         amm::calculate_bid_ask_bounds(concentration_coef, amm_base_asset_reserve)?;
 
     // Verify oracle is readable
-    let OraclePriceData {
-        price: oracle_price,
-        delay: oracle_delay,
-        ..
-    } = match oracle_source {
-        OracleSource::Pyth => get_pyth_price(&ctx.accounts.oracle, clock_slot).unwrap(),
-        OracleSource::Switchboard => {
-            get_switchboard_price(&ctx.accounts.oracle, clock_slot).unwrap()
+    let (oracle_price, oracle_delay, last_oracle_price_twap) = match oracle_source {
+        OracleSource::Pyth => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot)?;
+            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(&ctx.accounts.oracle)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
         }
-        OracleSource::QuoteAsset => panic!(),
-    };
-
-    let last_oracle_price_twap = match oracle_source {
-        OracleSource::Pyth => perp_market.amm.get_pyth_twap(&ctx.accounts.oracle)?,
-        OracleSource::Switchboard => oracle_price,
-        OracleSource::QuoteAsset => panic!(),
+        OracleSource::Switchboard => {
+            msg!("Switchboard oracle cant be used for perp market");
+            return Err(ErrorCode::InvalidOracle.into());
+        }
+        OracleSource::QuoteAsset => {
+            msg!("Quote asset oracle cant be used for perp market");
+            return Err(ErrorCode::InvalidOracle.into());
+        }
     };
 
     let max_spread = ((margin_ratio_initial - margin_ratio_maintenance) * (100 - 5)) as u32;

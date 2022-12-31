@@ -8553,6 +8553,11 @@
       "code": 6222,
       "name": "InvalidMaker",
       "msg": "Invalid Maker"
+    },
+    {
+      "code": 6223,
+      "name": "FailedUnwrap",
+      "msg": "Failed Unwrap"
     }
   ]
 }
