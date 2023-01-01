@@ -15,6 +15,7 @@ program: add size trait to accounts and events ([#286](https://github.com/drift-
 
 ### Fixes
 
+- program: add access control for spot market updates similar to perp market ([#284](https://github.com/drift-labs/protocol-v2/pull/284))
 - ts-sdk: allow websocket subscriber to skip getAccount call to rpc ([#313](https://github.com/drift-labs/protocol-v2/pull/313))
 - ts-sdk: always add market account for cancelOrders if market index included
 - anchor tests: make deterministic to run in ci ([#289](https://github.com/drift-labs/protocol-v2/pull/289))
