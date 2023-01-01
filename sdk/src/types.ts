@@ -795,6 +795,7 @@ export type UserAccount = {
 	cumulativePerpFunding: BN;
 	liquidationMarginFreed: BN;
 	liquidationStartSlot: BN;
+	isMarginTradingEnabled: boolean;
 };
 
 export type SpotPosition = {

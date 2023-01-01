@@ -20,6 +20,7 @@ import {
 	calculateSizePremiumLiabilityWeight,
 } from './margin';
 import { OraclePriceData } from '../oracles/types';
+import { PERCENTAGE_PRECISION } from '../constants/numericConstants';
 
 export function getBalance(
 	tokenAmount: BN,
@@ -108,11 +109,7 @@ export function calculateAssetWeight(
 			);
 			break;
 		case 'Maintenance':
-			assetWeight = calculateSizeDiscountAssetWeight(
-				sizeInAmmReservePrecision,
-				new BN(spotMarket.imfFactor),
-				new BN(spotMarket.maintenanceAssetWeight)
-			);
+			assetWeight = new BN(spotMarket.maintenanceAssetWeight);
 			break;
 		default:
 			assetWeight = new BN(spotMarket.initialAssetWeight);
@@ -228,8 +225,10 @@ export function calculateDepositRate(bank: SpotMarketAccount): BN {
 	const utilization = calculateUtilization(bank);
 	const borrowRate = calculateBorrowRate(bank);
 	const depositRate = borrowRate
+		.mul(PERCENTAGE_PRECISION.sub(new BN(bank.insuranceFund.totalFactor)))
 		.mul(utilization)
-		.div(SPOT_MARKET_UTILIZATION_PRECISION);
+		.div(SPOT_MARKET_UTILIZATION_PRECISION)
+		.div(PERCENTAGE_PRECISION);
 	return depositRate;
 }
 

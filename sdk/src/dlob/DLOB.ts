@@ -26,6 +26,8 @@ import {
 	UserMap,
 	OrderRecord,
 	OrderActionRecord,
+	ZERO,
+	BN_MAX,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -77,6 +79,10 @@ export class DLOB {
 	initialized = false;
 
 	public constructor() {
+		this.init();
+	}
+
+	private init() {
 		this.openOrders.set('perp', new Set<string>());
 		this.openOrders.set('spot', new Set<string>());
 		this.orderLists.set('perp', new Map<number, MarketNodeLists>());
@@ -102,6 +108,8 @@ export class DLOB {
 			}
 		}
 		this.orderLists.clear();
+
+		this.init();
 	}
 
 	/**
@@ -270,8 +278,12 @@ export class DLOB {
 			return;
 		}
 
-		order.baseAssetAmountFilled = cumulativeBaseAssetAmountFilled;
-		this.getListForOrder(order)?.update(order, userAccount);
+		const newOrder = {
+			...order,
+		};
+		newOrder.baseAssetAmountFilled = cumulativeBaseAssetAmountFilled;
+
+		this.getListForOrder(order)?.update(newOrder, userAccount);
 
 		if (onUpdate) {
 			onUpdate();
@@ -430,7 +442,9 @@ export class DLOB {
 			marketIndex,
 			slot,
 			marketType,
-			oraclePriceData
+			oraclePriceData,
+			fallbackAsk,
+			fallbackBid
 		);
 
 		for (const crossingNode of crossingNodes) {
@@ -999,7 +1013,9 @@ export class DLOB {
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		fallbackAsk: BN | undefined,
+		fallbackBid: BN | undefined
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -1036,6 +1052,29 @@ export class DLOB {
 					askNode,
 					bidNode
 				);
+
+				// extra guard against bad fills for limit orders where auction is incomplete
+				if (!isAuctionComplete(takerNode.order, slot)) {
+					let bidPrice: BN;
+					let askPrice: BN;
+					if (isVariant(takerNode.order.direction, 'long')) {
+						bidPrice = BN.min(
+							takerNode.getPrice(oraclePriceData, slot),
+							fallbackAsk || BN_MAX
+						);
+						askPrice = makerNode.getPrice(oraclePriceData, slot);
+					} else {
+						bidPrice = makerNode.getPrice(oraclePriceData, slot);
+						askPrice = BN.max(
+							takerNode.getPrice(oraclePriceData, slot),
+							fallbackBid || ZERO
+						);
+					}
+
+					if (bidPrice.lt(askPrice)) {
+						continue;
+					}
+				}
 
 				const bidBaseRemaining = bidOrder.baseAssetAmount.sub(
 					bidOrder.baseAssetAmountFilled

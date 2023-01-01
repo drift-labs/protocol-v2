@@ -6,11 +6,10 @@ import { Program } from '@project-serum/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	OracleSource,
 	EventSubscriber,
-	DriftClient,
 	Wallet,
 	PRICE_PRECISION,
 } from '../sdk/src';
@@ -25,6 +24,7 @@ import {
 } from './testHelpers';
 import {
 	BASE_PRECISION,
+	BulkAccountLoader,
 	getMarketOrderParams,
 	PEG_PRECISION,
 	PositionDirection,
@@ -39,16 +39,20 @@ describe('referrer', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let referrerDriftClient: AdminClient;
+	let referrerDriftClient: TestClient;
 
 	let refereeKeyPair: Keypair;
-	let refereeDriftClient: DriftClient;
+	let refereeDriftClient: TestClient;
 	let refereeUSDCAccount: Keypair;
 
-	let fillerDriftClient: DriftClient;
+	let fillerDriftClient: TestClient;
 
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let referrerUSDCAccount;
@@ -84,7 +88,7 @@ describe('referrer', () => {
 				source: OracleSource.PYTH,
 			},
 		];
-		referrerDriftClient = new AdminClient({
+		referrerDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -96,6 +100,10 @@ describe('referrer', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await referrerDriftClient.initialize(usdcMint.publicKey, true);
@@ -127,7 +135,7 @@ describe('referrer', () => {
 			refereeKeyPair.publicKey
 		);
 
-		refereeDriftClient = new DriftClient({
+		refereeDriftClient = new TestClient({
 			connection,
 			wallet: new Wallet(refereeKeyPair),
 			programID: chProgram.programId,
@@ -139,6 +147,10 @@ describe('referrer', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await refereeDriftClient.subscribe();
 
@@ -149,7 +161,8 @@ describe('referrer', () => {
 			usdcAmount,
 			marketIndexes,
 			spotMarketIndexes,
-			oracleInfos
+			oracleInfos,
+			bulkAccountLoader
 		);
 	});
 

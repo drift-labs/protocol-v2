@@ -35,6 +35,7 @@ use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::State;
+use crate::state::traits::Size;
 use crate::state::user::{
     MarketType, OrderTriggerCondition, OrderType, User, UserStats, UserStatus,
 };
@@ -179,7 +180,7 @@ pub fn handle_deposit(
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
-    let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+    let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?.clone();
 
     validate!(
@@ -189,7 +190,7 @@ pub fn handle_deposit(
     )?;
 
     controller::spot_balance::update_spot_market_cumulative_interest(
-        spot_market,
+        &mut spot_market,
         Some(oracle_price_data),
         now,
     )?;
@@ -203,7 +204,7 @@ pub fn handle_deposit(
         && user.spot_positions[position_index].balance_type == SpotBalanceType::Borrow
     {
         user.spot_positions[position_index]
-            .get_token_amount(spot_market)?
+            .get_token_amount(&spot_market)?
             .cast::<u64>()?
             .min(amount)
     } else {
@@ -223,13 +224,13 @@ pub fn handle_deposit(
     controller::spot_position::update_spot_balances_and_cumulative_deposits(
         amount as u128,
         &SpotBalanceType::Deposit,
-        spot_market,
+        &mut spot_market,
         spot_position,
         false,
         None,
     )?;
 
-    let token_amount = spot_position.get_token_amount(spot_market)?;
+    let token_amount = spot_position.get_token_amount(&spot_market)?;
     if token_amount == 0 {
         validate!(
             spot_position.scaled_balance == 0,
@@ -255,6 +256,7 @@ pub fn handle_deposit(
         )?;
     }
 
+    drop(spot_market);
     if user.is_being_liquidated() {
         // try to update liquidation status if user is was already being liq'd
         let is_being_liquidated = is_user_being_liquidated(
@@ -271,6 +273,7 @@ pub fn handle_deposit(
             user.status = UserStatus::Active;
         }
     }
+    let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
     controller::token::receive(
         &ctx.accounts.token_program,
@@ -1548,7 +1551,7 @@ pub struct InitializeUser<'info> {
     #[account(
         init,
         seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
-        space = std::mem::size_of::<User>() + 8,
+        space = User::SIZE,
         bump,
         payer = payer
     )]
@@ -1572,7 +1575,7 @@ pub struct InitializeUserStats<'info> {
     #[account(
         init,
         seeds = [b"user_stats", authority.key.as_ref()],
-        space = std::mem::size_of::<UserStats>() + 8,
+        space = UserStats::SIZE,
         bump,
         payer = payer
     )]

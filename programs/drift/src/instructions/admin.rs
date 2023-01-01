@@ -33,8 +33,8 @@ use crate::math::{amm, bn, oracle};
 use crate::math_error;
 use crate::state::events::CurveRecord;
 use crate::state::oracle::{
-    get_oracle_price, get_pyth_price, get_switchboard_price, HistoricalIndexData,
-    HistoricalOracleData, OraclePriceData, OracleSource,
+    get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
+    OracleSource,
 };
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
@@ -45,6 +45,7 @@ use crate::state::spot_market::{
     SpotFulfillmentConfigStatus, SpotMarket,
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
+use crate::state::traits::Size;
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
@@ -178,7 +179,7 @@ pub fn handle_initialize_spot_market(
 
             (
                 HistoricalOracleData::default_with_current_oracle(oracle_price_data?),
-                HistoricalIndexData::default_with_current_oracle(oracle_price_data?),
+                HistoricalIndexData::default_with_current_oracle(oracle_price_data?)?,
             )
         };
 
@@ -481,22 +482,24 @@ pub fn handle_initialize_perp_market(
         amm::calculate_bid_ask_bounds(concentration_coef, amm_base_asset_reserve)?;
 
     // Verify oracle is readable
-    let OraclePriceData {
-        price: oracle_price,
-        delay: oracle_delay,
-        ..
-    } = match oracle_source {
-        OracleSource::Pyth => get_pyth_price(&ctx.accounts.oracle, clock_slot).unwrap(),
-        OracleSource::Switchboard => {
-            get_switchboard_price(&ctx.accounts.oracle, clock_slot).unwrap()
+    let (oracle_price, oracle_delay, last_oracle_price_twap) = match oracle_source {
+        OracleSource::Pyth => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot)?;
+            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(&ctx.accounts.oracle)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
         }
-        OracleSource::QuoteAsset => panic!(),
-    };
-
-    let last_oracle_price_twap = match oracle_source {
-        OracleSource::Pyth => perp_market.amm.get_pyth_twap(&ctx.accounts.oracle)?,
-        OracleSource::Switchboard => oracle_price,
-        OracleSource::QuoteAsset => panic!(),
+        OracleSource::Switchboard => {
+            msg!("Switchboard oracle cant be used for perp market");
+            return Err(ErrorCode::InvalidOracle.into());
+        }
+        OracleSource::QuoteAsset => {
+            msg!("Quote asset oracle cant be used for perp market");
+            return Err(ErrorCode::InvalidOracle.into());
+        }
     };
 
     let max_spread = ((margin_ratio_initial - margin_ratio_maintenance) * (100 - 5)) as u32;
@@ -1066,6 +1069,14 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         ErrorCode::InvalidUpdateK,
         "cannot increase sqrt_k={} past MAX_SQRT_K",
         perp_market.amm.sqrt_k
+    )?;
+
+    validate!(
+        perp_market.amm.sqrt_k > perp_market.amm.user_lp_shares,
+        ErrorCode::InvalidUpdateK,
+        "cannot decrease sqrt_k={} below user_lp_shares={}",
+        perp_market.amm.sqrt_k,
+        perp_market.amm.user_lp_shares
     )?;
 
     perp_market.amm.total_fee_minus_distributions = perp_market
@@ -2043,7 +2054,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         seeds = [b"drift_state".as_ref()],
-        space = std::mem::size_of::<State>() + 8,
+        space = State::SIZE,
         bump,
         payer = admin
     )]
@@ -2061,7 +2072,7 @@ pub struct InitializeSpotMarket<'info> {
     #[account(
         init,
         seeds = [b"spot_market", state.number_of_spot_markets.to_le_bytes().as_ref()],
-        space = std::mem::size_of::<SpotMarket>() + 8,
+        space = SpotMarket::SIZE,
         bump,
         payer = admin
     )]
@@ -2141,7 +2152,7 @@ pub struct InitializeSerumFulfillmentConfig<'info> {
     #[account(
         init,
         seeds = [b"serum_fulfillment_config".as_ref(), serum_market.key.as_ref()],
-        space = std::mem::size_of::<SerumV3FulfillmentConfig>() + 8,
+        space = SerumV3FulfillmentConfig::SIZE,
         bump,
         payer = admin,
     )]
@@ -2188,7 +2199,7 @@ pub struct InitializePerpMarket<'info> {
     #[account(
         init,
         seeds = [b"perp_market", state.number_of_markets.to_le_bytes().as_ref()],
-        space = std::mem::size_of::<PerpMarket>() + 8,
+        space = PerpMarket::SIZE,
         bump,
         payer = admin
     )]

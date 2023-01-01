@@ -23,6 +23,7 @@ use crate::math::stats;
 
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
+use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
@@ -135,6 +136,14 @@ impl Default for PerpMarket {
             padding: [0; 51],
         }
     }
+}
+
+impl Size for PerpMarket {
+    const SIZE: usize = 1216;
+}
+
+impl MarketIndexOffset for PerpMarket {
+    const MARKET_INDEX_OFFSET: usize = 1160;
 }
 
 impl PerpMarket {
@@ -530,7 +539,11 @@ impl AMM {
     }
 
     pub fn can_lower_k(&self) -> DriftResult<bool> {
-        let can_lower = self.base_asset_amount_with_amm.unsigned_abs() < self.sqrt_k / 4;
+        let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(self)?;
+        let can_lower = self.base_asset_amount_with_amm.unsigned_abs()
+            < max_bids.unsigned_abs().min(max_asks.unsigned_abs())
+            && self.base_asset_amount_with_amm.unsigned_abs()
+                < self.sqrt_k.safe_sub(self.user_lp_shares)?;
         Ok(can_lower)
     }
 
@@ -538,7 +551,10 @@ impl AMM {
         match self.oracle_source {
             OracleSource::Pyth => Ok(Some(self.get_pyth_twap(price_oracle)?)),
             OracleSource::Switchboard => Ok(None),
-            OracleSource::QuoteAsset => panic!(),
+            OracleSource::QuoteAsset => {
+                msg!("Can't get oracle twap for quote asset");
+                Err(ErrorCode::DefaultError)
+            }
         }
     }
 

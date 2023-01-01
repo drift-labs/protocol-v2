@@ -41,7 +41,7 @@ pub fn check_user_exception_to_withdraw_limits(
     // allow a smaller user in QUOTE_SPOT_MARKET_INDEX to bypass and withdraw their principal
     let mut valid_user_withdraw = false;
     if let Some(user) = user {
-        let spot_position = user.get_spot_position(spot_market.market_index).unwrap();
+        let spot_position = user.get_spot_position(spot_market.market_index)?;
         let net_deposits = user
             .total_deposits
             .cast::<i128>()?
@@ -145,7 +145,15 @@ pub fn calculate_availability_borrow_liquidity(spot_market: &SpotMarket) -> Drif
         spot_market.withdraw_guard_threshold.cast()?,
     )?;
 
-    Ok(max_borrow_token.saturating_sub(borrow_token_amount))
+    let min_deposit_token = calculate_min_deposit_token(
+        spot_market.deposit_token_twap.cast()?,
+        spot_market.withdraw_guard_threshold.cast()?,
+    )?;
+
+    Ok(max_borrow_token
+        .saturating_sub(borrow_token_amount)
+        .min(deposit_token_amount.saturating_sub(min_deposit_token))
+        .min(deposit_token_amount.saturating_sub(borrow_token_amount)))
 }
 
 pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<u64> {

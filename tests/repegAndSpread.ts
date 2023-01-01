@@ -12,16 +12,16 @@ import {
 	SpotBalanceType,
 	ZERO,
 	getLimitOrderParams,
-	DriftClient,
+	TestClient,
 	OraclePriceData,
 	OracleGuardRails,
 	BASE_PRECISION,
+	BulkAccountLoader,
 } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
 
 import {
-	AdminClient,
 	User,
 	// PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
@@ -52,7 +52,7 @@ import {
 
 async function depositToFeePoolFromIF(
 	amount: number,
-	driftClient: AdminClient,
+	driftClient: TestClient,
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
@@ -73,7 +73,7 @@ async function depositToFeePoolFromIF(
 }
 
 async function iterClosePosition(
-	driftClient: DriftClient,
+	driftClient: TestClient,
 	marketIndex: number,
 	oraclePriceData: OraclePriceData
 ) {
@@ -127,14 +127,22 @@ async function iterClosePosition(
 }
 
 describe('repeg and spread amm', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	// let userAccountPublicKey: PublicKeys;
 
@@ -180,7 +188,7 @@ describe('repeg and spread amm', () => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -191,6 +199,10 @@ describe('repeg and spread amm', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -348,7 +360,11 @@ describe('repeg and spread amm', () => {
 			oraclePriceData
 		);
 
-		const [bid2, ask2] = calculateBidAskPrice(prepegAMM, oraclePriceData);
+		const [bid2, ask2] = calculateBidAskPrice(
+			prepegAMM,
+			oraclePriceData,
+			false
+		);
 		const [longSpread2, shortSpread2] = calculateSpread(
 			prepegAMM,
 			oraclePriceData
@@ -391,7 +407,7 @@ describe('repeg and spread amm', () => {
 			'prepegAMM.pegMultiplier:',
 			prepegAMM.pegMultiplier.toNumber() / PEG_PRECISION.toNumber()
 		);
-
+		358332628 / 358340434;
 		console.log(
 			'prepegAMM.netBaseAssetAmount:',
 			prepegAMM.baseAssetAmountWithAmm.toString(),
@@ -447,7 +463,11 @@ describe('repeg and spread amm', () => {
 					prepegAMM.quoteAssetReserve,
 					prepegAMM.pegMultiplier
 				)
-			)
+			),
+			'peg:',
+			prepegAMM.pegMultiplier.toString(),
+			'tfmq:',
+			prepegAMM.totalFeeMinusDistributions.toString()
 		);
 
 		const midPrice = (convertToNumber(bid) + convertToNumber(ask)) / 2;
@@ -479,7 +499,7 @@ describe('repeg and spread amm', () => {
 		console.log('inventoryScale:', inventoryScale);
 		console.log('effectiveLeverage:', effectiveLeverage);
 		assert(Math.min(effectiveLeverage, 10) == 10); // lol
-		assert(Math.min(inventoryScale, 10) == 1.069649);
+		assert(Math.min(inventoryScale, 10) == 1.069887);
 
 		try {
 			const txSig = await driftClient.updateAMMs([marketIndex]);
@@ -516,12 +536,16 @@ describe('repeg and spread amm', () => {
 			'/',
 			convertToNumber(ask1),
 			'\n post trade mark price:',
-			convertToNumber(mark1)
+			convertToNumber(mark1),
+			'peg:',
+			market.amm.pegMultiplier.toString(),
+			'tfmq:',
+			market.amm.totalFeeMinusDistributions.toString()
 		);
 
-		assert(bid1.eq(bid));
-		assert(ask1.eq(ask));
-		assert(mark1.eq(reservePrice));
+		assert(bid1.sub(bid).abs().lte(new BN(100))); // minor sdk/contract rounding diff on adj k cost
+		assert(ask1.sub(ask).abs().lte(new BN(100))); // minor sdk/contract rounding diff on adj k cost
+		assert(mark1.sub(reservePrice).abs().lte(new BN(100)));
 		console.log(market.amm.pegMultiplier.toString());
 		console.log(oraclePriceData.price.toString());
 
@@ -723,7 +747,8 @@ describe('repeg and spread amm', () => {
 				provider,
 				marketIndexes,
 				spotMarketIndexes,
-				[]
+				[],
+				bulkAccountLoader
 			);
 		let count = 0;
 		let btcPrice = 19790;

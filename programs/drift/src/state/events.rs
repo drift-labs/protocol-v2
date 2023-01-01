@@ -4,6 +4,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode::InvalidOrder};
 use crate::math::casting::Cast;
+use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
 use std::io::Write;
@@ -173,6 +175,10 @@ pub struct OrderActionRecord {
     pub maker_order_cumulative_quote_asset_amount_filled: Option<u64>,
 
     pub oracle_price: i64,
+}
+
+impl Size for OrderActionRecord {
+    const SIZE: usize = 384;
 }
 
 pub fn get_order_action_record(
@@ -481,7 +487,7 @@ impl Default for StakeAction {
     }
 }
 
-pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) {
+pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> DriftResult {
     let mut data_buf = [0u8; N];
     let mut out_buf = [0u8; N];
 
@@ -492,12 +498,12 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
     event: T,
     data_buf: &mut [u8],
     out_buf: &mut [u8],
-) {
+) -> DriftResult {
     let mut data_writer = std::io::Cursor::new(data_buf);
     data_writer
         .write_all(&<T as Discriminator>::discriminator())
-        .unwrap();
-    borsh::to_writer(&mut data_writer, &event).unwrap();
+        .safe_unwrap()?;
+    borsh::to_writer(&mut data_writer, &event).safe_unwrap()?;
     let data_len = data_writer.position() as usize;
 
     let out_len = base64::encode_config_slice(
@@ -510,4 +516,6 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
     let msg_str = unsafe { std::str::from_utf8_unchecked(msg_bytes) };
 
     msg!(msg_str);
+
+    Ok(())
 }

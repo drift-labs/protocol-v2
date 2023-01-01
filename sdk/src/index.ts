@@ -21,6 +21,7 @@ export * from './accounts/pollingUserStatsAccountSubscriber';
 export * from './accounts/types';
 export * from './addresses/pda';
 export * from './adminClient';
+export * from './testClient';
 export * from './user';
 export * from './userConfig';
 export * from './userStats';
