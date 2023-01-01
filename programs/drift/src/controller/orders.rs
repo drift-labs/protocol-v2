@@ -56,6 +56,7 @@ use crate::math::spot_balance::get_token_amount;
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 
+use crate::math::safe_unwrap::SafeUnwrap;
 use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
@@ -543,7 +544,7 @@ pub fn cancel_order(
             maker_order,
             oracle_map.get_price_data(&oracle)?.price,
         )?;
-        emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record);
+        emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
 
     if is_perp_order {
@@ -987,8 +988,9 @@ fn sanitize_maker_order<'a>(
         return Ok((None, None, None, None));
     }
 
-    let maker = maker.unwrap();
-    let maker_stats = maker_stats.unwrap();
+    let maker = maker.safe_unwrap()?;
+    let maker_stats = maker_stats.safe_unwrap()?;
+
     if &maker.key() == taker_key {
         return Ok((None, None, None, None));
     }
@@ -1128,8 +1130,8 @@ fn sanitize_referrer<'a>(
         return Ok((None, None));
     }
 
-    let referrer = load_mut!(referrer.unwrap())?;
-    let referrer_stats = load_mut!(referrer_stats.unwrap())?;
+    let referrer = load_mut!(referrer.safe_unwrap()?)?;
+    let referrer_stats = load_mut!(referrer_stats.safe_unwrap()?)?;
     validate!(
         referrer.sub_account_id == 0,
         ErrorCode::InvalidReferrer,
@@ -1211,7 +1213,7 @@ fn fulfill_perp_order(
         determine_perp_fulfillment_methods(
             &user.orders[user_order_index],
             if let Some(maker) = maker {
-                Some(&maker.orders[maker_order_index.unwrap()])
+                Some(&maker.orders[maker_order_index.safe_unwrap()?])
             } else {
                 None
             },
@@ -1265,10 +1267,10 @@ fn fulfill_perp_order(
                 user_stats,
                 user_order_index,
                 user_key,
-                maker.as_deref_mut().unwrap(),
-                maker_stats.as_deref_mut().unwrap(),
-                maker_order_index.unwrap(),
-                maker_key.unwrap(),
+                maker.as_deref_mut().safe_unwrap()?,
+                maker_stats.as_deref_mut().safe_unwrap()?,
+                maker_order_index.safe_unwrap()?,
+                maker_key.safe_unwrap()?,
                 filler,
                 filler_stats,
                 filler_key,
@@ -1591,7 +1593,7 @@ pub fn fulfill_perp_order_with_amm(
 
             filler_stats
                 .as_mut()
-                .unwrap()
+                .safe_unwrap()?
                 .update_filler_volume(quote_asset_amount, now)?;
         }
     }
@@ -1922,7 +1924,7 @@ pub fn fulfill_perp_order_with_match(
 
             filler_stats
                 .as_mut()
-                .unwrap()
+                .safe_unwrap()?
                 .update_filler_volume(quote_asset_amount, now)?;
         }
     }
@@ -2252,12 +2254,10 @@ pub fn trigger_order(
 }
 
 pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index: u16) -> bool {
-    user.is_some()
-        && user
-            .as_mut()
-            .unwrap()
-            .force_get_perp_position_mut(market_index)
-            .is_ok()
+    match user.as_mut() {
+        Some(user) => user.force_get_perp_position_mut(market_index).is_ok(),
+        None => false,
+    }
 }
 
 pub fn pay_keeper_flat_reward_for_perps(
@@ -2860,8 +2860,9 @@ fn sanitize_spot_maker_order<'a>(
         return Ok((None, None, None, None));
     }
 
-    let maker = maker.unwrap();
-    let maker_stats = maker_stats.unwrap();
+    let maker = maker.safe_unwrap()?;
+    let maker_stats = maker_stats.safe_unwrap()?;
+
     if &maker.key() == taker_key {
         return Ok((None, None, None, None));
     }
@@ -3030,10 +3031,10 @@ fn fulfill_spot_order(
                 user_stats,
                 user_order_index,
                 user_key,
-                maker.as_deref_mut().unwrap(),
-                maker_stats.as_deref_mut().unwrap(),
-                maker_order_index.unwrap(),
-                maker_key.unwrap(),
+                maker.as_deref_mut().safe_unwrap()?,
+                maker_stats.as_deref_mut().safe_unwrap()?,
+                maker_order_index.safe_unwrap()?,
+                maker_key.safe_unwrap()?,
                 filler.as_deref_mut(),
                 filler_stats.as_deref_mut(),
                 filler_key,
@@ -3523,9 +3524,9 @@ pub fn fulfill_spot_order_with_serum(
 
     let serum_order = NewOrderInstructionV3 {
         side: serum_order_side,
-        limit_price: NonZeroU64::new(serum_limit_price).unwrap(),
-        max_coin_qty: NonZeroU64::new(serum_max_coin_qty).unwrap(), // max base to deposit into serum
-        max_native_pc_qty_including_fees: NonZeroU64::new(serum_max_native_pc_qty).unwrap(), // max quote to deposit into serum
+        limit_price: NonZeroU64::new(serum_limit_price).safe_unwrap()?,
+        max_coin_qty: NonZeroU64::new(serum_max_coin_qty).safe_unwrap()?, // max base to deposit into serum
+        max_native_pc_qty_including_fees: NonZeroU64::new(serum_max_native_pc_qty).safe_unwrap()?, // max quote to deposit into serum
         self_trade_behavior: SelfTradeBehavior::AbortTransaction,
         order_type: serum_dex::matching::OrderType::ImmediateOrCancel,
         client_order_id: 0,

@@ -93,15 +93,14 @@ pub fn calculate_utilization(
     let utilization = borrow_token_amount
         .safe_mul(SPOT_UTILIZATION_PRECISION)?
         .checked_div(deposit_token_amount)
-        .or({
+        .unwrap_or({
             if deposit_token_amount == 0 && borrow_token_amount == 0 {
-                Some(0_u128)
+                0_u128
             } else {
                 // if there are borrows without deposits, default to maximum utilization rate
-                Some(SPOT_UTILIZATION_PRECISION)
+                SPOT_UTILIZATION_PRECISION
             }
-        })
-        .unwrap();
+        });
 
     Ok(utilization)
 }

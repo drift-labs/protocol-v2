@@ -441,6 +441,8 @@ pub enum ErrorCode {
     InvalidSpotPosition,
     #[msg("Cant transfer between same user account")]
     CantTransferBetweenSameUserAccount,
+    #[msg("Failed Unwrap")]
+    FailedUnwrap,
 }
 
 #[macro_export]

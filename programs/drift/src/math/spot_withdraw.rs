@@ -41,7 +41,7 @@ pub fn check_user_exception_to_withdraw_limits(
     // allow a smaller user in QUOTE_SPOT_MARKET_INDEX to bypass and withdraw their principal
     let mut valid_user_withdraw = false;
     if let Some(user) = user {
-        let spot_position = user.get_spot_position(spot_market.market_index).unwrap();
+        let spot_position = user.get_spot_position(spot_market.market_index)?;
         let net_deposits = user
             .total_deposits
             .cast::<i128>()?

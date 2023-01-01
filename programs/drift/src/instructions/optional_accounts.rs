@@ -2,6 +2,7 @@ use crate::controller::serum::SerumFulfillmentParams;
 use crate::error::{DriftResult, ErrorCode};
 use crate::load;
 
+use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::{MarketSet, PerpMarketMap};
 use crate::state::spot_market::{SerumV3FulfillmentConfig, SpotMarket};
@@ -82,11 +83,12 @@ pub fn get_referrer_and_referrer_stats<'a>(
     Option<AccountLoader<'a, UserStats>>,
 )> {
     let referrer_account_info = account_info_iter.peek();
+
     if referrer_account_info.is_none() {
         return Ok((None, None));
     }
 
-    let referrer_account_info = referrer_account_info.unwrap();
+    let referrer_account_info = referrer_account_info.safe_unwrap()?;
     let data = referrer_account_info.try_borrow_data().map_err(|e| {
         msg!("{:?}", e);
         ErrorCode::CouldNotDeserializeReferrer
@@ -102,7 +104,7 @@ pub fn get_referrer_and_referrer_stats<'a>(
         return Ok((None, None));
     }
 
-    let referrer_account_info = next_account_info(account_info_iter).unwrap();
+    let referrer_account_info = next_account_info(account_info_iter).safe_unwrap()?;
 
     validate!(
         referrer_account_info.is_writable,
@@ -117,7 +119,7 @@ pub fn get_referrer_and_referrer_stats<'a>(
         return Ok((None, None));
     }
 
-    let referrer_stats_account_info = referrer_stats_account_info.unwrap();
+    let referrer_stats_account_info = referrer_stats_account_info.safe_unwrap()?;
     let data = referrer_stats_account_info.try_borrow_data().map_err(|e| {
         msg!("{:?}", e);
         ErrorCode::CouldNotDeserializeReferrerStats
@@ -133,7 +135,7 @@ pub fn get_referrer_and_referrer_stats<'a>(
         return Ok((None, None));
     }
 
-    let referrer_stats_account_info = next_account_info(account_info_iter).unwrap();
+    let referrer_stats_account_info = next_account_info(account_info_iter).safe_unwrap()?;
 
     validate!(
         referrer_stats_account_info.is_writable,
@@ -293,7 +295,7 @@ pub fn get_whitelist_token<'a>(
         return Err(ErrorCode::InvalidWhitelistToken);
     }
 
-    let token_account_info = token_account_info.unwrap();
+    let token_account_info = token_account_info.safe_unwrap()?;
     let whitelist_token: Account<TokenAccount> =
         Account::try_from(token_account_info).map_err(|e| {
             msg!("Unable to deserialize whitelist token");

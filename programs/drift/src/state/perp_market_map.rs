@@ -13,6 +13,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPositions;
 
+use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
 use solana_program::msg;
 use std::panic::Location;
@@ -116,7 +117,7 @@ impl<'a> PerpMarketMap<'a> {
                 return Err(ErrorCode::InvalidMarketAccount);
             }
 
-            let account_info = account_info_iter.next().unwrap();
+            let account_info = account_info_iter.next().safe_unwrap()?;
 
             let is_writable = account_info.is_writable;
             if writable_markets.contains(&market_index) && !is_writable {
