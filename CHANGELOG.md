@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+ts-sdk: batch getMultipleAccount calls in bulkAccountLoader ([#315](https://github.com/drift-labs/protocol-v2/pull/315))
 program: add clippy deny for panic, expect and unwrap
 program: add market index offset trait ([#287](https://github.com/drift-labs/protocol-v2/pull/287))
 program: add size trait to accounts and events ([#286](https://github.com/drift-labs/protocol-v2/pull/286))

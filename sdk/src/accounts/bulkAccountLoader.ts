@@ -117,8 +117,11 @@ export class BulkAccountLoader {
 
 		try {
 			const chunks = this.chunks(
-				Array.from(this.accountsToLoad.values()),
-				GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
+				this.chunks(
+					Array.from(this.accountsToLoad.values()),
+					GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
+				),
+				10
 			);
 
 			await Promise.all(
@@ -138,67 +141,79 @@ export class BulkAccountLoader {
 		}
 	}
 
-	async loadChunk(accountsToLoad: AccountToLoad[]): Promise<void> {
-		if (accountsToLoad.length === 0) {
+	async loadChunk(accountsToLoadChunks: AccountToLoad[][]): Promise<void> {
+		if (accountsToLoadChunks.length === 0) {
 			return;
 		}
 
-		const args = [
-			accountsToLoad.map((accountToLoad) => {
-				return accountToLoad.publicKey.toBase58();
-			}),
-			{ commitment: this.commitment },
-		];
+		const requests = new Array<{ methodName: string; args: any }>();
+		for (const accountsToLoadChunk of accountsToLoadChunks) {
+			const args = [
+				accountsToLoadChunk.map((accountToLoad) => {
+					return accountToLoad.publicKey.toBase58();
+				}),
+				{ commitment: this.commitment },
+			];
 
-		const rpcResponse: any | null = await promiseTimeout(
+			requests.push({
+				methodName: 'getMultipleAccounts',
+				args,
+			});
+		}
+
+		const rpcResponses: any | null = await promiseTimeout(
 			// @ts-ignore
-			this.connection._rpcRequest('getMultipleAccounts', args),
+			this.connection._rpcBatchRequest(requests),
 			10 * 1000 // 30 second timeout
 		);
 
-		if (rpcResponse === null) {
+		if (rpcResponses === null) {
 			this.log('request to rpc timed out');
 			return;
 		}
 
-		const newSlot = rpcResponse.result.context.slot;
+		for (const i in rpcResponses) {
+			const rpcResponse = rpcResponses[i];
+			const newSlot = rpcResponse.result.context.slot;
 
-		if (newSlot > this.mostRecentSlot) {
-			this.mostRecentSlot = newSlot;
-		}
-
-		for (const i in accountsToLoad) {
-			const accountToLoad = accountsToLoad[i];
-			const key = accountToLoad.publicKey.toString();
-			const oldRPCResponse = this.bufferAndSlotMap.get(key);
-
-			let newBuffer: Buffer | undefined = undefined;
-			if (rpcResponse.result.value[i]) {
-				const raw: string = rpcResponse.result.value[i].data[0];
-				const dataType = rpcResponse.result.value[i].data[1];
-				newBuffer = Buffer.from(raw, dataType);
+			if (newSlot > this.mostRecentSlot) {
+				this.mostRecentSlot = newSlot;
 			}
 
-			if (!oldRPCResponse) {
-				this.bufferAndSlotMap.set(key, {
-					slot: newSlot,
-					buffer: newBuffer,
-				});
-				this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
-				continue;
-			}
+			const accountsToLoad = accountsToLoadChunks[i];
+			for (const j in accountsToLoad) {
+				const accountToLoad = accountsToLoad[j];
+				const key = accountToLoad.publicKey.toString();
+				const oldRPCResponse = this.bufferAndSlotMap.get(key);
 
-			if (newSlot <= oldRPCResponse.slot) {
-				continue;
-			}
+				let newBuffer: Buffer | undefined = undefined;
+				if (rpcResponse.result.value[j]) {
+					const raw: string = rpcResponse.result.value[j].data[0];
+					const dataType = rpcResponse.result.value[j].data[1];
+					newBuffer = Buffer.from(raw, dataType);
+				}
 
-			const oldBuffer = oldRPCResponse.buffer;
-			if (newBuffer && (!oldBuffer || !newBuffer.equals(oldBuffer))) {
-				this.bufferAndSlotMap.set(key, {
-					slot: newSlot,
-					buffer: newBuffer,
-				});
-				this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
+				if (!oldRPCResponse) {
+					this.bufferAndSlotMap.set(key, {
+						slot: newSlot,
+						buffer: newBuffer,
+					});
+					this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
+					continue;
+				}
+
+				if (newSlot <= oldRPCResponse.slot) {
+					continue;
+				}
+
+				const oldBuffer = oldRPCResponse.buffer;
+				if (newBuffer && (!oldBuffer || !newBuffer.equals(oldBuffer))) {
+					this.bufferAndSlotMap.set(key, {
+						slot: newSlot,
+						buffer: newBuffer,
+					});
+					this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
+				}
 			}
 		}
 	}
