@@ -148,10 +148,6 @@ export class BulkAccountLoader {
 
 		const requests = new Array<{ methodName: string; args: any }>();
 		for (const accountsToLoadChunk of accountsToLoadChunks) {
-			if (accountsToLoadChunk.length === 0) {
-				continue;
-			}
-
 			const args = [
 				accountsToLoadChunk.map((accountToLoad) => {
 					return accountToLoad.publicKey.toBase58();
