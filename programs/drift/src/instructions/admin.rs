@@ -45,6 +45,7 @@ use crate::state::spot_market::{
     SpotFulfillmentConfigStatus, SpotMarket,
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
+use crate::state::traits::Size;
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
@@ -2000,7 +2001,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         seeds = [b"drift_state".as_ref()],
-        space = std::mem::size_of::<State>() + 8,
+        space = State::SIZE,
         bump,
         payer = admin
     )]
@@ -2018,7 +2019,7 @@ pub struct InitializeSpotMarket<'info> {
     #[account(
         init,
         seeds = [b"spot_market", state.number_of_spot_markets.to_le_bytes().as_ref()],
-        space = std::mem::size_of::<SpotMarket>() + 8,
+        space = SpotMarket::SIZE,
         bump,
         payer = admin
     )]
@@ -2098,7 +2099,7 @@ pub struct InitializeSerumFulfillmentConfig<'info> {
     #[account(
         init,
         seeds = [b"serum_fulfillment_config".as_ref(), serum_market.key.as_ref()],
-        space = std::mem::size_of::<SerumV3FulfillmentConfig>() + 8,
+        space = SerumV3FulfillmentConfig::SIZE,
         bump,
         payer = admin,
     )]
@@ -2145,7 +2146,7 @@ pub struct InitializePerpMarket<'info> {
     #[account(
         init,
         seeds = [b"perp_market", state.number_of_markets.to_le_bytes().as_ref()],
-        space = std::mem::size_of::<PerpMarket>() + 8,
+        space = PerpMarket::SIZE,
         bump,
         payer = admin
     )]

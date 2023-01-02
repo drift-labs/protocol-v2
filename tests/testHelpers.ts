@@ -18,14 +18,20 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import { BN, Wallet, OraclePriceData, OracleInfo } from '../sdk';
 import {
-	AdminClient,
+	BN,
+	Wallet,
+	OraclePriceData,
+	OracleInfo,
+	BulkAccountLoader,
+} from '../sdk';
+import {
+	TestClient,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
-	DriftClient,
+	TestClient,
 	User,
 	OracleSource,
 } from '../sdk/src';
@@ -210,9 +216,10 @@ export async function initializeAndSubscribeDriftClient(
 	userKeyPair: Keypair,
 	marketIndexes: number[],
 	bankIndexes: number[],
-	oracleInfos: OracleInfo[] = []
-): Promise<DriftClient> {
-	const driftClient = new DriftClient({
+	oracleInfos: OracleInfo[] = [],
+	accountLoader?: BulkAccountLoader
+): Promise<TestClient> {
+	const driftClient = new TestClient({
 		connection,
 		wallet: new Wallet(userKeyPair),
 		programID: program.programId,
@@ -223,6 +230,14 @@ export async function initializeAndSubscribeDriftClient(
 		perpMarketIndexes: marketIndexes,
 		spotMarketIndexes: bankIndexes,
 		oracleInfos,
+		accountSubscription: accountLoader
+			? {
+					type: 'polling',
+					accountLoader,
+			  }
+			: {
+					type: 'websocket',
+			  },
 	});
 	await driftClient.subscribe();
 	await driftClient.initializeUserAccount();
@@ -236,8 +251,9 @@ export async function createUserWithUSDCAccount(
 	usdcAmount: BN,
 	marketIndexes: number[],
 	bankIndexes: number[],
-	oracleInfos: OracleInfo[] = []
-): Promise<[DriftClient, PublicKey, Keypair]> {
+	oracleInfos: OracleInfo[] = [],
+	accountLoader?: BulkAccountLoader
+): Promise<[TestClient, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
 	const usdcAccount = await createUSDCAccountForUser(
 		provider,
@@ -251,7 +267,8 @@ export async function createUserWithUSDCAccount(
 		userKeyPair,
 		marketIndexes,
 		bankIndexes,
-		oracleInfos
+		oracleInfos,
+		accountLoader
 	);
 
 	return [driftClient, usdcAccount, userKeyPair];
@@ -285,8 +302,9 @@ export async function createUserWithUSDCAndWSOLAccount(
 	usdcAmount: BN,
 	marketIndexes: number[],
 	bankIndexes: number[],
-	oracleInfos: OracleInfo[] = []
-): Promise<[DriftClient, PublicKey, PublicKey, Keypair]> {
+	oracleInfos: OracleInfo[] = [],
+	accountLoader?: BulkAccountLoader
+): Promise<[TestClient, PublicKey, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
 	const solAccount = await createWSolTokenAccountForUser(
 		provider,
@@ -305,7 +323,8 @@ export async function createUserWithUSDCAndWSOLAccount(
 		userKeyPair,
 		marketIndexes,
 		bankIndexes,
-		oracleInfos
+		oracleInfos,
+		accountLoader
 	);
 
 	return [driftClient, solAccount, usdcAccount, userKeyPair];
@@ -360,7 +379,8 @@ export async function initUserAccounts(
 	provider: Provider,
 	marketIndexes: number[],
 	bankIndexes: number[],
-	oracleInfos: OracleInfo[]
+	oracleInfos: OracleInfo[],
+	accountLoader?: BulkAccountLoader
 ) {
 	const user_keys = [];
 	const userUSDCAccounts = [];
@@ -385,7 +405,7 @@ export async function initUserAccounts(
 
 		const chProgram = anchor.workspace.Drift as anchor.Program; // this.program-ify
 
-		const driftClient1 = new DriftClient({
+		const driftClient1 = new TestClient({
 			connection: provider.connection,
 			//@ts-ignore
 			wallet: ownerWallet,
@@ -397,6 +417,14 @@ export async function initUserAccounts(
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
+			accountSubscription: accountLoader
+				? {
+						type: 'polling',
+						accountLoader,
+				  }
+				: {
+						type: 'websocket',
+				  },
 		});
 
 		// await driftClient1.initialize(usdcMint.publicKey, false);
@@ -768,7 +796,7 @@ export async function getTokenAmountAsBN(
 }
 
 export async function initializeQuoteSpotMarket(
-	admin: AdminClient,
+	admin: TestClient,
 	usdcMint: PublicKey
 ): Promise<void> {
 	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
@@ -803,7 +831,7 @@ export async function initializeQuoteSpotMarket(
 }
 
 export async function initializeSolSpotMarket(
-	admin: AdminClient,
+	admin: TestClient,
 	solOracle: PublicKey,
 	solMint = NATIVE_MINT
 ): Promise<string> {

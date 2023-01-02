@@ -347,6 +347,7 @@ pub fn adjust_amm(
         } else {
             0
         };
+
         budget_delta_peg = budget_i128
             .safe_add(adjustment_cost.abs())?
             .safe_mul(PEG_PRECISION_I128)?

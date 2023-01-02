@@ -9,13 +9,14 @@ import {
 	calculatePrice,
 	PEG_PRECISION,
 	BASE_PRECISION,
+	BulkAccountLoader,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 import {
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	calculateReservePrice,
 	calculateTradeSlippage,
@@ -44,14 +45,22 @@ import {
 } from './testHelpers';
 
 describe('prepeg', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		commitment: 'confirmed',
+		skipPreflight: false,
+		preflightCommitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let userAccountPublicKey: PublicKey;
 
@@ -93,7 +102,7 @@ describe('prepeg', () => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -104,6 +113,10 @@ describe('prepeg', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -249,7 +262,11 @@ describe('prepeg', () => {
 
 		const position0 = driftClient.getUserAccount().perpPositions[0];
 
-		console.log(position0.quoteAssetAmount.toString());
+		console.log(
+			position0.quoteAssetAmount.toString(),
+			'vs',
+			acquiredQuoteAssetAmount.toString()
+		);
 		console.log('quoteEntryAmount:', position0.quoteEntryAmount.toString());
 		assert.ok(position0.quoteEntryAmount.eq(new BN(-49999074)));
 		assert.ok(acquiredQuoteAssetAmount.eq(position0.quoteEntryAmount.abs()));
@@ -311,10 +328,11 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
+		console.log('oraclePriceData', oraclePriceData.price.toNumber());
 		assert(market0.amm.pegMultiplier.eq(new BN(1000000)));
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		console.log(prepegAMM.pegMultiplier.toString());
-		assert(prepegAMM.pegMultiplier.eq(new BN(1005509)));
+		assert(prepegAMM.pegMultiplier.eq(new BN(1003483)));
 		const estDist = prepegAMM.totalFee.sub(
 			prepegAMM.totalFeeMinusDistributions
 		);
@@ -377,16 +395,20 @@ describe('prepeg', () => {
 
 		console.log(inventoryScale, effectiveLeverage);
 
-		const [longSpread, shortSpread] = calculateSpread(newAmm, oraclePriceData);
+		const [longSpread, shortSpread] = calculateSpread(
+			newAmm,
+			oraclePriceData,
+			newAmm.historicalOracleData.lastOraclePriceTwapTs.add(new BN(1))
+		);
 
 		console.log(newAmm.baseSpread, longSpread, shortSpread, newAmm.maxSpread);
 		console.log(inventoryScale);
 		console.log(effectiveLeverage);
 		assert(newAmm.maxSpread == (100000 / 2) * 0.95);
-		assert(inventoryScale == 0.003409);
-		assert(effectiveLeverage == 0.19905711326640804);
+		assert(inventoryScale == 1.169614);
+		assert(effectiveLeverage == 0.039255030334827815);
 		assert(shortSpread == 500);
-		assert(longSpread.toString() == '26785.610433069665');
+		assert(longSpread.toString() == '39589');
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
@@ -418,6 +440,8 @@ describe('prepeg', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
+
+		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
@@ -432,12 +456,22 @@ describe('prepeg', () => {
 		assert(ask1.gt(oraclePriceData.price));
 		assert(bid1.lt(oraclePriceData.price));
 
-		console.log(market.amm.pegMultiplier.toString());
-		assert(market.amm.pegMultiplier.eq(new BN(1005509)));
+		console.log('prepegAMM.pegMultiplier:', prepegAMM.pegMultiplier.toString());
+		console.log(
+			'market.amm.pegMultiplier:',
+			market.amm.pegMultiplier.toString()
+		);
+		assert(market.amm.pegMultiplier.eq(new BN(1003483)));
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);
-		console.log('actual distribution:', actualDist.toString());
+
+		console.log(
+			'actual vs est distribution:',
+			actualDist.toString(),
+			'==',
+			estDist.toString()
+		);
 
 		console.log(prepegAMM.sqrtK.toString(), '==', market.amm.sqrtK.toString());
 		const marketInvariant = market.amm.sqrtK.mul(market.amm.sqrtK);
@@ -462,7 +496,7 @@ describe('prepeg', () => {
 		console.log(market.amm.longSpread);
 		console.log(market.amm.shortSpread);
 
-		assert(market.amm.longSpread === 26784);
+		assert(market.amm.longSpread === 39574);
 		assert(market.amm.shortSpread === 500);
 
 		const orderActionRecord =
@@ -521,7 +555,7 @@ describe('prepeg', () => {
 		// 		.abs()
 		// 		.eq(acquiredQuoteAssetAmount.add(new BN(49999074)).add(new BN(-1001)))
 		// );
-		assert(acquiredQuoteAssetAmount.eq(new BN(1027809)));
+
 		console.log(
 			'position0.quoteAssetAmount:',
 			position0.quoteAssetAmount.toNumber()
@@ -530,10 +564,15 @@ describe('prepeg', () => {
 			'position0.quoteEntryAmount:',
 			position0.quoteBreakEvenAmount.toNumber()
 		);
-
-		assert.ok(position0qea.eq(new BN(-51026883)));
-		assert.ok(position0.quoteBreakEvenAmount.eq(new BN(-51077911)));
-		assert.ok(position0.quoteAssetAmount.eq(new BN(-51077911)));
+		console.log(
+			'acquiredQuoteAssetAmount:',
+			acquiredQuoteAssetAmount.toNumber()
+		);
+		assert(acquiredQuoteAssetAmount.eq(new BN(1038910)));
+		// console.log(position0qea.toString());
+		assert.ok(position0qea.eq(new BN(-51037984)));
+		assert.ok(position0.quoteBreakEvenAmount.eq(new BN(-51089023)));
+		assert.ok(position0.quoteAssetAmount.eq(new BN(-51089023)));
 	});
 
 	it('Reduce long position', async () => {

@@ -14,7 +14,7 @@ defaults:
 env:
   CARGO_TERM_COLOR: always 
   RUST_TOOLCHAIN: stable
-  SOLANA_VERSION: "1.14.7"
+  SOLANA_VERSION: "1.13.2"
 
 jobs:
   fmt-clippy:
@@ -92,62 +92,52 @@ jobs:
         run: yarn
       - name: Run lint
         run: yarn lint
-  # anchor-tests:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
+  anchor-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
 
-  #     - name: Install Rust toolchain
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: ${{ env.RUST_TOOLCHAIN }}
-  #         profile: minimal
-  #         override: true
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          profile: minimal
+          override: true
+      - name: Cache build artefacts
+        uses: Swatinem/rust-cache@v1
+        with:
+          cache-on-failure: "true"
 
-  #     - name: Download Solana
-  #       run: |
-  #         echo Downloading Solana v${{ env.SOLANA_VERSION }}... 🧬
-  #         sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
-  #         echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-  #         export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-  #         echo Configuring bpf toolchain...
-  #         (cd $HOME/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
-  #         echo "[41,242,37,42,13,160,221,13,242,224,230,17,141,228,35,40,57,231,71,8,239,32,226,165,181,216,231,245,170,229,117,123,39,103,128,179,245,168,230,228,127,219,58,249,69,6,251,148,173,190,191,217,50,67,123,105,121,215,242,41,242,85,71,109]" > $HOME/.config/solana/id.json
-  #       shell: bash
+      - uses: ./.github/actions/setup-solana/
 
-  #     - name: install anchor cli 
-  #       run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.25.0 anchor-cli --locked
+      - name: install anchor cli
+        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.25.0 anchor-cli --locked
 
-  #     - name: build deps
-  #       run: |
-  #         git submodule update --init --recursive
-  #         cd deps/serum-dex/dex && anchor build --skip-lint && cd ../../..
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14.x'
+          registry-url: 'https://registry.npmjs.org'
 
-  #     - name: Setup node
-  #       uses: actions/setup-node@v2
-  #       with:
-  #         node-version: '14.x'
-  #         registry-url: 'https://registry.npmjs.org'
+      - name: Setup yarn
+        run: npm install -g yarn
 
-  #     - name: Setup yarn
-  #       run: npm install -g yarn
+      - name: Install yarn
+        run: yarn
 
-  #     - name: Install yarn
-  #       run: yarn
+      - name: install typescript
+        run: npm install typescript -g
 
-  #     - name: install typescript
-  #       run: npm install typescript -g
+      - name: install mocha
+        run: |
+          npm install ts-mocha -g
+          npm install --global mocha
 
-  #     - name: install mocha
-  #       run: |
-  #         npm install ts-mocha -g
-  #         npm install --global mocha
+      - name: build sdk
+        run: cd sdk/ && yarn && yarn build && cd ..
 
-  #     - name: build sdk 
-  #       run: cd sdk/ && yarn && yarn build && cd .. 
-
-  #     - name: run anchor tests
-  #       run: bash test-scripts/run-anchor-tests.sh
+      - name: run anchor tests
+        run: bash test-scripts/run-anchor-tests.sh
 #  check-for-sdk-changes:
 #    runs-on: ubuntu-latest
 #    # Set job outputs to values from filter step

@@ -7,9 +7,8 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 const serumHelper = require('./serumHelper');
 
 import {
-	AdminClient,
 	BN,
-	DriftClient,
+	TestClient,
 	EventSubscriber,
 	OracleSource,
 	OracleInfo,
@@ -34,7 +33,7 @@ import {
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { Market } from '@project-serum/serum';
-import { getMarketOrderParams, ZERO } from '../sdk';
+import { BulkAccountLoader, getMarketOrderParams, ZERO } from '../sdk';
 
 describe('serum spot market', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -46,11 +45,15 @@ describe('serum spot market', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let makerDriftClient: AdminClient;
+	let makerDriftClient: TestClient;
 	let makerWSOL: PublicKey;
 
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let solOracle: PublicKey;
 
@@ -59,7 +62,7 @@ describe('serum spot market', () => {
 	let usdcMint;
 	let makerUSDC;
 
-	let takerDriftClient: DriftClient;
+	let takerDriftClient: TestClient;
 	let _takerWSOL: PublicKey;
 	let takerUSDC: PublicKey;
 
@@ -88,7 +91,7 @@ describe('serum spot market', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
-		makerDriftClient = new AdminClient({
+		makerDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -99,6 +102,10 @@ describe('serum spot market', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await makerDriftClient.initialize(usdcMint.publicKey, true);
@@ -128,7 +135,8 @@ describe('serum spot market', () => {
 						publicKey: solOracle,
 						source: OracleSource.PYTH,
 					},
-				]
+				],
+				bulkAccountLoader
 			);
 
 		await takerDriftClient.deposit(usdcAmount, 0, takerUSDC);
@@ -151,6 +159,13 @@ describe('serum spot market', () => {
 			dexProgramId: serumHelper.DEX_PID,
 			feeRateBps: 0,
 		});
+
+		await Market.load(
+			provider.connection,
+			serumMarketPublicKey,
+			{ commitment: 'confirmed' },
+			serumHelper.DEX_PID
+		);
 
 		await makerDriftClient.initializeSerumFulfillmentConfig(
 			solSpotMarketIndex,
@@ -259,6 +274,8 @@ describe('serum spot market', () => {
 			serumFulfillmentConfigAccount
 		);
 
+		await eventSubscriber.awaitTx(txSig);
+
 		await printTxLogs(connection, txSig);
 
 		await takerDriftClient.fetchAccounts();
@@ -365,6 +382,8 @@ describe('serum spot market', () => {
 			takerDriftClient.getOrderByUserId(1),
 			serumFulfillmentConfigAccount
 		);
+
+		await eventSubscriber.awaitTx(txSig);
 
 		await printTxLogs(connection, txSig);
 
@@ -477,6 +496,8 @@ describe('serum spot market', () => {
 
 		await printTxLogs(connection, txSig);
 
+		await eventSubscriber.awaitTx(txSig);
+
 		await takerDriftClient.fetchAccounts();
 
 		const takerQuoteSpotBalance = takerDriftClient.getSpotPosition(0);
@@ -568,6 +589,8 @@ describe('serum spot market', () => {
 		);
 
 		await printTxLogs(connection, txSig);
+
+		await eventSubscriber.awaitTx(txSig);
 
 		await takerDriftClient.fetchAccounts();
 

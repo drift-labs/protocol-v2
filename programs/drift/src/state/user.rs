@@ -16,6 +16,7 @@ use crate::math_error;
 use crate::safe_increment;
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::traits::Size;
 use crate::validate;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -37,6 +38,11 @@ impl Default for UserStatus {
     fn default() -> Self {
         UserStatus::Active
     }
+}
+
+// implement SIZE const for User
+impl Size for User {
+    const SIZE: usize = 4376;
 }
 
 #[account(zero_copy)]
@@ -857,6 +863,10 @@ impl Default for UserStats {
             padding: [0; 51],
         }
     }
+}
+
+impl Size for UserStats {
+    const SIZE: usize = 240;
 }
 
 impl UserStats {

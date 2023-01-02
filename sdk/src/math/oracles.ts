@@ -94,8 +94,9 @@ export function calculateLiveOracleTwap(
 	oraclePriceData: OraclePriceData,
 	now: BN
 ): BN {
-	const sinceLastUpdate = now.sub(
-		amm.historicalOracleData.lastOraclePriceTwapTs
+	const sinceLastUpdate = BN.max(
+		ONE,
+		now.sub(amm.historicalOracleData.lastOraclePriceTwapTs)
 	);
 	const sinceStart = BN.max(ZERO, amm.fundingPeriod.sub(sinceLastUpdate));
 
@@ -124,8 +125,9 @@ export function calculateLiveOracleStd(
 	oraclePriceData: OraclePriceData,
 	now: BN
 ): BN {
-	const sinceLastUpdate = now.sub(
-		amm.historicalOracleData.lastOraclePriceTwapTs
+	const sinceLastUpdate = BN.max(
+		ONE,
+		now.sub(amm.historicalOracleData.lastOraclePriceTwapTs)
 	);
 	const sinceStart = BN.max(ZERO, amm.fundingPeriod.sub(sinceLastUpdate));
 

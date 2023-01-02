@@ -3,7 +3,7 @@ import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import { BN } from '../sdk';
 import {
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	calculateReservePrice,
 	calculateTradeSlippage,
@@ -162,12 +162,16 @@ describe('AMM Curve', () => {
 	// 	return kSqrtI;
 	// }
 
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	const driftClient = new AdminClient({
+	const driftClient = new TestClient({
 		connection,
 		wallet: provider.wallet,
 		programID: chProgram.programId,

@@ -3,7 +3,7 @@ import { Program } from '@project-serum/anchor';
 import { assert } from 'chai';
 
 import {
-	AdminClient,
+	TestClient,
 	ExchangeStatus,
 	OracleGuardRails,
 	OracleSource,
@@ -19,6 +19,7 @@ import {
 	initializeQuoteSpotMarket,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
+import { BulkAccountLoader } from '../sdk';
 
 describe('admin', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -29,14 +30,16 @@ describe('admin', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+
+	let driftClient: TestClient;
 
 	let usdcMint;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -46,6 +49,10 @@ describe('admin', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);

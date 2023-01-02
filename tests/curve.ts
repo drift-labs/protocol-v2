@@ -2,7 +2,7 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import {
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	PEG_PRECISION,
 	QUOTE_PRECISION,
@@ -27,14 +27,21 @@ import {
 	mockUserUSDCAccount,
 	setFeedPrice,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('AMM Curve', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	const driftClient = new AdminClient({
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+
+	const driftClient = new TestClient({
 		connection,
 		wallet: provider.wallet,
 		programID: chProgram.programId,
@@ -44,6 +51,10 @@ describe('AMM Curve', () => {
 		activeSubAccountId: 0,
 		perpMarketIndexes: [0],
 		spotMarketIndexes: [0],
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+		},
 	});
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(10 ** 8).mul(BASE_PRECISION);
@@ -100,7 +111,7 @@ describe('AMM Curve', () => {
 		await userAccount.unsubscribe();
 	});
 
-	const showCurve = (marketIndex) => {
+	const showCurve = async (marketIndex) => {
 		const marketData = driftClient.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 
@@ -129,7 +140,7 @@ describe('AMM Curve', () => {
 		return totalFeeNum - cumFeeNum;
 	};
 
-	const showBook = (marketIndex) => {
+	const showBook = async (marketIndex) => {
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const currentMark = calculateReservePrice(market, undefined);
 
@@ -170,7 +181,7 @@ describe('AMM Curve', () => {
 			userUSDCAccount.publicKey
 		);
 
-		showBook(marketIndex);
+		await showBook(marketIndex);
 	});
 
 	it('After Position Taken', async () => {
@@ -180,7 +191,7 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 
-		showBook(marketIndex);
+		await showBook(marketIndex);
 	});
 
 	it('After Position Price Moves', async () => {
@@ -190,7 +201,7 @@ describe('AMM Curve', () => {
 			new BN(initialSOLPrice * PRICE_PRECISION.toNumber() * 1.0001)
 		);
 
-		showBook(marketIndex);
+		await showBook(marketIndex);
 	});
 	it('Arb back to Oracle Price Moves', async () => {
 		const [direction, basesize] = calculateTargetPriceTrade(
@@ -203,7 +214,7 @@ describe('AMM Curve', () => {
 		console.log('arbing', direction, basesize.toString());
 		await driftClient.openPosition(direction, basesize, marketIndex);
 
-		showBook(marketIndex);
+		await showBook(marketIndex);
 	});
 
 	it('Repeg Curve LONG', async () => {
@@ -245,7 +256,7 @@ describe('AMM Curve', () => {
 		assert(newOraclePriceWithMantissa.gt(priceAfter));
 
 		console.log('\n post repeg: \n --------');
-		showCurve(marketIndex);
+		await showCurve(marketIndex);
 		// showBook(marketIndex);
 
 		marketData = driftClient.getPerpMarketAccount(marketIndex);
@@ -268,7 +279,7 @@ describe('AMM Curve', () => {
 
 		// console.log('cur user position:', convertBaseAssetAmountToNumber(userPerpPosition.baseAssetAmount));
 
-		const totalCostToAMMChain = showCurve(marketIndex);
+		const totalCostToAMMChain = await showCurve(marketIndex);
 
 		assert(linearApproxCostToAMM > totalCostToAMMChain);
 		assert(linearApproxCostToAMM / totalCostToAMMChain < 1.1);
@@ -398,7 +409,7 @@ describe('AMM Curve', () => {
 			'->',
 			candidatePegDown.toString()
 		);
-		assert(candidatePegDown.eq(new BN(148987812)));
+		assert(candidatePegDown.eq(new BN(148987813)));
 
 		await driftClient.closePosition(marketIndex);
 
@@ -422,7 +433,7 @@ describe('AMM Curve', () => {
 			'->',
 			candidatePegUp2.toString()
 		);
-		assert(candidatePegUp2.eq(new BN(151014188)));
+		assert(candidatePegUp2.eq(new BN(151014187)));
 
 		const candidatePegDown2 = calculateBudgetedPeg(
 			amm,

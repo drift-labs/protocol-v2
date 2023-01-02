@@ -4,7 +4,7 @@ import { assert } from 'chai';
 import { Program } from '@project-serum/anchor';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -29,6 +29,7 @@ import {
 	setFeedPrice,
 } from './testHelpers';
 import {
+	BulkAccountLoader,
 	calculateReservePrice,
 	getLimitOrderParams,
 	getSwapDirection,
@@ -45,10 +46,14 @@ describe('amm spread: market order', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 	let driftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -73,11 +78,11 @@ describe('amm spread: market order', () => {
 
 		solUsd = await mockOracle(1);
 
-		const marketIndexes = [0];
+		const marketIndexes = [0, 1];
 		const spotMarketIndexes = [0];
 		const oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -88,6 +93,10 @@ describe('amm spread: market order', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -605,7 +614,7 @@ describe('amm spread: market order', () => {
 
 		assert(firstPosition.baseAssetAmount.abs().eq(baseAssetAmount));
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
-		assert(firstPosition.quoteBreakEvenAmount.eq(new BN(1000750)));
+		assert(firstPosition.quoteBreakEvenAmount.eq(new BN(998750)));
 
 		await driftClient.closePosition(marketIndex);
 

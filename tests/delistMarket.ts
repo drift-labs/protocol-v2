@@ -11,8 +11,7 @@ import {
 	BN,
 	OracleSource,
 	ZERO,
-	AdminClient,
-	DriftClient,
+	TestClient,
 	convertToNumber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -35,12 +34,12 @@ import {
 	getOraclePriceData,
 	sleep,
 } from './testHelpers';
-import { isVariant } from '../sdk';
+import { BulkAccountLoader, isVariant } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
 	amount: number,
-	driftClient: AdminClient,
+	driftClient: TestClient,
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
@@ -86,17 +85,21 @@ describe('delist market', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
 	let userUSDCAccount2;
 
-	let driftClientLoser: DriftClient;
+	let driftClientLoser: TestClient;
 
-	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClient: TestClient;
 	let liquidatorDriftClientWSOLAccount: PublicKey;
 
 	let solOracle: PublicKey;
@@ -123,7 +126,7 @@ describe('delist market', () => {
 
 		solOracle = await mockOracle(43.1337);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -139,6 +142,10 @@ describe('delist market', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -179,7 +186,7 @@ describe('delist market', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		driftClientLoser = new AdminClient({
+		driftClientLoser = new TestClient({
 			connection,
 			wallet: new Wallet(userKeypair),
 			programID: chProgram.programId,
@@ -195,6 +202,10 @@ describe('delist market', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClientLoser.subscribe();
 		await driftClientLoser.initializeUserAccountAndDepositCollateral(
@@ -262,7 +273,8 @@ describe('delist market', () => {
 						publicKey: solOracle,
 						source: OracleSource.PYTH,
 					},
-				]
+				],
+				bulkAccountLoader
 			);
 		await liquidatorDriftClient.subscribe();
 
@@ -485,7 +497,7 @@ describe('delist market', () => {
 		// }
 		await printTxLogs(connection, txSig);
 
-		driftClient.fetchAccounts();
+		await driftClient.fetchAccounts();
 
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log(market.status);

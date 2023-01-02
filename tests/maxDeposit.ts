@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
 
-import { AdminClient, QUOTE_PRECISION, BN, OracleSource } from '../sdk/src';
+import { TestClient, QUOTE_PRECISION, BN, OracleSource } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -11,14 +11,19 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
+import { BulkAccountLoader } from '../sdk';
 
 describe('max deposit', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -29,9 +34,11 @@ describe('max deposit', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+
 		const solUsd = await mockOracle(1);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -43,6 +50,10 @@ describe('max deposit', () => {
 			spotMarketIndexes: [0],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
