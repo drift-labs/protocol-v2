@@ -1,42 +1,42 @@
 {
-  "directories": {
-    "test": "tests"
-  },
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "@project-serum/anchor": "0.25.0-beta.1",
-    "@project-serum/common": "0.0.1-beta.3",
-    "@project-serum/serum": "^0.13.38",
-    "@pythnetwork/client": "^2.5.1",
-    "@solana/spl-token": "^0.1.6",
-    "@solana/web3.js": "1.41.0",
-    "@types/mocha": "^8.2.2",
-    "@typescript-eslint/eslint-plugin": "^4.28.0",
-    "@typescript-eslint/parser": "^4.28.0",
-    "chai": "^4.3.4",
-    "eslint": "^7.29.0",
-    "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-prettier": "^3.4.0",
-    "husky": "^7.0.4",
-    "prettier": "^2.4.1",
-    "typedoc": "^0.22.7",
-    "typescript": "4.5.4"
-  },
-  "dependencies": {
-    "chai-bn": "^0.2.2",
-    "csvtojson": "^2.0.10",
-    "json2csv": "^5.0.7"
-  },
-  "scripts": {
-    "generate-docs": "typedoc",
-    "prepare": "husky install",
-    "prettify": "prettier --check './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'",
-    "prettify:fix": "prettier --write './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'",
-    "lint": "eslint . --ext ts --quiet",
-    "lint:fix": "eslint . --ext ts --fix"
-  },
-  "engines": {
-    "node": ">=12"
-  }
+	"directories": {
+		"test": "tests"
+	},
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"@project-serum/anchor": "0.25.0-beta.1",
+		"@project-serum/common": "0.0.1-beta.3",
+		"@project-serum/serum": "^0.13.38",
+		"@pythnetwork/client": "^2.5.1",
+		"@solana/spl-token": "^0.1.6",
+		"@solana/web3.js": "1.41.0",
+		"@types/mocha": "^8.2.2",
+		"@typescript-eslint/eslint-plugin": "^4.28.0",
+		"@typescript-eslint/parser": "^4.28.0",
+		"chai": "^4.3.4",
+		"eslint": "^7.29.0",
+		"eslint-config-prettier": "^8.3.0",
+		"eslint-plugin-prettier": "^3.4.0",
+		"husky": "^7.0.4",
+		"prettier": "^2.4.1",
+		"typedoc": "0.23.23",
+		"typescript": "4.5.4"
+	},
+	"dependencies": {
+		"chai-bn": "^0.2.2",
+		"csvtojson": "^2.0.10",
+		"json2csv": "^5.0.7"
+	},
+	"scripts": {
+		"generate-docs": "typedoc",
+		"prepare": "husky install",
+		"prettify": "prettier --check './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'",
+		"prettify:fix": "prettier --write './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'",
+		"lint": "eslint . --ext ts --quiet",
+		"lint:fix": "eslint . --ext ts --fix"
+	},
+	"engines": {
+		"node": ">=12"
+	}
 }
