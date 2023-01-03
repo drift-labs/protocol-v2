@@ -1235,7 +1235,8 @@ export class User {
 	 * @returns Precision : PRICE_PRECISION
 	 */
 	public spotLiquidationPrice(
-		spotPosition: Pick<SpotPosition, 'marketIndex'>
+		spotPosition: Pick<SpotPosition, 'marketIndex'>,
+		positionBaseSizeChange: BN = ZERO
 	): BN {
 		const currentSpotPosition = this.getSpotPosition(spotPosition.marketIndex);
 
@@ -1247,11 +1248,19 @@ export class User {
 		const currentSpotMarket = this.driftClient.getSpotMarketAccount(
 			spotPosition.marketIndex
 		);
-		const tokenAmount = getTokenAmount(
+
+		let tokenAmount = getTokenAmount(
 			currentSpotPosition.scaledBalance,
 			currentSpotMarket,
 			currentSpotPosition.balanceType
 		);
+
+		// check if still a borrow after incoming trade (if there is one)
+		if (isVariant(currentSpotPosition.balanceType, 'borrow')) {
+			tokenAmount = tokenAmount.neg();
+		}
+		tokenAmount = tokenAmount.add(positionBaseSizeChange);
+
 		const tokenAmountQP = tokenAmount
 			.mul(QUOTE_PRECISION)
 			.div(new BN(10 ** currentSpotMarket.decimals));
@@ -1260,7 +1269,7 @@ export class User {
 			return new BN(-1);
 		}
 		let liqPriceDelta: BN;
-		if (isVariant(currentSpotPosition.balanceType, 'borrow')) {
+		if (tokenAmountQP.lt(ZERO)) {
 			liqPriceDelta = deltaValueToLiq
 				.mul(PRICE_PRECISION)
 				.mul(SPOT_MARKET_WEIGHT_PRECISION)
