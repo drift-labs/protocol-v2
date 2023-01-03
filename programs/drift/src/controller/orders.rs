@@ -119,6 +119,19 @@ pub fn place_perp_order(
         slot,
     )?;
 
+    let max_ts = match params.max_ts {
+        Some(max_ts) => max_ts,
+        None => match params.order_type {
+            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
+            _ => 0_i64,
+        },
+    };
+
+    if max_ts != 0 && max_ts < now {
+        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
+        return Ok(());
+    }
+
     let new_order_index = user
         .orders
         .iter()
@@ -204,22 +217,6 @@ pub fn place_perp_order(
         params.auction_duration.unwrap_or(0),
         state.min_perp_auction_duration,
     );
-
-    let max_ts = match params.max_ts {
-        Some(max_ts) => max_ts,
-        None => match params.order_type {
-            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
-            _ => 0_i64,
-        },
-    };
-
-    validate!(
-        max_ts == 0 || max_ts > now,
-        ErrorCode::InvalidOrderMaxTs,
-        "max_ts ({}) <= now ({})",
-        max_ts,
-        now
-    )?;
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -2557,6 +2554,19 @@ pub fn place_spot_order(
         slot,
     )?;
 
+    let max_ts = match params.max_ts {
+        Some(max_ts) => max_ts,
+        None => match params.order_type {
+            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
+            _ => 0_i64,
+        },
+    };
+
+    if max_ts != 0 && max_ts < now {
+        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
+        return Ok(());
+    }
+
     let new_order_index = user
         .orders
         .iter()
@@ -2659,22 +2669,6 @@ pub fn place_spot_order(
     let auction_duration = params
         .auction_duration
         .unwrap_or(state.default_spot_auction_duration);
-
-    let max_ts = match params.max_ts {
-        Some(max_ts) => max_ts,
-        None => match params.order_type {
-            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
-            _ => 0_i64,
-        },
-    };
-
-    validate!(
-        max_ts == 0 || max_ts > now,
-        ErrorCode::InvalidOrderMaxTs,
-        "max_ts ({}) <= now ({})",
-        max_ts,
-        now
-    )?;
 
     let new_order = Order {
         status: OrderStatus::Open,
