@@ -127,8 +127,8 @@ pub fn place_perp_order(
         },
     };
 
-    if max_ts != 0 && max_ts <= now {
-        msg!("max_ts ({}) <= now ({}), skipping order", max_ts, now);
+    if max_ts != 0 && max_ts < now {
+        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
         return Ok(());
     }
 
@@ -2562,8 +2562,8 @@ pub fn place_spot_order(
         },
     };
 
-    if max_ts != 0 && max_ts <= now {
-        msg!("max_ts ({}) <= now ({}), skipping order", max_ts, now);
+    if max_ts != 0 && max_ts < now {
+        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
         return Ok(());
     }
 
