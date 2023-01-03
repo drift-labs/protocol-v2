@@ -50,17 +50,11 @@ mod determine_perp_fulfillment_methods {
             ..Order::default()
         };
 
-        let maker_order = Order {
-            direction: PositionDirection::Short,
-            price: 103 * PRICE_PRECISION_U64,
-            ..Order::default()
-        };
-
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            Some(&maker_order),
+            &Some(&vec![(0, 103 * PRICE_PRECISION_U64)]),
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -112,17 +106,11 @@ mod determine_perp_fulfillment_methods {
             ..Order::default()
         };
 
-        let maker_order = Order {
-            direction: PositionDirection::Short,
-            price: 99 * PRICE_PRECISION_U64,
-            ..Order::default()
-        };
-
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            Some(&maker_order),
+            &Some(&vec![(0, 99 * PRICE_PRECISION_U64)]),
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -134,7 +122,7 @@ mod determine_perp_fulfillment_methods {
         assert_eq!(
             fulfillment_methods,
             [
-                PerpFulfillmentMethod::Match,
+                PerpFulfillmentMethod::Match(0),
                 PerpFulfillmentMethod::AMM(None)
             ]
         );
@@ -190,7 +178,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            Some(&maker_order),
+            &Some(&vec![(0, 101 * PRICE_PRECISION_U64)]),
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -203,7 +191,7 @@ mod determine_perp_fulfillment_methods {
             fulfillment_methods,
             [
                 PerpFulfillmentMethod::AMM(Some(maker_order.price)),
-                PerpFulfillmentMethod::Match,
+                PerpFulfillmentMethod::Match(0),
                 PerpFulfillmentMethod::AMM(None)
             ]
         );
