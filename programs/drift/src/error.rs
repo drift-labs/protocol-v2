@@ -453,6 +453,8 @@ pub enum ErrorCode {
     InvalidMaker,
     #[msg("Failed Unwrap")]
     FailedUnwrap,
+    #[msg("Max Number Of Users")]
+    MaxNumberOfUsers,
 }
 
 #[macro_export]

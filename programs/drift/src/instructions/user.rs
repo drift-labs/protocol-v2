@@ -113,6 +113,11 @@ pub fn handle_initialize_user(
     let state = &mut ctx.accounts.state;
     safe_increment!(state.number_of_sub_accounts, 1);
 
+    validate!(
+        state.number_of_sub_accounts <= 1500,
+        ErrorCode::MaxNumberOfUsers
+    )?;
+
     emit!(NewUserRecord {
         ts: Clock::get()?.unix_timestamp,
         user_authority: ctx.accounts.authority.key(),

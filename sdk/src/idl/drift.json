@@ -8558,6 +8558,11 @@
       "code": 6223,
       "name": "FailedUnwrap",
       "msg": "Failed Unwrap"
+    },
+    {
+      "code": 6224,
+      "name": "MaxNumberOfUsers",
+      "msg": "Max Number Of Users"
     }
   ]
 }

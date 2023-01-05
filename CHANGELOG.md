@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+program: limit number of users to 1500
+
 ### Fixes
 
 ### Breaking
