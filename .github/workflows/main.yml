@@ -206,7 +206,7 @@ jobs:
 
   rust-pass:
       name: Rust tests pass
-      needs: ['format', 'clippy', 'unit', 'anchor-test']
+      needs: ['format', 'clippy', 'unit', 'anchor-tests']
       runs-on: ubuntu-latest
       steps:
         - run: echo ok
@@ -231,7 +231,7 @@ jobs:
       runs-on: ubuntu-latest
       steps:
         - run: echo ok
-        
+
 #  check-for-sdk-changes:
 #    runs-on: ubuntu-latest
 #    # Set job outputs to values from filter step
