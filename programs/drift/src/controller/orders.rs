@@ -613,7 +613,7 @@ pub fn fill_perp_order(
     filler_stats: &AccountLoader<UserStats>,
     maker: Option<&AccountLoader<User>>,
     maker_stats: Option<&AccountLoader<UserStats>>,
-    maker_order_id: Option<u32>,
+    _maker_order_id: Option<u32>,
     referrer: Option<&AccountLoader<User>>,
     referrer_stats: Option<&AccountLoader<UserStats>>,
     clock: &Clock,
@@ -749,7 +749,6 @@ pub fn fill_perp_order(
         oracle_map,
         maker,
         maker_stats,
-        maker_order_id,
         &user_key,
         &user.authority,
         &user.orders[order_index],
@@ -986,7 +985,6 @@ fn sanitize_maker_order<'a>(
     oracle_map: &mut OracleMap,
     maker: Option<&'a AccountLoader<User>>,
     maker_stats: Option<&'a AccountLoader<UserStats>>,
-    _maker_order_id: Option<u32>,
     taker_key: &Pubkey,
     taker_authority: &Pubkey,
     taker_order: &Order,
@@ -1048,23 +1046,19 @@ fn sanitize_maker_order<'a>(
 
     drop(market);
 
-    maker_order_indexes.sort_by(|a, b| match taker_order.direction {
-        PositionDirection::Long => a.1.cmp(&b.1),
-        PositionDirection::Short => b.1.cmp(&a.1),
-    });
+    sort_maker_orders(&mut maker_order_indexes, taker_order.direction);
 
-    let num_orders = maker_order_indexes.len();
-    for i in 0..num_orders {
-        let (maker_order_index, maker_order_price) = maker_order_indexes[i];
+    let mut filtered_maker_order_indexes = vec![];
+    for (maker_order_index, maker_order_price) in maker_order_indexes.iter() {
+        let maker_order_index = *maker_order_index;
+        let maker_order_price = *maker_order_price;
 
         let maker_order = &maker.orders[maker_order_index];
         if !is_maker_for_taker(maker_order, taker_order)? {
-            maker_order_indexes.remove(i);
             continue;
         }
 
         if !are_orders_same_market_but_different_sides(maker_order, taker_order) {
-            maker_order_indexes.remove(i);
             continue;
         }
 
@@ -1127,11 +1121,13 @@ fn sanitize_maker_order<'a>(
                 false,
             )?;
 
-            maker_order_indexes.remove(i);
+            continue;
         }
+
+        filtered_maker_order_indexes.push((maker_order_index, maker_order_price));
     }
 
-    if maker_order_indexes.is_empty() {
+    if filtered_maker_order_indexes.is_empty() {
         return Ok((None, None, None, None));
     }
 
@@ -1147,8 +1143,19 @@ fn sanitize_maker_order<'a>(
         Some(maker),
         maker_stats,
         Some(maker_key),
-        Some(maker_order_indexes),
+        Some(filtered_maker_order_indexes),
     ))
+}
+
+#[inline(always)]
+fn sort_maker_orders(
+    maker_order_indexes: &mut [(usize, u64)],
+    taker_order_direction: PositionDirection,
+) {
+    maker_order_indexes.sort_by(|a, b| match taker_order_direction {
+        PositionDirection::Long => a.1.cmp(&b.1),
+        PositionDirection::Short => b.1.cmp(&a.1),
+    });
 }
 
 #[allow(clippy::type_complexity)]
