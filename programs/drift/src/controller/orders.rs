@@ -1330,6 +1330,7 @@ fn fulfill_perp_order(
         market
             .amm
             .update_volume_24h(fill_quote_asset_amount, user_order_direction, now)?;
+        market.amm.update_cumulative_volume(fill_quote_asset_amount);
     }
 
     for order_record in order_records {

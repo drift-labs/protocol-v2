@@ -639,7 +639,9 @@ pub fn handle_initialize_perp_market(
             amm_jit_intensity: 0, // turn it off at the start
 
             last_oracle_valid: false,
-            padding: [0; 48],
+
+            cumulative_volume: 0,
+            padding: [0; 40],
         },
     };
 
@@ -712,6 +714,19 @@ pub fn handle_update_perp_market_expiry(
     perp_market.status = MarketStatus::ReduceOnly;
     perp_market.expiry_ts = expiry_ts;
 
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_cumulative_volume(
+    ctx: Context<AdminUpdatePerpMarket>,
+    volume: u64,
+) -> Result<()> {
+    // Temp method in to update cumulative volume for volume we missed
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    perp_market.amm.cumulative_volume = perp_market.amm.cumulative_volume.safe_add(volume)?;
     Ok(())
 }
 

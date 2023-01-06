@@ -417,7 +417,8 @@ pub struct AMM {
     pub amm_jit_intensity: u8,
     pub oracle_source: OracleSource,
     pub last_oracle_valid: bool,
-    pub padding: [u8; 48],
+    pub cumulative_volume: u64,
+    pub padding: [u8; 40],
 }
 
 impl Default for AMM {
@@ -498,7 +499,8 @@ impl Default for AMM {
             amm_jit_intensity: 0,
             oracle_source: OracleSource::default(),
             last_oracle_valid: false,
-            padding: [0; 48],
+            cumulative_volume: 0,
+            padding: [0; 40],
         }
     }
 }
@@ -606,6 +608,10 @@ impl AMM {
         self.last_trade_ts = now;
 
         Ok(())
+    }
+
+    pub fn update_cumulative_volume(&mut self, quote_asset_amount: u64) {
+        self.cumulative_volume = self.cumulative_volume.saturating_add(quote_asset_amount);
     }
 }
 
