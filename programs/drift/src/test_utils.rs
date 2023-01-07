@@ -18,6 +18,21 @@ pub fn get_orders(order: Order) -> [Order; 32] {
     orders
 }
 
+#[macro_export]
+macro_rules! get_orders {
+    ($($order: expr),+) => {
+        {
+            let mut orders = [Order::default(); 32];
+            let mut index = 0;
+            $(
+                index += 1;
+                orders[index - 1] = $order;
+            )+
+            orders
+        }
+    };
+}
+
 pub fn get_spot_positions(spot_position: SpotPosition) -> [SpotPosition; 8] {
     let mut spot_positions = [SpotPosition::default(); 8];
     if spot_position.market_index == 0 {
