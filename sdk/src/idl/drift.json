@@ -6190,7 +6190,12 @@
             ]
           },
           {
-            "name": "Match"
+            "name": "Match",
+            "fields": [
+              {
+                "defined": "usize"
+              }
+            ]
           }
         ]
       }
