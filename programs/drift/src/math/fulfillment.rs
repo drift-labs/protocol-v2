@@ -29,7 +29,7 @@ pub fn determine_perp_fulfillment_methods(
 
     let maker_direction = taker_order.direction.opposite();
 
-    let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
+    let (mut amm_bid_price, mut amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
 
     if let Some(maker_order_indexes) = maker_order_indexes {
         for (maker_order_index, maker_price) in maker_order_indexes.iter() {
@@ -50,6 +50,11 @@ pub fn determine_perp_fulfillment_methods(
 
                 if !maker_better_than_amm {
                     fulfillment_methods.push(PerpFulfillmentMethod::AMM(Some(*maker_price)));
+
+                    match taker_order.direction {
+                        PositionDirection::Long => amm_ask_price = *maker_price,
+                        PositionDirection::Short => amm_bid_price = *maker_price,
+                    };
                 }
             }
 
