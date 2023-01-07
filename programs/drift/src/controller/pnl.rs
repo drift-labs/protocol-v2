@@ -236,7 +236,7 @@ pub fn settle_expired_position(
         None,
     )?;
 
-    let position_index = match user.get_spot_position_index(perp_market_index) {
+    let position_index = match get_position_index(&user.perp_positions, perp_market_index) {
         Ok(index) => index,
         Err(_) => {
             msg!("User has no position for market {}", perp_market_index);
