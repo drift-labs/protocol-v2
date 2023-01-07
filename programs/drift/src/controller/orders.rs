@@ -52,7 +52,7 @@ use crate::math::serum::{
     calculate_serum_limit_price, calculate_serum_max_coin_qty,
     calculate_serum_max_native_pc_quantity,
 };
-use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 
@@ -263,10 +263,18 @@ pub fn place_perp_order(
     let worst_case_base_asset_amount_after =
         user.perp_positions[position_index].worst_case_base_asset_amount()?;
 
-    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
-        <= worst_case_base_asset_amount_before.unsigned_abs();
+    let position_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
+    let order_risk_reducing = is_order_risk_decreasing(
+        &params.direction,
+        order_base_asset_amount,
+        position_base_asset_amount,
+    )?;
 
+    let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
+        <= worst_case_base_asset_amount_before.unsigned_abs()
+        && order_risk_reducing;
+
+    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
     let meets_initial_margin_requirement = meets_place_order_margin_requirement(
         user,
         perp_market_map,
@@ -2603,9 +2611,9 @@ pub fn place_spot_order(
     let (worst_case_token_amount_before, _) = user.spot_positions[spot_position_index]
         .get_worst_case_token_amounts(spot_market, &oracle_price_data, None)?;
 
-    let signed_token_amount = user.spot_positions[spot_position_index]
-        .get_signed_token_amount(spot_market)?
-        .cast::<i64>()?;
+    let balance_type = user.spot_positions[spot_position_index].balance_type;
+    let token_amount = user.spot_positions[spot_position_index].get_token_amount(spot_market)?;
+    let signed_token_amount = get_signed_token_amount(token_amount, &balance_type)?;
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
@@ -2718,9 +2726,13 @@ pub fn place_spot_order(
     let (worst_case_token_amount_after, _) = user.spot_positions[spot_position_index]
         .get_worst_case_token_amounts(spot_market, &oracle_price_data, None)?;
 
+    let order_risk_decreasing =
+        is_spot_order_risk_decreasing(&user.orders[new_order_index], &balance_type, token_amount)?;
+
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
     let risk_decreasing = worst_case_token_amount_after.unsigned_abs()
-        <= worst_case_token_amount_before.unsigned_abs();
+        <= worst_case_token_amount_before.unsigned_abs()
+        && order_risk_decreasing;
 
     let meets_initial_margin_requirement = meets_place_order_margin_requirement(
         user,

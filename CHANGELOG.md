@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 program: limit number of users to 1500
+program: more rigorous risk decreasing check in place_perp_order/place_stop_order
 
 ### Fixes
 
