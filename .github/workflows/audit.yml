@@ -26,7 +26,7 @@ jobs:
       - name: Cache Soteria Build
         uses: Swatinem/rust-cache@v2
         with:
-          target-dir: ${{ env.PROGRAM_PATH }}.coderrect/build # Cache build files for performance
+          cache-directories: ${{ env.PROGRAM_PATH }}.coderrect/build # Cache build files for performance
 
       - name: Install Rust
         run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }}
