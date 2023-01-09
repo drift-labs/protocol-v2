@@ -1,23 +1,21 @@
 name: Soteria
 
 on:
-  push:
-    branches: 
-      - master
-  pull_request:
-    branches: 
-      - master
+  workflow_dispatch:
 
+defaults:
+  run:
+    shell: bash
+    
 env:
   CARGO_TERM_COLOR: always
   SOLANA_VERSION: '1.13.2'
   PROGRAM_PATH: 'programs/drift/'
   RUST_TOOLCHAIN: '1.65.0'
-  
 
 jobs:
   build:
-    name: Soteria Scan
+    name: Soteria Audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout changes
