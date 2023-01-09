@@ -244,7 +244,7 @@ jobs:
         - run: echo ok
 
   all-pass:
-      name: All tests pass
+      name: All tests pass 🚀
       needs: ['rust-pass', 'yarn-pass', 'security-pass']
       runs-on: ubuntu-latest
       steps:
