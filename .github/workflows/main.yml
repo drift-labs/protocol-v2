@@ -1,4 +1,4 @@
-name: main
+name: Main CI
 
 on:
   push:
@@ -12,7 +12,7 @@ defaults:
     working-directory: .
 
 env:
-  CARGO_TERM_COLOR: always 
+  CARGO_TERM_COLOR: always
   RUST_TOOLCHAIN: '1.65.0'
   SOLANA_VERSION: '1.13.2'
 
