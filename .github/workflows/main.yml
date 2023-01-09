@@ -153,13 +153,13 @@ jobs:
         run: yarn lint
   
   sca:
-    name: Dependency Scan
+    name: Vulnerability scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      # Report all vulnerabilities in CI output
+      # Report all vulnerabilities in security tab
       - name: Report all vulnerabilities
         uses: aquasecurity/trivy-action@master
         with:
@@ -187,7 +187,7 @@ jobs:
           sarif_file: 'trivy-results.sarif'
 
   sast:
-    name: Static Security Tests
+    name: Static security tests
     runs-on: ubuntu-latest
     permissions:
       actions: read
