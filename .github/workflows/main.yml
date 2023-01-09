@@ -61,8 +61,25 @@ jobs:
 
       - name: Run unit tests
         run: cargo test --lib
+  
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
+      - name: Cache build artefacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run unit tests
+        run: cargo tarpaulin --run-types Lib --workspace --timeout 120 --out Xml
+  
   anchor-tests:
+    name: Anchor tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -107,6 +124,7 @@ jobs:
 
 #      - name: run anchor tests
 #        run: bash test-scripts/run-anchor-tests.sh
+  
   yarn-prettier:
     name: Run prettier
     runs-on: ubuntu-latest
@@ -206,7 +224,7 @@ jobs:
 
   rust-pass:
       name: Rust tests pass
-      needs: ['format', 'clippy', 'unit', 'anchor-tests']
+      needs: ['format', 'clippy', 'unit', 'coverage', 'anchor-tests']
       runs-on: ubuntu-latest
       steps:
         - run: echo ok
