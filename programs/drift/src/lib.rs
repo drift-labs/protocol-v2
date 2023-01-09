@@ -829,9 +829,6 @@ pub mod drift {
         handle_update_perp_market_name(ctx, name)
     }
 
-    #[access_control(
-        market_valid(&ctx.accounts.perp_market)
-    )]
     pub fn update_perp_market_min_order_size(
         ctx: Context<AdminUpdatePerpMarket>,
         order_size: u64,

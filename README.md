@@ -21,12 +21,8 @@ SDK docs can be found [here](./sdk/README.md)
 # Building Locally
 
 ```bash
-# init submodules
-git submodule update --init --recursive
 # build v2
 anchor build 
-# build deps
-cd deps/serum-dex/dex && anchor build && cd ../../..
 # install packages
 yarn
 # build sdk 

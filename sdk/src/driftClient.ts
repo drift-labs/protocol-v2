@@ -2076,8 +2076,20 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
+		let readablePerpMarketIndex = undefined;
+		let readableSpotMarketIndexes = undefined;
+		if (marketIndex) {
+			if (marketType && isVariant(marketType, 'perp')) {
+				readablePerpMarketIndex = marketIndex;
+			} else if (marketType && isVariant(marketType, 'spot')) {
+				readableSpotMarketIndexes = [marketIndex];
+			}
+		}
+
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount()],
+			readablePerpMarketIndex,
+			readableSpotMarketIndexes,
 			useMarketLastSlotCache: true,
 		});
 

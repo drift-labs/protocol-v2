@@ -551,7 +551,10 @@ impl AMM {
         match self.oracle_source {
             OracleSource::Pyth => Ok(Some(self.get_pyth_twap(price_oracle)?)),
             OracleSource::Switchboard => Ok(None),
-            OracleSource::QuoteAsset => panic!(),
+            OracleSource::QuoteAsset => {
+                msg!("Can't get oracle twap for quote asset");
+                Err(ErrorCode::DefaultError)
+            }
         }
     }
 

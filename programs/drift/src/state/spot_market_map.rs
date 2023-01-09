@@ -11,6 +11,7 @@ use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use anchor_lang::Discriminator;
 use arrayref::array_ref;
 
+use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
 use solana_program::msg;
 use std::panic::Location;
@@ -179,7 +180,7 @@ impl<'a> SpotMarketMap<'a> {
                 return Err(ErrorCode::InvalidSpotMarketAccount);
             }
 
-            let account_info = account_info_iter.next().unwrap();
+            let account_info = account_info_iter.next().safe_unwrap()?;
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<SpotMarket> =
                 AccountLoader::try_from(account_info)

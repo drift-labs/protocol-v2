@@ -364,8 +364,7 @@ pub fn adjust_amm(
             market
                 .amm
                 .peg_multiplier
-                .safe_sub(budget_delta_peg_magnitude)
-                .unwrap()
+                .safe_sub(budget_delta_peg_magnitude)?
         } else {
             1
         };

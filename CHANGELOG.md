@@ -9,14 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+program: limit number of users to 1500
+program: more rigorous risk decreasing check in place_perp_order/place_stop_order
+
+### Fixes
+
+### Breaking
+
+## [2.20.0] - 2023-01-03
+
+### Features
+
+program: place order returns early if max ts breached ([#317](https://github.com/drift-labs/protocol-v2/pull/317))
+ts-sdk: batch getMultipleAccount calls in bulkAccountLoader ([#315](https://github.com/drift-labs/protocol-v2/pull/315))
+program: add clippy deny for panic, expect and unwrap
 program: add market index offset trait ([#287](https://github.com/drift-labs/protocol-v2/pull/287))
 program: add size trait to accounts and events ([#286](https://github.com/drift-labs/protocol-v2/pull/286))
 
 ### Fixes
 
+- program: add access control for spot market updates similar to perp market ([#284](https://github.com/drift-labs/protocol-v2/pull/284))
+- ts-sdk: allow websocket subscriber to skip getAccount call to rpc ([#313](https://github.com/drift-labs/protocol-v2/pull/313))
+- ts-sdk: always add market account for cancelOrders if market index included
 - anchor tests: make deterministic to run in ci ([#289](https://github.com/drift-labs/protocol-v2/pull/289))
 - ts-sdk: fix deprecated calls to `@solana/web3.js` ([#299](https://github.com/drift-labs/protocol-v2/pull/307))
 - ts-sdk: fix calculateAssetWeight for Maintenance Margin ([#308](https://github.com/drift-labs/protocol-v2/pull/308))
+- ts-sdk: fix UserMap for websocket usage ([#308](https://github.com/drift-labs/protocol-v2/pull/310))
 
 ### Breaking
 

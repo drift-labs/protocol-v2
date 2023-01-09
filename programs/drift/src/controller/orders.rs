@@ -52,10 +52,11 @@ use crate::math::serum::{
     calculate_serum_limit_price, calculate_serum_max_coin_qty,
     calculate_serum_max_native_pc_quantity,
 };
-use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 
+use crate::math::safe_unwrap::SafeUnwrap;
 use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
@@ -117,6 +118,19 @@ pub fn place_perp_order(
         now,
         slot,
     )?;
+
+    let max_ts = match params.max_ts {
+        Some(max_ts) => max_ts,
+        None => match params.order_type {
+            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
+            _ => 0_i64,
+        },
+    };
+
+    if max_ts != 0 && max_ts < now {
+        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
+        return Ok(());
+    }
 
     let new_order_index = user
         .orders
@@ -204,22 +218,6 @@ pub fn place_perp_order(
         state.min_perp_auction_duration,
     );
 
-    let max_ts = match params.max_ts {
-        Some(max_ts) => max_ts,
-        None => match params.order_type {
-            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
-            _ => 0_i64,
-        },
-    };
-
-    validate!(
-        max_ts == 0 || max_ts > now,
-        ErrorCode::InvalidOrderMaxTs,
-        "max_ts ({}) <= now ({})",
-        max_ts,
-        now
-    )?;
-
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
@@ -265,10 +263,18 @@ pub fn place_perp_order(
     let worst_case_base_asset_amount_after =
         user.perp_positions[position_index].worst_case_base_asset_amount()?;
 
-    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
-        <= worst_case_base_asset_amount_before.unsigned_abs();
+    let position_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
+    let order_risk_reducing = is_order_risk_decreasing(
+        &params.direction,
+        order_base_asset_amount,
+        position_base_asset_amount,
+    )?;
 
+    let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
+        <= worst_case_base_asset_amount_before.unsigned_abs()
+        && order_risk_reducing;
+
+    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
     let meets_initial_margin_requirement = meets_place_order_margin_requirement(
         user,
         perp_market_map,
@@ -560,7 +566,7 @@ pub fn cancel_order(
             maker_order,
             oracle_map.get_price_data(&oracle)?.price,
         )?;
-        emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record);
+        emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
 
     if is_perp_order {
@@ -1005,7 +1011,7 @@ fn sanitize_maker_order<'a>(
         return Ok((None, None, None, None));
     }
 
-    let maker = maker.unwrap();
+    let maker = maker.safe_unwrap()?;
     if &maker.key() == taker_key {
         return Ok((None, None, None, None));
     }
@@ -1015,7 +1021,7 @@ fn sanitize_maker_order<'a>(
     let maker_stats = if &maker.authority == taker_authority {
         None
     } else {
-        let maker_stats = load_mut!(maker_stats.unwrap())?;
+        let maker_stats = load_mut!(maker_stats.safe_unwrap()?)?;
 
         validate!(
             maker.authority.eq(&maker_stats.authority),
@@ -1180,8 +1186,8 @@ fn sanitize_referrer<'a>(
         return Ok((None, None));
     }
 
-    let referrer = load_mut!(referrer.unwrap())?;
-    let referrer_stats = load_mut!(referrer_stats.unwrap())?;
+    let referrer = load_mut!(referrer.safe_unwrap()?)?;
+    let referrer_stats = load_mut!(referrer_stats.safe_unwrap()?)?;
     validate!(
         referrer.sub_account_id == 0,
         ErrorCode::InvalidReferrer,
@@ -1248,7 +1254,7 @@ fn fulfill_perp_order(
         determine_perp_fulfillment_methods(
             &user.orders[user_order_index],
             if let Some(maker) = maker {
-                Some(&maker.orders[maker_order_index.unwrap()])
+                Some(&maker.orders[maker_order_index.safe_unwrap()?])
             } else {
                 None
             },
@@ -1304,10 +1310,10 @@ fn fulfill_perp_order(
                 user_stats,
                 user_order_index,
                 user_key,
-                maker.as_deref_mut().unwrap(),
+                maker.as_deref_mut().safe_unwrap()?,
                 maker_stats,
-                maker_order_index.unwrap(),
-                maker_key.unwrap(),
+                maker_order_index.safe_unwrap()?,
+                maker_key.safe_unwrap()?,
                 filler,
                 filler_stats,
                 filler_key,
@@ -1637,7 +1643,7 @@ pub fn fulfill_perp_order_with_amm(
 
             filler_stats
                 .as_mut()
-                .unwrap()
+                .safe_unwrap()?
                 .update_filler_volume(quote_asset_amount, now)?;
         }
     }
@@ -2018,7 +2024,7 @@ pub fn fulfill_perp_order_with_match(
 
             filler_stats
                 .as_mut()
-                .unwrap()
+                .safe_unwrap()?
                 .update_filler_volume(quote_asset_amount, now)?;
         }
     }
@@ -2448,12 +2454,10 @@ pub fn force_cancel_orders(
 }
 
 pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index: u16) -> bool {
-    user.is_some()
-        && user
-            .as_mut()
-            .unwrap()
-            .force_get_perp_position_mut(market_index)
-            .is_ok()
+    match user.as_mut() {
+        Some(user) => user.force_get_perp_position_mut(market_index).is_ok(),
+        None => false,
+    }
 }
 
 pub fn pay_keeper_flat_reward_for_perps(
@@ -2558,6 +2562,19 @@ pub fn place_spot_order(
         slot,
     )?;
 
+    let max_ts = match params.max_ts {
+        Some(max_ts) => max_ts,
+        None => match params.order_type {
+            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
+            _ => 0_i64,
+        },
+    };
+
+    if max_ts != 0 && max_ts < now {
+        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
+        return Ok(());
+    }
+
     let new_order_index = user
         .orders
         .iter()
@@ -2594,9 +2611,9 @@ pub fn place_spot_order(
     let (worst_case_token_amount_before, _) = user.spot_positions[spot_position_index]
         .get_worst_case_token_amounts(spot_market, &oracle_price_data, None)?;
 
-    let signed_token_amount = user.spot_positions[spot_position_index]
-        .get_signed_token_amount(spot_market)?
-        .cast::<i64>()?;
+    let balance_type = user.spot_positions[spot_position_index].balance_type;
+    let token_amount = user.spot_positions[spot_position_index].get_token_amount(spot_market)?;
+    let signed_token_amount = get_signed_token_amount(token_amount, &balance_type)?;
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
@@ -2661,22 +2678,6 @@ pub fn place_spot_order(
         .auction_duration
         .unwrap_or(state.default_spot_auction_duration);
 
-    let max_ts = match params.max_ts {
-        Some(max_ts) => max_ts,
-        None => match params.order_type {
-            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
-            _ => 0_i64,
-        },
-    };
-
-    validate!(
-        max_ts == 0 || max_ts > now,
-        ErrorCode::InvalidOrderMaxTs,
-        "max_ts ({}) <= now ({})",
-        max_ts,
-        now
-    )?;
-
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
@@ -2725,9 +2726,13 @@ pub fn place_spot_order(
     let (worst_case_token_amount_after, _) = user.spot_positions[spot_position_index]
         .get_worst_case_token_amounts(spot_market, &oracle_price_data, None)?;
 
+    let order_risk_decreasing =
+        is_spot_order_risk_decreasing(&user.orders[new_order_index], &balance_type, token_amount)?;
+
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
     let risk_decreasing = worst_case_token_amount_after.unsigned_abs()
-        <= worst_case_token_amount_before.unsigned_abs();
+        <= worst_case_token_amount_before.unsigned_abs()
+        && order_risk_decreasing;
 
     let meets_initial_margin_requirement = meets_place_order_margin_requirement(
         user,
@@ -3060,7 +3065,7 @@ fn sanitize_spot_maker_order<'a>(
         return Ok((None, None, None, None));
     }
 
-    let maker = maker.unwrap();
+    let maker = maker.safe_unwrap()?;
     if &maker.key() == taker_key {
         return Ok((None, None, None, None));
     }
@@ -3071,7 +3076,7 @@ fn sanitize_spot_maker_order<'a>(
     let maker_stats = if &maker.authority == taker_authority {
         None
     } else {
-        let maker_stats = load_mut!(maker_stats.unwrap())?;
+        let maker_stats = load_mut!(maker_stats.safe_unwrap()?)?;
 
         validate!(
             maker.authority.eq(&maker_stats.authority),
@@ -3236,10 +3241,10 @@ fn fulfill_spot_order(
                 user_stats,
                 user_order_index,
                 user_key,
-                maker.as_deref_mut().unwrap(),
+                maker.as_deref_mut().safe_unwrap()?,
                 maker_stats,
-                maker_order_index.unwrap(),
-                maker_key.unwrap(),
+                maker_order_index.safe_unwrap()?,
+                maker_key.safe_unwrap()?,
                 filler.as_deref_mut(),
                 filler_stats.as_deref_mut(),
                 filler_key,
@@ -3826,9 +3831,9 @@ pub fn fulfill_spot_order_with_serum(
 
     let serum_order = NewOrderInstructionV3 {
         side: serum_order_side,
-        limit_price: NonZeroU64::new(serum_limit_price).unwrap(),
-        max_coin_qty: NonZeroU64::new(serum_max_coin_qty).unwrap(), // max base to deposit into serum
-        max_native_pc_qty_including_fees: NonZeroU64::new(serum_max_native_pc_qty).unwrap(), // max quote to deposit into serum
+        limit_price: NonZeroU64::new(serum_limit_price).safe_unwrap()?,
+        max_coin_qty: NonZeroU64::new(serum_max_coin_qty).safe_unwrap()?, // max base to deposit into serum
+        max_native_pc_qty_including_fees: NonZeroU64::new(serum_max_native_pc_qty).safe_unwrap()?, // max quote to deposit into serum
         self_trade_behavior: SelfTradeBehavior::AbortTransaction,
         order_type: serum_dex::matching::OrderType::ImmediateOrCancel,
         client_order_id: 0,
