@@ -44,8 +44,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run Clippy
-        run: cargo clippy --no-deps -- -D warnings --allow=clippy::bool-to-int-with-if --allow=clippy::manual-retain --allow=clippy::crate-in-macro-def --allow=clippy::result-large-err
-  
+        run: cargo +stable clippy -p drift -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic
+
   unit:
     name: Unit tests
     runs-on: ubuntu-latest
