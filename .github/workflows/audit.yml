@@ -10,9 +10,10 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  SOLANA_VERSION: "1.9.5"
-  PROGRAM_PATH: "programs/drift/" 
-  RUST_TOOLCHAIN: nightly-2022-02-07
+  SOLANA_VERSION: '1.13.2'
+  PROGRAM_PATH: 'programs/drift/'
+  RUST_TOOLCHAIN: '1.65.0'
+  
 
 jobs:
   build:
@@ -20,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout changes
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         
       - name: Cache Solana Version
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: solana-cache
         with:
           path: |
@@ -33,17 +34,12 @@ jobs:
           key: solana-v${{ env.SOLANA_VERSION }}
           
       - name: Cache Soteria Build
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
         with:
           target-dir: ${{ env.PROGRAM_PATH }}.coderrect/build # Cache build files for performance
 
-      - name: Install Rust nightly
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          profile: minimal
-          override: true
-          components: rustfmt, clippy
+      - name: Install Rust
+        run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }}
 
       - name: Download Solana
         if: steps.solana-cache.outputs.cache-hit != 'true' # Skip this step if matched cached version is available
