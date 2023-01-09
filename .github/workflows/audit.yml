@@ -27,11 +27,12 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-directories: ${{ env.PROGRAM_PATH }}.coderrect/build # Cache build files for performance
+          cache-on-failure: true
 
       - name: Install Rust
         run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }}
 
-      - name: Download Solana
+      - name: Install Solana
         run: |
           echo Downloading Solana v${{ env.SOLANA_VERSION }}... 🧬
           sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
@@ -40,10 +41,8 @@ jobs:
           echo Configuring bpf toolchain...
           (cd $HOME/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
 
-      - name: Download Soteria # Always grab the latest version
+      - name: Install Soteria
         run: |
-          echo Configuring bpf toolchain...
-          (cd $HOME/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
           echo Downloading Soteria... 🔬
           sh -c "$(curl -k https://supercompiler.xyz/install)"
           export PATH=$PWD/soteria-linux-develop/bin/:$PATH
