@@ -64,19 +64,25 @@ jobs:
   
   coverage:
     name: Code Coverage
+    needs: ['unit']
     runs-on: ubuntu-latest
-    container:
-      image: xd009642/tarpaulin:develop-nightly
-      options: --security-opt seccomp=unconfined
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Cache build artefacts
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-directories: .cargo/bin/cargo-tarpaulin
+        
+      - name: Install Rust
+        run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }}
+        
+      - name: install tarpaulin
+        run: cargo install cargo-tarpaulin
 
       - name: Run unit tests
-        run: cargo tarpaulin --run-types Lib --workspace --timeout 120 --out Xml
+        run: cargo tarpaulin -p drift --run-types Lib --color always --timeout 120 --out Xml
   
   anchor-tests:
     name: Anchor tests
