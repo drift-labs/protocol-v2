@@ -22,16 +22,6 @@ jobs:
     steps:
       - name: Checkout changes
         uses: actions/checkout@v3
-        
-      - name: Cache Solana Version
-        uses: actions/cache@v3
-        id: solana-cache
-        with:
-          path: |
-            ~/.rustup
-            ~/.cache/solana
-            ~/.local/share/solana
-          key: solana-v${{ env.SOLANA_VERSION }}
           
       - name: Cache Soteria Build
         uses: Swatinem/rust-cache@v2
@@ -41,16 +31,8 @@ jobs:
       - name: Install Rust
         run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }}
 
-      - name: Download Solana
-        if: steps.solana-cache.outputs.cache-hit != 'true' # Skip this step if matched cached version is available
-        run: |
-          echo Downloading Solana v${{ env.SOLANA_VERSION }}... 🧬
-          sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-          echo Configuring bpf toolchain...
-          (cd $HOME/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
-        shell: bash
+      - name: Setup Solana
+        uses: ./.github/actions/setup-solana/
 
       - name: Download Soteria # Always grab the latest version
         run: |
