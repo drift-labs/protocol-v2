@@ -47,24 +47,7 @@ jobs:
         run: cargo clippy -- -D warnings --allow=clippy::bool-to-int-with-if --allow=clippy::result-large-err
 
   unit:
-    name: Unit tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install Rust
-        run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }}
-
-      - name: Cache build artefacts
-        uses: Swatinem/rust-cache@v2
-
-      - name: Run unit tests
-        run: cargo test --lib
-  
-  coverage:
-    name: Code Coverage
-    needs: ['unit']
+    name: Unit & Coverage tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -230,7 +213,7 @@ jobs:
 
   rust-pass:
       name: Rust tests pass
-      needs: ['format', 'clippy', 'unit', 'coverage', 'anchor-tests']
+      needs: ['format', 'clippy', 'unit', 'anchor-tests']
       runs-on: ubuntu-latest
       steps:
         - run: echo ok
