@@ -31,8 +31,14 @@ jobs:
       - name: Install Rust
         run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }}
 
-      - name: Setup Solana
-        uses: ./.github/actions/setup-solana/
+      - name: Download Solana
+        run: |
+          echo Downloading Solana v${{ env.SOLANA_VERSION }}... 🧬
+          sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          echo Configuring bpf toolchain...
+          (cd $HOME/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
 
       - name: Download Soteria # Always grab the latest version
         run: |
