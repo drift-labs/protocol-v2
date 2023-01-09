@@ -44,7 +44,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run Clippy
-        run: cargo clippy -- -D warnings --allow=clippy::result-large-err
+        run: cargo clippy -- -D warnings --allow=clippy::bool-to-int-with-if --allow=clippy::result-large-err
 
   unit:
     name: Unit tests
