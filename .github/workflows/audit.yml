@@ -1,4 +1,4 @@
-name: Soteria
+name: Soteria Audit
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ jobs:
       - name: Cache Soteria Build
         uses: Swatinem/rust-cache@v2
         with:
-          cache-directories: ${{ env.PROGRAM_PATH }}.coderrect/build # Cache build files for performance
+          cache-directories: ${{ env.PROGRAM_PATH }}.coderrect/build
           cache-on-failure: true
 
       - name: Install Rust
@@ -45,11 +45,9 @@ jobs:
           sh -c "$(curl -k https://supercompiler.xyz/install)"
           export PATH=$PWD/soteria-linux-develop/bin/:$PATH
           echo "$PWD/soteria-linux-develop/bin" >> $GITHUB_PATH
-        shell: bash
 
       - name: Run Soteria
         run: |
           echo Running Soteria... 👾
           cd ${{ env.PROGRAM_PATH }}
           soteria -analyzeAll .
-        shell: bash
