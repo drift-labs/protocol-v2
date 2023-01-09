@@ -36,6 +36,8 @@ jobs:
 
       - name: Download Soteria # Always grab the latest version
         run: |
+          echo Configuring bpf toolchain...
+          (cd $HOME/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
           echo Downloading Soteria... 🔬
           sh -c "$(curl -k https://supercompiler.xyz/install)"
           export PATH=$PWD/soteria-linux-develop/bin/:$PATH
