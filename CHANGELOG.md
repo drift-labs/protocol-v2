@@ -14,6 +14,8 @@ program: more rigorous risk decreasing check in place_perp_order/place_stop_orde
 
 ### Fixes
 
+program: cancel market order for not satisfying limit price only if there was some base asset amount filled
+
 ### Breaking
 
 ## [2.20.0] - 2023-01-03
