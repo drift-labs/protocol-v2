@@ -172,7 +172,7 @@ pub fn calculate_spread_inventory_scale(
 
     // inventory scale
     let inventory_scale = amm_inventory_size
-        .safe_mul(amm_inventory_size.abs().max(AMM_RESERVE_PRECISION_I128))?
+        .safe_mul(amm_inventory_size.max(AMM_RESERVE_PRECISION_I128))?
         .safe_div(AMM_RESERVE_PRECISION_I128)?
         .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>()?)?
         .safe_div(min_side_liquidity.max(1))?
