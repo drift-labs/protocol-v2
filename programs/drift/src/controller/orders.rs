@@ -743,22 +743,23 @@ pub fn fill_perp_order(
         (None, None)
     };
 
-    let (mut maker, mut maker_stats, maker_key, maker_order_indexes) = sanitize_maker_order(
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        maker,
-        maker_stats,
-        &user_key,
-        &user.authority,
-        &user.orders[order_index],
-        &mut filler.as_deref_mut(),
-        &filler_key,
-        state.perp_fee_structure.flat_filler_fee,
-        oracle_price,
-        now,
-        slot,
-    )?;
+    let (mut maker, mut maker_stats, maker_key, maker_order_price_and_indexes) =
+        sanitize_maker_order(
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            maker,
+            maker_stats,
+            &user_key,
+            &user.authority,
+            &user.orders[order_index],
+            &mut filler.as_deref_mut(),
+            &filler_key,
+            state.perp_fee_structure.flat_filler_fee,
+            oracle_price,
+            now,
+            slot,
+        )?;
 
     let (mut referrer, mut referrer_stats) =
         sanitize_referrer(referrer, referrer_stats, user_stats)?;
@@ -813,7 +814,7 @@ pub fn fill_perp_order(
             user_stats,
             &mut maker.as_deref_mut(),
             &mut maker_stats.as_deref_mut(),
-            maker_order_indexes,
+            maker_order_price_and_indexes,
             maker_key.as_ref(),
             &mut filler.as_deref_mut(),
             &filler_key,
@@ -1031,7 +1032,7 @@ fn sanitize_maker_order<'a>(
 
     let market = perp_market_map.get_ref(&taker_order.market_index)?;
 
-    let mut maker_order_indexes = find_maker_orders(
+    let mut maker_order_price_and_indexes = find_maker_orders(
         &maker,
         match taker_order.direction {
             PositionDirection::Long => &PositionDirection::Short,
@@ -1046,10 +1047,10 @@ fn sanitize_maker_order<'a>(
 
     drop(market);
 
-    sort_maker_orders(&mut maker_order_indexes, taker_order.direction);
+    sort_maker_orders(&mut maker_order_price_and_indexes, taker_order.direction);
 
-    let mut filtered_maker_order_indexes = vec![];
-    for (maker_order_index, maker_order_price) in maker_order_indexes.iter() {
+    let mut filtered_maker_order_price_and_indexes = vec![];
+    for (maker_order_index, maker_order_price) in maker_order_price_and_indexes.iter() {
         let maker_order_index = *maker_order_index;
         let maker_order_price = *maker_order_price;
 
@@ -1124,10 +1125,10 @@ fn sanitize_maker_order<'a>(
             continue;
         }
 
-        filtered_maker_order_indexes.push((maker_order_index, maker_order_price));
+        filtered_maker_order_price_and_indexes.push((maker_order_index, maker_order_price));
     }
 
-    if filtered_maker_order_indexes.is_empty() {
+    if filtered_maker_order_price_and_indexes.is_empty() {
         return Ok((None, None, None, None));
     }
 
@@ -1143,16 +1144,16 @@ fn sanitize_maker_order<'a>(
         Some(maker),
         maker_stats,
         Some(maker_key),
-        Some(filtered_maker_order_indexes),
+        Some(filtered_maker_order_price_and_indexes),
     ))
 }
 
 #[inline(always)]
 fn sort_maker_orders(
-    maker_order_indexes: &mut [(usize, u64)],
+    maker_order_price_and_indexes: &mut [(usize, u64)],
     taker_order_direction: PositionDirection,
 ) {
-    maker_order_indexes.sort_by(|a, b| match taker_order_direction {
+    maker_order_price_and_indexes.sort_by(|a, b| match taker_order_direction {
         PositionDirection::Long => a.1.cmp(&b.1),
         PositionDirection::Short => b.1.cmp(&a.1),
     });
@@ -1204,7 +1205,7 @@ fn fulfill_perp_order(
     user_stats: &mut UserStats,
     maker: &mut Option<&mut User>,
     maker_stats: &mut Option<&mut UserStats>,
-    maker_order_indexes: Option<Vec<(usize, u64)>>,
+    maker_order_price_and_indexes: Option<Vec<(usize, u64)>>,
     maker_key: Option<&Pubkey>,
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
@@ -1241,7 +1242,7 @@ fn fulfill_perp_order(
 
         determine_perp_fulfillment_methods(
             &user.orders[user_order_index],
-            &maker_order_indexes.as_ref(),
+            &maker_order_price_and_indexes.as_ref(),
             &market.amm,
             reserve_price_before,
             valid_oracle_price,

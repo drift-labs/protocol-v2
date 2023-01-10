@@ -8541,7 +8541,7 @@ pub mod sanitize_maker_orders {
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
 
-        let (_, _, _, maker_order_indexes) = sanitize_maker_order(
+        let (_, _, _, maker_order_price_and_indexes) = sanitize_maker_order(
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -8560,7 +8560,7 @@ pub mod sanitize_maker_orders {
         .unwrap();
 
         assert_eq!(
-            maker_order_indexes,
+            maker_order_price_and_indexes,
             Some(vec![(1, 100 * PRICE_PRECISION_U64)])
         );
     }
@@ -8738,7 +8738,7 @@ pub mod sanitize_maker_orders {
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
 
-        let (_, _, _, maker_order_indexes) = sanitize_maker_order(
+        let (_, _, _, maker_order_price_and_indexes) = sanitize_maker_order(
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -8757,7 +8757,7 @@ pub mod sanitize_maker_orders {
         .unwrap();
 
         assert_eq!(
-            maker_order_indexes,
+            maker_order_price_and_indexes,
             Some(vec![(1, 100 * PRICE_PRECISION_U64)])
         );
     }
@@ -8926,7 +8926,7 @@ pub mod sanitize_maker_orders {
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
 
-        let (_, _, _, maker_order_indexes) = sanitize_maker_order(
+        let (_, _, _, maker_order_price_and_indexes) = sanitize_maker_order(
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -8944,6 +8944,6 @@ pub mod sanitize_maker_orders {
         )
         .unwrap();
 
-        assert_eq!(maker_order_indexes, None,);
+        assert_eq!(maker_order_price_and_indexes, None,);
     }
 }

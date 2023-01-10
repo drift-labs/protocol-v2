@@ -11,7 +11,7 @@ mod tests;
 
 pub fn determine_perp_fulfillment_methods(
     taker_order: &Order,
-    maker_order_indexes: &Option<&Vec<(usize, u64)>>,
+    maker_order_price_and_indexes: &Option<&Vec<(usize, u64)>>,
     amm: &AMM,
     amm_reserve_price: u64,
     valid_oracle_price: Option<i64>,
@@ -31,8 +31,8 @@ pub fn determine_perp_fulfillment_methods(
 
     let (mut amm_bid_price, mut amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
 
-    if let Some(maker_order_indexes) = maker_order_indexes {
-        for (maker_order_index, maker_price) in maker_order_indexes.iter() {
+    if let Some(maker_order_price_and_indexes) = maker_order_price_and_indexes {
+        for (maker_order_index, maker_price) in maker_order_price_and_indexes.iter() {
             let taker_crosses_maker = match taker_price {
                 Some(taker_price) => do_orders_cross(maker_direction, *maker_price, taker_price),
                 None => true,
