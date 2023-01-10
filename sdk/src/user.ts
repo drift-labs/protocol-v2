@@ -1173,6 +1173,10 @@ export class User {
 	): BN {
 		const currentSpotPosition = this.getSpotPosition(spotPosition.marketIndex);
 
+		if (!currentSpotPosition) {
+			return new BN(-1);
+		}
+
 		const mtc = this.getTotalCollateral('Maintenance');
 		const mmr = this.getMaintenanceMarginRequirement();
 
