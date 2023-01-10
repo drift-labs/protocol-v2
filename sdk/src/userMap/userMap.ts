@@ -44,6 +44,7 @@ export class UserMap implements UserMapInterface {
 
 	public async fetchAllUsers() {
 		const userArray: User[] = [];
+		const userAccountArray: UserAccount[] = [];
 
 		const programUserAccounts =
 			(await this.driftClient.program.account.user.all()) as ProgramAccount<UserAccount>[];
@@ -58,12 +59,17 @@ export class UserMap implements UserMapInterface {
 				accountSubscription: this.accountSubscription,
 			});
 			userArray.push(user);
+			userAccountArray.push(programUserAccount.account);
 		}
 
 		if (this.accountSubscription.type === 'polling') {
 			await bulkPollingUserSubscribe(
 				userArray,
 				this.accountSubscription.accountLoader
+			);
+		} else {
+			await Promise.all(
+				userArray.map((user, i) => user.subscribe(userAccountArray[i]))
 			);
 		}
 

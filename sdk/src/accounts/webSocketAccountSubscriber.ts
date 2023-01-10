@@ -32,7 +32,9 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		}
 
 		this.onChange = onChange;
-		await this.fetch();
+		if (!this.dataAndSlot) {
+			await this.fetch();
+		}
 
 		this.listenerId = this.program.provider.connection.onAccountChange(
 			this.accountPublicKey,
@@ -41,6 +43,17 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			},
 			(this.program.provider as AnchorProvider).opts.commitment
 		);
+	}
+
+	setData(data: T): void {
+		if (this.dataAndSlot) {
+			return;
+		}
+
+		this.dataAndSlot = {
+			data,
+			slot: undefined,
+		};
 	}
 
 	async fetch(): Promise<void> {

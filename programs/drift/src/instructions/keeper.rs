@@ -51,7 +51,12 @@ pub fn handle_fill_perp_order<'info>(
 
     let user_key = &ctx.accounts.user.key();
     fill_order(ctx, order_id, market_index, maker_order_id).map_err(|e| {
-        msg!("Err filling order id {} for user {}", order_id, user_key);
+        msg!(
+            "Err filling order id {} for user {} for market index {}",
+            order_id,
+            user_key,
+            market_index
+        );
         e
     })?;
 
@@ -1060,7 +1065,7 @@ pub fn handle_resolve_spot_bankruptcy(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
     funding_not_paused(&ctx.accounts.state)
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
@@ -1183,6 +1188,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
 }
 
 #[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
     exchange_not_paused(&ctx.accounts.state)
     valid_oracle_for_spot_market(&ctx.accounts.oracle, &ctx.accounts.spot_market)
 )]

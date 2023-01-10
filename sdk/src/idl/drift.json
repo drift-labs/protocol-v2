@@ -1,5 +1,5 @@
 {
-  "version": "2.10.0-beta.1",
+  "version": "2.10.0",
   "name": "drift",
   "instructions": [
     {
@@ -8553,6 +8553,16 @@
       "code": 6222,
       "name": "InvalidMaker",
       "msg": "Invalid Maker"
+    },
+    {
+      "code": 6223,
+      "name": "FailedUnwrap",
+      "msg": "Failed Unwrap"
+    },
+    {
+      "code": 6224,
+      "name": "MaxNumberOfUsers",
+      "msg": "Max Number Of Users"
     }
   ]
 }

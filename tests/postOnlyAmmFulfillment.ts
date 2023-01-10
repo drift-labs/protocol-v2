@@ -6,10 +6,9 @@ import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
-	DriftClient,
 	PositionDirection,
 	User,
 	Wallet,
@@ -22,6 +21,7 @@ import {
 	OracleSource,
 	PEG_PRECISION,
 	ZERO,
+	BulkAccountLoader,
 } from '../sdk/src';
 
 import {
@@ -43,10 +43,14 @@ describe('post only maker order w/ amm fulfillments', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let fillerDriftClient: AdminClient;
+	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -77,7 +81,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		fillerDriftClient = new AdminClient({
+		fillerDriftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -88,6 +92,10 @@ describe('post only maker order w/ amm fulfillments', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClient.initialize(usdcMint.publicKey, true);
 		await fillerDriftClient.subscribe();
@@ -145,7 +153,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			provider,
 			keypair.publicKey
 		);
-		const driftClient = new DriftClient({
+		const driftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -157,6 +165,10 @@ describe('post only maker order w/ amm fulfillments', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.subscribe();
 		await driftClient.initializeUserAccountAndDepositCollateral(
@@ -195,8 +207,12 @@ describe('post only maker order w/ amm fulfillments', () => {
 		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 		await fillerDriftClient.moveAmmToPrice(marketIndex, newOraclePriceBN);
 
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+		await fillerDriftClient.fetchAccounts();
+
 		const reservePrice2 = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			fillerDriftClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 		console.log(
@@ -205,6 +221,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 			'vs',
 			reservePrice2.toString()
 		);
+		assert(reservePrice2.eq(new BN('32172703')));
+
 		const makerOrderParams2 = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -241,6 +259,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
 		console.log(position.quoteAssetAmount.toString());
 		console.log(position.quoteBreakEvenAmount.toString());
+		console.log(position.quoteEntryAmount.toString());
 
 		assert(position.quoteAssetAmount.eq(new BN(-32208912)));
 		assert(position.quoteEntryAmount.eq(new BN(-32176734)));

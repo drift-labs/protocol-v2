@@ -1,14 +1,18 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 import { Program } from '@project-serum/anchor';
-import { AdminClient, TokenFaucet } from '../sdk/src';
+import { TestClient, TokenFaucet } from '../sdk/src';
 import { BN } from '../sdk';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('token faucet', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const program = anchor.workspace.TokenFaucet as Program;
@@ -20,12 +24,12 @@ describe('token faucet', () => {
 	let token: Token;
 
 	const chProgram = anchor.workspace.Drift as Program;
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
 
 	const amount = new BN(10 * 10 ** 6);
 
 	before(async () => {
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,

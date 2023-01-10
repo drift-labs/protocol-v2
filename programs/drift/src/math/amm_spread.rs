@@ -231,18 +231,26 @@ pub fn calculate_spread_revenue_retreat_amount(
     net_revenue_since_last_funding: i64,
 ) -> DriftResult<u64> {
     // on-the-hour revenue scale
-    let revenue_retreat_amount =
-        if net_revenue_since_last_funding < DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT {
+    let revenue_retreat_amount = if net_revenue_since_last_funding
+        < DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
+    {
+        let max_retreat = max_spread.safe_div(10)?;
+        if net_revenue_since_last_funding
+            >= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 1000
+        {
             min(
-                max_spread.safe_div(10)?,
+                max_retreat,
                 base_spread
                     .cast::<u64>()?
                     .safe_mul(net_revenue_since_last_funding.unsigned_abs())?
                     .safe_div(DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.unsigned_abs())?,
             )
         } else {
-            0
-        };
+            max_retreat
+        }
+    } else {
+        0
+    };
 
     Ok(revenue_retreat_amount)
 }

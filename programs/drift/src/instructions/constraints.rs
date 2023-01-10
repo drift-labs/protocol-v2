@@ -27,7 +27,14 @@ pub fn is_stats_for_user(
     Ok(user_stats.authority.eq(&user.authority))
 }
 
-pub fn market_valid(market: &AccountLoader<PerpMarket>) -> anchor_lang::Result<()> {
+pub fn perp_market_valid(market: &AccountLoader<PerpMarket>) -> anchor_lang::Result<()> {
+    if market.load()?.status == MarketStatus::Delisted {
+        return Err(ErrorCode::MarketDelisted.into());
+    }
+    Ok(())
+}
+
+pub fn spot_market_valid(market: &AccountLoader<SpotMarket>) -> anchor_lang::Result<()> {
     if market.load()?.status == MarketStatus::Delisted {
         return Err(ErrorCode::MarketDelisted.into());
     }

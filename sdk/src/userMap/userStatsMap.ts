@@ -39,6 +39,7 @@ export class UserStatsMap {
 
 	public async fetchAllUserStats() {
 		const userStatArray: UserStats[] = [];
+		const userStatsAccountArray: UserStatsAccount[] = [];
 
 		const programUserAccounts =
 			(await this.driftClient.program.account.userStats.all()) as ProgramAccount<UserStatsAccount>[];
@@ -58,12 +59,19 @@ export class UserStatsMap {
 				accountSubscription: this.accountSubscription,
 			});
 			userStatArray.push(chUserStat);
+			userStatsAccountArray.push(userStat);
 		}
 
 		if (this.accountSubscription.type === 'polling') {
 			await bulkPollingUserStatsSubscribe(
 				userStatArray,
 				this.accountSubscription.accountLoader
+			);
+		} else {
+			await Promise.all(
+				userStatArray.map((userStat, i) =>
+					userStat.subscribe(userStatsAccountArray[i])
+				)
 			);
 		}
 

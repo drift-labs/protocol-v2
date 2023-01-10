@@ -9,6 +9,7 @@ use serum_dex::state::Market;
 use solana_program::msg;
 
 use crate::error::{DriftResult, ErrorCode};
+use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::serum::calculate_price_from_serum_limit_price;
 use crate::validate;
 
@@ -73,9 +74,9 @@ pub fn get_best_bid_and_ask<'a>(
             let best_bid_ref = order_book_state
                 .bids
                 .get(best_bid_h)
-                .unwrap()
+                .safe_unwrap()?
                 .as_leaf()
-                .unwrap();
+                .safe_unwrap()?;
 
             let price = calculate_price_from_serum_limit_price(
                 best_bid_ref.price().get(),
@@ -94,9 +95,9 @@ pub fn get_best_bid_and_ask<'a>(
             let best_ask_ref = order_book_state
                 .asks
                 .get(best_ask_h)
-                .unwrap()
+                .safe_unwrap()?
                 .as_leaf()
-                .unwrap();
+                .safe_unwrap()?;
 
             let price = calculate_price_from_serum_limit_price(
                 best_ask_ref.price().get(),

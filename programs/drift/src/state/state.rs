@@ -4,6 +4,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crate::math::constants::{
     FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
 };
+use crate::state::traits::Size;
 
 #[account]
 #[derive(Default)]
@@ -49,6 +50,10 @@ impl Default for ExchangeStatus {
     fn default() -> Self {
         ExchangeStatus::Active
     }
+}
+
+impl Size for State {
+    const SIZE: usize = 992;
 }
 
 #[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone)]

@@ -35,6 +35,7 @@ use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::State;
+use crate::state::traits::Size;
 use crate::state::user::{
     MarketType, OrderTriggerCondition, OrderType, User, UserStats, UserStatus,
 };
@@ -111,6 +112,11 @@ pub fn handle_initialize_user(
 
     let state = &mut ctx.accounts.state;
     safe_increment!(state.number_of_sub_accounts, 1);
+
+    validate!(
+        state.number_of_sub_accounts <= 1500,
+        ErrorCode::MaxNumberOfUsers
+    )?;
 
     emit!(NewUserRecord {
         ts: Clock::get()?.unix_timestamp,
@@ -1550,7 +1556,7 @@ pub struct InitializeUser<'info> {
     #[account(
         init,
         seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
-        space = std::mem::size_of::<User>() + 8,
+        space = User::SIZE,
         bump,
         payer = payer
     )]
@@ -1574,7 +1580,7 @@ pub struct InitializeUserStats<'info> {
     #[account(
         init,
         seeds = [b"user_stats", authority.key.as_ref()],
-        space = std::mem::size_of::<UserStats>() + 8,
+        space = UserStats::SIZE,
         bump,
         payer = payer
     )]
