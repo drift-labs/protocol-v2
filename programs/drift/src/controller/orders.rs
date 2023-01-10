@@ -1332,10 +1332,9 @@ fn fulfill_perp_order(
     let maker_risk_reducing = if let Some(maker) = maker {
         match get_position_index(&maker.perp_positions, market_index) {
             Ok(maker_position_index) => {
-                maker.perp_positions[maker_position_index]
-                    .base_asset_amount
-                    .signum()
-                    == maker_base_asset_amount_before.signum()
+                let maker_base_asset_amount_after =
+                    maker.perp_positions[maker_position_index].base_asset_amount;
+                maker_base_asset_amount_before.abs() > maker_base_asset_amount_after.abs()
             }
             Err(_) => true,
         }
