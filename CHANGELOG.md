@@ -14,6 +14,7 @@ program: more rigorous risk decreasing check in place_perp_order/place_stop_orde
 
 ### Fixes
 
+ts-sdk: fix user.getUnrealizedPnl to account for lp position
 program: cancel market order for not satisfying limit price only if there was some base asset amount filled
 
 ### Breaking

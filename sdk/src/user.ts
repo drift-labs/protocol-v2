@@ -447,6 +447,10 @@ export class User {
 					market.marketIndex
 				);
 
+				if (perpPosition.lpShares.gt(ZERO)) {
+					perpPosition = this.getSettledLPPosition(perpPosition.marketIndex)[0];
+				}
+
 				let positionUnrealizedPnl = calculatePositionPNL(
 					market,
 					perpPosition,
