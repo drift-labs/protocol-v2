@@ -19,7 +19,7 @@ program: cancel market order for not satisfying limit price only if there was so
 
 ### Breaking
 
-## [2.20.0] - 2023-01-03
+## [2.10.0] - 2023-01-03
 
 ### Features
 
