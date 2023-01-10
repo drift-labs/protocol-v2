@@ -186,14 +186,12 @@ pub fn calculate_spread_inventory_scale(
             .safe_div(max(directional_spread, 1))?,
     );
 
-    let inventory_scale_capped = if inventory_scale > inventory_scale_max.cast::<u128>()? {
-        inventory_scale_max
-    } else {
-        min(
-            inventory_scale_max,
-            BID_ASK_SPREAD_PRECISION.safe_add(inventory_scale.cast()?)?,
-        )
-    };
+    let inventory_scale_capped = min(
+        inventory_scale_max,
+        BID_ASK_SPREAD_PRECISION
+            .safe_add(inventory_scale.cast()?)
+            .unwrap_or(u64::MAX),
+    );
 
     Ok(inventory_scale_capped)
 }
