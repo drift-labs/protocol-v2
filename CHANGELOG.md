@@ -14,6 +14,7 @@ program: more rigorous risk decreasing check in place_perp_order/place_stop_orde
 
 ### Fixes
 
+program: avoid overflow when calculating overflow ([#322](https://github.com/drift-labs/protocol-v2/pull/322))
 ts-sdk: fix user.getUnrealizedPnl to account for lp position
 program: cancel market order for not satisfying limit price only if there was some base asset amount filled
 
