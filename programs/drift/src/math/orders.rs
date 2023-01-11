@@ -303,7 +303,7 @@ pub fn should_cancel_reduce_only_order(
     Ok(should_cancel)
 }
 
-pub fn order_breaches_oracle_price_limits(
+pub fn order_breaches_oracle_price_bands(
     order: &Order,
     oracle_price: i64,
     slot: u64,
@@ -313,11 +313,27 @@ pub fn order_breaches_oracle_price_limits(
 ) -> DriftResult<bool> {
     let order_limit_price =
         order.force_get_limit_price(Some(oracle_price), None, slot, tick_size)?;
+    limit_price_breaches_oracle_price_bands(
+        order_limit_price,
+        order.direction,
+        oracle_price,
+        margin_ratio_initial,
+        margin_ratio_maintenance,
+    )
+}
+
+pub fn limit_price_breaches_oracle_price_bands(
+    order_limit_price: u64,
+    order_direction: PositionDirection,
+    oracle_price: i64,
+    margin_ratio_initial: u32,
+    margin_ratio_maintenance: u32,
+) -> DriftResult<bool> {
     let oracle_price = oracle_price.unsigned_abs();
 
     let max_percent_diff = margin_ratio_initial.safe_sub(margin_ratio_maintenance)?;
 
-    match order.direction {
+    match order_direction {
         PositionDirection::Long => {
             if order_limit_price <= oracle_price {
                 return Ok(false);
@@ -594,4 +610,41 @@ pub fn find_fallback_maker_order(
     }
 
     Ok(fallback_maker_order_index)
+}
+
+pub fn find_maker_orders(
+    user: &User,
+    direction: &PositionDirection,
+    market_type: &MarketType,
+    market_index: u16,
+    valid_oracle_price: Option<i64>,
+    slot: u64,
+    tick_size: u64,
+) -> DriftResult<Vec<(usize, u64)>> {
+    let mut orders = vec![];
+
+    for (order_index, order) in user.orders.iter().enumerate() {
+        if order.status != OrderStatus::Open {
+            continue;
+        }
+
+        // if order direction is not same or market type is not same or market index is the same, skip
+        if order.direction != *direction
+            || order.market_type != *market_type
+            || order.market_index != market_index
+        {
+            continue;
+        }
+
+        // if order is not limit order or must be triggered and not triggered, skip
+        if !order.is_limit_order() || (order.must_be_triggered() && !order.triggered()) {
+            continue;
+        }
+
+        let limit_price = order.force_get_limit_price(valid_oracle_price, None, slot, tick_size)?;
+
+        orders.push((order_index, limit_price));
+    }
+
+    Ok(orders)
 }

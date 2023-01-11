@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+program: try to match against multiple of makers orders ([#315](https://github.com/drift-labs/protocol-v2/pull/316))
 program: limit number of users to 1500
 program: more rigorous risk decreasing check in place_perp_order/place_stop_order
 
