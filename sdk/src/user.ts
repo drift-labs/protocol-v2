@@ -242,7 +242,8 @@ export class User {
 		const [marketOpenBids, marketOpenAsks] = calculateMarketOpenBidAsk(
 			market.amm.baseAssetReserve,
 			market.amm.minBaseAssetReserve,
-			market.amm.maxBaseAssetReserve
+			market.amm.maxBaseAssetReserve,
+			market.amm.orderStepSize
 		);
 
 		const lpOpenBids = marketOpenBids
