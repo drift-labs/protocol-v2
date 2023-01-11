@@ -837,14 +837,11 @@ pub fn fill_perp_order(
             amm_is_available,
         )?;
 
-    let should_cancel_market_order =
-        base_asset_amount != 0 && should_cancel_market_order_after_fill(user, order_index, slot)?;
-
     let base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
     let should_cancel_reduce_only =
         should_cancel_reduce_only_order(&user.orders[order_index], base_asset_amount_after)?;
 
-    if should_cancel_market_order || should_cancel_reduce_only {
+    if should_cancel_reduce_only {
         updated_user_state = true;
 
         let filler_reward = {
@@ -857,11 +854,7 @@ pub fn fill_perp_order(
             )?
         };
 
-        let explanation = if should_cancel_market_order {
-            OrderActionExplanation::MarketOrderFilledToLimitPrice
-        } else {
-            OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
-        };
+        let explanation = OrderActionExplanation::ReduceOnlyOrderIncreasedPosition;
 
         cancel_order(
             order_index,
@@ -2974,9 +2967,6 @@ pub fn fill_spot_order(
         serum_fulfillment_params,
     )?;
 
-    let should_cancel_market_order =
-        base_asset_amount != 0 && should_cancel_market_order_after_fill(user, order_index, slot)?;
-
     let is_open = user.orders[order_index].status == OrderStatus::Open;
     let is_reduce_only = user.orders[order_index].reduce_only;
     let should_cancel_reduce_only = if is_open && is_reduce_only {
@@ -3001,10 +2991,7 @@ pub fn fill_spot_order(
         false
     };
 
-    if should_cancel_market_order
-        || should_cancel_reduce_only
-        || should_cancel_for_no_borrow_liquidity
-    {
+    if should_cancel_reduce_only || should_cancel_for_no_borrow_liquidity {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
@@ -3015,9 +3002,7 @@ pub fn fill_spot_order(
             )?
         };
 
-        let explanation = if should_cancel_market_order {
-            OrderActionExplanation::MarketOrderFilledToLimitPrice
-        } else if should_cancel_reduce_only {
+        let explanation = if should_cancel_reduce_only {
             OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
         } else {
             OrderActionExplanation::NoBorrowLiquidity
