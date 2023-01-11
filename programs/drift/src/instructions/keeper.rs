@@ -51,7 +51,12 @@ pub fn handle_fill_perp_order<'info>(
 
     let user_key = &ctx.accounts.user.key();
     fill_order(ctx, order_id, market_index, maker_order_id).map_err(|e| {
-        msg!("Err filling order id {} for user {}", order_id, user_key);
+        msg!(
+            "Err filling order id {} for user {} for market index {}",
+            order_id,
+            user_key,
+            market_index
+        );
         e
     })?;
 

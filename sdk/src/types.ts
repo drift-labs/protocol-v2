@@ -74,7 +74,7 @@ export class DepositDirection {
 
 export class OracleSource {
 	static readonly PYTH = { pyth: {} };
-	static readonly SWITCHBOARD = { switchboard: {} };
+	// static readonly SWITCHBOARD = { switchboard: {} };
 	static readonly QUOTE_ASSET = { quoteAsset: {} };
 }
 
