@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: avoid overflow when calculating overflow ([#322](https://github.com/drift-labs/protocol-v2/pull/322))
 - ts-sdk: fix user.getUnrealizedPnl to account for lp position
 - program: cancel market order for not satisfying limit price only if there was some base asset amount filled
 

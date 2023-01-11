@@ -167,13 +167,12 @@ pub fn calculate_spread_inventory_scale(
 
     let min_side_liquidity = max_bids.min(max_asks.abs());
 
+    // cap so (6e9 * AMM_RESERVE_PRECISION)^2 < 2^127
+    let amm_inventory_size = base_asset_amount_with_amm.abs().min(6000000000000000000);
+
     // inventory scale
-    let inventory_scale = base_asset_amount_with_amm
-        .safe_mul(
-            base_asset_amount_with_amm
-                .abs()
-                .max(AMM_RESERVE_PRECISION_I128),
-        )?
+    let inventory_scale = amm_inventory_size
+        .safe_mul(amm_inventory_size.max(AMM_RESERVE_PRECISION_I128))?
         .safe_div(AMM_RESERVE_PRECISION_I128)?
         .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>()?)?
         .safe_div(min_side_liquidity.max(1))?
@@ -189,7 +188,9 @@ pub fn calculate_spread_inventory_scale(
 
     let inventory_scale_capped = min(
         inventory_scale_max,
-        BID_ASK_SPREAD_PRECISION.safe_add(inventory_scale.cast()?)?,
+        BID_ASK_SPREAD_PRECISION
+            .safe_add(inventory_scale.cast()?)
+            .unwrap_or(u64::MAX),
     );
 
     Ok(inventory_scale_capped)
