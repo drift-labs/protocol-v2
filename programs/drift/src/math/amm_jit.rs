@@ -28,7 +28,7 @@ pub fn calculate_jit_base_asset_amount(
 
         // maker taking a short below oracle = likely to be a wash
         // so we want to take less than 50%
-        let wash_reduction_const = 1000;
+        let wash_reduction_const = 2;
         if taker_direction == PositionDirection::Long && auction_price < oracle_price
             || taker_direction == PositionDirection::Short && auction_price > oracle_price
         {
