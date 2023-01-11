@@ -838,7 +838,7 @@ pub fn fill_perp_order(
         )?;
 
     let should_cancel_market_order =
-        amm_is_available && should_cancel_market_order_after_fill(user, order_index, slot)?;
+        base_asset_amount != 0 && should_cancel_market_order_after_fill(user, order_index, slot)?;
 
     let base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
     let should_cancel_reduce_only =
@@ -2972,7 +2972,7 @@ pub fn fill_spot_order(
     )?;
 
     let should_cancel_market_order =
-        should_cancel_market_order_after_fill(user, order_index, slot)?;
+        base_asset_amount != 0 && should_cancel_market_order_after_fill(user, order_index, slot)?;
 
     let is_open = user.orders[order_index].status == OrderStatus::Open;
     let is_reduce_only = user.orders[order_index].reduce_only;

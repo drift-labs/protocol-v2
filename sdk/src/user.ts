@@ -447,6 +447,10 @@ export class User {
 					market.marketIndex
 				);
 
+				if (perpPosition.lpShares.gt(ZERO)) {
+					perpPosition = this.getSettledLPPosition(perpPosition.marketIndex)[0];
+				}
+
 				let positionUnrealizedPnl = calculatePositionPNL(
 					market,
 					perpPosition,
@@ -1168,6 +1172,10 @@ export class User {
 		spotPosition: Pick<SpotPosition, 'marketIndex'>
 	): BN {
 		const currentSpotPosition = this.getSpotPosition(spotPosition.marketIndex);
+
+		if (!currentSpotPosition) {
+			return new BN(-1);
+		}
 
 		const mtc = this.getTotalCollateral('Maintenance');
 		const mmr = this.getMaintenanceMarginRequirement();

@@ -4341,6 +4341,7 @@ pub mod fill_order {
                 auction_end_price: 102 * PRICE_PRECISION_I64,
                 auction_duration: 5,
                 price: 102 * PRICE_PRECISION_U64,
+                max_ts: 10,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -4385,7 +4386,7 @@ pub mod fill_order {
             epoch_start_timestamp: 0,
             epoch: 0,
             leader_schedule_epoch: 0,
-            unix_timestamp: 0,
+            unix_timestamp: 11,
         };
 
         let (base_asset_amount, _) = fill_perp_order(
