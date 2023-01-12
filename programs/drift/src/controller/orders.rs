@@ -1237,13 +1237,14 @@ fn fulfill_perp_order(
 
     let fulfillment_methods = {
         let market = perp_market_map.get_ref(&market_index)?;
+        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
         determine_perp_fulfillment_methods(
             &user.orders[user_order_index],
             &maker_order_price_and_indexes.as_ref(),
             &market.amm,
             reserve_price_before,
-            valid_oracle_price,
+            Some(oracle_price),
             amm_is_available,
             slot,
         )?

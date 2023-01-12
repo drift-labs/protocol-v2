@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: tweak oracle price used for determine_perp_fulfillment_methods
+
 ### Breaking
 
 ## [2.11.0] - 2023-01-11
