@@ -244,7 +244,8 @@ export class User {
 		const [marketOpenBids, marketOpenAsks] = calculateMarketOpenBidAsk(
 			market.amm.baseAssetReserve,
 			market.amm.minBaseAssetReserve,
-			market.amm.maxBaseAssetReserve
+			market.amm.maxBaseAssetReserve,
+			market.amm.orderStepSize
 		);
 
 		const lpOpenBids = marketOpenBids
@@ -449,6 +450,10 @@ export class User {
 				const oraclePriceData = this.getOracleDataForPerpMarket(
 					market.marketIndex
 				);
+
+				if (perpPosition.lpShares.gt(ZERO)) {
+					perpPosition = this.getSettledLPPosition(perpPosition.marketIndex)[0];
+				}
 
 				let positionUnrealizedPnl = calculatePositionPNL(
 					market,
@@ -1239,6 +1244,10 @@ export class User {
 		positionBaseSizeChange: BN = ZERO
 	): BN {
 		const currentSpotPosition = this.getSpotPosition(spotPosition.marketIndex);
+
+		if (!currentSpotPosition) {
+			return new BN(-1);
+		}
 
 		const mtc = this.getTotalCollateral('Maintenance');
 		const mmr = this.getMaintenanceMarginRequirement();

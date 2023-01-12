@@ -13,6 +13,7 @@ import {
 	PERCENTAGE_PRECISION,
 	BASE_PRECISION,
 	DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
+	TWO,
 } from '../constants/numericConstants';
 import {
 	AMM,
@@ -323,22 +324,32 @@ export function calculateAmmReservesAfterSwap(
 export function calculateMarketOpenBidAsk(
 	baseAssetReserve: BN,
 	minBaseAssetReserve: BN,
-	maxBaseAssetReserve: BN
+	maxBaseAssetReserve: BN,
+	stepSize?: BN
 ): [BN, BN] {
 	// open orders
 	let openAsks;
-	if (maxBaseAssetReserve.gt(baseAssetReserve)) {
-		openAsks = maxBaseAssetReserve.sub(baseAssetReserve).mul(new BN(-1));
+	if (minBaseAssetReserve.lt(baseAssetReserve)) {
+		openAsks = baseAssetReserve.sub(minBaseAssetReserve).mul(new BN(-1));
+
+		if (stepSize && openAsks.abs().div(TWO).lt(stepSize)) {
+			openAsks = ZERO;
+		}
 	} else {
 		openAsks = ZERO;
 	}
 
 	let openBids;
-	if (minBaseAssetReserve.lt(baseAssetReserve)) {
-		openBids = baseAssetReserve.sub(minBaseAssetReserve);
+	if (maxBaseAssetReserve.gt(baseAssetReserve)) {
+		openBids = maxBaseAssetReserve.sub(baseAssetReserve);
+
+		if (stepSize && openBids.div(TWO).lt(stepSize)) {
+			openBids = ZERO;
+		}
 	} else {
 		openBids = ZERO;
 	}
+
 	return [openBids, openAsks];
 }
 

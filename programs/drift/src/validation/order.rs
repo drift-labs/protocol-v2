@@ -6,7 +6,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::orders::{
     calculate_base_asset_amount_to_fill_up_to_limit_price, is_multiple_of_step_size,
-    order_breaches_oracle_price_limits,
+    order_breaches_oracle_price_bands,
 };
 use crate::state::perp_market::PerpMarket;
 use crate::state::user::{Order, OrderTriggerCondition, OrderType};
@@ -195,7 +195,7 @@ fn validate_limit_order(
     if order.post_only {
         validate_post_only_order(order, market, valid_oracle_price, slot)?;
 
-        let order_breaches_oracle_price_limits = order_breaches_oracle_price_limits(
+        let order_breaches_oracle_price_limits = order_breaches_oracle_price_bands(
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
             slot,
@@ -425,7 +425,7 @@ fn validate_spot_limit_order(
     }
 
     if order.post_only {
-        let order_breaches_oracle_price_limits = order_breaches_oracle_price_limits(
+        let order_breaches_oracle_price_limits = order_breaches_oracle_price_bands(
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
             slot,

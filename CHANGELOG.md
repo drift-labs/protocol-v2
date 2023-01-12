@@ -9,22 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-program: limit number of users to 1500
-program: more rigorous risk decreasing check in place_perp_order/place_stop_order
-
 ### Fixes
+
+- program: tweak oracle price used for determine_perp_fulfillment_methods
 
 ### Breaking
 
-## [2.20.0] - 2023-01-03
+## [2.11.0] - 2023-01-11
 
 ### Features
 
-program: place order returns early if max ts breached ([#317](https://github.com/drift-labs/protocol-v2/pull/317))
-ts-sdk: batch getMultipleAccount calls in bulkAccountLoader ([#315](https://github.com/drift-labs/protocol-v2/pull/315))
-program: add clippy deny for panic, expect and unwrap
-program: add market index offset trait ([#287](https://github.com/drift-labs/protocol-v2/pull/287))
-program: add size trait to accounts and events ([#286](https://github.com/drift-labs/protocol-v2/pull/286))
+- program: remove canceling market orders with limit price after first fill
+- program: try to match against multiple of makers orders ([#315](https://github.com/drift-labs/protocol-v2/pull/316))
+- program: limit number of users to 1500
+- program: more rigorous risk decreasing check in place_perp_order/place_stop_order
+
+### Fixes
+
+- program: avoid overflow when calculating overflow ([#322](https://github.com/drift-labs/protocol-v2/pull/322))
+- ts-sdk: fix user.getUnrealizedPnl to account for lp position
+- program: cancel market order for not satisfying limit price only if there was some base asset amount filled
+
+### Breaking
+
+## [2.10.0] - 2023-01-03
+
+### Features
+
+- program: place order returns early if max ts breached ([#317](https://github.com/drift-labs/protocol-v2/pull/317))
+- ts-sdk: batch getMultipleAccount calls in bulkAccountLoader ([#315](https://github.com/drift-labs/protocol-v2/pull/315))
+- program: add clippy deny for panic, expect and unwrap
+- program: add market index offset trait ([#287](https://github.com/drift-labs/protocol-v2/pull/287))
+- program: add size trait to accounts and events ([#286](https://github.com/drift-labs/protocol-v2/pull/286))
 
 ### Fixes
 
