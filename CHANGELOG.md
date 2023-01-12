@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.11.0] - 2023-01-11
+
+### Features
+
 - program: remove canceling market orders with limit price after first fill
 - program: try to match against multiple of makers orders ([#315](https://github.com/drift-labs/protocol-v2/pull/316))
 - program: limit number of users to 1500
