@@ -3132,7 +3132,7 @@ pub mod fulfill_order {
 
                     ..HistoricalOracleData::default()
                 },
-
+                max_fill_reserve_fraction: 1,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
