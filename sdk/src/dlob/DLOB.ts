@@ -915,6 +915,42 @@ export class DLOB {
 		);
 	}
 
+	/**
+	 * Filters the limit asks that are post only or have been place for sufficiently long
+	 * Useful for displaying order book that doesn't have taker limit orders crossing spread
+	 *
+	 * @returns
+	 */
+	*getRestingLimitAsks(
+		marketIndex: number,
+		slot: number,
+		marketType: MarketType,
+		oraclePriceData: OraclePriceData,
+		minPerpAuctionDuration: number
+	): Generator<DLOBNode> {
+		for (const node of this.getLimitAsks(
+			marketIndex,
+			slot,
+			marketType,
+			oraclePriceData
+		)) {
+			if (this.isRestingLimitOrder(node.order, slot, minPerpAuctionDuration)) {
+				yield node;
+			}
+		}
+	}
+
+	isRestingLimitOrder(
+		order: Order,
+		slot: number,
+		minPerpAuctionDuration: number
+	): boolean {
+		return (
+			order.postOnly ||
+			new BN(slot).sub(order.slot).gte(new BN(minPerpAuctionDuration * 1.5))
+		);
+	}
+
 	*getLimitBids(
 		marketIndex: number,
 		slot: number,
@@ -945,6 +981,31 @@ export class DLOB {
 				return bestPrice.gt(currentPrice);
 			}
 		);
+	}
+
+	/**
+	 * Filters the limit bids that are post only or have been place for sufficiently long
+	 * Useful for displaying order book that doesn't have taker limit orders crossing spread
+	 *
+	 * @returns
+	 */
+	*getRestingLimitBids(
+		marketIndex: number,
+		slot: number,
+		marketType: MarketType,
+		oraclePriceData: OraclePriceData,
+		minPerpAuctionDuration: number
+	): Generator<DLOBNode> {
+		for (const node of this.getLimitBids(
+			marketIndex,
+			slot,
+			marketType,
+			oraclePriceData
+		)) {
+			if (this.isRestingLimitOrder(node.order, slot, minPerpAuctionDuration)) {
+				yield node;
+			}
+		}
 	}
 
 	*getAsks(
