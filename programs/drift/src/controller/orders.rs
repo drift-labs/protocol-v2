@@ -56,6 +56,7 @@ use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 
+use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
@@ -1385,10 +1386,11 @@ fn fulfill_perp_order(
 
         if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
-            "maker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
-            maker_margin_requirement_plus_buffer,
-            maker_total_collateral
-        );
+                "maker ({}) breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+                maker_key.safe_unwrap()?,
+                maker_margin_requirement_plus_buffer,
+                maker_total_collateral
+            );
             return Err(ErrorCode::InsufficientCollateral);
         }
     }
@@ -1734,7 +1736,14 @@ pub fn fulfill_perp_order_with_match(
 
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     let taker_direction = taker.orders[taker_order_index].direction;
-    let taker_fallback_price = get_fallback_price(&taker_direction, bid_price, ask_price);
+    let amm_available_liquidity = calculate_amm_available_liquidity(&market.amm, &taker_direction)?;
+    let taker_fallback_price = get_fallback_price(
+        &taker_direction,
+        bid_price,
+        ask_price,
+        amm_available_liquidity,
+        oracle_price,
+    )?;
     let mut taker_price = taker.orders[taker_order_index].force_get_limit_price(
         Some(oracle_price),
         Some(taker_fallback_price),
@@ -3311,10 +3320,11 @@ fn fulfill_spot_order(
 
         if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
-            "maker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
-            maker_margin_requirement_plus_buffer,
-            maker_total_collateral
-        );
+                "maker ({}) breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+                maker_key.safe_unwrap()?,
+                maker_margin_requirement_plus_buffer,
+                maker_total_collateral
+            );
             return Err(ErrorCode::InsufficientCollateral);
         }
     }

@@ -625,6 +625,7 @@ impl AMM {
             min_base_asset_reserve: 0,
             terminal_quote_asset_reserve: default_reserves,
             peg_multiplier: crate::math::constants::PEG_PRECISION,
+            max_fill_reserve_fraction: 1,
             max_spread: 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: PRICE_PRECISION_I64,
