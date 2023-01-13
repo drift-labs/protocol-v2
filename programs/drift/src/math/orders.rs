@@ -6,7 +6,7 @@ use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math;
-use crate::math::amm::calculate_max_base_asset_amount_fillable;
+use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
 
@@ -62,8 +62,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         limit_price,
         Some(existing_base_asset_amount),
     )?;
-    let max_base_asset_amount =
-        calculate_max_base_asset_amount_fillable(&market.amm, &order.direction)?;
+    let max_base_asset_amount = calculate_amm_available_liquidity(&market.amm, &order.direction)?;
 
     Ok((min(base_asset_amount, max_base_asset_amount), limit_price))
 }
@@ -517,10 +516,23 @@ pub fn validate_fill_price(
     Ok(())
 }
 
-pub fn get_fallback_price(direction: &PositionDirection, bid_price: u64, ask_price: u64) -> u64 {
+pub fn get_fallback_price(
+    direction: &PositionDirection,
+    bid_price: u64,
+    ask_price: u64,
+    amm_available_liquidity: u64,
+    oracle_price: i64,
+) -> DriftResult<u64> {
+    let oracle_price = oracle_price.unsigned_abs();
     match direction {
-        PositionDirection::Long => ask_price,
-        PositionDirection::Short => bid_price,
+        PositionDirection::Long if amm_available_liquidity > 0 => {
+            ask_price.safe_add(ask_price / 200)
+        }
+        PositionDirection::Long => oracle_price.safe_add(oracle_price / 20),
+        PositionDirection::Short if amm_available_liquidity > 0 => {
+            bid_price.safe_sub(bid_price / 200)
+        }
+        PositionDirection::Short => oracle_price.safe_sub(oracle_price / 20),
     }
 }
 
