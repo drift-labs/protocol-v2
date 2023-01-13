@@ -1386,10 +1386,11 @@ fn fulfill_perp_order(
 
         if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
-            "maker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
-            maker_margin_requirement_plus_buffer,
-            maker_total_collateral
-        );
+                "maker ({}) breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+                maker_key.safe_unwrap()?,
+                maker_margin_requirement_plus_buffer,
+                maker_total_collateral
+            );
             return Err(ErrorCode::InsufficientCollateral);
         }
     }
@@ -3319,10 +3320,11 @@ fn fulfill_spot_order(
 
         if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
-            "maker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
-            maker_margin_requirement_plus_buffer,
-            maker_total_collateral
-        );
+                "maker ({}) breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+                maker_key.safe_unwrap()?,
+                maker_margin_requirement_plus_buffer,
+                maker_total_collateral
+            );
             return Err(ErrorCode::InsufficientCollateral);
         }
     }
