@@ -525,9 +525,13 @@ pub fn get_fallback_price(
 ) -> DriftResult<u64> {
     let oracle_price = oracle_price.unsigned_abs();
     match direction {
-        PositionDirection::Long if amm_available_liquidity > 0 => Ok(ask_price),
+        PositionDirection::Long if amm_available_liquidity > 0 => {
+            ask_price.safe_add(ask_price / 200)
+        }
         PositionDirection::Long => oracle_price.safe_add(oracle_price / 20),
-        PositionDirection::Short if amm_available_liquidity > 0 => Ok(bid_price),
+        PositionDirection::Short if amm_available_liquidity > 0 => {
+            bid_price.safe_sub(bid_price / 200)
+        }
         PositionDirection::Short => oracle_price.safe_sub(oracle_price / 20),
     }
 }
