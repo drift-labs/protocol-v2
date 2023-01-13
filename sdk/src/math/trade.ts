@@ -353,7 +353,6 @@ export function calculateTargetPriceTrade(
 }
 
 export function calculateEstimatedPerpEntryPrice(
-	marketIndex: number,
 	orderBaseAssetAmount: BN,
 	direction: PositionDirection,
 	market: PerpMarketAccount,
@@ -364,7 +363,7 @@ export function calculateEstimatedPerpEntryPrice(
 ): BN {
 	const takerIsLong = isVariant(direction, 'long');
 	const limitOrders = dlob[takerIsLong ? 'getLimitAsks' : 'getLimitBids'](
-		marketIndex,
+		market.marketIndex,
 		slot,
 		MarketType.PERP,
 		oraclePriceData
@@ -414,9 +413,7 @@ export function calculateEstimatedPerpEntryPrice(
 				orderNode.order.baseAssetAmount,
 				orderBaseAssetAmount.sub(cumulativeBaseFilled)
 			);
-			const quoteFilled = orderNode.order.quoteAssetAmount
-				.mul(baseFilled)
-				.div(orderNode.order.baseAssetAmount);
+			const quoteFilled = baseFilled.mul(limitOrderPrice).div(BASE_PRECISION);
 
 			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
 			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
