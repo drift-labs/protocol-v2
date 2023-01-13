@@ -705,7 +705,7 @@ pub fn is_oracle_mark_too_divergent(
     Ok(price_spread_pct.unsigned_abs() > max_divergence)
 }
 
-pub fn calculate_max_base_asset_amount_fillable(
+pub fn calculate_amm_available_liquidity(
     amm: &AMM,
     order_direction: &PositionDirection,
 ) -> DriftResult<u64> {
