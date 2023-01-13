@@ -12,6 +12,7 @@ import {
 	calculateTradeSlippage,
 	BulkAccountLoader,
 	PerpMarkets,
+	getMarketsAndOraclesForSubscription,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
 } from '..';
@@ -74,10 +75,7 @@ const main = async () => {
 		connection,
 		wallet: provider.wallet,
 		programID: driftPublicKey,
-		perpMarketIndexes: PerpMarkets[cluster].map((market) => market.marketIndex),
-		spotMarketIndexes: SpotMarkets[cluster].map(
-			(spotMarket) => spotMarket.marketIndex
-		),
+		...getMarketsAndOraclesForSubscription(cluster),
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
@@ -139,7 +137,7 @@ const main = async () => {
 			longAmount,
 			solMarketAccount,
 			'quote',
-			undefined
+			driftClient.getOracleDataForPerpMarket(solMarketInfo.marketIndex)
 		)[0],
 		PRICE_PRECISION
 	);
