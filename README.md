@@ -18,6 +18,10 @@ This repository provides open source access to Drift V2's Typescript SDK, Solana
 
 SDK docs can be found [here](./sdk/README.md)
 
+# Example Bot Implementations
+
+Example bots (makers, liquidators, fillers, etc) can be found [here](https://github.com/drift-labs/keeper-bots-v2)
+
 # Building Locally
 
 ```bash
