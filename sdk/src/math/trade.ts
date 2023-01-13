@@ -1,4 +1,4 @@
-import { PerpMarketAccount, PositionDirection } from '../types';
+import { MarketType, PerpMarketAccount, PositionDirection } from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
@@ -6,6 +6,7 @@ import {
 	PEG_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
+	BASE_PRECISION,
 } from '../constants/numericConstants';
 import {
 	calculateBidPrice,
@@ -23,6 +24,7 @@ import {
 import { squareRootBN } from './utils';
 import { isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
+import { DLOB } from '../dlob/DLOB';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
@@ -348,4 +350,156 @@ export function calculateTargetPriceTrade(
 	} else {
 		return [direction, baseSize, entryPrice, targetPrice];
 	}
+}
+
+/**
+ * Calculates the estimated entry price and price impact of order, in base or quote
+ * Price impact is based on the difference between the entry price and the best bid/ask price (whether it's dlob or vamm)
+ *
+ * @param assetType
+ * @param amount
+ * @param direction
+ * @param market
+ * @param oraclePriceData
+ * @param dlob
+ * @param slot
+ * @param minPerpAuctionDuration
+ */
+export function calculateEstimatedPerpEntryPrice(
+	assetType: AssetType,
+	amount: BN,
+	direction: PositionDirection,
+	market: PerpMarketAccount,
+	oraclePriceData: OraclePriceData,
+	dlob: DLOB,
+	slot: number,
+	minPerpAuctionDuration: number
+): [BN, BN] {
+	const takerIsLong = isVariant(direction, 'long');
+	const limitOrders = dlob[
+		takerIsLong ? 'getRestingLimitAsks' : 'getRestingLimitBids'
+	](
+		market.marketIndex,
+		slot,
+		MarketType.PERP,
+		oraclePriceData,
+		minPerpAuctionDuration
+	);
+
+	const swapDirection = getSwapDirection(assetType, direction);
+
+	const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
+		calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
+	const amm = {
+		baseAssetReserve,
+		quoteAssetReserve,
+		sqrtK: sqrtK,
+		pegMultiplier: newPeg,
+	};
+
+	let initialPrice = calculatePrice(
+		amm.baseAssetReserve,
+		amm.quoteAssetReserve,
+		amm.pegMultiplier
+	);
+
+	const [afterSwapQuoteReserves, afterSwapBaseReserves] =
+		calculateAmmReservesAfterSwap(amm, assetType, amount, swapDirection);
+
+	const afterSwapPrice = calculatePrice(
+		afterSwapBaseReserves,
+		afterSwapQuoteReserves,
+		amm.pegMultiplier
+	);
+
+	let cumulativeBaseFilled = ZERO;
+	let cumulativeQuoteFilled = ZERO;
+	for (const orderNode of limitOrders) {
+		const limitOrderPrice = orderNode.getPrice(oraclePriceData, slot);
+
+		initialPrice = takerIsLong
+			? BN.min(limitOrderPrice, initialPrice)
+			: BN.max(limitOrderPrice, initialPrice);
+
+		const betterThanAmm = takerIsLong
+			? limitOrderPrice.lte(afterSwapPrice)
+			: limitOrderPrice.gte(afterSwapPrice);
+
+		if (betterThanAmm) {
+			if (assetType === 'base') {
+				const baseFilled = BN.min(
+					orderNode.order.baseAssetAmount,
+					amount.sub(cumulativeBaseFilled)
+				);
+				const quoteFilled = baseFilled.mul(limitOrderPrice).div(BASE_PRECISION);
+
+				cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+				cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+				if (cumulativeBaseFilled.eq(amount)) {
+					break;
+				}
+			} else {
+				const quoteFilled = BN.min(
+					orderNode.order.baseAssetAmount
+						.mul(limitOrderPrice)
+						.div(BASE_PRECISION),
+					amount.sub(cumulativeQuoteFilled)
+				);
+
+				const baseFilled = quoteFilled.mul(BASE_PRECISION).div(limitOrderPrice);
+
+				cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+				cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+				if (cumulativeQuoteFilled.eq(amount)) {
+					break;
+				}
+			}
+		}
+	}
+
+	if (assetType === 'base' && cumulativeBaseFilled.lt(amount)) {
+		const baseFilled = amount.sub(cumulativeBaseFilled);
+		const [afterSwapQuoteReserves, _] = calculateAmmReservesAfterSwap(
+			amm,
+			'base',
+			baseFilled,
+			swapDirection
+		);
+
+		const quoteFilled = calculateQuoteAssetAmountSwapped(
+			amm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+			amm.pegMultiplier,
+			swapDirection
+		);
+
+		cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+		cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+	} else if (assetType === 'quote' && cumulativeQuoteFilled.lt(amount)) {
+		const quoteFilled = amount.sub(cumulativeQuoteFilled);
+		const [_, afterSwapBaseReserves] = calculateAmmReservesAfterSwap(
+			amm,
+			'quote',
+			quoteFilled,
+			swapDirection
+		);
+
+		const baseFilled = amm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+
+		cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+		cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+	}
+
+	const entryPrice = cumulativeQuoteFilled
+		.mul(BASE_PRECISION)
+		.div(cumulativeBaseFilled);
+
+	const priceImpact = entryPrice
+		.sub(initialPrice)
+		.mul(PRICE_PRECISION)
+		.div(initialPrice)
+		.abs();
+
+	return [entryPrice, priceImpact];
 }
