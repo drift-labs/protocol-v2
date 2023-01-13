@@ -61,7 +61,7 @@ export function calculateTradeSlippage(
 	amount: BN,
 	market: PerpMarketAccount,
 	inputAssetType: AssetType = 'quote',
-	oraclePriceData?: OraclePriceData,
+	oraclePriceData: OraclePriceData,
 	useSpread = true
 ): [BN, BN, BN, BN] {
 	let oldPrice: BN;
