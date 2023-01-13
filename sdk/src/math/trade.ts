@@ -1,4 +1,4 @@
-import { PerpMarketAccount, PositionDirection } from '../types';
+import { MarketType, PerpMarketAccount, PositionDirection } from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
@@ -6,6 +6,7 @@ import {
 	PEG_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
+	BASE_PRECISION,
 } from '../constants/numericConstants';
 import {
 	calculateBidPrice,
@@ -23,6 +24,7 @@ import {
 import { squareRootBN } from './utils';
 import { isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
+import { DLOB } from '../dlob/DLOB';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
@@ -348,4 +350,101 @@ export function calculateTargetPriceTrade(
 	} else {
 		return [direction, baseSize, entryPrice, targetPrice];
 	}
+}
+
+export function calculateEstimatedPerpEntryPrice(
+	marketIndex: number,
+	orderBaseAssetAmount: BN,
+	direction: PositionDirection,
+	market: PerpMarketAccount,
+	oraclePriceData: OraclePriceData,
+	dlob: DLOB,
+	slot: number,
+	useSpread = true
+): BN {
+	const takerIsLong = isVariant(direction, 'long');
+	const limitOrders = dlob[takerIsLong ? 'getLimitAsks' : 'getLimitBids'](
+		marketIndex,
+		slot,
+		MarketType.PERP,
+		oraclePriceData
+	);
+
+	const swapDirection = getSwapDirection('base', direction);
+
+	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
+	if (useSpread && market.amm.baseSpread > 0) {
+		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
+			calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
+		amm = {
+			baseAssetReserve,
+			quoteAssetReserve,
+			sqrtK: sqrtK,
+			pegMultiplier: newPeg,
+		};
+	} else {
+		amm = market.amm;
+	}
+
+	const [afterSwapQuoteReserves, afterSwapBaseReserves] =
+		calculateAmmReservesAfterSwap(
+			amm,
+			'base',
+			orderBaseAssetAmount,
+			swapDirection
+		);
+
+	const afterSwapPrice = calculatePrice(
+		afterSwapBaseReserves,
+		afterSwapQuoteReserves,
+		amm.pegMultiplier
+	);
+
+	let cumulativeBaseFilled = ZERO;
+	let cumulativeQuoteFilled = ZERO;
+	for (const orderNode of limitOrders) {
+		const limitOrderPrice = orderNode.getPrice(oraclePriceData, slot);
+
+		const betterThanAmm = takerIsLong
+			? limitOrderPrice.lte(afterSwapPrice)
+			: limitOrderPrice.gte(afterSwapPrice);
+
+		if (betterThanAmm) {
+			const baseFilled = BN.min(
+				orderNode.order.baseAssetAmount,
+				orderBaseAssetAmount.sub(cumulativeBaseFilled)
+			);
+			const quoteFilled = orderNode.order.quoteAssetAmount
+				.mul(baseFilled)
+				.div(orderNode.order.baseAssetAmount);
+
+			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+			if (cumulativeBaseFilled.eq(orderBaseAssetAmount)) {
+				break;
+			}
+		}
+	}
+
+	if (cumulativeBaseFilled.lt(orderBaseAssetAmount)) {
+		const baseFilled = orderBaseAssetAmount.sub(cumulativeBaseFilled);
+		const [afterSwapQuoteReserves, _] = calculateAmmReservesAfterSwap(
+			amm,
+			'base',
+			baseFilled,
+			swapDirection
+		);
+
+		const quoteFilled = calculateQuoteAssetAmountSwapped(
+			amm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+			amm.pegMultiplier,
+			swapDirection
+		);
+
+		cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+		cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+	}
+
+	return cumulativeQuoteFilled.mul(BASE_PRECISION).div(cumulativeBaseFilled);
 }
