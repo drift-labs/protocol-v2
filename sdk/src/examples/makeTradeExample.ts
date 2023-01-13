@@ -11,7 +11,6 @@ import {
 	convertToNumber,
 	calculateTradeSlippage,
 	BulkAccountLoader,
-	PerpMarkets,
 	getMarketsAndOraclesForSubscription,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
