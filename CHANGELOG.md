@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: relax conditions for valid oracle price in fulfill_perp_order
 - program: handle fallback price when amm has no liquidity ([#324](https://github.com/drift-labs/protocol-v2/pull/324))
 - sdk: add getRestingLimitBids/Asks to DLOB ([#325](https://github.com/drift-labs/protocol-v2/pull/325))
 - program: tweak oracle price used for determine_perp_fulfillment_methods

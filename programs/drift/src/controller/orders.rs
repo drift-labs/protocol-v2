@@ -46,7 +46,7 @@ use crate::math::matching::{
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
 };
 use crate::math::oracle;
-use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_math::SafeMath;
 use crate::math::serum::{
     calculate_serum_limit_price, calculate_serum_max_coin_qty,
@@ -699,6 +699,7 @@ pub fn fill_perp_order(
     let reserve_price_before: u64;
     let oracle_reserve_price_spread_pct_before: i64;
     let is_oracle_valid: bool;
+    let oracle_validity: OracleValidity;
     let oracle_price: i64;
     let mut amm_is_available = state.exchange_status != ExchangeStatus::AmmPaused;
 
@@ -713,7 +714,7 @@ pub fn fill_perp_order(
         )?;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        let oracle_validity = oracle::oracle_validity(
+        oracle_validity = oracle::oracle_validity(
             market.amm.historical_oracle_data.last_oracle_price_twap,
             oracle_price_data,
             &state.oracle_guard_rails.validity,
@@ -730,7 +731,8 @@ pub fn fill_perp_order(
         oracle_price = oracle_price_data.price;
     }
 
-    let valid_oracle_price = if is_oracle_valid {
+    // allow oracle price to be used to calculate limit price if it's valid or stale for amm
+    let valid_oracle_price = if is_oracle_valid || oracle_validity == OracleValidity::StaleForAMM {
         Some(oracle_price)
     } else {
         None
