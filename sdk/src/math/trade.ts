@@ -375,6 +375,10 @@ export function calculateEstimatedPerpEntryPrice(
 	slot: number,
 	minPerpAuctionDuration: number
 ): [BN, BN] {
+	if (amount.eq(ZERO)) {
+		return [ZERO, ZERO];
+	}
+
 	const takerIsLong = isVariant(direction, 'long');
 	const limitOrders = dlob[
 		takerIsLong ? 'getRestingLimitAsks' : 'getRestingLimitBids'
