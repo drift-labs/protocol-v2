@@ -412,9 +412,9 @@ export function calculateEstimatedPerpEntryPrice(
 	let cumulativeBaseFilled = ZERO;
 	let cumulativeQuoteFilled = ZERO;
 
-	const limitOrder = limitOrders.next().value;
+	let limitOrder = limitOrders.next().value;
 	if (limitOrder) {
-		const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
+		const limitOrderPrice = limitOrder.getPrice(oraclePriceData, slot);
 		initialPrice = takerIsLong
 			? BN.min(limitOrderPrice, initialPrice)
 			: BN.max(limitOrderPrice, initialPrice);
@@ -465,7 +465,9 @@ export function calculateEstimatedPerpEntryPrice(
 			}
 
 			const baseFilled = BN.min(
-				limitOrder.order.baseAssetAmount,
+				limitOrder.order.baseAssetAmount.sub(
+					limitOrder.order.baseAssetAmountFilled
+				),
 				amount.sub(cumulativeBaseFilled)
 			);
 			const quoteFilled = baseFilled.mul(limitOrderPrice).div(BASE_PRECISION);
@@ -476,6 +478,8 @@ export function calculateEstimatedPerpEntryPrice(
 			if (cumulativeBaseFilled.eq(amount)) {
 				break;
 			}
+
+			limitOrder = limitOrders.next().value;
 		}
 	} else {
 		while (!cumulativeQuoteFilled.eq(amount)) {
@@ -529,6 +533,7 @@ export function calculateEstimatedPerpEntryPrice(
 
 			const quoteFilled = BN.min(
 				limitOrder.order.baseAssetAmount
+					.sub(limitOrder.order.baseAssetAmountFilled)
 					.mul(limitOrderPrice)
 					.div(BASE_PRECISION),
 				amount.sub(cumulativeQuoteFilled)
@@ -542,6 +547,8 @@ export function calculateEstimatedPerpEntryPrice(
 			if (cumulativeQuoteFilled.eq(amount)) {
 				break;
 			}
+
+			limitOrder = limitOrders.next().value;
 		}
 	}
 
