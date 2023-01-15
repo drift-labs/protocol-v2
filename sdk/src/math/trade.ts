@@ -401,98 +401,148 @@ export function calculateEstimatedPerpEntryPrice(
 		pegMultiplier: newPeg,
 	};
 
+	const invariant = amm.sqrtK.mul(amm.sqrtK);
+
 	let initialPrice = calculatePrice(
 		amm.baseAssetReserve,
 		amm.quoteAssetReserve,
 		amm.pegMultiplier
 	);
 
-	const [afterSwapQuoteReserves, afterSwapBaseReserves] =
-		calculateAmmReservesAfterSwap(amm, assetType, amount, swapDirection);
-
-	const afterSwapPrice = calculatePrice(
-		afterSwapBaseReserves,
-		afterSwapQuoteReserves,
-		amm.pegMultiplier
-	);
-
 	let cumulativeBaseFilled = ZERO;
 	let cumulativeQuoteFilled = ZERO;
-	for (const orderNode of limitOrders) {
-		const limitOrderPrice = orderNode.getPrice(oraclePriceData, slot);
 
+	const limitOrder = limitOrders.next().value;
+	if (limitOrder) {
+		const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
 		initialPrice = takerIsLong
 			? BN.min(limitOrderPrice, initialPrice)
 			: BN.max(limitOrderPrice, initialPrice);
+	}
 
-		const betterThanAmm = takerIsLong
-			? limitOrderPrice.lte(afterSwapPrice)
-			: limitOrderPrice.gte(afterSwapPrice);
+	if (assetType === 'base') {
+		while (!cumulativeBaseFilled.eq(amount)) {
+			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
 
-		if (betterThanAmm) {
-			if (assetType === 'base') {
-				const baseFilled = BN.min(
-					orderNode.order.baseAssetAmount,
-					amount.sub(cumulativeBaseFilled)
+			let maxAmmFill: BN;
+			if (limitOrderPrice) {
+				const newBaseReserves = squareRootBN(
+					invariant
+						.mul(PRICE_PRECISION)
+						.mul(amm.pegMultiplier)
+						.div(limitOrderPrice)
+						.div(PEG_PRECISION)
 				);
-				const quoteFilled = baseFilled.mul(limitOrderPrice).div(BASE_PRECISION);
+
+				// will be zero if the limit order price is better than the amm price
+				maxAmmFill = takerIsLong
+					? amm.baseAssetReserve.sub(newBaseReserves)
+					: newBaseReserves.sub(amm.baseAssetReserve);
+			} else {
+				maxAmmFill = amount.sub(cumulativeBaseFilled);
+			}
+
+			if (maxAmmFill.gt(ZERO)) {
+				const baseFilled = BN.min(amount.sub(cumulativeBaseFilled), maxAmmFill);
+				const [afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(amm, 'base', baseFilled, swapDirection);
+
+				const quoteFilled = calculateQuoteAssetAmountSwapped(
+					amm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+					amm.pegMultiplier,
+					swapDirection
+				);
 
 				cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
 				cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+				amm.baseAssetReserve = afterSwapBaseReserves;
+				amm.quoteAssetReserve = afterSwapQuoteReserves;
 
 				if (cumulativeBaseFilled.eq(amount)) {
 					break;
 				}
-			} else {
-				const quoteFilled = BN.min(
-					orderNode.order.baseAssetAmount
+			}
+
+			const baseFilled = BN.min(
+				limitOrder.order.baseAssetAmount,
+				amount.sub(cumulativeBaseFilled)
+			);
+			const quoteFilled = baseFilled.mul(limitOrderPrice).div(BASE_PRECISION);
+
+			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+			if (cumulativeBaseFilled.eq(amount)) {
+				break;
+			}
+		}
+	} else {
+		while (!cumulativeQuoteFilled.eq(amount)) {
+			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
+
+			let maxAmmFill: BN;
+			if (limitOrderPrice) {
+				const newQuoteReserves = squareRootBN(
+					invariant
+						.mul(PEG_PRECISION)
 						.mul(limitOrderPrice)
-						.div(BASE_PRECISION),
-					amount.sub(cumulativeQuoteFilled)
+						.div(amm.pegMultiplier)
+						.div(PRICE_PRECISION)
 				);
 
-				const baseFilled = quoteFilled.mul(BASE_PRECISION).div(limitOrderPrice);
+				// will be zero if the limit order price is better than the amm price
+				maxAmmFill = takerIsLong
+					? newQuoteReserves.sub(amm.quoteAssetReserve)
+					: amm.quoteAssetReserve.sub(newQuoteReserves);
+			} else {
+				maxAmmFill = amount.sub(cumulativeQuoteFilled);
+			}
+
+			if (maxAmmFill.gt(ZERO)) {
+				const quoteFilled = BN.min(
+					amount.sub(cumulativeQuoteFilled),
+					maxAmmFill
+				);
+				const [afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(
+						amm,
+						'quote',
+						quoteFilled,
+						swapDirection
+					);
+
+				const baseFilled = afterSwapBaseReserves
+					.sub(amm.baseAssetReserve)
+					.abs();
 
 				cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
 				cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+				amm.baseAssetReserve = afterSwapBaseReserves;
+				amm.quoteAssetReserve = afterSwapQuoteReserves;
 
 				if (cumulativeQuoteFilled.eq(amount)) {
 					break;
 				}
 			}
+
+			const quoteFilled = BN.min(
+				limitOrder.order.baseAssetAmount
+					.mul(limitOrderPrice)
+					.div(BASE_PRECISION),
+				amount.sub(cumulativeQuoteFilled)
+			);
+
+			const baseFilled = quoteFilled.mul(BASE_PRECISION).div(limitOrderPrice);
+
+			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+			if (cumulativeQuoteFilled.eq(amount)) {
+				break;
+			}
 		}
-	}
-
-	if (assetType === 'base' && cumulativeBaseFilled.lt(amount)) {
-		const baseFilled = amount.sub(cumulativeBaseFilled);
-		const [afterSwapQuoteReserves, _] = calculateAmmReservesAfterSwap(
-			amm,
-			'base',
-			baseFilled,
-			swapDirection
-		);
-
-		const quoteFilled = calculateQuoteAssetAmountSwapped(
-			amm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
-			amm.pegMultiplier,
-			swapDirection
-		);
-
-		cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
-		cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
-	} else if (assetType === 'quote' && cumulativeQuoteFilled.lt(amount)) {
-		const quoteFilled = amount.sub(cumulativeQuoteFilled);
-		const [_, afterSwapBaseReserves] = calculateAmmReservesAfterSwap(
-			amm,
-			'quote',
-			quoteFilled,
-			swapDirection
-		);
-
-		const baseFilled = amm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
-
-		cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
-		cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
 	}
 
 	const entryPrice = cumulativeQuoteFilled
