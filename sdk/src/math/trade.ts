@@ -1,4 +1,4 @@
-import { PerpMarketAccount, PositionDirection } from '../types';
+import { MarketType, PerpMarketAccount, PositionDirection } from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
@@ -6,6 +6,7 @@ import {
 	PEG_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
+	BASE_PRECISION,
 } from '../constants/numericConstants';
 import {
 	calculateBidPrice,
@@ -23,6 +24,7 @@ import {
 import { squareRootBN } from './utils';
 import { isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
+import { DLOB } from '../dlob/DLOB';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
@@ -348,4 +350,217 @@ export function calculateTargetPriceTrade(
 	} else {
 		return [direction, baseSize, entryPrice, targetPrice];
 	}
+}
+
+/**
+ * Calculates the estimated entry price and price impact of order, in base or quote
+ * Price impact is based on the difference between the entry price and the best bid/ask price (whether it's dlob or vamm)
+ *
+ * @param assetType
+ * @param amount
+ * @param direction
+ * @param market
+ * @param oraclePriceData
+ * @param dlob
+ * @param slot
+ * @param minPerpAuctionDuration
+ */
+export function calculateEstimatedPerpEntryPrice(
+	assetType: AssetType,
+	amount: BN,
+	direction: PositionDirection,
+	market: PerpMarketAccount,
+	oraclePriceData: OraclePriceData,
+	dlob: DLOB,
+	slot: number,
+	minPerpAuctionDuration: number
+): [BN, BN] {
+	if (amount.eq(ZERO)) {
+		return [ZERO, ZERO];
+	}
+
+	const takerIsLong = isVariant(direction, 'long');
+	const limitOrders = dlob[
+		takerIsLong ? 'getRestingLimitAsks' : 'getRestingLimitBids'
+	](
+		market.marketIndex,
+		slot,
+		MarketType.PERP,
+		oraclePriceData,
+		minPerpAuctionDuration
+	);
+
+	const swapDirection = getSwapDirection(assetType, direction);
+
+	const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
+		calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
+	const amm = {
+		baseAssetReserve,
+		quoteAssetReserve,
+		sqrtK: sqrtK,
+		pegMultiplier: newPeg,
+	};
+
+	const invariant = amm.sqrtK.mul(amm.sqrtK);
+
+	let initialPrice = calculatePrice(
+		amm.baseAssetReserve,
+		amm.quoteAssetReserve,
+		amm.pegMultiplier
+	);
+
+	let cumulativeBaseFilled = ZERO;
+	let cumulativeQuoteFilled = ZERO;
+
+	let limitOrder = limitOrders.next().value;
+	if (limitOrder) {
+		const limitOrderPrice = limitOrder.getPrice(oraclePriceData, slot);
+		initialPrice = takerIsLong
+			? BN.min(limitOrderPrice, initialPrice)
+			: BN.max(limitOrderPrice, initialPrice);
+	}
+
+	if (assetType === 'base') {
+		while (!cumulativeBaseFilled.eq(amount)) {
+			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
+
+			let maxAmmFill: BN;
+			if (limitOrderPrice) {
+				const newBaseReserves = squareRootBN(
+					invariant
+						.mul(PRICE_PRECISION)
+						.mul(amm.pegMultiplier)
+						.div(limitOrderPrice)
+						.div(PEG_PRECISION)
+				);
+
+				// will be zero if the limit order price is better than the amm price
+				maxAmmFill = takerIsLong
+					? amm.baseAssetReserve.sub(newBaseReserves)
+					: newBaseReserves.sub(amm.baseAssetReserve);
+			} else {
+				maxAmmFill = amount.sub(cumulativeBaseFilled);
+			}
+
+			if (maxAmmFill.gt(ZERO)) {
+				const baseFilled = BN.min(amount.sub(cumulativeBaseFilled), maxAmmFill);
+				const [afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(amm, 'base', baseFilled, swapDirection);
+
+				const quoteFilled = calculateQuoteAssetAmountSwapped(
+					amm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+					amm.pegMultiplier,
+					swapDirection
+				);
+
+				cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+				cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+				amm.baseAssetReserve = afterSwapBaseReserves;
+				amm.quoteAssetReserve = afterSwapQuoteReserves;
+
+				if (cumulativeBaseFilled.eq(amount)) {
+					break;
+				}
+			}
+
+			const baseFilled = BN.min(
+				limitOrder.order.baseAssetAmount.sub(
+					limitOrder.order.baseAssetAmountFilled
+				),
+				amount.sub(cumulativeBaseFilled)
+			);
+			const quoteFilled = baseFilled.mul(limitOrderPrice).div(BASE_PRECISION);
+
+			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+			if (cumulativeBaseFilled.eq(amount)) {
+				break;
+			}
+
+			limitOrder = limitOrders.next().value;
+		}
+	} else {
+		while (!cumulativeQuoteFilled.eq(amount)) {
+			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
+
+			let maxAmmFill: BN;
+			if (limitOrderPrice) {
+				const newQuoteReserves = squareRootBN(
+					invariant
+						.mul(PEG_PRECISION)
+						.mul(limitOrderPrice)
+						.div(amm.pegMultiplier)
+						.div(PRICE_PRECISION)
+				);
+
+				// will be zero if the limit order price is better than the amm price
+				maxAmmFill = takerIsLong
+					? newQuoteReserves.sub(amm.quoteAssetReserve)
+					: amm.quoteAssetReserve.sub(newQuoteReserves);
+			} else {
+				maxAmmFill = amount.sub(cumulativeQuoteFilled);
+			}
+
+			if (maxAmmFill.gt(ZERO)) {
+				const quoteFilled = BN.min(
+					amount.sub(cumulativeQuoteFilled),
+					maxAmmFill
+				);
+				const [afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(
+						amm,
+						'quote',
+						quoteFilled,
+						swapDirection
+					);
+
+				const baseFilled = afterSwapBaseReserves
+					.sub(amm.baseAssetReserve)
+					.abs();
+
+				cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+				cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+				amm.baseAssetReserve = afterSwapBaseReserves;
+				amm.quoteAssetReserve = afterSwapQuoteReserves;
+
+				if (cumulativeQuoteFilled.eq(amount)) {
+					break;
+				}
+			}
+
+			const quoteFilled = BN.min(
+				limitOrder.order.baseAssetAmount
+					.sub(limitOrder.order.baseAssetAmountFilled)
+					.mul(limitOrderPrice)
+					.div(BASE_PRECISION),
+				amount.sub(cumulativeQuoteFilled)
+			);
+
+			const baseFilled = quoteFilled.mul(BASE_PRECISION).div(limitOrderPrice);
+
+			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+			if (cumulativeQuoteFilled.eq(amount)) {
+				break;
+			}
+
+			limitOrder = limitOrders.next().value;
+		}
+	}
+
+	const entryPrice = cumulativeQuoteFilled
+		.mul(BASE_PRECISION)
+		.div(cumulativeBaseFilled);
+
+	const priceImpact = entryPrice
+		.sub(initialPrice)
+		.mul(PRICE_PRECISION)
+		.div(initialPrice)
+		.abs();
+
+	return [entryPrice, priceImpact];
 }
