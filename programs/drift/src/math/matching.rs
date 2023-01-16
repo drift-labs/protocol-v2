@@ -1,7 +1,7 @@
 use std::cmp::min;
 
 use crate::controller::position::PositionDirection;
-use crate::error::DriftResult;
+use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{BID_ASK_SPREAD_PRECISION_I128, TEN_BPS_I64};
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
@@ -17,12 +17,16 @@ pub fn is_maker_for_taker(
     taker_order: &Order,
     slot: u64,
 ) -> DriftResult<bool> {
-    if taker_order.is_market_order() {
-        maker_order.is_resting_limit_order(slot)
-    } else if !taker_order.is_resting_limit_order(slot)? {
-        Ok(maker_order.is_resting_limit_order(slot)? && maker_order.slot < taker_order.slot)
-    } else {
+    if taker_order.post_only {
+        Err(ErrorCode::CantMatchTwoPostOnlys)
+    } else if maker_order.post_only && !taker_order.post_only {
+        Ok(true)
+    } else if maker_order.is_resting_limit_order(slot)? && taker_order.is_market_order() {
+        Ok(true)
+    } else if maker_order.is_market_order() {
         Ok(false)
+    } else {
+        Ok(maker_order.slot < taker_order.slot)
     }
 }
 
