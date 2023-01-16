@@ -455,6 +455,8 @@ pub enum ErrorCode {
     FailedUnwrap,
     #[msg("Max Number Of Users")]
     MaxNumberOfUsers,
+    #[msg("InvalidOracleForSettlePnl")]
+    InvalidOracleForSettlePnl,
 }
 
 #[macro_export]
