@@ -141,7 +141,7 @@ pub fn get_oracle_status<'a>(
     precomputed_reserve_price: Option<u64>,
 ) -> DriftResult<OracleStatus> {
     let oracle_validity = oracle_validity(
-        amm.historical_oracle_data.last_oracle_price_twap,
+        amm.historical_oracle_data.last_oracle_price_twap_5min,
         oracle_price_data,
         &guard_rails.validity,
     )?;

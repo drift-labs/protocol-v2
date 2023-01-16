@@ -149,7 +149,10 @@ pub fn _update_amm(
     }
 
     let oracle_validity = oracle::oracle_validity(
-        market.amm.historical_oracle_data.last_oracle_price_twap,
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
     )?;
@@ -225,7 +228,10 @@ pub fn update_amm_and_check_validity(
     _update_amm(market, oracle_price_data, state, now, clock_slot)?;
 
     // 1 hour EMA
-    let risk_ema_price = market.amm.historical_oracle_data.last_oracle_price_twap;
+    let risk_ema_price = market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_5min;
 
     let oracle_validity = oracle_validity(
         risk_ema_price,

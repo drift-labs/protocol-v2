@@ -477,7 +477,10 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
             &market.amm.oracle,
-            market.amm.historical_oracle_data.last_oracle_price_twap,
+            market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
         )?;
         all_oracles_valid &=
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;

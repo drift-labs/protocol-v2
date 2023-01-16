@@ -745,3 +745,71 @@ fn calc_oracle_twap_clamp_update_tests() {
     );
     assert_eq!(amm.last_oracle_normalised_price, 129_900_873);
 }
+
+#[test]
+fn update_twaps_funding_test() {
+    let prev = 0;
+
+    let mut now = 1;
+
+    let mut oracle_price_data = OraclePriceData {
+        price: 22_021_280 * PRICE_PRECISION_I64 / 1_000_000,
+        confidence: PRICE_PRECISION_U64 / 100,
+        delay: 1,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    // $40 everything init
+    let mut amm = AMM {
+        quote_asset_reserve: 20 * AMM_RESERVE_PRECISION,
+        base_asset_reserve: 20 * AMM_RESERVE_PRECISION,
+        peg_multiplier: 22 * PEG_PRECISION,
+        base_spread: 500,
+        long_spread: 5000,
+        short_spread: 500,
+        last_mark_price_twap: (2008 * PRICE_PRECISION_U64 / 100),
+        last_bid_price_twap: (2006 * PRICE_PRECISION_U64 / 100),
+        last_ask_price_twap: (2010 * PRICE_PRECISION_U64 / 100),
+        last_mark_price_twap_ts: prev,
+        funding_period: 3600,
+        historical_oracle_data: HistoricalOracleData {
+            last_oracle_price: (22 * PRICE_PRECISION) as i64,
+            last_oracle_price_twap: (2019 * PRICE_PRECISION / 100) as i64,
+            last_oracle_price_twap_ts: prev,
+            ..HistoricalOracleData::default()
+        },
+        ..AMM::default()
+    };
+
+    let trade_price = 22_051_280 * PRICE_PRECISION_U64 / 1_000_000;
+    let trade_direction = PositionDirection::Long;
+
+    let prev_gap =
+        amm.historical_oracle_data.last_oracle_price_twap - amm.last_mark_price_twap as i64;
+
+    let mut count = 0;
+    while count < 30 {
+        now += 1;
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        if now % 5 == 0 {
+            update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+            update_mark_twap(
+                &mut amm,
+                now,
+                Some(trade_price),
+                Some(trade_direction),
+                None,
+            )
+            .unwrap();
+            count += 1;
+            oracle_price_data.price += 10;
+        }
+    }
+    assert_eq!(amm.last_mark_price_twap, 20159903);
+    assert_eq!(amm.historical_oracle_data.last_oracle_price_twap, 20278930);
+
+    let new_gap =
+        amm.historical_oracle_data.last_oracle_price_twap - amm.last_mark_price_twap as i64;
+    assert_eq!(prev_gap, 110000);
+    assert_eq!(new_gap, 119027);
+}

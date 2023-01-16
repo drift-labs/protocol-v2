@@ -714,7 +714,10 @@ pub fn fill_perp_order(
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         let oracle_validity = oracle::oracle_validity(
-            market.amm.historical_oracle_data.last_oracle_price_twap,
+            market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
             oracle_price_data,
             &state.oracle_guard_rails.validity,
         )?;
@@ -2137,7 +2140,10 @@ fn get_valid_oracle_price(
 ) -> DriftResult<Option<i64>> {
     let price = {
         let oracle_validity = oracle::oracle_validity(
-            market.amm.historical_oracle_data.last_oracle_price_twap,
+            market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
             oracle_price_data,
             validity_guardrails,
         )?;
