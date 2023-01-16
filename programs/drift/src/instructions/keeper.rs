@@ -22,7 +22,7 @@ use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
-use crate::state::state::{ExchangeStatus, State};
+use crate::state::state::State;
 use crate::state::user::{MarketType, User, UserStats};
 use crate::validate;
 use crate::{controller, load, math};
@@ -340,7 +340,7 @@ pub fn handle_force_cancel_orders<'info>(ctx: Context<ForceCancelOrder>) -> Resu
 }
 
 #[access_control(
-    withdraw_not_paused(&ctx.accounts.state)
+    settle_pnl_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
     let clock = Clock::get()?;
@@ -460,7 +460,7 @@ pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Res
 }
 
 #[access_control(
-    withdraw_not_paused(&ctx.accounts.state)
+    settle_pnl_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_settle_expired_market(ctx: Context<UpdateAMM>, market_index: u16) -> Result<()> {
     let clock = Clock::get()?;
@@ -970,7 +970,7 @@ pub fn handle_resolve_perp_bankruptcy(
 }
 
 #[access_control(
- withdraw_not_paused(&ctx.accounts.state)
+    withdraw_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_resolve_spot_bankruptcy(
     ctx: Context<ResolveBankruptcy>,
@@ -1108,7 +1108,7 @@ pub fn handle_update_funding_rate(
         &mut oracle_map,
         now,
         &state.oracle_guard_rails,
-        matches!(state.exchange_status, ExchangeStatus::FundingPaused),
+        state.funding_paused()?,
         None,
     )?;
 
@@ -1211,7 +1211,7 @@ pub fn handle_update_spot_market_cumulative_interest(
 
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
 
-    if !matches!(state.exchange_status, ExchangeStatus::FundingPaused) {
+    if !state.funding_paused()? {
         controller::spot_balance::update_spot_market_cumulative_interest(
             spot_market,
             Some(oracle_price_data),

@@ -19,7 +19,6 @@ import {
 	UserMapInterface,
 	Wallet,
 	OrderRecord,
-	ExchangeStatus,
 	ZERO,
 	ContractTier,
 } from '../../src';
@@ -478,7 +477,7 @@ export const mockStateAccount: StateAccount = {
 	defaultMarketOrderTimeInForce: 0,
 	defaultSpotAuctionDuration: 0,
 	discountMint: PublicKey.default,
-	exchangeStatus: ExchangeStatus.ACTIVE,
+	exchangeStatus: 0,
 	liquidationMarginBufferRatio: 0,
 	lpCooldownTime: new BN(0),
 	minPerpAuctionDuration: 0,

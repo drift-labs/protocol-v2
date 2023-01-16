@@ -10,7 +10,6 @@ import {
 	PositionDirection,
 	ExchangeStatus,
 	OracleSource,
-	isVariant,
 } from '../sdk/src';
 
 import {
@@ -111,7 +110,7 @@ describe('admin withdraw', () => {
 	it('Pause exchange', async () => {
 		await driftClient.updateExchangeStatus(ExchangeStatus.PAUSED);
 		const state = driftClient.getStateAccount();
-		assert(isVariant(state.exchangeStatus, 'paused'));
+		assert(state.exchangeStatus === ExchangeStatus.PAUSED);
 	});
 
 	it('Block open position', async () => {

@@ -701,8 +701,7 @@ pub fn fill_perp_order(
     let is_oracle_valid: bool;
     let oracle_validity: OracleValidity;
     let oracle_price: i64;
-    let mut amm_is_available = state.exchange_status != ExchangeStatus::AmmPaused;
-
+    let mut amm_is_available = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         amm_is_available &= market.status != MarketStatus::AmmPaused;
@@ -903,8 +902,8 @@ pub fn fill_perp_order(
     // Try to update the funding rate at the end of every trade
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-        let funding_paused = matches!(state.exchange_status, ExchangeStatus::FundingPaused)
-            || matches!(market.status, MarketStatus::FundingPaused);
+        let funding_paused =
+            state.funding_paused()? || matches!(market.status, MarketStatus::FundingPaused);
 
         controller::funding::update_funding_rate(
             market_index,

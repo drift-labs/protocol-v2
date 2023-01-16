@@ -66,57 +66,71 @@ pub fn valid_oracle_for_perp_market(
 }
 
 pub fn liq_not_paused(state: &Account<State>) -> anchor_lang::Result<()> {
-    if matches!(
-        state.exchange_status,
-        ExchangeStatus::LiqPaused | ExchangeStatus::Paused
-    ) {
+    if state
+        .get_exchange_status()?
+        .contains(ExchangeStatus::LiqPaused)
+    {
         return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }
 
 pub fn funding_not_paused(state: &Account<State>) -> anchor_lang::Result<()> {
-    if matches!(
-        state.exchange_status,
-        ExchangeStatus::FundingPaused | ExchangeStatus::Paused
-    ) {
+    if state.funding_paused()? {
         return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }
 
 pub fn amm_not_paused(state: &Account<State>) -> anchor_lang::Result<()> {
-    if matches!(
-        state.exchange_status,
-        ExchangeStatus::AmmPaused | ExchangeStatus::Paused
-    ) {
+    if state.amm_paused()? {
         return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }
 
 pub fn fill_not_paused(state: &Account<State>) -> anchor_lang::Result<()> {
-    if matches!(
-        state.exchange_status,
-        ExchangeStatus::FillPaused | ExchangeStatus::Paused
-    ) {
+    if state
+        .get_exchange_status()?
+        .contains(ExchangeStatus::FillPaused)
+    {
+        return Err(ErrorCode::ExchangePaused.into());
+    }
+    Ok(())
+}
+
+pub fn deposit_not_paused(state: &Account<State>) -> anchor_lang::Result<()> {
+    if state
+        .get_exchange_status()?
+        .contains(ExchangeStatus::DepositPaused)
+    {
         return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }
 
 pub fn withdraw_not_paused(state: &Account<State>) -> anchor_lang::Result<()> {
-    if matches!(
-        state.exchange_status,
-        ExchangeStatus::WithdrawPaused | ExchangeStatus::Paused
-    ) {
+    if state
+        .get_exchange_status()?
+        .contains(ExchangeStatus::WithdrawPaused)
+    {
+        return Err(ErrorCode::ExchangePaused.into());
+    }
+    Ok(())
+}
+
+pub fn settle_pnl_not_paused(state: &Account<State>) -> anchor_lang::Result<()> {
+    if state
+        .get_exchange_status()?
+        .contains(ExchangeStatus::SettlePnlPaused)
+    {
         return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }
 
 pub fn exchange_not_paused(state: &Account<State>) -> anchor_lang::Result<()> {
-    if state.exchange_status == ExchangeStatus::Paused {
+    if state.get_exchange_status()?.is_all() {
         return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
