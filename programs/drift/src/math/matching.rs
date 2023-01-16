@@ -12,6 +12,7 @@ use crate::state::user::Order;
 #[cfg(test)]
 mod tests;
 
+#[allow(clippy::if_same_then_else)]
 pub fn is_maker_for_taker(
     maker_order: &Order,
     taker_order: &Order,

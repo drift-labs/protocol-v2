@@ -372,8 +372,7 @@ export function calculateEstimatedPerpEntryPrice(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	dlob: DLOB,
-	slot: number,
-	minPerpAuctionDuration: number
+	slot: number
 ): [BN, BN] {
 	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO];
@@ -382,13 +381,7 @@ export function calculateEstimatedPerpEntryPrice(
 	const takerIsLong = isVariant(direction, 'long');
 	const limitOrders = dlob[
 		takerIsLong ? 'getRestingLimitAsks' : 'getRestingLimitBids'
-	](
-		market.marketIndex,
-		slot,
-		MarketType.PERP,
-		oraclePriceData,
-		minPerpAuctionDuration
-	);
+	](market.marketIndex, slot, MarketType.PERP, oraclePriceData);
 
 	const swapDirection = getSwapDirection(assetType, direction);
 

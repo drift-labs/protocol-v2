@@ -519,7 +519,7 @@ export class DLOB {
 			marketType,
 			oraclePriceData,
 			marketOrderGenerator,
-			this.getLimitBids.bind(this),
+			this.getRestingLimitBids.bind(this),
 			(takerPrice, makerPrice) => {
 				return takerPrice === undefined || takerPrice.lte(makerPrice);
 			}
@@ -555,7 +555,7 @@ export class DLOB {
 			marketType,
 			oraclePriceData,
 			marketOrderGenerator,
-			this.getLimitAsks.bind(this),
+			this.getRestingLimitAsks.bind(this),
 			(takerPrice, fallbackPrice) => {
 				return takerPrice === undefined || takerPrice.gte(fallbackPrice);
 			}
@@ -925,8 +925,7 @@ export class DLOB {
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
-		minPerpAuctionDuration: number
+		oraclePriceData: OraclePriceData
 	): Generator<DLOBNode> {
 		for (const node of this.getLimitAsks(
 			marketIndex,
@@ -934,21 +933,14 @@ export class DLOB {
 			marketType,
 			oraclePriceData
 		)) {
-			if (this.isRestingLimitOrder(node.order, slot, minPerpAuctionDuration)) {
+			if (this.isRestingLimitOrder(node.order, slot)) {
 				yield node;
 			}
 		}
 	}
 
-	isRestingLimitOrder(
-		order: Order,
-		slot: number,
-		minPerpAuctionDuration: number
-	): boolean {
-		return (
-			order.postOnly ||
-			new BN(slot).sub(order.slot).gte(new BN(minPerpAuctionDuration * 1.5))
-		);
+	isRestingLimitOrder(order: Order, slot: number): boolean {
+		return order.postOnly || new BN(slot).sub(order.slot).gte(new BN(15));
 	}
 
 	*getLimitBids(
@@ -993,8 +985,7 @@ export class DLOB {
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
-		minPerpAuctionDuration: number
+		oraclePriceData: OraclePriceData
 	): Generator<DLOBNode> {
 		for (const node of this.getLimitBids(
 			marketIndex,
@@ -1002,7 +993,7 @@ export class DLOB {
 			marketType,
 			oraclePriceData
 		)) {
-			if (this.isRestingLimitOrder(node.order, slot, minPerpAuctionDuration)) {
+			if (this.isRestingLimitOrder(node.order, slot)) {
 				yield node;
 			}
 		}
