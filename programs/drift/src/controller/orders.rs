@@ -3842,7 +3842,7 @@ pub fn fulfill_spot_order_with_serum(
         max_ts: now,
     };
 
-    let market_fees_accrued_before = market_state_before.pc_fees_accrued;
+    let _market_fees_accrued_before = market_state_before.pc_fees_accrued;
     let base_before = serum_new_order_accounts.base_market_vault.amount;
     let quote_before = serum_new_order_accounts.quote_market_vault.amount;
     let market_rebates_accrued_before = market_state_before.referrer_rebates_accrued;
@@ -3879,7 +3879,7 @@ pub fn fulfill_spot_order_with_serum(
         serum_new_order_accounts.serum_program_id.key,
     )?;
 
-    let market_fees_accrued_after = market_state_after.pc_fees_accrued;
+    let _market_fees_accrued_after = market_state_after.pc_fees_accrued;
     let market_rebates_accrued_after = market_state_after.referrer_rebates_accrued;
 
     drop(market_state_after);
@@ -3950,10 +3950,11 @@ pub fn fulfill_spot_order_with_serum(
         return Ok(0);
     }
 
-    let serum_fee = market_fees_accrued_after.safe_sub(market_fees_accrued_before)?;
-
     let serum_referrer_rebate =
         market_rebates_accrued_after.safe_sub(market_rebates_accrued_before)?;
+
+    // rebate is half of taker fee
+    let serum_fee = serum_referrer_rebate;
 
     let (quote_update_direction, quote_asset_amount_filled) = if quote_after > quote_before {
         let quote_asset_amount_delta = quote_after
