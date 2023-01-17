@@ -201,7 +201,6 @@ pub fn update_funding_rate(
                 (reserve_price, None)
             };
 
-        let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
         let mid_price_twap = amm::update_mark_twap(
             &mut market.amm,
             now,

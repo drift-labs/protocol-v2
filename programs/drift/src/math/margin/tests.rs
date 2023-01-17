@@ -7,7 +7,7 @@ mod test {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
         QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_IMF_PRECISION,
+        SPOT_IMF_PRECISION, MARGIN_PRECISION_U128
     };
     use crate::math::margin::{
         calculate_perp_position_value_and_pnl, calculate_spot_position_value, MarginRequirementType,
@@ -19,6 +19,7 @@ mod test {
     use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{PerpPosition, SpotPosition, User};
+    use crate::math::margin::{calculate_size_premium_liability_weight};
 
     #[test]
     fn spot_market_asset_weight() {
@@ -84,6 +85,25 @@ mod test {
             .get_liability_weight(size, &MarginRequirementType::Maintenance)
             .unwrap();
         assert_eq!(maint_lib_weight, 31622);
+
+
+
+        // perp
+        let ss = calculate_size_premium_liability_weight(
+            15000 * AMM_RESERVE_PRECISION, 
+            300,
+            2000, // 5x
+            MARGIN_PRECISION_U128
+        ).unwrap();
+        assert_eq!(ss, 2367);
+
+        let ss = calculate_size_premium_liability_weight(
+            15000 * AMM_RESERVE_PRECISION, 
+            300, 
+            500, // 20x
+            MARGIN_PRECISION_U128
+        ).unwrap();
+        assert_eq!(ss, 867);
     }
 
     #[test]
