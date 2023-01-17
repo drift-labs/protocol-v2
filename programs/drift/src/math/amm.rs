@@ -248,6 +248,16 @@ pub fn update_mark_twap(
     )?
     .cast()?;
 
+    // calculate oracle twap for funding period
+    let oracle_price_twap = calculate_new_twap(
+        amm.last_oracle_normalised_price,
+        now,
+        amm.historical_oracle_data.last_oracle_price_twap.cast()?,
+        amm.last_mark_price_twap_ts,
+        amm.funding_period,
+    )?;
+    amm.historical_oracle_data.last_oracle_price_twap = oracle_price_twap;
+
     amm.last_mark_price_twap_ts = now;
 
     mid_twap.cast()
@@ -342,15 +352,10 @@ pub fn update_oracle_price_twap(
             calculate_oracle_reserve_price_spread_pct(amm, oracle_price_data, Some(reserve_price))?;
 
         amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price_twap_5min;
-        amm.historical_oracle_data.last_oracle_price_twap = oracle_price_twap;
+        // amm.historical_oracle_data.last_oracle_price_twap = oracle_price_twap;
 
         // update std stat
-        update_amm_oracle_std(
-            amm,
-            now,
-            oracle_price.cast()?,
-            amm.historical_oracle_data.last_oracle_price_twap.cast()?,
-        )?;
+        update_amm_oracle_std(amm, now, oracle_price.cast()?, oracle_price_twap.cast()?)?;
 
         amm.historical_oracle_data.last_oracle_price_twap_ts = now;
     } else {

@@ -1514,6 +1514,14 @@ pub fn fulfill_perp_order_with_amm(
     };
 
     let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+    amm::update_oracle_price_twap(
+        &mut market.amm,
+        now,
+        oracle_price_data,
+        Some(reserve_price_before),
+        sanitize_clamp_denominator,
+    )?;
     amm::update_mark_twap(
         &mut market.amm,
         now,
@@ -1818,6 +1826,7 @@ pub fn fulfill_perp_order_with_match(
     }
 
     let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
     amm::update_mark_twap(
         &mut market.amm,
         now,
