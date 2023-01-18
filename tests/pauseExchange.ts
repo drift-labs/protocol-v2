@@ -19,7 +19,7 @@ import {
 	initializeQuoteSpotMarket,
 } from './testHelpers';
 
-describe('admin withdraw', () => {
+describe('Pause exchange', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		skipPreflight: false,
@@ -117,6 +117,7 @@ describe('admin withdraw', () => {
 		try {
 			await driftClient.openPosition(PositionDirection.LONG, usdcAmount, 0);
 		} catch (e) {
+			console.log(e);
 			assert(e.message.includes('0x1788')); //Error Number: 6024. Error Message: Exchange is paused.
 			return;
 		}

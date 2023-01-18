@@ -6374,9 +6374,6 @@
             "name": "FundingPaused"
           },
           {
-            "name": "UpdateInterestPaused"
-          },
-          {
             "name": "SettlePnlPaused"
           }
         ]

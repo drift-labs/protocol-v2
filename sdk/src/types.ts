@@ -11,9 +11,8 @@ export enum ExchangeStatus {
 	FILL_PAUSED = 8,
 	LIQ_PAUSED = 16,
 	FUNDING_PAUSED = 32,
-	UPDATE_INTEREST_PAUSED = 64,
-	SETTLE_PNL_PAUSED = 128,
-	PAUSED = 255,
+	SETTLE_PNL_PAUSED = 64,
+	PAUSED = 127,
 }
 
 export class MarketStatus {
