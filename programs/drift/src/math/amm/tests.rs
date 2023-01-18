@@ -746,6 +746,95 @@ fn calc_oracle_twap_clamp_update_tests() {
     assert_eq!(amm.last_oracle_normalised_price, 129_900_873);
 }
 
+
+#[test]
+fn calc_oracle_twap_clamp_update_infreq_tests() {
+    let prev = 1667387000;
+    let mut now = prev + 1;
+
+    // let oracle_price_data = OraclePriceData {
+    //     price: 13_021_280 * PRICE_PRECISION_I64 / 1_000_000,
+    //     confidence: PRICE_PRECISION_U64 / 100,
+    //     delay: 1,
+    //     has_sufficient_number_of_data_points: true,
+    // };
+
+    // $13 everything init
+    let mut amm = AMM {
+        quote_asset_reserve: 200 * AMM_RESERVE_PRECISION,
+        base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
+        peg_multiplier: 13 * PEG_PRECISION,
+        base_spread: 0,
+        long_spread: 0,
+        short_spread: 0,
+        last_mark_price_twap: (13 * PRICE_PRECISION_U64),
+        last_bid_price_twap: (13 * PRICE_PRECISION_U64),
+        last_ask_price_twap: (13 * PRICE_PRECISION_U64),
+        last_mark_price_twap_ts: prev,
+        funding_period: 3600,
+        historical_oracle_data: HistoricalOracleData {
+            last_oracle_price: (13 * PRICE_PRECISION) as i64,
+            last_oracle_price_twap: (13 * PRICE_PRECISION) as i64,
+            last_oracle_price_twap_5min: (13 * PRICE_PRECISION) as i64,
+            last_oracle_price_twap_ts: prev,
+            ..HistoricalOracleData::default()
+        },
+        ..AMM::default()
+    };
+
+    // price jumps 10x
+    let oracle_price_data = OraclePriceData {
+        price: 130 * PRICE_PRECISION_I64 + 873,
+        confidence: PRICE_PRECISION_U64 / 10,
+        delay: 1,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    while now < prev + 3600 {
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        now += 60*5;
+    }
+    assert_eq!(
+        amm.historical_oracle_data.last_oracle_price_twap,
+        18_143_130
+    );
+    assert_eq!(
+        amm.historical_oracle_data.last_oracle_price_twap_5min,
+        23_536_961
+    );
+    assert_eq!(amm.last_oracle_normalised_price, 24_188_600);
+
+    while now < prev + 3600 * 2 {
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        now += 1;
+    }
+
+    assert_eq!(
+        amm.historical_oracle_data.last_oracle_price_twap,
+        25_322_529
+    );
+    assert_eq!(
+        amm.historical_oracle_data.last_oracle_price_twap_5min,
+        32_850_803
+    );
+    assert_eq!(amm.last_oracle_normalised_price, 33_760_245);
+
+    while now < prev + 3600 * 10 {
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        now += 1;
+    }
+
+    assert_eq!(
+        amm.historical_oracle_data.last_oracle_price_twap,
+        129_282_724
+    );
+    assert_eq!(
+        amm.historical_oracle_data.last_oracle_price_twap_5min,
+        129_900_874
+    );
+    assert_eq!(amm.last_oracle_normalised_price, 129_900_873);
+}
+
 #[test]
 fn update_twaps_funding_test() {
     let prev = 0;
