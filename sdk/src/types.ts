@@ -909,6 +909,11 @@ export type ReferrerInfo = {
 	referrerStats: PublicKey;
 };
 
+export type TxParams = {
+	computeUnits?: number;
+	computeUnitsPrice?: number;
+};
+
 // # Misc Types
 export interface IWallet {
 	signTransaction(tx: Transaction): Promise<Transaction>;
