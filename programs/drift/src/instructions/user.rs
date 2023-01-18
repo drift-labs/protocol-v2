@@ -149,6 +149,9 @@ pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result
     Ok(())
 }
 
+#[access_control(
+    deposit_not_paused(&ctx.accounts.state)
+)]
 pub fn handle_deposit(
     ctx: Context<Deposit>,
     market_index: u16,
@@ -465,6 +468,7 @@ pub fn handle_withdraw(
 }
 
 #[access_control(
+    deposit_not_paused(&ctx.accounts.state)
     withdraw_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_transfer_deposit(

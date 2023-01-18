@@ -842,7 +842,7 @@ pub mod drift {
 
     pub fn update_exchange_status(
         ctx: Context<AdminUpdateState>,
-        exchange_status: ExchangeStatus,
+        exchange_status: u8,
     ) -> Result<()> {
         handle_update_exchange_status(ctx, exchange_status)
     }

@@ -23,7 +23,7 @@ import {
 	mockUserUSDCAccount,
 } from './testHelpers';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { BulkAccountLoader } from '../sdk';
+import { BulkAccountLoader, ExchangeStatus } from '../sdk';
 
 describe('user order id', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -97,7 +97,9 @@ describe('user order id', () => {
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		await driftClient.fetchAccounts();
-		assert(isVariant(driftClient.getStateAccount().exchangeStatus, 'active'));
+		assert(
+			driftClient.getStateAccount().exchangeStatus === ExchangeStatus.ACTIVE
+		);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
