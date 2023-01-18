@@ -519,10 +519,11 @@ export class DLOB {
 			marketType,
 			oraclePriceData,
 			marketOrderGenerator,
-			this.getRestingLimitBids.bind(this),
+			this.getMakerLimitBids.bind(this),
 			(takerPrice, makerPrice) => {
 				return takerPrice === undefined || takerPrice.lte(makerPrice);
-			}
+			},
+			fallbackAsk
 		);
 		for (const marketAskCrossingBid of marketAsksCrossingBids) {
 			nodesToFill.push(marketAskCrossingBid);
@@ -555,10 +556,11 @@ export class DLOB {
 			marketType,
 			oraclePriceData,
 			marketOrderGenerator,
-			this.getRestingLimitAsks.bind(this),
+			this.getMakerLimitAsks.bind(this),
 			(takerPrice, fallbackPrice) => {
 				return takerPrice === undefined || takerPrice.gte(fallbackPrice);
-			}
+			},
+			fallbackBid
 		);
 
 		for (const marketBidToFill of marketBidsToFill) {
@@ -596,9 +598,11 @@ export class DLOB {
 			marketIndex: number,
 			slot: number,
 			marketType: MarketType,
-			oraclePriceData: OraclePriceData
+			oraclePriceData: OraclePriceData,
+			fallbackPrice?: BN
 		) => Generator<DLOBNode>,
-		doesCross: (takerPrice: BN | undefined, makerPrice: BN) => boolean
+		doesCross: (takerPrice: BN | undefined, makerPrice: BN) => boolean,
+		fallbackPrice?: BN
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -607,7 +611,8 @@ export class DLOB {
 				marketIndex,
 				slot,
 				marketType,
-				oraclePriceData
+				oraclePriceData,
+				fallbackPrice
 			);
 
 			for (const makerNode of makerNodeGenerator) {
@@ -916,16 +921,17 @@ export class DLOB {
 	}
 
 	/**
-	 * Filters the limit asks that are post only or have been place for sufficiently long
-	 * Useful for displaying order book that doesn't have taker limit orders crossing spread
+	 * Filters the limit asks that are post only, have been place for sufficiently long or are above the fallback bid
+	 * Market orders can only fill against orders that meet this criteria
 	 *
 	 * @returns
 	 */
-	*getRestingLimitAsks(
+	*getMakerLimitAsks(
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		fallbackBid?: BN
 	): Generator<DLOBNode> {
 		for (const node of this.getLimitAsks(
 			marketIndex,
@@ -934,6 +940,11 @@ export class DLOB {
 			oraclePriceData
 		)) {
 			if (this.isRestingLimitOrder(node.order, slot)) {
+				yield node;
+			} else if (
+				fallbackBid &&
+				node.getPrice(oraclePriceData, slot).gt(fallbackBid)
+			) {
 				yield node;
 			}
 		}
@@ -976,16 +987,17 @@ export class DLOB {
 	}
 
 	/**
-	 * Filters the limit bids that are post only or have been place for sufficiently long
-	 * Useful for displaying order book that doesn't have taker limit orders crossing spread
+	 * Filters the limit bids that are post only, have been place for sufficiently long or are below the fallback ask
+	 * Market orders can only fill against orders that meet this criteria
 	 *
 	 * @returns
 	 */
-	*getRestingLimitBids(
+	*getMakerLimitBids(
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		fallbackAsk?: BN
 	): Generator<DLOBNode> {
 		for (const node of this.getLimitBids(
 			marketIndex,
@@ -994,6 +1006,11 @@ export class DLOB {
 			oraclePriceData
 		)) {
 			if (this.isRestingLimitOrder(node.order, slot)) {
+				yield node;
+			} else if (
+				fallbackAsk &&
+				node.getPrice(oraclePriceData, slot).lt(fallbackAsk)
+			) {
 				yield node;
 			}
 		}
