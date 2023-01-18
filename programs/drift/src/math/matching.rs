@@ -13,16 +13,12 @@ use crate::state::user::Order;
 mod tests;
 
 #[allow(clippy::if_same_then_else)]
-pub fn is_maker_for_taker(
-    maker_order: &Order,
-    taker_order: &Order,
-    slot: u64,
-) -> DriftResult<bool> {
+pub fn is_maker_for_taker(maker_order: &Order, taker_order: &Order) -> DriftResult<bool> {
     if taker_order.post_only {
         Err(ErrorCode::CantMatchTwoPostOnlys)
     } else if maker_order.post_only && !taker_order.post_only {
         Ok(true)
-    } else if maker_order.is_resting_limit_order(slot)? && taker_order.is_market_order() {
+    } else if maker_order.is_limit_order() && taker_order.is_market_order() {
         Ok(true)
     } else if maker_order.is_market_order() {
         Ok(false)
