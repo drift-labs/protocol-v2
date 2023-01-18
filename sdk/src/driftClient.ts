@@ -22,6 +22,7 @@ import {
 	OrderType,
 	ReferrerInfo,
 	MarketType,
+	TxParams,
 	SerumV3FulfillmentConfigAccount,
 	isVariant,
 } from './types';
@@ -2248,7 +2249,8 @@ export class DriftClient {
 		order?: Order,
 		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			wrapInTx(
@@ -2259,7 +2261,9 @@ export class DriftClient {
 					fulfillmentConfig,
 					makerInfo,
 					referrerInfo
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -2704,7 +2708,8 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			wrapInTx(
@@ -2713,7 +2718,9 @@ export class DriftClient {
 					fulfillmentConfig,
 					makerInfo,
 					referrerInfo
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
