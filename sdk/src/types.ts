@@ -3,14 +3,16 @@ import { BN, ZERO } from '.';
 
 // # Utility Types / Enums / Constants
 
-export class ExchangeStatus {
-	static readonly ACTIVE = { active: {} };
-	static readonly FUNDING_PAUSED = { fundingPaused: {} };
-	static readonly AMM_PAUSED = { ammPaused: {} };
-	static readonly FILL_PAUSED = { fillPaused: {} };
-	static readonly LIQ_PAUSED = { liqPaused: {} };
-	static readonly WITHDRAW_PAUSED = { withdrawPaused: {} };
-	static readonly PAUSED = { paused: {} };
+export enum ExchangeStatus {
+	ACTIVE = 0,
+	DEPOSIT_PAUSED = 1,
+	WITHDRAW_PAUSED = 2,
+	AMM_PAUSED = 4,
+	FILL_PAUSED = 8,
+	LIQ_PAUSED = 16,
+	FUNDING_PAUSED = 32,
+	SETTLE_PNL_PAUSED = 64,
+	PAUSED = 127,
 }
 
 export class MarketStatus {
@@ -501,7 +503,7 @@ export type OrderActionRecord = {
 
 export type StateAccount = {
 	admin: PublicKey;
-	exchangeStatus: ExchangeStatus;
+	exchangeStatus: number;
 	whitelistMint: PublicKey;
 	discountMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;

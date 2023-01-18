@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: bitflags for exchange status ([#330](https://github.com/drift-labs/protocol-v2/pull/330))
 - program: update fee calculation for filling against openbook
 - program: relax conditions for valid oracle price in fulfill_perp_order
 - program: handle fallback price when amm has no liquidity ([#324](https://github.com/drift-labs/protocol-v2/pull/324))

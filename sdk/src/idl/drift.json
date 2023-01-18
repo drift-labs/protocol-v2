@@ -3705,9 +3705,7 @@
       "args": [
         {
           "name": "exchangeStatus",
-          "type": {
-            "defined": "ExchangeStatus"
-          }
+          "type": "u8"
         }
       ]
     },
@@ -4384,9 +4382,7 @@
           },
           {
             "name": "exchangeStatus",
-            "type": {
-              "defined": "ExchangeStatus"
-            }
+            "type": "u8"
           },
           {
             "name": "liquidationDuration",
@@ -6360,10 +6356,10 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Active"
+            "name": "DepositPaused"
           },
           {
-            "name": "FundingPaused"
+            "name": "WithdrawPaused"
           },
           {
             "name": "AmmPaused"
@@ -6375,10 +6371,10 @@
             "name": "LiqPaused"
           },
           {
-            "name": "WithdrawPaused"
+            "name": "FundingPaused"
           },
           {
-            "name": "Paused"
+            "name": "SettlePnlPaused"
           }
         ]
       }
