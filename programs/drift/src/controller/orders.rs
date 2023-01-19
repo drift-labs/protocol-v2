@@ -4094,7 +4094,7 @@ pub fn fulfill_spot_order_with_serum(
     if fee_pool_delta != 0 {
         update_spot_balances(
             fee_pool_delta.unsigned_abs().cast()?,
-            if fee_to_market > 0 {
+            if fee_pool_delta > 0 {
                 &SpotBalanceType::Deposit
             } else {
                 &SpotBalanceType::Borrow
