@@ -25,6 +25,7 @@ import { squareRootBN } from './utils';
 import { isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import { DLOB } from '../dlob/DLOB';
+import { PublicKey } from '@solana/web3.js';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
@@ -363,7 +364,7 @@ export function calculateTargetPriceTrade(
  * @param oraclePriceData
  * @param dlob
  * @param slot
- * @param _minPerpAuctionDuration
+ * @param usersToSkip
  */
 export function calculateEstimatedPerpEntryPrice(
 	assetType: AssetType,
@@ -373,7 +374,7 @@ export function calculateEstimatedPerpEntryPrice(
 	oraclePriceData: OraclePriceData,
 	dlob: DLOB,
 	slot: number,
-	_minPerpAuctionDuration: number
+	usersToSkip = new Map<PublicKey, boolean>()
 ): [BN, BN, BN, BN] {
 	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO, ZERO, ZERO];
@@ -469,6 +470,10 @@ export function calculateEstimatedPerpEntryPrice(
 				}
 			}
 
+			if (limitOrder && usersToSkip.has(limitOrder.userAccount)) {
+				continue;
+			}
+
 			const baseFilled = BN.min(
 				limitOrder.order.baseAssetAmount.sub(
 					limitOrder.order.baseAssetAmountFilled
@@ -540,6 +545,10 @@ export function calculateEstimatedPerpEntryPrice(
 					);
 					break;
 				}
+			}
+
+			if (limitOrder && usersToSkip.has(limitOrder.userAccount)) {
+				continue;
 			}
 
 			const quoteFilled = BN.min(
