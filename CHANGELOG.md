@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: better rounding for openbook limit price
 - program: fix paying fee_pool_delta when filling with open book
 - program: bitflags for exchange status ([#330](https://github.com/drift-labs/protocol-v2/pull/330))
 - program: update fee calculation for filling against openbook

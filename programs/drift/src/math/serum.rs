@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
 use crate::math::constants::PRICE_TO_QUOTE_PRECISION_RATIO;
@@ -20,15 +21,24 @@ pub fn calculate_serum_limit_price(
     pc_lot_size: u64,
     coin_decimals: u32,
     coin_lot_size: u64,
+    direction: PositionDirection,
 ) -> DriftResult<u64> {
     let coin_precision = 10_u128.pow(coin_decimals);
 
-    limit_price
-        .cast::<u128>()?
-        .safe_div(PRICE_TO_QUOTE_PRECISION_RATIO)?
-        .safe_mul(coin_lot_size.cast()?)?
-        .safe_div(pc_lot_size.cast::<u128>()?.safe_mul(coin_precision)?)
-        .map(|limit_price| limit_price as u64)
+    match direction {
+        PositionDirection::Long => limit_price
+            .cast::<u128>()?
+            .safe_div(PRICE_TO_QUOTE_PRECISION_RATIO)?
+            .safe_mul(coin_lot_size.cast()?)?
+            .safe_div(pc_lot_size.cast::<u128>()?.safe_mul(coin_precision)?)
+            .map(|limit_price| limit_price as u64),
+        PositionDirection::Short => limit_price
+            .cast::<u128>()?
+            .safe_div(PRICE_TO_QUOTE_PRECISION_RATIO)?
+            .safe_mul(coin_lot_size.cast()?)?
+            .safe_div_ceil(pc_lot_size.cast::<u128>()?.safe_mul(coin_precision)?)
+            .map(|limit_price| limit_price as u64),
+    }
 }
 
 // Max amount of quote to put deposit into serum
