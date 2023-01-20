@@ -3816,6 +3816,7 @@ pub fn fulfill_spot_order_with_serum(
         market_state_before.pc_lot_size,
         base_market.decimals,
         market_state_before.coin_lot_size,
+        order_direction,
     )?;
 
     let serum_max_native_pc_qty = calculate_serum_max_native_pc_quantity(
