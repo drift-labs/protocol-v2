@@ -374,9 +374,9 @@ export function calculateEstimatedPerpEntryPrice(
 	dlob: DLOB,
 	slot: number,
 	_minPerpAuctionDuration: number
-): [BN, BN] {
+): [BN, BN, BN, BN] {
 	if (amount.eq(ZERO)) {
-		return [ZERO, ZERO];
+		return [ZERO, ZERO, ZERO, ZERO];
 	}
 
 	const takerIsLong = isVariant(direction, 'long');
@@ -400,7 +400,7 @@ export function calculateEstimatedPerpEntryPrice(
 
 	const invariant = amm.sqrtK.mul(amm.sqrtK);
 
-	let initialPrice = calculatePrice(
+	let bestPrice = calculatePrice(
 		amm.baseAssetReserve,
 		amm.quoteAssetReserve,
 		amm.pegMultiplier
@@ -412,10 +412,12 @@ export function calculateEstimatedPerpEntryPrice(
 	let limitOrder = limitOrders.next().value;
 	if (limitOrder) {
 		const limitOrderPrice = limitOrder.getPrice(oraclePriceData, slot);
-		initialPrice = takerIsLong
-			? BN.min(limitOrderPrice, initialPrice)
-			: BN.max(limitOrderPrice, initialPrice);
+		bestPrice = takerIsLong
+			? BN.min(limitOrderPrice, bestPrice)
+			: BN.max(limitOrderPrice, bestPrice);
 	}
+
+	let worstPrice = bestPrice;
 
 	if (assetType === 'base') {
 		while (!cumulativeBaseFilled.eq(amount)) {
@@ -457,6 +459,12 @@ export function calculateEstimatedPerpEntryPrice(
 				amm.quoteAssetReserve = afterSwapQuoteReserves;
 
 				if (cumulativeBaseFilled.eq(amount)) {
+					worstPrice = calculatePrice(
+						amm.baseAssetReserve,
+						amm.quoteAssetReserve,
+						amm.pegMultiplier
+					);
+
 					break;
 				}
 			}
@@ -473,6 +481,7 @@ export function calculateEstimatedPerpEntryPrice(
 			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
 
 			if (cumulativeBaseFilled.eq(amount)) {
+				worstPrice = limitOrderPrice;
 				break;
 			}
 
@@ -524,6 +533,11 @@ export function calculateEstimatedPerpEntryPrice(
 				amm.quoteAssetReserve = afterSwapQuoteReserves;
 
 				if (cumulativeQuoteFilled.eq(amount)) {
+					worstPrice = calculatePrice(
+						amm.baseAssetReserve,
+						amm.quoteAssetReserve,
+						amm.pegMultiplier
+					);
 					break;
 				}
 			}
@@ -542,6 +556,7 @@ export function calculateEstimatedPerpEntryPrice(
 			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
 
 			if (cumulativeQuoteFilled.eq(amount)) {
+				worstPrice = limitOrderPrice;
 				break;
 			}
 
@@ -554,10 +569,10 @@ export function calculateEstimatedPerpEntryPrice(
 		.div(cumulativeBaseFilled);
 
 	const priceImpact = entryPrice
-		.sub(initialPrice)
+		.sub(bestPrice)
 		.mul(PRICE_PRECISION)
-		.div(initialPrice)
+		.div(bestPrice)
 		.abs();
 
-	return [entryPrice, priceImpact];
+	return [entryPrice, priceImpact, bestPrice, worstPrice];
 }
