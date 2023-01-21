@@ -20,6 +20,7 @@ import {
 	AssetType,
 	calculateUpdatedAMMSpreadReserves,
 	calculateQuoteAssetAmountSwapped,
+	calculateMarketOpenBidAsk,
 } from './amm';
 import { squareRootBN } from './utils';
 import { isVariant } from '../types';
@@ -375,9 +376,23 @@ export function calculateEstimatedPerpEntryPrice(
 	dlob: DLOB,
 	slot: number,
 	usersToSkip = new Map<PublicKey, boolean>()
-): [BN, BN, BN, BN] {
+): {
+	entryPrice: BN;
+	priceImpact: BN;
+	bestPrice: BN;
+	worstPrice: BN;
+	baseFilled: BN;
+	quoteFilled: BN;
+} {
 	if (amount.eq(ZERO)) {
-		return [ZERO, ZERO, ZERO, ZERO];
+		return {
+			entryPrice: ZERO,
+			priceImpact: ZERO,
+			bestPrice: ZERO,
+			worstPrice: ZERO,
+			baseFilled: ZERO,
+			quoteFilled: ZERO,
+		};
 	}
 
 	const takerIsLong = isVariant(direction, 'long');
@@ -398,6 +413,31 @@ export function calculateEstimatedPerpEntryPrice(
 		sqrtK: sqrtK,
 		pegMultiplier: newPeg,
 	};
+
+	const [ammBids, ammAsks] = calculateMarketOpenBidAsk(
+		amm.baseAssetReserve,
+		market.amm.minBaseAssetReserve,
+		market.amm.maxBaseAssetReserve,
+		market.amm.orderStepSize
+	);
+
+	let ammLiquidity: BN;
+	if (assetType === 'base') {
+		ammLiquidity = takerIsLong ? ammAsks : ammBids;
+	} else {
+		const [afterSwapQuoteReserves, _] = calculateAmmReservesAfterSwap(
+			amm,
+			'base',
+			takerIsLong ? ammAsks : ammBids,
+			getSwapDirection('base', direction)
+		);
+
+		ammLiquidity = calculateQuoteAssetAmountSwapped(
+			amm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+			amm.pegMultiplier,
+			swapDirection
+		);
+	}
 
 	const invariant = amm.sqrtK.mul(amm.sqrtK);
 
@@ -421,7 +461,10 @@ export function calculateEstimatedPerpEntryPrice(
 	let worstPrice = bestPrice;
 
 	if (assetType === 'base') {
-		while (!cumulativeBaseFilled.eq(amount)) {
+		while (
+			!cumulativeBaseFilled.eq(amount) &&
+			(ammLiquidity.gt(ZERO) || limitOrder)
+		) {
 			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
 
 			let maxAmmFill: BN;
@@ -443,9 +486,14 @@ export function calculateEstimatedPerpEntryPrice(
 			}
 
 			if (maxAmmFill.gt(ZERO)) {
-				const baseFilled = BN.min(amount.sub(cumulativeBaseFilled), maxAmmFill);
+				const baseFilled = BN.min(
+					amount.sub(cumulativeBaseFilled),
+					BN.min(maxAmmFill, ammLiquidity)
+				);
 				const [afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(amm, 'base', baseFilled, swapDirection);
+
+				ammLiquidity = ammLiquidity.sub(baseFilled);
 
 				const quoteFilled = calculateQuoteAssetAmountSwapped(
 					amm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
@@ -459,13 +507,13 @@ export function calculateEstimatedPerpEntryPrice(
 				amm.baseAssetReserve = afterSwapBaseReserves;
 				amm.quoteAssetReserve = afterSwapQuoteReserves;
 
-				if (cumulativeBaseFilled.eq(amount)) {
-					worstPrice = calculatePrice(
-						amm.baseAssetReserve,
-						amm.quoteAssetReserve,
-						amm.pegMultiplier
-					);
+				worstPrice = calculatePrice(
+					amm.baseAssetReserve,
+					amm.quoteAssetReserve,
+					amm.pegMultiplier
+				);
 
+				if (cumulativeBaseFilled.eq(amount)) {
 					break;
 				}
 			}
@@ -485,15 +533,19 @@ export function calculateEstimatedPerpEntryPrice(
 			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
 			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
 
+			worstPrice = limitOrderPrice;
+
 			if (cumulativeBaseFilled.eq(amount)) {
-				worstPrice = limitOrderPrice;
 				break;
 			}
 
 			limitOrder = limitOrders.next().value;
 		}
 	} else {
-		while (!cumulativeQuoteFilled.eq(amount)) {
+		while (
+			!cumulativeQuoteFilled.eq(amount) &&
+			(ammLiquidity.gt(ZERO) || limitOrder)
+		) {
 			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
 
 			let maxAmmFill: BN;
@@ -517,7 +569,7 @@ export function calculateEstimatedPerpEntryPrice(
 			if (maxAmmFill.gt(ZERO)) {
 				const quoteFilled = BN.min(
 					amount.sub(cumulativeQuoteFilled),
-					maxAmmFill
+					BN.min(maxAmmFill, ammLiquidity)
 				);
 				const [afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(
@@ -526,6 +578,8 @@ export function calculateEstimatedPerpEntryPrice(
 						quoteFilled,
 						swapDirection
 					);
+
+				ammLiquidity = ammLiquidity.sub(quoteFilled);
 
 				const baseFilled = afterSwapBaseReserves
 					.sub(amm.baseAssetReserve)
@@ -537,12 +591,13 @@ export function calculateEstimatedPerpEntryPrice(
 				amm.baseAssetReserve = afterSwapBaseReserves;
 				amm.quoteAssetReserve = afterSwapQuoteReserves;
 
+				worstPrice = calculatePrice(
+					amm.baseAssetReserve,
+					amm.quoteAssetReserve,
+					amm.pegMultiplier
+				);
+
 				if (cumulativeQuoteFilled.eq(amount)) {
-					worstPrice = calculatePrice(
-						amm.baseAssetReserve,
-						amm.quoteAssetReserve,
-						amm.pegMultiplier
-					);
 					break;
 				}
 			}
@@ -564,8 +619,9 @@ export function calculateEstimatedPerpEntryPrice(
 			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
 			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
 
+			worstPrice = limitOrderPrice;
+
 			if (cumulativeQuoteFilled.eq(amount)) {
-				worstPrice = limitOrderPrice;
 				break;
 			}
 
@@ -583,5 +639,12 @@ export function calculateEstimatedPerpEntryPrice(
 		.div(bestPrice)
 		.abs();
 
-	return [entryPrice, priceImpact, bestPrice, worstPrice];
+	return {
+		entryPrice,
+		priceImpact,
+		bestPrice,
+		worstPrice,
+		baseFilled: cumulativeBaseFilled,
+		quoteFilled: cumulativeQuoteFilled,
+	};
 }
