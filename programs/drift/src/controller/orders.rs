@@ -764,6 +764,7 @@ pub fn fill_perp_order(
             &filler_key,
             state.perp_fee_structure.flat_filler_fee,
             oracle_price,
+            reserve_price_before,
             now,
             slot,
         )?;
@@ -993,6 +994,7 @@ fn sanitize_maker_order<'a>(
     filler_key: &Pubkey,
     filler_reward: u64,
     oracle_price: i64,
+    reserve_price: u64,
     now: i64,
     slot: u64,
 ) -> DriftResult<(
@@ -1032,12 +1034,12 @@ fn sanitize_maker_order<'a>(
 
     let market = perp_market_map.get_ref(&taker_order.market_index)?;
 
+    let (amm_bid_price, amm_ask_price) = market.amm.bid_ask_price(reserve_price)?;
+
+    let maker_direction = taker_order.direction.opposite();
     let mut maker_order_price_and_indexes = find_maker_orders(
         &maker,
-        match taker_order.direction {
-            PositionDirection::Long => &PositionDirection::Short,
-            PositionDirection::Short => &PositionDirection::Long,
-        },
+        &maker_direction,
         &MarketType::Perp,
         taker_order.market_index,
         Some(oracle_price),
@@ -1057,6 +1059,23 @@ fn sanitize_maker_order<'a>(
         let maker_order = &maker.orders[maker_order_index];
         if !is_maker_for_taker(maker_order, taker_order)? {
             continue;
+        }
+
+        if !maker_order.is_resting_limit_order(slot)? {
+            match maker_direction {
+                PositionDirection::Long => {
+                    if maker_order_price >= amm_ask_price {
+                        msg!("maker order {} crosses the amm price", maker_order.order_id);
+                        continue;
+                    }
+                }
+                PositionDirection::Short => {
+                    if maker_order_price <= amm_bid_price {
+                        msg!("maker order {} crosses the amm price", maker_order.order_id);
+                        continue;
+                    }
+                }
+            }
         }
 
         if !are_orders_same_market_but_different_sides(maker_order, taker_order) {
@@ -3098,6 +3117,10 @@ fn sanitize_spot_maker_order<'a>(
     {
         let maker_order = &maker.orders[maker_order_index];
         if !is_maker_for_taker(maker_order, taker_order)? {
+            return Ok((None, None, None, None));
+        }
+
+        if !maker_order.is_resting_limit_order(slot)? {
             return Ok((None, None, None, None));
         }
 

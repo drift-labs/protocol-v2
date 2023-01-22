@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add resting limit order logic ([#328](https://github.com/drift-labs/protocol-v2/pull/328))
 - ts-sdk: add calculateEstimatedSpotEntryPrice
 - ts-sdk: add ability to add priority fees ([#331](https://github.com/drift-labs/protocol-v2/pull/331))
 - ts-sdk: new calculateEstimatedPerpEntryPrice that accounts for dlob & vamm ([#326](https://github.com/drift-labs/protocol-v2/pull/326))
