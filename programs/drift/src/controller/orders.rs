@@ -701,8 +701,7 @@ pub fn fill_perp_order(
     let is_oracle_valid: bool;
     let oracle_validity: OracleValidity;
     let oracle_price: i64;
-    let mut amm_is_available = state.exchange_status != ExchangeStatus::AmmPaused;
-
+    let mut amm_is_available = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         amm_is_available &= market.status != MarketStatus::AmmPaused;
@@ -904,8 +903,8 @@ pub fn fill_perp_order(
     // Try to update the funding rate at the end of every trade
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-        let funding_paused = matches!(state.exchange_status, ExchangeStatus::FundingPaused)
-            || matches!(market.status, MarketStatus::FundingPaused);
+        let funding_paused =
+            state.funding_paused()? || matches!(market.status, MarketStatus::FundingPaused);
 
         controller::funding::update_funding_rate(
             market_index,
@@ -3840,6 +3839,7 @@ pub fn fulfill_spot_order_with_serum(
         market_state_before.pc_lot_size,
         base_market.decimals,
         market_state_before.coin_lot_size,
+        order_direction,
     )?;
 
     let serum_max_native_pc_qty = calculate_serum_max_native_pc_quantity(
@@ -3865,7 +3865,7 @@ pub fn fulfill_spot_order_with_serum(
         max_ts: now,
     };
 
-    let market_fees_accrued_before = market_state_before.pc_fees_accrued;
+    let _market_fees_accrued_before = market_state_before.pc_fees_accrued;
     let base_before = serum_new_order_accounts.base_market_vault.amount;
     let quote_before = serum_new_order_accounts.quote_market_vault.amount;
     let market_rebates_accrued_before = market_state_before.referrer_rebates_accrued;
@@ -3902,7 +3902,7 @@ pub fn fulfill_spot_order_with_serum(
         serum_new_order_accounts.serum_program_id.key,
     )?;
 
-    let market_fees_accrued_after = market_state_after.pc_fees_accrued;
+    let _market_fees_accrued_after = market_state_after.pc_fees_accrued;
     let market_rebates_accrued_after = market_state_after.referrer_rebates_accrued;
 
     drop(market_state_after);
@@ -3973,10 +3973,11 @@ pub fn fulfill_spot_order_with_serum(
         return Ok(0);
     }
 
-    let serum_fee = market_fees_accrued_after.safe_sub(market_fees_accrued_before)?;
-
     let serum_referrer_rebate =
         market_rebates_accrued_after.safe_sub(market_rebates_accrued_before)?;
+
+    // rebate is half of taker fee
+    let serum_fee = serum_referrer_rebate;
 
     let (quote_update_direction, quote_asset_amount_filled) = if quote_after > quote_before {
         let quote_asset_amount_delta = quote_after
@@ -4117,7 +4118,7 @@ pub fn fulfill_spot_order_with_serum(
     if fee_pool_delta != 0 {
         update_spot_balances(
             fee_pool_delta.unsigned_abs().cast()?,
-            if fee_to_market > 0 {
+            if fee_pool_delta > 0 {
                 &SpotBalanceType::Deposit
             } else {
                 &SpotBalanceType::Borrow

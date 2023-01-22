@@ -1,13 +1,13 @@
 import {
+	ExchangeStatus,
 	isOneOfVariant,
-	isVariant,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	StateAccount,
 } from '../types';
 
 export function exchangePaused(state: StateAccount): boolean {
-	return isVariant(state.exchangeStatus, 'paused');
+	return state.exchangeStatus !== ExchangeStatus.ACTIVE;
 }
 
 export function fillPaused(
@@ -15,7 +15,8 @@ export function fillPaused(
 	market: PerpMarketAccount | SpotMarketAccount
 ): boolean {
 	return (
-		isOneOfVariant(state.exchangeStatus, ['paused', 'fillPaused']) ||
+		(state.exchangeStatus & ExchangeStatus.FILL_PAUSED) ===
+			ExchangeStatus.FILL_PAUSED ||
 		isOneOfVariant(market.status, ['paused', 'fillPaused'])
 	);
 }
@@ -25,7 +26,8 @@ export function ammPaused(
 	market: PerpMarketAccount | SpotMarketAccount
 ): boolean {
 	return (
-		isOneOfVariant(state.exchangeStatus, ['paused', 'ammPaused']) ||
+		(state.exchangeStatus & ExchangeStatus.AMM_PAUSED) ===
+			ExchangeStatus.AMM_PAUSED ||
 		isOneOfVariant(market.status, ['paused', 'ammPaused'])
 	);
 }

@@ -313,7 +313,6 @@ describe('serum spot market', () => {
 
 		const solSpotMarket =
 			takerDriftClient.getSpotMarketAccount(solSpotMarketIndex);
-		assert(solSpotMarket.totalSpotFee.eq(new BN(56200)));
 		const spotFeePoolAmount = getTokenAmount(
 			solSpotMarket.spotFeePool.scaledBalance,
 			takerDriftClient.getQuoteSpotMarketAccount(),
@@ -421,14 +420,14 @@ describe('serum spot market', () => {
 
 		const solSpotMarket =
 			takerDriftClient.getSpotMarketAccount(solSpotMarketIndex);
-		assert(solSpotMarket.totalSpotFee.eq(new BN(112400)));
+		assert(solSpotMarket.totalSpotFee.eq(new BN(136400)));
 		const spotFeePoolAmount = getTokenAmount(
 			solSpotMarket.spotFeePool.scaledBalance,
 			takerDriftClient.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
 		console.log(spotFeePoolAmount.toString());
-		assert(spotFeePoolAmount.eq(new BN(104400)));
+		assert(spotFeePoolAmount.eq(new BN(116400)));
 
 		await crankMarkets();
 	});
@@ -530,13 +529,13 @@ describe('serum spot market', () => {
 
 		const solSpotMarket =
 			takerDriftClient.getSpotMarketAccount(solSpotMarketIndex);
-		assert(solSpotMarket.totalSpotFee.eq(new BN(168600)));
+		assert(solSpotMarket.totalSpotFee.eq(new BN(204600)));
 		const spotFeePoolAmount = getTokenAmount(
 			solSpotMarket.spotFeePool.scaledBalance,
 			takerDriftClient.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
-		assert(spotFeePoolAmount.eq(new BN(160600)));
+		assert(spotFeePoolAmount.eq(new BN(184600)));
 
 		await crankMarkets();
 	});
@@ -625,14 +624,14 @@ describe('serum spot market', () => {
 		const solSpotMarket =
 			takerDriftClient.getSpotMarketAccount(solSpotMarketIndex);
 		console.log(solSpotMarket.totalSpotFee.toString());
-		assert(solSpotMarket.totalSpotFee.eq(new BN(236600)));
+		assert(solSpotMarket.totalSpotFee.eq(new BN(284600)));
 		const spotFeePoolAmount = getTokenAmount(
 			solSpotMarket.spotFeePool.scaledBalance,
 			takerDriftClient.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
 		console.log(spotFeePoolAmount.toString());
-		assert(spotFeePoolAmount.eq(new BN(228600)));
+		assert(spotFeePoolAmount.eq(new BN(264600)));
 
 		await crankMarkets();
 	});

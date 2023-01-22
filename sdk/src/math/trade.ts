@@ -1,4 +1,9 @@
-import { MarketType, PerpMarketAccount, PositionDirection } from '../types';
+import {
+	MarketType,
+	PerpMarketAccount,
+	PositionDirection,
+	SpotMarketAccount,
+} from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
@@ -7,6 +12,7 @@ import {
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
 	BASE_PRECISION,
+	BN_MAX,
 } from '../constants/numericConstants';
 import {
 	calculateBidPrice,
@@ -20,11 +26,14 @@ import {
 	AssetType,
 	calculateUpdatedAMMSpreadReserves,
 	calculateQuoteAssetAmountSwapped,
+	calculateMarketOpenBidAsk,
 } from './amm';
 import { squareRootBN } from './utils';
 import { isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import { DLOB } from '../dlob/DLOB';
+import { PublicKey } from '@solana/web3.js';
+import { Orderbook } from '@project-serum/serum';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
@@ -363,7 +372,7 @@ export function calculateTargetPriceTrade(
  * @param oraclePriceData
  * @param dlob
  * @param slot
- * @param minPerpAuctionDuration
+ * @param usersToSkip
  */
 export function calculateEstimatedPerpEntryPrice(
 	assetType: AssetType,
@@ -372,10 +381,25 @@ export function calculateEstimatedPerpEntryPrice(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	dlob: DLOB,
-	slot: number
-): [BN, BN] {
+	slot: number,
+	usersToSkip = new Map<PublicKey, boolean>()
+): {
+	entryPrice: BN;
+	priceImpact: BN;
+	bestPrice: BN;
+	worstPrice: BN;
+	baseFilled: BN;
+	quoteFilled: BN;
+} {
 	if (amount.eq(ZERO)) {
-		return [ZERO, ZERO];
+		return {
+			entryPrice: ZERO,
+			priceImpact: ZERO,
+			bestPrice: ZERO,
+			worstPrice: ZERO,
+			baseFilled: ZERO,
+			quoteFilled: ZERO,
+		};
 	}
 
 	const takerIsLong = isVariant(direction, 'long');
@@ -402,9 +426,34 @@ export function calculateEstimatedPerpEntryPrice(
 		pegMultiplier: newPeg,
 	};
 
+	const [ammBids, ammAsks] = calculateMarketOpenBidAsk(
+		market.amm.baseAssetReserve,
+		market.amm.minBaseAssetReserve,
+		market.amm.maxBaseAssetReserve,
+		market.amm.orderStepSize
+	);
+
+	let ammLiquidity: BN;
+	if (assetType === 'base') {
+		ammLiquidity = takerIsLong ? ammAsks.abs() : ammBids;
+	} else {
+		const [afterSwapQuoteReserves, _] = calculateAmmReservesAfterSwap(
+			amm,
+			'base',
+			takerIsLong ? ammAsks.abs() : ammBids,
+			getSwapDirection('base', direction)
+		);
+
+		ammLiquidity = calculateQuoteAssetAmountSwapped(
+			amm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+			amm.pegMultiplier,
+			swapDirection
+		);
+	}
+
 	const invariant = amm.sqrtK.mul(amm.sqrtK);
 
-	let initialPrice = calculatePrice(
+	let bestPrice = calculatePrice(
 		amm.baseAssetReserve,
 		amm.quoteAssetReserve,
 		amm.pegMultiplier
@@ -416,13 +465,18 @@ export function calculateEstimatedPerpEntryPrice(
 	let limitOrder = limitOrders.next().value;
 	if (limitOrder) {
 		const limitOrderPrice = limitOrder.getPrice(oraclePriceData, slot);
-		initialPrice = takerIsLong
-			? BN.min(limitOrderPrice, initialPrice)
-			: BN.max(limitOrderPrice, initialPrice);
+		bestPrice = takerIsLong
+			? BN.min(limitOrderPrice, bestPrice)
+			: BN.max(limitOrderPrice, bestPrice);
 	}
 
+	let worstPrice = bestPrice;
+
 	if (assetType === 'base') {
-		while (!cumulativeBaseFilled.eq(amount)) {
+		while (
+			!cumulativeBaseFilled.eq(amount) &&
+			(ammLiquidity.gt(ZERO) || limitOrder)
+		) {
 			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
 
 			let maxAmmFill: BN;
@@ -443,10 +497,14 @@ export function calculateEstimatedPerpEntryPrice(
 				maxAmmFill = amount.sub(cumulativeBaseFilled);
 			}
 
+			maxAmmFill = BN.min(maxAmmFill, ammLiquidity);
+
 			if (maxAmmFill.gt(ZERO)) {
 				const baseFilled = BN.min(amount.sub(cumulativeBaseFilled), maxAmmFill);
 				const [afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(amm, 'base', baseFilled, swapDirection);
+
+				ammLiquidity = ammLiquidity.sub(baseFilled);
 
 				const quoteFilled = calculateQuoteAssetAmountSwapped(
 					amm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
@@ -460,9 +518,19 @@ export function calculateEstimatedPerpEntryPrice(
 				amm.baseAssetReserve = afterSwapBaseReserves;
 				amm.quoteAssetReserve = afterSwapQuoteReserves;
 
+				worstPrice = calculatePrice(
+					amm.baseAssetReserve,
+					amm.quoteAssetReserve,
+					amm.pegMultiplier
+				);
+
 				if (cumulativeBaseFilled.eq(amount)) {
 					break;
 				}
+			}
+
+			if (limitOrder && usersToSkip.has(limitOrder.userAccount)) {
+				continue;
 			}
 
 			const baseFilled = BN.min(
@@ -476,6 +544,8 @@ export function calculateEstimatedPerpEntryPrice(
 			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
 			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
 
+			worstPrice = limitOrderPrice;
+
 			if (cumulativeBaseFilled.eq(amount)) {
 				break;
 			}
@@ -483,7 +553,10 @@ export function calculateEstimatedPerpEntryPrice(
 			limitOrder = limitOrders.next().value;
 		}
 	} else {
-		while (!cumulativeQuoteFilled.eq(amount)) {
+		while (
+			!cumulativeQuoteFilled.eq(amount) &&
+			(ammLiquidity.gt(ZERO) || limitOrder)
+		) {
 			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
 
 			let maxAmmFill: BN;
@@ -504,6 +577,8 @@ export function calculateEstimatedPerpEntryPrice(
 				maxAmmFill = amount.sub(cumulativeQuoteFilled);
 			}
 
+			maxAmmFill = BN.min(maxAmmFill, ammLiquidity);
+
 			if (maxAmmFill.gt(ZERO)) {
 				const quoteFilled = BN.min(
 					amount.sub(cumulativeQuoteFilled),
@@ -517,6 +592,8 @@ export function calculateEstimatedPerpEntryPrice(
 						swapDirection
 					);
 
+				ammLiquidity = ammLiquidity.sub(quoteFilled);
+
 				const baseFilled = afterSwapBaseReserves
 					.sub(amm.baseAssetReserve)
 					.abs();
@@ -527,9 +604,19 @@ export function calculateEstimatedPerpEntryPrice(
 				amm.baseAssetReserve = afterSwapBaseReserves;
 				amm.quoteAssetReserve = afterSwapQuoteReserves;
 
+				worstPrice = calculatePrice(
+					amm.baseAssetReserve,
+					amm.quoteAssetReserve,
+					amm.pegMultiplier
+				);
+
 				if (cumulativeQuoteFilled.eq(amount)) {
 					break;
 				}
+			}
+
+			if (limitOrder && usersToSkip.has(limitOrder.userAccount)) {
+				continue;
 			}
 
 			const quoteFilled = BN.min(
@@ -545,6 +632,8 @@ export function calculateEstimatedPerpEntryPrice(
 			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
 			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
 
+			worstPrice = limitOrderPrice;
+
 			if (cumulativeQuoteFilled.eq(amount)) {
 				break;
 			}
@@ -558,10 +647,229 @@ export function calculateEstimatedPerpEntryPrice(
 		.div(cumulativeBaseFilled);
 
 	const priceImpact = entryPrice
-		.sub(initialPrice)
+		.sub(bestPrice)
 		.mul(PRICE_PRECISION)
-		.div(initialPrice)
+		.div(bestPrice)
 		.abs();
 
-	return [entryPrice, priceImpact];
+	return {
+		entryPrice,
+		priceImpact,
+		bestPrice,
+		worstPrice,
+		baseFilled: cumulativeBaseFilled,
+		quoteFilled: cumulativeQuoteFilled,
+	};
+}
+
+/**
+ * Calculates the estimated entry price and price impact of order, in base or quote
+ * Price impact is based on the difference between the entry price and the best bid/ask price (whether it's dlob or serum)
+ *
+ * @param assetType
+ * @param amount
+ * @param direction
+ * @param market
+ * @param oraclePriceData
+ * @param dlob
+ * @param serumBids
+ * @param serumAsks
+ * @param slot
+ * @param usersToSkip
+ */
+export function calculateEstimatedSpotEntryPrice(
+	assetType: AssetType,
+	amount: BN,
+	direction: PositionDirection,
+	market: SpotMarketAccount,
+	oraclePriceData: OraclePriceData,
+	dlob: DLOB,
+	serumBids: Orderbook,
+	serumAsks: Orderbook,
+	slot: number,
+	usersToSkip = new Map<PublicKey, boolean>()
+): {
+	entryPrice: BN;
+	priceImpact: BN;
+	bestPrice: BN;
+	worstPrice: BN;
+	baseFilled: BN;
+	quoteFilled: BN;
+} {
+	if (amount.eq(ZERO)) {
+		return {
+			entryPrice: ZERO,
+			priceImpact: ZERO,
+			bestPrice: ZERO,
+			worstPrice: ZERO,
+			baseFilled: ZERO,
+			quoteFilled: ZERO,
+		};
+	}
+
+	const basePrecision = new BN(Math.pow(10, market.decimals));
+
+	const takerIsLong = isVariant(direction, 'long');
+	const dlobLimitOrders = dlob[takerIsLong ? 'getLimitAsks' : 'getLimitBids'](
+		market.marketIndex,
+		slot,
+		MarketType.SPOT,
+		oraclePriceData
+	);
+	const serumLimitOrders = takerIsLong
+		? serumAsks.getL2(100)
+		: serumBids.getL2(100);
+
+	let cumulativeBaseFilled = ZERO;
+	let cumulativeQuoteFilled = ZERO;
+
+	let dlobLimitOrder = dlobLimitOrders.next().value;
+	let serumLimitOrder = serumLimitOrders.shift();
+
+	const dlobLimitOrderPrice = dlobLimitOrder?.getPrice(oraclePriceData, slot);
+	const serumLimitOrderPrice = serumLimitOrder
+		? new BN(serumLimitOrder[0] * PRICE_PRECISION.toNumber())
+		: undefined;
+
+	const bestPrice = takerIsLong
+		? BN.min(serumLimitOrderPrice || BN_MAX, dlobLimitOrderPrice || BN_MAX)
+		: BN.max(serumLimitOrderPrice || ZERO, dlobLimitOrderPrice || ZERO);
+	let worstPrice = bestPrice;
+
+	if (assetType === 'base') {
+		while (
+			!cumulativeBaseFilled.eq(amount) &&
+			(dlobLimitOrder || serumLimitOrder)
+		) {
+			const dlobLimitOrderPrice = dlobLimitOrder?.getPrice(
+				oraclePriceData,
+				slot
+			);
+			const serumLimitOrderPrice = serumLimitOrder
+				? new BN(serumLimitOrder[0] * PRICE_PRECISION.toNumber())
+				: undefined;
+
+			const useSerum = takerIsLong
+				? (serumLimitOrderPrice || BN_MAX).lt(dlobLimitOrderPrice || BN_MAX)
+				: (serumLimitOrderPrice || ZERO).gt(dlobLimitOrderPrice || ZERO);
+
+			if (!useSerum) {
+				if (dlobLimitOrder && usersToSkip.has(dlobLimitOrder.userAccount)) {
+					continue;
+				}
+
+				const baseFilled = BN.min(
+					dlobLimitOrder.order.baseAssetAmount.sub(
+						dlobLimitOrder.order.baseAssetAmountFilled
+					),
+					amount.sub(cumulativeBaseFilled)
+				);
+				const quoteFilled = baseFilled
+					.mul(dlobLimitOrderPrice)
+					.div(basePrecision);
+
+				cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+				cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+				worstPrice = dlobLimitOrder;
+
+				dlobLimitOrder = dlobLimitOrders.next().value;
+			} else {
+				const baseFilled = BN.min(
+					new BN(serumLimitOrder[1] * basePrecision.toNumber()),
+					amount.sub(cumulativeBaseFilled)
+				);
+				const quoteFilled = baseFilled
+					.mul(serumLimitOrderPrice)
+					.div(basePrecision);
+
+				cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+				cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+				worstPrice = serumLimitOrderPrice;
+
+				serumLimitOrder = serumLimitOrders.shift();
+			}
+		}
+	} else {
+		while (
+			!cumulativeQuoteFilled.eq(amount) &&
+			(dlobLimitOrder || serumLimitOrder)
+		) {
+			const dlobLimitOrderPrice = dlobLimitOrder?.getPrice(
+				oraclePriceData,
+				slot
+			);
+			const serumLimitOrderPrice = serumLimitOrder
+				? new BN(serumLimitOrder[0] * PRICE_PRECISION.toNumber())
+				: undefined;
+
+			const useSerum = takerIsLong
+				? (serumLimitOrderPrice || BN_MAX).lt(dlobLimitOrderPrice || BN_MAX)
+				: (serumLimitOrderPrice || ZERO).gt(dlobLimitOrderPrice || ZERO);
+
+			if (!useSerum) {
+				if (dlobLimitOrder && usersToSkip.has(dlobLimitOrder.userAccount)) {
+					continue;
+				}
+
+				const quoteFilled = BN.min(
+					dlobLimitOrder.order.baseAssetAmount
+						.sub(dlobLimitOrder.order.baseAssetAmountFilled)
+						.mul(dlobLimitOrderPrice)
+						.div(basePrecision),
+					amount.sub(cumulativeQuoteFilled)
+				);
+
+				const baseFilled = quoteFilled
+					.mul(basePrecision)
+					.div(dlobLimitOrderPrice);
+
+				cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+				cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+				worstPrice = dlobLimitOrderPrice;
+
+				dlobLimitOrder = dlobLimitOrders.next().value;
+			} else {
+				const serumOrderBaseAmount = new BN(
+					serumLimitOrder[1] * basePrecision.toNumber()
+				);
+				const quoteFilled = BN.min(
+					serumOrderBaseAmount.mul(serumLimitOrderPrice).div(basePrecision),
+					amount.sub(cumulativeQuoteFilled)
+				);
+
+				const baseFilled = quoteFilled
+					.mul(basePrecision)
+					.div(serumLimitOrderPrice);
+
+				cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+				cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+				worstPrice = serumLimitOrderPrice;
+
+				serumLimitOrder = serumLimitOrders.shift();
+			}
+		}
+	}
+
+	const entryPrice = cumulativeQuoteFilled
+		.mul(basePrecision)
+		.div(cumulativeBaseFilled);
+
+	const priceImpact = entryPrice
+		.sub(bestPrice)
+		.mul(PRICE_PRECISION)
+		.div(bestPrice)
+		.abs();
+
+	return {
+		entryPrice,
+		priceImpact,
+		bestPrice,
+		worstPrice,
+		baseFilled: cumulativeBaseFilled,
+		quoteFilled: cumulativeQuoteFilled,
+	};
 }

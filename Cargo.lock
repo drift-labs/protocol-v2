@@ -546,7 +546,7 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.12.0-beta.0"
+version = "2.12.0-beta.3"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -555,6 +555,7 @@ dependencies = [
  "borsh",
  "bytemuck",
  "bytes",
+ "enumflags2",
  "num-derive",
  "num-integer",
  "num-traits",

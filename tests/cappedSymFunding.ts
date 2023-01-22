@@ -92,7 +92,7 @@ async function updateFundingRateHelper(
 			ammAccountState0.cumulativeFundingRateShort;
 
 		const state = driftClient.getStateAccount();
-		assert(isVariant(state.exchangeStatus, 'active'));
+		assert(state.exchangeStatus === ExchangeStatus.ACTIVE);
 
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		assert(isVariant(market.status, 'active'));

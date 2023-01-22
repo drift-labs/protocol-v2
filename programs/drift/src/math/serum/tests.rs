@@ -1,3 +1,4 @@
+use crate::controller::position::PositionDirection;
 use crate::math::constants::{LAMPORTS_PER_SOL_U64, PRICE_PRECISION_U64};
 use crate::math::serum::{
     calculate_price_from_serum_limit_price, calculate_serum_limit_price,
@@ -13,17 +14,43 @@ fn test_calculate_serum_max_coin_qty() {
 }
 
 #[test]
-fn test_calculate_serum_limit_price() {
-    let limit_price = 100 * PRICE_PRECISION_U64;
-    let pc_lot_size = 100_u64;
-    let coin_lot_size = 100000000;
+fn test_calculate_serum_limit_price_bid() {
+    let limit_price = 21359900;
+    let pc_lot_size = 1_u64;
+    let coin_lot_size = 1000000;
     let coin_decimals = 9;
 
-    let serum_limit_price =
-        calculate_serum_limit_price(limit_price, pc_lot_size, coin_decimals, coin_lot_size)
-            .unwrap();
+    let direction = PositionDirection::Long;
+    let serum_limit_price = calculate_serum_limit_price(
+        limit_price,
+        pc_lot_size,
+        coin_decimals,
+        coin_lot_size,
+        direction,
+    )
+    .unwrap();
 
-    assert_eq!(serum_limit_price, 100000);
+    assert_eq!(serum_limit_price, 21359);
+}
+
+#[test]
+fn test_calculate_serum_limit_price_ask() {
+    let limit_price = 21359900;
+    let pc_lot_size = 1_u64;
+    let coin_lot_size = 1000000;
+    let coin_decimals = 9;
+
+    let direction = PositionDirection::Short;
+    let serum_limit_price = calculate_serum_limit_price(
+        limit_price,
+        pc_lot_size,
+        coin_decimals,
+        coin_lot_size,
+        direction,
+    )
+    .unwrap();
+
+    assert_eq!(serum_limit_price, 21360);
 }
 
 #[test]

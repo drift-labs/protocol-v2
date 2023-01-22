@@ -9,10 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- ts-sdk: add calculateEstimatedSpotEntryPrice
+- ts-sdk: add ability to add priority fees ([#331](https://github.com/drift-labs/protocol-v2/pull/331))
 - ts-sdk: new calculateEstimatedPerpEntryPrice that accounts for dlob & vamm ([#326](https://github.com/drift-labs/protocol-v2/pull/326))
 
 ### Fixes
 
+- program: better rounding for openbook limit price
+- program: fix paying fee_pool_delta when filling with open book
+- program: bitflags for exchange status ([#330](https://github.com/drift-labs/protocol-v2/pull/330))
+- program: update fee calculation for filling against openbook
 - program: relax conditions for valid oracle price in fulfill_perp_order
 - program: handle fallback price when amm has no liquidity ([#324](https://github.com/drift-labs/protocol-v2/pull/324))
 - sdk: add getRestingLimitBids/Asks to DLOB ([#325](https://github.com/drift-labs/protocol-v2/pull/325))
