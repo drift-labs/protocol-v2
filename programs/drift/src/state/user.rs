@@ -740,6 +740,10 @@ impl Order {
     pub fn is_limit_order(&self) -> bool {
         matches!(self.order_type, OrderType::Limit | OrderType::TriggerLimit)
     }
+
+    pub fn is_resting_limit_order(&self, slot: u64) -> DriftResult<bool> {
+        Ok(self.is_limit_order() && (self.post_only || slot.safe_sub(self.slot)? >= 15))
+    }
 }
 
 impl Default for Order {
