@@ -46,7 +46,6 @@ use crate::math::orders::{
 };
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_token_amount;
 use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
     LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
@@ -2084,19 +2083,28 @@ pub fn resolve_perp_bankruptcy(
     };
 
     let losses_remaining: i128 = loss.safe_add(if_payment.cast::<i128>()?)?;
+    validate!(
+        losses_remaining <= 0,
+        ErrorCode::InvalidPerpPositionToLiquidate,
+        "losses_remaining must be non-positive"
+    )?;
 
-    let fee_pool_payment: i128 = if losses_remaining > 0 {
+    let fee_pool_payment: i128 = if losses_remaining < 0 {
         let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
         let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
         let fee_pool_tokens = get_fee_pool_tokens(perp_market, spot_market)?;
 
-        let payment = losses_remaining.min(fee_pool_tokens.cast()?);
-        payment
+        losses_remaining.abs().min(fee_pool_tokens.cast()?)
     } else {
         0
     };
+    validate!(
+        fee_pool_payment >= 0,
+        ErrorCode::InvalidPerpPositionToLiquidate,
+        "fee_pool_payment must be non-negative"
+    )?;
 
-    if fee_pool_payment != 0 {
+    if fee_pool_payment > 0 {
         let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
         let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
         update_spot_balances(
@@ -2109,6 +2117,11 @@ pub fn resolve_perp_bankruptcy(
     }
 
     let loss_to_socialize = losses_remaining.safe_add(fee_pool_payment.cast::<i128>()?)?;
+    validate!(
+        loss_to_socialize <= 0,
+        ErrorCode::InvalidPerpPositionToLiquidate,
+        "loss_to_socialize must be non-positive"
+    )?;
 
     let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
         loss_to_socialize,
