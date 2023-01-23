@@ -14,7 +14,6 @@ import {
 	isVariant,
 	OracleSource,
 	PEG_PRECISION,
-	ZERO,
 	BulkAccountLoader,
 } from '../sdk/src';
 
@@ -26,7 +25,7 @@ import {
 	mockUserUSDCAccount,
 	printTxLogs,
 } from './testHelpers';
-import { OrderType } from '../sdk';
+import { MARGIN_PRECISION, OrderType } from '../sdk';
 
 describe('multiple maker orders', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -106,7 +105,21 @@ describe('multiple maker orders', () => {
 		);
 		await fillerDriftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await fillerDriftClient.updatePerpMarketBaseSpread(0, 500);
+		await fillerDriftClient.updatePerpMarketBaseSpread(
+			0,
+			PRICE_PRECISION.toNumber() / 8
+		);
+
+		await fillerDriftClient.updatePerpMarketMarginRatio(
+			0,
+			MARGIN_PRECISION.toNumber() / 2,
+			MARGIN_PRECISION.toNumber() / 3
+		);
+
+		await fillerDriftClient.updatePerpMarketMaxSpread(
+			0,
+			PRICE_PRECISION.toNumber() / 5
+		);
 
 		await fillerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -215,7 +228,7 @@ describe('multiple maker orders', () => {
 		await takerDriftClient.placePerpOrder({
 			marketIndex: 0,
 			orderType: OrderType.LIMIT,
-			price: new BN(95).mul(PRICE_PRECISION),
+			price: new BN(90).mul(PRICE_PRECISION),
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: takerBaseAssetAmount,
 		});
@@ -233,7 +246,7 @@ describe('multiple maker orders', () => {
 		);
 
 		const takerPosition2 = takerDriftClient.getUser().getPerpPosition(0);
-		assert(takerPosition2.baseAssetAmount.eq(ZERO));
+		assert(takerPosition2.baseAssetAmount.eq(new BN(0)));
 
 		await printTxLogs(connection, txSig2);
 
