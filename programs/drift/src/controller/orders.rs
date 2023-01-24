@@ -66,6 +66,7 @@ use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::referrer::ReferrerInfo;
 use crate::state::serum::{get_best_bid_and_ask, load_open_orders, load_serum_market};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -769,8 +770,7 @@ pub fn fill_perp_order(
             slot,
         )?;
 
-    let (mut referrer, mut referrer_stats) =
-        sanitize_referrer(referrer, referrer_stats, user_stats)?;
+    let mut referrer_info = sanitize_referrer(referrer, referrer_stats, user_stats, &maker_key)?;
 
     let should_expire_order = should_expire_order(user, order_index, now)?;
 
@@ -827,8 +827,7 @@ pub fn fill_perp_order(
             &mut filler.as_deref_mut(),
             &filler_key,
             &mut filler_stats.as_deref_mut(),
-            &mut referrer.as_deref_mut(),
-            &mut referrer_stats.as_deref_mut(),
+            &mut referrer_info,
             spot_market_map,
             perp_market_map,
             oracle_map,
@@ -1178,12 +1177,12 @@ fn sort_maker_orders(
     });
 }
 
-#[allow(clippy::type_complexity)]
 fn sanitize_referrer<'a>(
     referrer: Option<&'a AccountLoader<User>>,
     referrer_stats: Option<&'a AccountLoader<UserStats>>,
     user_stats: &UserStats,
-) -> DriftResult<(Option<RefMut<'a, User>>, Option<RefMut<'a, UserStats>>)> {
+    maker_key: &Option<Pubkey>,
+) -> DriftResult<ReferrerInfo<'a>> {
     if referrer.is_none() || referrer_stats.is_none() {
         validate!(
             !user_stats.has_referrer(),
@@ -1191,7 +1190,13 @@ fn sanitize_referrer<'a>(
             "User has referrer but referrer/referrer stats missing"
         )?;
 
-        return Ok((None, None));
+        return Ok(ReferrerInfo::None);
+    }
+
+    if let Some(maker_key) = maker_key {
+        if user_stats.referrer == *maker_key {
+            return Ok(ReferrerInfo::IsMaker);
+        }
     }
 
     let referrer = load_mut!(referrer.safe_unwrap()?)?;
@@ -1214,7 +1219,10 @@ fn sanitize_referrer<'a>(
         "Referrer authority != user stats authority"
     )?;
 
-    Ok((Some(referrer), Some(referrer_stats)))
+    Ok(ReferrerInfo::Some {
+        referrer,
+        referrer_stats,
+    })
 }
 
 fn fulfill_perp_order(
@@ -1229,8 +1237,7 @@ fn fulfill_perp_order(
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
     filler_stats: &mut Option<&mut UserStats>,
-    referrer: &mut Option<&mut User>,
-    referrer_stats: &mut Option<&mut UserStats>,
+    referrer_info: &mut ReferrerInfo,
     spot_market_map: &SpotMarketMap,
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
@@ -1301,8 +1308,9 @@ fn fulfill_perp_order(
                 filler_key,
                 filler,
                 filler_stats,
-                referrer,
-                referrer_stats,
+                referrer_info,
+                maker,
+                maker_stats,
                 fee_structure,
                 &mut order_records,
                 None,
@@ -1322,8 +1330,7 @@ fn fulfill_perp_order(
                 filler,
                 filler_stats,
                 filler_key,
-                referrer,
-                referrer_stats,
+                referrer_info,
                 reserve_price_before,
                 valid_oracle_price,
                 now,
@@ -1470,8 +1477,9 @@ pub fn fulfill_perp_order_with_amm(
     filler_key: &Pubkey,
     filler: &mut Option<&mut User>,
     filler_stats: &mut Option<&mut UserStats>,
-    referrer: &mut Option<&mut User>,
-    referrer_stats: &mut Option<&mut UserStats>,
+    referrer_info: &mut ReferrerInfo,
+    maker: &mut Option<&mut User>,
+    maker_stats: &mut Option<&mut UserStats>,
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderActionRecord>,
     override_base_asset_amount: Option<u64>,
@@ -1565,7 +1573,13 @@ pub fn fulfill_perp_order_with_amm(
         )?;
     }
 
-    let reward_referrer = can_reward_user_with_perp_pnl(referrer, market.market_index);
+    let reward_referrer = match referrer_info {
+        ReferrerInfo::Some { referrer, .. } => {
+            can_reward_user_with_perp_pnl(&mut Some(referrer), market.market_index)
+        }
+        ReferrerInfo::IsMaker => can_reward_user_with_perp_pnl(maker, market.market_index),
+        ReferrerInfo::None => false,
+    };
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
 
     let FillFees {
@@ -1578,13 +1592,14 @@ pub fn fulfill_perp_order_with_amm(
         ..
     } = fees::calculate_fee_for_fulfillment_with_amm(
         user_stats,
+        maker_stats,
         quote_asset_amount,
         fee_structure,
         order_slot,
         slot,
         reward_filler,
         reward_referrer,
-        referrer_stats,
+        referrer_info,
         quote_asset_amount_surplus,
         order_post_only,
     )?;
@@ -1630,13 +1645,34 @@ pub fn fulfill_perp_order_with_amm(
     user_stats.increment_total_fees(user_fee)?;
     user_stats.increment_total_referee_discount(referee_discount)?;
 
-    if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
-        if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
-            if referrer_reward > 0 {
-                update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
-                referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
+    match referrer_info {
+        ReferrerInfo::Some {
+            referrer,
+            referrer_stats,
+        } => {
+            if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index)
+            {
+                if referrer_reward > 0 {
+                    update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
+                    referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
+                }
             }
         }
+        ReferrerInfo::IsMaker => {
+            if let (Some(maker), Some(maker_stats)) =
+                (maker.as_deref_mut(), maker_stats.as_deref_mut())
+            {
+                if referrer_reward > 0 {
+                    update_quote_asset_amount(
+                        maker.force_get_perp_position_mut(market.market_index)?,
+                        market,
+                        referrer_reward.cast()?,
+                    )?;
+                    maker_stats.increment_total_referrer_reward(referrer_reward, now)?;
+                }
+            }
+        }
+        _ => {}
     }
 
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
@@ -1739,8 +1775,7 @@ pub fn fulfill_perp_order_with_match(
     filler: &mut Option<&mut User>,
     filler_stats: &mut Option<&mut UserStats>,
     filler_key: &Pubkey,
-    referrer: &mut Option<&mut User>,
-    referrer_stats: &mut Option<&mut UserStats>,
+    referrer_info: &mut ReferrerInfo,
     reserve_price_before: u64,
     valid_oracle_price: Option<i64>,
     now: i64,
@@ -1883,8 +1918,9 @@ pub fn fulfill_perp_order_with_match(
                 filler_key,
                 filler,
                 filler_stats,
-                &mut None,
-                &mut None,
+                referrer_info,
+                &mut Some(maker),
+                maker_stats,
                 fee_structure,
                 order_records,
                 Some(jit_base_asset_amount),
@@ -1973,7 +2009,13 @@ pub fn fulfill_perp_order_with_match(
 
     taker_stats.update_taker_volume_30d(quote_asset_amount, now)?;
 
-    let reward_referrer = can_reward_user_with_perp_pnl(referrer, market.market_index);
+    let reward_referrer = match referrer_info {
+        ReferrerInfo::Some { referrer, .. } => {
+            can_reward_user_with_perp_pnl(&mut Some(referrer), market.market_index)
+        }
+        ReferrerInfo::IsMaker => true,
+        ReferrerInfo::None => false,
+    };
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
 
     let filler_multiplier = if reward_filler {
@@ -1999,7 +2041,7 @@ pub fn fulfill_perp_order_with_match(
         slot,
         filler_multiplier,
         reward_referrer,
-        referrer_stats,
+        referrer_info,
         &MarketType::Perp,
     )?;
 
@@ -2059,13 +2101,33 @@ pub fn fulfill_perp_order_with_match(
         }
     }
 
-    if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
-        if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
-            if referrer_reward > 0 {
-                update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
-                referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
+    match referrer_info {
+        ReferrerInfo::Some {
+            referrer,
+            referrer_stats,
+        } => {
+            if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index)
+            {
+                if referrer_reward > 0 {
+                    update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
+                    referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
+                }
             }
         }
+        ReferrerInfo::IsMaker => {
+            if referrer_reward > 0 {
+                update_quote_asset_amount(
+                    &mut maker.perp_positions[maker_position_index],
+                    market,
+                    referrer_reward.cast()?,
+                )?;
+                maker_stats
+                    .as_deref_mut()
+                    .safe_unwrap()?
+                    .increment_total_referrer_reward(referrer_reward, now)?;
+            }
+        }
+        _ => {}
     }
 
     update_order_after_fill(
@@ -3533,7 +3595,7 @@ pub fn fulfill_spot_order_with_match(
         slot,
         filler_multiplier,
         false,
-        &None,
+        &mut ReferrerInfo::None,
         &MarketType::Spot,
     )?;
 

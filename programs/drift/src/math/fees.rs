@@ -15,7 +15,9 @@ use crate::math::safe_math::SafeMath;
 use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
+use crate::state::referrer::ReferrerInfo;
 use solana_program::msg;
+use std::ops::DerefMut;
 
 #[cfg(test)]
 mod tests;
@@ -32,13 +34,14 @@ pub struct FillFees {
 
 pub fn calculate_fee_for_fulfillment_with_amm(
     user_stats: &UserStats,
+    maker_stats: &mut Option<&mut UserStats>,
     quote_asset_amount: u64,
     fee_structure: &FeeStructure,
     order_slot: u64,
     clock_slot: u64,
     reward_filler: bool,
     reward_referrer: bool,
-    referrer_stats: &Option<&mut UserStats>,
+    referrer_info: &mut ReferrerInfo,
     quote_asset_amount_surplus: i64,
     is_post_only: bool,
 ) -> DriftResult<FillFees> {
@@ -78,11 +81,21 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         let fee = calculate_taker_fee(quote_asset_amount, fee_tier)?;
 
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
+            let referrer_is_maker = matches!(referrer_info, ReferrerInfo::IsMaker);
+            let referrer_stats = match referrer_info {
+                ReferrerInfo::Some { referrer_stats, .. } => Some(referrer_stats.deref_mut()),
+                _ => None,
+            };
+
             calculate_referee_fee_and_referrer_reward(
                 fee,
                 fee_tier,
                 fee_structure.referrer_reward_epoch_upper_bound,
-                referrer_stats,
+                if referrer_is_maker {
+                    maker_stats
+                } else {
+                    &referrer_stats
+                },
             )?
         } else {
             (fee, 0, 0)
@@ -219,7 +232,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     clock_slot: u64,
     filler_multiplier: u64,
     reward_referrer: bool,
-    referrer_stats: &Option<&mut UserStats>,
+    referrer_info: &mut ReferrerInfo,
     market_type: &MarketType,
 ) -> DriftResult<FillFees> {
     let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure, market_type)?;
@@ -232,11 +245,21 @@ pub fn calculate_fee_for_fulfillment_with_match(
     let taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier)?;
 
     let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
+        let referrer_is_maker = matches!(referrer_info, ReferrerInfo::IsMaker);
+        let referrer_stats = match referrer_info {
+            ReferrerInfo::Some { referrer_stats, .. } => Some(referrer_stats.deref_mut()),
+            _ => None,
+        };
+
         calculate_referee_fee_and_referrer_reward(
             taker_fee,
             taker_fee_tier,
             fee_structure.referrer_reward_epoch_upper_bound,
-            referrer_stats,
+            if referrer_is_maker {
+                maker_stats
+            } else {
+                &referrer_stats
+            },
         )?
     } else {
         (taker_fee, 0, 0)
