@@ -1513,10 +1513,14 @@ pub fn fulfill_perp_order_with_amm(
         }
     };
 
-    if base_asset_amount == 0 {
+    if base_asset_amount < market.amm.min_order_size {
         // if is an actual swap (and not amm jit order) then msg!
         if override_base_asset_amount.is_none() {
-            msg!("Amm cant fulfill order");
+            msg!(
+                "Amm cant fulfill order. base asset amount {} market.amm.min_order_size {}",
+                base_asset_amount,
+                market.amm.min_order_size
+            );
         }
         return Ok((0, 0));
     }
