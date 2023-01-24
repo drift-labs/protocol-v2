@@ -1691,6 +1691,31 @@ export class User {
 		}
 	}
 
+	public canBypassWithdrawLimits(marketIndex: number): {
+		canBypass: boolean;
+		maxDepositAmount: BN;
+	} {
+		const spotMarket = this.driftClient.getSpotMarketAccount(marketIndex);
+		const maxDepositAmount = spotMarket.withdrawGuardThreshold.div(new BN(10));
+		const position = this.getSpotPosition(marketIndex);
+
+		if (!position) {
+			return { canBypass: false, maxDepositAmount };
+		}
+
+		if (isVariant(position.balanceType, 'borrow')) {
+			return { canBypass: false, maxDepositAmount };
+		}
+
+		const depositAmount = getTokenAmount(
+			position.scaledBalance,
+			spotMarket,
+			'deposit'
+		);
+
+		return { canBypass: depositAmount.lt(maxDepositAmount), maxDepositAmount };
+	}
+
 	/**
 	 * Get the total position value, excluding any position coming from the given target market
 	 * @param marketToIgnore
