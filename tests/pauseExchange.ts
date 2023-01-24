@@ -10,7 +10,6 @@ import {
 	PositionDirection,
 	ExchangeStatus,
 	OracleSource,
-	isVariant,
 } from '../sdk/src';
 
 import {
@@ -20,7 +19,7 @@ import {
 	initializeQuoteSpotMarket,
 } from './testHelpers';
 
-describe('admin withdraw', () => {
+describe('Pause exchange', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		skipPreflight: false,
@@ -111,13 +110,14 @@ describe('admin withdraw', () => {
 	it('Pause exchange', async () => {
 		await driftClient.updateExchangeStatus(ExchangeStatus.PAUSED);
 		const state = driftClient.getStateAccount();
-		assert(isVariant(state.exchangeStatus, 'paused'));
+		assert(state.exchangeStatus === ExchangeStatus.PAUSED);
 	});
 
 	it('Block open position', async () => {
 		try {
 			await driftClient.openPosition(PositionDirection.LONG, usdcAmount, 0);
 		} catch (e) {
+			console.log(e);
 			assert(e.message.includes('0x1788')); //Error Number: 6024. Error Message: Exchange is paused.
 			return;
 		}

@@ -4035,6 +4035,7 @@ pub mod fill_order {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 price: 50 * PRICE_PRECISION_U64,
+                post_only: true,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -4237,6 +4238,7 @@ pub mod fill_order {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: 0,
                 price: 100 * PRICE_PRECISION_U64,
+                post_only: true,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -8172,6 +8174,7 @@ pub mod sanitize_maker_orders {
             base_asset_amount: BASE_PRECISION_U64,
             slot: 0,
             price: 50 * PRICE_PRECISION_U64,
+            post_only: true,
             ..Order::default()
         };
         maker_orders[1] = Order {
@@ -8183,6 +8186,7 @@ pub mod sanitize_maker_orders {
             base_asset_amount: BASE_PRECISION_U64,
             slot: 0,
             price: 100 * PRICE_PRECISION_U64,
+            post_only: true,
             ..Order::default()
         };
 
@@ -8227,6 +8231,7 @@ pub mod sanitize_maker_orders {
             &filler_key,
             0,
             oracle_price,
+            100 * PRICE_PRECISION_U64,
             clock.unix_timestamp,
             clock.slot,
         )
@@ -8369,6 +8374,7 @@ pub mod sanitize_maker_orders {
             slot: 0,
             price: 100 * PRICE_PRECISION_U64,
             max_ts: 1,
+            post_only: true,
             ..Order::default()
         };
         maker_orders[1] = Order {
@@ -8380,6 +8386,7 @@ pub mod sanitize_maker_orders {
             base_asset_amount: BASE_PRECISION_U64,
             slot: 0,
             price: 100 * PRICE_PRECISION_U64,
+            post_only: true,
             ..Order::default()
         };
 
@@ -8424,6 +8431,7 @@ pub mod sanitize_maker_orders {
             &filler_key,
             0,
             oracle_price,
+            100 * PRICE_PRECISION_U64,
             clock.unix_timestamp,
             clock.slot,
         )
@@ -8612,6 +8620,7 @@ pub mod sanitize_maker_orders {
             &filler_key,
             0,
             oracle_price,
+            100 * PRICE_PRECISION_U64,
             clock.unix_timestamp,
             clock.slot,
         )

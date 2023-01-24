@@ -46,7 +46,7 @@ use crate::math::matching::{
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
 };
 use crate::math::oracle;
-use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_math::SafeMath;
 use crate::math::serum::{
     calculate_serum_limit_price, calculate_serum_max_coin_qty,
@@ -699,9 +699,9 @@ pub fn fill_perp_order(
     let reserve_price_before: u64;
     let oracle_reserve_price_spread_pct_before: i64;
     let is_oracle_valid: bool;
+    let oracle_validity: OracleValidity;
     let oracle_price: i64;
-    let mut amm_is_available = state.exchange_status != ExchangeStatus::AmmPaused;
-
+    let mut amm_is_available = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         amm_is_available &= market.status != MarketStatus::AmmPaused;
@@ -713,7 +713,7 @@ pub fn fill_perp_order(
         )?;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        let oracle_validity = oracle::oracle_validity(
+        oracle_validity = oracle::oracle_validity(
             market
                 .amm
                 .historical_oracle_data
@@ -733,7 +733,8 @@ pub fn fill_perp_order(
         oracle_price = oracle_price_data.price;
     }
 
-    let valid_oracle_price = if is_oracle_valid {
+    // allow oracle price to be used to calculate limit price if it's valid or stale for amm
+    let valid_oracle_price = if is_oracle_valid || oracle_validity == OracleValidity::StaleForAMM {
         Some(oracle_price)
     } else {
         None
@@ -766,6 +767,7 @@ pub fn fill_perp_order(
             &filler_key,
             state.perp_fee_structure.flat_filler_fee,
             oracle_price,
+            reserve_price_before,
             now,
             slot,
         )?;
@@ -904,8 +906,8 @@ pub fn fill_perp_order(
     // Try to update the funding rate at the end of every trade
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-        let funding_paused = matches!(state.exchange_status, ExchangeStatus::FundingPaused)
-            || matches!(market.status, MarketStatus::FundingPaused);
+        let funding_paused =
+            state.funding_paused()? || matches!(market.status, MarketStatus::FundingPaused);
 
         controller::funding::update_funding_rate(
             market_index,
@@ -995,6 +997,7 @@ fn sanitize_maker_order<'a>(
     filler_key: &Pubkey,
     filler_reward: u64,
     oracle_price: i64,
+    reserve_price: u64,
     now: i64,
     slot: u64,
 ) -> DriftResult<(
@@ -1034,12 +1037,12 @@ fn sanitize_maker_order<'a>(
 
     let market = perp_market_map.get_ref(&taker_order.market_index)?;
 
+    let (amm_bid_price, amm_ask_price) = market.amm.bid_ask_price(reserve_price)?;
+
+    let maker_direction = taker_order.direction.opposite();
     let mut maker_order_price_and_indexes = find_maker_orders(
         &maker,
-        match taker_order.direction {
-            PositionDirection::Long => &PositionDirection::Short,
-            PositionDirection::Short => &PositionDirection::Long,
-        },
+        &maker_direction,
         &MarketType::Perp,
         taker_order.market_index,
         Some(oracle_price),
@@ -1059,6 +1062,23 @@ fn sanitize_maker_order<'a>(
         let maker_order = &maker.orders[maker_order_index];
         if !is_maker_for_taker(maker_order, taker_order)? {
             continue;
+        }
+
+        if !maker_order.is_resting_limit_order(slot)? {
+            match maker_direction {
+                PositionDirection::Long => {
+                    if maker_order_price >= amm_ask_price {
+                        msg!("maker order {} crosses the amm price", maker_order.order_id);
+                        continue;
+                    }
+                }
+                PositionDirection::Short => {
+                    if maker_order_price <= amm_bid_price {
+                        msg!("maker order {} crosses the amm price", maker_order.order_id);
+                        continue;
+                    }
+                }
+            }
         }
 
         if !are_orders_same_market_but_different_sides(maker_order, taker_order) {
@@ -1389,10 +1409,11 @@ fn fulfill_perp_order(
 
         if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
-            "maker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
-            maker_margin_requirement_plus_buffer,
-            maker_total_collateral
-        );
+                "maker ({}) breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+                maker_key.safe_unwrap()?,
+                maker_margin_requirement_plus_buffer,
+                maker_total_collateral
+            );
             return Err(ErrorCode::InsufficientCollateral);
         }
     }
@@ -1826,7 +1847,7 @@ pub fn fulfill_perp_order_with_match(
     }
 
     let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
-    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+    // let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
     amm::update_mark_twap(
         &mut market.amm,
         now,
@@ -3114,6 +3135,10 @@ fn sanitize_spot_maker_order<'a>(
             return Ok((None, None, None, None));
         }
 
+        if !maker_order.is_resting_limit_order(slot)? {
+            return Ok((None, None, None, None));
+        }
+
         if maker.is_being_liquidated() || maker.is_bankrupt() {
             return Ok((None, None, None, None));
         }
@@ -3334,10 +3359,11 @@ fn fulfill_spot_order(
 
         if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
-            "maker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
-            maker_margin_requirement_plus_buffer,
-            maker_total_collateral
-        );
+                "maker ({}) breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+                maker_key.safe_unwrap()?,
+                maker_margin_requirement_plus_buffer,
+                maker_total_collateral
+            );
             return Err(ErrorCode::InsufficientCollateral);
         }
     }
@@ -3828,6 +3854,7 @@ pub fn fulfill_spot_order_with_serum(
         market_state_before.pc_lot_size,
         base_market.decimals,
         market_state_before.coin_lot_size,
+        order_direction,
     )?;
 
     let serum_max_native_pc_qty = calculate_serum_max_native_pc_quantity(
@@ -3853,7 +3880,7 @@ pub fn fulfill_spot_order_with_serum(
         max_ts: now,
     };
 
-    let market_fees_accrued_before = market_state_before.pc_fees_accrued;
+    let _market_fees_accrued_before = market_state_before.pc_fees_accrued;
     let base_before = serum_new_order_accounts.base_market_vault.amount;
     let quote_before = serum_new_order_accounts.quote_market_vault.amount;
     let market_rebates_accrued_before = market_state_before.referrer_rebates_accrued;
@@ -3890,7 +3917,7 @@ pub fn fulfill_spot_order_with_serum(
         serum_new_order_accounts.serum_program_id.key,
     )?;
 
-    let market_fees_accrued_after = market_state_after.pc_fees_accrued;
+    let _market_fees_accrued_after = market_state_after.pc_fees_accrued;
     let market_rebates_accrued_after = market_state_after.referrer_rebates_accrued;
 
     drop(market_state_after);
@@ -3961,10 +3988,11 @@ pub fn fulfill_spot_order_with_serum(
         return Ok(0);
     }
 
-    let serum_fee = market_fees_accrued_after.safe_sub(market_fees_accrued_before)?;
-
     let serum_referrer_rebate =
         market_rebates_accrued_after.safe_sub(market_rebates_accrued_before)?;
+
+    // rebate is half of taker fee
+    let serum_fee = serum_referrer_rebate;
 
     let (quote_update_direction, quote_asset_amount_filled) = if quote_after > quote_before {
         let quote_asset_amount_delta = quote_after
@@ -4105,7 +4133,7 @@ pub fn fulfill_spot_order_with_serum(
     if fee_pool_delta != 0 {
         update_spot_balances(
             fee_pool_delta.unsigned_abs().cast()?,
-            if fee_to_market > 0 {
+            if fee_pool_delta > 0 {
                 &SpotBalanceType::Deposit
             } else {
                 &SpotBalanceType::Borrow

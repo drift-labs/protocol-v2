@@ -746,7 +746,6 @@ fn calc_oracle_twap_clamp_update_tests() {
     assert_eq!(amm.last_oracle_normalised_price, 129_900_873);
 }
 
-
 #[test]
 fn calc_oracle_twap_clamp_update_infreq_tests() {
     let prev = 1667387000;
@@ -792,7 +791,7 @@ fn calc_oracle_twap_clamp_update_infreq_tests() {
 
     while now < prev + 3600 {
         update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
-        now += 60*5;
+        now += 60 * 5;
     }
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price_twap,

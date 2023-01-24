@@ -8,14 +8,22 @@ const COMPUTE_UNITS_DEFAULT = 200_000;
 
 export function wrapInTx(
 	instruction: TransactionInstruction,
-	computeUnits = 600_000 // TODO, requires less code change
+	computeUnits = 600_000,
+	computeUnitsPrice = 0
 ): Transaction {
 	const tx = new Transaction();
 	if (computeUnits != COMPUTE_UNITS_DEFAULT) {
 		tx.add(
-			ComputeBudgetProgram.requestUnits({
+			ComputeBudgetProgram.setComputeUnitLimit({
 				units: computeUnits,
-				additionalFee: 0,
+			})
+		);
+	}
+
+	if (computeUnitsPrice != 0) {
+		tx.add(
+			ComputeBudgetProgram.setComputeUnitPrice({
+				microLamports: computeUnitsPrice,
 			})
 		);
 	}

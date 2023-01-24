@@ -59,7 +59,7 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
 
     **ctx.accounts.state = State {
         admin: *ctx.accounts.admin.key,
-        exchange_status: ExchangeStatus::Active,
+        exchange_status: ExchangeStatus::active(),
         whitelist_mint: Pubkey::default(),
         discount_mint: Pubkey::default(),
         oracle_guard_rails: OracleGuardRails::default(),
@@ -1977,7 +1977,7 @@ pub fn handle_update_discount_mint(
 
 pub fn handle_update_exchange_status(
     ctx: Context<AdminUpdateState>,
-    exchange_status: ExchangeStatus,
+    exchange_status: u8,
 ) -> Result<()> {
     ctx.accounts.state.exchange_status = exchange_status;
     Ok(())
