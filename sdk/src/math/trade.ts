@@ -529,7 +529,11 @@ export function calculateEstimatedPerpEntryPrice(
 				}
 			}
 
-			if (limitOrder && usersToSkip.has(limitOrder.userAccount)) {
+			if (!limitOrder) {
+				continue;
+			}
+
+			if (usersToSkip.has(limitOrder.userAccount)) {
 				continue;
 			}
 
@@ -615,7 +619,11 @@ export function calculateEstimatedPerpEntryPrice(
 				}
 			}
 
-			if (limitOrder && usersToSkip.has(limitOrder.userAccount)) {
+			if (!limitOrder) {
+				continue;
+			}
+
+			if (usersToSkip.has(limitOrder.userAccount)) {
 				continue;
 			}
 
