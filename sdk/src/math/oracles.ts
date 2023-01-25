@@ -6,6 +6,8 @@ import {
 	PRICE_PRECISION,
 	ONE,
 	ZERO,
+	FIVE_MINUTE,
+	ONE_HOUR,
 } from '../constants/numericConstants';
 import { BN, HistoricalOracleData, PerpMarketAccount } from '../index';
 import { assert } from '../assert/assert';
@@ -68,7 +70,7 @@ export function isOracleTooDivergent(
 	const sinceLastUpdate = now.sub(
 		amm.historicalOracleData.lastOraclePriceTwapTs
 	);
-	const sinceStart = BN.max(ZERO, new BN(60 * 5).sub(sinceLastUpdate));
+	const sinceStart = BN.max(ZERO, FIVE_MINUTE.sub(sinceLastUpdate));
 	const oracleTwap5min = amm.historicalOracleData.lastOraclePriceTwap5Min
 		.mul(sinceStart)
 		.add(oraclePriceData.price)
@@ -96,11 +98,11 @@ export function calculateLiveOracleTwap(
 	period: BN
 ): BN {
 	let oracleTwap = undefined;
-	if (period.eq(new BN(60 * 60))) {
+	if (period.eq(ONE_HOUR)) {
 		//todo: assumes its 1hr
 		// period = amm.fundingPeriod;
 		oracleTwap = histOracleData.lastOraclePriceTwap;
-	} else if (period.eq(new BN(60 * 5))) {
+	} else if (period.eq(FIVE_MINUTE)) {
 		histOracleData.lastOraclePriceTwap5Min;
 	} else {
 		throw Error('unsupported twap period passed');

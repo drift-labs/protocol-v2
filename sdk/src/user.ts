@@ -26,6 +26,7 @@ import {
 	QUOTE_SPOT_MARKET_INDEX,
 	TEN,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
+	FIVE_MINUTE,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -45,7 +46,6 @@ import {
 	SpotMarketAccount,
 	getTokenValue,
 	getStrictTokenValue,
-	SpotBalanceType,
 } from '.';
 import {
 	getTokenAmount,
@@ -642,7 +642,7 @@ export class User {
 				spotMarketAccount.historicalOracleData,
 				oraclePriceData,
 				now,
-				new BN(60 * 5) // 5MIN
+				FIVE_MINUTE // 5MIN
 			);
 			liabilityValue = getStrictTokenValue(
 				tokenAmount,
@@ -789,7 +789,7 @@ export class User {
 				spotMarketAccount.historicalOracleData,
 				oraclePriceData,
 				now,
-				new BN(60 * 5) // 5MIN
+				FIVE_MINUTE // 5MIN
 			);
 			assetValue = getStrictTokenValue(
 				tokenAmount,
@@ -1683,7 +1683,8 @@ export class User {
 		const nowTs = new BN(Math.floor(Date.now() / 1000));
 		const spotMarket = this.driftClient.getSpotMarketAccount(marketIndex);
 
-		const { borrowLimit, withdrawLimit } = calculateWithdrawLimit(
+		// eslint-disable-next-line prefer-const
+		let { borrowLimit, withdrawLimit } = calculateWithdrawLimit(
 			spotMarket,
 			nowTs
 		);
@@ -1692,6 +1693,12 @@ export class User {
 		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
 		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
 
+		const { canBypass, depositAmount: userDepositAmount } =
+			this.canBypassWithdrawLimits(marketIndex);
+		if (canBypass) {
+			withdrawLimit = BN.max(withdrawLimit, userDepositAmount);
+		}
+
 		const amountWithdrawable = freeCollateral
 			.mul(MARGIN_PRECISION)
 			.div(new BN(spotMarket.initialAssetWeight))
@@ -1699,22 +1706,8 @@ export class User {
 			.div(oracleData.price)
 			.mul(precisionIncrease);
 
-		const userSpotPosition = this.getUserAccount().spotPositions.find(
-			(spotPosition) =>
-				isVariant(spotPosition.balanceType, 'deposit') &&
-				spotPosition.marketIndex == marketIndex
-		);
-
-		const userSpotBalance = userSpotPosition
-			? getTokenAmount(
-					userSpotPosition.scaledBalance,
-					this.driftClient.getSpotMarketAccount(marketIndex),
-					SpotBalanceType.DEPOSIT
-			  )
-			: ZERO;
-
 		const maxWithdrawValue = BN.min(
-			BN.min(amountWithdrawable, userSpotBalance),
+			BN.min(amountWithdrawable, userDepositAmount),
 			withdrawLimit.abs()
 		);
 
@@ -1727,7 +1720,7 @@ export class User {
 				false
 			);
 
-			const freeCollatAfterWithdraw = userSpotBalance.gt(ZERO)
+			const freeCollatAfterWithdraw = userDepositAmount.gt(ZERO)
 				? freeCollateral.sub(weightedAssetValue)
 				: freeCollateral;
 
@@ -1745,6 +1738,61 @@ export class User {
 
 			return BN.max(maxBorrowValue, ZERO);
 		}
+	}
+
+	public canBypassWithdrawLimits(marketIndex: number): {
+		canBypass: boolean;
+		netDeposits: BN;
+		depositAmount: BN;
+		maxDepositAmount: BN;
+	} {
+		const spotMarket = this.driftClient.getSpotMarketAccount(marketIndex);
+		const maxDepositAmount = spotMarket.withdrawGuardThreshold.div(new BN(10));
+		const position = this.getSpotPosition(marketIndex);
+
+		const netDeposits = this.getUserAccount().totalDeposits.sub(
+			this.getUserAccount().totalWithdraws
+		);
+
+		if (!position) {
+			return {
+				canBypass: false,
+				maxDepositAmount,
+				depositAmount: ZERO,
+				netDeposits,
+			};
+		}
+
+		if (isVariant(position.balanceType, 'borrow')) {
+			return {
+				canBypass: false,
+				maxDepositAmount,
+				netDeposits,
+				depositAmount: ZERO,
+			};
+		}
+
+		const depositAmount = getTokenAmount(
+			position.scaledBalance,
+			spotMarket,
+			'deposit'
+		);
+
+		if (netDeposits.lt(ZERO)) {
+			return {
+				canBypass: false,
+				maxDepositAmount,
+				depositAmount: ZERO,
+				netDeposits,
+			};
+		}
+
+		return {
+			canBypass: depositAmount.lt(maxDepositAmount),
+			maxDepositAmount,
+			netDeposits,
+			depositAmount,
+		};
 	}
 
 	/**
