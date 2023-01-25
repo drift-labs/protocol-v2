@@ -1027,19 +1027,32 @@ export class User {
 	}
 
 	/**
-	 * calculates current user leverage across all positions
+	 * calculates current user leverage which is (total liability size) / (net asset value)
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getLeverage(): BN {
-		const totalLiabilityValue = this.getTotalLiabilityValue();
+		const totalPerpLiability = this.getTotalPerpPositionValue(
+			undefined,
+			undefined,
+			true
+		);
+		const totalSpotLiability = this.getSpotMarketLiabilityValue(
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+
+		const totalLiabilityValue = totalPerpLiability.add(totalSpotLiability);
 
 		const totalAssetValue = this.getTotalAssetValue();
+		const netAssetValue = totalAssetValue.sub(totalSpotLiability);
 
-		if (totalAssetValue.eq(ZERO) && totalLiabilityValue.eq(ZERO)) {
+		if (netAssetValue.eq(ZERO)) {
 			return ZERO;
 		}
 
-		return totalLiabilityValue.mul(TEN_THOUSAND).div(totalAssetValue);
+		return totalLiabilityValue.mul(TEN_THOUSAND).div(netAssetValue);
 	}
 
 	getTotalLiabilityValue(marginCategory?: MarginCategory): BN {
@@ -1754,6 +1767,12 @@ export class User {
 			// calculate new asset/liability values for base and quote market to find new account leverage
 			const totalLiabilityValue = this.getTotalLiabilityValue();
 			const totalAssetValue = this.getTotalAssetValue();
+			const spotLiabilityValue = this.getSpotMarketLiabilityValue(
+				undefined,
+				undefined,
+				undefined,
+				true
+			);
 
 			const currentQuoteNetValue = this.getSpotPositionValue(
 				QUOTE_SPOT_MARKET_INDEX
@@ -1807,19 +1826,23 @@ export class User {
 			);
 
 			const totalAssetValueAfterTrade = totalAssetValue.add(assetValueToAdd);
+			const totalSpotLiabilityValueAfterTrade =
+				spotLiabilityValue.add(liabilityValueToAdd);
+
 			const totalLiabilityValueAfterTrade =
 				totalLiabilityValue.add(liabilityValueToAdd);
 
-			if (
-				totalAssetValueAfterTrade.eq(ZERO) &&
-				totalLiabilityValueAfterTrade.eq(ZERO)
-			) {
+			const netAssetValueAfterTrade = totalAssetValueAfterTrade.sub(
+				totalSpotLiabilityValueAfterTrade
+			);
+
+			if (netAssetValueAfterTrade.eq(ZERO)) {
 				return ZERO;
 			}
 
 			const newLeverage = totalLiabilityValueAfterTrade
 				.mul(TEN_THOUSAND)
-				.div(totalAssetValueAfterTrade);
+				.div(netAssetValueAfterTrade);
 
 			return newLeverage;
 		}
@@ -1860,21 +1883,29 @@ export class User {
 
 		const totalAssetValue = this.getTotalAssetValue();
 
-		const totalPerpPositionValue = currentPerpPositionAfterTrade
+		const totalPerpPositionLiability = currentPerpPositionAfterTrade
 			.add(totalPositionAfterTradeExcludingTargetMarket)
 			.abs();
 
-		const totalLiabilitiesAfterTrade = totalPerpPositionValue.add(
-			this.getSpotMarketLiabilityValue(undefined, undefined, undefined, false)
+		const totalSpotLiability = this.getSpotMarketLiabilityValue(
+			undefined,
+			undefined,
+			undefined,
+			true
 		);
 
-		if (totalAssetValue.eq(ZERO) && totalLiabilitiesAfterTrade.eq(ZERO)) {
+		const totalLiabilitiesAfterTrade =
+			totalPerpPositionLiability.add(totalSpotLiability);
+
+		const netAssetValue = totalAssetValue.sub(totalSpotLiability);
+
+		if (netAssetValue.eq(ZERO)) {
 			return ZERO;
 		}
 
 		const newLeverage = totalLiabilitiesAfterTrade
 			.mul(TEN_THOUSAND)
-			.div(totalAssetValue);
+			.div(netAssetValue);
 
 		return newLeverage;
 	}
