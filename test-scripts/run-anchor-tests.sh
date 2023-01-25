@@ -5,21 +5,21 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
-#   multipleMakerOrders.ts
-#   postOnlyAmmFulfillment.ts
-#   imbalancePerpPnl.ts
-#   delistMarket.ts
-#   delistMarketLiq.ts
-#   triggerSpotOrder.ts
-#   serumTest.ts
-#   liquidityProvider.ts
-#   tradingLP.ts
-#   insuranceFundStake.ts
-#   liquidateSpot.ts
-#   liquidateSpotSocialLoss.ts
-#   referrer.ts
-#   liquidatePerpPnlForDeposit.ts 
-#   liquidateBorrowForPerpPnl.ts
+  multipleMakerOrders.ts
+  postOnlyAmmFulfillment.ts
+  imbalancePerpPnl.ts
+  delistMarket.ts
+  delistMarketLiq.ts
+  triggerSpotOrder.ts
+  serumTest.ts
+  liquidityProvider.ts
+  tradingLP.ts
+  insuranceFundStake.ts
+  liquidateSpot.ts
+  liquidateSpotSocialLoss.ts
+  referrer.ts
+  liquidatePerpPnlForDeposit.ts 
+  liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
   liquidatePerpAndLp.ts
   order.ts

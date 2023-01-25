@@ -1052,26 +1052,23 @@ export class User {
 	 * @params category {Initial, Maintenance}
 	 * @returns : Precision TEN_THOUSAND
 	 */
-	public getMaxLeverage(
-		marketIndex: number,
-		category: MarginCategory = 'Initial'
-	): BN {
+	public getMaxLeverage(marketIndex: number): BN {
 		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 
-		const totalAssetValue = this.getTotalAssetValue(category);
+		const totalAssetValue = this.getTotalAssetValue();
 		if (totalAssetValue.eq(ZERO)) {
 			return ZERO;
 		}
 
-		const totalLiabilityValue = this.getTotalLiabilityValue(category);
+		const totalLiabilityValue = this.getTotalLiabilityValue();
 
 		const marginRatio = calculateMarketMarginRatio(
 			market,
 			// worstCaseBaseAssetAmount.abs(),
 			ZERO, // todo
-			category
+			'Initial'
 		);
-		const freeCollateral = this.getFreeCollateral(category);
+		const freeCollateral = this.getFreeCollateral();
 
 		// how much more liabilities can be opened w remaining free collateral
 		const additionalLiabilities = freeCollateral
@@ -1311,54 +1308,13 @@ export class User {
 				)
 			)
 			.div(MARGIN_PRECISION);
-		// const marginRequirementOfTargetMarket =
-		// 	this.getUserAccount().perpPositions.reduce(
-		// 		(totalMarginRequirement, position) => {
-		// 			if (position.marketIndex === perpPosition.marketIndex) {
-		// 				const market = this.driftClient.getPerpMarketAccount(
-		// 					position.marketIndex
-		// 				);
-		// 				const positionValue = calculateBaseAssetValueWithOracle(
-		// 					market,
-		// 					position,
-		// 					this.getOracleDataForPerpMarket(market.marketIndex)
-		// 				);
-		// 				const marketMarginRequirement = positionValue
-		// 					.mul(
-		// 						new BN(
-		// 							calculateMarketMarginRatio(
-		// 								market,
-		// 								position.baseAssetAmount.abs(),
-		// 								'Maintenance'
-		// 							)
-		// 						)
-		// 					)
-		// 					.div(MARGIN_PRECISION);
-		// 				totalMarginRequirement = totalMarginRequirement.add(
-		// 					marketMarginRequirement
-		// 				);
-		// 			}
-		// 			return totalMarginRequirement;
-		// 		},
-		// 		ZERO
-		// 	);
 
 		const marginRequirementExcludingTargetMarket = marginRequirementOfAll.sub(
 			marginRequirementOfTargetMarket
 		);
-		console.log('   totalCollateral:', totalCollateral.toString());
-
-		console.log(
-			'   marginRequirementExcludingTargetMarket:',
-			marginRequirementExcludingTargetMarket.toString()
-		);
 
 		const freeCollateralExcludingTargetMarket = totalCollateral.sub(
 			marginRequirementExcludingTargetMarket
-		);
-		console.log(
-			'   freeCollateralExcludingTargetMarket:',
-			freeCollateralExcludingTargetMarket.toString()
 		);
 
 		// if the position value after the trade is less than free collateral, there is no liq price
@@ -1380,29 +1336,11 @@ export class User {
 				)
 			)
 			.div(MARGIN_PRECISION);
-		console.log(
-			'   marginRequirementTargetMarket:',
-			marginRequirementTargetMarket.toString()
-		);
 
 		const marginRequirementAfterTrade =
 			marginRequirementExcludingTargetMarket.add(marginRequirementTargetMarket);
 		const freeCollateralAfterTrade = totalCollateral.sub(
 			marginRequirementAfterTrade
-		);
-		console.log(
-			'   marginRequirementAfterTrade:',
-			marginRequirementAfterTrade.toString()
-		);
-
-		console.log(
-			'   freeCollateralAfterTrade:',
-			freeCollateralAfterTrade.toString()
-		);
-
-		const marketMaxLeverage = this.getMaxLeverage(
-			proposedPerpPosition.marketIndex,
-			'Maintenance'
 		);
 
 		const marketMaxMaintLeverage = new BN(
@@ -1412,12 +1350,6 @@ export class User {
 					proposedPerpPosition.baseAssetAmount,
 					'Maintenance'
 				)
-		);
-
-		console.log('   marketMaxLeverage:', marketMaxLeverage.toString());
-		console.log(
-			'   marketMaxMaintLeverage:',
-			marketMaxMaintLeverage.toString()
 		);
 
 		let priceDelta;
@@ -1437,8 +1369,6 @@ export class User {
 				.div(proposedBaseAssetAmount);
 		}
 
-		console.log('priceDelta:', priceDelta.toString());
-
 		const currentPrice = this.getOracleDataForPerpMarket(
 			perpPosition.marketIndex
 		).price;
@@ -1449,7 +1379,6 @@ export class User {
 		) {
 			return new BN(-1);
 		}
-		console.log('currentPrice:', currentPrice.toString());
 
 		return currentPrice.sub(priceDelta);
 	}

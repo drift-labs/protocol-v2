@@ -282,9 +282,10 @@ describe('liquidate perp (no open orders)', () => {
 		);
 		assert(
 			liqPriceAfterRallySettlePnl.eq(
-				new BN(0.468158 * PRICE_PRECISION.toNumber())
+				new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())
 			)
 		);
+		await driftClientUser.unsubscribe();
 
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
 
