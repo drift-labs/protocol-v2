@@ -2,7 +2,6 @@ import * as anchor from '@project-serum/anchor';
 import {
 	BASE_PRECISION,
 	BN,
-	getLimitOrderParams,
 	isVariant,
 	OracleSource,
 	QUOTE_PRECISION,
@@ -34,7 +33,7 @@ import {
 } from './testHelpers';
 import { BulkAccountLoader } from '../sdk';
 
-describe('liquidate perp and lp', () => {
+describe('liquidate perp (no open orders)', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -68,7 +67,7 @@ describe('liquidate perp and lp', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
-	const nLpShares = new BN(10000000);
+	const nLpShares = ZERO;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -124,24 +123,10 @@ describe('liquidate perp and lp', () => {
 
 		await driftClient.openPosition(
 			PositionDirection.LONG,
-			new BN(175).mul(BASE_PRECISION).div(new BN(10)), // 25 SOL
+			new BN(175).mul(BASE_PRECISION).div(new BN(10)), // 17.5 SOL
 			0,
 			new BN(0)
 		);
-
-		const txSig = await driftClient.addPerpLpShares(nLpShares, 0);
-		await printTxLogs(connection, txSig);
-
-		for (let i = 0; i < 32; i++) {
-			await driftClient.placePerpOrder(
-				getLimitOrderParams({
-					baseAssetAmount: BASE_PRECISION,
-					marketIndex: 0,
-					direction: PositionDirection.LONG,
-					price: PRICE_PRECISION,
-				})
-			);
-		}
 
 		provider.connection.requestAirdrop(liquidatorKeyPair.publicKey, 10 ** 9);
 		liquidatorUSDCAccount = await mockUserUSDCAccount(
@@ -206,7 +191,7 @@ describe('liquidate perp and lp', () => {
 		console.log('deltaValueToLiq:', deltaValueToLiq.toString());
 		console.log('pp.base:', pp.baseAssetAmount.toString());
 
-		const expectedLiqPrice = 0.559276;
+		const expectedLiqPrice = 0.452181;
 		const liqPrice = driftClientUser.liquidationPrice({ marketIndex: 0 }, ZERO);
 		console.log('liqPrice:', liqPrice.toString());
 		assert(liqPrice.eq(new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())));
@@ -214,14 +199,16 @@ describe('liquidate perp and lp', () => {
 		const oracle = driftClient.getPerpMarketAccount(0).amm.oracle;
 		await setFeedPrice(anchor.workspace.Pyth, 0.9, oracle);
 		await sleep(2000);
-		await driftClientUser.fetchAccounts();
 		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
 
+		const oraclePrice = driftClient.getOracleDataForPerpMarket(0).price;
+		console.log('oraclePrice:', oraclePrice.toString());
+		assert(oraclePrice.eq(new BN(0.9 * PRICE_PRECISION.toNumber())));
 		const liqPriceAfterPxChange = driftClientUser.liquidationPrice(
 			{ marketIndex: 0 },
 			ZERO
 		);
-		const expectedLiqPriceAfterPxChange = 0.650395;
 
 		console.log('liqPriceAfterPxChange:', liqPriceAfterPxChange.toString());
 		const mtc0 = driftClientUser.getTotalCollateral('Maintenance');
@@ -235,7 +222,7 @@ describe('liquidate perp and lp', () => {
 		console.log('pp.base0:', pp0.baseAssetAmount.toString());
 		assert(
 			liqPriceAfterPxChange.eq(
-				new BN(expectedLiqPriceAfterPxChange * PRICE_PRECISION.toNumber())
+				new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())
 			)
 		);
 
@@ -245,9 +232,11 @@ describe('liquidate perp and lp', () => {
 			0
 		);
 		await sleep(2000);
-		await driftClientUser.fetchAccounts();
 		await driftClient.fetchAccounts();
-
+		await driftClientUser.fetchAccounts();
+		const oraclePrice2 = driftClient.getOracleDataForPerpMarket(0).price;
+		console.log('oraclePrice2:', oraclePrice2.toString());
+		assert(oraclePrice2.eq(new BN(0.9 * PRICE_PRECISION.toNumber())));
 		const liqPriceAfterSettlePnl = driftClientUser.liquidationPrice(
 			{ marketIndex: 0 },
 			ZERO
@@ -266,11 +255,17 @@ describe('liquidate perp and lp', () => {
 		console.log('liqPriceAfterSettlePnl:', liqPriceAfterSettlePnl.toString());
 		assert(
 			liqPriceAfterSettlePnl.eq(
-				new BN(expectedLiqPriceAfterPxChange * PRICE_PRECISION.toNumber())
+				new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())
 			)
 		);
 
 		await setFeedPrice(anchor.workspace.Pyth, 1.1, oracle);
+		await sleep(2000);
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+		const oraclePrice3 = driftClient.getOracleDataForPerpMarket(0).price;
+		console.log('oraclePrice3:', oraclePrice3.toString());
+		assert(oraclePrice3.eq(new BN(1099999)));
 		await driftClient.settlePNL(
 			driftClientUser.userAccountPublicKey,
 			driftClientUser.getUserAccount(),
@@ -344,7 +339,7 @@ describe('liquidate perp and lp', () => {
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidatePerp'));
 		assert(liquidationRecord.liquidatePerp.marketIndex === 0);
-		assert(liquidationRecord.canceledOrderIds.length === 32);
+		assert(liquidationRecord.canceledOrderIds.length === 0);
 		assert(
 			liquidationRecord.liquidatePerp.oraclePrice.eq(
 				PRICE_PRECISION.div(new BN(10))

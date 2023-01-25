@@ -40,7 +40,6 @@ import {
 	calculateUnrealizedAssetWeight,
 	calculateMarketMarginRatio,
 	PositionDirection,
-	calculateTradeSlippage,
 	BN,
 	SpotMarketAccount,
 	getTokenValue,
@@ -1296,37 +1295,53 @@ export class User {
 			totalPositionValueExcludingTargetMarket.add(proposedPerpPositionValue);
 
 		const marginRequirementOfAll = this.getMaintenanceMarginRequirement();
-		const marginRequirementOfTargetMarket =
-			this.getUserAccount().perpPositions.reduce(
-				(totalMarginRequirement, position) => {
-					if (position.marketIndex === perpPosition.marketIndex) {
-						const market = this.driftClient.getPerpMarketAccount(
-							position.marketIndex
-						);
-						const positionValue = calculateBaseAssetValueWithOracle(
-							market,
-							position,
-							this.getOracleDataForPerpMarket(market.marketIndex)
-						);
-						const marketMarginRequirement = positionValue
-							.mul(
-								new BN(
-									calculateMarketMarginRatio(
-										market,
-										position.baseAssetAmount.abs(),
-										'Maintenance'
-									)
-								)
-							)
-							.div(MARGIN_PRECISION);
-						totalMarginRequirement = totalMarginRequirement.add(
-							marketMarginRequirement
-						);
-					}
-					return totalMarginRequirement;
-				},
-				ZERO
-			);
+		const positionValue = calculateBaseAssetValueWithOracle(
+			market,
+			proposedPerpPosition,
+			this.getOracleDataForPerpMarket(market.marketIndex)
+		);
+		const marginRequirementOfTargetMarket = positionValue
+			.mul(
+				new BN(
+					calculateMarketMarginRatio(
+						market,
+						proposedPerpPosition.baseAssetAmount.abs(),
+						'Maintenance'
+					)
+				)
+			)
+			.div(MARGIN_PRECISION);
+		// const marginRequirementOfTargetMarket =
+		// 	this.getUserAccount().perpPositions.reduce(
+		// 		(totalMarginRequirement, position) => {
+		// 			if (position.marketIndex === perpPosition.marketIndex) {
+		// 				const market = this.driftClient.getPerpMarketAccount(
+		// 					position.marketIndex
+		// 				);
+		// 				const positionValue = calculateBaseAssetValueWithOracle(
+		// 					market,
+		// 					position,
+		// 					this.getOracleDataForPerpMarket(market.marketIndex)
+		// 				);
+		// 				const marketMarginRequirement = positionValue
+		// 					.mul(
+		// 						new BN(
+		// 							calculateMarketMarginRatio(
+		// 								market,
+		// 								position.baseAssetAmount.abs(),
+		// 								'Maintenance'
+		// 							)
+		// 						)
+		// 					)
+		// 					.div(MARGIN_PRECISION);
+		// 				totalMarginRequirement = totalMarginRequirement.add(
+		// 					marketMarginRequirement
+		// 				);
+		// 			}
+		// 			return totalMarginRequirement;
+		// 		},
+		// 		ZERO
+		// 	);
 
 		const marginRequirementExcludingTargetMarket = marginRequirementOfAll.sub(
 			marginRequirementOfTargetMarket
@@ -1385,21 +1400,21 @@ export class User {
 			freeCollateralAfterTrade.toString()
 		);
 
-		const marketMaxMaintLeverage = this.getMaxLeverage(
+		const marketMaxLeverage = this.getMaxLeverage(
 			proposedPerpPosition.marketIndex,
 			'Maintenance'
 		);
 
-		// const marketMaxMaintLeverage = new BN(
-		// 	TEN_THOUSAND.mul(TEN_THOUSAND).toNumber() /
-		// 		calculateMarketMarginRatio(
-		// 			market,
-		// 			proposedPerpPosition.baseAssetAmount,
-		// 			'Maintenance'
-		// 		)
-		// );
+		const marketMaxMaintLeverage = new BN(
+			TEN_THOUSAND.mul(TEN_THOUSAND).toNumber() /
+				calculateMarketMarginRatio(
+					market,
+					proposedPerpPosition.baseAssetAmount,
+					'Maintenance'
+				)
+		);
 
-		// console.log('   marketMaxLeverage:', marketMaxLeverage.toString());
+		console.log('   marketMaxLeverage:', marketMaxLeverage.toString());
 		console.log(
 			'   marketMaxMaintLeverage:',
 			marketMaxMaintLeverage.toString()
@@ -1424,7 +1439,7 @@ export class User {
 
 		console.log('priceDelta:', priceDelta.toString());
 
-		const currentPrice = this.driftClient.getOracleDataForSpotMarket(
+		const currentPrice = this.getOracleDataForPerpMarket(
 			perpPosition.marketIndex
 		).price;
 
