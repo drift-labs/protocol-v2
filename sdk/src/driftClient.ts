@@ -2950,6 +2950,7 @@ export class DriftClient {
 			maxTs: openOrder.maxTs,
 			auctionStartPrice: openOrder.auctionStartPrice,
 			auctionEndPrice: openOrder.auctionEndPrice,
+			userOrderId: openOrder.userOrderId,
 		};
 		const placeOrderIx = await this.getPlacePerpOrderIx(newOrderParams);
 
