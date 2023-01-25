@@ -15,6 +15,7 @@ import {
 	PositionDirection,
 	Wallet,
 	LIQUIDATION_PCT_PRECISION,
+	User,
 } from '../sdk/src';
 import { assert } from 'chai';
 
@@ -29,6 +30,7 @@ import {
 	setFeedPrice,
 	initializeQuoteSpotMarket,
 	printTxLogs,
+	sleep,
 } from './testHelpers';
 import { BulkAccountLoader } from '../sdk';
 
@@ -188,7 +190,107 @@ describe('liquidate perp and lp', () => {
 		const lpShares = driftClient.getUserAccount().perpPositions[0].lpShares;
 		assert(lpShares.eq(nLpShares));
 
+		const driftClientUser = new User({
+			driftClient: driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		});
+		await driftClientUser.subscribe();
+
+		const mtc = driftClientUser.getTotalCollateral('Maintenance');
+		const mmr = driftClientUser.getMaintenanceMarginRequirement();
+		const pp = driftClientUser.getPerpPosition(0);
+
+		const deltaValueToLiq = mtc.sub(mmr); // QUOTE_PRECISION
+		console.log('mtc:', mtc.toString());
+		console.log('mmr:', mmr.toString());
+		console.log('deltaValueToLiq:', deltaValueToLiq.toString());
+		console.log('pp.base:', pp.baseAssetAmount.toString());
+
+		const expectedLiqPrice = 0.559276;
+		const liqPrice = driftClientUser.liquidationPrice({ marketIndex: 0 }, ZERO);
+		console.log('liqPrice:', liqPrice.toString());
+		assert(liqPrice.eq(new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())));
+
 		const oracle = driftClient.getPerpMarketAccount(0).amm.oracle;
+		await setFeedPrice(anchor.workspace.Pyth, 0.9, oracle);
+		await sleep(2000);
+		await driftClientUser.fetchAccounts();
+		await driftClient.fetchAccounts();
+
+		const liqPriceAfterPxChange = driftClientUser.liquidationPrice(
+			{ marketIndex: 0 },
+			ZERO
+		);
+		const expectedLiqPriceAfterPxChange = 0.650395;
+
+		console.log('liqPriceAfterPxChange:', liqPriceAfterPxChange.toString());
+		const mtc0 = driftClientUser.getTotalCollateral('Maintenance');
+		const mmr0 = driftClientUser.getMaintenanceMarginRequirement();
+		const pp0 = driftClientUser.getPerpPosition(0);
+
+		const deltaValueToLiq0 = mtc0.sub(mmr0); // QUOTE_PRECISION
+		console.log('mtc0:', mtc0.toString());
+		console.log('mmr0:', mmr0.toString());
+		console.log('deltaValueToLiq0:', deltaValueToLiq0.toString());
+		console.log('pp.base0:', pp0.baseAssetAmount.toString());
+		assert(
+			liqPriceAfterPxChange.eq(
+				new BN(expectedLiqPriceAfterPxChange * PRICE_PRECISION.toNumber())
+			)
+		);
+
+		await driftClient.settlePNL(
+			driftClientUser.userAccountPublicKey,
+			driftClientUser.getUserAccount(),
+			0
+		);
+		await sleep(2000);
+		await driftClientUser.fetchAccounts();
+		await driftClient.fetchAccounts();
+
+		const liqPriceAfterSettlePnl = driftClientUser.liquidationPrice(
+			{ marketIndex: 0 },
+			ZERO
+		);
+
+		const mtc2 = driftClientUser.getTotalCollateral('Maintenance');
+		const mmr2 = driftClientUser.getMaintenanceMarginRequirement();
+		const pp2 = driftClientUser.getPerpPosition(0);
+
+		const deltaValueToLiq2 = mtc2.sub(mmr2); // QUOTE_PRECISION
+		console.log('mtc2:', mtc2.toString());
+		console.log('mmr2:', mmr2.toString());
+		console.log('deltaValueToLiq2:', deltaValueToLiq2.toString());
+		console.log('pp.base2:', pp2.baseAssetAmount.toString());
+
+		console.log('liqPriceAfterSettlePnl:', liqPriceAfterSettlePnl.toString());
+		assert(
+			liqPriceAfterSettlePnl.eq(
+				new BN(expectedLiqPriceAfterPxChange * PRICE_PRECISION.toNumber())
+			)
+		);
+
+		await setFeedPrice(anchor.workspace.Pyth, 1.1, oracle);
+		await driftClient.settlePNL(
+			driftClientUser.userAccountPublicKey,
+			driftClientUser.getUserAccount(),
+			0
+		);
+
+		const liqPriceAfterRallySettlePnl = driftClientUser.liquidationPrice(
+			{ marketIndex: 0 },
+			ZERO
+		);
+		console.log(
+			'liqPriceAfterRallySettlePnl:',
+			liqPriceAfterRallySettlePnl.toString()
+		);
+		assert(
+			liqPriceAfterRallySettlePnl.eq(
+				new BN(0.468158 * PRICE_PRECISION.toNumber())
+			)
+		);
+
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
 
 		const oracleGuardRails: OracleGuardRails = {

@@ -375,9 +375,9 @@ export class User {
 	 * calculates Free Collateral = Total collateral - initial margin requirement
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getFreeCollateral(): BN {
-		const totalCollateral = this.getTotalCollateral();
-		const initialMarginRequirement = this.getInitialMarginRequirement();
+	public getFreeCollateral(marginCategory?: MarginCategory): BN {
+		const totalCollateral = this.getTotalCollateral(marginCategory);
+		const initialMarginRequirement = this.getMarginRequirement(marginCategory);
 		const freeCollateral = totalCollateral.sub(initialMarginRequirement);
 		return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
 	}
@@ -1059,12 +1059,12 @@ export class User {
 	): BN {
 		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 
-		const totalAssetValue = this.getTotalAssetValue();
+		const totalAssetValue = this.getTotalAssetValue(category);
 		if (totalAssetValue.eq(ZERO)) {
 			return ZERO;
 		}
 
-		const totalLiabilityValue = this.getTotalLiabilityValue();
+		const totalLiabilityValue = this.getTotalLiabilityValue(category);
 
 		const marginRatio = calculateMarketMarginRatio(
 			market,
@@ -1072,7 +1072,7 @@ export class User {
 			ZERO, // todo
 			category
 		);
-		const freeCollateral = this.getFreeCollateral();
+		const freeCollateral = this.getFreeCollateral(category);
 
 		// how much more liabilities can be opened w remaining free collateral
 		const additionalLiabilities = freeCollateral
@@ -1245,7 +1245,7 @@ export class User {
         for 10x long, BTC down $400:
         3. (10k - 4k) / (100k - 4k) = 6k/96k => .0625 */
 
-		const totalCollateral = this.getTotalCollateral();
+		const totalCollateral = this.getTotalCollateral('Maintenance');
 
 		// calculate the total position value ignoring any value from the target market of the trade
 		const totalPositionValueExcludingTargetMarket =
@@ -1266,7 +1266,7 @@ export class User {
 			marketIndex: perpPosition.marketIndex,
 			baseAssetAmount: proposedBaseAssetAmount,
 			remainderBaseAssetAmount: 0,
-			quoteAssetAmount: new BN(0),
+			quoteAssetAmount: currentPerpPosition.quoteAssetAmount,
 			lastCumulativeFundingRate: ZERO,
 			quoteBreakEvenAmount: new BN(0),
 			quoteEntryAmount: new BN(0),
@@ -1295,10 +1295,11 @@ export class User {
 		const totalPositionValueAfterTrade =
 			totalPositionValueExcludingTargetMarket.add(proposedPerpPositionValue);
 
-		const marginRequirementExcludingTargetMarket =
+		const marginRequirementOfAll = this.getMaintenanceMarginRequirement();
+		const marginRequirementOfTargetMarket =
 			this.getUserAccount().perpPositions.reduce(
 				(totalMarginRequirement, position) => {
-					if (position.marketIndex !== perpPosition.marketIndex) {
+					if (position.marketIndex === perpPosition.marketIndex) {
 						const market = this.driftClient.getPerpMarketAccount(
 							position.marketIndex
 						);
@@ -1327,8 +1328,22 @@ export class User {
 				ZERO
 			);
 
+		const marginRequirementExcludingTargetMarket = marginRequirementOfAll.sub(
+			marginRequirementOfTargetMarket
+		);
+		console.log('   totalCollateral:', totalCollateral.toString());
+
+		console.log(
+			'   marginRequirementExcludingTargetMarket:',
+			marginRequirementExcludingTargetMarket.toString()
+		);
+
 		const freeCollateralExcludingTargetMarket = totalCollateral.sub(
 			marginRequirementExcludingTargetMarket
+		);
+		console.log(
+			'   freeCollateralExcludingTargetMarket:',
+			freeCollateralExcludingTargetMarket.toString()
 		);
 
 		// if the position value after the trade is less than free collateral, there is no liq price
@@ -1339,70 +1354,89 @@ export class User {
 			return new BN(-1);
 		}
 
-		const marginRequirementAfterTrade =
-			marginRequirementExcludingTargetMarket.add(
-				proposedPerpPositionValue
-					.mul(
-						new BN(
-							calculateMarketMarginRatio(
-								market,
-								proposedPerpPosition.baseAssetAmount.abs(),
-								'Maintenance'
-							)
-						)
+		const marginRequirementTargetMarket = proposedPerpPositionValue
+			.mul(
+				new BN(
+					calculateMarketMarginRatio(
+						market,
+						proposedPerpPosition.baseAssetAmount.abs(),
+						'Maintenance'
 					)
-					.div(MARGIN_PRECISION)
-			);
+				)
+			)
+			.div(MARGIN_PRECISION);
+		console.log(
+			'   marginRequirementTargetMarket:',
+			marginRequirementTargetMarket.toString()
+		);
+
+		const marginRequirementAfterTrade =
+			marginRequirementExcludingTargetMarket.add(marginRequirementTargetMarket);
 		const freeCollateralAfterTrade = totalCollateral.sub(
 			marginRequirementAfterTrade
 		);
+		console.log(
+			'   marginRequirementAfterTrade:',
+			marginRequirementAfterTrade.toString()
+		);
 
-		const marketMaxLeverage = this.getMaxLeverage(
+		console.log(
+			'   freeCollateralAfterTrade:',
+			freeCollateralAfterTrade.toString()
+		);
+
+		const marketMaxMaintLeverage = this.getMaxLeverage(
 			proposedPerpPosition.marketIndex,
 			'Maintenance'
+		);
+
+		// const marketMaxMaintLeverage = new BN(
+		// 	TEN_THOUSAND.mul(TEN_THOUSAND).toNumber() /
+		// 		calculateMarketMarginRatio(
+		// 			market,
+		// 			proposedPerpPosition.baseAssetAmount,
+		// 			'Maintenance'
+		// 		)
+		// );
+
+		// console.log('   marketMaxLeverage:', marketMaxLeverage.toString());
+		console.log(
+			'   marketMaxMaintLeverage:',
+			marketMaxMaintLeverage.toString()
 		);
 
 		let priceDelta;
 		if (proposedBaseAssetAmount.lt(ZERO)) {
 			priceDelta = freeCollateralAfterTrade
-				.mul(marketMaxLeverage) // precision is TEN_THOUSAND
-				.div(marketMaxLeverage.add(TEN_THOUSAND))
+				.mul(marketMaxMaintLeverage) // precision is TEN_THOUSAND
+				.div(marketMaxMaintLeverage.add(TEN_THOUSAND))
 				.mul(PRICE_TO_QUOTE_PRECISION)
 				.mul(AMM_RESERVE_PRECISION)
 				.div(proposedBaseAssetAmount);
 		} else {
 			priceDelta = freeCollateralAfterTrade
-				.mul(marketMaxLeverage) // precision is TEN_THOUSAND
-				.div(marketMaxLeverage.sub(TEN_THOUSAND))
+				.mul(marketMaxMaintLeverage) // precision is TEN_THOUSAND
+				.div(marketMaxMaintLeverage.sub(TEN_THOUSAND))
 				.mul(PRICE_TO_QUOTE_PRECISION)
 				.mul(AMM_RESERVE_PRECISION)
 				.div(proposedBaseAssetAmount);
 		}
 
-		let markPriceAfterTrade;
-		if (positionBaseSizeChange.eq(ZERO)) {
-			markPriceAfterTrade = calculateReservePrice(
-				this.driftClient.getPerpMarketAccount(perpPosition.marketIndex),
-				this.getOracleDataForPerpMarket(perpPosition.marketIndex)
-			);
-		} else {
-			const direction = positionBaseSizeChange.gt(ZERO)
-				? PositionDirection.LONG
-				: PositionDirection.SHORT;
-			markPriceAfterTrade = calculateTradeSlippage(
-				direction,
-				positionBaseSizeChange.abs(),
-				this.driftClient.getPerpMarketAccount(perpPosition.marketIndex),
-				'base',
-				this.getOracleDataForPerpMarket(perpPosition.marketIndex)
-			)[3]; // newPrice after swap
-		}
+		console.log('priceDelta:', priceDelta.toString());
 
-		if (priceDelta.gt(markPriceAfterTrade)) {
+		const currentPrice = this.driftClient.getOracleDataForSpotMarket(
+			perpPosition.marketIndex
+		).price;
+
+		if (
+			priceDelta.gt(currentPrice) &&
+			proposedPerpPosition.baseAssetAmount.gte(ZERO)
+		) {
 			return new BN(-1);
 		}
+		console.log('currentPrice:', currentPrice.toString());
 
-		return markPriceAfterTrade.sub(priceDelta);
+		return currentPrice.sub(priceDelta);
 	}
 
 	/**
