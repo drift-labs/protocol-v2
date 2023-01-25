@@ -1771,25 +1771,37 @@ export class User {
 				undefined,
 				undefined,
 				undefined,
-				true
+				includeOpenOrders
 			);
 
 			const currentQuoteNetValue = this.getSpotPositionValue(
 				QUOTE_SPOT_MARKET_INDEX
 			);
 			const currentQuoteAssetValue = this.getSpotMarketAssetValue(
-				QUOTE_SPOT_MARKET_INDEX
+				QUOTE_SPOT_MARKET_INDEX,
+				undefined,
+				includeOpenOrders
 			);
 			const currentQuoteLiabilityValue = this.getSpotMarketLiabilityValue(
-				QUOTE_SPOT_MARKET_INDEX
+				QUOTE_SPOT_MARKET_INDEX,
+				undefined,
+				undefined,
+				includeOpenOrders
 			);
 
 			const currentSpotMarketNetValue =
 				this.getSpotPositionValue(targetMarketIndex);
-			const currentSpotMarketAssetValue =
-				this.getSpotMarketAssetValue(targetMarketIndex);
-			const currentSpotMarketLiabilityValue =
-				this.getSpotMarketLiabilityValue(targetMarketIndex);
+			const currentSpotMarketAssetValue = this.getSpotMarketAssetValue(
+				targetMarketIndex,
+				undefined,
+				includeOpenOrders
+			);
+			const currentSpotMarketLiabilityValue = this.getSpotMarketLiabilityValue(
+				targetMarketIndex,
+				undefined,
+				undefined,
+				includeOpenOrders
+			);
 
 			let assetValueToAdd = ZERO;
 			let liabilityValueToAdd = ZERO;
@@ -1891,7 +1903,7 @@ export class User {
 			undefined,
 			undefined,
 			undefined,
-			true
+			includeOpenOrders
 		);
 
 		const totalLiabilitiesAfterTrade =
