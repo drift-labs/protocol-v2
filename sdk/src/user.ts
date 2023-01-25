@@ -804,17 +804,12 @@ export class User {
 		} else if (totalCollateral.lte(ZERO)) {
 			health = 0;
 		} else {
-			// const totalCollateral = this.getTotalCollateral('Initial');
-			// const maintenanceMarginReq = this.getMaintenanceMarginRequirement();
-
-			const marginRatio =
-				this.getMarginRatio().toNumber() / MARGIN_PRECISION.toNumber();
-
-			const maintenanceRatio =
-				(maintenanceMarginReq.toNumber() / totalCollateral.toNumber()) *
-				marginRatio;
-
-			const healthP1 = Math.max(0, (marginRatio - maintenanceRatio) * 100) + 1;
+			const healthP1 =
+				Math.max(
+					0,
+					(totalCollateral.toNumber() / maintenanceMarginReq.toNumber() - 1) *
+						100
+				) + 1;
 
 			health = Math.min(1, Math.log(healthP1) / Math.log(100)) * 100;
 			if (health > 1) {

@@ -2990,7 +2990,9 @@ export class DriftClient {
 
 		const openOrder = this.getUser().getOrderByUserOrderId(userOrderId);
 		if (!openOrder) {
-			throw new Error(`No open order with user order id ${userOrderId.toString()}`);
+			throw new Error(
+				`No open order with user order id ${userOrderId.toString()}`
+			);
 		}
 		const cancelOrderIx = await this.getCancelOrderIx(openOrder.orderId);
 
