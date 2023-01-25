@@ -366,7 +366,7 @@ export class User {
 	 */
 	public getBuyingPower(marketIndex: number): BN {
 		return this.getFreeCollateral()
-			.mul(this.getMaxLeverage(marketIndex, 'Initial'))
+			.mul(this.getMaxLeverage(marketIndex))
 			.div(TEN_THOUSAND);
 	}
 
