@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: enforce min order size when trading against amm ([#334](https://github.com/drift-labs/protocol-v2/pull/334))
 
 ### Fixes
+- ts-sdk: update methods to account for new leverage formula ([#339](https://github.com/drift-labs/protocol-v2/pull/339))
 
 ### Breaking
 
