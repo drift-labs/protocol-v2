@@ -1001,7 +1001,8 @@ export class User {
 	 */
 	public getPerpPositionValue(
 		marketIndex: number,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		includeOpenOrders = false
 	): BN {
 		const userPosition =
 			this.getPerpPosition(marketIndex) || this.getEmptyPosition(marketIndex);
@@ -1011,7 +1012,8 @@ export class User {
 		return calculateBaseAssetValueWithOracle(
 			market,
 			userPosition,
-			oraclePriceData
+			oraclePriceData,
+			includeOpenOrders
 		);
 	}
 
@@ -1656,7 +1658,8 @@ export class User {
 
 		let currentPositionQuoteAmount = this.getPerpPositionValue(
 			targetMarketIndex,
-			oracleData
+			oracleData,
+			includeOpenOrders
 		);
 
 		const currentSide =
@@ -1867,7 +1870,8 @@ export class User {
 		if (currentPerpPosition) {
 			currentPerpPositionValueUSDC = this.getPerpPositionValue(
 				marketToIgnore,
-				oracleData
+				oracleData,
+				includeOpenOrders
 			);
 		}
 
