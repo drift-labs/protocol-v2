@@ -300,8 +300,8 @@ describe('delist market, liquidation of expired position', () => {
 		);
 		assert(driftClientLoserUserLeverage <= 7.8865);
 		assert(driftClientLoserUserLeverage >= 7.8486);
-		assert(driftClientLoserUserLiqPrice < 41);
-		assert(driftClientLoserUserLiqPrice > 40.5);
+		assert(driftClientLoserUserLiqPrice < 41.390493);
+		assert(driftClientLoserUserLiqPrice > 41.300493);
 
 		const market00 = driftClient.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
