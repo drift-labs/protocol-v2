@@ -1366,7 +1366,12 @@ export class User {
 
 		// calculate the total position value ignoring any value from the target market of the trade
 		const totalPositionValueExcludingTargetMarket =
-			this.getTotalPerpPositionValueExcludingMarket(perpPosition.marketIndex);
+			this.getTotalPerpPositionValueExcludingMarket(
+				perpPosition.marketIndex,
+				undefined,
+				undefined,
+				true
+			);
 
 		const currentPerpPosition =
 			this.getPerpPosition(perpPosition.marketIndex) ||
@@ -1388,8 +1393,8 @@ export class User {
 			quoteBreakEvenAmount: new BN(0),
 			quoteEntryAmount: new BN(0),
 			openOrders: 0,
-			openBids: new BN(0),
-			openAsks: new BN(0),
+			openBids: currentPerpPosition.openBids,
+			openAsks: currentPerpPosition.openAsks,
 			settledPnl: ZERO,
 			lpShares: ZERO,
 			lastBaseAssetAmountPerLp: ZERO,
@@ -1405,7 +1410,8 @@ export class User {
 		const proposedPerpPositionValue = calculateBaseAssetValueWithOracle(
 			market,
 			proposedPerpPosition,
-			this.getOracleDataForPerpMarket(market.marketIndex)
+			this.getOracleDataForPerpMarket(market.marketIndex),
+			true
 		);
 
 		// total position value after trade
@@ -1416,7 +1422,8 @@ export class User {
 		const positionValue = calculateBaseAssetValueWithOracle(
 			market,
 			proposedPerpPosition,
-			this.getOracleDataForPerpMarket(market.marketIndex)
+			this.getOracleDataForPerpMarket(market.marketIndex),
+			true
 		);
 		const marginRequirementOfTargetMarket = positionValue
 			.mul(
