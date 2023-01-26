@@ -365,13 +365,36 @@ export class User {
 	}
 
 	/**
-	 * calculates Buying Power = FC * MAX_LEVERAGE
+	 * calculates Buying Power = free collateral / initial margin ratio
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getBuyingPower(marketIndex: number): BN {
-		return this.getFreeCollateral()
-			.mul(this.getMaxLeverage(marketIndex, 'Initial'))
-			.div(TEN_THOUSAND);
+		const perpPosition = this.getPerpPosition(marketIndex);
+		const worstCaseBaseAssetAmount = perpPosition
+			? calculateWorstCaseBaseAssetAmount(perpPosition)
+			: ZERO;
+
+		const freeCollateral = this.getFreeCollateral();
+
+		return this.getBuyingPowerFromFreeCollateralAndBaseAssetAmount(
+			marketIndex,
+			freeCollateral,
+			worstCaseBaseAssetAmount
+		);
+	}
+
+	getBuyingPowerFromFreeCollateralAndBaseAssetAmount(
+		marketIndex: number,
+		freeCollateral: BN,
+		baseAssetAmount: BN
+	): BN {
+		const marginRatio = calculateMarketMarginRatio(
+			this.driftClient.getPerpMarketAccount(marketIndex),
+			baseAssetAmount,
+			'Initial'
+		);
+
+		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
 	}
 
 	/**
@@ -1591,9 +1614,12 @@ export class User {
 					const freeCollateralAfterClose = totalCollateral.sub(
 						marginRequirementAfterClosing
 					);
-					const buyingPowerAfterClose = freeCollateralAfterClose
-						.mul(this.getMaxLeverage(targetMarketIndex))
-						.div(TEN_THOUSAND);
+					const buyingPowerAfterClose =
+						this.getBuyingPowerFromFreeCollateralAndBaseAssetAmount(
+							targetMarketIndex,
+							freeCollateralAfterClose,
+							ZERO
+						);
 					maxPositionSize = perpPositionValue.add(buyingPowerAfterClose);
 				}
 			} else {

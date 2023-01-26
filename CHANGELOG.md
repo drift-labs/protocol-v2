@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- ts-sdk: fix the getBuyingPower calculation
 - ts-sdk: improved perp estimated liq price formula ([#338](https://github.com/drift-labs/protocol-v2/pull/338))
 - ts-sdk: update methods to account for new leverage formula ([#339](https://github.com/drift-labs/protocol-v2/pull/339))
 
