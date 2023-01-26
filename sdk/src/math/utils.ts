@@ -1,10 +1,14 @@
-import { BN } from '../';
+import { BN, ZERO } from '../';
 
 export function clampBN(x: BN, min: BN, max: BN): BN {
 	return BN.max(min, BN.min(x, max));
 }
 
 export const squareRootBN = (n, closeness = new BN(1)): BN => {
+	if (n.lt(ZERO)) {
+		throw new Error('square root of negative number');
+	}
+
 	// Assuming the sqrt of n as n only
 	let x = n;
 

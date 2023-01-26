@@ -22,7 +22,7 @@ export function calculateSizePremiumLiabilityWeight(
 		return liabilityWeight;
 	}
 
-	const sizeSqrt = squareRootBN(size.mul(new BN(10)).add(new BN(1))); //1e9 -> 1e10 -> 1e5
+	const sizeSqrt = squareRootBN(size.abs().mul(new BN(10)).add(new BN(1))); //1e9 -> 1e10 -> 1e5
 
 	const denom0 = BN.max(new BN(1), SPOT_MARKET_IMF_PRECISION.div(imfFactor));
 	assert(denom0.gt(ZERO));
@@ -57,7 +57,7 @@ export function calculateSizeDiscountAssetWeight(
 		return assetWeight;
 	}
 
-	const sizeSqrt = squareRootBN(size.mul(new BN(10)).add(new BN(1))); //1e9 -> 1e10 -> 1e5
+	const sizeSqrt = squareRootBN(size.abs().mul(new BN(10)).add(new BN(1))); //1e9 -> 1e10 -> 1e5
 	const imfNumerator = SPOT_MARKET_IMF_PRECISION.add(
 		SPOT_MARKET_IMF_PRECISION.div(new BN(10))
 	);
