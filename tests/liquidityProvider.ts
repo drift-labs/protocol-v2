@@ -323,8 +323,8 @@ describe('liquidity providing', () => {
 			market.amm.maxBaseAssetReserve.toString()
 		);
 		console.log('LP open bids/asks:', bids.toString(), asks.toString());
-		assert(bids.eq(new BN(29288643749)));
-		assert(asks.eq(new BN(-41419999989)));
+		assert(bids.eq(new BN(41419999989)));
+		assert(asks.eq(new BN(-29288643749)));
 
 		await driftClient.placePerpOrder(
 			getLimitOrderParams({

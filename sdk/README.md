@@ -11,14 +11,6 @@
   </p>
 </div>
 
-# Drift Protocol v2
-
-This repository provides open source access to Drift's Typescript SDK, Solana Programs, and more.
-
-# SDK Guide
-
-The technical documentation for the SDK can be found [here](https://drift-labs.github.io/protocol-v2/sdk/), and you can visit Drift's general purpose documentation [here](https://docs.drift.trade/sdk-documentation).
-
 ## Installation
 
 ```
@@ -84,7 +76,7 @@ convertToNumber(new BN(10500), new BN(1000)); // = 10.5
 ### Setting up an account and making a trade
 
 ```typescript
-import { BN, Provider } from '@project-serum/anchor';
+import { AnchorProvider, BN } from '@project-serum/anchor';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
@@ -92,14 +84,18 @@ import {
 	DriftClient,
 	User,
 	initialize,
-	Markets,
 	PositionDirection,
 	convertToNumber,
 	calculateTradeSlippage,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
 	Wallet,
-} from '@drift-labs/sdk';
+	PerpMarkets,
+	BASE_PRECISION,
+	getMarketOrderParams,
+	BulkAccountLoader,
+	getMarketsAndOraclesForSubscription
+} from '../sdk';
 
 export const getTokenAddress = (
 	mintAddress: string,
@@ -114,8 +110,9 @@ export const getTokenAddress = (
 };
 
 const main = async () => {
+	const env = 'devnet';
 	// Initialize Drift SDK
-	const sdkConfig = initialize({ env: 'devnet' });
+	const sdkConfig = initialize({ env });
 
 	// Set up the Wallet and Provider
 	const privateKey = process.env.BOT_PRIVATE_KEY; // stored as an array string
@@ -129,7 +126,11 @@ const main = async () => {
 	const connection = new Connection(rpcAddress);
 
 	// Set up the Provider
-	const provider = new Provider(connection, wallet, Provider.defaultOptions());
+	const provider = new AnchorProvider(
+		connection,
+		wallet,
+		AnchorProvider.defaultOptions()
+	);
 
 	// Check SOL Balance
 	const lamportsBalance = await connection.getBalance(wallet.publicKey);
@@ -142,18 +143,35 @@ const main = async () => {
 	);
 
 	// Set up the Drift Client
-	const driftClientPublicKey = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
-	const driftClient = DriftClient.from(
+	const driftPublicKey = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
+	const bulkAccountLoader = new BulkAccountLoader(
 		connection,
-		provider.wallet,
-		driftClientPublicKey
+		'confirmed',
+		1000
 	);
+	const driftClient = new DriftClient({
+		connection,
+		wallet: provider.wallet,
+		programID: driftPublicKey,
+		...getMarketsAndOraclesForSubscription(env),
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+		},
+	});
 	await driftClient.subscribe();
 
-	// Set up Clearing House user client
-	const user = User.from(driftClient, wallet.publicKey);
+	// Set up user client
+	const user = new User({
+		driftClient: driftClient,
+		userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+		},
+	});
 
-	//// Check if clearing house account exists for the current wallet
+	//// Check if user account exists for the current wallet
 	const userAccountExists = await user.exists();
 
 	if (!userAccountExists) {
@@ -171,51 +189,48 @@ const main = async () => {
 	await user.subscribe();
 
 	// Get current price
-	const solMarketInfo = Markets.find(
+	const solMarketInfo = PerpMarkets[env].find(
 		(market) => market.baseAssetSymbol === 'SOL'
 	);
 
-	const currentMarketPrice = calculateReservePrice(
-		driftClient.getMarket(solMarketInfo.marketIndex)
+	const [bid, ask] = calculateBidAskPrice(
+		driftClient.getPerpMarketAccount(marketIndex).amm,
+		driftClient.getOracleDataForPerpMarket(marketIndex)
 	);
 
-	const formattedPrice = convertToNumber(currentMarketPrice, PRICE_PRECISION);
+	const formattedBidPrice = convertToNumber(bid, PRICE_PRECISION);
+	const formattedAskPrice = convertToNumber(ask, PRICE_PRECISION);
 
-	console.log(`Current Market Price is $${formattedPrice}`);
+	console.log(
+		`Current amm bid and ask price are $${formattedBidPrice} and $${formattedAskPrice}`
+	);
 
 	// Estimate the slippage for a $5000 LONG trade
-	const solMarketAccount = driftClient.getMarket(solMarketInfo.marketIndex);
+	const solMarketAccount = driftClient.getPerpMarketAccount(
+		solMarketInfo.marketIndex
+	);
 
 	const slippage = convertToNumber(
 		calculateTradeSlippage(
 			PositionDirection.LONG,
-			new BN(5000).mul(QUOTE_PRECISION),
-			solMarketAccount
+			new BN(1).mul(BASE_PRECISION),
+			solMarketAccount,
+			'base',
+			driftClient.getOracleDataForPerpMarket(solMarketInfo.marketIndex)
 		)[0],
 		PRICE_PRECISION
 	);
 
-	console.log(
-		`Slippage for a $5000 LONG on the SOL market would be $${slippage}`
-	);
+	console.log(`Slippage for a 1 SOL-PERP would be $${slippage}`);
 
-	// Make a $5000 LONG trade
-	await driftClient.openPosition(
-		PositionDirection.LONG,
-		new BN(5000).mul(QUOTE_PRECISION),
-		solMarketInfo.marketIndex
+	await driftClient.placePerpOrder(
+		getMarketOrderParams({
+			baseAssetAmount: new BN(1).mul(BASE_PRECISION),
+			direction: PositionDirection.LONG,
+			marketIndex: solMarketAccount.marketIndex,
+		})
 	);
-	console.log(`LONGED $5000 worth of SOL`);
-
-	// Reduce the position by $2000
-	await driftClient.openPosition(
-		PositionDirection.SHORT,
-		new BN(2000).mul(QUOTE_PRECISION),
-		solMarketInfo.marketIndex
-	);
-
-	// Close the rest of the position
-	await driftClient.closePosition(solMarketInfo.marketIndex);
+	console.log(`Placed a 1 SOL-PERP LONG order`);
 };
 
 main();

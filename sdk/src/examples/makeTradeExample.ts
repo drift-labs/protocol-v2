@@ -1,9 +1,13 @@
 import { AnchorProvider, BN } from '@project-serum/anchor';
-import { Wallet } from '..';
+import {
+	BASE_PRECISION,
+	calculateBidAskPrice,
+	getMarketOrderParams,
+	Wallet,
+} from '..';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
-	calculateReservePrice,
 	DriftClient,
 	User,
 	initialize,
@@ -11,7 +15,7 @@ import {
 	convertToNumber,
 	calculateTradeSlippage,
 	BulkAccountLoader,
-	PerpMarkets,
+	getMarketsAndOraclesForSubscription,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
 } from '..';
@@ -29,11 +33,11 @@ export const getTokenAddress = (
 	);
 };
 
-const cluster = 'devnet';
+const env = 'devnet';
 
 const main = async () => {
 	// Initialize Drift SDK
-	const sdkConfig = initialize({ env: cluster });
+	const sdkConfig = initialize({ env });
 
 	// Set up the Wallet and Provider
 	const privateKey = process.env.BOT_PRIVATE_KEY; // stored as an array string
@@ -74,10 +78,7 @@ const main = async () => {
 		connection,
 		wallet: provider.wallet,
 		programID: driftPublicKey,
-		perpMarketIndexes: PerpMarkets[cluster].map((market) => market.marketIndex),
-		spotMarketIndexes: SpotMarkets[cluster].map(
-			(spotMarket) => spotMarket.marketIndex
-		),
+		...getMarketsAndOraclesForSubscription(env),
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
@@ -85,7 +86,7 @@ const main = async () => {
 	});
 	await driftClient.subscribe();
 
-	// Set up Clearing House user client
+	// Set up user client
 	const user = new User({
 		driftClient: driftClient,
 		userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
@@ -95,7 +96,7 @@ const main = async () => {
 		},
 	});
 
-	//// Check if clearing house account exists for the current wallet
+	//// Check if user account exists for the current wallet
 	const userAccountExists = await user.exists();
 
 	if (!userAccountExists) {
@@ -118,54 +119,45 @@ const main = async () => {
 		(market) => market.baseAssetSymbol === 'SOL'
 	);
 
-	const currentMarketPrice = calculateReservePrice(
-		driftClient.getPerpMarketAccount(solMarketInfo.marketIndex),
-		undefined
+	const marketIndex = solMarketInfo.marketIndex;
+	const [bid, ask] = calculateBidAskPrice(
+		driftClient.getPerpMarketAccount(marketIndex).amm,
+		driftClient.getOracleDataForPerpMarket(marketIndex)
 	);
 
-	const formattedPrice = convertToNumber(currentMarketPrice, PRICE_PRECISION);
+	const formattedBidPrice = convertToNumber(bid, PRICE_PRECISION);
+	const formattedAskPrice = convertToNumber(ask, PRICE_PRECISION);
 
-	console.log(`Current Market Price is $${formattedPrice}`);
+	console.log(
+		`Current amm bid and ask price are $${formattedBidPrice} and $${formattedAskPrice}`
+	);
 
 	// Estimate the slippage for a $5000 LONG trade
 	const solMarketAccount = driftClient.getPerpMarketAccount(
 		solMarketInfo.marketIndex
 	);
 
-	const longAmount = new BN(5000).mul(QUOTE_PRECISION);
 	const slippage = convertToNumber(
 		calculateTradeSlippage(
 			PositionDirection.LONG,
-			longAmount,
+			new BN(1).mul(BASE_PRECISION),
 			solMarketAccount,
-			'quote',
-			undefined
+			'base',
+			driftClient.getOracleDataForPerpMarket(solMarketInfo.marketIndex)
 		)[0],
 		PRICE_PRECISION
 	);
 
-	console.log(
-		`Slippage for a $5000 LONG on the SOL market would be $${slippage}`
-	);
+	console.log(`Slippage for a 1 SOL-PERP would be $${slippage}`);
 
-	// Make a $5000 LONG trade
-	await driftClient.openPosition(
-		PositionDirection.LONG,
-		longAmount,
-		solMarketInfo.marketIndex
+	await driftClient.placePerpOrder(
+		getMarketOrderParams({
+			baseAssetAmount: new BN(1).mul(BASE_PRECISION),
+			direction: PositionDirection.LONG,
+			marketIndex: solMarketAccount.marketIndex,
+		})
 	);
-	console.log(`LONGED $5000 SOL`);
-
-	// Reduce the position by $2000
-	const reduceAmount = new BN(2000).mul(QUOTE_PRECISION);
-	await driftClient.openPosition(
-		PositionDirection.SHORT,
-		reduceAmount,
-		solMarketInfo.marketIndex
-	);
-
-	// Close the rest of the position
-	await driftClient.closePosition(solMarketInfo.marketIndex);
+	console.log(`Placed a 1 SOL-PERP LONG order`);
 };
 
 main();

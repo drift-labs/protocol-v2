@@ -477,7 +477,7 @@ impl Default for AMM {
             funding_period: 0,
             order_step_size: 0,
             order_tick_size: 0,
-            min_order_size: 0,
+            min_order_size: 1,
             max_position_size: 0,
             volume_24h: 0,
             long_intensity_volume: 0,
@@ -625,6 +625,7 @@ impl AMM {
             min_base_asset_reserve: 0,
             terminal_quote_asset_reserve: default_reserves,
             peg_multiplier: crate::math::constants::PEG_PRECISION,
+            max_fill_reserve_fraction: 1,
             max_spread: 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: PRICE_PRECISION_I64,

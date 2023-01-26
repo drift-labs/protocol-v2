@@ -22,6 +22,7 @@ import {
 	OrderType,
 	ReferrerInfo,
 	MarketType,
+	TxParams,
 	SerumV3FulfillmentConfigAccount,
 	isVariant,
 } from './types';
@@ -2248,7 +2249,8 @@ export class DriftClient {
 		order?: Order,
 		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			wrapInTx(
@@ -2259,7 +2261,9 @@ export class DriftClient {
 					fulfillmentConfig,
 					makerInfo,
 					referrerInfo
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -2704,7 +2708,8 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			wrapInTx(
@@ -2713,7 +2718,9 @@ export class DriftClient {
 					fulfillmentConfig,
 					makerInfo,
 					referrerInfo
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -2943,6 +2950,70 @@ export class DriftClient {
 			maxTs: openOrder.maxTs,
 			auctionStartPrice: openOrder.auctionStartPrice,
 			auctionEndPrice: openOrder.auctionEndPrice,
+			userOrderId: openOrder.userOrderId,
+		};
+		const placeOrderIx = await this.getPlacePerpOrderIx(newOrderParams);
+
+		const tx = new Transaction();
+		tx.add(
+			ComputeBudgetProgram.requestUnits({
+				units: 1_000_000,
+				additionalFee: 0,
+			})
+		);
+		tx.add(cancelOrderIx);
+		tx.add(placeOrderIx);
+		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
+		this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
+		return txSig;
+	}
+
+	/**
+	 * Modifies an open order by closing it and replacing it with a new order.
+	 * @param userOrderId: The open order to modify
+	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newOraclePriceOffset: The new oracle price offset for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @returns
+	 */
+	public async modifyPerpOrderByUserOrderId(
+		userOrderId: number,
+		newBaseAmount?: BN,
+		newLimitPrice?: BN,
+		newOraclePriceOffset?: number
+	): Promise<TransactionSignature> {
+		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
+			throw new Error(
+				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
+			);
+		}
+
+		const openOrder = this.getUser().getOrderByUserOrderId(userOrderId);
+		if (!openOrder) {
+			throw new Error(
+				`No open order with user order id ${userOrderId.toString()}`
+			);
+		}
+		const cancelOrderIx = await this.getCancelOrderIx(openOrder.orderId);
+
+		const newOrderParams: OptionalOrderParams = {
+			orderType: openOrder.orderType,
+			marketType: openOrder.marketType,
+			direction: openOrder.direction,
+			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
+			price: newLimitPrice || openOrder.price,
+			marketIndex: openOrder.marketIndex,
+			reduceOnly: openOrder.reduceOnly,
+			postOnly: openOrder.postOnly,
+			immediateOrCancel: openOrder.immediateOrCancel,
+			triggerPrice: openOrder.triggerPrice,
+			triggerCondition: openOrder.triggerCondition,
+			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
+			auctionDuration: openOrder.auctionDuration,
+			maxTs: openOrder.maxTs,
+			auctionStartPrice: openOrder.auctionStartPrice,
+			auctionEndPrice: openOrder.auctionEndPrice,
+			userOrderId: openOrder.userOrderId,
 		};
 		const placeOrderIx = await this.getPlacePerpOrderIx(newOrderParams);
 

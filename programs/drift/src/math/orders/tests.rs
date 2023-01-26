@@ -197,7 +197,7 @@ mod is_order_risk_increase {
 mod order_breaches_oracle_price_limits {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
-    use crate::math::orders::order_breaches_oracle_price_limits;
+    use crate::math::orders::order_breaches_oracle_price_bands;
     use crate::state::perp_market::PerpMarket;
     use crate::state::user::Order;
 
@@ -220,7 +220,7 @@ mod order_breaches_oracle_price_limits {
 
         let margin_ratio_initial = MARGIN_PRECISION / 10;
         let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_limits(
+        let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
@@ -252,7 +252,7 @@ mod order_breaches_oracle_price_limits {
 
         let margin_ratio_initial = MARGIN_PRECISION / 10;
         let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_limits(
+        let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
@@ -286,7 +286,7 @@ mod order_breaches_oracle_price_limits {
 
         let margin_ratio_initial = MARGIN_PRECISION / 10;
         let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_limits(
+        let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
@@ -320,7 +320,7 @@ mod order_breaches_oracle_price_limits {
 
         let margin_ratio_initial = MARGIN_PRECISION / 10;
         let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_limits(
+        let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
@@ -354,7 +354,7 @@ mod order_breaches_oracle_price_limits {
 
         let margin_ratio_initial = MARGIN_PRECISION / 10;
         let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_limits(
+        let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
@@ -388,7 +388,7 @@ mod order_breaches_oracle_price_limits {
 
         let margin_ratio_initial = MARGIN_PRECISION / 10;
         let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_limits(
+        let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
@@ -1089,5 +1089,340 @@ mod find_fallback_maker_order {
         .unwrap();
 
         assert_eq!(order_index, Some(0));
+    }
+}
+
+mod find_maker_orders {
+    use crate::controller::position::PositionDirection;
+    use crate::math::constants::{PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+    use crate::math::orders::find_maker_orders;
+    use crate::state::user::{
+        MarketType, Order, OrderStatus, OrderTriggerCondition, OrderType, User,
+    };
+
+    #[test]
+    fn no_open_orders() {
+        let user = User::default();
+        let direction = PositionDirection::Long;
+        let market_type = MarketType::Perp;
+        let market_index = 0;
+        let oracle_price = PRICE_PRECISION_I64;
+        let slot = 0;
+        let tick_size = 1;
+
+        let orders = find_maker_orders(
+            &user,
+            &direction,
+            &market_type,
+            market_index,
+            Some(oracle_price),
+            slot,
+            tick_size,
+        )
+        .unwrap();
+
+        assert_eq!(orders, vec![]);
+    }
+
+    #[test]
+    fn no_limit_orders() {
+        let user = User {
+            orders: [Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                market_index: 0,
+                market_type: MarketType::Perp,
+                direction: PositionDirection::Long,
+                ..Order::default()
+            }; 32],
+            ..User::default()
+        };
+        let direction = PositionDirection::Long;
+        let market_type = MarketType::Perp;
+        let market_index = 0;
+        let oracle_price = PRICE_PRECISION_I64;
+        let slot = 0;
+        let tick_size = 1;
+
+        let orders = find_maker_orders(
+            &user,
+            &direction,
+            &market_type,
+            market_index,
+            Some(oracle_price),
+            slot,
+            tick_size,
+        )
+        .unwrap();
+
+        assert_eq!(orders, vec![]);
+    }
+
+    #[test]
+    fn no_triggered_trigger_limit_orders() {
+        let user = User {
+            orders: [Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::TriggerLimit,
+                trigger_condition: OrderTriggerCondition::Above,
+                market_index: 0,
+                market_type: MarketType::Perp,
+                direction: PositionDirection::Long,
+                ..Order::default()
+            }; 32],
+            ..User::default()
+        };
+        let direction = PositionDirection::Long;
+        let market_type = MarketType::Perp;
+        let market_index = 0;
+        let oracle_price = PRICE_PRECISION_I64;
+        let slot = 0;
+        let tick_size = 1;
+
+        let orders = find_maker_orders(
+            &user,
+            &direction,
+            &market_type,
+            market_index,
+            Some(oracle_price),
+            slot,
+            tick_size,
+        )
+        .unwrap();
+
+        assert_eq!(orders, vec![]);
+    }
+
+    #[test]
+    fn wrong_direction() {
+        let user = User {
+            orders: [Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                market_index: 0,
+                market_type: MarketType::Perp,
+                direction: PositionDirection::Short,
+                price: PRICE_PRECISION_U64,
+                ..Order::default()
+            }; 32],
+            ..User::default()
+        };
+        let direction = PositionDirection::Long;
+        let market_type = MarketType::Perp;
+        let market_index = 0;
+        let oracle_price = PRICE_PRECISION_I64;
+        let slot = 0;
+        let tick_size = 1;
+
+        let orders = find_maker_orders(
+            &user,
+            &direction,
+            &market_type,
+            market_index,
+            Some(oracle_price),
+            slot,
+            tick_size,
+        )
+        .unwrap();
+
+        assert_eq!(orders, vec![]);
+    }
+
+    #[test]
+    fn wrong_market_index() {
+        let user = User {
+            orders: [Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                market_index: 1,
+                market_type: MarketType::Perp,
+                direction: PositionDirection::Long,
+                price: PRICE_PRECISION_U64,
+                ..Order::default()
+            }; 32],
+            ..User::default()
+        };
+        let direction = PositionDirection::Long;
+        let market_type = MarketType::Perp;
+        let market_index = 0;
+        let oracle_price = PRICE_PRECISION_I64;
+        let slot = 0;
+        let tick_size = 1;
+
+        let orders = find_maker_orders(
+            &user,
+            &direction,
+            &market_type,
+            market_index,
+            Some(oracle_price),
+            slot,
+            tick_size,
+        )
+        .unwrap();
+
+        assert_eq!(orders, vec![]);
+    }
+
+    #[test]
+    fn wrong_market_type() {
+        let user = User {
+            orders: [Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                market_index: 0,
+                market_type: MarketType::Spot,
+                direction: PositionDirection::Long,
+                price: PRICE_PRECISION_U64,
+                ..Order::default()
+            }; 32],
+            ..User::default()
+        };
+        let direction = PositionDirection::Long;
+        let market_type = MarketType::Perp;
+        let market_index = 0;
+        let oracle_price = PRICE_PRECISION_I64;
+        let slot = 0;
+        let tick_size = 1;
+
+        let orders = find_maker_orders(
+            &user,
+            &direction,
+            &market_type,
+            market_index,
+            Some(oracle_price),
+            slot,
+            tick_size,
+        )
+        .unwrap();
+
+        assert_eq!(orders, vec![]);
+    }
+
+    #[test]
+    fn only_one_maker_bid() {
+        let mut orders = [Order::default(); 32];
+        orders[0] = Order {
+            status: OrderStatus::Open,
+            order_type: OrderType::Limit,
+            market_index: 0,
+            market_type: MarketType::Perp,
+            direction: PositionDirection::Long,
+            price: PRICE_PRECISION_U64,
+            ..Order::default()
+        };
+
+        let user = User {
+            orders,
+            ..User::default()
+        };
+        let direction = PositionDirection::Long;
+        let market_type = MarketType::Perp;
+        let market_index = 0;
+        let oracle_price = PRICE_PRECISION_I64;
+        let slot = 0;
+        let tick_size = 1;
+
+        let orders = find_maker_orders(
+            &user,
+            &direction,
+            &market_type,
+            market_index,
+            Some(oracle_price),
+            slot,
+            tick_size,
+        )
+        .unwrap();
+
+        assert_eq!(orders, vec![(0, PRICE_PRECISION_U64)]);
+    }
+
+    #[test]
+    fn multiple_maker_bids() {
+        let mut orders = [Order::default(); 32];
+        for (i, order) in orders.iter_mut().enumerate() {
+            *order = Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                market_index: 0,
+                market_type: MarketType::Perp,
+                direction: PositionDirection::Long,
+                price: (i as u64 + 1) * PRICE_PRECISION_U64,
+                ..Order::default()
+            }
+        }
+
+        let user = User {
+            orders,
+            ..User::default()
+        };
+        let direction = PositionDirection::Long;
+        let market_type = MarketType::Perp;
+        let market_index = 0;
+        let oracle_price = PRICE_PRECISION_I64;
+        let slot = 0;
+        let tick_size = 1;
+
+        let orders = find_maker_orders(
+            &user,
+            &direction,
+            &market_type,
+            market_index,
+            Some(oracle_price),
+            slot,
+            tick_size,
+        )
+        .unwrap();
+
+        let mut expected_orders = vec![];
+        for i in 0..32 {
+            expected_orders.push((i, (i as u64 + 1) * PRICE_PRECISION_U64));
+        }
+
+        assert_eq!(orders, expected_orders);
+    }
+
+    #[test]
+    fn multiple_asks() {
+        let mut orders = [Order::default(); 32];
+        for (i, order) in orders.iter_mut().enumerate() {
+            *order = Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                market_index: 0,
+                market_type: MarketType::Perp,
+                direction: PositionDirection::Short,
+                price: (i as u64 + 1) * PRICE_PRECISION_U64,
+                ..Order::default()
+            }
+        }
+
+        let user = User {
+            orders,
+            ..User::default()
+        };
+        let direction = PositionDirection::Short;
+        let market_type = MarketType::Perp;
+        let market_index = 0;
+        let oracle_price = PRICE_PRECISION_I64;
+        let slot = 0;
+        let tick_size = 1;
+
+        let orders = find_maker_orders(
+            &user,
+            &direction,
+            &market_type,
+            market_index,
+            Some(oracle_price),
+            slot,
+            tick_size,
+        )
+        .unwrap();
+
+        let mut expected_orders = vec![];
+        for i in 0..32 {
+            expected_orders.push((i, (i as u64 + 1) * PRICE_PRECISION_U64));
+        }
+
+        assert_eq!(orders, expected_orders);
     }
 }

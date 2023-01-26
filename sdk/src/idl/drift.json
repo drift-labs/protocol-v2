@@ -1,5 +1,5 @@
 {
-  "version": "2.10.0",
+  "version": "2.13.0-beta.0",
   "name": "drift",
   "instructions": [
     {
@@ -3705,9 +3705,7 @@
       "args": [
         {
           "name": "exchangeStatus",
-          "type": {
-            "defined": "ExchangeStatus"
-          }
+          "type": "u8"
         }
       ]
     },
@@ -4384,9 +4382,7 @@
           },
           {
             "name": "exchangeStatus",
-            "type": {
-              "defined": "ExchangeStatus"
-            }
+            "type": "u8"
           },
           {
             "name": "liquidationDuration",
@@ -6190,7 +6186,12 @@
             ]
           },
           {
-            "name": "Match"
+            "name": "Match",
+            "fields": [
+              {
+                "defined": "usize"
+              }
+            ]
           }
         ]
       }
@@ -6355,10 +6356,10 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Active"
+            "name": "DepositPaused"
           },
           {
-            "name": "FundingPaused"
+            "name": "WithdrawPaused"
           },
           {
             "name": "AmmPaused"
@@ -6370,10 +6371,10 @@
             "name": "LiqPaused"
           },
           {
-            "name": "WithdrawPaused"
+            "name": "FundingPaused"
           },
           {
-            "name": "Paused"
+            "name": "SettlePnlPaused"
           }
         ]
       }
@@ -8563,6 +8564,11 @@
       "code": 6224,
       "name": "MaxNumberOfUsers",
       "msg": "Max Number Of Users"
+    },
+    {
+      "code": 6225,
+      "name": "InvalidOracleForSettlePnl",
+      "msg": "InvalidOracleForSettlePnl"
     }
   ]
 }

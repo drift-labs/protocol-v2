@@ -114,7 +114,7 @@ pub fn handle_initialize_user(
     safe_increment!(state.number_of_sub_accounts, 1);
 
     validate!(
-        state.number_of_sub_accounts <= 1500,
+        state.number_of_sub_accounts <= 2000,
         ErrorCode::MaxNumberOfUsers
     )?;
 
@@ -154,6 +154,9 @@ pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result
     Ok(())
 }
 
+#[access_control(
+    deposit_not_paused(&ctx.accounts.state)
+)]
 pub fn handle_deposit(
     ctx: Context<Deposit>,
     market_index: u16,
@@ -472,6 +475,7 @@ pub fn handle_withdraw(
 }
 
 #[access_control(
+    deposit_not_paused(&ctx.accounts.state)
     withdraw_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_transfer_deposit(

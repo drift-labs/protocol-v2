@@ -6,7 +6,7 @@ use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math;
-use crate::math::amm::calculate_max_base_asset_amount_fillable;
+use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
 
@@ -62,8 +62,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         limit_price,
         Some(existing_base_asset_amount),
     )?;
-    let max_base_asset_amount =
-        calculate_max_base_asset_amount_fillable(&market.amm, &order.direction)?;
+    let max_base_asset_amount = calculate_amm_available_liquidity(&market.amm, &order.direction)?;
 
     Ok((min(base_asset_amount, max_base_asset_amount), limit_price))
 }
@@ -303,7 +302,7 @@ pub fn should_cancel_reduce_only_order(
     Ok(should_cancel)
 }
 
-pub fn order_breaches_oracle_price_limits(
+pub fn order_breaches_oracle_price_bands(
     order: &Order,
     oracle_price: i64,
     slot: u64,
@@ -313,11 +312,27 @@ pub fn order_breaches_oracle_price_limits(
 ) -> DriftResult<bool> {
     let order_limit_price =
         order.force_get_limit_price(Some(oracle_price), None, slot, tick_size)?;
+    limit_price_breaches_oracle_price_bands(
+        order_limit_price,
+        order.direction,
+        oracle_price,
+        margin_ratio_initial,
+        margin_ratio_maintenance,
+    )
+}
+
+pub fn limit_price_breaches_oracle_price_bands(
+    order_limit_price: u64,
+    order_direction: PositionDirection,
+    oracle_price: i64,
+    margin_ratio_initial: u32,
+    margin_ratio_maintenance: u32,
+) -> DriftResult<bool> {
     let oracle_price = oracle_price.unsigned_abs();
 
     let max_percent_diff = margin_ratio_initial.safe_sub(margin_ratio_maintenance)?;
 
-    match order.direction {
+    match order_direction {
         PositionDirection::Long => {
             if order_limit_price <= oracle_price {
                 return Ok(false);
@@ -501,10 +516,23 @@ pub fn validate_fill_price(
     Ok(())
 }
 
-pub fn get_fallback_price(direction: &PositionDirection, bid_price: u64, ask_price: u64) -> u64 {
+pub fn get_fallback_price(
+    direction: &PositionDirection,
+    bid_price: u64,
+    ask_price: u64,
+    amm_available_liquidity: u64,
+    oracle_price: i64,
+) -> DriftResult<u64> {
+    let oracle_price = oracle_price.unsigned_abs();
     match direction {
-        PositionDirection::Long => ask_price,
-        PositionDirection::Short => bid_price,
+        PositionDirection::Long if amm_available_liquidity > 0 => {
+            ask_price.safe_add(ask_price / 200)
+        }
+        PositionDirection::Long => oracle_price.safe_add(oracle_price / 20),
+        PositionDirection::Short if amm_available_liquidity > 0 => {
+            bid_price.safe_sub(bid_price / 200)
+        }
+        PositionDirection::Short => oracle_price.safe_sub(oracle_price / 20),
     }
 }
 
@@ -594,4 +622,41 @@ pub fn find_fallback_maker_order(
     }
 
     Ok(fallback_maker_order_index)
+}
+
+pub fn find_maker_orders(
+    user: &User,
+    direction: &PositionDirection,
+    market_type: &MarketType,
+    market_index: u16,
+    valid_oracle_price: Option<i64>,
+    slot: u64,
+    tick_size: u64,
+) -> DriftResult<Vec<(usize, u64)>> {
+    let mut orders = vec![];
+
+    for (order_index, order) in user.orders.iter().enumerate() {
+        if order.status != OrderStatus::Open {
+            continue;
+        }
+
+        // if order direction is not same or market type is not same or market index is the same, skip
+        if order.direction != *direction
+            || order.market_type != *market_type
+            || order.market_index != market_index
+        {
+            continue;
+        }
+
+        // if order is not limit order or must be triggered and not triggered, skip
+        if !order.is_limit_order() || (order.must_be_triggered() && !order.triggered()) {
+            continue;
+        }
+
+        let limit_price = order.force_get_limit_price(valid_oracle_price, None, slot, tick_size)?;
+
+        orders.push((order_index, limit_price));
+    }
+
+    Ok(orders)
 }
