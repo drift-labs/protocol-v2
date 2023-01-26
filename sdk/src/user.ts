@@ -374,9 +374,9 @@ export class User {
 	 * calculates Free Collateral = Total collateral - initial margin requirement
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getFreeCollateral(marginCategory?: MarginCategory): BN {
-		const totalCollateral = this.getTotalCollateral(marginCategory);
-		const initialMarginRequirement = this.getMarginRequirement(marginCategory);
+	public getFreeCollateral(): BN {
+		const totalCollateral = this.getTotalCollateral();
+		const initialMarginRequirement = this.getInitialMarginRequirement();
 		const freeCollateral = totalCollateral.sub(initialMarginRequirement);
 		return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
 	}
