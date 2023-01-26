@@ -366,7 +366,7 @@ export class User {
 	 */
 	public getBuyingPower(marketIndex: number): BN {
 		return this.getFreeCollateral()
-			.mul(this.getMaxLeverage(marketIndex))
+			.mul(this.getMaxLeverage(marketIndex, 'Initial'))
 			.div(TEN_THOUSAND);
 	}
 
@@ -1060,7 +1060,10 @@ export class User {
 	 * @params category {Initial, Maintenance}
 	 * @returns : Precision TEN_THOUSAND
 	 */
-	public getMaxLeverage(marketIndex: number): BN {
+	public getMaxLeverage(
+		marketIndex: number,
+		category: MarginCategory = 'Initial'
+	): BN {
 		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 
 		const totalPerpLiability = this.getTotalPerpPositionValue(
@@ -1089,7 +1092,7 @@ export class User {
 			market,
 			// worstCaseBaseAssetAmount.abs(),
 			ZERO, // todo
-			'Initial'
+			category
 		);
 		const freeCollateral = this.getFreeCollateral();
 
