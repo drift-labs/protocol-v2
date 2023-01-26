@@ -863,7 +863,7 @@ export class User {
 			const healthP1 =
 				Math.max(
 					0,
-					(totalCollateral.toNumber() / maintenanceMarginReq.toNumber() - 1) *
+					(1 - maintenanceMarginReq.toNumber() / totalCollateral.toNumber()) *
 						100
 				) + 1;
 

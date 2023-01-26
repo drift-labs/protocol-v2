@@ -156,7 +156,7 @@ describe('liquidate spot', () => {
 		await driftClient.fetchAccounts();
 		const healthBefore100 = user.getHealth();
 		console.log('healthBefore100:', healthBefore100);
-		assert(healthBefore100 == 96);
+		assert(healthBefore100 == 83);
 
 		console.log(
 			'spotLiquidationPrice:',
@@ -170,7 +170,7 @@ describe('liquidate spot', () => {
 		await user.fetchAccounts();
 		const healthBefore179 = user.getHealth();
 		console.log('healthBefore179:', healthBefore179);
-		assert(healthBefore179 == 21);
+		assert(healthBefore179 == 20);
 		console.log(
 			'spotLiquidationPrice:',
 			convertToNumber(user.spotLiquidationPrice(user.getSpotPosition(1)))
