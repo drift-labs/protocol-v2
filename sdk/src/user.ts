@@ -26,6 +26,7 @@ import {
 	QUOTE_SPOT_MARKET_INDEX,
 	TEN,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
+	FIVE_MINUTE,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -43,6 +44,7 @@ import {
 	BN,
 	SpotMarketAccount,
 	getTokenValue,
+	getStrictTokenValue,
 } from '.';
 import {
 	getTokenAmount,
@@ -63,6 +65,8 @@ import {
 	getWorstCaseTokenAmounts,
 	isSpotPositionAvailable,
 } from './math/spotPosition';
+
+import { calculateLiveOracleTwap } from './math/oracles';
 
 export class User {
 	driftClient: DriftClient;
@@ -386,7 +390,8 @@ export class User {
 	 */
 	public getMarginRequirement(
 		marginCategory: MarginCategory,
-		liquidationBuffer?: BN
+		liquidationBuffer?: BN,
+		strict = false
 	): BN {
 		return this.getTotalPerpPositionValue(
 			marginCategory,
@@ -397,7 +402,8 @@ export class User {
 				undefined,
 				marginCategory,
 				liquidationBuffer,
-				true
+				true,
+				strict
 			)
 		);
 	}
@@ -406,7 +412,7 @@ export class User {
 	 * @returns The initial margin requirement in USDC. : QUOTE_PRECISION
 	 */
 	public getInitialMarginRequirement(): BN {
-		return this.getMarginRequirement('Initial');
+		return this.getMarginRequirement('Initial', undefined, true);
 	}
 
 	/**
@@ -498,8 +504,11 @@ export class User {
 		marketIndex?: number,
 		marginCategory?: MarginCategory,
 		liquidationBuffer?: BN,
-		includeOpenOrders?: boolean
+		includeOpenOrders?: boolean,
+		strict = false,
+		now?: BN
 	): BN {
+		now = now || new BN(new Date().getTime() / 1000);
 		return this.getUserAccount().spotPositions.reduce(
 			(totalLiabilityValue, spotPosition) => {
 				if (
@@ -555,7 +564,9 @@ export class User {
 							oraclePriceData,
 							spotMarketAccount,
 							marginCategory,
-							liquidationBuffer
+							liquidationBuffer,
+							strict,
+							now
 						);
 						return totalLiabilityValue.add(liabilityValue);
 					} else {
@@ -577,7 +588,9 @@ export class User {
 						oraclePriceData,
 						spotMarketAccount,
 						marginCategory,
-						liquidationBuffer
+						liquidationBuffer,
+						strict,
+						now
 					);
 
 					newTotalLiabilityValue =
@@ -617,13 +630,32 @@ export class User {
 		oraclePriceData: OraclePriceData,
 		spotMarketAccount: SpotMarketAccount,
 		marginCategory?: MarginCategory,
-		liquidationBuffer?: BN
+		liquidationBuffer?: BN,
+		strict = false,
+		now?: BN
 	): BN {
-		let liabilityValue = getTokenValue(
-			tokenAmount,
-			spotMarketAccount.decimals,
-			oraclePriceData
-		);
+		let liabilityValue = null;
+
+		if (strict && spotMarketAccount.marketIndex != QUOTE_SPOT_MARKET_INDEX) {
+			const estOracleTwap = calculateLiveOracleTwap(
+				spotMarketAccount.historicalOracleData,
+				oraclePriceData,
+				now,
+				FIVE_MINUTE // 5MIN
+			);
+			liabilityValue = getStrictTokenValue(
+				tokenAmount,
+				spotMarketAccount.decimals,
+				oraclePriceData,
+				estOracleTwap
+			);
+		} else {
+			liabilityValue = getTokenValue(
+				tokenAmount,
+				spotMarketAccount.decimals,
+				oraclePriceData
+			);
+		}
 
 		if (marginCategory !== undefined) {
 			let weight = calculateLiabilityWeight(
@@ -651,8 +683,11 @@ export class User {
 	public getSpotMarketAssetValue(
 		marketIndex?: number,
 		marginCategory?: MarginCategory,
-		includeOpenOrders?: boolean
+		includeOpenOrders?: boolean,
+		strict = false,
+		now?: BN
 	): BN {
+		now = now || new BN(new Date().getTime() / 1000);
 		return this.getUserAccount().spotPositions.reduce(
 			(totalAssetValue, spotPosition) => {
 				if (
@@ -696,7 +731,9 @@ export class User {
 							tokenAmount,
 							oraclePriceData,
 							spotMarketAccount,
-							marginCategory
+							marginCategory,
+							strict,
+							now
 						);
 						return totalAssetValue.add(assetValue);
 					} else {
@@ -717,7 +754,9 @@ export class User {
 						worstCaseTokenAmount,
 						oraclePriceData,
 						spotMarketAccount,
-						marginCategory
+						marginCategory,
+						strict,
+						now
 					);
 
 					newTotalAssetValue = newTotalAssetValue.add(baseAssetValue);
@@ -739,13 +778,31 @@ export class User {
 		tokenAmount: BN,
 		oraclePriceData: OraclePriceData,
 		spotMarketAccount: SpotMarketAccount,
-		marginCategory?: MarginCategory
+		marginCategory?: MarginCategory,
+		strict = false,
+		now?: BN
 	): BN {
-		let assetValue = getTokenValue(
-			tokenAmount,
-			spotMarketAccount.decimals,
-			oraclePriceData
-		);
+		let assetValue = null;
+		if (strict && spotMarketAccount.marketIndex != QUOTE_SPOT_MARKET_INDEX) {
+			const estOracleTwap = calculateLiveOracleTwap(
+				spotMarketAccount.historicalOracleData,
+				oraclePriceData,
+				now,
+				FIVE_MINUTE // 5MIN
+			);
+			assetValue = getStrictTokenValue(
+				tokenAmount,
+				spotMarketAccount.decimals,
+				oraclePriceData,
+				estOracleTwap
+			);
+		} else {
+			assetValue = getTokenValue(
+				tokenAmount,
+				spotMarketAccount.decimals,
+				oraclePriceData
+			);
+		}
 
 		if (marginCategory !== undefined) {
 			const weight = calculateAssetWeight(
