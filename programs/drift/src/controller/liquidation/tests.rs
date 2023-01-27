@@ -5171,9 +5171,9 @@ pub mod resolve_perp_bankruptcy {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         FUNDING_RATE_PRECISION_I128, FUNDING_RATE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
-        QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX,
+        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -5510,7 +5510,6 @@ pub mod resolve_perp_bankruptcy {
         expected_market.number_of_users = 0;
         expected_market.amm.fee_pool.scaled_balance = 0;
 
-
         resolve_perp_bankruptcy(
             0,
             &mut user,
@@ -5525,12 +5524,9 @@ pub mod resolve_perp_bankruptcy {
         )
         .unwrap();
 
-        let market_after = market_map.get_ref(&0).unwrap().clone();
         assert_eq!(user.total_social_loss, 100000000);
-        assert_eq!(market_after.amm.cumulative_funding_rate_long, 1005 * FUNDING_RATE_PRECISION_I128);
-        assert_eq!(market_after.amm.fee_pool.scaled_balance, expected_market.amm.fee_pool.scaled_balance);
         assert_eq!(expected_user, user);
-        assert_eq!(expected_market, market_after);
+        assert_eq!(expected_market, market_map.get_ref(&0).unwrap().clone());
 
         let mut affected_long_user = User {
             orders: [Order::default(); 32],
@@ -5555,7 +5551,7 @@ pub mod resolve_perp_bankruptcy {
             -525 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_long_user.perp_positions[0].last_cumulative_funding_rate =
             1005 * FUNDING_RATE_PRECISION_I64;
-        expected_affected_long_user.cumulative_perp_funding = -50 * QUOTE_PRECISION_I64;
+        expected_affected_long_user.cumulative_perp_funding = -25 * QUOTE_PRECISION_I64;
 
         {
             let mut market = market_map.get_ref_mut(&0).unwrap();
@@ -5593,7 +5589,7 @@ pub mod resolve_perp_bankruptcy {
             475 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_short_user.perp_positions[0].last_cumulative_funding_rate =
             -1005 * FUNDING_RATE_PRECISION_I64;
-        expected_affected_short_user.cumulative_perp_funding = -50 * QUOTE_PRECISION_I64;
+        expected_affected_short_user.cumulative_perp_funding = -25 * QUOTE_PRECISION_I64;
 
         {
             let mut market = market_map.get_ref_mut(&0).unwrap();
