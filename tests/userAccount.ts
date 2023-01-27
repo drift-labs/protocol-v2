@@ -155,7 +155,7 @@ describe('User Account', () => {
 			expectedMarginRatio.toNumber()
 		);
 
-		const buyingPower = userAccount.getBuyingPower(0);
+		const buyingPower = userAccount.getPerpBuyingPower(0);
 		console.log(
 			'buyingPower',
 			buyingPower.toNumber(),

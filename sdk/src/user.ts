@@ -370,39 +370,38 @@ export class User {
 	 * calculates Buying Power = free collateral / initial margin ratio
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getBuyingPower(marketIndex: number, marketType: MarketType): BN {
-		if (isVariant(marketType, 'perp')) {
-			const perpPosition = this.getPerpPosition(marketIndex);
-			const worstCaseBaseAssetAmount = perpPosition
-				? calculateWorstCaseBaseAssetAmount(perpPosition)
-				: ZERO;
+	public getPerpBuyingPower(marketIndex: number): BN {
+		const perpPosition = this.getPerpPosition(marketIndex);
+		const worstCaseBaseAssetAmount = perpPosition
+			? calculateWorstCaseBaseAssetAmount(perpPosition)
+			: ZERO;
 
-			const freeCollateral = this.getFreeCollateral();
+		const freeCollateral = this.getFreeCollateral();
 
-			return this.getBuyingPowerForPerp(
-				marketIndex,
-				freeCollateral,
-				worstCaseBaseAssetAmount
-			);
-		} else {
-			const maxLeverage = this.getMaxLeverageForSpot(marketIndex, 'Initial');
-			return this.getFreeCollateral().mul(maxLeverage).div(TEN_THOUSAND);
-		}
+		return this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
+			marketIndex,
+			freeCollateral,
+			worstCaseBaseAssetAmount
+		);
 	}
 
-	getBuyingPowerForPerp(
+	getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 		marketIndex: number,
 		freeCollateral: BN,
 		baseAssetAmount: BN
 	): BN {
 		const marginRatio = calculateMarketMarginRatio(
 			this.driftClient.getPerpMarketAccount(marketIndex),
-			MarketType.PERP,
 			baseAssetAmount,
 			'Initial'
 		);
 
 		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
+	}
+
+	public getSpotBuyingPower(marketIndex: number): BN {
+		const maxLeverage = this.getMaxLeverageForSpot(marketIndex, 'Initial');
+		return this.getFreeCollateral().mul(maxLeverage).div(TEN_THOUSAND);
 	}
 
 	/**
@@ -972,7 +971,6 @@ export class User {
 					let marginRatio = new BN(
 						calculateMarketMarginRatio(
 							market,
-							MarketType.PERP,
 							baseAssetAmount.abs(),
 							marginCategory
 						)
@@ -1187,7 +1185,6 @@ export class User {
 
 		const marginRatio = calculateMarketMarginRatio(
 			market,
-			MarketType.PERP,
 			ZERO, // todo
 			category
 		);
@@ -1529,7 +1526,6 @@ export class User {
 				new BN(
 					calculateMarketMarginRatio(
 						market,
-						MarketType.PERP,
 						calculateWorstCaseBaseAssetAmount(currentPerpPosition).abs(),
 						'Maintenance'
 					)
@@ -1560,7 +1556,6 @@ export class User {
 				new BN(
 					calculateMarketMarginRatio(
 						market,
-						MarketType.PERP,
 						proposedWorstCastBaseAssetAmount.abs(),
 						'Maintenance'
 					)
@@ -1578,7 +1573,6 @@ export class User {
 			TEN_THOUSAND.mul(TEN_THOUSAND).toNumber() /
 				calculateMarketMarginRatio(
 					market,
-					MarketType.PERP,
 					proposedWorstCastBaseAssetAmount.abs(),
 					'Maintenance'
 				)
@@ -1693,10 +1687,7 @@ export class User {
 			? ZERO
 			: this.getPerpPositionValue(targetMarketIndex, oracleData);
 
-		let maxPositionSize = this.getBuyingPower(
-			targetMarketIndex,
-			MarketType.PERP
-		);
+		let maxPositionSize = this.getPerpBuyingPower(targetMarketIndex);
 		if (maxPositionSize.gte(ZERO)) {
 			if (oppositeSizeValueUSDC.eq(ZERO)) {
 				// case 1 : Regular trade where current total position less than max, and no opposite position to account for
@@ -1731,11 +1722,12 @@ export class User {
 						marginRequirementAfterClosing
 					);
 
-					const buyingPowerAfterClose = this.getBuyingPowerForPerp(
-						targetMarketIndex,
-						freeCollateralAfterClose,
-						ZERO
-					);
+					const buyingPowerAfterClose =
+						this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
+							targetMarketIndex,
+							freeCollateralAfterClose,
+							ZERO
+						);
 					maxPositionSize = perpPositionValue.add(buyingPowerAfterClose);
 				}
 			} else {
@@ -1810,10 +1802,7 @@ export class User {
 			? ZERO
 			: currentPosition.abs();
 
-		let maxPositionSize = this.getBuyingPower(
-			targetMarketIndex,
-			MarketType.SPOT
-		);
+		let maxPositionSize = this.getSpotBuyingPower(targetMarketIndex);
 
 		const totalCollateral = this.getTotalCollateral();
 		const marginRequirement = this.getInitialMarginRequirement();
