@@ -7,7 +7,6 @@ import {
 	ONE,
 	ZERO,
 	FIVE_MINUTE,
-	ONE_HOUR,
 } from '../constants/numericConstants';
 import { BN, HistoricalOracleData, PerpMarketAccount } from '../index';
 import { assert } from '../assert/assert';
@@ -98,14 +97,12 @@ export function calculateLiveOracleTwap(
 	period: BN
 ): BN {
 	let oracleTwap = undefined;
-	if (period.eq(ONE_HOUR)) {
-		//todo: assumes its 1hr
+	if (period.eq(FIVE_MINUTE)) {
+		oracleTwap = histOracleData.lastOraclePriceTwap5Min;
+	} else {
+		//todo: assumes its fundingPeriod (1hr)
 		// period = amm.fundingPeriod;
 		oracleTwap = histOracleData.lastOraclePriceTwap;
-	} else if (period.eq(FIVE_MINUTE)) {
-		histOracleData.lastOraclePriceTwap5Min;
-	} else {
-		throw Error('unsupported twap period passed');
 	}
 
 	const sinceLastUpdate = BN.max(
