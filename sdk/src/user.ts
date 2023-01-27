@@ -371,7 +371,7 @@ export class User {
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getBuyingPower(marketIndex: number, marketType: MarketType): BN {
-		if (marketType === 'perp') {
+		if (isVariant(marketType, 'perp')) {
 			const perpPosition = this.getPerpPosition(marketIndex);
 			const worstCaseBaseAssetAmount = perpPosition
 				? calculateWorstCaseBaseAssetAmount(perpPosition)
