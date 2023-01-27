@@ -1421,7 +1421,7 @@ export class User {
 		const marginRequirementOfAll = this.getMaintenanceMarginRequirement();
 		const positionValue = calculateBaseAssetValueWithOracle(
 			market,
-			proposedPerpPosition,
+			currentPerpPosition,
 			this.getOracleDataForPerpMarket(market.marketIndex),
 			true
 		);
@@ -1430,7 +1430,7 @@ export class User {
 				new BN(
 					calculateMarketMarginRatio(
 						market,
-						proposedPerpPosition.baseAssetAmount.abs(),
+						calculateWorstCaseBaseAssetAmount(currentPerpPosition).abs(),
 						'Maintenance'
 					)
 				)
@@ -1453,12 +1453,14 @@ export class User {
 			return new BN(-1);
 		}
 
+		const proposedWorstCastBaseAssetAmount =
+			calculateWorstCaseBaseAssetAmount(proposedPerpPosition);
 		const marginRequirementTargetMarket = proposedPerpPositionValue
 			.mul(
 				new BN(
 					calculateMarketMarginRatio(
 						market,
-						proposedPerpPosition.baseAssetAmount.abs(),
+						proposedWorstCastBaseAssetAmount.abs(),
 						'Maintenance'
 					)
 				)
@@ -1475,7 +1477,7 @@ export class User {
 			TEN_THOUSAND.mul(TEN_THOUSAND).toNumber() /
 				calculateMarketMarginRatio(
 					market,
-					proposedPerpPosition.baseAssetAmount,
+					proposedWorstCastBaseAssetAmount.abs(),
 					'Maintenance'
 				)
 		);
