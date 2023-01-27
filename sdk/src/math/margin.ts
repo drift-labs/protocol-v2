@@ -106,17 +106,19 @@ export function calculateOraclePriceForPerpMargin(
 export function calculateBaseAssetValueWithOracle(
 	market: PerpMarketAccount,
 	perpPosition: PerpPosition,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: OraclePriceData,
+	includeOpenOrders = false
 ): BN {
 	let price = oraclePriceData.price;
 	if (isVariant(market.status, 'settlement')) {
 		price = market.expiryPrice;
 	}
 
-	return perpPosition.baseAssetAmount
-		.abs()
-		.mul(price)
-		.div(AMM_RESERVE_PRECISION);
+	const baseAssetAmount = includeOpenOrders
+		? calculateWorstCaseBaseAssetAmount(perpPosition)
+		: perpPosition.baseAssetAmount;
+
+	return baseAssetAmount.abs().mul(price).div(AMM_RESERVE_PRECISION);
 }
 
 export function calculateWorstCaseBaseAssetAmount(

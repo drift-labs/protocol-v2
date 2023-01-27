@@ -367,14 +367,42 @@ export class User {
 	}
 
 	/**
-	 * calculates Buying Power = FC * MAX_LEVERAGE
+	 * calculates Buying Power = free collateral / initial margin ratio
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getBuyingPower(marketIndex: number, marketType: MarketType): BN {
-		const maxLeverage = isVariant(marketType, 'perp')
-			? this.getMaxLeverageForPerp(marketIndex, 'Initial')
-			: this.getMaxLeverageForSpot(marketIndex, 'Initial');
-		return this.getFreeCollateral().mul(maxLeverage).div(TEN_THOUSAND);
+		if (marketType === 'perp') {
+			const perpPosition = this.getPerpPosition(marketIndex);
+			const worstCaseBaseAssetAmount = perpPosition
+				? calculateWorstCaseBaseAssetAmount(perpPosition)
+				: ZERO;
+
+			const freeCollateral = this.getFreeCollateral();
+
+			return this.getBuyingPowerForPerp(
+				marketIndex,
+				freeCollateral,
+				worstCaseBaseAssetAmount
+			);
+		} else {
+			const maxLeverage = this.getMaxLeverageForSpot(marketIndex, 'Initial');
+			return this.getFreeCollateral().mul(maxLeverage).div(TEN_THOUSAND);
+		}
+	}
+
+	getBuyingPowerForPerp(
+		marketIndex: number,
+		freeCollateral: BN,
+		baseAssetAmount: BN
+	): BN {
+		const marginRatio = calculateMarketMarginRatio(
+			this.driftClient.getPerpMarketAccount(marketIndex),
+			MarketType.PERP,
+			baseAssetAmount,
+			'Initial'
+		);
+
+		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
 	}
 
 	/**
@@ -988,7 +1016,8 @@ export class User {
 	 */
 	public getPerpPositionValue(
 		marketIndex: number,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		includeOpenOrders = false
 	): BN {
 		const userPosition =
 			this.getPerpPosition(marketIndex) || this.getEmptyPosition(marketIndex);
@@ -998,7 +1027,8 @@ export class User {
 		return calculateBaseAssetValueWithOracle(
 			market,
 			userPosition,
-			oraclePriceData
+			oraclePriceData,
+			includeOpenOrders
 		);
 	}
 
@@ -1435,7 +1465,12 @@ export class User {
 
 		// calculate the total position value ignoring any value from the target market of the trade
 		const totalPositionValueExcludingTargetMarket =
-			this.getTotalPerpPositionValueExcludingMarket(perpPosition.marketIndex);
+			this.getTotalPerpPositionValueExcludingMarket(
+				perpPosition.marketIndex,
+				undefined,
+				undefined,
+				true
+			);
 
 		const currentPerpPosition =
 			this.getPerpPosition(perpPosition.marketIndex) ||
@@ -1457,8 +1492,8 @@ export class User {
 			quoteBreakEvenAmount: new BN(0),
 			quoteEntryAmount: new BN(0),
 			openOrders: 0,
-			openBids: new BN(0),
-			openAsks: new BN(0),
+			openBids: currentPerpPosition.openBids,
+			openAsks: currentPerpPosition.openAsks,
 			settledPnl: ZERO,
 			lpShares: ZERO,
 			lastBaseAssetAmountPerLp: ZERO,
@@ -1474,7 +1509,8 @@ export class User {
 		const proposedPerpPositionValue = calculateBaseAssetValueWithOracle(
 			market,
 			proposedPerpPosition,
-			this.getOracleDataForPerpMarket(market.marketIndex)
+			this.getOracleDataForPerpMarket(market.marketIndex),
+			true
 		);
 
 		// total position value after trade
@@ -1484,8 +1520,9 @@ export class User {
 		const marginRequirementOfAll = this.getMaintenanceMarginRequirement();
 		const positionValue = calculateBaseAssetValueWithOracle(
 			market,
-			proposedPerpPosition,
-			this.getOracleDataForPerpMarket(market.marketIndex)
+			currentPerpPosition,
+			this.getOracleDataForPerpMarket(market.marketIndex),
+			true
 		);
 		const marginRequirementOfTargetMarket = positionValue
 			.mul(
@@ -1493,7 +1530,7 @@ export class User {
 					calculateMarketMarginRatio(
 						market,
 						MarketType.PERP,
-						proposedPerpPosition.baseAssetAmount.abs(),
+						calculateWorstCaseBaseAssetAmount(currentPerpPosition).abs(),
 						'Maintenance'
 					)
 				)
@@ -1516,13 +1553,15 @@ export class User {
 			return new BN(-1);
 		}
 
+		const proposedWorstCastBaseAssetAmount =
+			calculateWorstCaseBaseAssetAmount(proposedPerpPosition);
 		const marginRequirementTargetMarket = proposedPerpPositionValue
 			.mul(
 				new BN(
 					calculateMarketMarginRatio(
 						market,
 						MarketType.PERP,
-						proposedPerpPosition.baseAssetAmount.abs(),
+						proposedWorstCastBaseAssetAmount.abs(),
 						'Maintenance'
 					)
 				)
@@ -1540,7 +1579,7 @@ export class User {
 				calculateMarketMarginRatio(
 					market,
 					MarketType.PERP,
-					proposedPerpPosition.baseAssetAmount,
+					proposedWorstCastBaseAssetAmount.abs(),
 					'Maintenance'
 				)
 		);
@@ -1691,9 +1730,12 @@ export class User {
 					const freeCollateralAfterClose = totalCollateral.sub(
 						marginRequirementAfterClosing
 					);
-					const buyingPowerAfterClose = freeCollateralAfterClose
-						.mul(this.getMaxLeverageForPerp(targetMarketIndex))
-						.div(TEN_THOUSAND);
+
+					const buyingPowerAfterClose = this.getBuyingPowerForPerp(
+						targetMarketIndex,
+						freeCollateralAfterClose,
+						ZERO
+					);
 					maxPositionSize = perpPositionValue.add(buyingPowerAfterClose);
 				}
 			} else {
@@ -1943,7 +1985,8 @@ export class User {
 
 		let currentPositionQuoteAmount = this.getPerpPositionValue(
 			targetMarketIndex,
-			oracleData
+			oracleData,
+			includeOpenOrders
 		);
 
 		const currentSide =
@@ -2154,7 +2197,8 @@ export class User {
 		if (currentPerpPosition) {
 			currentPerpPositionValueUSDC = this.getPerpPositionValue(
 				marketToIgnore,
-				oracleData
+				oracleData,
+				includeOpenOrders
 			);
 		}
 
