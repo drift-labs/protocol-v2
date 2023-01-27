@@ -2093,6 +2093,7 @@ pub fn resolve_perp_bankruptcy(
         let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
         let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
         let fee_pool_tokens = get_fee_pool_tokens(perp_market, spot_market)?;
+        msg!("fee_pool_tokens={:?}", fee_pool_tokens);
 
         losses_remaining.abs().min(fee_pool_tokens.cast()?)
     } else {
@@ -2107,6 +2108,7 @@ pub fn resolve_perp_bankruptcy(
     if fee_pool_payment > 0 {
         let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
         let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
+        msg!("fee_pool_payment={:?}", fee_pool_payment);
         update_spot_balances(
             fee_pool_payment.unsigned_abs(),
             &SpotBalanceType::Borrow,
