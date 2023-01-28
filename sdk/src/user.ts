@@ -612,7 +612,10 @@ export class User {
 					);
 
 				let newTotalLiabilityValue = totalLiabilityValue;
-				if (worstCaseTokenAmount.lt(ZERO)) {
+				if (
+					worstCaseTokenAmount.lt(ZERO) &&
+					(marketIndex === undefined || marketIndex !== 0)
+				) {
 					const baseLiabilityValue = this.getSpotLiabilityValue(
 						worstCaseTokenAmount.abs(),
 						oraclePriceData,
@@ -627,7 +630,10 @@ export class User {
 						newTotalLiabilityValue.add(baseLiabilityValue);
 				}
 
-				if (worstCaseQuoteTokenAmount.lt(ZERO)) {
+				if (
+					worstCaseQuoteTokenAmount.lt(ZERO) &&
+					(marketIndex === undefined || marketIndex === 0)
+				) {
 					let weight = SPOT_MARKET_WEIGHT_PRECISION;
 					if (marginCategory === 'Initial') {
 						weight = BN.max(
@@ -722,8 +728,8 @@ export class User {
 			(totalAssetValue, spotPosition) => {
 				if (
 					isSpotPositionAvailable(spotPosition) ||
-					(marketIndex !== undefined &&
-						spotPosition.marketIndex !== marketIndex)
+					(spotPosition.marketIndex !== marketIndex &&
+						spotPosition.openOrders === 0)
 				) {
 					return totalAssetValue;
 				}
@@ -779,7 +785,10 @@ export class User {
 					);
 
 				let newTotalAssetValue = totalAssetValue;
-				if (worstCaseTokenAmount.gt(ZERO)) {
+				if (
+					worstCaseTokenAmount.gt(ZERO) &&
+					(marketIndex === undefined || marketIndex !== 0)
+				) {
 					const baseAssetValue = this.getSpotAssetValue(
 						worstCaseTokenAmount,
 						oraclePriceData,
@@ -792,7 +801,10 @@ export class User {
 					newTotalAssetValue = newTotalAssetValue.add(baseAssetValue);
 				}
 
-				if (worstCaseQuoteTokenAmount.gt(ZERO)) {
+				if (
+					worstCaseQuoteTokenAmount.gt(ZERO) &&
+					(marketIndex === undefined || marketIndex === 0)
+				) {
 					newTotalAssetValue = newTotalAssetValue.add(
 						worstCaseQuoteTokenAmount
 					);
@@ -847,9 +859,28 @@ export class User {
 		return assetValue;
 	}
 
-	public getSpotPositionValue(marketIndex: number): BN {
-		return this.getSpotMarketAssetValue(marketIndex).sub(
-			this.getSpotMarketLiabilityValue(marketIndex)
+	public getSpotPositionValue(
+		marketIndex: number,
+		marginCategory?: MarginCategory,
+		includeOpenOrders?: boolean,
+		strict = false,
+		now?: BN
+	): BN {
+		return this.getSpotMarketAssetValue(
+			marketIndex,
+			marginCategory,
+			includeOpenOrders,
+			strict,
+			now
+		).sub(
+			this.getSpotMarketLiabilityValue(
+				marketIndex,
+				marginCategory,
+				undefined,
+				includeOpenOrders,
+				strict,
+				now
+			)
 		);
 	}
 
@@ -1857,8 +1888,10 @@ export class User {
 	/**
 	 * Returns the leverage ratio for the account after adding (or subtracting) the given quote size to the given position
 	 * @param targetMarketIndex
-	 * @param positionMarketIndex
+	 * @param: targetMarketType
 	 * @param tradeQuoteAmount
+	 * @param tradeSide
+	 * @param includeOpenOrders
 	 * @returns leverageRatio : Precision TEN_THOUSAND
 	 */
 	public accountLeverageRatioAfterTrade(
@@ -1881,9 +1914,6 @@ export class User {
 				includeOpenOrders
 			);
 
-			const currentQuoteNetValue = this.getSpotPositionValue(
-				QUOTE_SPOT_MARKET_INDEX
-			);
 			const currentQuoteAssetValue = this.getSpotMarketAssetValue(
 				QUOTE_SPOT_MARKET_INDEX,
 				undefined,
@@ -1895,9 +1925,10 @@ export class User {
 				undefined,
 				includeOpenOrders
 			);
+			const currentQuoteValue = currentQuoteAssetValue.sub(
+				currentQuoteLiabilityValue
+			);
 
-			const currentSpotMarketNetValue =
-				this.getSpotPositionValue(targetMarketIndex);
 			const currentSpotMarketAssetValue = this.getSpotMarketAssetValue(
 				targetMarketIndex,
 				undefined,
@@ -1909,14 +1940,17 @@ export class User {
 				undefined,
 				includeOpenOrders
 			);
+			const currentSpotMarketNetValue = currentSpotMarketAssetValue.sub(
+				currentSpotMarketLiabilityValue
+			);
 
 			let assetValueToAdd = ZERO;
 			let liabilityValueToAdd = ZERO;
 
 			const newQuoteNetValue =
 				tradeSide == PositionDirection.SHORT
-					? currentQuoteNetValue.add(tradeQuoteAmount)
-					: currentQuoteNetValue.sub(tradeQuoteAmount);
+					? currentQuoteValue.add(tradeQuoteAmount)
+					: currentQuoteValue.sub(tradeQuoteAmount);
 			const newQuoteAssetValue = BN.max(newQuoteNetValue, ZERO);
 			const newQuoteLiabilityValue = BN.min(newQuoteNetValue, ZERO).abs();
 
