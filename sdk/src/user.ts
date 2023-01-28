@@ -10,6 +10,7 @@ import {
 	PerpPosition,
 	SpotPosition,
 	isOneOfVariant,
+	SpotBalanceType,
 } from './types';
 import { calculateEntryPrice } from './math/position';
 import {
@@ -47,6 +48,7 @@ import {
 	getTokenValue,
 	MarketType,
 	getStrictTokenValue,
+	calculateSpotMarketMarginRatio,
 } from '.';
 import {
 	getTokenAmount,
@@ -399,8 +401,15 @@ export class User {
 		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
 	}
 
-	public getSpotBuyingPower(marketIndex: number): BN {
-		const maxLeverage = this.getMaxLeverageForSpot(marketIndex, 'Initial');
+	public getSpotBuyingPower(
+		marketIndex: number,
+		direction: PositionDirection
+	): BN {
+		const maxLeverage = this.getMaxLeverageForSpot(
+			marketIndex,
+			direction,
+			'Initial'
+		);
 		return this.getFreeCollateral().mul(maxLeverage).div(TEN_THOUSAND);
 	}
 
@@ -544,7 +553,8 @@ export class User {
 				if (
 					isSpotPositionAvailable(spotPosition) ||
 					(marketIndex !== undefined &&
-						spotPosition.marketIndex !== marketIndex)
+						spotPosition.marketIndex !== marketIndex &&
+						spotPosition.openOrders === 0)
 				) {
 					return totalLiabilityValue;
 				}
@@ -728,7 +738,8 @@ export class User {
 			(totalAssetValue, spotPosition) => {
 				if (
 					isSpotPositionAvailable(spotPosition) ||
-					(spotPosition.marketIndex !== marketIndex &&
+					(marketIndex !== undefined &&
+						spotPosition.marketIndex !== marketIndex &&
 						spotPosition.openOrders === 0)
 				) {
 					return totalAssetValue;
@@ -857,6 +868,15 @@ export class User {
 		}
 
 		return assetValue;
+	}
+
+	public getSpotTokenAmount(marketIndex: number): BN {
+		const spotPosition = this.getSpotPosition(marketIndex);
+		return getTokenAmount(
+			spotPosition.scaledBalance,
+			this.driftClient.getSpotMarketAccount(marketIndex),
+			spotPosition.balanceType
+		);
 	}
 
 	public getSpotPositionValue(
@@ -1239,14 +1259,10 @@ export class User {
 	 */
 	public getMaxLeverageForSpot(
 		spotMarketIndex: number,
+		direction: PositionDirection,
 		category: MarginCategory = 'Initial'
 	): BN {
 		const market = this.driftClient.getSpotMarketAccount(spotMarketIndex);
-
-		// if spot trade w/ no margin, max lev = 1
-		if (!this.getUserAccount().isMarginTradingEnabled) {
-			return ONE;
-		}
 
 		const totalPerpLiability = this.getTotalPerpPositionValue(
 			undefined,
@@ -1259,7 +1275,6 @@ export class User {
 			undefined,
 			true
 		);
-
 		const totalLiabilityValue = totalPerpLiability.add(totalSpotLiability);
 
 		const totalAssetValue = this.getTotalAssetValue();
@@ -1270,41 +1285,119 @@ export class User {
 			return ZERO;
 		}
 
-		const freeCollateral = this.getFreeCollateral();
+		const currentQuoteAssetValue = this.getSpotMarketAssetValue(
+			QUOTE_SPOT_MARKET_INDEX
+		);
+		const currentQuoteLiabilityValue = this.getSpotMarketLiabilityValue(
+			QUOTE_SPOT_MARKET_INDEX
+		);
+		const currentQuoteValue = currentQuoteAssetValue.sub(
+			currentQuoteLiabilityValue
+		);
 
-		const oraclePriceData = this.getOracleDataForSpotMarket(spotMarketIndex);
+		const currentSpotMarketAssetValue =
+			this.getSpotMarketAssetValue(spotMarketIndex);
+		const currentSpotMarketLiabilityValue =
+			this.getSpotMarketLiabilityValue(spotMarketIndex);
+		const currentSpotMarketNetValue = currentSpotMarketAssetValue.sub(
+			currentSpotMarketLiabilityValue
+		);
 
-		const spotPosition = this.getSpotPosition(spotMarketIndex);
+		let freeCollateral = this.getFreeCollateral();
+		const marginRatio = calculateSpotMarketMarginRatio(
+			market,
+			category,
+			ZERO,
+			isVariant(direction, 'long')
+				? SpotBalanceType.DEPOSIT
+				: SpotBalanceType.BORROW
+		);
 
-		const tokenAmount = spotPosition
-			? getTokenAmount(
-					spotPosition.scaledBalance,
+		let tradeQuoteAmount = ZERO;
+		if (this.getUserAccount().isMarginTradingEnabled) {
+			// if the user is buying/selling and already short/long, need to account for closing out short/long
+			if (isVariant(direction, 'long') && currentSpotMarketNetValue.lt(ZERO)) {
+				tradeQuoteAmount = currentSpotMarketNetValue.abs();
+				const marginRatio = calculateSpotMarketMarginRatio(
 					market,
-					spotPosition.balanceType
-			  )
-			: ZERO;
-		const liabilityValue = this.getSpotLiabilityValue(
-			tokenAmount,
-			oraclePriceData,
-			market,
-			category
+					category,
+					this.getSpotTokenAmount(spotMarketIndex),
+					SpotBalanceType.BORROW
+				);
+				freeCollateral = freeCollateral.add(
+					tradeQuoteAmount.mul(new BN(marginRatio)).div(MARGIN_PRECISION)
+				);
+			} else if (
+				isVariant(direction, 'short') &&
+				currentSpotMarketNetValue.gt(ZERO)
+			) {
+				tradeQuoteAmount = currentSpotMarketNetValue;
+				const marginRatio = calculateSpotMarketMarginRatio(
+					market,
+					category,
+					this.getSpotTokenAmount(spotMarketIndex),
+					SpotBalanceType.DEPOSIT
+				);
+				freeCollateral = freeCollateral.add(
+					tradeQuoteAmount.mul(new BN(marginRatio)).div(MARGIN_PRECISION)
+				);
+			}
+
+			tradeQuoteAmount = tradeQuoteAmount.add(
+				freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio))
+			);
+		} else if (isVariant(direction, 'long')) {
+			tradeQuoteAmount = BN.min(
+				currentQuoteAssetValue,
+				freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio))
+			);
+		} else {
+			tradeQuoteAmount = currentSpotMarketAssetValue;
+		}
+
+		let assetValueToAdd = ZERO;
+		let liabilityValueToAdd = ZERO;
+
+		const newQuoteNetValue = isVariant(direction, 'short')
+			? currentQuoteValue.add(tradeQuoteAmount)
+			: currentQuoteValue.sub(tradeQuoteAmount);
+		const newQuoteAssetValue = BN.max(newQuoteNetValue, ZERO);
+		const newQuoteLiabilityValue = BN.min(newQuoteNetValue, ZERO).abs();
+
+		assetValueToAdd = assetValueToAdd.add(
+			newQuoteAssetValue.sub(currentQuoteAssetValue)
+		);
+		liabilityValueToAdd = liabilityValueToAdd.add(
+			newQuoteLiabilityValue.sub(currentQuoteLiabilityValue)
 		);
 
-		const liabilityWeight = calculateLiabilityWeight(
-			liabilityValue,
-			market,
-			category
+		const newSpotMarketNetValue = isVariant(direction, 'long')
+			? currentSpotMarketNetValue.add(tradeQuoteAmount)
+			: currentSpotMarketNetValue.sub(tradeQuoteAmount);
+		const newSpotMarketAssetValue = BN.max(newSpotMarketNetValue, ZERO);
+		const newSpotMarketLiabilityValue = BN.min(
+			newSpotMarketNetValue,
+			ZERO
+		).abs();
+
+		assetValueToAdd = assetValueToAdd.add(
+			newSpotMarketAssetValue.sub(currentSpotMarketAssetValue)
+		);
+		liabilityValueToAdd = liabilityValueToAdd.add(
+			newSpotMarketLiabilityValue.sub(currentSpotMarketLiabilityValue)
 		);
 
-		// how much more liabilities can be opened w remaining free collateral
-		const additionalLiabilities = freeCollateral
-			.mul(MARGIN_PRECISION)
-			.div(liabilityWeight);
+		const finalTotalAssetValue = totalAssetValue.add(assetValueToAdd);
+		const finalTotalSpotLiability = totalSpotLiability.add(liabilityValueToAdd);
 
-		return totalLiabilityValue
-			.add(additionalLiabilities)
-			.mul(TEN_THOUSAND)
-			.div(netAssetValue);
+		const finalTotalLiabilityValue =
+			totalLiabilityValue.add(liabilityValueToAdd);
+
+		const finalNetAssetValue = finalTotalAssetValue.sub(
+			finalTotalSpotLiability
+		);
+
+		return finalTotalLiabilityValue.mul(TEN_THOUSAND).div(finalNetAssetValue);
 	}
 
 	/**
@@ -1833,7 +1926,7 @@ export class User {
 			? ZERO
 			: currentPosition.abs();
 
-		let maxPositionSize = this.getSpotBuyingPower(targetMarketIndex);
+		let maxPositionSize = this.getSpotBuyingPower(targetMarketIndex, tradeSide);
 
 		const totalCollateral = this.getTotalCollateral();
 		const marginRequirement = this.getInitialMarginRequirement();
@@ -1867,7 +1960,13 @@ export class User {
 						marginRequirementAfterClosing
 					);
 					const buyingPowerAfterClose = freeCollateralAfterClose
-						.mul(this.getMaxLeverageForSpot(targetMarketIndex))
+						.mul(
+							this.getMaxLeverageForSpot(
+								targetMarketIndex,
+								tradeSide,
+								'Initial'
+							)
+						)
 						.div(TEN_THOUSAND);
 
 					maxPositionSize = spotPositionValue.add(buyingPowerAfterClose);

@@ -14,7 +14,6 @@ import {
 	SPOT_MARKET_WEIGHT_PRECISION,
 	ONE_YEAR,
 	AMM_RESERVE_PRECISION,
-	MARGIN_PRECISION,
 } from '../constants/numericConstants';
 import {
 	calculateSizeDiscountAssetWeight,
@@ -143,18 +142,18 @@ export function calculateAssetWeight(
 }
 
 export function calculateLiabilityWeight(
-	balanceAmount: BN,
+	size: BN,
 	spotMarket: SpotMarketAccount,
 	marginCategory: MarginCategory
 ): BN {
 	const sizePrecision = TEN.pow(new BN(spotMarket.decimals));
 	let sizeInAmmReservePrecision;
 	if (sizePrecision.gt(AMM_RESERVE_PRECISION)) {
-		sizeInAmmReservePrecision = balanceAmount.div(
+		sizeInAmmReservePrecision = size.div(
 			sizePrecision.div(AMM_RESERVE_PRECISION)
 		);
 	} else {
-		sizeInAmmReservePrecision = balanceAmount
+		sizeInAmmReservePrecision = size
 			.mul(AMM_RESERVE_PRECISION)
 			.div(sizePrecision);
 	}
@@ -183,7 +182,7 @@ export function calculateLiabilityWeight(
 			break;
 	}
 
-	return liabilityWeight.sub(MARGIN_PRECISION);
+	return liabilityWeight;
 }
 
 export function calculateUtilization(bank: SpotMarketAccount): BN {

@@ -103,7 +103,7 @@ export function calculateLiveOracleTwap(
 		// period = amm.fundingPeriod;
 		oracleTwap = histOracleData.lastOraclePriceTwap;
 	} else if (period.eq(FIVE_MINUTE)) {
-		histOracleData.lastOraclePriceTwap5Min;
+		oracleTwap = histOracleData.lastOraclePriceTwap5Min;
 	} else {
 		throw Error('unsupported twap period passed');
 	}

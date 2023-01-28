@@ -1,5 +1,12 @@
 import { BN } from '@project-serum/anchor';
-import { MarginCategory, SpotMarketAccount } from '../types';
+import {
+	isVariant,
+	MarginCategory,
+	SpotBalanceType,
+	SpotMarketAccount,
+} from '../types';
+import { calculateAssetWeight, calculateLiabilityWeight } from './spotBalance';
+import { MARGIN_PRECISION } from '../constants/numericConstants';
 
 export function castNumberToSpotPrecision(
 	value: number,
@@ -8,13 +15,21 @@ export function castNumberToSpotPrecision(
 	return new BN(value * Math.pow(10, spotMarket.decimals));
 }
 
-export function getSpotMarketMarginRatio(
+export function calculateSpotMarketMarginRatio(
 	market: SpotMarketAccount,
-	marginCategory: MarginCategory
+	marginCategory: MarginCategory,
+	size: BN,
+	balanceType: SpotBalanceType
 ): number {
-	const liabilityWeight =
-		(marginCategory == 'Initial'
-			? market.initialLiabilityWeight
-			: market.maintenanceLiabilityWeight) / 10000;
-	return liabilityWeight - 1;
+	if (isVariant(balanceType, 'deposit')) {
+		const assetWeight = calculateAssetWeight(size, market, marginCategory);
+		return MARGIN_PRECISION.sub(assetWeight).toNumber();
+	} else {
+		const liabilityWeight = calculateLiabilityWeight(
+			size,
+			market,
+			marginCategory
+		);
+		return liabilityWeight.sub(MARGIN_PRECISION).toNumber();
+	}
 }
