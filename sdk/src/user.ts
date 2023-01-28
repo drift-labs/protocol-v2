@@ -400,18 +400,6 @@ export class User {
 		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
 	}
 
-	public getSpotBuyingPower(
-		marketIndex: number,
-		direction: PositionDirection
-	): BN {
-		const maxLeverage = this.getMaxLeverageForSpot(
-			marketIndex,
-			direction,
-			'Initial'
-		);
-		return this.getFreeCollateral().mul(maxLeverage).div(TEN_THOUSAND);
-	}
-
 	/**
 	 * calculates Free Collateral = Total collateral - initial margin requirement
 	 * @returns : Precision QUOTE_PRECISION
@@ -1253,16 +1241,14 @@ export class User {
 
 	/**
 	 * calculates max allowable leverage exceeding hitting requirement category
-	 * @params category {Initial, Maintenance}
+	 * @param spotMarketIndex
+	 * @param direction
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getMaxLeverageForSpot(
 		spotMarketIndex: number,
-		direction: PositionDirection,
-		category: MarginCategory = 'Initial'
+		direction: PositionDirection
 	): BN {
-		const market = this.driftClient.getSpotMarketAccount(spotMarketIndex);
-
 		const totalPerpLiability = this.getTotalPerpPositionValue(
 			undefined,
 			undefined,
@@ -1302,57 +1288,12 @@ export class User {
 			currentSpotMarketLiabilityValue
 		);
 
-		let freeCollateral = this.getFreeCollateral();
-		const marginRatio = calculateSpotMarketMarginRatio(
-			market,
-			category,
-			ZERO,
-			isVariant(direction, 'long')
-				? SpotBalanceType.DEPOSIT
-				: SpotBalanceType.BORROW
+		const tradeQuoteAmount = this.getMaxTradeSizeUSDCForSpot(
+			spotMarketIndex,
+			direction,
+			currentQuoteAssetValue,
+			currentSpotMarketNetValue
 		);
-
-		let tradeQuoteAmount = ZERO;
-		if (this.getUserAccount().isMarginTradingEnabled) {
-			// if the user is buying/selling and already short/long, need to account for closing out short/long
-			if (isVariant(direction, 'long') && currentSpotMarketNetValue.lt(ZERO)) {
-				tradeQuoteAmount = currentSpotMarketNetValue.abs();
-				const marginRatio = calculateSpotMarketMarginRatio(
-					market,
-					category,
-					this.getSpotTokenAmount(spotMarketIndex),
-					SpotBalanceType.BORROW
-				);
-				freeCollateral = freeCollateral.add(
-					tradeQuoteAmount.mul(new BN(marginRatio)).div(MARGIN_PRECISION)
-				);
-			} else if (
-				isVariant(direction, 'short') &&
-				currentSpotMarketNetValue.gt(ZERO)
-			) {
-				tradeQuoteAmount = currentSpotMarketNetValue;
-				const marginRatio = calculateSpotMarketMarginRatio(
-					market,
-					category,
-					this.getSpotTokenAmount(spotMarketIndex),
-					SpotBalanceType.DEPOSIT
-				);
-				freeCollateral = freeCollateral.add(
-					tradeQuoteAmount.mul(new BN(marginRatio)).div(MARGIN_PRECISION)
-				);
-			}
-
-			tradeQuoteAmount = tradeQuoteAmount.add(
-				freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio))
-			);
-		} else if (isVariant(direction, 'long')) {
-			tradeQuoteAmount = BN.min(
-				currentQuoteAssetValue,
-				freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio))
-			);
-		} else {
-			tradeQuoteAmount = currentSpotMarketAssetValue;
-		}
 
 		let assetValueToAdd = ZERO;
 		let liabilityValueToAdd = ZERO;
@@ -1867,118 +1808,80 @@ export class User {
 	/**
 	 * Get the maximum trade size for a given market, taking into account the user's current leverage, positions, collateral, etc.
 	 *
-	 * To Calculate Max Quote Available:
-	 *
-	 * Case 1: SameSide
-	 * 	=> Remaining quote to get to maxLeverage
-	 *
-	 * Case 2: NOT SameSide && currentLeverage <= maxLeverage
-	 * 	=> Current opposite position x2 + remaining to get to maxLeverage
-	 *
-	 * Case 3: NOT SameSide && currentLeverage > maxLeverage && otherPositions - currentPosition > maxLeverage
-	 * 	=> strictly reduce current position size
-	 *
-	 * Case 4: NOT SameSide && currentLeverage > maxLeverage && otherPositions - currentPosition < maxLeverage
-	 * 	=> current position + remaining to get to maxLeverage
-	 *
 	 * @param targetMarketIndex
-	 * @param tradeSide
+	 * @param direction
+	 * @param currentQuoteAssetValue
+	 * @param currentSpotMarketNetValue
 	 * @returns tradeSizeAllowed : Precision QUOTE_PRECISION
 	 */
 	public getMaxTradeSizeUSDCForSpot(
 		targetMarketIndex: number,
-		tradeSide: PositionDirection
+		direction: PositionDirection,
+		currentQuoteAssetValue?: BN,
+		currentSpotMarketNetValue?: BN
 	): BN {
-		let currentPosition;
-		let currentPositionSide;
+		const market = this.driftClient.getSpotMarketAccount(targetMarketIndex);
 
-		if (!this.getUserAccount().isMarginTradingEnabled) {
-			// if margin disabled, max spot position size would be user free usdc balance if buying, free asset balance if selling
-			if (isVariant(tradeSide, 'long')) {
-				const quoteBalance = BN.max(
-					ZERO,
-					this.getSpotPositionValue(QUOTE_SPOT_MARKET_INDEX)
+		currentQuoteAssetValue = this.getSpotMarketAssetValue(
+			QUOTE_SPOT_MARKET_INDEX
+		);
+
+		currentSpotMarketNetValue =
+			currentSpotMarketNetValue ?? this.getSpotPositionValue(targetMarketIndex);
+
+		let freeCollateral = this.getFreeCollateral();
+		const marginRatio = calculateSpotMarketMarginRatio(
+			market,
+			'Initial',
+			ZERO,
+			isVariant(direction, 'long')
+				? SpotBalanceType.DEPOSIT
+				: SpotBalanceType.BORROW
+		);
+
+		let tradeAmount = ZERO;
+		if (this.getUserAccount().isMarginTradingEnabled) {
+			// if the user is buying/selling and already short/long, need to account for closing out short/long
+			if (isVariant(direction, 'long') && currentSpotMarketNetValue.lt(ZERO)) {
+				tradeAmount = currentSpotMarketNetValue.abs();
+				const marginRatio = calculateSpotMarketMarginRatio(
+					market,
+					'Initial',
+					this.getSpotTokenAmount(targetMarketIndex),
+					SpotBalanceType.BORROW
 				);
-				return BN.min(this.getFreeCollateral(), quoteBalance);
-			} else {
-				const assetValue = BN.max(
-					ZERO,
-					this.getSpotPositionValue(targetMarketIndex)
+				freeCollateral = freeCollateral.add(
+					tradeAmount.mul(new BN(marginRatio)).div(MARGIN_PRECISION)
 				);
-				return BN.min(this.getTotalCollateral(), assetValue);
-			}
-		}
-
-		currentPosition = this.getSpotPositionValue(targetMarketIndex);
-		currentPositionSide = currentPosition.isNeg() ? 'short' : 'long';
-
-		const targetSide = isVariant(tradeSide, 'short') ? 'short' : 'long';
-
-		const targetingSameSide = !currentPosition
-			? true
-			: targetSide === currentPositionSide;
-
-		const oracleData = this.getOracleDataForSpotMarket(targetMarketIndex);
-
-		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
-		const oppositeSizeValueUSDC = targetingSameSide
-			? ZERO
-			: currentPosition.abs();
-
-		let maxPositionSize = this.getSpotBuyingPower(targetMarketIndex, tradeSide);
-
-		const totalCollateral = this.getTotalCollateral();
-		const marginRequirement = this.getInitialMarginRequirement();
-
-		if (maxPositionSize.gte(ZERO)) {
-			if (oppositeSizeValueUSDC.eq(ZERO)) {
-				// case 1 : Regular trade where current total position less than max, and no opposite position to account for
-				// do nothing
-			} else {
-				// case 2 : trade where current total position less than max, but need to account for flipping the current position over to the other side
-				maxPositionSize = maxPositionSize.add(
-					oppositeSizeValueUSDC.mul(new BN(2))
+			} else if (
+				isVariant(direction, 'short') &&
+				currentSpotMarketNetValue.gt(ZERO)
+			) {
+				tradeAmount = currentSpotMarketNetValue;
+				const marginRatio = calculateSpotMarketMarginRatio(
+					market,
+					'Initial',
+					this.getSpotTokenAmount(targetMarketIndex),
+					SpotBalanceType.DEPOSIT
+				);
+				freeCollateral = freeCollateral.add(
+					tradeAmount.mul(new BN(marginRatio)).div(MARGIN_PRECISION)
 				);
 			}
+
+			tradeAmount = tradeAmount.add(
+				freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio))
+			);
+		} else if (isVariant(direction, 'long')) {
+			tradeAmount = BN.min(
+				currentQuoteAssetValue,
+				freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio))
+			);
 		} else {
-			// current leverage is greater than max leverage - can only reduce position size
-			if (!targetingSameSide) {
-				const market = this.driftClient.getSpotMarketAccount(targetMarketIndex);
-				const spotPositionValue = this.getSpotPositionValue(targetMarketIndex);
-
-				const marginFreedByClosing = spotPositionValue
-					.mul(new BN(market.initialLiabilityWeight))
-					.div(MARGIN_PRECISION);
-				const marginRequirementAfterClosing =
-					marginRequirement.sub(marginFreedByClosing);
-
-				if (marginRequirementAfterClosing.gt(totalCollateral)) {
-					maxPositionSize = spotPositionValue;
-				} else {
-					const freeCollateralAfterClose = totalCollateral.sub(
-						marginRequirementAfterClosing
-					);
-					const buyingPowerAfterClose = freeCollateralAfterClose
-						.mul(
-							this.getMaxLeverageForSpot(
-								targetMarketIndex,
-								tradeSide,
-								'Initial'
-							)
-						)
-						.div(TEN_THOUSAND);
-
-					maxPositionSize = spotPositionValue.add(buyingPowerAfterClose);
-				}
-			} else {
-				// do nothing if targetting same side
-			}
+			tradeAmount = BN.max(ZERO, currentSpotMarketNetValue);
 		}
 
-		// subtract oneMillionth of maxPositionSize
-		// => to avoid rounding errors when taking max leverage
-		const oneMilli = maxPositionSize.div(QUOTE_PRECISION);
-		return maxPositionSize.sub(oneMilli);
+		return tradeAmount;
 	}
 
 	// TODO - should this take the price impact of the trade into account for strict accuracy?
