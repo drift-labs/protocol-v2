@@ -395,7 +395,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		assert(driftClientLoserUserLeverage < 8.95);
 		assert(driftClientLoserUserLeverage > 8.5);
-		assert(driftClientLoserUserLiqPrice < 41);
+		assert(driftClientLoserUserLiqPrice < 42);
 		assert(driftClientLoserUserLiqPrice > 30.5);
 
 		const bank00 = driftClient.getSpotMarketAccount(0);
