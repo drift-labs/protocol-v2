@@ -27,7 +27,6 @@ import {
 	QUOTE_SPOT_MARKET_INDEX,
 	TEN,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
-	ONE,
 	FIVE_MINUTE,
 } from './constants/numericConstants';
 import {
