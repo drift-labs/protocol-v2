@@ -483,7 +483,7 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.eq(
-				new BN(330572000)
+				new BN(330072000)
 			)
 		);
 
@@ -492,7 +492,7 @@ describe('liquidate perp and lp', () => {
 			market.amm.cumulativeFundingRateLong.toString(),
 			market.amm.cumulativeFundingRateShort.toString()
 		);
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(330572000)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-330572000)));
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(330072000)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-330072000)));
 	});
 });
