@@ -1,5 +1,5 @@
 {
-  "version": "2.8.0-beta.1",
+  "version": "2.13.0-beta.1",
   "name": "drift",
   "instructions": [
     {
@@ -945,6 +945,32 @@
           "type": "u32"
         }
       ]
+    },
+    {
+      "name": "forceCancelOrders",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
       "name": "settlePnl",
@@ -3679,9 +3705,7 @@
       "args": [
         {
           "name": "exchangeStatus",
-          "type": {
-            "defined": "ExchangeStatus"
-          }
+          "type": "u8"
         }
       ]
     },
@@ -4358,9 +4382,7 @@
           },
           {
             "name": "exchangeStatus",
-            "type": {
-              "defined": "ExchangeStatus"
-            }
+            "type": "u8"
           },
           {
             "name": "liquidationDuration",
@@ -6164,7 +6186,12 @@
             ]
           },
           {
-            "name": "Match"
+            "name": "Match",
+            "fields": [
+              {
+                "defined": "usize"
+              }
+            ]
           }
         ]
       }
@@ -6329,10 +6356,10 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Active"
+            "name": "DepositPaused"
           },
           {
-            "name": "FundingPaused"
+            "name": "WithdrawPaused"
           },
           {
             "name": "AmmPaused"
@@ -6344,10 +6371,10 @@
             "name": "LiqPaused"
           },
           {
-            "name": "WithdrawPaused"
+            "name": "FundingPaused"
           },
           {
-            "name": "Paused"
+            "name": "SettlePnlPaused"
           }
         ]
       }
@@ -8527,6 +8554,21 @@
       "code": 6222,
       "name": "InvalidMaker",
       "msg": "Invalid Maker"
+    },
+    {
+      "code": 6223,
+      "name": "FailedUnwrap",
+      "msg": "Failed Unwrap"
+    },
+    {
+      "code": 6224,
+      "name": "MaxNumberOfUsers",
+      "msg": "Max Number Of Users"
+    },
+    {
+      "code": 6225,
+      "name": "InvalidOracleForSettlePnl",
+      "msg": "InvalidOracleForSettlePnl"
     }
   ]
 }

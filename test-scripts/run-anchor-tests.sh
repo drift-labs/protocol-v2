@@ -6,7 +6,7 @@ fi
 
 test_files=(
   dustPosition.ts
-  serumTest.ts
+  multipleMakerOrders.ts
   postOnlyAmmFulfillment.ts
   imbalancePerpPnl.ts
   delistMarket.ts
@@ -22,6 +22,7 @@ test_files=(
   liquidatePerpPnlForDeposit.ts 
   liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
+  liquidatePerpAndLp.ts
   order.ts
   spotDepositWithdraw.ts
   prepegMarketOrderBaseAssetAmount.ts 
@@ -44,8 +45,7 @@ test_files=(
   userAccount.ts
   admin.ts
   assetTier.ts
-  pauseExchange.ts 
-  adminWithdraw.ts 
+  pauseExchange.ts
   whitelist.ts
   updateK.ts 
   curve.ts 

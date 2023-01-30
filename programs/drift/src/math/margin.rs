@@ -751,14 +751,7 @@ pub fn calculate_max_withdrawable_amount(
         // user has small dust deposit and no liabilities
         // so return early with user tokens amount
         return user
-            .get_spot_position(market_index)
-            .ok_or_else(|| {
-                msg!(
-                    "User does not have a spot balance for market {}",
-                    market_index
-                );
-                ErrorCode::CouldNotFindSpotPosition
-            })?
+            .get_spot_position(market_index)?
             .get_token_amount(spot_market)?
             .cast();
     }

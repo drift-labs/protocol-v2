@@ -9,6 +9,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: perp bankruptcies pay from fee pool before being socialized ([#332](https://github.com/drift-labs/protocol-v2/pull/332))
+- ts-sdk: add calculateAvailablePerpLiquidity
+- program: enforce min order size when trading against amm ([#334](https://github.com/drift-labs/protocol-v2/pull/334))
+
+### Fixes
+
+- ts-sdk: fix the getBuyingPower calculation
+- ts-sdk: improved perp estimated liq price formula ([#338](https://github.com/drift-labs/protocol-v2/pull/338))
+- ts-sdk: update methods to account for new leverage formula ([#339](https://github.com/drift-labs/protocol-v2/pull/339))
+
+### Breaking
+
+## [2.12.0] - 2023-01-22
+
+### Features
+
+- program: allow for 2000 users
+- program: add resting limit order logic ([#328](https://github.com/drift-labs/protocol-v2/pull/328))
+- ts-sdk: add calculateEstimatedSpotEntryPrice
+- ts-sdk: add ability to add priority fees ([#331](https://github.com/drift-labs/protocol-v2/pull/331))
+- ts-sdk: new calculateEstimatedPerpEntryPrice that accounts for dlob & vamm ([#326](https://github.com/drift-labs/protocol-v2/pull/326))
+
+### Fixes
+
+- program: better rounding for openbook limit price
+- program: fix paying fee_pool_delta when filling with open book
+- program: bitflags for exchange status ([#330](https://github.com/drift-labs/protocol-v2/pull/330))
+- program: update fee calculation for filling against openbook
+- program: relax conditions for valid oracle price in fulfill_perp_order
+- program: handle fallback price when amm has no liquidity ([#324](https://github.com/drift-labs/protocol-v2/pull/324))
+- sdk: add getRestingLimitBids/Asks to DLOB ([#325](https://github.com/drift-labs/protocol-v2/pull/325))
+- program: tweak oracle price used for determine_perp_fulfillment_methods
+
+### Breaking
+
+## [2.11.0] - 2023-01-11
+
+### Features
+
+- program: remove canceling market orders with limit price after first fill
+- program: try to match against multiple of makers orders ([#315](https://github.com/drift-labs/protocol-v2/pull/316))
+- program: limit number of users to 1500
+- program: more rigorous risk decreasing check in place_perp_order/place_stop_order
+
+### Fixes
+
+- program: avoid overflow when calculating overflow ([#322](https://github.com/drift-labs/protocol-v2/pull/322))
+- ts-sdk: fix user.getUnrealizedPnl to account for lp position
+- program: cancel market order for not satisfying limit price only if there was some base asset amount filled
+
+### Breaking
+
+## [2.10.0] - 2023-01-03
+
+### Features
+
+- program: place order returns early if max ts breached ([#317](https://github.com/drift-labs/protocol-v2/pull/317))
+- ts-sdk: batch getMultipleAccount calls in bulkAccountLoader ([#315](https://github.com/drift-labs/protocol-v2/pull/315))
+- program: add clippy deny for panic, expect and unwrap
+- program: add market index offset trait ([#287](https://github.com/drift-labs/protocol-v2/pull/287))
+- program: add size trait to accounts and events ([#286](https://github.com/drift-labs/protocol-v2/pull/286))
+
+### Fixes
+
+- program: add access control for spot market updates similar to perp market ([#284](https://github.com/drift-labs/protocol-v2/pull/284))
+- ts-sdk: allow websocket subscriber to skip getAccount call to rpc ([#313](https://github.com/drift-labs/protocol-v2/pull/313))
+- ts-sdk: always add market account for cancelOrders if market index included
+- anchor tests: make deterministic to run in ci ([#289](https://github.com/drift-labs/protocol-v2/pull/289))
+- ts-sdk: fix deprecated calls to `@solana/web3.js` ([#299](https://github.com/drift-labs/protocol-v2/pull/307))
+- ts-sdk: fix calculateAssetWeight for Maintenance Margin ([#308](https://github.com/drift-labs/protocol-v2/pull/308))
+- ts-sdk: fix UserMap for websocket usage ([#308](https://github.com/drift-labs/protocol-v2/pull/310))
+
+### Breaking
+
+## [2.9.0] - 2022-12-23
+
+### Features
+
+- program: use vamm price to guard against bad fills for limit orders ([#304](https://github.com/drift-labs/protocol-v2/pull/304))
+
+### Fixes
+
+- ts-sdk: expect signTransaction from wallet adapters to return a copy ([#299](https://github.com/drift-labs/protocol-v2/pull/299))
+
+### Breaking
+
+## [2.8.0] - 2022-12-22
+
+### Features
+
+- program: add force_cancel_orders to cancel risk-increasing orders for users with excessive leverage ([#298](https://github.com/drift-labs/protocol-v2/pull/298))
+
 ### Fixes
 
 - program: fix calculate_availability_borrow_liquidity ([#301](https://github.com/drift-labs/protocol-v2/pull/301))

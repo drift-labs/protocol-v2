@@ -223,6 +223,10 @@ pub mod drift {
         handle_trigger_order(ctx, order_id)
     }
 
+    pub fn force_cancel_orders(ctx: Context<ForceCancelOrder>) -> Result<()> {
+        handle_force_cancel_orders(ctx)
+    }
+
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         handle_settle_pnl(ctx, market_index)
     }
@@ -825,9 +829,6 @@ pub mod drift {
         handle_update_perp_market_name(ctx, name)
     }
 
-    #[access_control(
-        market_valid(&ctx.accounts.perp_market)
-    )]
     pub fn update_perp_market_min_order_size(
         ctx: Context<AdminUpdatePerpMarket>,
         order_size: u64,
@@ -876,7 +877,7 @@ pub mod drift {
 
     pub fn update_exchange_status(
         ctx: Context<AdminUpdateState>,
-        exchange_status: ExchangeStatus,
+        exchange_status: u8,
     ) -> Result<()> {
         handle_update_exchange_status(ctx, exchange_status)
     }

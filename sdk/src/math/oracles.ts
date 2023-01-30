@@ -6,8 +6,9 @@ import {
 	PRICE_PRECISION,
 	ONE,
 	ZERO,
+	FIVE_MINUTE,
 } from '../constants/numericConstants';
-import { BN, PerpMarketAccount } from '../index';
+import { BN, HistoricalOracleData, PerpMarketAccount } from '../index';
 import { assert } from '../assert/assert';
 
 export function oraclePriceBands(
@@ -68,7 +69,7 @@ export function isOracleTooDivergent(
 	const sinceLastUpdate = now.sub(
 		amm.historicalOracleData.lastOraclePriceTwapTs
 	);
-	const sinceStart = BN.max(ZERO, new BN(60 * 5).sub(sinceLastUpdate));
+	const sinceStart = BN.max(ZERO, FIVE_MINUTE.sub(sinceLastUpdate));
 	const oracleTwap5min = amm.historicalOracleData.lastOraclePriceTwap5Min
 		.mul(sinceStart)
 		.add(oraclePriceData.price)
@@ -90,28 +91,34 @@ export function isOracleTooDivergent(
 }
 
 export function calculateLiveOracleTwap(
-	amm: AMM,
+	histOracleData: HistoricalOracleData,
 	oraclePriceData: OraclePriceData,
-	now: BN
+	now: BN,
+	period: BN
 ): BN {
-	const sinceLastUpdate = now.sub(
-		amm.historicalOracleData.lastOraclePriceTwapTs
-	);
-	const sinceStart = BN.max(ZERO, amm.fundingPeriod.sub(sinceLastUpdate));
+	let oracleTwap = undefined;
+	if (period.eq(FIVE_MINUTE)) {
+		oracleTwap = histOracleData.lastOraclePriceTwap5Min;
+	} else {
+		//todo: assumes its fundingPeriod (1hr)
+		// period = amm.fundingPeriod;
+		oracleTwap = histOracleData.lastOraclePriceTwap;
+	}
 
-	const clampRange = amm.historicalOracleData.lastOraclePriceTwap.div(
-		new BN(3)
+	const sinceLastUpdate = BN.max(
+		ONE,
+		now.sub(histOracleData.lastOraclePriceTwapTs)
 	);
+	const sinceStart = BN.max(ZERO, period.sub(sinceLastUpdate));
+
+	const clampRange = oracleTwap.div(new BN(3));
 
 	const clampedOraclePrice = BN.min(
-		amm.historicalOracleData.lastOraclePriceTwap.add(clampRange),
-		BN.max(
-			oraclePriceData.price,
-			amm.historicalOracleData.lastOraclePriceTwap.sub(clampRange)
-		)
+		oracleTwap.add(clampRange),
+		BN.max(oraclePriceData.price, oracleTwap.sub(clampRange))
 	);
 
-	const newOracleTwap = amm.historicalOracleData.lastOraclePriceTwap
+	const newOracleTwap = oracleTwap
 		.mul(sinceStart)
 		.add(clampedOraclePrice.mul(sinceLastUpdate))
 		.div(sinceStart.add(sinceLastUpdate));
@@ -124,12 +131,18 @@ export function calculateLiveOracleStd(
 	oraclePriceData: OraclePriceData,
 	now: BN
 ): BN {
-	const sinceLastUpdate = now.sub(
-		amm.historicalOracleData.lastOraclePriceTwapTs
+	const sinceLastUpdate = BN.max(
+		ONE,
+		now.sub(amm.historicalOracleData.lastOraclePriceTwapTs)
 	);
 	const sinceStart = BN.max(ZERO, amm.fundingPeriod.sub(sinceLastUpdate));
 
-	const liveOracleTwap = calculateLiveOracleTwap(amm, oraclePriceData, now);
+	const liveOracleTwap = calculateLiveOracleTwap(
+		amm.historicalOracleData,
+		oraclePriceData,
+		now,
+		amm.fundingPeriod
+	);
 
 	const priceDeltaVsTwap = oraclePriceData.price.sub(liveOracleTwap).abs();
 

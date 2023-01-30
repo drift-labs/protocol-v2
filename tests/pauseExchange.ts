@@ -1,16 +1,15 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
+import { BN, BulkAccountLoader, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
 import {
-	AdminClient,
+	TestClient,
 	PRICE_PRECISION,
 	PositionDirection,
 	ExchangeStatus,
 	OracleSource,
-	isVariant,
 } from '../sdk/src';
 
 import {
@@ -20,13 +19,19 @@ import {
 	initializeQuoteSpotMarket,
 } from './testHelpers';
 
-describe('admin withdraw', () => {
-	const provider = anchor.AnchorProvider.local();
+describe('Pause exchange', () => {
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	let driftClient: TestClient;
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -49,7 +54,7 @@ describe('admin withdraw', () => {
 		const solOracle = await mockOracle(30);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -66,6 +71,10 @@ describe('admin withdraw', () => {
 				},
 			],
 			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -101,13 +110,14 @@ describe('admin withdraw', () => {
 	it('Pause exchange', async () => {
 		await driftClient.updateExchangeStatus(ExchangeStatus.PAUSED);
 		const state = driftClient.getStateAccount();
-		assert(isVariant(state.exchangeStatus, 'paused'));
+		assert(state.exchangeStatus === ExchangeStatus.PAUSED);
 	});
 
 	it('Block open position', async () => {
 		try {
 			await driftClient.openPosition(PositionDirection.LONG, usdcAmount, 0);
 		} catch (e) {
+			console.log(e);
 			assert(e.message.includes('0x1788')); //Error Number: 6024. Error Message: Exchange is paused.
 			return;
 		}

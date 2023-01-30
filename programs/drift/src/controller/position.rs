@@ -39,6 +39,15 @@ impl Default for PositionDirection {
     }
 }
 
+impl PositionDirection {
+    pub fn opposite(&self) -> Self {
+        match self {
+            PositionDirection::Long => PositionDirection::Short,
+            PositionDirection::Short => PositionDirection::Long,
+        }
+    }
+}
+
 pub fn add_new_position(
     user_positions: &mut PerpPositions,
     market_index: u16,

@@ -167,13 +167,12 @@ pub fn calculate_spread_inventory_scale(
 
     let min_side_liquidity = max_bids.min(max_asks.abs());
 
+    // cap so (6e9 * AMM_RESERVE_PRECISION)^2 < 2^127
+    let amm_inventory_size = base_asset_amount_with_amm.abs().min(6000000000000000000);
+
     // inventory scale
-    let inventory_scale = base_asset_amount_with_amm
-        .safe_mul(
-            base_asset_amount_with_amm
-                .abs()
-                .max(AMM_RESERVE_PRECISION_I128),
-        )?
+    let inventory_scale = amm_inventory_size
+        .safe_mul(amm_inventory_size.max(AMM_RESERVE_PRECISION_I128))?
         .safe_div(AMM_RESERVE_PRECISION_I128)?
         .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>()?)?
         .safe_div(min_side_liquidity.max(1))?
@@ -189,7 +188,9 @@ pub fn calculate_spread_inventory_scale(
 
     let inventory_scale_capped = min(
         inventory_scale_max,
-        BID_ASK_SPREAD_PRECISION.safe_add(inventory_scale.cast()?)?,
+        BID_ASK_SPREAD_PRECISION
+            .safe_add(inventory_scale.cast()?)
+            .unwrap_or(u64::MAX),
     );
 
     Ok(inventory_scale_capped)
@@ -231,18 +232,26 @@ pub fn calculate_spread_revenue_retreat_amount(
     net_revenue_since_last_funding: i64,
 ) -> DriftResult<u64> {
     // on-the-hour revenue scale
-    let revenue_retreat_amount =
-        if net_revenue_since_last_funding < DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT {
+    let revenue_retreat_amount = if net_revenue_since_last_funding
+        < DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
+    {
+        let max_retreat = max_spread.safe_div(10)?;
+        if net_revenue_since_last_funding
+            >= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 1000
+        {
             min(
-                max_spread.safe_div(10)?,
+                max_retreat,
                 base_spread
                     .cast::<u64>()?
                     .safe_mul(net_revenue_since_last_funding.unsigned_abs())?
                     .safe_div(DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.unsigned_abs())?,
             )
         } else {
-            0
-        };
+            max_retreat
+        }
+    } else {
+        0
+    };
 
     Ok(revenue_retreat_amount)
 }

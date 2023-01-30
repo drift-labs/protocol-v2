@@ -1,9 +1,12 @@
 use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
+use enumflags2::BitFlags;
 
+use crate::error::DriftResult;
 use crate::math::constants::{
     FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
 };
+use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::traits::Size;
 
 #[account]
 #[derive(Default)]
@@ -28,27 +31,51 @@ pub struct State {
     pub min_perp_auction_duration: u8,
     pub default_market_order_time_in_force: u8,
     pub default_spot_auction_duration: u8,
-    pub exchange_status: ExchangeStatus,
+    pub exchange_status: u8,
     pub liquidation_duration: u8,
     pub initial_pct_to_liquidate: u16,
     pub padding: [u8; 14],
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(BitFlags, Clone, Copy, PartialEq, Debug, Eq)]
 pub enum ExchangeStatus {
-    Active,
-    FundingPaused,
-    AmmPaused,
-    FillPaused,
-    LiqPaused,
-    WithdrawPaused,
-    Paused,
+    // Active = 0b00000000
+    DepositPaused = 0b00000001,
+    WithdrawPaused = 0b00000010,
+    AmmPaused = 0b00000100,
+    FillPaused = 0b00001000,
+    LiqPaused = 0b00010000,
+    FundingPaused = 0b00100000,
+    SettlePnlPaused = 0b01000000,
+    // Paused = 0b11111111
 }
 
-impl Default for ExchangeStatus {
-    fn default() -> Self {
-        ExchangeStatus::Active
+impl ExchangeStatus {
+    pub fn active() -> u8 {
+        BitFlags::<ExchangeStatus>::empty().bits() as u8
     }
+}
+
+impl State {
+    pub fn get_exchange_status(&self) -> DriftResult<BitFlags<ExchangeStatus>> {
+        BitFlags::<ExchangeStatus>::from_bits(usize::from(self.exchange_status)).safe_unwrap()
+    }
+
+    pub fn amm_paused(&self) -> DriftResult<bool> {
+        Ok(self
+            .get_exchange_status()?
+            .contains(ExchangeStatus::AmmPaused))
+    }
+
+    pub fn funding_paused(&self) -> DriftResult<bool> {
+        Ok(self
+            .get_exchange_status()?
+            .contains(ExchangeStatus::FundingPaused))
+    }
+}
+
+impl Size for State {
+    const SIZE: usize = 992;
 }
 
 #[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone)]

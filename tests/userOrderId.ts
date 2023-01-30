@@ -4,7 +4,7 @@ import { assert } from 'chai';
 import { Program } from '@project-serum/anchor';
 
 import {
-	AdminClient,
+	TestClient,
 	BN,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -23,14 +23,21 @@ import {
 	mockUserUSDCAccount,
 } from './testHelpers';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { BulkAccountLoader, ExchangeStatus } from '../sdk';
 
 describe('user order id', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		skipPreflight: false,
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+
+	let driftClient: TestClient;
 	let driftClientUser: User;
 
 	let usdcMint;
@@ -68,7 +75,7 @@ describe('user order id', () => {
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
 		];
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -79,6 +86,10 @@ describe('user order id', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -86,7 +97,9 @@ describe('user order id', () => {
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		await driftClient.fetchAccounts();
-		assert(isVariant(driftClient.getStateAccount().exchangeStatus, 'active'));
+		assert(
+			driftClient.getStateAccount().exchangeStatus === ExchangeStatus.ACTIVE
+		);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 

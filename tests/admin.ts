@@ -3,22 +3,22 @@ import { Program } from '@project-serum/anchor';
 import { assert } from 'chai';
 
 import {
-	AdminClient,
+	BN,
 	ExchangeStatus,
 	OracleGuardRails,
 	OracleSource,
-	isVariant,
-	BN,
+	TestClient,
 } from '../sdk/src';
 
 import { decodeName, DEFAULT_MARKET_NAME } from '../sdk/src/userName';
 
 import {
+	initializeQuoteSpotMarket,
 	mockOracle,
 	mockUSDCMint,
-	initializeQuoteSpotMarket,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
+import { BulkAccountLoader } from '../sdk';
 
 describe('admin', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -29,14 +29,16 @@ describe('admin', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+
+	let driftClient: TestClient;
 
 	let usdcMint;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -46,6 +48,10 @@ describe('admin', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -226,14 +232,14 @@ describe('admin', () => {
 		await driftClient.updateExchangeStatus(ExchangeStatus.LIQ_PAUSED);
 		await driftClient.fetchAccounts();
 		const state = driftClient.getStateAccount();
-		assert(isVariant(state.exchangeStatus, 'liqPaused'));
+		assert(state.exchangeStatus === ExchangeStatus.LIQ_PAUSED);
 
 		console.log('paused liq!');
 		// unpause
 		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
 		await driftClient.fetchAccounts();
 		const state2 = driftClient.getStateAccount();
-		assert(isVariant(state2.exchangeStatus, 'active'));
+		assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
 		console.log('unpaused liq!');
 	});
 
@@ -241,14 +247,14 @@ describe('admin', () => {
 		await driftClient.updateExchangeStatus(ExchangeStatus.AMM_PAUSED);
 		await driftClient.fetchAccounts();
 		const state = driftClient.getStateAccount();
-		assert(isVariant(state.exchangeStatus, 'ammPaused'));
+		assert(state.exchangeStatus === ExchangeStatus.AMM_PAUSED);
 
 		console.log('paused amm!');
 		// unpause
 		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
 		await driftClient.fetchAccounts();
 		const state2 = driftClient.getStateAccount();
-		assert(isVariant(state2.exchangeStatus, 'active'));
+		assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
 		console.log('unpaused amm!');
 	});
 
@@ -256,15 +262,35 @@ describe('admin', () => {
 		await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
 		await driftClient.fetchAccounts();
 		const state = driftClient.getStateAccount();
-		assert(isVariant(state.exchangeStatus, 'fundingPaused'));
+		assert(state.exchangeStatus === ExchangeStatus.FUNDING_PAUSED);
 
 		console.log('paused funding!');
 		// unpause
 		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
 		await driftClient.fetchAccounts();
 		const state2 = driftClient.getStateAccount();
-		assert(isVariant(state2.exchangeStatus, 'active'));
+		assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
 		console.log('unpaused funding!');
+	});
+
+	it('Pause deposts and withdraws', async () => {
+		await driftClient.updateExchangeStatus(
+			ExchangeStatus.DEPOSIT_PAUSED | ExchangeStatus.WITHDRAW_PAUSED
+		);
+		await driftClient.fetchAccounts();
+		const state = driftClient.getStateAccount();
+		assert(
+			state.exchangeStatus ===
+				(ExchangeStatus.DEPOSIT_PAUSED | ExchangeStatus.WITHDRAW_PAUSED)
+		);
+
+		console.log('paused deposits and withdraw!');
+		// unpause
+		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
+		await driftClient.fetchAccounts();
+		const state2 = driftClient.getStateAccount();
+		assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
+		console.log('unpaused deposits and withdraws!');
 	});
 
 	it('Update admin', async () => {

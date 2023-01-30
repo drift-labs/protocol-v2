@@ -13,6 +13,7 @@ import {
 	PERCENTAGE_PRECISION,
 	BASE_PRECISION,
 	DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
+	TWO,
 } from '../constants/numericConstants';
 import {
 	AMM,
@@ -67,6 +68,8 @@ export function calculateOptimalPegAndBudget(
 
 	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
+
+	let checkLowerBound = true;
 	if (budget.lt(prePegCost)) {
 		const halfMaxPriceSpread = new BN(amm.maxSpread)
 			.div(new BN(2))
@@ -94,11 +97,17 @@ export function calculateOptimalPegAndBudget(
 			);
 
 			newBudget = calculateRepegCost(amm, newOptimalPeg);
+			checkLowerBound = false;
+
 			return [newTargetPrice, newOptimalPeg, newBudget, false];
+		} else if (
+			amm.totalFeeMinusDistributions.lt(amm.totalExchangeFee.div(new BN(2)))
+		) {
+			checkLowerBound = false;
 		}
 	}
 
-	return [targetPrice, newPeg, budget, true];
+	return [targetPrice, newPeg, budget, checkLowerBound];
 }
 
 export function calculateNewAmm(
@@ -108,12 +117,12 @@ export function calculateNewAmm(
 	let pKNumer = new BN(1);
 	let pKDenom = new BN(1);
 
-	const [targetPrice, _newPeg, budget, checkLowerBound] =
+	const [targetPrice, _newPeg, budget, _checkLowerBound] =
 		calculateOptimalPegAndBudget(amm, oraclePriceData);
 	let prePegCost = calculateRepegCost(amm, _newPeg);
 	let newPeg = _newPeg;
 
-	if (prePegCost.gt(budget) && checkLowerBound) {
+	if (prePegCost.gte(budget) && prePegCost.gt(ZERO)) {
 		[pKNumer, pKDenom] = [new BN(999), new BN(1000)];
 		const deficitMadeup = calculateAdjustKCost(amm, pKNumer, pKDenom);
 		assert(deficitMadeup.lte(new BN(0)));
@@ -136,7 +145,6 @@ export function calculateNewAmm(
 			);
 
 		newAmm.terminalQuoteAssetReserve = newQuoteAssetReserve;
-
 		newPeg = calculateBudgetedPeg(newAmm, prePegCost, targetPrice);
 		prePegCost = calculateRepegCost(newAmm, newPeg);
 	}
@@ -148,7 +156,7 @@ export function calculateUpdatedAMM(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): AMM {
-	if (amm.curveUpdateIntensity == 0) {
+	if (amm.curveUpdateIntensity == 0 || oraclePriceData === undefined) {
 		return amm;
 	}
 	const newAmm = Object.assign({}, amm);
@@ -181,7 +189,6 @@ export function calculateUpdatedAMM(
 		newAmm.totalFeeMinusDistributions.sub(prepegCost);
 	newAmm.netRevenueSinceLastFunding =
 		newAmm.netRevenueSinceLastFunding.sub(prepegCost);
-
 	return newAmm;
 }
 
@@ -317,22 +324,32 @@ export function calculateAmmReservesAfterSwap(
 export function calculateMarketOpenBidAsk(
 	baseAssetReserve: BN,
 	minBaseAssetReserve: BN,
-	maxBaseAssetReserve: BN
+	maxBaseAssetReserve: BN,
+	stepSize?: BN
 ): [BN, BN] {
 	// open orders
 	let openAsks;
-	if (maxBaseAssetReserve.gt(baseAssetReserve)) {
-		openAsks = maxBaseAssetReserve.sub(baseAssetReserve).mul(new BN(-1));
+	if (minBaseAssetReserve.lt(baseAssetReserve)) {
+		openAsks = baseAssetReserve.sub(minBaseAssetReserve).mul(new BN(-1));
+
+		if (stepSize && openAsks.abs().div(TWO).lt(stepSize)) {
+			openAsks = ZERO;
+		}
 	} else {
 		openAsks = ZERO;
 	}
 
 	let openBids;
-	if (minBaseAssetReserve.lt(baseAssetReserve)) {
-		openBids = baseAssetReserve.sub(minBaseAssetReserve);
+	if (maxBaseAssetReserve.gt(baseAssetReserve)) {
+		openBids = maxBaseAssetReserve.sub(baseAssetReserve);
+
+		if (stepSize && openBids.div(TWO).lt(stepSize)) {
+			openBids = ZERO;
+		}
 	} else {
 		openBids = ZERO;
 	}
+
 	return [openBids, openAsks];
 }
 
@@ -605,13 +622,22 @@ export function calculateSpreadBN(
 			DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
 		)
 	) {
-		const revenueRetreatAmount = Math.min(
-			maxTargetSpread / 10,
-			Math.floor(
-				(baseSpread * netRevenueSinceLastFunding.abs().toNumber()) /
-					DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.abs().toNumber()
+		const maxRetreat = maxTargetSpread / 10;
+		let revenueRetreatAmount = maxRetreat;
+		if (
+			netRevenueSinceLastFunding.gte(
+				DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.mul(new BN(1000))
 			)
-		);
+		) {
+			revenueRetreatAmount = Math.min(
+				maxRetreat,
+				Math.floor(
+					(baseSpread * netRevenueSinceLastFunding.abs().toNumber()) /
+						DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.abs().toNumber()
+				)
+			);
+		}
+
 		const halfRevenueRetreatAmount = Math.floor(revenueRetreatAmount / 2);
 
 		spreadTerms.revenueRetreatAmount = revenueRetreatAmount;

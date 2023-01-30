@@ -451,6 +451,12 @@ pub enum ErrorCode {
     SpotFulfillmentConfigDisabled,
     #[msg("Invalid Maker")]
     InvalidMaker,
+    #[msg("Failed Unwrap")]
+    FailedUnwrap,
+    #[msg("Max Number Of Users")]
+    MaxNumberOfUsers,
+    #[msg("InvalidOracleForSettlePnl")]
+    InvalidOracleForSettlePnl,
 }
 
 #[macro_export]

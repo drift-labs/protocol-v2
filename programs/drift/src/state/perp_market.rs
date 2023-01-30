@@ -23,6 +23,7 @@ use crate::math::stats;
 
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
+use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
@@ -135,6 +136,14 @@ impl Default for PerpMarket {
             padding: [0; 51],
         }
     }
+}
+
+impl Size for PerpMarket {
+    const SIZE: usize = 1216;
+}
+
+impl MarketIndexOffset for PerpMarket {
+    const MARKET_INDEX_OFFSET: usize = 1160;
 }
 
 impl PerpMarket {
@@ -468,7 +477,7 @@ impl Default for AMM {
             funding_period: 0,
             order_step_size: 0,
             order_tick_size: 0,
-            min_order_size: 0,
+            min_order_size: 1,
             max_position_size: 0,
             volume_24h: 0,
             long_intensity_volume: 0,
@@ -542,7 +551,10 @@ impl AMM {
         match self.oracle_source {
             OracleSource::Pyth => Ok(Some(self.get_pyth_twap(price_oracle)?)),
             OracleSource::Switchboard => Ok(None),
-            OracleSource::QuoteAsset => panic!(),
+            OracleSource::QuoteAsset => {
+                msg!("Can't get oracle twap for quote asset");
+                Err(ErrorCode::DefaultError)
+            }
         }
     }
 
@@ -613,6 +625,7 @@ impl AMM {
             min_base_asset_reserve: 0,
             terminal_quote_asset_reserve: default_reserves,
             peg_multiplier: crate::math::constants::PEG_PRECISION,
+            max_fill_reserve_fraction: 1,
             max_spread: 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: PRICE_PRECISION_I64,

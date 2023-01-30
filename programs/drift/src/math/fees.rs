@@ -15,6 +15,8 @@ use crate::math::safe_math::SafeMath;
 use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
+use solana_program::msg;
+
 #[cfg(test)]
 mod tests;
 
@@ -44,7 +46,11 @@ pub fn calculate_fee_for_fulfillment_with_amm(
 
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
-        let fee = quote_asset_amount_surplus.cast::<u64>()?;
+        let fee = quote_asset_amount_surplus.cast::<u64>().map_err(|e| {
+            msg!("quote_asset_amount_surplus {}", quote_asset_amount_surplus);
+            msg!("quote_asset_amount {}", quote_asset_amount);
+            e
+        })?;
         let filler_reward = if !reward_filler {
             0_u64
         } else {

@@ -11,8 +11,7 @@ import {
 	BN,
 	OracleSource,
 	ZERO,
-	AdminClient,
-	DriftClient,
+	TestClient,
 	convertToNumber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -39,11 +38,11 @@ import {
 	sleep,
 } from './testHelpers';
 import { Keypair } from '@solana/web3.js';
-import { calculateReservePrice } from '../sdk';
+import { BulkAccountLoader, calculateReservePrice } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
-	driftClient: AdminClient,
+	driftClient: TestClient,
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
@@ -66,18 +65,22 @@ describe('delist market, liquidation of expired position', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let driftClient: AdminClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: TestClient;
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
 	eventSubscriber.subscribe();
+
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
 	let usdcMint;
 	let userUSDCAccount;
 	let userUSDCAccount2;
 
-	let driftClientLoser: DriftClient;
+	let driftClientLoser: TestClient;
 	let driftClientLoserUser: User;
 
-	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClient: TestClient;
 	let liquidatorDriftClientWSOLAccount: PublicKey;
 	let liquidatorDriftClientWUSDCAccount: PublicKey;
 
@@ -105,7 +108,7 @@ describe('delist market, liquidation of expired position', () => {
 
 		solOracle = await mockOracle(43.1337);
 
-		driftClient = new AdminClient({
+		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -121,6 +124,10 @@ describe('delist market, liquidation of expired position', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
@@ -164,7 +171,7 @@ describe('delist market, liquidation of expired position', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		driftClientLoser = new AdminClient({
+		driftClientLoser = new TestClient({
 			connection,
 			wallet: new Wallet(userKeypair),
 			programID: chProgram.programId,
@@ -180,6 +187,10 @@ describe('delist market, liquidation of expired position', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClientLoser.subscribe();
 		await driftClientLoser.initializeUserAccountAndDepositCollateral(
@@ -289,8 +300,8 @@ describe('delist market, liquidation of expired position', () => {
 		);
 		assert(driftClientLoserUserLeverage <= 7.8865);
 		assert(driftClientLoserUserLeverage >= 7.8486);
-		assert(driftClientLoserUserLiqPrice < 41);
-		assert(driftClientLoserUserLiqPrice > 40.5);
+		assert(driftClientLoserUserLiqPrice < 41.390493);
+		assert(driftClientLoserUserLiqPrice > 41.300493);
 
 		const market00 = driftClient.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
@@ -323,7 +334,8 @@ describe('delist market, liquidation of expired position', () => {
 					publicKey: solOracle,
 					source: OracleSource.PYTH,
 				},
-			]
+			],
+			bulkAccountLoader
 		);
 		await liquidatorDriftClient.subscribe();
 
@@ -655,6 +667,7 @@ describe('delist market, liquidation of expired position', () => {
 		console.log(txSigBankrupt);
 		await printTxLogs(connection, txSigBankrupt);
 
+		await driftClientLoser.fetchAccounts();
 		assert(!isVariant(driftClientLoser.getUserAccount().status, 'bankrupt'));
 		assert(
 			driftClientLoser
@@ -722,8 +735,8 @@ describe('delist market, liquidation of expired position', () => {
 		assert(marketAfter0.numberOfUsersWithBase === 0);
 
 		// old 1415296436
-		const finalPnlResultMin0 = new BN(2270702294000 - 11090000);
-		const finalPnlResultMax0 = new BN(2270702294000 + 11109000);
+		const finalPnlResultMin0 = new BN(2266346249000 - 11090000);
+		const finalPnlResultMax0 = new BN(2266346249000 + 11109000);
 
 		console.log(marketAfter0.pnlPool.scaledBalance.toString());
 		assert(marketAfter0.pnlPool.scaledBalance.gt(finalPnlResultMin0));
@@ -735,7 +748,8 @@ describe('delist market, liquidation of expired position', () => {
 			'totalExchangeFee:',
 			marketAfter0.amm.totalExchangeFee.toString()
 		);
-		assert(marketAfter0.amm.feePool.scaledBalance.eq(new BN(4356250000)));
+		assert(marketAfter0.amm.feePool.scaledBalance.eq(ZERO));
+		assert(marketAfter0.amm.totalExchangeFee.eq(new BN(8712501)));
 		await liquidatorDriftClientUser.unsubscribe();
 	});
 });

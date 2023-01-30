@@ -22,7 +22,7 @@ use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
-use crate::state::state::{ExchangeStatus, State};
+use crate::state::state::State;
 use crate::state::user::{MarketType, User, UserStats};
 use crate::validate;
 use crate::{controller, load, math};
@@ -51,7 +51,12 @@ pub fn handle_fill_perp_order<'info>(
 
     let user_key = &ctx.accounts.user.key();
     fill_order(ctx, order_id, market_index, maker_order_id).map_err(|e| {
-        msg!("Err filling order id {} for user {}", order_id, user_key);
+        msg!(
+            "Err filling order id {} for user {} for market index {}",
+            order_id,
+            user_key,
+            market_index
+        );
         e
     })?;
 
@@ -306,7 +311,36 @@ pub fn handle_trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) ->
 }
 
 #[access_control(
-    withdraw_not_paused(&ctx.accounts.state)
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_force_cancel_orders<'info>(ctx: Context<ForceCancelOrder>) -> Result<()> {
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    controller::orders::force_cancel_orders(
+        &ctx.accounts.state,
+        &ctx.accounts.user,
+        &spot_market_map,
+        &perp_market_map,
+        &mut oracle_map,
+        &ctx.accounts.filler,
+        &Clock::get()?,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    settle_pnl_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
     let clock = Clock::get()?;
@@ -351,7 +385,8 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             &mut oracle_map,
             state,
             &clock,
-        )?;
+        )
+        .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
 
         controller::pnl::settle_pnl(
             market_index,
@@ -363,7 +398,8 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             &mut oracle_map,
             clock.unix_timestamp,
             state,
-        )?;
+        )
+        .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
     }
 
     let spot_market = spot_market_map.get_quote_spot_market()?;
@@ -424,7 +460,7 @@ pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Res
 }
 
 #[access_control(
-    withdraw_not_paused(&ctx.accounts.state)
+    settle_pnl_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_settle_expired_market(ctx: Context<UpdateAMM>, market_index: u16) -> Result<()> {
     let clock = Clock::get()?;
@@ -934,7 +970,7 @@ pub fn handle_resolve_perp_bankruptcy(
 }
 
 #[access_control(
- withdraw_not_paused(&ctx.accounts.state)
+    withdraw_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_resolve_spot_bankruptcy(
     ctx: Context<ResolveBankruptcy>,
@@ -1031,7 +1067,7 @@ pub fn handle_resolve_spot_bankruptcy(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.perp_market)
+    perp_market_valid(&ctx.accounts.perp_market)
     funding_not_paused(&ctx.accounts.state)
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
@@ -1072,7 +1108,7 @@ pub fn handle_update_funding_rate(
         &mut oracle_map,
         now,
         &state.oracle_guard_rails,
-        matches!(state.exchange_status, ExchangeStatus::FundingPaused),
+        state.funding_paused()?,
         None,
     )?;
 
@@ -1154,6 +1190,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
 }
 
 #[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
     exchange_not_paused(&ctx.accounts.state)
     valid_oracle_for_spot_market(&ctx.accounts.oracle, &ctx.accounts.spot_market)
 )]
@@ -1174,7 +1211,7 @@ pub fn handle_update_spot_market_cumulative_interest(
 
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
 
-    if !matches!(state.exchange_status, ExchangeStatus::FundingPaused) {
+    if !state.funding_paused()? {
         controller::spot_balance::update_spot_market_cumulative_interest(
             spot_market,
             Some(oracle_price_data),
@@ -1261,6 +1298,19 @@ pub struct FillOrder<'info> {
 
 #[derive(Accounts)]
 pub struct TriggerOrder<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&filler, &authority)?
+    )]
+    pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct ForceCancelOrder<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(

@@ -355,7 +355,8 @@ async function listMarket({
 	for (const signedTransaction of signedTransactions) {
 		await sendAndConfirmRawTransaction(
 			connection,
-			signedTransaction.serialize()
+			signedTransaction.serialize(),
+			'confirmed'
 		);
 	}
 	await connection.getAccountInfo(market.publicKey);
