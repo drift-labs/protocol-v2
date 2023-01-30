@@ -862,14 +862,16 @@ describe('insurance fund stake', () => {
 	it('liquidate borrow (w/ IF revenue)', async () => {
 		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
 
-		const ifPoolBalance = getTokenAmount(
+		const revPoolBalance = getTokenAmount(
 			spotMarketBefore.revenuePool.scaledBalance,
 			spotMarketBefore,
 			SpotBalanceType.DEPOSIT
 		);
+		console.log('revPoolBalance:', revPoolBalance.toString());
 
 		assert(spotMarketBefore.borrowBalance.gt(ZERO));
-		assert(ifPoolBalance.eq(new BN(0)));
+		assert(revPoolBalance.gt(new BN(0))); // should be a little residual left in rev pool
+		assert(revPoolBalance.lt(QUOTE_PRECISION));
 
 		driftClientUser = new User({
 			driftClient: secondUserDriftClient,
