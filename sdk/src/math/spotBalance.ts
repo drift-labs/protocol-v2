@@ -52,8 +52,16 @@ export function getTokenAmount(
 	const cumulativeInterest = isVariant(balanceType, 'deposit')
 		? spotMarket.cumulativeDepositInterest
 		: spotMarket.cumulativeBorrowInterest;
+	const inter = balanceAmount.mul(cumulativeInterest);
+	const mod = inter.mod(precisionDecrease);
 
-	return balanceAmount.mul(cumulativeInterest).div(precisionDecrease);
+	const tokenAmount = isVariant(balanceType, 'deposit')
+		? inter.div(precisionDecrease)
+		: mod.eq(new BN(0))
+		? inter.div(precisionDecrease)
+		: inter.div(precisionDecrease).add(new BN(1));
+
+	return tokenAmount;
 }
 
 export function getSignedTokenAmount(
