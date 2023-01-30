@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: perp bankruptcies pay from fee pool before being socialized ([#332](https://github.com/drift-labs/protocol-v2/pull/332))
 - ts-sdk: add calculateAvailablePerpLiquidity
 - program: enforce min order size when trading against amm ([#334](https://github.com/drift-labs/protocol-v2/pull/334))
 
