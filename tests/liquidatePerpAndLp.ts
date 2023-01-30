@@ -206,8 +206,8 @@ describe('liquidate perp and lp', () => {
 		console.log('deltaValueToLiq:', deltaValueToLiq.toString());
 		console.log('pp.base:', pp.baseAssetAmount.toString());
 
-		const expectedLiqPrice = 0.567683;
-		const liqPrice = driftClientUser.liquidationPrice({ marketIndex: 0 }, ZERO);
+		const expectedLiqPrice = 0.566378;
+		const liqPrice = driftClientUser.liquidationPrice(0, ZERO);
 		console.log('liqPrice:', liqPrice.toString());
 		assert(liqPrice.eq(new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())));
 
@@ -217,11 +217,8 @@ describe('liquidate perp and lp', () => {
 		await driftClientUser.fetchAccounts();
 		await driftClient.fetchAccounts();
 
-		const liqPriceAfterPxChange = driftClientUser.liquidationPrice(
-			{ marketIndex: 0 },
-			ZERO
-		);
-		const expectedLiqPriceAfterPxChange = 0.558057;
+		const liqPriceAfterPxChange = driftClientUser.liquidationPrice(0, ZERO);
+		const expectedLiqPriceAfterPxChange = 0.557026;
 
 		console.log('liqPriceAfterPxChange:', liqPriceAfterPxChange.toString());
 		const mtc0 = driftClientUser.getTotalCollateral('Maintenance');
@@ -248,10 +245,7 @@ describe('liquidate perp and lp', () => {
 		await driftClientUser.fetchAccounts();
 		await driftClient.fetchAccounts();
 
-		const liqPriceAfterSettlePnl = driftClientUser.liquidationPrice(
-			{ marketIndex: 0 },
-			ZERO
-		);
+		const liqPriceAfterSettlePnl = driftClientUser.liquidationPrice(0, ZERO);
 
 		const mtc2 = driftClientUser.getTotalCollateral('Maintenance');
 		const mmr2 = driftClientUser.getMaintenanceMarginRequirement();
@@ -278,7 +272,7 @@ describe('liquidate perp and lp', () => {
 		);
 
 		const liqPriceAfterRallySettlePnl = driftClientUser.liquidationPrice(
-			{ marketIndex: 0 },
+			0,
 			ZERO
 		);
 		console.log(
@@ -287,7 +281,7 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(
 			liqPriceAfterRallySettlePnl.eq(
-				new BN(0.577308 * PRICE_PRECISION.toNumber())
+				new BN(0.575731 * PRICE_PRECISION.toNumber())
 			)
 		);
 		await driftClientUser.unsubscribe();

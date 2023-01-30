@@ -380,9 +380,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			MARGIN_PRECISION
 		);
 		const driftClientLoserUserLiqPrice = convertToNumber(
-			driftClientLoserUser.liquidationPrice({
-				marketIndex: 0,
-			}),
+			driftClientLoserUser.liquidationPrice(0),
 			PRICE_PRECISION
 		);
 
@@ -475,9 +473,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			MARGIN_PRECISION
 		);
 		const driftClientLoserUserLiqPrice2 = convertToNumber(
-			driftClientLoserUser.liquidationPrice({
-				marketIndex: 0,
-			}),
+			driftClientLoserUser.liquidationPrice(0),
 			PRICE_PRECISION
 		);
 
@@ -732,9 +728,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			MARGIN_PRECISION
 		);
 		const driftClientLoserUserLiqPrice = convertToNumber(
-			driftClientLoserUser.liquidationPrice({
-				marketIndex: 0,
-			}),
+			driftClientLoserUser.liquidationPrice(0),
 			PRICE_PRECISION
 		);
 
