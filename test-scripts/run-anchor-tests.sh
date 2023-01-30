@@ -21,6 +21,7 @@ test_files=(
   liquidatePerpPnlForDeposit.ts 
   liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
+  liquidatePerpAndLp.ts
   order.ts
   spotDepositWithdraw.ts
   prepegMarketOrderBaseAssetAmount.ts 

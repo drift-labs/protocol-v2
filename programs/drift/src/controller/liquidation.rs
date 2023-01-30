@@ -3,6 +3,7 @@ use std::ops::{Deref, DerefMut};
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
+use crate::controller::amm::get_fee_pool_tokens;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders;
@@ -2081,7 +2082,48 @@ pub fn resolve_perp_bankruptcy(
         if_payment
     };
 
-    let loss_to_socialize = loss.safe_add(if_payment.cast::<i128>()?)?;
+    let losses_remaining: i128 = loss.safe_add(if_payment.cast::<i128>()?)?;
+    validate!(
+        losses_remaining <= 0,
+        ErrorCode::InvalidPerpPositionToLiquidate,
+        "losses_remaining must be non-positive"
+    )?;
+
+    let fee_pool_payment: i128 = if losses_remaining < 0 {
+        let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
+        let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
+        let fee_pool_tokens = get_fee_pool_tokens(perp_market, spot_market)?;
+        msg!("fee_pool_tokens={:?}", fee_pool_tokens);
+
+        losses_remaining.abs().min(fee_pool_tokens.cast()?)
+    } else {
+        0
+    };
+    validate!(
+        fee_pool_payment >= 0,
+        ErrorCode::InvalidPerpPositionToLiquidate,
+        "fee_pool_payment must be non-negative"
+    )?;
+
+    if fee_pool_payment > 0 {
+        let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
+        let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
+        msg!("fee_pool_payment={:?}", fee_pool_payment);
+        update_spot_balances(
+            fee_pool_payment.unsigned_abs(),
+            &SpotBalanceType::Borrow,
+            spot_market,
+            &mut perp_market.amm.fee_pool,
+            false,
+        )?;
+    }
+
+    let loss_to_socialize = losses_remaining.safe_add(fee_pool_payment.cast::<i128>()?)?;
+    validate!(
+        loss_to_socialize <= 0,
+        ErrorCode::InvalidPerpPositionToLiquidate,
+        "loss_to_socialize must be non-positive"
+    )?;
 
     let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
         loss_to_socialize,

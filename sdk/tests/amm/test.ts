@@ -206,9 +206,10 @@ describe('AMM Tests', () => {
 		mockAmm.historicalOracleData.lastOraclePriceTwapTs = now.sub(new BN(11));
 
 		const liveOracleTwap = calculateLiveOracleTwap(
-			mockAmm,
+			mockAmm.historicalOracleData,
 			oraclePriceData,
-			now
+			now,
+			mockAmm.fundingPeriod
 		);
 		console.log('liveOracleTwap:', liveOracleTwap.toNumber());
 		assert(liveOracleTwap.eq(new BN(13539488)));

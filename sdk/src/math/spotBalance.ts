@@ -67,6 +67,28 @@ export function getSignedTokenAmount(
 	}
 }
 
+export function getStrictTokenValue(
+	tokenAmount: BN,
+	spotDecimals: number,
+	oraclePriceData: OraclePriceData,
+	oraclePriceTwap: BN
+): BN {
+	if (tokenAmount.eq(ZERO)) {
+		return ZERO;
+	}
+
+	let price = oraclePriceData.price;
+	if (tokenAmount.gt(ZERO)) {
+		price = BN.min(oraclePriceData.price, oraclePriceTwap);
+	} else {
+		price = BN.max(oraclePriceData.price, oraclePriceTwap);
+	}
+
+	const precisionDecrease = TEN.pow(new BN(spotDecimals));
+
+	return tokenAmount.mul(price).div(precisionDecrease);
+}
+
 export function getTokenValue(
 	tokenAmount: BN,
 	spotDecimals: number,

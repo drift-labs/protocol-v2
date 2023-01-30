@@ -83,6 +83,8 @@ export const MARGIN_PRECISION = TEN_THOUSAND;
 export const BID_ASK_SPREAD_PRECISION = new BN(1000000); // 10^6
 export const LIQUIDATION_PCT_PRECISION = TEN_THOUSAND;
 
+export const FIVE_MINUTE = new BN(60 * 5);
+export const ONE_HOUR = new BN(60 * 60);
 export const ONE_YEAR = new BN(31536000);
 
 export const QUOTE_SPOT_MARKET_INDEX = 0;
