@@ -765,8 +765,21 @@ pub fn fill_perp_order(
         slot,
     )?;
 
-    let referrer_key = if !user_stats.referrer.eq(&Pubkey::default()) {
-        Some(user_stats.referrer)
+    let referrer_keys = if !user_stats.referrer.eq(&Pubkey::default()) {
+        let referrer_authority_key = user_stats.referrer;
+        let mut referrer_user_key = Pubkey::default();
+        for (maker_key, maker) in makers_and_referrer.0.iter() {
+            if load!(maker)?.authority == referrer_authority_key {
+                referrer_user_key = *maker_key;
+                break;
+            }
+        }
+
+        if referrer_user_key == Pubkey::default() {
+            return Err(ErrorCode::ReferrerNotFound.into());
+        }
+
+        Some((referrer_authority_key, referrer_user_key))
     } else {
         None
     };
@@ -825,7 +838,7 @@ pub fn fill_perp_order(
             &mut filler.as_deref_mut(),
             &filler_key,
             &mut filler_stats.as_deref_mut(),
-            referrer_key,
+            referrer_keys,
             spot_market_map,
             perp_market_map,
             oracle_map,
@@ -1374,13 +1387,13 @@ fn fulfill_perp_order(
     user_order_index: usize,
     user_key: &Pubkey,
     user_stats: &mut UserStats,
-    makers_and_referrer: &mut UserMap,
-    makers_and_referrer_stats: &mut UserStatsMap,
+    makers_and_referrer: &UserMap,
+    makers_and_referrer_stats: &UserStatsMap,
     maker_order_info: Vec<(Pubkey, usize, u64)>,
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
     filler_stats: &mut Option<&mut UserStats>,
-    referrer_key: Option<Pubkey>,
+    referrer_keys: Option<(Pubkey, Pubkey)>,
     spot_market_map: &SpotMarketMap,
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
@@ -1431,15 +1444,12 @@ fn fulfill_perp_order(
 
         let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
             PerpFulfillmentMethod::AMM(maker_price) => {
-                let (mut referrer, mut referrer_stats) = if let Some(referrer_key) = referrer_key {
-                    let referrer = makers_and_referrer.get_ref_mut(&referrer_key)?;
-                    let referrer_stats =
-                        makers_and_referrer_stats.get_ref_mut(&referrer.authority)?;
-
-                    (Some(referrer), Some(referrer_stats))
-                } else {
-                    (None, None)
-                };
+                let (mut referrer, mut referrer_stats) = get_referrer(
+                    &referrer_keys,
+                    makers_and_referrer,
+                    makers_and_referrer_stats,
+                    None,
+                )?;
 
                 let (fill_base_asset_amount, fill_quote_asset_amount) =
                     fulfill_perp_order_with_amm(
@@ -1475,15 +1485,12 @@ fn fulfill_perp_order(
                     Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
                 };
 
-                let (mut referrer, mut referrer_stats) = if let Some(referrer_key) = referrer_key {
-                    let referrer = makers_and_referrer.get_ref_mut(&referrer_key)?;
-                    let referrer_stats =
-                        makers_and_referrer_stats.get_ref_mut(&referrer.authority)?;
-
-                    (Some(referrer), Some(referrer_stats))
-                } else {
-                    (None, None)
-                };
+                let (mut referrer, mut referrer_stats) = get_referrer(
+                    &referrer_keys,
+                    makers_and_referrer,
+                    makers_and_referrer_stats,
+                    Some(&maker),
+                )?;
 
                 let (fill_base_asset_amount, fill_quote_asset_amount) =
                     fulfill_perp_order_with_match(
@@ -1593,6 +1600,29 @@ fn fulfill_perp_order(
     let updated_user_state = base_asset_amount != 0;
 
     Ok((base_asset_amount, risk_increasing, updated_user_state))
+}
+
+fn get_referrer<'a>(
+    referrer_key: &'a Option<(Pubkey, Pubkey)>,
+    makers_and_referrer: &'a UserMap,
+    makers_and_referrer_stats: &'a UserStatsMap,
+    maker: Option<&User>,
+) -> DriftResult<(Option<RefMut<'a, User>>, Option<RefMut<'a, UserStats>>)> {
+    let (referrer_authority_key, referrer_user_key) = match referrer_key {
+        Some(referrer_keys) => referrer_keys,
+        None => return Ok((None, None)),
+    };
+
+    if let Some(maker) = maker {
+        if &maker.authority == referrer_authority_key {
+            return Ok((None, None));
+        }
+    }
+
+    let referrer = makers_and_referrer.get_ref_mut(referrer_user_key)?;
+    let referrer_stats = makers_and_referrer_stats.get_ref_mut(referrer_authority_key)?;
+
+    return Ok((Some(referrer), Some(referrer_stats)));
 }
 
 fn determine_if_user_order_is_risk_decreasing(
