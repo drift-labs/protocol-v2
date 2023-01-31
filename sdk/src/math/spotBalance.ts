@@ -67,6 +67,28 @@ export function getSignedTokenAmount(
 	}
 }
 
+export function getStrictTokenValue(
+	tokenAmount: BN,
+	spotDecimals: number,
+	oraclePriceData: OraclePriceData,
+	oraclePriceTwap: BN
+): BN {
+	if (tokenAmount.eq(ZERO)) {
+		return ZERO;
+	}
+
+	let price = oraclePriceData.price;
+	if (tokenAmount.gt(ZERO)) {
+		price = BN.min(oraclePriceData.price, oraclePriceTwap);
+	} else {
+		price = BN.max(oraclePriceData.price, oraclePriceTwap);
+	}
+
+	const precisionDecrease = TEN.pow(new BN(spotDecimals));
+
+	return tokenAmount.mul(price).div(precisionDecrease);
+}
+
 export function getTokenValue(
 	tokenAmount: BN,
 	spotDecimals: number,
@@ -268,7 +290,14 @@ export function calculateInterestAccumulated(
 export function calculateWithdrawLimit(
 	spotMarket: SpotMarketAccount,
 	now: BN
-): { borrowLimit: BN; withdrawLimit: BN } {
+): {
+	borrowLimit: BN;
+	withdrawLimit: BN;
+	minDepositAmount: BN;
+	maxBorrowAmount: BN;
+	currentDepositAmount;
+	currentBorrowAmount;
+} {
 	const marketDepositTokenAmount = getTokenAmount(
 		spotMarket.depositBalance,
 		spotMarket,
@@ -311,8 +340,27 @@ export function calculateWithdrawLimit(
 		)
 	);
 
+	let withdrawLimit = BN.max(
+		marketDepositTokenAmount.sub(minDepositTokens),
+		ZERO
+	);
+
+	let borrowLimit = BN.max(maxBorrowTokens.sub(marketBorrowTokenAmount), ZERO);
+
+	if (borrowLimit.eq(ZERO)) {
+		withdrawLimit = ZERO;
+	}
+
+	if (withdrawLimit.eq(ZERO)) {
+		borrowLimit = ZERO;
+	}
+
 	return {
-		borrowLimit: maxBorrowTokens.sub(marketBorrowTokenAmount),
-		withdrawLimit: marketDepositTokenAmount.sub(minDepositTokens),
+		borrowLimit,
+		withdrawLimit,
+		maxBorrowAmount: maxBorrowTokens,
+		minDepositAmount: minDepositTokens,
+		currentDepositAmount: marketDepositTokenAmount,
+		currentBorrowAmount: marketBorrowTokenAmount,
 	};
 }

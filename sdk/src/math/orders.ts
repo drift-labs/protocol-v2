@@ -165,12 +165,12 @@ export function isFillableByVAMM(
 ): boolean {
 	return (
 		(isAuctionComplete(order, slot) &&
-			!calculateBaseAssetAmountForAmmToFulfill(
+			calculateBaseAssetAmountForAmmToFulfill(
 				order,
 				market,
 				oraclePriceData,
 				slot
-			).eq(ZERO)) ||
+			).gte(market.amm.minOrderSize)) ||
 		isOrderExpired(order, ts)
 	);
 }

@@ -477,7 +477,7 @@ impl Default for AMM {
             funding_period: 0,
             order_step_size: 0,
             order_tick_size: 0,
-            min_order_size: 0,
+            min_order_size: 1,
             max_position_size: 0,
             volume_24h: 0,
             long_intensity_volume: 0,
