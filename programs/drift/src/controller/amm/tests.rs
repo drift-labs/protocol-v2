@@ -612,12 +612,27 @@ fn update_pool_balances_fee_to_revenue_test() {
     let spot_position = SpotPosition::default();
     update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
 
-    assert_eq!(market.amm.fee_pool.scaled_balance, 44000000000000000);
+    assert_eq!(market.amm.fee_pool.scaled_balance, 50000000000000000); // under FEE_POOL_TO_REVENUE_POOL_THRESHOLD
+    assert_eq!(market.pnl_pool.scaled_balance, 50000000000000000);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
+    assert_eq!(market.amm.total_fee_withdrawn, 0);
+
+    assert!(market.amm.fee_pool.scaled_balance == prev_fee_pool);
+    assert_eq!(market.pnl_pool.scaled_balance, prev_pnl_pool);
+    assert!(spot_market.revenue_pool.scaled_balance == prev_rev_pool);
+
+    // add FEE_POOL_TO_REVENUE_POOL_THRESHOLD
+    let prev_fee_pool_2 =
+        (FEE_POOL_TO_REVENUE_POOL_THRESHOLD + 50 * QUOTE_PRECISION) * SPOT_BALANCE_PRECISION;
+    market.amm.fee_pool.scaled_balance = prev_fee_pool_2;
+    update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
+
+    assert_eq!(market.amm.fee_pool.scaled_balance, 294000000000000000); // > FEE_POOL_TO_REVENUE_POOL_THRESHOLD
     assert_eq!(market.pnl_pool.scaled_balance, 50000000000000000);
     assert_eq!(spot_market.revenue_pool.scaled_balance, 6000000000000000);
     assert_eq!(market.amm.total_fee_withdrawn, 6000000);
 
-    assert!(market.amm.fee_pool.scaled_balance < prev_fee_pool);
+    assert!(market.amm.fee_pool.scaled_balance < prev_fee_pool_2);
     assert_eq!(market.pnl_pool.scaled_balance, prev_pnl_pool);
     assert!(spot_market.revenue_pool.scaled_balance > prev_rev_pool);
 }

@@ -569,6 +569,7 @@ pub fn settle_revenue_to_insurance_fund(
     }
 
     if spot_market.insurance_fund.user_shares > 0 {
+        // only allow MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT or half revenue pool to be settled
         let capped_apr_amount = insurance_vault_amount
             .safe_mul(MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT)?
             .safe_div(PERCENTAGE_PRECISION_U64)?
@@ -579,7 +580,8 @@ pub fn settle_revenue_to_insurance_fund(
                     .max(1),
             )?
             .cast::<u128>()?;
-        token_amount = token_amount.min(capped_apr_amount);
+        let capped_token_pct_amount = token_amount.safe_div(5)?;
+        token_amount = capped_token_pct_amount.min(capped_apr_amount);
     }
 
     let insurance_fund_token_amount = get_proportion_u128(
