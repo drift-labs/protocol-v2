@@ -1186,7 +1186,7 @@ fn sanitize_maker_order2<'a>(
 
     let maker_direction = taker_order.direction.opposite();
 
-    let mut maker_order_info = vec![];
+    let mut maker_order_info = Vec::with_capacity(32);
     for (maker_key, user_account_loader) in makers_and_referrer.0.iter_mut() {
         if maker_key == taker_key {
             continue;
@@ -1303,6 +1303,8 @@ fn sanitize_maker_order2<'a>(
         }
     }
 
+    sort_maker_orders2(&mut maker_order_info, taker_order.direction);
+
     Ok(maker_order_info)
 }
 
@@ -1312,6 +1314,17 @@ fn sort_maker_orders(
     taker_order_direction: PositionDirection,
 ) {
     maker_order_price_and_indexes.sort_by(|a, b| match taker_order_direction {
+        PositionDirection::Long => a.1.cmp(&b.1),
+        PositionDirection::Short => b.1.cmp(&a.1),
+    });
+}
+
+#[inline(always)]
+fn sort_maker_orders2(
+    maker_order_info: &mut [(Pubkey, usize, u64)],
+    taker_order_direction: PositionDirection,
+) {
+    maker_order_info.sort_by(|a, b| match taker_order_direction {
         PositionDirection::Long => a.1.cmp(&b.1),
         PositionDirection::Short => b.1.cmp(&a.1),
     });
