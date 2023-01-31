@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
+use anchor_spl::token::accessor::authority;
 use anchor_spl::token::{Token, TokenAccount};
 
 use crate::controller::orders::cancel_orders;
@@ -39,6 +40,7 @@ use crate::state::traits::Size;
 use crate::state::user::{
     MarketType, OrderTriggerCondition, OrderType, User, UserStats, UserStatus,
 };
+use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
@@ -874,15 +876,8 @@ pub fn handle_place_and_take_perp_order<'info>(
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
-    let (maker, maker_stats) = match maker_order_id {
-        Some(_) => {
-            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-            (Some(user), Some(user_stats))
-        }
-        None => (None, None),
-    };
-
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let mut makers_and_referrer = UserMap::load(remaining_accounts_iter, None)?;
+    let mut makers_and_referrer_stats = UserStatsMap::load(remaining_accounts_iter, None)?;
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
@@ -917,11 +912,8 @@ pub fn handle_place_and_take_perp_order<'info>(
         &mut oracle_map,
         &user.clone(),
         &ctx.accounts.user_stats.clone(),
-        maker.as_ref(),
-        maker_stats.as_ref(),
-        maker_order_id,
-        referrer.as_ref(),
-        referrer_stats.as_ref(),
+        &mut makers_and_referrer,
+        &mut makers_and_referrer_stats,
         &Clock::get()?,
     )?;
 
@@ -968,8 +960,6 @@ pub fn handle_place_and_make_perp_order<'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
-
     if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
         msg!("place_and_make must use IOC post only limit order");
         return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
@@ -993,7 +983,16 @@ pub fn handle_place_and_make_perp_order<'info>(
         params,
     )?;
 
-    let order_id = load!(ctx.accounts.user)?.get_last_order_id();
+    let (order_id, authority) = {
+        let user = load!(ctx.accounts.user)?;
+        (user.get_last_order_id(), user.authority)
+    };
+
+    let jit_maker = (ctx.accounts.user.key(), ctx.accounts.user.clone(), order_id);
+    let mut makers_and_referrer = UserMap::load(remaining_accounts_iter, Some(jit_maker))?;
+    let jit_maker_stats = (authority, ctx.accounts.user_stats.clone());
+    let mut makers_and_referrer_stats =
+        UserStatsMap::load(remaining_accounts_iter, Some(jit_maker_stats))?;
 
     controller::orders::fill_perp_order(
         taker_order_id,
@@ -1005,11 +1004,8 @@ pub fn handle_place_and_make_perp_order<'info>(
         &mut oracle_map,
         &ctx.accounts.user.clone(),
         &ctx.accounts.user_stats.clone(),
-        Some(&ctx.accounts.user),
-        Some(&ctx.accounts.user_stats),
-        Some(order_id),
-        referrer.as_ref(),
-        referrer_stats.as_ref(),
+        &mut makers_and_referrer,
+        &mut makers_and_referrer_stats,
         clock,
     )?;
 

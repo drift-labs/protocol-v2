@@ -1,14 +1,14 @@
 use std::cell::RefMut;
 use std::cmp::max;
+use std::collections::BTreeMap;
 use std::num::NonZeroU64;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 
 use anchor_lang::prelude::*;
 use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
 use serum_dex::matching::Side;
 use solana_program::msg;
 
-use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
@@ -55,6 +55,7 @@ use crate::math::serum::{
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
+use crate::{controller, load};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -76,6 +77,7 @@ use crate::state::user::{
     AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
 };
 use crate::state::user::{MarketType, User};
+use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::validate;
 use crate::validation;
 use crate::validation::order::{validate_order, validate_spot_order};
@@ -617,11 +619,8 @@ pub fn fill_perp_order(
     oracle_map: &mut OracleMap,
     filler: &AccountLoader<User>,
     filler_stats: &AccountLoader<UserStats>,
-    maker: Option<&AccountLoader<User>>,
-    maker_stats: Option<&AccountLoader<UserStats>>,
-    _maker_order_id: Option<u32>,
-    referrer: Option<&AccountLoader<User>>,
-    referrer_stats: Option<&AccountLoader<UserStats>>,
+    makers_and_referrer: &mut UserMap,
+    makers_and_referrer_stats: &mut UserStatsMap,
     clock: &Clock,
 ) -> DriftResult<(u64, bool)> {
     let now = clock.unix_timestamp;
@@ -738,7 +737,7 @@ pub fn fill_perp_order(
     };
 
     let is_filler_taker = user_key == filler_key;
-    let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
+    let is_filler_maker = makers_and_referrer.0.contains_key(&filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
         let filler = load_mut!(filler)?;
         if filler.authority != user.authority {
@@ -750,27 +749,27 @@ pub fn fill_perp_order(
         (None, None)
     };
 
-    let (mut maker, mut maker_stats, maker_key, maker_order_price_and_indexes) =
-        sanitize_maker_order(
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            maker,
-            maker_stats,
-            &user_key,
-            &user.authority,
-            &user.orders[order_index],
-            &mut filler.as_deref_mut(),
-            &filler_key,
-            state.perp_fee_structure.flat_filler_fee,
-            oracle_price,
-            reserve_price_before,
-            now,
-            slot,
-        )?;
+    let maker_order_info = sanitize_maker_order2(
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        makers_and_referrer,
+        &user_key,
+        &user.orders[order_index],
+        &mut filler.as_deref_mut(),
+        &filler_key,
+        state.perp_fee_structure.flat_filler_fee,
+        oracle_price,
+        reserve_price_before,
+        now,
+        slot,
+    )?;
 
-    let (mut referrer, mut referrer_stats) =
-        sanitize_referrer(referrer, referrer_stats, user_stats)?;
+    let referrer_key = if !user_stats.referrer.eq(&Pubkey::default()) {
+        Some(user_stats.referrer)
+    } else {
+        None
+    };
 
     let should_expire_order = should_expire_order(user, order_index, now)?;
 
@@ -820,15 +819,13 @@ pub fn fill_perp_order(
             order_index,
             &user_key,
             user_stats,
-            &mut maker.as_deref_mut(),
-            &mut maker_stats.as_deref_mut(),
-            maker_order_price_and_indexes,
-            maker_key.as_ref(),
+            makers_and_referrer,
+            makers_and_referrer_stats,
+            maker_order_info,
             &mut filler.as_deref_mut(),
             &filler_key,
             &mut filler_stats.as_deref_mut(),
-            &mut referrer.as_deref_mut(),
-            &mut referrer_stats.as_deref_mut(),
+            referrer_key,
             spot_market_map,
             perp_market_map,
             oracle_map,
@@ -1167,6 +1164,148 @@ fn sanitize_maker_order<'a>(
     ))
 }
 
+#[allow(clippy::type_complexity)]
+fn sanitize_maker_order2<'a>(
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    makers_and_referrer: &mut UserMap,
+    taker_key: &Pubkey,
+    taker_order: &Order,
+    filler: &mut Option<&mut User>,
+    filler_key: &Pubkey,
+    filler_reward: u64,
+    oracle_price: i64,
+    reserve_price: u64,
+    now: i64,
+    slot: u64,
+) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
+    let market = perp_market_map.get_ref(&taker_order.market_index)?;
+
+    let (amm_bid_price, amm_ask_price) = market.amm.bid_ask_price(reserve_price)?;
+
+    let maker_direction = taker_order.direction.opposite();
+
+    let mut maker_order_info = vec![];
+    for (maker_key, user_account_loader) in makers_and_referrer.0.iter_mut() {
+        if maker_key == taker_key {
+            continue;
+        }
+
+        let mut maker = load_mut!(&user_account_loader)?;
+
+        if maker.is_being_liquidated() || maker.is_bankrupt() {
+            return continue;
+        }
+
+        let maker_order_price_and_indexes = find_maker_orders(
+            &maker,
+            &maker_direction,
+            &MarketType::Perp,
+            taker_order.market_index,
+            Some(oracle_price),
+            slot,
+            market.amm.order_tick_size,
+        )?;
+
+        for (maker_order_index, maker_order_price) in maker_order_price_and_indexes.iter() {
+            let maker_order_index = *maker_order_index;
+            let maker_order_price = *maker_order_price;
+
+            let maker_order = &maker.orders[maker_order_index];
+            if !is_maker_for_taker(maker_order, taker_order)? {
+                continue;
+            }
+
+            if !maker_order.is_resting_limit_order(slot)? {
+                match maker_direction {
+                    PositionDirection::Long => {
+                        if maker_order_price >= amm_ask_price {
+                            msg!("maker order {} crosses the amm price", maker_order.order_id);
+                            continue;
+                        }
+                    }
+                    PositionDirection::Short => {
+                        if maker_order_price <= amm_bid_price {
+                            msg!("maker order {} crosses the amm price", maker_order.order_id);
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            if !are_orders_same_market_but_different_sides(maker_order, taker_order) {
+                continue;
+            }
+
+            let breaches_oracle_price_limits = {
+                limit_price_breaches_oracle_price_bands(
+                    maker_order_price,
+                    maker_order.direction,
+                    oracle_price,
+                    market.margin_ratio_initial,
+                    market.margin_ratio_maintenance,
+                )?
+            };
+
+            let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
+
+            let existing_base_asset_amount = maker
+                .get_perp_position(maker.orders[maker_order_index].market_index)?
+                .base_asset_amount;
+            let should_cancel_reduce_only_order = should_cancel_reduce_only_order(
+                &maker.orders[maker_order_index],
+                existing_base_asset_amount,
+            )?;
+
+            if breaches_oracle_price_limits
+                || should_expire_order
+                || should_cancel_reduce_only_order
+            {
+                let filler_reward = {
+                    let mut market = perp_market_map
+                        .get_ref_mut(&maker.orders[maker_order_index].market_index)?;
+                    pay_keeper_flat_reward_for_perps(
+                        &mut maker,
+                        filler.as_deref_mut(),
+                        market.deref_mut(),
+                        filler_reward,
+                    )?
+                };
+
+                let explanation = if breaches_oracle_price_limits {
+                    OrderActionExplanation::OraclePriceBreachedLimitPrice
+                } else if should_expire_order {
+                    OrderActionExplanation::OrderExpired
+                } else {
+                    OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
+                };
+
+                cancel_order(
+                    maker_order_index,
+                    maker.deref_mut(),
+                    &maker_key,
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    now,
+                    slot,
+                    explanation,
+                    Some(filler_key),
+                    filler_reward,
+                    false,
+                )?;
+
+                continue;
+            }
+
+            maker_order_info.push((*maker_key, maker_order_index, maker_order_price));
+        }
+    }
+
+    Ok(maker_order_info)
+}
+
 #[inline(always)]
 fn sort_maker_orders(
     maker_order_price_and_indexes: &mut [(usize, u64)],
@@ -1222,15 +1361,13 @@ fn fulfill_perp_order(
     user_order_index: usize,
     user_key: &Pubkey,
     user_stats: &mut UserStats,
-    maker: &mut Option<&mut User>,
-    maker_stats: &mut Option<&mut UserStats>,
-    maker_order_price_and_indexes: Option<Vec<(usize, u64)>>,
-    maker_key: Option<&Pubkey>,
+    makers_and_referrer: &mut UserMap,
+    makers_and_referrer_stats: &mut UserStatsMap,
+    maker_order_info: Vec<(Pubkey, usize, u64)>,
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
     filler_stats: &mut Option<&mut UserStats>,
-    referrer: &mut Option<&mut User>,
-    referrer_stats: &mut Option<&mut UserStats>,
+    referrer_key: Option<Pubkey>,
     spot_market_map: &SpotMarketMap,
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
@@ -1249,20 +1386,13 @@ fn fulfill_perp_order(
     let user_order_risk_decreasing =
         determine_if_user_order_is_risk_decreasing(user, market_index, user_order_index)?;
 
-    let maker_base_asset_amount_before = if let Some(maker) = maker {
-        let maker_position_index = get_position_index(&maker.perp_positions, market_index)?;
-        maker.perp_positions[maker_position_index].base_asset_amount
-    } else {
-        0
-    };
-
     let fulfillment_methods = {
         let market = perp_market_map.get_ref(&market_index)?;
         let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
         determine_perp_fulfillment_methods(
             &user.orders[user_order_index],
-            &maker_order_price_and_indexes.as_ref(),
+            &maker_order_info,
             &market.amm,
             reserve_price_before,
             Some(oracle_price),
@@ -1278,7 +1408,7 @@ fn fulfill_perp_order(
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
     let mut order_records: Vec<OrderActionRecord> = vec![];
-    let mut maker_filled = false;
+    let mut makers_filled: BTreeMap<Pubkey, bool> = BTreeMap::new();
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
             break;
@@ -1287,56 +1417,93 @@ fn fulfill_perp_order(
         let user_order_direction = user.orders[user_order_index].direction;
 
         let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
-            PerpFulfillmentMethod::AMM(maker_price) => fulfill_perp_order_with_amm(
-                user,
-                user_stats,
-                user_order_index,
-                market.deref_mut(),
-                oracle_map,
-                reserve_price_before,
-                now,
-                slot,
-                valid_oracle_price,
-                user_key,
-                filler_key,
-                filler,
-                filler_stats,
-                referrer,
-                referrer_stats,
-                fee_structure,
-                &mut order_records,
-                None,
-                *maker_price,
-                true,
-            )?,
-            PerpFulfillmentMethod::Match(maker_order_index) => fulfill_perp_order_with_match(
-                market.deref_mut(),
-                user,
-                user_stats,
-                user_order_index,
-                user_key,
-                maker.as_deref_mut().safe_unwrap()?,
-                maker_stats,
-                *maker_order_index,
-                maker_key.safe_unwrap()?,
-                filler,
-                filler_stats,
-                filler_key,
-                referrer,
-                referrer_stats,
-                reserve_price_before,
-                valid_oracle_price,
-                now,
-                slot,
-                fee_structure,
-                oracle_map,
-                &mut order_records,
-            )?,
-        };
+            PerpFulfillmentMethod::AMM(maker_price) => {
+                let (mut referrer, mut referrer_stats) = if let Some(referrer_key) = referrer_key {
+                    let referrer = makers_and_referrer.get_ref_mut(&referrer_key)?;
+                    let referrer_stats =
+                        makers_and_referrer_stats.get_ref_mut(&referrer.authority)?;
 
-        if let PerpFulfillmentMethod::Match(_) = fulfillment_method {
-            maker_filled = fill_base_asset_amount != 0;
-        }
+                    (Some(referrer), Some(referrer_stats))
+                } else {
+                    (None, None)
+                };
+
+                let (fill_base_asset_amount, fill_quote_asset_amount) =
+                    fulfill_perp_order_with_amm(
+                        user,
+                        user_stats,
+                        user_order_index,
+                        market.deref_mut(),
+                        oracle_map,
+                        reserve_price_before,
+                        now,
+                        slot,
+                        valid_oracle_price,
+                        user_key,
+                        filler_key,
+                        filler,
+                        filler_stats,
+                        &mut referrer.as_deref_mut(),
+                        &mut referrer_stats.as_deref_mut(),
+                        fee_structure,
+                        &mut order_records,
+                        None,
+                        *maker_price,
+                        true,
+                    )?;
+
+                (fill_base_asset_amount, fill_quote_asset_amount)
+            }
+            PerpFulfillmentMethod::Match(maker_key, maker_order_index) => {
+                let mut maker = makers_and_referrer.get_ref_mut(maker_key)?;
+                let mut maker_stats = if maker.authority == user.authority {
+                    None
+                } else {
+                    Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
+                };
+
+                let (mut referrer, mut referrer_stats) = if let Some(referrer_key) = referrer_key {
+                    let referrer = makers_and_referrer.get_ref_mut(&referrer_key)?;
+                    let referrer_stats =
+                        makers_and_referrer_stats.get_ref_mut(&referrer.authority)?;
+
+                    (Some(referrer), Some(referrer_stats))
+                } else {
+                    (None, None)
+                };
+
+                let (fill_base_asset_amount, fill_quote_asset_amount) =
+                    fulfill_perp_order_with_match(
+                        market.deref_mut(),
+                        user,
+                        user_stats,
+                        user_order_index,
+                        user_key,
+                        &mut maker,
+                        &mut maker_stats.as_deref_mut(),
+                        *maker_order_index,
+                        &maker_key,
+                        filler,
+                        filler_stats,
+                        filler_key,
+                        &mut referrer.as_deref_mut(),
+                        &mut referrer_stats.as_deref_mut(),
+                        reserve_price_before,
+                        valid_oracle_price,
+                        now,
+                        slot,
+                        fee_structure,
+                        oracle_map,
+                        &mut order_records,
+                    )?;
+
+                if fill_base_asset_amount != 0 {
+                    makers_filled.insert(*maker_key, true);
+                }
+
+                (fill_base_asset_amount, fill_quote_asset_amount)
+            }
+        };
 
         base_asset_amount = base_asset_amount.safe_add(fill_base_asset_amount)?;
         quote_asset_amount = quote_asset_amount.safe_add(fill_quote_asset_amount)?;
@@ -1349,19 +1516,6 @@ fn fulfill_perp_order(
         emit!(order_record)
     }
 
-    let maker_risk_reducing = if let Some(maker) = maker {
-        match get_position_index(&maker.perp_positions, market_index) {
-            Ok(maker_position_index) => {
-                let maker_base_asset_amount_after =
-                    maker.perp_positions[maker_position_index].base_asset_amount;
-                maker_base_asset_amount_before.abs() > maker_base_asset_amount_after.abs()
-            }
-            Err(_) => true,
-        }
-    } else {
-        false
-    };
-
     let perp_market = perp_market_map.get_ref(&market_index)?;
     let taker_maintenance_margin_buffer = calculate_maintenance_buffer_ratio(
         perp_market.margin_ratio_initial,
@@ -1371,7 +1525,7 @@ fn fulfill_perp_order(
     let maker_maintenance_margin_buffer = calculate_maintenance_buffer_ratio(
         perp_market.margin_ratio_initial,
         perp_market.margin_ratio_maintenance,
-        maker_risk_reducing,
+        false,
     )?;
     drop(perp_market);
 
@@ -1393,10 +1547,12 @@ fn fulfill_perp_order(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    if let (Some(maker), true) = (maker, maker_filled) {
+    for (maker_key, _) in makers_filled {
+        let maker = makers_and_referrer.get_ref_mut(&maker_key)?;
+
         let (_, maker_total_collateral, maker_margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
-                maker,
+                &maker,
                 perp_market_map,
                 MarginRequirementType::Maintenance,
                 spot_market_map,
@@ -1407,7 +1563,7 @@ fn fulfill_perp_order(
         if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
                 "maker ({}) breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
-                maker_key.safe_unwrap()?,
+                maker_key,
                 maker_margin_requirement_plus_buffer,
                 maker_total_collateral
             );

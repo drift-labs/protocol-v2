@@ -24,6 +24,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::user::{MarketType, User, UserStats};
+use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::validate;
 use crate::{controller, load, math};
 
@@ -85,15 +86,8 @@ fn fill_order(
         Some(state.oracle_guard_rails),
     )?;
 
-    let (maker, maker_stats) = match maker_order_id {
-        Some(_) => {
-            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-            (Some(user), Some(user_stats))
-        }
-        None => (None, None),
-    };
-
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let mut makers_and_referrer = UserMap::load(remaining_accounts_iter, None)?;
+    let mut makers_and_referrer_stats = UserStatsMap::load(remaining_accounts_iter, None)?;
 
     controller::repeg::update_amm(
         market_index,
@@ -113,11 +107,8 @@ fn fill_order(
         &mut oracle_map,
         &ctx.accounts.filler,
         &ctx.accounts.filler_stats,
-        maker.as_ref(),
-        maker_stats.as_ref(),
-        maker_order_id,
-        referrer.as_ref(),
-        referrer_stats.as_ref(),
+        &mut makers_and_referrer,
+        &mut makers_and_referrer_stats,
         clock,
     )?;
 

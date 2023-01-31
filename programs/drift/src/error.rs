@@ -457,6 +457,26 @@ pub enum ErrorCode {
     MaxNumberOfUsers,
     #[msg("InvalidOracleForSettlePnl")]
     InvalidOracleForSettlePnl,
+    #[msg("CouldNotLoadUserData")]
+    CouldNotLoadUserData,
+    #[msg("UserWrongMutability")]
+    UserWrongMutability,
+    #[msg("InvalidUserAccount")]
+    InvalidUserAccount,
+    #[msg("CouldNotLoadUserData")]
+    CouldNotLoadUserStatsData,
+    #[msg("UserWrongMutability")]
+    UserStatsWrongMutability,
+    #[msg("InvalidUserAccount")]
+    InvalidUserStatsAccount,
+    #[msg("UserNotFound")]
+    UserNotFound,
+    #[msg("UnableToLoadUserAccount")]
+    UnableToLoadUserAccount,
+    #[msg("UserStatsNotFound")]
+    UserStatsNotFound,
+    #[msg("UnableToLoadUserStatsAccount")]
+    UnableToLoadUserStatsAccount,
 }
 
 #[macro_export]
