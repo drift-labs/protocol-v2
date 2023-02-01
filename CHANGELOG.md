@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+### Fixes
+
+### Breaking
+
+## [2.13.0] - 2023-01-31
+
+### Features
 
 - program: perp bankruptcies pay from fee pool before being socialized ([#332](https://github.com/drift-labs/protocol-v2/pull/332))
 - ts-sdk: add calculateAvailablePerpLiquidity
