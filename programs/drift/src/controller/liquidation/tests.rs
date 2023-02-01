@@ -5171,12 +5171,13 @@ pub mod resolve_perp_bankruptcy {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         FUNDING_RATE_PRECISION_I128, FUNDING_RATE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX,
+        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -5376,6 +5377,219 @@ pub mod resolve_perp_bankruptcy {
         expected_affected_short_user.perp_positions[0].last_cumulative_funding_rate =
             -1010 * FUNDING_RATE_PRECISION_I64;
         expected_affected_short_user.cumulative_perp_funding = -50 * QUOTE_PRECISION_I64;
+
+        {
+            let mut market = market_map.get_ref_mut(&0).unwrap();
+            settle_funding_payment(
+                &mut affected_short_user,
+                &Pubkey::default(),
+                &mut market,
+                now,
+            )
+            .unwrap()
+        }
+
+        assert_eq!(expected_affected_short_user, affected_short_user);
+    }
+
+    #[test]
+    pub fn successful_resolve_perp_bankruptcy_with_fee_pool() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 10000000,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+                base_asset_amount_long: 5 * BASE_PRECISION_I128,
+                base_asset_amount_short: -5 * BASE_PRECISION_I128,
+                base_asset_amount_with_amm: BASE_PRECISION_I128,
+                oracle: oracle_price_key,
+                cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
+                cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
+                fee_pool: PoolBalance {
+                    scaled_balance: 50 * SPOT_BALANCE_PRECISION,
+                    market_index: QUOTE_SPOT_MARKET_INDEX,
+                    ..PoolBalance::default()
+                },
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            number_of_users: 1,
+            ..PerpMarket::default()
+        };
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            deposit_balance: 500 * SPOT_BALANCE_PRECISION,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        let mut user = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: 0,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: [SpotPosition::default(); 8],
+            status: UserStatus::Bankrupt,
+            next_liquidation_id: 2,
+            ..User::default()
+        };
+
+        let mut liquidator = User {
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 50 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+
+        let mut expected_user = user;
+        expected_user.status = UserStatus::Active;
+        expected_user.perp_positions[0].quote_asset_amount = 0;
+        expected_user.total_social_loss = 100000000;
+
+        let mut expected_market = market;
+        expected_market.amm.cumulative_funding_rate_long = 1005 * FUNDING_RATE_PRECISION_I128;
+        expected_market.amm.cumulative_funding_rate_short = -1005 * FUNDING_RATE_PRECISION_I128;
+        expected_market.amm.total_social_loss = 50000000;
+        expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
+        expected_market.number_of_users = 0;
+        expected_market.amm.fee_pool.scaled_balance = 0;
+
+        resolve_perp_bankruptcy(
+            0,
+            &mut user,
+            &user_key,
+            &mut liquidator,
+            &liquidator_key,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(user.total_social_loss, 100000000);
+        assert_eq!(expected_user, user);
+        assert_eq!(expected_market, market_map.get_ref(&0).unwrap().clone());
+
+        let mut affected_long_user = User {
+            orders: [Order::default(); 32],
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: 5 * BASE_PRECISION_I64,
+                quote_asset_amount: -500 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -500 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -500 * QUOTE_PRECISION_I64,
+                open_bids: BASE_PRECISION_I64,
+                last_cumulative_funding_rate: 1000 * FUNDING_RATE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: [SpotPosition::default(); 8],
+            ..User::default()
+        };
+
+        let mut expected_affected_long_user = affected_long_user;
+        expected_affected_long_user.perp_positions[0].quote_asset_amount =
+            -525 * QUOTE_PRECISION_I64; // loses $50
+        expected_affected_long_user.perp_positions[0].quote_break_even_amount =
+            -525 * QUOTE_PRECISION_I64; // loses $50
+        expected_affected_long_user.perp_positions[0].last_cumulative_funding_rate =
+            1005 * FUNDING_RATE_PRECISION_I64;
+        expected_affected_long_user.cumulative_perp_funding = -25 * QUOTE_PRECISION_I64;
+
+        {
+            let mut market = market_map.get_ref_mut(&0).unwrap();
+            settle_funding_payment(
+                &mut affected_long_user,
+                &Pubkey::default(),
+                &mut market,
+                now,
+            )
+            .unwrap()
+        }
+
+        assert_eq!(expected_affected_long_user, affected_long_user);
+
+        let mut affected_short_user = User {
+            orders: [Order::default(); 32],
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: -5 * BASE_PRECISION_I64,
+                quote_asset_amount: 500 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 500 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: 500 * QUOTE_PRECISION_I64,
+                open_bids: BASE_PRECISION_I64,
+                last_cumulative_funding_rate: -1000 * FUNDING_RATE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: [SpotPosition::default(); 8],
+            ..User::default()
+        };
+
+        let mut expected_affected_short_user = affected_short_user;
+        expected_affected_short_user.perp_positions[0].quote_asset_amount =
+            475 * QUOTE_PRECISION_I64; // loses $50
+        expected_affected_short_user.perp_positions[0].quote_break_even_amount =
+            475 * QUOTE_PRECISION_I64; // loses $50
+        expected_affected_short_user.perp_positions[0].last_cumulative_funding_rate =
+            -1005 * FUNDING_RATE_PRECISION_I64;
+        expected_affected_short_user.cumulative_perp_funding = -25 * QUOTE_PRECISION_I64;
 
         {
             let mut market = market_map.get_ref_mut(&0).unwrap();

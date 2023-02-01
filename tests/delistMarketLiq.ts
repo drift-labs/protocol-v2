@@ -735,8 +735,8 @@ describe('delist market, liquidation of expired position', () => {
 		assert(marketAfter0.numberOfUsersWithBase === 0);
 
 		// old 1415296436
-		const finalPnlResultMin0 = new BN(2270702294000 - 11090000);
-		const finalPnlResultMax0 = new BN(2270702294000 + 11109000);
+		const finalPnlResultMin0 = new BN(2266346249000 - 11090000);
+		const finalPnlResultMax0 = new BN(2266346249000 + 11109000);
 
 		console.log(marketAfter0.pnlPool.scaledBalance.toString());
 		assert(marketAfter0.pnlPool.scaledBalance.gt(finalPnlResultMin0));
@@ -748,7 +748,8 @@ describe('delist market, liquidation of expired position', () => {
 			'totalExchangeFee:',
 			marketAfter0.amm.totalExchangeFee.toString()
 		);
-		assert(marketAfter0.amm.feePool.scaledBalance.eq(new BN(4356250000)));
+		assert(marketAfter0.amm.feePool.scaledBalance.eq(ZERO));
+		assert(marketAfter0.amm.totalExchangeFee.eq(new BN(8712501)));
 		await liquidatorDriftClientUser.unsubscribe();
 	});
 });
