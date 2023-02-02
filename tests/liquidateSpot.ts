@@ -160,7 +160,9 @@ describe('liquidate spot', () => {
 
 		console.log(
 			'spotLiquidationPrice:',
-			convertToNumber(user.spotLiquidationPrice(user.getSpotPosition(1)))
+			convertToNumber(
+				user.spotLiquidationPrice(user.getSpotPosition(1).marketIndex)
+			)
 		);
 
 		await setFeedPrice(anchor.workspace.Pyth, 179, solOracle);
@@ -173,7 +175,9 @@ describe('liquidate spot', () => {
 		assert(healthBefore179 == 20);
 		console.log(
 			'spotLiquidationPrice:',
-			convertToNumber(user.spotLiquidationPrice(user.getSpotPosition(1)))
+			convertToNumber(
+				user.spotLiquidationPrice(user.getSpotPosition(1).marketIndex)
+			)
 		);
 
 		let mtc = user.getTotalCollateral('Maintenance');
@@ -208,7 +212,7 @@ describe('liquidate spot', () => {
 		console.log(
 			'spotLiquidationPrice:',
 			convertToNumber(
-				user.spotLiquidationPrice(user.getSpotPosition(1)),
+				user.spotLiquidationPrice(user.getSpotPosition(1).marketIndex),
 				PRICE_PRECISION
 			)
 		);

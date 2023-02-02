@@ -192,7 +192,7 @@ describe('liquidate perp (no open orders)', () => {
 		console.log('pp.base:', pp.baseAssetAmount.toString());
 
 		const expectedLiqPrice = 0.452181;
-		const liqPrice = driftClientUser.liquidationPrice({ marketIndex: 0 }, ZERO);
+		const liqPrice = driftClientUser.liquidationPrice(0, ZERO);
 		console.log('liqPrice:', liqPrice.toString());
 		assert(liqPrice.eq(new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())));
 
@@ -205,10 +205,7 @@ describe('liquidate perp (no open orders)', () => {
 		const oraclePrice = driftClient.getOracleDataForPerpMarket(0).price;
 		console.log('oraclePrice:', oraclePrice.toString());
 		assert(oraclePrice.eq(new BN(0.9 * PRICE_PRECISION.toNumber())));
-		const liqPriceAfterPxChange = driftClientUser.liquidationPrice(
-			{ marketIndex: 0 },
-			ZERO
-		);
+		const liqPriceAfterPxChange = driftClientUser.liquidationPrice(0, ZERO);
 
 		console.log('liqPriceAfterPxChange:', liqPriceAfterPxChange.toString());
 		const mtc0 = driftClientUser.getTotalCollateral('Maintenance');
@@ -237,10 +234,7 @@ describe('liquidate perp (no open orders)', () => {
 		const oraclePrice2 = driftClient.getOracleDataForPerpMarket(0).price;
 		console.log('oraclePrice2:', oraclePrice2.toString());
 		assert(oraclePrice2.eq(new BN(0.9 * PRICE_PRECISION.toNumber())));
-		const liqPriceAfterSettlePnl = driftClientUser.liquidationPrice(
-			{ marketIndex: 0 },
-			ZERO
-		);
+		const liqPriceAfterSettlePnl = driftClientUser.liquidationPrice(0, ZERO);
 
 		const mtc2 = driftClientUser.getTotalCollateral('Maintenance');
 		const mmr2 = driftClientUser.getMaintenanceMarginRequirement();
@@ -273,7 +267,7 @@ describe('liquidate perp (no open orders)', () => {
 		);
 
 		const liqPriceAfterRallySettlePnl = driftClientUser.liquidationPrice(
-			{ marketIndex: 0 },
+			0,
 			ZERO
 		);
 		console.log(
