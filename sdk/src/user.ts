@@ -1846,7 +1846,7 @@ export class User {
 			return {
 				canBypass: false,
 				maxDepositAmount,
-				depositAmount: ZERO,
+				depositAmount,
 				netDeposits,
 			};
 		}
