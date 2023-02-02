@@ -382,6 +382,10 @@ fn calc_mark_std_tests() {
     // sol price looking thinkg
     let mut px: u64 = 31_936_658;
     let stop_time = now + 3600 * 2;
+    assert_eq!(amm.reserve_price().unwrap(), 39397);
+    amm.peg_multiplier = 31_986_658;
+    assert_eq!(amm.reserve_price().unwrap(), 31986658);
+
     while now <= stop_time {
         now += 1;
         if now % 15 == 0 {

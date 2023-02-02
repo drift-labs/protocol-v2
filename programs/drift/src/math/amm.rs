@@ -148,37 +148,43 @@ pub fn update_mark_twap(
     // estimation of bid/ask by looking at execution premium
 
     // trade is a long
-    let best_bid_estimate = if trade_price > last_oracle_price_u64 {
+    let best_bid_estimate = if trade_price >= last_oracle_price_u64 {
         let discount = min(base_spread_u64, amm.short_spread.cast::<u64>()? / 2);
         last_oracle_price_u64.safe_sub(discount)?
     } else {
         trade_price
-    };
+    }
+    .max(amm_bid_price);
 
     // trade is a short
-    let best_ask_estimate = if trade_price < last_oracle_price_u64 {
+    let best_ask_estimate = if trade_price <= last_oracle_price_u64 {
         let premium = min(base_spread_u64, amm.long_spread.cast::<u64>()? / 2);
         last_oracle_price_u64.safe_add(premium)?
     } else {
         trade_price
-    };
+    }
+    .min(amm_ask_price);
 
     validate!(
         best_bid_estimate <= best_ask_estimate,
         ErrorCode::InvalidMarkTwapUpdateDetected,
-        "best_bid_estimate({}, {}) not <= best_ask_estimate({}, {})",
+        "best_bid_estimate({}, {}) not <= best_ask_estimate({}, {}), trade_price={}",
         amm_bid_price,
         best_bid_estimate,
         best_ask_estimate,
         amm_ask_price,
+        trade_price
     )?;
 
     let (bid_price, ask_price) = match direction {
         Some(direction) => match direction {
-            PositionDirection::Long => (best_bid_estimate, trade_price),
-            PositionDirection::Short => (trade_price, best_ask_estimate),
+            PositionDirection::Long => (best_bid_estimate, trade_price.max(best_bid_estimate)),
+            PositionDirection::Short => (trade_price.min(best_ask_estimate), best_ask_estimate),
         },
-        None => (trade_price, trade_price),
+        None => (
+            trade_price.max(amm_bid_price).min(amm_ask_price),
+            trade_price.max(amm_bid_price).min(amm_ask_price),
+        ),
     };
 
     validate!(
