@@ -3096,7 +3096,7 @@ export class DriftClient {
 				`No open order with user order id ${userOrderId.toString()}`
 			);
 		}
-		const cancelOrderIx = await this.getCancelOrderIx(openOrder.orderId);
+		const cancelOrderIx = await this.getCancelOrderByUserIdIx(userOrderId);
 
 		const newOrderParams: OptionalOrderParams = {
 			orderType: openOrder.orderType,

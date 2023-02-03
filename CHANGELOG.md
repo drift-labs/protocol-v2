@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 - program: block jit maker orders from cross vamm
+- program: cancel_order_by_user_order_id fails if order is not found
 
 ### Breaking
 
