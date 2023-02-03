@@ -173,14 +173,20 @@ impl SpotMarket {
         } else {
             (size * AMM_RESERVE_PRECISION) / size_precision
         };
-        let asset_weight = match margin_requirement_type {
-            MarginRequirementType::Initial => calculate_size_discount_asset_weight(
-                size_in_amm_reserve_precision,
-                self.imf_factor,
-                self.initial_asset_weight,
-            )?,
+
+        let default_asset_weight = match margin_requirement_type {
+            MarginRequirementType::Initial => self.initial_asset_weight,
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };
+
+        let size_based_asset_weight = calculate_size_discount_asset_weight(
+            size_in_amm_reserve_precision,
+            self.imf_factor,
+            default_asset_weight,
+        )?;
+
+        let asset_weight = size_based_asset_weight.min(default_asset_weight);
+
         Ok(asset_weight)
     }
 
