@@ -334,6 +334,38 @@ fn calculate_expiry_price_test() {
 }
 
 #[test]
+
+fn calc_delayed_mark_twap_tests() {
+    let prev = 1656682258;
+    let mut now = prev + 60;
+    let mut amm = AMM {
+        base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+        quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+        peg_multiplier: PRICE_PRECISION,
+        base_spread: 65535, //max base spread is 6.5%
+        mark_std: PRICE_PRECISION as u64,
+        last_mark_price_twap: 22800 * PRICE_PRECISION as u64,
+        last_mark_price_twap_ts: prev - 3600,
+        historical_oracle_data: HistoricalOracleData {
+            last_oracle_price: 22850 * PRICE_PRECISION as i64,
+            last_oracle_price_twap: 22900 * PRICE_PRECISION as i64,
+            last_oracle_price_twap_ts: prev,
+            ..HistoricalOracleData::default()
+        },
+        ..AMM::default()
+    };
+    let px = 22850 * PRICE_PRECISION as i64;
+    amm.peg_multiplier = px as u128;
+    let trade_direction = PositionDirection::Long;
+    update_mark_twap(&mut amm, now, Some(px as u64), Some(trade_direction), None).unwrap();
+    
+    assert_eq!(amm.last_mark_price_twap, 0);
+
+    assert_eq!(amm.last_mark_price_twap as i64 - amm.historical_oracle_data.last_oracle_price_twap, 0);
+
+}
+
+#[test]
 fn calc_mark_std_tests() {
     let prev = 1656682258;
     let mut now = prev + 60;
@@ -385,6 +417,7 @@ fn calc_mark_std_tests() {
     assert_eq!(amm.reserve_price().unwrap(), 39397);
     amm.peg_multiplier = 31_986_658;
     assert_eq!(amm.reserve_price().unwrap(), 31986658);
+    amm.historical_oracle_data.last_oracle_price = 31986658;
 
     while now <= stop_time {
         now += 1;
@@ -392,6 +425,12 @@ fn calc_mark_std_tests() {
             px = 31_986_658; //31.98
             amm.historical_oracle_data.last_oracle_price = (px - 1000000) as i64;
             amm.peg_multiplier = px as u128;
+            let amm_reserve_price = amm.reserve_price().unwrap();
+            let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price).unwrap();
+            msg!("bid={:?} ask={:?}", amm_bid_price, amm_ask_price);
+
+            assert!(amm_bid_price <= px);
+            assert!(amm_ask_price >= px);
 
             let trade_direction = PositionDirection::Long;
             update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
@@ -399,15 +438,21 @@ fn calc_mark_std_tests() {
         if now % 189 == 0 {
             px = 31_883_651; //31.88
             amm.peg_multiplier = px as u128;
-
             amm.historical_oracle_data.last_oracle_price = (px + 1000000) as i64;
+
+            let amm_reserve_price = amm.reserve_price().unwrap();
+            let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price).unwrap();
+            msg!("bid={:?} ask={:?}", amm_bid_price, amm_ask_price);
+            assert!(amm_bid_price <= px);
+            assert!(amm_ask_price >= px);
+
             let trade_direction = PositionDirection::Short;
             update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
         }
     }
     assert_eq!(now, 1656696720);
     assert_eq!(px, 31986658);
-    assert_eq!(amm.mark_std, 384673);
+    assert_eq!(amm.mark_std, 13244);
 
     // sol price looking thinkg
     let mut px: u64 = 31_936_658;
@@ -437,8 +482,8 @@ fn calc_mark_std_tests() {
     }
     assert_eq!(now, 1656703921);
     assert_eq!(px, 31986658);
-    assert_eq!(amm.mark_std, 97995); //.068
-    assert_eq!(amm.oracle_std, 798998); // used mark twap ema tho
+    assert_eq!(amm.mark_std, 68672); //.068
+    assert_eq!(amm.oracle_std, 965665); // used mark twap ema tho
 }
 
 #[test]
