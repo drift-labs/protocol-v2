@@ -1,6 +1,5 @@
 import { AccountInfo, AccountLayout, u64 } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
-import { BN } from '..';
 
 export function parseTokenAccount(data: Buffer): AccountInfo {
 	const accountInfo = AccountLayout.decode(data);
@@ -11,7 +10,7 @@ export function parseTokenAccount(data: Buffer): AccountInfo {
 	if (accountInfo.delegateOption === 0) {
 		accountInfo.delegate = null;
 		// eslint-disable-next-line new-cap
-		accountInfo.delegatedAmount = u64.fromBuffer(new BN(0).toBuffer());
+		accountInfo.delegatedAmount = u64.fromBuffer(Buffer.from('0'));
 	} else {
 		accountInfo.delegate = new PublicKey(accountInfo.delegate);
 		accountInfo.delegatedAmount = u64.fromBuffer(accountInfo.delegatedAmount);
