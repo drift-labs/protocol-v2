@@ -10,11 +10,8 @@ import {
 	PerpPosition,
 	SpotPosition,
 	isOneOfVariant,
-<<<<<<< HEAD
 	SpotBalanceType,
-=======
 	PerpMarketAccount,
->>>>>>> master
 } from './types';
 import { calculateEntryPrice } from './math/position';
 import {
@@ -51,18 +48,14 @@ import {
 	getTokenValue,
 	MarketType,
 	getStrictTokenValue,
-<<<<<<< HEAD
 	calculateSpotMarketMarginRatio,
-=======
 	getSignedTokenAmount,
->>>>>>> master
 } from '.';
 import {
 	getTokenAmount,
 	calculateAssetWeight,
 	calculateLiabilityWeight,
 	calculateWithdrawLimit,
-	getSignedTokenAmount,
 } from './math/spotBalance';
 import { calculateMarketOpenBidAsk } from './math/amm';
 import {
