@@ -1335,7 +1335,7 @@ export class User {
 					);
 
 				freeCollateralDelta = freeCollateralDelta.add(
-					freeCollateralDeltaForPerp
+					freeCollateralDeltaForPerp || ZERO
 				);
 			}
 		}
@@ -1385,7 +1385,7 @@ export class User {
 			positionBaseSizeChange
 		);
 
-		if (!freeCollateral) {
+		if (!freeCollateralDelta) {
 			return new BN(-1);
 		}
 
@@ -1413,7 +1413,9 @@ export class User {
 						spotMarketWithSameOracle,
 						signedTokenAmount
 					);
-				freeCollateralDelta = freeCollateralDelta.add(spotFreeCollateralDelta);
+				freeCollateralDelta = freeCollateralDelta.add(
+					spotFreeCollateralDelta || ZERO
+				);
 			}
 		}
 
