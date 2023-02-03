@@ -541,11 +541,16 @@ export class User {
 		let totalAssetValue = ZERO;
 		let totalLiabilityValue = ZERO;
 		for (const spotPosition of this.getUserAccount().spotPositions) {
+			const countForBase =
+				marketIndex === undefined || spotPosition.marketIndex === marketIndex;
+
+			const countForQuote =
+				marketIndex === undefined ||
+				spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX ||
+				(includeOpenOrders && spotPosition.openOrders !== 0);
 			if (
 				isSpotPositionAvailable(spotPosition) ||
-				(marketIndex !== undefined &&
-					spotPosition.marketIndex !== marketIndex &&
-					spotPosition.openOrders === 0)
+				(!countForBase && !countForQuote)
 			) {
 				continue;
 			}
@@ -553,7 +558,10 @@ export class User {
 			const spotMarketAccount: SpotMarketAccount =
 				this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
 
-			if (spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX) {
+			if (
+				spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX &&
+				countForQuote
+			) {
 				if (isVariant(spotPosition.balanceType, 'borrow')) {
 					const tokenAmount = getTokenAmount(
 						spotPosition.scaledBalance,
@@ -593,7 +601,7 @@ export class User {
 				spotPosition.marketIndex
 			);
 
-			if (!includeOpenOrders) {
+			if (!includeOpenOrders && countForBase) {
 				if (isVariant(spotPosition.balanceType, 'borrow')) {
 					const tokenAmount = getTokenAmount(
 						spotPosition.scaledBalance,
@@ -639,10 +647,7 @@ export class User {
 					this.getOracleDataForSpotMarket(spotPosition.marketIndex)
 				);
 
-			if (
-				worstCaseTokenAmount.gt(ZERO) &&
-				(marketIndex === undefined || marketIndex !== 0)
-			) {
+			if (worstCaseTokenAmount.gt(ZERO) && countForBase) {
 				const baseAssetValue = this.getSpotAssetValue(
 					worstCaseTokenAmount,
 					oraclePriceData,
@@ -655,10 +660,7 @@ export class User {
 				totalAssetValue = totalAssetValue.add(baseAssetValue);
 			}
 
-			if (
-				worstCaseTokenAmount.lt(ZERO) &&
-				(marketIndex === undefined || marketIndex !== 0)
-			) {
+			if (worstCaseTokenAmount.lt(ZERO) && countForBase) {
 				const baseLiabilityValue = this.getSpotLiabilityValue(
 					worstCaseTokenAmount.abs(),
 					oraclePriceData,
@@ -672,17 +674,11 @@ export class User {
 				totalLiabilityValue = totalLiabilityValue.add(baseLiabilityValue);
 			}
 
-			if (
-				worstCaseQuoteTokenAmount.gt(ZERO) &&
-				(marketIndex === undefined || marketIndex === 0)
-			) {
+			if (worstCaseQuoteTokenAmount.gt(ZERO) && countForQuote) {
 				netQuoteValue = netQuoteValue.add(worstCaseQuoteTokenAmount);
 			}
 
-			if (
-				worstCaseQuoteTokenAmount.lt(ZERO) &&
-				(marketIndex === undefined || marketIndex === 0)
-			) {
+			if (worstCaseQuoteTokenAmount.lt(ZERO) && countForQuote) {
 				let weight = SPOT_MARKET_WEIGHT_PRECISION;
 				if (marginCategory === 'Initial') {
 					weight = BN.max(weight, new BN(this.getUserAccount().maxMarginRatio));
