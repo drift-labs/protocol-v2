@@ -682,7 +682,10 @@ export class DriftClient {
 		);
 	}
 
-	public async deleteUser(subAccountId = 0): Promise<TransactionSignature> {
+	public async deleteUser(
+		subAccountId = 0,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
 		const userAccountPublicKey = getUserAccountPublicKeySync(
 			this.program.programId,
 			this.wallet.publicKey,
@@ -698,7 +701,11 @@ export class DriftClient {
 			},
 		});
 
-		const { txSig } = await this.sendTransaction(wrapInTx(ix), [], this.opts);
+		const { txSig } = await this.sendTransaction(
+			wrapInTx(ix, txParams?.computeUnits, txParams?.computeUnitsPrice),
+			[],
+			this.opts
+		);
 
 		await this.users.get(subAccountId)?.unsubscribe();
 		this.users.delete(subAccountId);
@@ -1474,7 +1481,8 @@ export class DriftClient {
 		amount: BN,
 		marketIndex: number,
 		fromSubAccountId: number,
-		toSubAccountId: number
+		toSubAccountId: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			wrapInTx(
@@ -1483,7 +1491,9 @@ export class DriftClient {
 					marketIndex,
 					fromSubAccountId,
 					toSubAccountId
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -1552,10 +1562,15 @@ export class DriftClient {
 	}
 
 	public async updateSpotMarketCumulativeInterest(
-		marketIndex: number
+		marketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(await this.updateSpotMarketCumulativeInterestIx(marketIndex)),
+			wrapInTx(
+				await this.updateSpotMarketCumulativeInterestIx(marketIndex),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -1577,10 +1592,15 @@ export class DriftClient {
 
 	public async settleLP(
 		settleeUserAccountPublicKey: PublicKey,
-		marketIndex: number
+		marketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(await this.settleLPIx(settleeUserAccountPublicKey, marketIndex)),
+			wrapInTx(
+				await this.settleLPIx(settleeUserAccountPublicKey, marketIndex),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -1611,10 +1631,15 @@ export class DriftClient {
 
 	public async removePerpLpShares(
 		marketIndex: number,
-		sharesToBurn?: BN
+		sharesToBurn?: BN,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(await this.getRemovePerpLpSharesIx(marketIndex, sharesToBurn)),
+			wrapInTx(
+				await this.getRemovePerpLpSharesIx(marketIndex, sharesToBurn),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -1624,7 +1649,8 @@ export class DriftClient {
 	public async removePerpLpSharesInExpiringMarket(
 		marketIndex: number,
 		userAccountPublicKey: PublicKey,
-		sharesToBurn?: BN
+		sharesToBurn?: BN,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			wrapInTx(
@@ -1632,7 +1658,9 @@ export class DriftClient {
 					marketIndex,
 					userAccountPublicKey,
 					sharesToBurn
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -1713,10 +1741,15 @@ export class DriftClient {
 
 	public async addPerpLpShares(
 		amount: BN,
-		marketIndex: number
+		marketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(await this.getAddPerpLpSharesIx(amount, marketIndex)),
+			wrapInTx(
+				await this.getAddPerpLpSharesIx(amount, marketIndex),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -1783,12 +1816,17 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		makerInfo?: MakerInfo
+		makerInfo?: MakerInfo,
+		txParams?: TxParams
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
 
-		const marketOrderTx = wrapInTx(await this.getPlacePerpOrderIx(orderParams));
+		const marketOrderTx = wrapInTx(
+			await this.getPlacePerpOrderIx(orderParams),
+			txParams?.computeUnits,
+			txParams?.computeUnitsPrice
+		);
 		const fillTx = wrapInTx(
 			await this.getFillPerpOrderIx(
 				userAccountPublicKey,
@@ -1798,7 +1836,9 @@ export class DriftClient {
 					marketIndex,
 				},
 				makerInfo
-			)
+			),
+			txParams?.computeUnits,
+			txParams?.computeUnitsPrice
 		);
 
 		// Apply the latest blockhash to the txs so that we can sign before sending them
@@ -1827,10 +1867,15 @@ export class DriftClient {
 	}
 
 	public async placePerpOrder(
-		orderParams: OptionalOrderParams
+		orderParams: OptionalOrderParams,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(await this.getPlacePerpOrderIx(orderParams)),
+			wrapInTx(
+				await this.getPlacePerpOrderIx(orderParams),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -1871,10 +1916,15 @@ export class DriftClient {
 	}
 
 	public async updateAMMs(
-		marketIndexes: number[]
+		marketIndexes: number[],
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(await this.getUpdateAMMsIx(marketIndexes)),
+			wrapInTx(
+				await this.getUpdateAMMsIx(marketIndexes),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -1916,10 +1966,15 @@ export class DriftClient {
 	}
 
 	public async settleExpiredMarket(
-		marketIndex: number
+		marketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(await this.getSettleExpiredMarketIx(marketIndex)),
+			wrapInTx(
+				await this.getSettleExpiredMarketIx(marketIndex),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -1964,7 +2019,8 @@ export class DriftClient {
 	}
 
 	public async settleExpiredMarketPoolsToRevenuePool(
-		perpMarketIndex: number
+		perpMarketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
@@ -1986,14 +2042,25 @@ export class DriftClient {
 				},
 			});
 
-		const { txSig } = await this.sendTransaction(wrapInTx(ix), [], this.opts);
+		const { txSig } = await this.sendTransaction(
+			wrapInTx(ix, txParams?.computeUnits, txParams?.computeUnitsPrice),
+			[],
+			this.opts
+		);
 
 		return txSig;
 	}
 
-	public async cancelOrder(orderId?: number): Promise<TransactionSignature> {
+	public async cancelOrder(
+		orderId?: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(await this.getCancelOrderIx(orderId)),
+			wrapInTx(
+				await this.getCancelOrderIx(orderId),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -2021,10 +2088,15 @@ export class DriftClient {
 	}
 
 	public async cancelOrderByUserId(
-		userOrderId: number
+		userOrderId: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(await this.getCancelOrderByUserIdIx(userOrderId)),
+			wrapInTx(
+				await this.getCancelOrderByUserIdIx(userOrderId),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -2058,11 +2130,14 @@ export class DriftClient {
 	public async cancelOrders(
 		marketType?: MarketType,
 		marketIndex?: number,
-		direction?: PositionDirection
+		direction?: PositionDirection,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			wrapInTx(
-				await this.getCancelOrdersIx(marketType, marketIndex, direction)
+				await this.getCancelOrdersIx(marketType, marketIndex, direction),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -2114,7 +2189,8 @@ export class DriftClient {
 		user: UserAccount,
 		order?: Pick<Order, 'marketIndex' | 'orderId'>,
 		makerInfo?: MakerInfo,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			wrapInTx(
@@ -2124,7 +2200,9 @@ export class DriftClient {
 					order,
 					makerInfo,
 					referrerInfo
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -2205,10 +2283,15 @@ export class DriftClient {
 	}
 
 	public async placeSpotOrder(
-		orderParams: OptionalOrderParams
+		orderParams: OptionalOrderParams,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(await this.getPlaceSpotOrderIx(orderParams)),
+			wrapInTx(
+				await this.getPlaceSpotOrderIx(orderParams),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -2474,10 +2557,15 @@ export class DriftClient {
 	public async triggerOrder(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
-		order: Order
+		order: Order,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(await this.getTriggerOrderIx(userAccountPublicKey, user, order)),
+			wrapInTx(
+				await this.getTriggerOrderIx(userAccountPublicKey, user, order),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -2522,10 +2610,15 @@ export class DriftClient {
 
 	public async forceCancelOrders(
 		userAccountPublicKey: PublicKey,
-		user: UserAccount
+		user: UserAccount,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.getForceCancelOrdersIx(userAccountPublicKey, user)),
+			wrapInTx(
+				await this.getForceCancelOrdersIx(userAccountPublicKey, user),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -2557,7 +2650,8 @@ export class DriftClient {
 	public async placeAndTakePerpOrder(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			wrapInTx(
@@ -2565,7 +2659,9 @@ export class DriftClient {
 					orderParams,
 					makerInfo,
 					referrerInfo
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -2639,7 +2735,8 @@ export class DriftClient {
 	public async placeAndMakePerpOrder(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			wrapInTx(
@@ -2647,7 +2744,9 @@ export class DriftClient {
 					orderParams,
 					takerInfo,
 					referrerInfo
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -2807,7 +2906,8 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
 		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			wrapInTx(
@@ -2816,7 +2916,9 @@ export class DriftClient {
 					takerInfo,
 					fulfillmentConfig,
 					referrerInfo
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -3065,7 +3167,8 @@ export class DriftClient {
 	public async settlePNL(
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
-		marketIndex: number
+		marketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			wrapInTx(
@@ -3073,7 +3176,9 @@ export class DriftClient {
 					settleeUserAccountPublicKey,
 					settleeUserAccount,
 					marketIndex
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -3108,7 +3213,8 @@ export class DriftClient {
 		userAccount: UserAccount,
 		marketIndex: number,
 		maxBaseAssetAmount: BN,
-		limitPrice?: BN
+		limitPrice?: BN,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			wrapInTx(
@@ -3118,7 +3224,9 @@ export class DriftClient {
 					marketIndex,
 					maxBaseAssetAmount,
 					limitPrice
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -3172,7 +3280,8 @@ export class DriftClient {
 		assetMarketIndex: number,
 		liabilityMarketIndex: number,
 		maxLiabilityTransfer: BN,
-		limitPrice?: BN
+		limitPrice?: BN,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			wrapInTx(
@@ -3183,7 +3292,9 @@ export class DriftClient {
 					liabilityMarketIndex,
 					maxLiabilityTransfer,
 					limitPrice
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -3240,7 +3351,8 @@ export class DriftClient {
 		perpMarketIndex: number,
 		liabilityMarketIndex: number,
 		maxLiabilityTransfer: BN,
-		limitPrice?: BN
+		limitPrice?: BN,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			wrapInTx(
@@ -3251,7 +3363,9 @@ export class DriftClient {
 					liabilityMarketIndex,
 					maxLiabilityTransfer,
 					limitPrice
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -3308,7 +3422,8 @@ export class DriftClient {
 		perpMarketIndex: number,
 		assetMarketIndex: number,
 		maxPnlTransfer: BN,
-		limitPrice?: BN
+		limitPrice?: BN,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			wrapInTx(
@@ -3319,7 +3434,9 @@ export class DriftClient {
 					assetMarketIndex,
 					maxPnlTransfer,
 					limitPrice
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -3373,7 +3490,8 @@ export class DriftClient {
 	public async resolvePerpBankruptcy(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		marketIndex: number
+		marketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			wrapInTx(
@@ -3381,7 +3499,9 @@ export class DriftClient {
 					userAccountPublicKey,
 					userAccount,
 					marketIndex
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -3434,7 +3554,8 @@ export class DriftClient {
 	public async resolveSpotBankruptcy(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		marketIndex: number
+		marketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			wrapInTx(
@@ -3442,7 +3563,9 @@ export class DriftClient {
 					userAccountPublicKey,
 					userAccount,
 					marketIndex
-				)
+				),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
@@ -3489,10 +3612,15 @@ export class DriftClient {
 
 	public async updateFundingRate(
 		perpMarketIndex: number,
-		oracle: PublicKey
+		oracle: PublicKey,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(await this.getUpdateFundingRateIx(perpMarketIndex, oracle)),
+			wrapInTx(
+				await this.getUpdateFundingRateIx(perpMarketIndex, oracle),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -3517,10 +3645,15 @@ export class DriftClient {
 	}
 
 	public async settleFundingPayment(
-		userAccountPublicKey: PublicKey
+		userAccountPublicKey: PublicKey,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(await this.getSettleFundingPaymentIx(userAccountPublicKey)),
+			wrapInTx(
+				await this.getSettleFundingPaymentIx(userAccountPublicKey),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -3574,10 +3707,15 @@ export class DriftClient {
 	}
 
 	public async initializeInsuranceFundStake(
-		marketIndex: number
+		marketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(await this.getInitializeInsuranceFundStakeIx(marketIndex)),
+			wrapInTx(
+				await this.getInitializeInsuranceFundStakeIx(marketIndex),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
 			[],
 			this.opts
 		);
@@ -3796,11 +3934,14 @@ export class DriftClient {
 
 	public async resolvePerpPnlDeficit(
 		spotMarketIndex: number,
-		perpMarketIndex: number
+		perpMarketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			wrapInTx(
-				await this.getResolvePerpPnlDeficitIx(spotMarketIndex, perpMarketIndex)
+				await this.getResolvePerpPnlDeficitIx(spotMarketIndex, perpMarketIndex),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
 			),
 			[],
 			this.opts
