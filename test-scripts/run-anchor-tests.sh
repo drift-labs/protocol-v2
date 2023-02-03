@@ -18,7 +18,7 @@ test_files=(
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
   referrer.ts
-  liquidatePerpPnlForDeposit.ts 
+  liquidatePerpPnlForDeposit.ts
   liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
   liquidatePerpAndLp.ts

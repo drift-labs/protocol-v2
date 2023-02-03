@@ -1,5 +1,6 @@
 # Changelog
 
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -8,7 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+- program: do imf size discount for maintainance spot asset weight ([#343](https://github.com/drift-labs/protocol-v2/pull/343))
+
+- ts-sdk: new liquidation price to account for delta neutral strategies ([#340](https://github.com/drift-labs/protocol-v2/pull/340))
+- ts-sdk: add txParams to all instructions, bump @solana/web3.js ([#344](https://github.com/drift-labs/protocol-v2/pull/344))
+
 ### Fixes
+
+- ts-sdk: improve funding rate prediction
+- program: block jit maker orders from cross vamm
+- program: cancel_order_by_user_order_id fails if order is not found
 
 ### Breaking
 
