@@ -87,6 +87,21 @@ export type EventMap = {
 
 export type EventType = keyof EventMap;
 
+export type DriftEvent =
+	| Event<DepositRecord>
+	| Event<FundingPaymentRecord>
+	| Event<LiquidationRecord>
+	| Event<FundingRateRecord>
+	| Event<OrderRecord>
+	| Event<OrderActionRecord>
+	| Event<SettlePnlRecord>
+	| Event<NewUserRecord>
+	| Event<LPRecord>
+	| Event<InsuranceFundRecord>
+	| Event<SpotInterestRecord>
+	| Event<InsuranceFundStakeRecord>
+	| Event<CurveRecord>;
+
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;
 }

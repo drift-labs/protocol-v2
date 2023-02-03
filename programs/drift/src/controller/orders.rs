@@ -33,8 +33,8 @@ use crate::load_mut;
 use crate::math::auction::{calculate_auction_prices, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_U64, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
-    SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+    BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
+    QUOTE_SPOT_MARKET_INDEX,
 };
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
@@ -487,7 +487,7 @@ pub fn cancel_order_by_user_order_id(
         Some(order_index) => order_index,
         None => {
             msg!("could not find user order id {}", user_order_id);
-            return Ok(());
+            return Err(ErrorCode::InvalidOrder);
         }
     };
 
@@ -1061,7 +1061,7 @@ fn sanitize_maker_order<'a>(
             continue;
         }
 
-        if !maker_order.is_resting_limit_order(slot)? {
+        if !maker_order.is_resting_limit_order(slot)? || maker_order.is_jit_maker() {
             match maker_direction {
                 PositionDirection::Long => {
                     if maker_order_price >= amm_ask_price {
@@ -3661,9 +3661,9 @@ pub fn fulfill_spot_order_with_match(
         &SpotBalanceType::Deposit,
     )?;
 
-    if fee_pool_amount > SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
+    if fee_pool_amount > FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
         transfer_spot_balance_to_revenue_pool(
-            fee_pool_amount - SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+            fee_pool_amount - FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
             quote_market,
             &mut base_market.spot_fee_pool,
         )?;
@@ -4022,9 +4022,9 @@ pub fn fulfill_spot_order_with_serum(
         &SpotBalanceType::Deposit,
     )?;
 
-    if fee_pool_amount > SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
+    if fee_pool_amount > FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
         transfer_spot_balance_to_revenue_pool(
-            fee_pool_amount - SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+            fee_pool_amount - FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
             quote_market,
             &mut base_market.spot_fee_pool,
         )?;

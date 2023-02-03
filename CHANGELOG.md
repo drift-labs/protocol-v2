@@ -1,5 +1,6 @@
 # Changelog
 
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -9,9 +10,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- ts-sdk: new liquidation price to account for delta neutral strategies ([#340](https://github.com/drift-labs/protocol-v2/pull/340))
+- ts-sdk: add txParams to all instructions, bump @solana/web3.js ([#344](https://github.com/drift-labs/protocol-v2/pull/344))
+
+### Fixes
+
+- program: block jit maker orders from cross vamm
+- program: cancel_order_by_user_order_id fails if order is not found
+
+### Breaking
+
+## [2.13.0] - 2023-01-31
+
+### Features
+
+- program: perp bankruptcies pay from fee pool before being socialized ([#332](https://github.com/drift-labs/protocol-v2/pull/332))
+- ts-sdk: add calculateAvailablePerpLiquidity
 - program: enforce min order size when trading against amm ([#334](https://github.com/drift-labs/protocol-v2/pull/334))
 
 ### Fixes
+
+- ts-sdk: fix the getBuyingPower calculation
+- ts-sdk: improved perp estimated liq price formula ([#338](https://github.com/drift-labs/protocol-v2/pull/338))
+- ts-sdk: update methods to account for new leverage formula ([#339](https://github.com/drift-labs/protocol-v2/pull/339))
 
 ### Breaking
 

@@ -156,11 +156,13 @@ describe('liquidate spot', () => {
 		await driftClient.fetchAccounts();
 		const healthBefore100 = user.getHealth();
 		console.log('healthBefore100:', healthBefore100);
-		assert(healthBefore100 == 98);
+		assert(healthBefore100 == 83);
 
 		console.log(
 			'spotLiquidationPrice:',
-			convertToNumber(user.spotLiquidationPrice(user.getSpotPosition(1)))
+			convertToNumber(
+				user.spotLiquidationPrice(user.getSpotPosition(1).marketIndex)
+			)
 		);
 
 		await setFeedPrice(anchor.workspace.Pyth, 179, solOracle);
@@ -170,10 +172,12 @@ describe('liquidate spot', () => {
 		await user.fetchAccounts();
 		const healthBefore179 = user.getHealth();
 		console.log('healthBefore179:', healthBefore179);
-		assert(healthBefore179 == 22);
+		assert(healthBefore179 == 20);
 		console.log(
 			'spotLiquidationPrice:',
-			convertToNumber(user.spotLiquidationPrice(user.getSpotPosition(1)))
+			convertToNumber(
+				user.spotLiquidationPrice(user.getSpotPosition(1).marketIndex)
+			)
 		);
 
 		let mtc = user.getTotalCollateral('Maintenance');
@@ -208,7 +212,7 @@ describe('liquidate spot', () => {
 		console.log(
 			'spotLiquidationPrice:',
 			convertToNumber(
-				user.spotLiquidationPrice(user.getSpotPosition(1)),
+				user.spotLiquidationPrice(user.getSpotPosition(1).marketIndex),
 				PRICE_PRECISION
 			)
 		);

@@ -5,6 +5,7 @@ import {
 	MarginCategory,
 	SpotMarketAccount,
 	SpotBalanceType,
+	MarketType,
 } from '../types';
 import {
 	calculateAmmReservesAfterSwap,
@@ -12,6 +13,7 @@ import {
 	calculateUpdatedAMMSpreadReserves,
 	getSwapDirection,
 	calculateUpdatedAMM,
+	calculateMarketOpenBidAsk,
 } from './amm';
 import {
 	calculateSizeDiscountAssetWeight,
@@ -25,6 +27,7 @@ import {
 	ZERO,
 } from '../constants/numericConstants';
 import { getTokenAmount } from './spotBalance';
+import { DLOB } from '../dlob/DLOB';
 
 /**
  * Calculates market mark price
@@ -231,4 +234,52 @@ export function calculateNetUserPnlImbalance(
 	const imbalance = netUserPnl.sub(pnlPool);
 
 	return imbalance;
+}
+
+export function calculateAvailablePerpLiquidity(
+	market: PerpMarketAccount,
+	oraclePriceData: OraclePriceData,
+	dlob: DLOB,
+	slot: number
+): { bids: BN; asks: BN } {
+	let [bids, asks] = calculateMarketOpenBidAsk(
+		market.amm.baseAssetReserve,
+		market.amm.minBaseAssetReserve,
+		market.amm.maxBaseAssetReserve,
+		market.amm.orderStepSize
+	);
+
+	asks = asks.abs();
+
+	const bidPrice = calculateBidPrice(market, oraclePriceData);
+	const askPrice = calculateAskPrice(market, oraclePriceData);
+
+	for (const bid of dlob.getMakerLimitBids(
+		market.marketIndex,
+		slot,
+		MarketType.PERP,
+		oraclePriceData,
+		askPrice
+	)) {
+		bids = bids.add(
+			bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled)
+		);
+	}
+
+	for (const ask of dlob.getMakerLimitAsks(
+		market.marketIndex,
+		slot,
+		MarketType.PERP,
+		oraclePriceData,
+		bidPrice
+	)) {
+		asks = asks.add(
+			ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled)
+		);
+	}
+
+	return {
+		bids: bids,
+		asks: asks,
+	};
 }
