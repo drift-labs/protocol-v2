@@ -32,6 +32,7 @@ use crate::state::user::{PerpPosition, SpotPosition, User};
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min, Ordering};
+use std::ops::Neg;
 
 #[cfg(test)]
 mod tests;
@@ -332,11 +333,21 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 }
             }
         } else {
+            let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
             let (worst_case_token_amount, worst_cast_quote_token_amount): (i128, i128) =
                 spot_position.get_worst_case_token_amounts(
                     &spot_market,
                     oracle_price_data,
-                    None,
+                    if strict {
+                        Some(
+                            spot_market
+                                .historical_oracle_data
+                                .last_oracle_price_twap_5min,
+                        )
+                    } else {
+                        None
+                    },
+                    Some(signed_token_amount),
                 )?;
 
             if worst_case_token_amount == 0 {
@@ -349,9 +360,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 )?;
             }
 
-            let worst_case_token_value = if strict {
+            let signed_token_value = if strict {
                 get_strict_token_value(
-                    worst_case_token_amount,
+                    signed_token_amount,
                     spot_market.decimals,
                     oracle_price_data,
                     spot_market
@@ -360,11 +371,15 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 )?
             } else {
                 get_token_value(
-                    worst_case_token_amount,
+                    signed_token_amount,
                     spot_market.decimals,
                     oracle_price_data.price,
                 )?
             };
+
+            // the worst case token value is the deposit/borrow amount * oracle + worst case order size * oracle
+            let worst_case_token_value =
+                signed_token_value.safe_add(worst_cast_quote_token_amount.neg())?;
 
             margin_requirement =
                 margin_requirement.safe_add(spot_position.margin_requirement_for_open_orders()?)?;

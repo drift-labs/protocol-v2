@@ -102,7 +102,7 @@ impl Default for SpotMarket {
             last_interest_ts: 0,
             last_twap_ts: 0,
             expiry_ts: 0,
-            order_step_size: 0,
+            order_step_size: 1,
             order_tick_size: 0,
             min_order_size: 0,
             max_position_size: 0,
