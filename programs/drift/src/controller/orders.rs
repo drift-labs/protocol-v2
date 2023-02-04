@@ -175,9 +175,6 @@ pub fn place_perp_order(
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
-        let market_position = &mut user.perp_positions[position_index];
-        market_position.open_orders += 1;
-
         validate!(
             params.base_asset_amount >= market.amm.order_step_size,
             ErrorCode::OrderAmountTooSmall,
@@ -186,8 +183,22 @@ pub fn place_perp_order(
             market.amm.order_step_size
         )?;
 
-        let base_asset_amount =
-            standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?;
+        let base_asset_amount = if params.base_asset_amount == u64::MAX {
+            calculate_max_perp_order_size(
+                user,
+                position_index,
+                params.market_index,
+                params.direction,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+            )?
+        } else {
+            standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?
+        };
+
+        let market_position = &mut user.perp_positions[position_index];
+        market_position.open_orders += 1;
 
         if !matches!(
             &params.order_type,

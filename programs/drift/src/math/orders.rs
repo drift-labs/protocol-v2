@@ -9,7 +9,10 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
-use crate::{math, OPEN_ORDER_MARGIN_REQUIREMENT, PRICE_PRECISION_I128, SPOT_WEIGHT_PRECISION};
+use crate::{
+    math, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PRICE_PRECISION_I128,
+    QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+};
 
 use crate::math::constants::MARGIN_PRECISION_U128;
 use crate::math::margin::{
@@ -26,7 +29,9 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::{MarketType, Order, OrderStatus, OrderTriggerCondition, User};
+use crate::state::user::{
+    MarketType, Order, OrderStatus, OrderTriggerCondition, PerpPosition, User,
+};
 use crate::validate;
 
 #[cfg(test)]
@@ -667,6 +672,79 @@ pub fn find_maker_orders(
     }
 
     Ok(orders)
+}
+
+pub fn calculate_max_perp_order_size(
+    user: &User,
+    position_index: usize,
+    market_index: u16,
+    direction: PositionDirection,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+) -> DriftResult<u64> {
+    // calculate initial margin requirement
+    let (margin_requirement, total_collateral, _, _, _, _) =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            user,
+            perp_market_map,
+            MarginRequirementType::Initial,
+            spot_market_map,
+            oracle_map,
+            None,
+            true,
+        )?;
+
+    let free_collateral = total_collateral.safe_sub(margin_requirement.cast()?)?;
+
+    let perp_market = perp_market_map.get_ref(&market_index)?;
+
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.amm.oracle)?;
+
+    let perp_position: &PerpPosition = &user.perp_positions[position_index];
+    let base_asset_amount = perp_position.base_asset_amount;
+    let worst_case_base_asset_amount = perp_position.worst_case_base_asset_amount()?;
+
+    let margin_ratio = perp_market.get_margin_ratio(
+        worst_case_base_asset_amount.unsigned_abs(),
+        MarginRequirementType::Initial,
+    )?;
+
+    let mut order_size = 0_u64;
+    // account for order flipping worst case base asset amount
+    if worst_case_base_asset_amount < 0 && direction == PositionDirection::Long {
+        order_size = worst_case_base_asset_amount
+            .abs()
+            .cast::<i64>()?
+            .safe_sub(base_asset_amount.safe_add(perp_position.open_bids)?)?
+            .unsigned_abs();
+    } else if worst_case_base_asset_amount > 0 && direction == PositionDirection::Short {
+        order_size = worst_case_base_asset_amount
+            .neg()
+            .cast::<i64>()?
+            .safe_sub(base_asset_amount.safe_add(perp_position.open_asks)?)?
+            .unsigned_abs();
+    }
+
+    if free_collateral <= 0 {
+        let max_risk_reducing_order_size = base_asset_amount.safe_mul(2)?.unsigned_abs();
+        return standardize_base_asset_amount(
+            order_size.min(max_risk_reducing_order_size),
+            perp_market.amm.order_step_size,
+        );
+    }
+
+    let order_size = free_collateral
+        .safe_sub(OPEN_ORDER_MARGIN_REQUIREMENT.cast()?)?
+        .safe_mul(BASE_PRECISION_I128 / QUOTE_PRECISION_I128)?
+        .safe_mul(MARGIN_PRECISION_U128.cast()?)?
+        .safe_div(margin_ratio.cast()?)?
+        .safe_mul(PRICE_PRECISION_I128)?
+        .safe_div(oracle_price_data.price.cast()?)?
+        .cast::<u64>()?
+        .safe_add(order_size)?;
+
+    standardize_base_asset_amount(order_size, perp_market.amm.order_step_size)
 }
 
 pub fn calculate_max_spot_order_size(
