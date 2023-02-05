@@ -5,6 +5,7 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
+  maxLeverageOrderParams.ts
   multipleMakerOrders.ts
   postOnlyAmmFulfillment.ts
   imbalancePerpPnl.ts
