@@ -11,6 +11,7 @@ export type PerpMarketConfig = {
 	launchTs: number;
 	oracle: PublicKey;
 	oracleSource: OracleSource;
+	noInsurance?: boolean;
 };
 
 export const DevnetPerpMarkets: PerpMarketConfig[] = [
@@ -43,6 +44,17 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw'),
 		launchTs: 1637691133472,
 		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Aptos',
+		category: ['L1', 'Infra'],
+		symbol: 'APT-PERP',
+		baseAssetSymbol: 'APT',
+		marketIndex: 3,
+		oracle: new PublicKey('5d2QJ6u2NveZufmJ4noHja5EHs3Bv1DUMPLG5xfasSVs'),
+		launchTs: 1637691133472,
+		oracleSource: OracleSource.PYTH,
+		noInsurance: true,
 	},
 ];
 
