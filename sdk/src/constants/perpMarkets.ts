@@ -44,6 +44,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1637691133472,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Aptos',
+		category: ['L1', 'Infra'],
+		symbol: 'APT-PERP',
+		baseAssetSymbol: 'APT',
+		marketIndex: 3,
+		oracle: new PublicKey('5d2QJ6u2NveZufmJ4noHja5EHs3Bv1DUMPLG5xfasSVs'),
+		launchTs: 1675610186000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
