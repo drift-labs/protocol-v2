@@ -69,6 +69,7 @@ describe('AMM Curve', () => {
 
 	const usdcAmount = new BN(1e9 * QUOTE_PRECISION.toNumber());
 	const initialBaseAssetAmount = new BN(
+		// eslint-disable-next-line @typescript-eslint/no-loss-of-precision
 		662251.6556291390728 * BASE_PRECISION.toNumber()
 	);
 

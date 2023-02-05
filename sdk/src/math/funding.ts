@@ -19,7 +19,8 @@ import { calculateBidAskPrice } from './amm';
 export async function calculateAllEstimatedFundingRate(
 	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
-	periodAdjustment: BN = new BN(1)
+	periodAdjustment: BN = new BN(1),
+	now?: BN
 ): Promise<[BN, BN, BN, BN, BN]> {
 	// periodAdjustment
 	// 	1: hourly
@@ -36,7 +37,7 @@ export async function calculateAllEstimatedFundingRate(
 	const payFreq = new BN(market.amm.fundingPeriod);
 
 	// todo: sufficiently differs from blockchain timestamp?
-	const now = new BN((Date.now() / 1000).toFixed(0));
+	now = now || new BN((Date.now() / 1000).toFixed(0));
 	const timeSinceLastUpdate = now.sub(market.amm.lastFundingRateTs);
 
 	// calculate real-time mark twap
@@ -89,8 +90,8 @@ export async function calculateAllEstimatedFundingRate(
 			.mul(new BN(100))
 			.div(lastOracleTwapWithMantissa);
 
-		// verify pyth live input is within 10% of last twap for live update
-		if (oracleLiveVsTwap.lte(PRICE_PRECISION.mul(new BN(10)))) {
+		// verify pyth live input is within 20% of last twap for live update
+		if (oracleLiveVsTwap.lte(PRICE_PRECISION.mul(new BN(20)))) {
 			oracleTwapWithMantissa = oracleTwapTimeSinceLastUpdate
 				.mul(lastOracleTwapWithMantissa)
 				.add(timeSinceLastMarkChange.mul(oraclePrice))
@@ -99,13 +100,11 @@ export async function calculateAllEstimatedFundingRate(
 	}
 
 	const shrunkLastOracleTwapwithMantissa = oracleTwapTimeSinceLastUpdate
-		.mul(lastOracleTwapWithMantissa)
+		.mul(oracleTwapWithMantissa)
 		.add(oracleInvalidDuration.mul(lastMarkTwapWithMantissa))
 		.div(oracleTwapTimeSinceLastUpdate.add(oracleInvalidDuration));
 
-	const twapSpread = lastMarkTwapWithMantissa.sub(
-		shrunkLastOracleTwapwithMantissa
-	);
+	const twapSpread = markTwapWithMantissa.sub(shrunkLastOracleTwapwithMantissa);
 
 	const twapSpreadPct = twapSpread
 		.mul(PRICE_PRECISION)
