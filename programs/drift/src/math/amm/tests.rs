@@ -337,13 +337,16 @@ fn calculate_expiry_price_test() {
 
 fn calc_delayed_mark_twap_tests() {
     let prev = 1656682258;
-    let mut now = prev + 60;
+    let now = prev + 60;
     let mut amm = AMM {
         base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
         quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
         peg_multiplier: PRICE_PRECISION,
-        base_spread: 65535, //max base spread is 6.5%
+        base_spread: 655,  //base spread is .065%,
+        max_spread: 65535, //base spread is 6.5%
         mark_std: PRICE_PRECISION as u64,
+        last_bid_price_twap: 22799 * PRICE_PRECISION as u64,
+        last_ask_price_twap: 22801 * PRICE_PRECISION as u64,
         last_mark_price_twap: 22800 * PRICE_PRECISION as u64,
         last_mark_price_twap_ts: prev - 3600,
         historical_oracle_data: HistoricalOracleData {
@@ -358,11 +361,15 @@ fn calc_delayed_mark_twap_tests() {
     amm.peg_multiplier = px as u128;
     let trade_direction = PositionDirection::Long;
     update_mark_twap(&mut amm, now, Some(px as u64), Some(trade_direction), None).unwrap();
-    
-    assert_eq!(amm.last_mark_price_twap, 0);
 
-    assert_eq!(amm.last_mark_price_twap as i64 - amm.historical_oracle_data.last_oracle_price_twap, 0);
+    assert_eq!(amm.last_bid_price_twap, 22899972411);
+    assert_eq!(amm.last_mark_price_twap, 22899972684);
+    assert_eq!(amm.last_ask_price_twap, 22899972958);
 
+    assert_eq!(
+        amm.last_mark_price_twap as i64 - amm.historical_oracle_data.last_oracle_price_twap,
+        -27316
+    );
 }
 
 #[test]
@@ -575,7 +582,7 @@ fn update_mark_twap_tests() {
     assert!((new_oracle_twap as u64) < new_mark_twap); // funding in favor of maker?
     assert_eq!(new_oracle_twap, 40008161);
     assert_eq!(new_bid_twap, 40014548);
-    assert_eq!(new_mark_twap, 40024054); // < 2 cents above oracle twap
+    assert_eq!(new_mark_twap, 40024054); // ~ 2 cents above oracle twap
     assert_eq!(new_ask_twap, 40033561);
     assert_eq!(amm.mark_std, 27229);
     assert_eq!(amm.oracle_std, 3119);
