@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.14.0] - 2023-02-06
+
+### Features
+
 - program: flag to set max leverage for orders ([#346](https://github.com/drift-labs/protocol-v2/pull/346))
 - program: do imf size discount for maintainance spot asset weight ([#343](https://github.com/drift-labs/protocol-v2/pull/343))
 - ts-sdk: new liquidation price to account for delta neutral strategies ([#340](https://github.com/drift-labs/protocol-v2/pull/340))
