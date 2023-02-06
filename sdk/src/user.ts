@@ -546,7 +546,7 @@ export class User {
 
 			const countForQuote =
 				marketIndex === undefined ||
-				spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX ||
+				marketIndex === QUOTE_SPOT_MARKET_INDEX ||
 				(includeOpenOrders && spotPosition.openOrders !== 0);
 			if (
 				isSpotPositionAvailable(spotPosition) ||
