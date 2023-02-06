@@ -2710,7 +2710,7 @@ pub fn place_spot_order(
     };
 
     let (auction_start_price, auction_end_price) =
-        get_auction_prices(&params, &oracle_price_data, step_size)?;
+        get_auction_prices(&params, &oracle_price_data, spot_market.order_tick_size)?;
 
     validate!(spot_market.orders_enabled, ErrorCode::SpotOrdersDisabled)?;
 
