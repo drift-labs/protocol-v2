@@ -1061,19 +1061,17 @@ fn sanitize_maker_order<'a>(
             continue;
         }
 
-        if !maker_order.is_resting_limit_order(slot)? || maker_order.is_jit_maker() {
-            match maker_direction {
-                PositionDirection::Long => {
-                    if maker_order_price >= amm_ask_price {
-                        msg!("maker order {} crosses the amm price", maker_order.order_id);
-                        continue;
-                    }
+        match maker_direction {
+            PositionDirection::Long => {
+                if maker_order_price > amm_ask_price {
+                    msg!("maker order {} crosses the amm price", maker_order.order_id);
+                    continue;
                 }
-                PositionDirection::Short => {
-                    if maker_order_price <= amm_bid_price {
-                        msg!("maker order {} crosses the amm price", maker_order.order_id);
-                        continue;
-                    }
+            }
+            PositionDirection::Short => {
+                if maker_order_price < amm_bid_price {
+                    msg!("maker order {} crosses the amm price", maker_order.order_id);
+                    continue;
                 }
             }
         }

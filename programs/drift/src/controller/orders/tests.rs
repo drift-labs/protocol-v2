@@ -3930,7 +3930,7 @@ pub mod fill_order {
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                peg_multiplier: 50 * PEG_PRECISION,
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,

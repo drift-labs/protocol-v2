@@ -939,11 +939,14 @@ export class DLOB {
 			marketType,
 			oraclePriceData
 		)) {
-			if (this.isRestingLimitOrder(node.order, slot)) {
+			if (
+				isVariant(marketType, 'spot') &&
+				this.isRestingLimitOrder(node.order, slot)
+			) {
 				yield node;
 			} else if (
-				fallbackBid &&
-				node.getPrice(oraclePriceData, slot).gt(fallbackBid)
+				isVariant(marketType, 'perp') &&
+				node.getPrice(oraclePriceData, slot).gt(fallbackBid || ZERO)
 			) {
 				yield node;
 			}
@@ -951,7 +954,7 @@ export class DLOB {
 	}
 
 	isRestingLimitOrder(order: Order, slot: number): boolean {
-		return order.postOnly || new BN(slot).sub(order.slot).gte(new BN(15));
+		return order.postOnly || new BN(slot).sub(order.slot).gte(new BN(30));
 	}
 
 	*getLimitBids(
@@ -1005,11 +1008,14 @@ export class DLOB {
 			marketType,
 			oraclePriceData
 		)) {
-			if (this.isRestingLimitOrder(node.order, slot)) {
+			if (
+				isVariant(marketType, 'spot') &&
+				this.isRestingLimitOrder(node.order, slot)
+			) {
 				yield node;
 			} else if (
-				fallbackAsk &&
-				node.getPrice(oraclePriceData, slot).lt(fallbackAsk)
+				isVariant(marketType, 'perp') &&
+				node.getPrice(oraclePriceData, slot).lt(fallbackAsk || BN_MAX)
 			) {
 				yield node;
 			}
