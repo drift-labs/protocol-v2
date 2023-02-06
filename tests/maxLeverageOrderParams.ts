@@ -8,7 +8,6 @@ import { PublicKey } from '@solana/web3.js';
 import {
 	BN,
 	OracleSource,
-	ZERO,
 	TestClient,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -24,7 +23,6 @@ import {
 	mockUserUSDCAccount,
 	initializeQuoteSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
-	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
 import {
