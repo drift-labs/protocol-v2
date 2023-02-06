@@ -17,6 +17,7 @@ export const BN_MAX = new BN(Number.MAX_SAFE_INTEGER);
 export const TEN_MILLION = TEN_THOUSAND.mul(TEN_THOUSAND);
 
 export const MAX_LEVERAGE = new BN(5);
+export const MAX_LEVERAGE_ORDER_SIZE = new BN('18446744073709551615');
 
 export const PERCENTAGE_PRECISION_EXP = new BN(6);
 export const PERCENTAGE_PRECISION = new BN(10).pow(PERCENTAGE_PRECISION_EXP);
