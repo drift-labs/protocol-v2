@@ -449,7 +449,7 @@ pub fn cancel_order_by_order_id(
         Ok(order_index) => order_index,
         Err(_) => {
             msg!("could not find order id {}", order_id);
-            return Ok(());
+            return Err(ErrorCode::InvalidOrder);
         }
     };
 
