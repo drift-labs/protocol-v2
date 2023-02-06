@@ -175,9 +175,6 @@ pub fn place_perp_order(
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
-        let market_position = &mut user.perp_positions[position_index];
-        market_position.open_orders += 1;
-
         validate!(
             params.base_asset_amount >= market.amm.order_step_size,
             ErrorCode::OrderAmountTooSmall,
@@ -186,8 +183,22 @@ pub fn place_perp_order(
             market.amm.order_step_size
         )?;
 
-        let base_asset_amount =
-            standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?;
+        let base_asset_amount = if params.base_asset_amount == u64::MAX {
+            calculate_max_perp_order_size(
+                user,
+                position_index,
+                params.market_index,
+                params.direction,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+            )?
+        } else {
+            standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?
+        };
+
+        let market_position = &mut user.perp_positions[position_index];
+        market_position.open_orders += 1;
 
         if !matches!(
             &params.order_type,
@@ -2626,6 +2637,7 @@ pub fn place_spot_order(
     let market_index = params.market_index;
     let spot_market = &spot_market_map.get_ref(&market_index)?;
     let force_reduce_only = spot_market.is_reduce_only()?;
+    let step_size = spot_market.order_step_size;
 
     validate!(
         !matches!(spot_market.status, MarketStatus::Initialized),
@@ -2639,7 +2651,7 @@ pub fn place_spot_order(
 
     let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle)?;
     let (worst_case_token_amount_before, _) = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amounts(spot_market, &oracle_price_data, None)?;
+        .get_worst_case_token_amounts(spot_market, &oracle_price_data, None, None)?;
 
     let balance_type = user.spot_positions[spot_position_index].balance_type;
     let token_amount = user.spot_positions[spot_position_index].get_token_amount(spot_market)?;
@@ -2647,27 +2659,37 @@ pub fn place_spot_order(
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
-        let spot_position = &mut user.spot_positions[spot_position_index];
-        spot_position.open_orders += 1;
-
         validate!(
-            params.base_asset_amount >= spot_market.order_step_size,
+            params.base_asset_amount >= step_size,
             ErrorCode::InvalidOrderSizeTooSmall,
             "params.base_asset_amount={} cannot be below spot_market.order_step_size={}",
             params.base_asset_amount,
-            spot_market.order_step_size
+            step_size
         )?;
 
-        let base_asset_amount =
-            standardize_base_asset_amount(params.base_asset_amount, spot_market.order_step_size)?;
+        let base_asset_amount = if params.base_asset_amount == u64::MAX {
+            calculate_max_spot_order_size(
+                user,
+                params.market_index,
+                params.direction,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+            )?
+        } else {
+            standardize_base_asset_amount(params.base_asset_amount, step_size)?
+        };
 
         validate!(
-            is_multiple_of_step_size(base_asset_amount, spot_market.order_step_size)?,
+            is_multiple_of_step_size(base_asset_amount, step_size)?,
             ErrorCode::InvalidOrderNotStepSizeMultiple,
             "Order base asset amount ({}), is not a multiple of step size ({})",
             base_asset_amount,
-            spot_market.order_step_size
+            step_size
         )?;
+
+        let spot_position = &mut user.spot_positions[spot_position_index];
+        spot_position.open_orders += 1;
 
         if !matches!(
             &params.order_type,
@@ -2754,7 +2776,7 @@ pub fn place_spot_order(
     user.orders[new_order_index] = new_order;
 
     let (worst_case_token_amount_after, _) = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amounts(spot_market, &oracle_price_data, None)?;
+        .get_worst_case_token_amounts(spot_market, &oracle_price_data, None, None)?;
 
     let order_risk_decreasing =
         is_spot_order_risk_decreasing(&user.orders[new_order_index], &balance_type, token_amount)?;
