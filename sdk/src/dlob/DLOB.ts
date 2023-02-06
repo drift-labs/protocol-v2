@@ -951,7 +951,7 @@ export class DLOB {
 	}
 
 	isRestingLimitOrder(order: Order, slot: number): boolean {
-		return order.postOnly || new BN(slot).sub(order.slot).gte(new BN(15));
+		return order.postOnly || new BN(slot).sub(order.slot).gte(new BN(45));
 	}
 
 	*getLimitBids(
