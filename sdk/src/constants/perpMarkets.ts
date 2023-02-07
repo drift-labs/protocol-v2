@@ -87,6 +87,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1670347281000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Aptos',
+		category: ['L1', 'Infra'],
+		symbol: 'APT-PERP',
+		baseAssetSymbol: 'APT',
+		marketIndex: 3,
+		oracle: new PublicKey('FNNvb1AFDnDVPkocEri8mWbJ1952HQZtFLuwPiUjSJQ'),
+		launchTs: 1675802661000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
