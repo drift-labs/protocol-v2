@@ -28,6 +28,8 @@ import {
 } from '../constants/numericConstants';
 import { getTokenAmount } from './spotBalance';
 import { DLOB } from '../dlob/DLOB';
+import { assert } from '../assert/assert';
+import { QUOTE_SPOT_MARKET_INDEX } from '@drift-labs/sdk';
 
 /**
  * Calculates market mark price
@@ -200,6 +202,25 @@ export function calculateMarketAvailablePNL(
 		spotMarket,
 		SpotBalanceType.DEPOSIT
 	);
+}
+
+export function calculateMarketMaxAvailableInsurance(
+	perpMarket: PerpMarketAccount,
+	spotMarket: SpotMarketAccount
+): BN {
+	assert(spotMarket.marketIndex == QUOTE_SPOT_MARKET_INDEX);
+
+	// todo: insuranceFundAllocation technically not guaranteed to be in Insurance Fund
+	const insuranceFundAllocation =
+		perpMarket.insuranceClaim.quoteMaxInsurance.sub(
+			perpMarket.insuranceClaim.quoteSettledInsurance
+		);
+	const ammFeePool = getTokenAmount(
+		perpMarket.amm.feePool.scaledBalance,
+		spotMarket,
+		SpotBalanceType.DEPOSIT
+	);
+	return insuranceFundAllocation.add(ammFeePool);
 }
 
 export function calculateNetUserPnl(
