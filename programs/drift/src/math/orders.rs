@@ -727,7 +727,10 @@ pub fn calculate_max_perp_order_size(
     }
 
     if free_collateral <= 0 {
-        let max_risk_reducing_order_size = base_asset_amount.safe_mul(2)?.unsigned_abs();
+        let max_risk_reducing_order_size = base_asset_amount
+            .safe_mul(2)?
+            .unsigned_abs()
+            .saturating_sub(1);
         return standardize_base_asset_amount(
             order_size.min(max_risk_reducing_order_size),
             perp_market.amm.order_step_size,
@@ -893,7 +896,11 @@ pub fn calculate_max_spot_order_size(
     }
 
     if free_collateral <= 0 {
-        let max_risk_reducing_order_size = signed_token_amount.safe_mul(2)?.abs().cast::<u64>()?;
+        let max_risk_reducing_order_size = signed_token_amount
+            .safe_mul(2)?
+            .abs()
+            .cast::<u64>()?
+            .saturating_sub(1);
         return standardize_base_asset_amount(
             order_size.min(max_risk_reducing_order_size),
             spot_market.order_step_size,
