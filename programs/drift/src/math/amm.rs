@@ -137,6 +137,9 @@ pub fn update_mark_twap(
         None => last_oracle_price_u64,
     };
 
+    let trade_premium: i64 = trade_price
+        .cast::<i64>()?
+        .safe_sub(amm.historical_oracle_data.last_oracle_price)?;
     validate!(
         amm.historical_oracle_data.last_oracle_price > 0,
         ErrorCode::InvalidOracle,
@@ -148,18 +151,18 @@ pub fn update_mark_twap(
     // estimation of bid/ask by looking at execution premium
 
     // trade is a long
-    let best_bid_estimate = if trade_price >= last_oracle_price_u64 {
+    let best_bid_estimate = if trade_premium > 0 {
         let discount = min(base_spread_u64, amm.short_spread.cast::<u64>()? / 2);
-        last_oracle_price_u64.safe_sub(discount)?
+        last_oracle_price_u64.safe_sub(discount.min(trade_premium.unsigned_abs()))?
     } else {
         trade_price
     }
     .max(amm_bid_price);
 
     // trade is a short
-    let best_ask_estimate = if trade_price <= last_oracle_price_u64 {
+    let best_ask_estimate = if trade_premium < 0 {
         let premium = min(base_spread_u64, amm.long_spread.cast::<u64>()? / 2);
-        last_oracle_price_u64.safe_add(premium)?
+        last_oracle_price_u64.safe_add(premium.min(trade_premium.unsigned_abs()))?
     } else {
         trade_price
     }
