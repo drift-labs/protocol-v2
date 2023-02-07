@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- ts-sdk: fix npe in liquidationPrice
+
 ### Breaking
 
 ## [2.14.0] - 2023-02-06
