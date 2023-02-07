@@ -25,11 +25,11 @@ import {
 	MARGIN_PRECISION,
 	PRICE_TO_QUOTE_PRECISION,
 	ZERO,
+	QUOTE_SPOT_MARKET_INDEX,
 } from '../constants/numericConstants';
 import { getTokenAmount } from './spotBalance';
 import { DLOB } from '../dlob/DLOB';
 import { assert } from '../assert/assert';
-import { QUOTE_SPOT_MARKET_INDEX } from '@drift-labs/sdk';
 
 /**
  * Calculates market mark price
