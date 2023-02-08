@@ -10,7 +10,6 @@ import {
 	PerpPosition,
 	SpotPosition,
 	isOneOfVariant,
-	SpotBalanceType,
 	PerpMarketAccount,
 } from './types';
 import { calculateEntryPrice } from './math/position';
