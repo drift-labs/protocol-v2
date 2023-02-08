@@ -710,16 +710,16 @@ pub fn calculate_max_perp_order_size(
         MarginRequirementType::Initial,
     )?;
 
-    let mut order_size = 0_u64;
+    let mut order_size_to_flip = 0_u64;
     // account for order flipping worst case base asset amount
     if worst_case_base_asset_amount < 0 && direction == PositionDirection::Long {
-        order_size = worst_case_base_asset_amount
+        order_size_to_flip = worst_case_base_asset_amount
             .abs()
             .cast::<i64>()?
             .safe_sub(base_asset_amount.safe_add(perp_position.open_bids)?)?
             .unsigned_abs();
     } else if worst_case_base_asset_amount > 0 && direction == PositionDirection::Short {
-        order_size = worst_case_base_asset_amount
+        order_size_to_flip = worst_case_base_asset_amount
             .neg()
             .cast::<i64>()?
             .safe_sub(base_asset_amount.safe_add(perp_position.open_asks)?)?
@@ -727,24 +727,47 @@ pub fn calculate_max_perp_order_size(
     }
 
     if free_collateral <= 0 {
-        let max_risk_reducing_order_size = base_asset_amount.safe_mul(2)?.unsigned_abs();
+        let max_risk_reducing_order_size = base_asset_amount
+            .safe_mul(2)?
+            .unsigned_abs()
+            .saturating_sub(1);
         return standardize_base_asset_amount(
-            order_size.min(max_risk_reducing_order_size),
+            order_size_to_flip.min(max_risk_reducing_order_size),
             perp_market.amm.order_step_size,
         );
     }
 
-    let order_size = free_collateral
+    let mut order_size = free_collateral
         .safe_sub(OPEN_ORDER_MARGIN_REQUIREMENT.cast()?)?
         .safe_mul(BASE_PRECISION_I128 / QUOTE_PRECISION_I128)?
         .safe_mul(MARGIN_PRECISION_U128.cast()?)?
         .safe_div(margin_ratio.cast()?)?
         .safe_mul(PRICE_PRECISION_I128)?
         .safe_div(oracle_price_data.price.cast()?)?
-        .cast::<u64>()?
-        .safe_add(order_size)?;
+        .cast::<u64>()?;
 
-    standardize_base_asset_amount(order_size, perp_market.amm.order_step_size)
+    let updated_margin_ratio = perp_market.get_margin_ratio(
+        worst_case_base_asset_amount
+            .unsigned_abs()
+            .safe_add(order_size.cast()?)?,
+        MarginRequirementType::Initial,
+    )?;
+
+    if updated_margin_ratio != margin_ratio {
+        order_size = free_collateral
+            .safe_sub(OPEN_ORDER_MARGIN_REQUIREMENT.cast()?)?
+            .safe_mul(BASE_PRECISION_I128 / QUOTE_PRECISION_I128)?
+            .safe_mul(MARGIN_PRECISION_U128.cast()?)?
+            .safe_div(updated_margin_ratio.cast()?)?
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_div(oracle_price_data.price.cast()?)?
+            .cast::<u64>()?;
+    }
+
+    standardize_base_asset_amount(
+        order_size.safe_add(order_size_to_flip)?,
+        perp_market.amm.order_step_size,
+    )
 }
 
 pub fn calculate_max_spot_order_size(
@@ -767,7 +790,7 @@ pub fn calculate_max_spot_order_size(
             true,
         )?;
 
-    let mut order_size = 0_u64;
+    let mut order_size_to_flip = 0_u64;
     let mut free_collateral = total_collateral.safe_sub(margin_requirement.cast()?)?;
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
@@ -846,7 +869,7 @@ pub fn calculate_max_spot_order_size(
             free_collateral_consumption_after.safe_sub(free_collateral_consumption_before)?,
         )?;
 
-        order_size = bids_to_flip.cast()?;
+        order_size_to_flip = bids_to_flip.cast()?;
     } else if worst_case_token_amount > 0 && direction == PositionDirection::Short {
         let asset_weight = spot_market.get_asset_weight(
             worst_case_token_amount.unsigned_abs(),
@@ -889,36 +912,78 @@ pub fn calculate_max_spot_order_size(
             free_collateral_contribution_after.safe_sub(free_collateral_contribution_before)?,
         )?;
 
-        order_size = asks_to_flip.abs().cast()?;
+        order_size_to_flip = asks_to_flip.abs().cast()?;
     }
 
     if free_collateral <= 0 {
-        let max_risk_reducing_order_size = signed_token_amount.safe_mul(2)?.abs().cast::<u64>()?;
+        let max_risk_reducing_order_size = signed_token_amount
+            .safe_mul(2)?
+            .abs()
+            .cast::<u64>()?
+            .saturating_sub(1);
         return standardize_base_asset_amount(
-            order_size.min(max_risk_reducing_order_size),
+            order_size_to_flip.min(max_risk_reducing_order_size),
             spot_market.order_step_size,
         );
     }
 
-    let free_collateral_delta = if direction == PositionDirection::Long {
-        SPOT_WEIGHT_PRECISION.sub(spot_market.initial_asset_weight)
-    } else {
-        spot_market
-            .initial_liability_weight
-            .sub(SPOT_WEIGHT_PRECISION)
-    };
+    let free_collateral_delta = calculate_free_collateral_delta_for_spot(
+        &spot_market,
+        worst_case_token_amount.unsigned_abs(),
+        direction,
+    )?;
 
     let precision_increase = 10i128.pow(spot_market.decimals - 6);
 
-    let order_size = free_collateral
+    let mut order_size = free_collateral
         .safe_sub(OPEN_ORDER_MARGIN_REQUIREMENT.cast()?)?
         .safe_mul(precision_increase)?
         .safe_mul(SPOT_WEIGHT_PRECISION.cast()?)?
         .safe_div(free_collateral_delta.cast()?)?
         .safe_mul(PRICE_PRECISION_I128)?
         .safe_div(max_oracle_price.cast()?)?
-        .cast::<u64>()?
-        .safe_add(order_size)?;
+        .cast::<u64>()?;
 
-    standardize_base_asset_amount(order_size, spot_market.order_step_size)
+    // increasing the worst case token amount with new order size may increase margin ration,
+    // so need to recalculate free collateral delta with updated margin ratio
+    let updated_free_collateral_delta = calculate_free_collateral_delta_for_spot(
+        &spot_market,
+        worst_case_token_amount
+            .unsigned_abs()
+            .safe_add(order_size.cast()?)?,
+        direction,
+    )?;
+
+    if updated_free_collateral_delta != free_collateral_delta {
+        order_size = free_collateral
+            .safe_sub(OPEN_ORDER_MARGIN_REQUIREMENT.cast()?)?
+            .safe_mul(precision_increase)?
+            .safe_mul(SPOT_WEIGHT_PRECISION.cast()?)?
+            .safe_div(updated_free_collateral_delta.cast()?)?
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_div(max_oracle_price.cast()?)?
+            .cast::<u64>()?;
+    }
+
+    standardize_base_asset_amount(
+        order_size.safe_add(order_size_to_flip)?,
+        spot_market.order_step_size,
+    )
+}
+
+fn calculate_free_collateral_delta_for_spot(
+    spot_market: &SpotMarket,
+    worst_case_token_amount: u128,
+    order_direction: PositionDirection,
+) -> DriftResult<u32> {
+    Ok(if order_direction == PositionDirection::Long {
+        SPOT_WEIGHT_PRECISION.sub(
+            spot_market
+                .get_asset_weight(worst_case_token_amount, &MarginRequirementType::Initial)?,
+        )
+    } else {
+        spot_market
+            .get_liability_weight(worst_case_token_amount, &MarginRequirementType::Initial)?
+            .sub(SPOT_WEIGHT_PRECISION)
+    })
 }
