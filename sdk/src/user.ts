@@ -47,6 +47,7 @@ import {
 	getTokenValue,
 	getStrictTokenValue,
 	getSignedTokenAmount,
+	SpotBalanceType,
 } from '.';
 import {
 	getTokenAmount,
@@ -1377,7 +1378,8 @@ export class User {
 		);
 
 		const market = this.driftClient.getPerpMarketAccount(marketIndex);
-		const currentPerpPosition = this.getPerpPosition(marketIndex);
+		const currentPerpPosition =
+			this.getPerpPosition(marketIndex) || this.getEmptyPosition(marketIndex);
 
 		let freeCollateralDelta = this.calculateFreeCollateralDeltaForPerp(
 			market,
@@ -1841,7 +1843,7 @@ export class User {
 		const depositAmount = getTokenAmount(
 			position.scaledBalance,
 			spotMarket,
-			'deposit'
+			SpotBalanceType.DEPOSIT
 		);
 
 		if (netDeposits.lt(ZERO)) {
