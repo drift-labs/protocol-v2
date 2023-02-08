@@ -47,6 +47,7 @@ import {
 	getTokenValue,
 	getStrictTokenValue,
 	getSignedTokenAmount,
+	SpotBalanceType,
 } from '.';
 import {
 	getTokenAmount,
@@ -1842,7 +1843,7 @@ export class User {
 		const depositAmount = getTokenAmount(
 			position.scaledBalance,
 			spotMarket,
-			'deposit'
+			SpotBalanceType.DEPOSIT
 		);
 
 		if (netDeposits.lt(ZERO)) {
