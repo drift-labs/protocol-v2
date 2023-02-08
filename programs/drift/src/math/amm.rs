@@ -214,7 +214,9 @@ pub fn update_mark_twap(
 
     // if an delayed more than 10th of funding period, shrink toward oracle_twap
     (bid_price_capped_update, ask_price_capped_update) =
-        if last_valid_trade_since_oracle_twap_update > amm.funding_period.safe_div(10)? {
+        if last_valid_trade_since_oracle_twap_update
+            > amm.funding_period.safe_div(10)?.max(FIVE_MINUTE.cast()?)
+        {
             msg!(
                 "correcting mark twap update (oracle previously invalid for {:?} seconds)",
                 last_valid_trade_since_oracle_twap_update
