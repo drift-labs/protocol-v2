@@ -10,11 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- ts-sdk: add aptos
-
 ### Fixes
+- program: improve bid/ask twap calculation for funding rate stability ([#345](https://github.com/drift-labs/protocol-v2/pull/345))
 
-- ts-sdk: fix npe in liquidationPrice
+- 
 
 ### Breaking
 
