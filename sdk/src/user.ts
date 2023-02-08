@@ -1505,7 +1505,8 @@ export class User {
 		);
 
 		const market = this.driftClient.getPerpMarketAccount(marketIndex);
-		const currentPerpPosition = this.getPerpPosition(marketIndex);
+		const currentPerpPosition =
+			this.getPerpPosition(marketIndex) || this.getEmptyPosition(marketIndex);
 
 		let freeCollateralDelta = this.calculateFreeCollateralDeltaForPerp(
 			market,
