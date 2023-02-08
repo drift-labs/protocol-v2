@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.15.0] - 2023-02-07
+
+### Features
+
 - ts-sdk: add aptos
 
 ### Fixes
