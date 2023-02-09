@@ -8569,6 +8569,11 @@
       "code": 6225,
       "name": "InvalidOracleForSettlePnl",
       "msg": "InvalidOracleForSettlePnl"
+    },
+    {
+      "code": 6226,
+      "name": "MarginOrdersOpen",
+      "msg": "MarginOrdersOpen"
     }
   ]
 }

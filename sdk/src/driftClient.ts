@@ -612,6 +612,12 @@ export class DriftClient {
 			this.wallet.publicKey,
 			subAccountId
 		);
+
+		await this.addUser(subAccountId);
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(subAccountId)],
+		});
+
 		const tx = await this.program.transaction.updateUserMarginTradingEnabled(
 			subAccountId,
 			marginTradingEnabled,
@@ -620,6 +626,7 @@ export class DriftClient {
 					user: userAccountPublicKey,
 					authority: this.wallet.publicKey,
 				},
+				remainingAccounts,
 			}
 		);
 

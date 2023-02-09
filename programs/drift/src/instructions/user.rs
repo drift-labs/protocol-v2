@@ -1523,8 +1523,25 @@ pub fn handle_update_user_margin_trading_enabled(
     _sub_account_id: u16,
     margin_trading_enabled: bool,
 ) -> Result<()> {
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        spot_market_map,
+        mut oracle_map,
+        ..
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
     let mut user = load_mut!(ctx.accounts.user)?;
     user.is_margin_trading_enabled = margin_trading_enabled;
+
+    validate_spot_margin_trading(&user, &spot_market_map, &mut oracle_map)
+        .map_err(|_| ErrorCode::MarginOrdersOpen)?;
+
     Ok(())
 }
 
