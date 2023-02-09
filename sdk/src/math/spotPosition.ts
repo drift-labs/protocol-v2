@@ -29,16 +29,16 @@ export function getWorstCaseTokenAmounts(
 	const tokenAmountAllBidsFill = tokenAmount.add(spotPosition.openBids);
 	const tokenAmountAllAsksFill = tokenAmount.add(spotPosition.openAsks);
 
-	if (tokenAmountAllAsksFill.abs().gt(tokenAmountAllBidsFill.abs())) {
+	if (tokenAmountAllBidsFill.abs().gt(tokenAmountAllAsksFill.abs())) {
 		const worstCaseQuoteTokenAmount = getTokenValue(
-			spotPosition.openAsks.neg(),
+			spotPosition.openBids.neg(),
 			spotMarketAccount.decimals,
 			oraclePriceData
 		);
 		return [tokenAmountAllBidsFill, worstCaseQuoteTokenAmount];
 	} else {
 		const worstCaseQuoteTokenAmount = getTokenValue(
-			spotPosition.openBids.neg(),
+			spotPosition.openAsks.neg(),
 			spotMarketAccount.decimals,
 			oraclePriceData
 		);

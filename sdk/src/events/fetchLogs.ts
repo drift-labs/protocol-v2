@@ -61,15 +61,15 @@ export async function fetchLogs(
 
 	const chunkedSignatures = chunk(filteredSignatures, 100);
 
+	const config = { commitment: finality, maxSupportedTransactionVersion: 0 };
+
 	const transactionLogs = (
 		await Promise.all(
 			chunkedSignatures.map(async (chunk) => {
 				const transactions = await connection.getTransactions(
 					chunk.map((confirmedSignature) => confirmedSignature.signature),
-					{
-						commitment: finality,
-						maxSupportedTransactionVersion: 0,
-					}
+					//@ts-ignore
+					config
 				);
 
 				return transactions.reduce((logs, transaction) => {

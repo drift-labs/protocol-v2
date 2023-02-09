@@ -146,27 +146,27 @@ export function calculateAssetWeight(
 }
 
 export function calculateLiabilityWeight(
-	balanceAmount: BN,
+	size: BN,
 	spotMarket: SpotMarketAccount,
 	marginCategory: MarginCategory
 ): BN {
 	const sizePrecision = TEN.pow(new BN(spotMarket.decimals));
 	let sizeInAmmReservePrecision;
 	if (sizePrecision.gt(AMM_RESERVE_PRECISION)) {
-		sizeInAmmReservePrecision = balanceAmount.div(
+		sizeInAmmReservePrecision = size.div(
 			sizePrecision.div(AMM_RESERVE_PRECISION)
 		);
 	} else {
-		sizeInAmmReservePrecision = balanceAmount
+		sizeInAmmReservePrecision = size
 			.mul(AMM_RESERVE_PRECISION)
 			.div(sizePrecision);
 	}
 
-	let assetWeight;
+	let liabilityWeight;
 
 	switch (marginCategory) {
 		case 'Initial':
-			assetWeight = calculateSizePremiumLiabilityWeight(
+			liabilityWeight = calculateSizePremiumLiabilityWeight(
 				sizeInAmmReservePrecision,
 				new BN(spotMarket.imfFactor),
 				new BN(spotMarket.initialLiabilityWeight),
@@ -174,7 +174,7 @@ export function calculateLiabilityWeight(
 			);
 			break;
 		case 'Maintenance':
-			assetWeight = calculateSizePremiumLiabilityWeight(
+			liabilityWeight = calculateSizePremiumLiabilityWeight(
 				sizeInAmmReservePrecision,
 				new BN(spotMarket.imfFactor),
 				new BN(spotMarket.maintenanceLiabilityWeight),
@@ -182,11 +182,11 @@ export function calculateLiabilityWeight(
 			);
 			break;
 		default:
-			assetWeight = spotMarket.initialLiabilityWeight;
+			liabilityWeight = spotMarket.initialLiabilityWeight;
 			break;
 	}
 
-	return assetWeight;
+	return liabilityWeight;
 }
 
 export function calculateUtilization(bank: SpotMarketAccount): BN {

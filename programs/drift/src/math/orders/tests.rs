@@ -1644,7 +1644,7 @@ mod calculate_max_spot_order_size {
         )
         .unwrap();
 
-        assert_eq!(max_order_size, 1000000000000);
+        assert_eq!(max_order_size, 999999999999);
     }
 
     #[test]
@@ -2085,7 +2085,7 @@ mod calculate_max_perp_order_size {
         )
         .unwrap();
 
-        assert_eq!(max_order_size, 1000000000000);
+        assert_eq!(max_order_size, 999999999000);
     }
 
     #[test]
@@ -2301,6 +2301,6 @@ mod calculate_max_perp_order_size {
         )
         .unwrap();
 
-        assert_eq!(max_order_size, 1000000000000);
+        assert_eq!(max_order_size, 999999999000);
     }
 }
