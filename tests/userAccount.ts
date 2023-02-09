@@ -28,6 +28,7 @@ import {
 	convertToNumber,
 	calculatePrice,
 	AMM_RESERVE_PRECISION,
+	MarketType,
 } from '../sdk/src';
 import { BulkAccountLoader } from '../sdk';
 
@@ -154,7 +155,7 @@ describe('User Account', () => {
 			expectedMarginRatio.toNumber()
 		);
 
-		const buyingPower = userAccount.getBuyingPower(0);
+		const buyingPower = userAccount.getPerpBuyingPower(0);
 		console.log(
 			'buyingPower',
 			buyingPower.toNumber(),
@@ -268,6 +269,7 @@ describe('User Account', () => {
 
 		const marketMarginRatio = calculateMarketMarginRatio(
 			market,
+			MarketType.PERP,
 			worstCaseBaseAssetAmount.abs(),
 			'Maintenance'
 		);
