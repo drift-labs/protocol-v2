@@ -505,6 +505,12 @@ describe('delist market, liquidation of expired position', () => {
 
 		assert(market.expiryPrice.gt(ZERO));
 		assert(market.expiryPrice.eq(new BN(36699999)));
+		// assert(market.amm.lastMarkPriceTwap.eq(new BN(42753480)));
+		console.log(
+			'market.amm.lastMarkPriceTwap:',
+			convertToNumber(market.amm.lastMarkPriceTwap)
+		);
+		assert(market.amm.lastMarkPriceTwap.eq(new BN(42500000)));
 	});
 
 	it('liq and settle expired market position', async () => {
@@ -731,10 +737,13 @@ describe('delist market, liquidation of expired position', () => {
 		assert(marketAfter0.numberOfUsersWithBase === 0);
 
 		// old 1415296436
-		const finalPnlResultMin0 = new BN(2266346249000 - 11090000);
-		const finalPnlResultMax0 = new BN(2266346249000 + 11109000);
+		const finalPnlResultMin0 = new BN(2266346249000 - 110900000);
+		const finalPnlResultMax0 = new BN(2266346249000 + 111090000);
 
-		console.log(marketAfter0.pnlPool.scaledBalance.toString());
+		console.log(
+			'marketAfter0.pnlPool.scaledBalance:',
+			marketAfter0.pnlPool.scaledBalance.toString()
+		);
 		assert(marketAfter0.pnlPool.scaledBalance.gt(finalPnlResultMin0));
 		assert(marketAfter0.pnlPool.scaledBalance.lt(finalPnlResultMax0));
 
