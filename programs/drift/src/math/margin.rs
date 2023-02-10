@@ -57,9 +57,8 @@ pub fn calculate_size_premium_liability_weight(
 
     let imf_factor_u128 = imf_factor.cast::<u128>()?;
     let liability_weight_u128 = liability_weight.cast::<u128>()?;
-    let liability_weight_numerator = liability_weight_u128.safe_sub(
-        liability_weight_u128.safe_div(max(1, SPOT_IMF_PRECISION_U128 / imf_factor_u128))?,
-    )?;
+    let liability_weight_numerator =
+        liability_weight_u128.safe_sub(liability_weight_u128.safe_div(5)?)?;
 
     // increases
     let size_premium_liability_weight = liability_weight_numerator

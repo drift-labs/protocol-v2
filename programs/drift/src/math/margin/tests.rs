@@ -50,7 +50,7 @@ mod test {
         let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(lib_weight, 11003);
+        assert_eq!(lib_weight, 11000);
 
         let same_asset_weight_diff_imf_factor = 8357;
         let asset_weight = spot_market
@@ -67,7 +67,7 @@ mod test {
         let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(lib_weight, 14052);
+        assert_eq!(lib_weight, 11962);
 
         spot_market.imf_factor = SPOT_IMF_PRECISION / 10;
         let asset_weight = spot_market
@@ -78,7 +78,7 @@ mod test {
         let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(lib_weight, 41522);
+        assert_eq!(lib_weight, 40422);
 
         let maint_lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Maintenance)
@@ -266,7 +266,7 @@ mod test {
         assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
-        assert_eq!(pmr, 13867100408);
+        assert_eq!(pmr, 13555327867);
 
         oracle_price_data.price = (21050 * PRICE_PRECISION) as i64; // lower by $1000 (in favor of user)
         oracle_price_data.confidence = PRICE_PRECISION_U64;
@@ -346,9 +346,9 @@ mod test {
         assert_eq!(upnl_2, 23107500010);
         assert!(upnl_2 > upnl);
         assert!(pmr_2 > 0);
-        assert_eq!(pmr_2, 13238206965); //$12940.5737702000
+        assert_eq!(pmr_2, 12940573769); //$12940.5737702000
         assert!(pmr > pmr_2);
-        assert_eq!(pmr - pmr_2, 628893443);
+        assert_eq!(pmr - pmr_2, 614754098);
         //-6.1475409835 * 1000 / 10 = 614.75
     }
 
