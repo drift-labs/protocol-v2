@@ -26,7 +26,7 @@ pub fn calculate_max_borrow_token_amount(
 ) -> DriftResult<u128> {
     let max_borrow_token = withdraw_guard_threshold.max(
         (deposit_token_amount / 6)
-            .max(borrow_token_twap.safe_add(borrow_token_twap / 5)?)
+            .max(borrow_token_twap.safe_add(deposit_token_amount / 10)?)
             .min(deposit_token_amount.safe_sub(deposit_token_amount / 5)?),
     ); // between ~15-80% utilization with friction on twap
 
