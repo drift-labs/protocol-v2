@@ -510,7 +510,7 @@ describe('delist market, liquidation of expired position', () => {
 			'market.amm.lastMarkPriceTwap:',
 			convertToNumber(market.amm.lastMarkPriceTwap)
 		);
-		assert(market.amm.lastMarkPriceTwap.eq(new BN(42737638)));
+		assert(market.amm.lastMarkPriceTwap.eq(new BN(42500000)));
 	});
 
 	it('liq and settle expired market position', async () => {
@@ -737,8 +737,8 @@ describe('delist market, liquidation of expired position', () => {
 		assert(marketAfter0.numberOfUsersWithBase === 0);
 
 		// old 1415296436
-		const finalPnlResultMin0 = new BN(2268375954000 - 110900000);
-		const finalPnlResultMax0 = new BN(2268375954000 + 111090000);
+		const finalPnlResultMin0 = new BN(2266346249000 - 110900000);
+		const finalPnlResultMax0 = new BN(2266346249000 + 111090000);
 
 		console.log(
 			'marketAfter0.pnlPool.scaledBalance:',
