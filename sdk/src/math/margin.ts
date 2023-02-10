@@ -24,12 +24,8 @@ export function calculateSizePremiumLiabilityWeight(
 
 	const sizeSqrt = squareRootBN(size.abs().mul(new BN(10)).add(new BN(1))); //1e9 -> 1e10 -> 1e5
 
-	const denom0 = BN.max(new BN(1), SPOT_MARKET_IMF_PRECISION.div(imfFactor));
-	assert(denom0.gt(ZERO));
 	const liabilityWeightNumerator = liabilityWeight.sub(
-		liabilityWeight.div(
-			BN.max(new BN(1), SPOT_MARKET_IMF_PRECISION.div(imfFactor))
-		)
+		liabilityWeight.div(new BN(5))
 	);
 
 	const denom = new BN(100_000).mul(SPOT_MARKET_IMF_PRECISION).div(precision);
