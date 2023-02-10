@@ -1,6 +1,6 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
-use crate::math::auction::is_auction_complete;
+use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::matching::do_orders_cross;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::perp_market::AMM;
@@ -17,12 +17,13 @@ pub fn determine_perp_fulfillment_methods(
     valid_oracle_price: Option<i64>,
     amm_is_available: bool,
     slot: u64,
+    min_auction_duration: u8,
 ) -> DriftResult<Vec<PerpFulfillmentMethod>> {
     let mut fulfillment_methods = vec![];
 
     let can_fill_with_amm = amm_is_available
         && valid_oracle_price.is_some()
-        && is_auction_complete(taker_order.slot, taker_order.auction_duration, slot)?;
+        && is_amm_available_liquidity_source(taker_order, min_auction_duration, slot)?;
 
     let taker_price =
         taker_order.get_limit_price(valid_oracle_price, None, slot, amm.order_tick_size)?;

@@ -30,7 +30,9 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
-use crate::math::auction::{calculate_auction_prices, is_auction_complete};
+use crate::math::auction::{
+    calculate_auction_prices, is_amm_available_liquidity_source, is_auction_complete,
+};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
@@ -848,6 +850,7 @@ pub fn fill_perp_order(
             valid_oracle_price,
             now,
             slot,
+            state.min_perp_auction_duration,
             amm_is_available,
         )?;
 
@@ -1250,6 +1253,7 @@ fn fulfill_perp_order(
     valid_oracle_price: Option<i64>,
     now: i64,
     slot: u64,
+    min_auction_duration: u8,
     amm_is_available: bool,
 ) -> DriftResult<(u64, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
@@ -1279,6 +1283,7 @@ fn fulfill_perp_order(
             Some(oracle_price),
             amm_is_available,
             slot,
+            min_auction_duration,
         )?
     };
 
@@ -1339,6 +1344,7 @@ fn fulfill_perp_order(
                 valid_oracle_price,
                 now,
                 slot,
+                min_auction_duration,
                 fee_structure,
                 oracle_map,
                 &mut order_records,
@@ -1756,6 +1762,7 @@ pub fn fulfill_perp_order_with_match(
     valid_oracle_price: Option<i64>,
     now: i64,
     slot: u64,
+    min_auction_duration: u8,
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     order_records: &mut Vec<OrderActionRecord>,
@@ -1808,7 +1815,11 @@ pub fn fulfill_perp_order_with_match(
     // if the auction isn't complete, cant fill against vamm yet
     // use the vamm price to guard against bad fill for taker
     if taker.orders[taker_order_index].is_limit_order()
-        && !taker.orders[taker_order_index].is_auction_complete(slot)?
+        && !is_amm_available_liquidity_source(
+            &taker.orders[taker_order_index],
+            min_auction_duration,
+            slot,
+        )?
     {
         taker_price = match taker_direction {
             PositionDirection::Long => {
