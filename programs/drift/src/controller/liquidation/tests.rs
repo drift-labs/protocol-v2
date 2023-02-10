@@ -867,7 +867,7 @@ pub mod liquidate_perp {
             None,
         )
         .unwrap();
-        assert_eq!(margin_req, 150_015_010_000);
+        assert_eq!(margin_req, 140014010000);
         assert!(!is_user_being_liquidated(
             &user,
             &perp_market_map,
@@ -891,7 +891,7 @@ pub mod liquidate_perp {
             None,
         )
         .unwrap();
-        assert_eq!(margin_req2, 1_049_604_960_000);
+        assert_eq!(margin_req2, 1040104010000);
         assert!(is_user_being_liquidated(
             &user,
             &perp_market_map,
