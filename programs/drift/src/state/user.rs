@@ -643,6 +643,10 @@ impl Order {
         is_auction_complete(self.slot, self.auction_duration, slot)
     }
 
+    pub fn has_auction(&self) -> bool {
+        self.auction_duration != 0
+    }
+
     pub fn has_auction_price(
         &self,
         order_slot: u64,
