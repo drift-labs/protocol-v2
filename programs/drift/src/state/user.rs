@@ -650,7 +650,7 @@ impl Order {
         slot: u64,
     ) -> DriftResult<bool> {
         let auction_complete = is_auction_complete(order_slot, auction_duration, slot)?;
-        let has_auction_prices = self.auction_start_price != 0 && self.auction_end_price != 0;
+        let has_auction_prices = self.auction_start_price != 0 || self.auction_end_price != 0;
         Ok(!auction_complete && has_auction_prices)
     }
 

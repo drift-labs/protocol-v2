@@ -1,5 +1,4 @@
 use std::cell::RefMut;
-use std::cmp::max;
 use std::num::NonZeroU64;
 use std::ops::DerefMut;
 
@@ -218,19 +217,18 @@ pub fn place_perp_order(
     };
 
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-    let (auction_start_price, auction_end_price) =
-        get_auction_prices(&params, oracle_price_data, market.amm.order_tick_size)?;
+    let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
+        &params,
+        oracle_price_data,
+        market.amm.order_tick_size,
+        state.min_perp_auction_duration,
+    )?;
 
     validate!(
         params.market_type == MarketType::Perp,
         ErrorCode::InvalidOrderMarketType,
         "must be perp order"
     )?;
-
-    let auction_duration = max(
-        params.auction_duration.unwrap_or(0),
-        state.min_perp_auction_duration,
-    );
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -365,13 +363,28 @@ pub fn place_perp_order(
     Ok(())
 }
 
-fn get_auction_prices(
+fn get_auction_params(
     params: &OrderParams,
     oracle_price_data: &OraclePriceData,
     tick_size: u64,
-) -> DriftResult<(i64, i64)> {
-    if !matches!(params.order_type, OrderType::Market | OrderType::Oracle) {
-        return Ok((0_i64, 0_i64));
+    min_auction_duration: u8,
+) -> DriftResult<(i64, i64, u8)> {
+    if !matches!(
+        params.order_type,
+        OrderType::Market | OrderType::Oracle | OrderType::Limit
+    ) {
+        return Ok((0_i64, 0_i64, 0_u8));
+    }
+
+    if params.order_type == OrderType::Limit {
+        return match (params.auction_start_price, params.auction_end_price) {
+            (Some(auction_start_price), Some(auction_end_price)) => Ok((
+                auction_start_price,
+                auction_end_price,
+                params.auction_duration.unwrap_or(min_auction_duration), // for limit orders, don't need to enforce min auction time
+            )),
+            _ => Ok((0_i64, 0_i64, 0_u8)),
+        };
     }
 
     let (auction_start_price, auction_end_price) =
@@ -386,9 +399,15 @@ fn get_auction_prices(
             _ => calculate_auction_prices(oracle_price_data, params.direction, params.price)?,
         };
 
+    let auction_duration = params
+        .auction_duration
+        .unwrap_or(0)
+        .max(min_auction_duration);
+
     Ok((
         standardize_price_i64(auction_start_price, tick_size.cast()?, params.direction)?,
         standardize_price_i64(auction_end_price, tick_size.cast()?, params.direction)?,
+        auction_duration,
     ))
 }
 
@@ -2718,8 +2737,12 @@ pub fn place_spot_order(
         )
     };
 
-    let (auction_start_price, auction_end_price) =
-        get_auction_prices(&params, &oracle_price_data, spot_market.order_tick_size)?;
+    let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
+        &params,
+        &oracle_price_data,
+        spot_market.order_tick_size,
+        state.default_spot_auction_duration,
+    )?;
 
     validate!(spot_market.orders_enabled, ErrorCode::SpotOrdersDisabled)?;
 
@@ -2734,10 +2757,6 @@ pub fn place_spot_order(
         ErrorCode::InvalidOrderMarketType,
         "must be spot order"
     )?;
-
-    let auction_duration = params
-        .auction_duration
-        .unwrap_or(state.default_spot_auction_duration);
 
     let new_order = Order {
         status: OrderStatus::Open,
