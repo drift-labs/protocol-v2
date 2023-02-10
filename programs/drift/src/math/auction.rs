@@ -85,7 +85,7 @@ pub fn calculate_auction_price(
     valid_oracle_price: Option<i64>,
 ) -> DriftResult<u64> {
     match order.order_type {
-        OrderType::Market | OrderType::TriggerMarket => {
+        OrderType::Market | OrderType::TriggerMarket | OrderType::Limit => {
             calculate_auction_price_for_fixed_auction(order, slot, tick_size)
         }
         OrderType::Oracle => calculate_auction_price_for_oracle_offset_auction(

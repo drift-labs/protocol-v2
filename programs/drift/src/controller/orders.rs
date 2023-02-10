@@ -2321,9 +2321,9 @@ pub fn trigger_order(
             };
 
         user.orders[order_index].slot = slot;
-        user.orders[order_index].auction_duration = state.min_perp_auction_duration;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
+            user.orders[order_index].auction_duration = state.min_perp_auction_duration;
             let (auction_start_price, auction_end_price) =
                 calculate_auction_prices(oracle_price_data, direction, 0)?;
             user.orders[order_index].auction_start_price = auction_start_price;

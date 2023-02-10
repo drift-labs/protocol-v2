@@ -649,9 +649,9 @@ impl Order {
         auction_duration: u8,
         slot: u64,
     ) -> DriftResult<bool> {
-        let has_auction_price =
-            self.is_market_order() && !is_auction_complete(order_slot, auction_duration, slot)?;
-        Ok(has_auction_price)
+        let auction_complete = is_auction_complete(order_slot, auction_duration, slot)?;
+        let has_auction_prices = self.auction_start_price != 0 && self.auction_end_price != 0;
+        Ok(!auction_complete && has_auction_prices)
     }
 
     /// Passing in an existing_position forces the function to consider the order's reduce only status
