@@ -2301,14 +2301,6 @@ pub fn trigger_order(
 
     let oracle_price = oracle_price_data.price;
 
-    let order_slot = user.orders[order_index].slot;
-    let auction_duration = user.orders[order_index].auction_duration;
-    validate!(
-        is_auction_complete(order_slot, auction_duration, slot)?,
-        ErrorCode::OrderDidNotSatisfyTriggerCondition,
-        "Auction duration must elapse before triggering"
-    )?;
-
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
         oracle_price.unsigned_abs().cast()?,
@@ -2329,6 +2321,7 @@ pub fn trigger_order(
             };
 
         user.orders[order_index].slot = slot;
+        user.orders[order_index].auction_duration = state.min_perp_auction_duration;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
             let (auction_start_price, auction_end_price) =
