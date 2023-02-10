@@ -133,7 +133,7 @@ export function calculateMarketMarginRatio(
 ): number {
 	let marginRatio;
 	switch (marginCategory) {
-		case 'Initial':
+		case 'Initial': {
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
 				new BN(market.imfFactor),
@@ -141,7 +141,8 @@ export function calculateMarketMarginRatio(
 				MARGIN_PRECISION
 			).toNumber();
 			break;
-		case 'Maintenance':
+		}
+		case 'Maintenance': {
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
 				new BN(market.imfFactor),
@@ -149,6 +150,7 @@ export function calculateMarketMarginRatio(
 				MARGIN_PRECISION
 			).toNumber();
 			break;
+		}
 	}
 
 	return marginRatio;

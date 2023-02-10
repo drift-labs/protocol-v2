@@ -10,11 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- ts-sdk: add aptos
+- ts-sdk: updates for accounting for spot leverage ([#295](https://github.com/drift-labs/protocol-v2/pull/295))
 
 ### Fixes
 
-- ts-sdk: fix npe in liquidationPrice
+- program: fix overflow in calculate_long_short_vol_spread ([#352](https://github.com/drift-labs/protocol-v2/pull/352))
+- program: dont let users disable margin trading if they have margin orders open 
+- program: tweaks to fix max leverage order param flag with imf factor ([#351](https://github.com/drift-labs/protocol-v2/pull/351))
+- program: improve bid/ask twap calculation for funding rate stability ([#345](https://github.com/drift-labs/protocol-v2/pull/345))
+
+### Breaking
+
+## [2.15.0] - 2023-02-07
+
+### Features
+
+- ts-sdk: add aptos
+
+### Fixes 
 
 ### Breaking
 

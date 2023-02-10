@@ -457,6 +457,8 @@ pub enum ErrorCode {
     MaxNumberOfUsers,
     #[msg("InvalidOracleForSettlePnl")]
     InvalidOracleForSettlePnl,
+    #[msg("MarginOrdersOpen")]
+    MarginOrdersOpen,
 }
 
 #[macro_export]
