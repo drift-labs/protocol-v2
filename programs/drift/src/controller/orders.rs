@@ -1835,6 +1835,11 @@ pub fn fulfill_perp_order_with_match(
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
     if !orders_cross {
+        msg!(
+            "orders dont cross. maker price {} taker price {}",
+            maker_price,
+            taker_price
+        );
         return Ok((0_u64, 0_u64));
     }
 
@@ -3461,6 +3466,11 @@ pub fn fulfill_spot_order_with_match(
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
     if !orders_cross {
+        msg!(
+            "orders dont cross. maker price {} taker price {}",
+            maker_price,
+            taker_price
+        );
         return Ok(0_u64);
     }
 
