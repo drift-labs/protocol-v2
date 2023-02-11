@@ -746,7 +746,7 @@ impl Order {
     }
 
     pub fn is_resting_limit_order(&self, slot: u64) -> DriftResult<bool> {
-        Ok(self.is_limit_order() && (self.post_only || slot.safe_sub(self.slot)? >= 45))
+        Ok(self.is_limit_order() || self.is_auction_complete(slot)?)
     }
 }
 
