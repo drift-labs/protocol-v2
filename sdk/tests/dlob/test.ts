@@ -41,7 +41,8 @@ function insertOrderToDLOB(
 	slot?: BN,
 	maxTs = ZERO,
 	oraclePriceOffset = new BN(0),
-	postOnly = false
+	postOnly = false,
+	auctionDuration = 10
 ) {
 	dlob.insertOrder(
 		{
@@ -65,7 +66,7 @@ function insertOrderToDLOB(
 			postOnly,
 			immediateOrCancel: false,
 			oraclePriceOffset: oraclePriceOffset.toNumber(),
-			auctionDuration: 10,
+			auctionDuration,
 			auctionStartPrice,
 			auctionEndPrice,
 			maxTs,
@@ -1185,7 +1186,12 @@ describe('DLOB Perp Tests', () => {
 			BASE_PRECISION,
 			PositionDirection.LONG,
 			vBid,
-			vAsk
+			vAsk,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			0
 		);
 
 		insertOrderToDLOB(
@@ -1199,7 +1205,12 @@ describe('DLOB Perp Tests', () => {
 			BASE_PRECISION,
 			PositionDirection.LONG,
 			vBid,
-			vAsk
+			vAsk,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			0
 		);
 
 		insertOrderToDLOB(
@@ -1213,7 +1224,12 @@ describe('DLOB Perp Tests', () => {
 			BASE_PRECISION,
 			PositionDirection.LONG,
 			vBid,
-			vAsk
+			vAsk,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			0
 		);
 
 		insertOrderToDLOB(
@@ -1227,7 +1243,12 @@ describe('DLOB Perp Tests', () => {
 			BASE_PRECISION,
 			PositionDirection.SHORT,
 			vBid,
-			vAsk
+			vAsk,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			0
 		);
 
 		insertOrderToDLOB(
@@ -1241,7 +1262,12 @@ describe('DLOB Perp Tests', () => {
 			BASE_PRECISION,
 			PositionDirection.SHORT,
 			vBid,
-			vAsk
+			vAsk,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			0
 		);
 
 		insertOrderToDLOB(
@@ -1255,7 +1281,12 @@ describe('DLOB Perp Tests', () => {
 			BASE_PRECISION,
 			PositionDirection.SHORT,
 			vBid,
-			vAsk
+			vAsk,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			0
 		);
 
 		let asks = 0;
@@ -3070,7 +3101,8 @@ describe('DLOB Perp Tests', () => {
 			new BN(slot),
 			new BN(200),
 			undefined,
-			true
+			true,
+			0
 		);
 		// insert a buy above the vBid
 		insertOrderToDLOB(
@@ -3086,7 +3118,10 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot - 1), // later order becomes taker
-			new BN(200)
+			new BN(200),
+			undefined,
+			undefined,
+			0
 		);
 
 		console.log(`Book state before fill:`);
@@ -3242,11 +3277,13 @@ describe('DLOB Perp Tests', () => {
 			vBid.sub(PRICE_PRECISION),
 			new BN(1).mul(BASE_PRECISION), // quantity
 			PositionDirection.SHORT,
-			vAsk,
-			vBid,
+			ZERO,
+			ZERO,
 			new BN(slot),
 			new BN(200),
-			undefined
+			undefined,
+			undefined,
+			20
 		);
 
 		// Market buy right above amm bid. crosses limit sell but can't be used
@@ -3277,9 +3314,13 @@ describe('DLOB Perp Tests', () => {
 			vAsk.add(PRICE_PRECISION), // price,
 			new BN(8768).mul(BASE_PRECISION).div(new BN(10000)), // quantity
 			PositionDirection.LONG,
-			vBid,
-			vAsk,
-			new BN(slot)
+			ZERO,
+			ZERO,
+			new BN(slot),
+			undefined,
+			undefined,
+			undefined,
+			20
 		);
 
 		// Market sell right below amm ask. crosses limit buy but can't be used
@@ -3325,10 +3366,13 @@ describe('DLOB Perp Tests', () => {
 			vBid.add(PRICE_PRECISION.div(TWO)),
 			new BN(1).mul(BASE_PRECISION), // quantity
 			PositionDirection.SHORT,
-			vAsk,
-			vBid,
+			ZERO,
+			ZERO,
 			new BN(slot),
-			new BN(200)
+			new BN(200),
+			undefined,
+			undefined,
+			0
 		);
 
 		// insert a buy below the amm ask
@@ -3342,9 +3386,13 @@ describe('DLOB Perp Tests', () => {
 			vAsk.sub(PRICE_PRECISION.div(TWO)), // price,
 			new BN(8768).mul(BASE_PRECISION).div(new BN(10000)), // quantity
 			PositionDirection.LONG,
-			vBid,
-			vAsk,
-			new BN(slot)
+			ZERO,
+			ZERO,
+			new BN(slot),
+			undefined,
+			undefined,
+			undefined,
+			0
 		);
 
 		const nodesToFillAfter = dlob.findMarketNodesToFill(
