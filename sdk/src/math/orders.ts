@@ -153,7 +153,10 @@ export function hasLimitPrice(order: Order, slot: number): boolean {
 }
 
 export function hasAuctionPrice(order: Order, slot: number): boolean {
-	return isMarketOrder(order) && !isAuctionComplete(order, slot);
+	return (
+		!isAuctionComplete(order, slot) &&
+		(!order.auctionStartPrice.eq(ZERO) || !order.auctionEndPrice.eq(ZERO))
+	);
 }
 
 export function isFillableByVAMM(
