@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: tweak calculate_size_premium_liability_weight to have smaller effect on initial margin ([#350](https://github.com/drift-labs/protocol-v2/pull/350))
 - ts-sdk: updates for accounting for spot leverage ([#295](https://github.com/drift-labs/protocol-v2/pull/295))
+- ts-sdk: added new methods for modifying orders to include spot and more params ([#353](https://github.com/drift-labs/protocol-v2/pull/353))
+- ts-sdk: flagged old modifyPerpOrder and modifyPerpOrderByUserOrderId as deprecated
 
 ### Fixes
 
