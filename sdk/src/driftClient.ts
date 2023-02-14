@@ -42,6 +42,7 @@ import {
 	Signer,
 	SystemProgram,
 	ComputeBudgetProgram,
+	AddressLookupTableAccount,
 } from '@solana/web3.js';
 
 import { TokenFaucet } from './tokenFaucet';
@@ -77,7 +78,7 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import { getMarketsAndOraclesForSubscription } from './config';
+import { configs, getMarketsAndOraclesForSubscription } from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -112,6 +113,7 @@ export class DriftClient {
 	perpMarketLastSlotCache = new Map<number, number>();
 	spotMarketLastSlotCache = new Map<number, number>();
 	authority: PublicKey;
+	marketLookupTable: PublicKey;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -176,6 +178,13 @@ export class DriftClient {
 				? spotMarketIndexes
 				: envSpotMarketIndexes;
 			oracleInfos = oracleInfos ? oracleInfos : envOracleInfos;
+		}
+
+		this.marketLookupTable = config.marketLookupTable;
+		if (config.env && !this.marketLookupTable) {
+			this.marketLookupTable = new PublicKey(
+				configs[config.env].MARKET_LOOKUP_TABLE
+			);
 		}
 
 		if (config.accountSubscription?.type === 'polling') {
@@ -385,6 +394,15 @@ export class DriftClient {
 		return (await this.program.account.serumV3FulfillmentConfig.fetch(
 			address
 		)) as SerumV3FulfillmentConfigAccount;
+	}
+
+	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
+		if (!this.marketLookupTable) {
+			throw Error('Market lookup table address not set');
+		}
+
+		return (await this.connection.getAddressLookupTable(this.marketLookupTable))
+			.value;
 	}
 
 	/**
