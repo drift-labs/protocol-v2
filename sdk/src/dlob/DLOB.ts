@@ -521,6 +521,15 @@ export class DLOB {
 			marketOrderGenerator,
 			this.getMakerLimitBids.bind(this),
 			(takerPrice, makerPrice) => {
+				if (isVariant(marketType, 'spot')) {
+					if (takerPrice === undefined) {
+						return false;
+					}
+
+					if (fallbackBid && makerPrice.lt(fallbackBid)) {
+						return false;
+					}
+				}
 				return takerPrice === undefined || takerPrice.lte(makerPrice);
 			},
 			fallbackAsk
@@ -557,8 +566,18 @@ export class DLOB {
 			oraclePriceData,
 			marketOrderGenerator,
 			this.getMakerLimitAsks.bind(this),
-			(takerPrice, fallbackPrice) => {
-				return takerPrice === undefined || takerPrice.gte(fallbackPrice);
+			(takerPrice, makerPrice) => {
+				if (isVariant(marketType, 'spot')) {
+					if (takerPrice === undefined) {
+						return false;
+					}
+
+					if (fallbackAsk && makerPrice.gt(fallbackAsk)) {
+						return false;
+					}
+				}
+
+				return takerPrice === undefined || takerPrice.gte(makerPrice);
 			},
 			fallbackBid
 		);
