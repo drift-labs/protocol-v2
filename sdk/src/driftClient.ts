@@ -25,6 +25,8 @@ import {
 	TxParams,
 	SerumV3FulfillmentConfigAccount,
 	isVariant,
+	OrderTriggerCondition,
+  isOneOfVariant,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import driftIDL from './idl/drift.json';
@@ -3181,6 +3183,7 @@ export class DriftClient {
 		newOraclePriceOffset,
 		newOrderType,
 		newTriggerPrice,
+		newTriggerCondition,
 		isSpot,
 		auctionDuration,
 		auctionStartPrice,
@@ -3192,6 +3195,7 @@ export class DriftClient {
 		newOraclePriceOffset?: number;
 		newOrderType?: OrderType;
 		newTriggerPrice?: BN;
+		newTriggerCondition?: OrderTriggerCondition;
 		isSpot?: boolean;
 		auctionDuration?: number;
 		auctionStartPrice?: BN;
@@ -3209,18 +3213,31 @@ export class DriftClient {
 		}
 		const cancelOrderIx = await this.getCancelOrderIx(orderId);
 
+		const orderTypeHasTrigger = newOrderType
+			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
+		const orderTypeHasLimitPrice =  newOrderType
+			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
+
 		const newOrderParams: OptionalOrderParams = {
 			orderType: newOrderType || openOrder.orderType,
 			marketType: openOrder.marketType,
 			direction: openOrder.direction,
 			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: newLimitPrice || openOrder.price,
+			price: orderTypeHasLimitPrice
+				? newLimitPrice || openOrder.price
+				: undefined,
 			marketIndex: openOrder.marketIndex,
 			reduceOnly: openOrder.reduceOnly,
 			postOnly: openOrder.postOnly,
 			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: newTriggerPrice || openOrder.triggerPrice,
-			triggerCondition: openOrder.triggerCondition,
+			triggerPrice: orderTypeHasTrigger
+				? newTriggerPrice || openOrder.triggerPrice
+				: undefined,
+			triggerCondition: orderTypeHasTrigger
+				? newTriggerCondition || openOrder.triggerCondition
+				: undefined,
 			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
 			auctionDuration: auctionDuration || openOrder.auctionDuration,
 			maxTs: openOrder.maxTs,
@@ -3274,6 +3291,7 @@ export class DriftClient {
 		newOraclePriceOffset,
 		newOrderType,
 		newTriggerPrice,
+		newTriggerCondition,
 		isSpot,
 		auctionDuration,
 		auctionStartPrice,
@@ -3285,6 +3303,7 @@ export class DriftClient {
 		newOraclePriceOffset?: number;
 		newOrderType?: OrderType;
 		newTriggerPrice?: BN;
+		newTriggerCondition?: OrderTriggerCondition;
 		isSpot?: boolean;
 		auctionDuration?: number;
 		auctionStartPrice?: BN;
@@ -3303,19 +3322,32 @@ export class DriftClient {
 			);
 		}
 		const cancelOrderIx = await this.getCancelOrderByUserIdIx(userOrderId);
+    
+		const orderTypeHasTrigger = newOrderType
+			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
+		const orderTypeHasLimitPrice =  newOrderType
+			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
 
 		const newOrderParams: OptionalOrderParams = {
 			orderType: newOrderType || openOrder.orderType,
 			marketType: openOrder.marketType,
 			direction: openOrder.direction,
 			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: newLimitPrice || openOrder.price,
+			price: orderTypeHasLimitPrice
+				? newLimitPrice || openOrder.price
+				: undefined,
 			marketIndex: openOrder.marketIndex,
 			reduceOnly: openOrder.reduceOnly,
 			postOnly: openOrder.postOnly,
 			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: newTriggerPrice || openOrder.triggerPrice,
-			triggerCondition: openOrder.triggerCondition,
+			triggerPrice: orderTypeHasTrigger
+				? newTriggerPrice || openOrder.triggerPrice
+				: undefined,
+			triggerCondition: orderTypeHasTrigger
+				? newTriggerCondition || openOrder.triggerCondition
+				: undefined,
 			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
 			auctionDuration: auctionDuration || openOrder.auctionDuration,
 			maxTs: openOrder.maxTs,
