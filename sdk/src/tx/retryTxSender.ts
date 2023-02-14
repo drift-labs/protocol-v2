@@ -9,6 +9,10 @@ import {
 	Transaction,
 	TransactionSignature,
 	Connection,
+	VersionedTransaction,
+	TransactionMessage,
+	TransactionInstruction,
+	AddressLookupTableAccount,
 } from '@solana/web3.js';
 import { AnchorProvider } from '@project-serum/anchor';
 import assert from 'assert';
@@ -56,7 +60,65 @@ export class RetryTxSender implements TxSender {
 			? tx
 			: await this.prepareTx(tx, additionalSigners, opts);
 
-		const rawTransaction = signedTx.serialize();
+		return this.sendRawTransaction(signedTx.serialize(), opts);
+	}
+
+	async prepareTx(
+		tx: Transaction,
+		additionalSigners: Array<Signer>,
+		opts: ConfirmOptions
+	): Promise<Transaction> {
+		tx.feePayer = this.provider.wallet.publicKey;
+		tx.recentBlockhash = (
+			await this.provider.connection.getRecentBlockhash(
+				opts.preflightCommitment
+			)
+		).blockhash;
+
+		const signedTx = await this.provider.wallet.signTransaction(tx);
+		additionalSigners
+			.filter((s): s is Signer => s !== undefined)
+			.forEach((kp) => {
+				signedTx.partialSign(kp);
+			});
+
+		return signedTx;
+	}
+
+	async sendVersionedTransaction(
+		ixs: TransactionInstruction[],
+		lookupTableAccounts: AddressLookupTableAccount[],
+		additionalSigners?: Array<Signer>,
+		opts?: ConfirmOptions
+	): Promise<TxSigAndSlot> {
+		if (additionalSigners === undefined) {
+			additionalSigners = [];
+		}
+		if (opts === undefined) {
+			opts = this.provider.opts;
+		}
+
+		const message = new TransactionMessage({
+			payerKey: this.provider.wallet.publicKey,
+			recentBlockhash: (
+				await this.provider.connection.getRecentBlockhash(
+					opts.preflightCommitment
+				)
+			).blockhash,
+			instructions: ixs,
+		}).compileToV0Message(lookupTableAccounts);
+
+		const tx = new VersionedTransaction(message);
+		// @ts-ignore
+		tx.sign(additionalSigners.concat(this.provider.wallet.payer));
+
+		return this.sendRawTransaction(tx.serialize(), opts);
+	}
+
+	async sendRawTransaction(
+		rawTransaction: Buffer | Uint8Array,
+		opts: ConfirmOptions
+	): Promise<TxSigAndSlot> {
 		const startTime = this.getTimestamp();
 
 		let txid: TransactionSignature;
@@ -109,28 +171,6 @@ export class RetryTxSender implements TxSender {
 		}
 
 		return { txSig: txid, slot };
-	}
-
-	async prepareTx(
-		tx: Transaction,
-		additionalSigners: Array<Signer>,
-		opts: ConfirmOptions
-	): Promise<Transaction> {
-		tx.feePayer = this.provider.wallet.publicKey;
-		tx.recentBlockhash = (
-			await this.provider.connection.getRecentBlockhash(
-				opts.preflightCommitment
-			)
-		).blockhash;
-
-		const signedTx = await this.provider.wallet.signTransaction(tx);
-		additionalSigners
-			.filter((s): s is Signer => s !== undefined)
-			.forEach((kp) => {
-				signedTx.partialSign(kp);
-			});
-
-		return signedTx;
 	}
 
 	async confirmTransaction(
@@ -229,7 +269,10 @@ export class RetryTxSender implements TxSender {
 		);
 	}
 
-	sendToAdditionalConnections(rawTx: Buffer, opts: ConfirmOptions): void {
+	sendToAdditionalConnections(
+		rawTx: Buffer | Uint8Array,
+		opts: ConfirmOptions
+	): void {
 		this.additionalConnections.map((connection) => {
 			connection.sendRawTransaction(rawTx, opts).catch((e) => {
 				console.error(
