@@ -55,6 +55,13 @@ pub mod drift {
         handle_initialize_user_stats(ctx)
     }
 
+    pub fn initialize_referrer_name(
+        ctx: Context<InitializeReferrerName>,
+        name: [u8; 32],
+    ) -> Result<()> {
+        handle_initialize_referrer_name(ctx, name)
+    }
+
     pub fn deposit(
         ctx: Context<Deposit>,
         market_index: u16,

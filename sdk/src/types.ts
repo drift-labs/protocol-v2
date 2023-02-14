@@ -990,3 +990,10 @@ export type SerumV3FulfillmentConfigAccount = {
 	serumOpenOrders: PublicKey;
 	serumSignerNonce: BN;
 };
+
+export type ReferrerNameAccount = {
+	name: number[];
+	user: PublicKey;
+	authority: PublicKey;
+	userStats: PublicKey;
+};
