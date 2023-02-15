@@ -23,7 +23,7 @@ import {
 } from '../../src';
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
-import { isVariant, TWO } from '../../lib';
+import { isVariant, ONE, TWO } from '../../lib';
 import { DLOBOrdersCoder } from '../../src/dlob/DLOBOrders';
 
 function insertOrderToDLOB(
@@ -3403,6 +3403,134 @@ describe('DLOB Perp Tests', () => {
 			false,
 			vAsk,
 			vBid
+		);
+
+		expect(nodesToFillAfter.length).to.equal(2);
+
+		expect(
+			nodesToFillAfter[0].node.order?.orderId,
+			'wrong taker orderId'
+		).to.equal(4);
+		expect(
+			nodesToFillAfter[0].makerNode?.order?.orderId,
+			'wrong maker orderId'
+		).to.equal(6);
+
+		expect(
+			nodesToFillAfter[1].node.order?.orderId,
+			'wrong taker orderId'
+		).to.equal(2);
+		expect(
+			nodesToFillAfter[1].makerNode?.order?.orderId,
+			'wrong maker orderId'
+		).to.equal(5);
+	});
+
+	it('Test limit bid wills during auction', () => {
+		const vAsk = new BN(20).mul(PRICE_PRECISION);
+		const vBid = new BN(5).mul(PRICE_PRECISION);
+
+		const user0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user3 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+
+		const slot = 9;
+		const ts = 9;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)), // 11.5
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		// Market buy right above amm bid. crosses limit sell but can't be used
+		insertOrderToDLOB(
+			dlob,
+			user3.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			vAsk, // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.LONG,
+			vBid.add(PRICE_PRECISION),
+			vAsk,
+			new BN(slot),
+			new BN(200)
+		);
+
+		// Market sell right below amm ask. crosses limit buy but can't be used
+		insertOrderToDLOB(
+			dlob,
+			user2.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			4, // orderId
+			marketIndex,
+			vBid, // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vAsk.sub(PRICE_PRECISION),
+			vBid,
+			new BN(slot),
+			new BN(200)
+		);
+
+		// insert a sell right above amm bid
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			5, // orderId
+			marketIndex,
+			oracle.price,
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			ZERO,
+			ZERO,
+			new BN(slot),
+			new BN(200),
+			undefined,
+			true,
+			0
+		);
+
+		// insert a buy below the amm ask
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			6, // orderId
+			marketIndex,
+			oracle.price, // price,
+			new BN(8768).mul(BASE_PRECISION).div(new BN(10000)), // quantity
+			PositionDirection.LONG,
+			ZERO,
+			ZERO,
+			new BN(slot),
+			undefined,
+			undefined,
+			true,
+			0
+		);
+
+		const nodesToFillAfter = dlob.findNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			slot,
+			ts,
+			MarketType.PERP,
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
 		);
 
 		expect(nodesToFillAfter.length).to.equal(2);
