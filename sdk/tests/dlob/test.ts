@@ -44,12 +44,13 @@ function insertOrderToDLOB(
 	postOnly = false,
 	auctionDuration = 10
 ) {
+	slot = slot || new BN(1);
 	dlob.insertOrder(
 		{
 			status: OrderStatus.OPEN,
 			orderType,
 			marketType,
-			slot: slot || new BN(1),
+			slot,
 			orderId,
 			userOrderId: 0,
 			marketIndex,
@@ -71,7 +72,8 @@ function insertOrderToDLOB(
 			auctionEndPrice,
 			maxTs,
 		},
-		userAccount
+		userAccount,
+		slot.toNumber()
 	);
 }
 
@@ -93,12 +95,13 @@ function insertTriggerOrderToDLOB(
 	maxTs = ZERO,
 	oraclePriceOffset = new BN(0)
 ) {
+	slot = slot || new BN(1);
 	dlob.insertOrder(
 		{
 			status: OrderStatus.OPEN,
 			orderType,
 			marketType,
-			slot: slot || new BN(1),
+			slot,
 			orderId,
 			userOrderId: 0,
 			marketIndex,
@@ -120,7 +123,8 @@ function insertTriggerOrderToDLOB(
 			auctionEndPrice,
 			maxTs,
 		},
-		userAccount
+		userAccount,
+		slot.toNumber()
 	);
 }
 

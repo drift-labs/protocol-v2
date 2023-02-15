@@ -28,6 +28,7 @@ import {
 	OrderActionRecord,
 	ZERO,
 	BN_MAX,
+	isRestingLimitOrder,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -35,13 +36,17 @@ import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
 import { DLOBOrders } from './DLOBOrders';
 
 export type MarketNodeLists = {
-	limit: {
-		ask: NodeList<'limit'>;
-		bid: NodeList<'limit'>;
+	restingLimit: {
+		ask: NodeList<'restingLimit'>;
+		bid: NodeList<'restingLimit'>;
 	};
 	floatingLimit: {
 		ask: NodeList<'floatingLimit'>;
 		bid: NodeList<'floatingLimit'>;
+	};
+	takingLimit: {
+		ask: NodeList<'takingLimit'>;
+		bid: NodeList<'takingLimit'>;
 	};
 	market: {
 		ask: NodeList<'market'>;
@@ -75,6 +80,7 @@ const SUPPORTED_ORDER_TYPES = [
 export class DLOB {
 	openOrders = new Map<MarketTypeStr, Set<string>>();
 	orderLists = new Map<MarketTypeStr, Map<number, MarketNodeLists>>();
+	maxSlotForRestingLimitOrders = 0;
 
 	initialized = false;
 
@@ -109,6 +115,8 @@ export class DLOB {
 		}
 		this.orderLists.clear();
 
+		this.maxSlotForRestingLimitOrders = 0;
+
 		this.init();
 	}
 
@@ -117,7 +125,10 @@ export class DLOB {
 	 *
 	 * @returns a promise that resolves when the DLOB is initialized
 	 */
-	public async initFromUserMap(userMap: UserMap): Promise<boolean> {
+	public async initFromUserMap(
+		userMap: UserMap,
+		slot: number
+	): Promise<boolean> {
 		if (this.initialized) {
 			return false;
 		}
@@ -128,7 +139,7 @@ export class DLOB {
 			const userAccountPubkey = user.getUserAccountPublicKey();
 
 			for (const order of userAccount.orders) {
-				this.insertOrder(order, userAccountPubkey);
+				this.insertOrder(order, userAccountPubkey, slot);
 			}
 		}
 
@@ -136,24 +147,27 @@ export class DLOB {
 		return true;
 	}
 
-	public initFromOrders(dlobOrders: DLOBOrders): boolean {
+	public initFromOrders(dlobOrders: DLOBOrders, slot: number): boolean {
 		if (this.initialized) {
 			return false;
 		}
 
 		for (const { user, order } of dlobOrders) {
-			this.insertOrder(order, user);
+			this.insertOrder(order, user, slot);
 		}
 
 		this.initialized = true;
 		return true;
 	}
 
-	public handleOrderRecord(record: OrderRecord): void {
-		this.insertOrder(record.order, record.user);
+	public handleOrderRecord(record: OrderRecord, slot: number): void {
+		this.insertOrder(record.order, record.user, slot);
 	}
 
-	public handleOrderActionRecord(record: OrderActionRecord): void {
+	public handleOrderActionRecord(
+		record: OrderActionRecord,
+		slot: number
+	): void {
 		if (isOneOfVariant(record.action, ['place', 'expire'])) {
 			return;
 		}
@@ -162,14 +176,14 @@ export class DLOB {
 			if (record.taker !== null) {
 				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
 				if (takerOrder) {
-					this.trigger(takerOrder, record.taker);
+					this.trigger(takerOrder, record.taker, slot);
 				}
 			}
 
 			if (record.maker !== null) {
 				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
 				if (makerOrder) {
-					this.trigger(makerOrder, record.maker);
+					this.trigger(makerOrder, record.maker, slot);
 				}
 			}
 		} else if (isVariant(record.action, 'fill')) {
@@ -179,6 +193,7 @@ export class DLOB {
 					this.updateOrder(
 						takerOrder,
 						record.taker,
+						slot,
 						record.takerOrderCumulativeBaseAssetAmountFilled
 					);
 				}
@@ -190,6 +205,7 @@ export class DLOB {
 					this.updateOrder(
 						makerOrder,
 						record.maker,
+						slot,
 						record.makerOrderCumulativeBaseAssetAmountFilled
 					);
 				}
@@ -198,14 +214,14 @@ export class DLOB {
 			if (record.taker !== null) {
 				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
 				if (takerOrder) {
-					this.delete(takerOrder, record.taker);
+					this.delete(takerOrder, record.taker, slot);
 				}
 			}
 
 			if (record.maker !== null) {
 				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
 				if (makerOrder) {
-					this.delete(makerOrder, record.maker);
+					this.delete(makerOrder, record.maker, slot);
 				}
 			}
 		}
@@ -214,6 +230,7 @@ export class DLOB {
 	public insertOrder(
 		order: Order,
 		userAccount: PublicKey,
+		slot: number,
 		onInsert?: OrderBookCallback
 	): void {
 		if (isVariant(order.status, 'init')) {
@@ -235,7 +252,7 @@ export class DLOB {
 				.get(marketType)
 				.add(getOrderSignature(order.orderId, userAccount));
 		}
-		this.getListForOrder(order)?.insert(order, marketType, userAccount);
+		this.getListForOrder(order, slot)?.insert(order, marketType, userAccount);
 
 		if (onInsert) {
 			onInsert();
@@ -244,13 +261,17 @@ export class DLOB {
 
 	addOrderList(marketType: MarketTypeStr, marketIndex: number): void {
 		this.orderLists.get(marketType).set(marketIndex, {
-			limit: {
-				ask: new NodeList('limit', 'asc'),
-				bid: new NodeList('limit', 'desc'),
+			restingLimit: {
+				ask: new NodeList('restingLimit', 'asc'),
+				bid: new NodeList('restingLimit', 'desc'),
 			},
 			floatingLimit: {
 				ask: new NodeList('floatingLimit', 'asc'),
 				bid: new NodeList('floatingLimit', 'desc'),
+			},
+			takingLimit: {
+				ask: new NodeList('takingLimit', 'asc'),
+				bid: new NodeList('takingLimit', 'asc'), // always sort ascending for market orders
 			},
 			market: {
 				ask: new NodeList('market', 'asc'),
@@ -266,11 +287,14 @@ export class DLOB {
 	public updateOrder(
 		order: Order,
 		userAccount: PublicKey,
+		slot: number,
 		cumulativeBaseAssetAmountFilled: BN,
 		onUpdate?: OrderBookCallback
 	): void {
+		this.updateRestingLimitOrders(slot);
+
 		if (order.baseAssetAmount.eq(cumulativeBaseAssetAmountFilled)) {
-			this.delete(order, userAccount);
+			this.delete(order, userAccount, slot);
 			return;
 		}
 
@@ -283,7 +307,7 @@ export class DLOB {
 		};
 		newOrder.baseAssetAmountFilled = cumulativeBaseAssetAmountFilled;
 
-		this.getListForOrder(order)?.update(newOrder, userAccount);
+		this.getListForOrder(order, slot)?.update(newOrder, userAccount);
 
 		if (onUpdate) {
 			onUpdate();
@@ -293,11 +317,14 @@ export class DLOB {
 	public trigger(
 		order: Order,
 		userAccount: PublicKey,
+		slot: number,
 		onTrigger?: OrderBookCallback
 	): void {
 		if (isVariant(order.status, 'init')) {
 			return;
 		}
+
+		this.updateRestingLimitOrders(slot);
 
 		if (isTriggered(order)) {
 			return;
@@ -309,7 +336,7 @@ export class DLOB {
 			.trigger[isVariant(order.triggerCondition, 'above') ? 'above' : 'below'];
 		triggerList.remove(order, userAccount);
 
-		this.getListForOrder(order)?.insert(order, marketType, userAccount);
+		this.getListForOrder(order, slot)?.insert(order, marketType, userAccount);
 		if (onTrigger) {
 			onTrigger();
 		}
@@ -318,19 +345,25 @@ export class DLOB {
 	public delete(
 		order: Order,
 		userAccount: PublicKey,
+		slot: number,
 		onDelete?: OrderBookCallback
 	): void {
 		if (isVariant(order.status, 'init')) {
 			return;
 		}
 
-		this.getListForOrder(order)?.remove(order, userAccount);
+		this.updateRestingLimitOrders(slot);
+
+		this.getListForOrder(order, slot)?.remove(order, userAccount);
 		if (onDelete) {
 			onDelete();
 		}
 	}
 
-	public getListForOrder(order: Order): NodeList<any> | undefined {
+	public getListForOrder(
+		order: Order,
+		slot: number
+	): NodeList<any> | undefined {
 		const isInactiveTriggerOrder =
 			mustBeTriggered(order) && !isTriggered(order);
 
@@ -344,7 +377,8 @@ export class DLOB {
 		} else if (order.oraclePriceOffset !== 0) {
 			type = 'floatingLimit';
 		} else {
-			type = 'limit';
+			const isResting = isRestingLimitOrder(order, slot);
+			type = isResting ? 'restingLimit' : 'takingLimit';
 		}
 
 		let subType: string;
@@ -363,6 +397,54 @@ export class DLOB {
 		return this.orderLists.get(marketType).get(order.marketIndex)[type][
 			subType
 		];
+	}
+
+	public updateRestingLimitOrders(slot: number) {
+		if (slot < this.maxSlotForRestingLimitOrders) {
+			return;
+		}
+
+		this.maxSlotForRestingLimitOrders = slot;
+
+		for (const [_, nodeLists] of this.orderLists.get('perp')) {
+			for (const node of nodeLists.takingLimit.ask.getGenerator()) {
+				if (!isRestingLimitOrder(node.order, slot)) {
+					continue;
+				}
+
+				nodeLists.takingLimit.ask.remove(node.order, node.userAccount);
+				nodeLists.restingLimit.ask.insert(node.order, 'perp', node.userAccount);
+			}
+
+			for (const node of nodeLists.takingLimit.bid.getGenerator()) {
+				if (!isRestingLimitOrder(node.order, slot)) {
+					continue;
+				}
+
+				nodeLists.restingLimit.bid.remove(node.order, node.userAccount);
+				nodeLists.takingLimit.bid.insert(node.order, 'perp', node.userAccount);
+			}
+		}
+
+		for (const [_, nodeLists] of this.orderLists.get('spot')) {
+			for (const node of nodeLists.takingLimit.ask.getGenerator()) {
+				if (!isRestingLimitOrder(node.order, slot)) {
+					continue;
+				}
+
+				nodeLists.takingLimit.ask.remove(node.order, node.userAccount);
+				nodeLists.restingLimit.ask.insert(node.order, 'spot', node.userAccount);
+			}
+
+			for (const node of nodeLists.takingLimit.bid.getGenerator()) {
+				if (!isRestingLimitOrder(node.order, slot)) {
+					continue;
+				}
+
+				nodeLists.restingLimit.bid.remove(node.order, node.userAccount);
+				nodeLists.takingLimit.bid.insert(node.order, 'spot', node.userAccount);
+			}
+		}
 	}
 
 	public getOrder(orderId: number, userAccount: PublicKey): Order | undefined {
@@ -652,7 +734,7 @@ export class DLOB {
 				const newMakerOrder = { ...makerOrder };
 				newMakerOrder.baseAssetAmountFilled =
 					makerOrder.baseAssetAmountFilled.add(baseFilled);
-				this.getListForOrder(newMakerOrder).update(
+				this.getListForOrder(newMakerOrder, slot).update(
 					newMakerOrder,
 					makerNode.userAccount
 				);
@@ -660,7 +742,7 @@ export class DLOB {
 				const newTakerOrder = { ...takerOrder };
 				newTakerOrder.baseAssetAmountFilled =
 					takerOrder.baseAssetAmountFilled.add(baseFilled);
-				this.getListForOrder(newTakerOrder).update(
+				this.getListForOrder(newTakerOrder, slot).update(
 					newTakerOrder,
 					takerNode.userAccount
 				);
@@ -733,12 +815,12 @@ export class DLOB {
 
 		// All bids/asks that can expire
 		const bidGenerators = [
-			nodeLists.limit.bid.getGenerator(),
+			nodeLists.restingLimit.bid.getGenerator(),
 			nodeLists.floatingLimit.bid.getGenerator(),
 			nodeLists.market.bid.getGenerator(),
 		];
 		const askGenerators = [
-			nodeLists.limit.ask.getGenerator(),
+			nodeLists.restingLimit.ask.getGenerator(),
 			nodeLists.floatingLimit.ask.getGenerator(),
 			nodeLists.market.ask.getGenerator(),
 		];
@@ -835,6 +917,8 @@ export class DLOB {
 		slot: number,
 		compareFcn: (bestPrice: BN, currentPrice: BN) => boolean
 	): Generator<DLOBNode> {
+		this.updateRestingLimitOrders(slot);
+
 		const generators = generatorList.map((generator) => {
 			return {
 				next: generator.next(),
@@ -898,6 +982,9 @@ export class DLOB {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot asks');
 		}
+
+		this.updateRestingLimitOrders(slot);
+
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const nodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
 
@@ -906,7 +993,7 @@ export class DLOB {
 		}
 
 		const generatorList = [
-			nodeLists.limit.ask.getGenerator(),
+			nodeLists.restingLimit.ask.getGenerator(),
 			nodeLists.floatingLimit.ask.getGenerator(),
 		];
 
@@ -939,7 +1026,7 @@ export class DLOB {
 			marketType,
 			oraclePriceData
 		)) {
-			if (this.isRestingLimitOrder(node.order, slot)) {
+			if (isRestingLimitOrder(node.order, slot)) {
 				yield node;
 			} else if (
 				fallbackBid &&
@@ -948,10 +1035,6 @@ export class DLOB {
 				yield node;
 			}
 		}
-	}
-
-	isRestingLimitOrder(order: Order, slot: number): boolean {
-		return order.postOnly || isAuctionComplete(order, slot);
 	}
 
 	*getLimitBids(
@@ -964,6 +1047,8 @@ export class DLOB {
 			throw new Error('Must provide OraclePriceData to get spot bids');
 		}
 
+		this.updateRestingLimitOrders(slot);
+
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const nodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
 
@@ -972,7 +1057,7 @@ export class DLOB {
 		}
 
 		const generatorList = [
-			nodeLists.limit.bid.getGenerator(),
+			nodeLists.restingLimit.bid.getGenerator(),
 			nodeLists.floatingLimit.bid.getGenerator(),
 		];
 
@@ -1005,7 +1090,7 @@ export class DLOB {
 			marketType,
 			oraclePriceData
 		)) {
-			if (this.isRestingLimitOrder(node.order, slot)) {
+			if (isRestingLimitOrder(node.order, slot)) {
 				yield node;
 			} else if (
 				fallbackAsk &&
@@ -1157,7 +1242,7 @@ export class DLOB {
 				const newBidOrder = { ...bidOrder };
 				newBidOrder.baseAssetAmountFilled =
 					bidOrder.baseAssetAmountFilled.add(baseFilled);
-				this.getListForOrder(newBidOrder).update(
+				this.getListForOrder(newBidOrder, slot).update(
 					newBidOrder,
 					bidNode.userAccount
 				);
@@ -1166,7 +1251,7 @@ export class DLOB {
 				const newAskOrder = { ...askOrder };
 				newAskOrder.baseAssetAmountFilled =
 					askOrder.baseAssetAmountFilled.add(baseFilled);
-				this.getListForOrder(newAskOrder).update(
+				this.getListForOrder(newAskOrder, slot).update(
 					newAskOrder,
 					askNode.userAccount
 				);
@@ -1415,8 +1500,10 @@ export class DLOB {
 
 	*getNodeLists(): Generator<NodeList<DLOBNodeType>> {
 		for (const [_, nodeLists] of this.orderLists.get('perp')) {
-			yield nodeLists.limit.bid;
-			yield nodeLists.limit.ask;
+			yield nodeLists.restingLimit.bid;
+			yield nodeLists.restingLimit.ask;
+			yield nodeLists.takingLimit.bid;
+			yield nodeLists.takingLimit.ask;
 			yield nodeLists.market.bid;
 			yield nodeLists.market.ask;
 			yield nodeLists.floatingLimit.bid;
@@ -1426,8 +1513,10 @@ export class DLOB {
 		}
 
 		for (const [_, nodeLists] of this.orderLists.get('spot')) {
-			yield nodeLists.limit.bid;
-			yield nodeLists.limit.ask;
+			yield nodeLists.restingLimit.bid;
+			yield nodeLists.restingLimit.ask;
+			yield nodeLists.takingLimit.bid;
+			yield nodeLists.takingLimit.ask;
 			yield nodeLists.market.bid;
 			yield nodeLists.market.ask;
 			yield nodeLists.floatingLimit.bid;

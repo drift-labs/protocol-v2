@@ -283,3 +283,7 @@ export function isTriggered(order: Order): boolean {
 		'triggeredBelow',
 	]);
 }
+
+export function isRestingLimitOrder(order: Order, slot: number): boolean {
+	return order.postOnly || isAuctionComplete(order, slot);
+}
