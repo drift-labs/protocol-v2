@@ -26,7 +26,7 @@ import {
 	SerumV3FulfillmentConfigAccount,
 	isVariant,
 	OrderTriggerCondition,
-  isOneOfVariant,
+	isOneOfVariant,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import driftIDL from './idl/drift.json';
@@ -3216,7 +3216,7 @@ export class DriftClient {
 		const orderTypeHasTrigger = newOrderType
 			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
 			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
-		const orderTypeHasLimitPrice =  newOrderType
+		const orderTypeHasLimitPrice = newOrderType
 			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
 			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
 
@@ -3322,11 +3322,11 @@ export class DriftClient {
 			);
 		}
 		const cancelOrderIx = await this.getCancelOrderByUserIdIx(userOrderId);
-    
+
 		const orderTypeHasTrigger = newOrderType
 			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
 			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
-		const orderTypeHasLimitPrice =  newOrderType
+		const orderTypeHasLimitPrice = newOrderType
 			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
 			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
 
