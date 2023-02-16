@@ -285,5 +285,7 @@ export function isTriggered(order: Order): boolean {
 }
 
 export function isRestingLimitOrder(order: Order, slot: number): boolean {
-	return order.postOnly || isAuctionComplete(order, slot);
+	return (
+		isLimitOrder(order) && (order.postOnly || isAuctionComplete(order, slot))
+	);
 }

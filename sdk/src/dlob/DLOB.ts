@@ -400,7 +400,7 @@ export class DLOB {
 	}
 
 	public updateRestingLimitOrders(slot: number) {
-		if (slot < this.maxSlotForRestingLimitOrders) {
+		if (slot <= this.maxSlotForRestingLimitOrders) {
 			return;
 		}
 
@@ -815,11 +815,13 @@ export class DLOB {
 
 		// All bids/asks that can expire
 		const bidGenerators = [
+			nodeLists.takingLimit.bid.getGenerator(),
 			nodeLists.restingLimit.bid.getGenerator(),
 			nodeLists.floatingLimit.bid.getGenerator(),
 			nodeLists.market.bid.getGenerator(),
 		];
 		const askGenerators = [
+			nodeLists.takingLimit.ask.getGenerator(),
 			nodeLists.restingLimit.ask.getGenerator(),
 			nodeLists.floatingLimit.ask.getGenerator(),
 			nodeLists.market.ask.getGenerator(),
