@@ -990,8 +990,6 @@ export class DLOB {
 			oraclePriceData: OraclePriceData
 		) => boolean
 	): Generator<DLOBNode> {
-		this.updateRestingLimitOrders(slot);
-
 		const generators = generatorList.map((generator) => {
 			return {
 				next: generator.next(),
