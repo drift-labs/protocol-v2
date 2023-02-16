@@ -1771,10 +1771,7 @@ export class User {
 			}
 		}
 
-		// subtract oneMillionth of maxPositionSize
-		// => to avoid rounding errors when taking max leverage
-		const oneMilli = maxPositionSize.div(QUOTE_PRECISION);
-		return maxPositionSize.sub(oneMilli);
+		return maxPositionSize;
 	}
 
 	/**
