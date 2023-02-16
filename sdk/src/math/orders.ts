@@ -289,3 +289,7 @@ export function isRestingLimitOrder(order: Order, slot: number): boolean {
 		isLimitOrder(order) && (order.postOnly || isAuctionComplete(order, slot))
 	);
 }
+
+export function isTakingOrder(order: Order, slot: number): boolean {
+	return isMarketOrder(order) || !isRestingLimitOrder(order, slot);
+}

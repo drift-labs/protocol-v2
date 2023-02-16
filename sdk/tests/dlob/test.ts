@@ -687,7 +687,7 @@ describe('DLOB Perp Tests', () => {
 		}
 		expect(countBids).to.equal(testCases.length);
 
-		const marketBids = dlob.getMarketBids(marketIndex, MarketType.PERP);
+		const marketBids = dlob.getTakingBids(marketIndex, MarketType.PERP);
 		countBids = 0;
 		for (const bid of marketBids) {
 			expect(bid.isVammNode(), `expected vAMM node`).to.be.eq(
@@ -709,7 +709,7 @@ describe('DLOB Perp Tests', () => {
 		}
 		expect(countBids).to.equal(expectedTestCase.slice(0, 3).length);
 
-		const limitBids = dlob.getLimitBids(
+		const limitBids = dlob.getRestingLimitBids(
 			marketIndex,
 			slot,
 			MarketType.PERP,
@@ -1013,7 +1013,7 @@ describe('DLOB Perp Tests', () => {
 		}
 		expect(countAsks).to.equal(testCases.length);
 
-		const marketAsks = dlob.getMarketAsks(marketIndex, MarketType.PERP);
+		const marketAsks = dlob.getTakingAsks(marketIndex, MarketType.PERP);
 		countAsks = 0;
 		for (const ask of marketAsks) {
 			expect(ask.isVammNode()).to.be.eq(
@@ -1035,7 +1035,7 @@ describe('DLOB Perp Tests', () => {
 		}
 		expect(countAsks).to.equal(expectedTestCase.slice(0, 3).length);
 
-		const limitAsks = dlob.getLimitAsks(
+		const limitAsks = dlob.getRestingLimitAsks(
 			marketIndex,
 			slot,
 			MarketType.PERP,
@@ -1587,7 +1587,7 @@ describe('DLOB Perp Tests', () => {
 		);
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
+		const nodesToFillBefore = dlob.findRestingLimitOrderNodesToFill(
 			marketIndex,
 			12, // auction over
 			MarketType.PERP,
@@ -1731,7 +1731,7 @@ describe('DLOB Perp Tests', () => {
 		const endSlot = 12;
 
 		// should have no crossing orders
-		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
+		const nodesToFillBefore = dlob.findRestingLimitOrderNodesToFill(
 			marketIndex,
 			endSlot,
 			MarketType.PERP,
@@ -2531,7 +2531,7 @@ describe('DLOB Perp Tests', () => {
 		// should have no crossing orders
 		const auctionOverSlot = slot * 10;
 		const auctionOverTs = ts * 10;
-		const nodesToFillBefore = dlob.findLimitOrderNodesToFill(
+		const nodesToFillBefore = dlob.findRestingLimitOrderNodesToFill(
 			marketIndex,
 			auctionOverSlot, // auction over
 			MarketType.PERP,
@@ -3347,7 +3347,7 @@ describe('DLOB Perp Tests', () => {
 		console.log(`Book state before fill:`);
 		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
 
-		const nodesToFillBefore = dlob.findMarketNodesToFill(
+		const nodesToFillBefore = dlob.findTakingNodesToFill(
 			marketIndex,
 			slot,
 			MarketType.PERP,
@@ -3399,7 +3399,7 @@ describe('DLOB Perp Tests', () => {
 			0
 		);
 
-		const nodesToFillAfter = dlob.findMarketNodesToFill(
+		const nodesToFillAfter = dlob.findTakingNodesToFill(
 			marketIndex,
 			slot,
 			MarketType.PERP,

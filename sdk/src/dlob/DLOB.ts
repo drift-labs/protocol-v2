@@ -19,7 +19,6 @@ import {
 	SlotSubscriber,
 	MarketTypeStr,
 	StateAccount,
-	isMarketOrder,
 	mustBeTriggered,
 	isTriggered,
 	getLimitPrice,
@@ -29,6 +28,7 @@ import {
 	ZERO,
 	BN_MAX,
 	isRestingLimitOrder,
+	isTakingOrder,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -475,8 +475,8 @@ export class DLOB {
 
 		const isAmmPaused = ammPaused(stateAccount, marketAccount);
 
-		const marketOrderNodesToFill: Array<NodeToFill> =
-			this.findMarketNodesToFill(
+		const takingOrderNodesToFill: Array<NodeToFill> =
+			this.findTakingNodesToFill(
 				marketIndex,
 				slot,
 				marketType,
@@ -486,8 +486,8 @@ export class DLOB {
 				fallbackBid
 			);
 
-		const limitOrderNodesToFill: Array<NodeToFill> =
-			this.findLimitOrderNodesToFill(
+		const restingLimitOrderNodesToFill: Array<NodeToFill> =
+			this.findRestingLimitOrderNodesToFill(
 				marketIndex,
 				slot,
 				marketType,
@@ -503,13 +503,13 @@ export class DLOB {
 			ts,
 			marketType
 		);
-		return marketOrderNodesToFill.concat(
-			limitOrderNodesToFill,
+		return takingOrderNodesToFill.concat(
+			restingLimitOrderNodesToFill,
 			expiredNodesToFill
 		);
 	}
 
-	public findLimitOrderNodesToFill(
+	public findRestingLimitOrderNodesToFill(
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
@@ -520,7 +520,7 @@ export class DLOB {
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
-		const crossingNodes = this.findCrossingLimitOrders(
+		const crossingNodes = this.findCrossingRestingLimitOrders(
 			marketIndex,
 			slot,
 			marketType,
@@ -534,7 +534,7 @@ export class DLOB {
 		}
 
 		if (fallbackBid && !isAmmPaused) {
-			const askGenerator = this.getLimitAsks(
+			const askGenerator = this.getRestingLimitAsks(
 				marketIndex,
 				slot,
 				marketType,
@@ -557,7 +557,7 @@ export class DLOB {
 		}
 
 		if (fallbackAsk && !isAmmPaused) {
-			const bidGenerator = this.getLimitBids(
+			const bidGenerator = this.getRestingLimitBids(
 				marketIndex,
 				slot,
 				marketType,
@@ -582,7 +582,7 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findMarketNodesToFill(
+	public findTakingNodesToFill(
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
@@ -593,14 +593,19 @@ export class DLOB {
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
-		let marketOrderGenerator = this.getMarketAsks(marketIndex, marketType);
+		let takingOrderGenerator = this.getTakingAsks(
+			marketIndex,
+			marketType,
+			slot,
+			oraclePriceData
+		);
 
-		const marketAsksCrossingBids = this.findMarketNodesCrossingLimitNodes(
+		const takingAsksCrossingBids = this.findTakingNodesCrossingMakerNodes(
 			marketIndex,
 			slot,
 			marketType,
 			oraclePriceData,
-			marketOrderGenerator,
+			takingOrderGenerator,
 			this.getMakerLimitBids.bind(this),
 			(takerPrice, makerPrice) => {
 				if (isVariant(marketType, 'spot')) {
@@ -616,37 +621,47 @@ export class DLOB {
 			},
 			fallbackAsk
 		);
-		for (const marketAskCrossingBid of marketAsksCrossingBids) {
-			nodesToFill.push(marketAskCrossingBid);
+		for (const takingAskCrossingBid of takingAsksCrossingBids) {
+			nodesToFill.push(takingAskCrossingBid);
 		}
 
 		if (fallbackBid && !isAmmPaused) {
-			marketOrderGenerator = this.getMarketAsks(marketIndex, marketType);
-			const marketAsksCrossingFallback =
+			takingOrderGenerator = this.getTakingAsks(
+				marketIndex,
+				marketType,
+				slot,
+				oraclePriceData
+			);
+			const takingAsksCrossingFallback =
 				this.findNodesCrossingFallbackLiquidity(
 					marketType,
 					slot,
 					oraclePriceData,
-					marketOrderGenerator,
+					takingOrderGenerator,
 					fallbackBid,
 					(takerPrice, fallbackPrice) => {
 						return takerPrice === undefined || takerPrice.lte(fallbackPrice);
 					}
 				);
 
-			for (const marketAskCrossingFallback of marketAsksCrossingFallback) {
-				nodesToFill.push(marketAskCrossingFallback);
+			for (const takingAskCrossingFallback of takingAsksCrossingFallback) {
+				nodesToFill.push(takingAskCrossingFallback);
 			}
 		}
 
-		marketOrderGenerator = this.getMarketBids(marketIndex, marketType);
+		takingOrderGenerator = this.getTakingBids(
+			marketIndex,
+			marketType,
+			slot,
+			oraclePriceData
+		);
 
-		const marketBidsToFill = this.findMarketNodesCrossingLimitNodes(
+		const takingBidsToFill = this.findTakingNodesCrossingMakerNodes(
 			marketIndex,
 			slot,
 			marketType,
 			oraclePriceData,
-			marketOrderGenerator,
+			takingOrderGenerator,
 			this.getMakerLimitAsks.bind(this),
 			(takerPrice, makerPrice) => {
 				if (isVariant(marketType, 'spot')) {
@@ -664,24 +679,29 @@ export class DLOB {
 			fallbackBid
 		);
 
-		for (const marketBidToFill of marketBidsToFill) {
-			nodesToFill.push(marketBidToFill);
+		for (const takingBidToFill of takingBidsToFill) {
+			nodesToFill.push(takingBidToFill);
 		}
 
 		if (fallbackAsk && !isAmmPaused) {
-			marketOrderGenerator = this.getMarketBids(marketIndex, marketType);
-			const marketBidsCrossingFallback =
+			takingOrderGenerator = this.getTakingBids(
+				marketIndex,
+				marketType,
+				slot,
+				oraclePriceData
+			);
+			const takingBidsCrossingFallback =
 				this.findNodesCrossingFallbackLiquidity(
 					marketType,
 					slot,
 					oraclePriceData,
-					marketOrderGenerator,
+					takingOrderGenerator,
 					fallbackAsk,
 					(takerPrice, fallbackPrice) => {
 						return takerPrice === undefined || takerPrice.gte(fallbackPrice);
 					}
 				);
-			for (const marketBidCrossingFallback of marketBidsCrossingFallback) {
+			for (const marketBidCrossingFallback of takingBidsCrossingFallback) {
 				nodesToFill.push(marketBidCrossingFallback);
 			}
 		}
@@ -689,7 +709,7 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findMarketNodesCrossingLimitNodes(
+	public findTakingNodesCrossingMakerNodes(
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
@@ -872,11 +892,17 @@ export class DLOB {
 	public findJitAuctionNodesToFill(
 		marketIndex: number,
 		slot: number,
+		oraclePriceData: OraclePriceData,
 		marketType: MarketType
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 		// Then see if there are orders still in JIT auction
-		for (const marketBid of this.getMarketBids(marketIndex, marketType)) {
+		for (const marketBid of this.getTakingBids(
+			marketIndex,
+			marketType,
+			slot,
+			oraclePriceData
+		)) {
 			if (!isAuctionComplete(marketBid.order, slot)) {
 				nodesToFill.push({
 					node: marketBid,
@@ -884,7 +910,12 @@ export class DLOB {
 			}
 		}
 
-		for (const marketAsk of this.getMarketAsks(marketIndex, marketType)) {
+		for (const marketAsk of this.getTakingAsks(
+			marketIndex,
+			marketType,
+			slot,
+			oraclePriceData
+		)) {
 			if (!isAuctionComplete(marketAsk.order, slot)) {
 				nodesToFill.push({
 					node: marketAsk,
@@ -894,9 +925,11 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	*getMarketBids(
+	*getTakingBids(
 		marketIndex: number,
-		marketType: MarketType
+		marketType: MarketType,
+		slot: number,
+		oraclePriceData: OraclePriceData
 	): Generator<DLOBNode> {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const orderLists = this.orderLists.get(marketTypeStr).get(marketIndex);
@@ -904,18 +937,26 @@ export class DLOB {
 			return;
 		}
 
-		const generator = orderLists.market.bid.getGenerator();
-		for (const marketBidNode of generator) {
-			if (marketBidNode.isBaseFilled()) {
-				continue;
+		const generatorList = [
+			orderLists.market.bid.getGenerator(),
+			orderLists.market.bid.getGenerator(),
+		];
+
+		yield* this.getBestNode(
+			generatorList,
+			oraclePriceData,
+			slot,
+			(bestNode, currentNode) => {
+				return bestNode.order.slot.lt(currentNode.order.slot);
 			}
-			yield marketBidNode;
-		}
+		);
 	}
 
-	*getMarketAsks(
+	*getTakingAsks(
 		marketIndex: number,
-		marketType: MarketType
+		marketType: MarketType,
+		slot: number,
+		oraclePriceData: OraclePriceData
 	): Generator<DLOBNode> {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const orderLists = this.orderLists.get(marketTypeStr).get(marketIndex);
@@ -923,20 +964,31 @@ export class DLOB {
 			return;
 		}
 
-		const generator = orderLists.market.ask.getGenerator();
-		for (const marketAskNode of generator) {
-			if (marketAskNode.isBaseFilled()) {
-				continue;
+		const generatorList = [
+			orderLists.market.ask.getGenerator(),
+			orderLists.market.ask.getGenerator(),
+		];
+
+		yield* this.getBestNode(
+			generatorList,
+			oraclePriceData,
+			slot,
+			(bestNode, currentNode) => {
+				return bestNode.order.slot.lt(currentNode.order.slot);
 			}
-			yield marketAskNode;
-		}
+		);
 	}
 
 	private *getBestNode(
 		generatorList: Array<Generator<DLOBNode>>,
 		oraclePriceData: OraclePriceData,
 		slot: number,
-		compareFcn: (bestPrice: BN, currentPrice: BN) => boolean
+		compareFcn: (
+			bestDLOBNode: DLOBNode,
+			currentDLOBNode: DLOBNode,
+			slot: number,
+			oraclePriceData: OraclePriceData
+		) => boolean
 	): Generator<DLOBNode> {
 		this.updateRestingLimitOrders(slot);
 
@@ -963,17 +1015,14 @@ export class DLOB {
 					const currentValue = currentGenerator.next.value as DLOBNode;
 
 					// always return the market orders first
-					if (bestValue.order && isMarketOrder(bestValue.order)) {
+					if (bestValue.order) {
 						return bestGenerator;
 					}
-					if (currentValue.order && isMarketOrder(currentValue.order)) {
+					if (currentValue.order) {
 						return currentGenerator;
 					}
 
-					const bestPrice = bestValue.getPrice(oraclePriceData, slot);
-					const currentPrice = currentValue.getPrice(oraclePriceData, slot);
-
-					return compareFcn(bestPrice, currentPrice)
+					return compareFcn(bestValue, currentValue, slot, oraclePriceData)
 						? bestGenerator
 						: currentGenerator;
 				}
@@ -994,7 +1043,7 @@ export class DLOB {
 		}
 	}
 
-	*getLimitAsks(
+	*getRestingLimitAsks(
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
@@ -1022,15 +1071,17 @@ export class DLOB {
 			generatorList,
 			oraclePriceData,
 			slot,
-			(bestPrice, currentPrice) => {
-				return bestPrice.lt(currentPrice);
+			(bestNode, currentNode, slot, oraclePriceData) => {
+				return bestNode
+					.getPrice(oraclePriceData, slot)
+					.lt(currentNode.getPrice(oraclePriceData, slot));
 			}
 		);
 	}
 
 	/**
-	 * Filters the limit asks that are post only, have been place for sufficiently long or are above the fallback bid
-	 * Market orders can only fill against orders that meet this criteria
+	 * Filters the limit asks that are resting and do not cross fallback bid
+	 * Taking orders can only fill against orders that meet this criteria
 	 *
 	 * @returns
 	 */
@@ -1041,24 +1092,23 @@ export class DLOB {
 		oraclePriceData: OraclePriceData,
 		fallbackBid?: BN
 	): Generator<DLOBNode> {
-		for (const node of this.getLimitAsks(
+		for (const node of this.getRestingLimitAsks(
 			marketIndex,
 			slot,
 			marketType,
 			oraclePriceData
 		)) {
-			if (isRestingLimitOrder(node.order, slot)) {
-				yield node;
-			} else if (
+			if (
 				fallbackBid &&
-				node.getPrice(oraclePriceData, slot).gt(fallbackBid)
+				node.getPrice(oraclePriceData, slot).lte(fallbackBid)
 			) {
-				yield node;
+				continue;
 			}
+			yield node;
 		}
 	}
 
-	*getLimitBids(
+	*getRestingLimitBids(
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
@@ -1086,8 +1136,10 @@ export class DLOB {
 			generatorList,
 			oraclePriceData,
 			slot,
-			(bestPrice, currentPrice) => {
-				return bestPrice.gt(currentPrice);
+			(bestNode, currentNode, slot, oraclePriceData) => {
+				return bestNode
+					.getPrice(oraclePriceData, slot)
+					.gt(currentNode.getPrice(oraclePriceData, slot));
 			}
 		);
 	}
@@ -1105,20 +1157,19 @@ export class DLOB {
 		oraclePriceData: OraclePriceData,
 		fallbackAsk?: BN
 	): Generator<DLOBNode> {
-		for (const node of this.getLimitBids(
+		for (const node of this.getRestingLimitBids(
 			marketIndex,
 			slot,
 			marketType,
 			oraclePriceData
 		)) {
-			if (isRestingLimitOrder(node.order, slot)) {
-				yield node;
-			} else if (
+			if (
 				fallbackAsk &&
-				node.getPrice(oraclePriceData, slot).lt(fallbackAsk)
+				node.getPrice(oraclePriceData, slot).gte(fallbackAsk)
 			) {
-				yield node;
+				continue;
 			}
+			yield node;
 		}
 	}
 
@@ -1134,8 +1185,8 @@ export class DLOB {
 		}
 
 		const generatorList = [
-			this.getMarketAsks(marketIndex, marketType),
-			this.getLimitAsks(marketIndex, slot, marketType, oraclePriceData),
+			this.getTakingAsks(marketIndex, marketType, slot, oraclePriceData),
+			this.getRestingLimitAsks(marketIndex, slot, marketType, oraclePriceData),
 		];
 
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
@@ -1147,8 +1198,25 @@ export class DLOB {
 			generatorList,
 			oraclePriceData,
 			slot,
-			(bestPrice, currentPrice) => {
-				return bestPrice.lt(currentPrice);
+			(bestNode, currentNode, slot, oraclePriceData) => {
+				const bestNodeTaking = isTakingOrder(bestNode.order, slot);
+				const currentNodeTaking = isTakingOrder(currentNode.order, slot);
+
+				if (bestNodeTaking && currentNodeTaking) {
+					return bestNode.order.slot.lt(currentNode.order.slot);
+				}
+
+				if (bestNodeTaking) {
+					return true;
+				}
+
+				if (currentNodeTaking) {
+					return false;
+				}
+
+				return bestNode
+					.getPrice(oraclePriceData, slot)
+					.lt(currentNode.getPrice(oraclePriceData, slot));
 			}
 		);
 	}
@@ -1165,8 +1233,8 @@ export class DLOB {
 		}
 
 		const generatorList = [
-			this.getMarketBids(marketIndex, marketType),
-			this.getLimitBids(marketIndex, slot, marketType, oraclePriceData),
+			this.getTakingBids(marketIndex, marketType, slot, oraclePriceData),
+			this.getRestingLimitBids(marketIndex, slot, marketType, oraclePriceData),
 		];
 
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
@@ -1178,13 +1246,30 @@ export class DLOB {
 			generatorList,
 			oraclePriceData,
 			slot,
-			(bestPrice, currentPrice) => {
-				return bestPrice.gt(currentPrice);
+			(bestNode, currentNode, slot, oraclePriceData) => {
+				const bestNodeTaking = isTakingOrder(bestNode.order, slot);
+				const currentNodeTaking = isTakingOrder(currentNode.order, slot);
+
+				if (bestNodeTaking && currentNodeTaking) {
+					return bestNode.order.slot.lt(currentNode.order.slot);
+				}
+
+				if (bestNodeTaking) {
+					return true;
+				}
+
+				if (currentNodeTaking) {
+					return false;
+				}
+
+				return bestNode
+					.getPrice(oraclePriceData, slot)
+					.gt(currentNode.getPrice(oraclePriceData, slot));
 			}
 		);
 	}
 
-	findCrossingLimitOrders(
+	findCrossingRestingLimitOrders(
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
@@ -1194,13 +1279,13 @@ export class DLOB {
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
-		for (const askNode of this.getLimitAsks(
+		for (const askNode of this.getRestingLimitAsks(
 			marketIndex,
 			slot,
 			marketType,
 			oraclePriceData
 		)) {
-			for (const bidNode of this.getLimitBids(
+			for (const bidNode of this.getRestingLimitBids(
 				marketIndex,
 				slot,
 				marketType,
