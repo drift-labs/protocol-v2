@@ -25,6 +25,8 @@ import {
 	TxParams,
 	SerumV3FulfillmentConfigAccount,
 	isVariant,
+	OrderTriggerCondition,
+	isOneOfVariant,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import driftIDL from './idl/drift.json';
@@ -3049,51 +3051,35 @@ export class DriftClient {
 		newLimitPrice?: BN,
 		newOraclePriceOffset?: number
 	): Promise<TransactionSignature> {
-		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
-			throw new Error(
-				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
-			);
-		}
+		return this.modifyOrder({
+			orderId,
+			newBaseAmount,
+			newLimitPrice,
+			newOraclePriceOffset,
+		});
+	}
 
-		const openOrder = this.getUser().getOrder(orderId);
-		if (!openOrder) {
-			throw new Error(`No open order with id ${orderId.toString()}`);
-		}
-		const cancelOrderIx = await this.getCancelOrderIx(orderId);
-
-		const newOrderParams: OptionalOrderParams = {
-			orderType: openOrder.orderType,
-			marketType: openOrder.marketType,
-			direction: openOrder.direction,
-			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: newLimitPrice || openOrder.price,
-			marketIndex: openOrder.marketIndex,
-			reduceOnly: openOrder.reduceOnly,
-			postOnly: openOrder.postOnly,
-			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: openOrder.triggerPrice,
-			triggerCondition: openOrder.triggerCondition,
-			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: openOrder.auctionDuration,
-			maxTs: openOrder.maxTs,
-			auctionStartPrice: openOrder.auctionStartPrice,
-			auctionEndPrice: openOrder.auctionEndPrice,
-			userOrderId: openOrder.userOrderId,
-		};
-		const placeOrderIx = await this.getPlacePerpOrderIx(newOrderParams);
-
-		const tx = new Transaction();
-		tx.add(
-			ComputeBudgetProgram.requestUnits({
-				units: 1_000_000,
-				additionalFee: 0,
-			})
-		);
-		tx.add(cancelOrderIx);
-		tx.add(placeOrderIx);
-		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
-		this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
-		return txSig;
+	/**
+	 * Modifies an open order by closing it and replacing it with a new order.
+	 * @deprecated use modifyOrderByUserOrderId instead
+	 * @param userOrderId: The open order to modify
+	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newOraclePriceOffset: The new oracle price offset for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @returns
+	 */
+	public async modifyPerpOrderByUserOrderId(
+		userOrderId: number,
+		newBaseAmount?: BN,
+		newLimitPrice?: BN,
+		newOraclePriceOffset?: number
+	): Promise<TransactionSignature> {
+		return this.modifyOrderByUserOrderId({
+			userOrderId,
+			newBaseAmount,
+			newLimitPrice,
+			newOraclePriceOffset,
+		});
 	}
 
 	/**
@@ -3105,6 +3091,9 @@ export class DriftClient {
 	 * @param newOrderType: Optional - New order type for the order.
 	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
 	 * @param isSpot: Optional - Set to true if the order is a spot order
+	 * @param auctionDuration: Only required if order type changed to market from something else
+	 * @param auctionStartPrice: Only required if order type changed to market from something else
+	 * @param auctionEndPrice: Only required if order type changed to market from something else
 	 * @returns
 	 */
 	public async modifyOrder({
@@ -3114,7 +3103,11 @@ export class DriftClient {
 		newOraclePriceOffset,
 		newOrderType,
 		newTriggerPrice,
+		newTriggerCondition,
 		isSpot,
+		auctionDuration,
+		auctionStartPrice,
+		auctionEndPrice,
 	}: {
 		orderId: number;
 		newBaseAmount?: BN;
@@ -3122,7 +3115,11 @@ export class DriftClient {
 		newOraclePriceOffset?: number;
 		newOrderType?: OrderType;
 		newTriggerPrice?: BN;
+		newTriggerCondition?: OrderTriggerCondition;
 		isSpot?: boolean;
+		auctionDuration?: number;
+		auctionStartPrice?: BN;
+		auctionEndPrice?: BN;
 	}): Promise<TransactionSignature> {
 		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
 			throw new Error(
@@ -3136,23 +3133,36 @@ export class DriftClient {
 		}
 		const cancelOrderIx = await this.getCancelOrderIx(orderId);
 
+		const orderTypeHasTrigger = newOrderType
+			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
+		const orderTypeHasLimitPrice = newOrderType
+			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
+
 		const newOrderParams: OptionalOrderParams = {
 			orderType: newOrderType || openOrder.orderType,
 			marketType: openOrder.marketType,
 			direction: openOrder.direction,
 			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: newLimitPrice || openOrder.price,
+			price: orderTypeHasLimitPrice
+				? newLimitPrice || openOrder.price
+				: undefined,
 			marketIndex: openOrder.marketIndex,
 			reduceOnly: openOrder.reduceOnly,
 			postOnly: openOrder.postOnly,
 			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: newTriggerPrice || openOrder.triggerPrice,
-			triggerCondition: openOrder.triggerCondition,
+			triggerPrice: orderTypeHasTrigger
+				? newTriggerPrice || openOrder.triggerPrice
+				: undefined,
+			triggerCondition: orderTypeHasTrigger
+				? newTriggerCondition || openOrder.triggerCondition
+				: undefined,
 			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: openOrder.auctionDuration,
+			auctionDuration: auctionDuration || openOrder.auctionDuration,
 			maxTs: openOrder.maxTs,
-			auctionStartPrice: openOrder.auctionStartPrice,
-			auctionEndPrice: openOrder.auctionEndPrice,
+			auctionStartPrice: auctionStartPrice || openOrder.auctionStartPrice,
+			auctionEndPrice: auctionEndPrice || openOrder.auctionEndPrice,
 			userOrderId: openOrder.userOrderId,
 		};
 		const placeOrderIx = isSpot
@@ -3182,70 +3192,6 @@ export class DriftClient {
 
 	/**
 	 * Modifies an open order by closing it and replacing it with a new order.
-	 * @deprecated use modifyOrderByUserOrderId instead
-	 * @param userOrderId: The open order to modify
-	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newOraclePriceOffset: The new oracle price offset for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @returns
-	 */
-	public async modifyPerpOrderByUserOrderId(
-		userOrderId: number,
-		newBaseAmount?: BN,
-		newLimitPrice?: BN,
-		newOraclePriceOffset?: number
-	): Promise<TransactionSignature> {
-		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
-			throw new Error(
-				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
-			);
-		}
-
-		const openOrder = this.getUser().getOrderByUserOrderId(userOrderId);
-		if (!openOrder) {
-			throw new Error(
-				`No open order with user order id ${userOrderId.toString()}`
-			);
-		}
-		const cancelOrderIx = await this.getCancelOrderByUserIdIx(userOrderId);
-
-		const newOrderParams: OptionalOrderParams = {
-			orderType: openOrder.orderType,
-			marketType: openOrder.marketType,
-			direction: openOrder.direction,
-			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: newLimitPrice || openOrder.price,
-			marketIndex: openOrder.marketIndex,
-			reduceOnly: openOrder.reduceOnly,
-			postOnly: openOrder.postOnly,
-			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: openOrder.triggerPrice,
-			triggerCondition: openOrder.triggerCondition,
-			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: openOrder.auctionDuration,
-			maxTs: openOrder.maxTs,
-			auctionStartPrice: openOrder.auctionStartPrice,
-			auctionEndPrice: openOrder.auctionEndPrice,
-			userOrderId: openOrder.userOrderId,
-		};
-		const placeOrderIx = await this.getPlacePerpOrderIx(newOrderParams);
-
-		const tx = new Transaction();
-		tx.add(
-			ComputeBudgetProgram.requestUnits({
-				units: 1_000_000,
-				additionalFee: 0,
-			})
-		);
-		tx.add(cancelOrderIx);
-		tx.add(placeOrderIx);
-		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
-		this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
-		return txSig;
-	}
-
-	/**
-	 * Modifies an open order by closing it and replacing it with a new order.
 	 * @param userOrderId: The open order to modify
 	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
 	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
@@ -3253,6 +3199,9 @@ export class DriftClient {
 	 * @param newOrderType: Optional - New order type for the order.
 	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
 	 * @param isSpot: Set to true if the order is a spot order
+	 * @param auctionDuration: Only required if order type changed to market from something else
+	 * @param auctionStartPrice: Only required if order type changed to market from something else
+	 * @param auctionEndPrice: Only required if order type changed to market from something else
 	 * @returns
 	 */
 	public async modifyOrderByUserOrderId({
@@ -3262,7 +3211,11 @@ export class DriftClient {
 		newOraclePriceOffset,
 		newOrderType,
 		newTriggerPrice,
+		newTriggerCondition,
 		isSpot,
+		auctionDuration,
+		auctionStartPrice,
+		auctionEndPrice,
 	}: {
 		userOrderId: number;
 		newBaseAmount?: BN;
@@ -3270,7 +3223,11 @@ export class DriftClient {
 		newOraclePriceOffset?: number;
 		newOrderType?: OrderType;
 		newTriggerPrice?: BN;
+		newTriggerCondition?: OrderTriggerCondition;
 		isSpot?: boolean;
+		auctionDuration?: number;
+		auctionStartPrice?: BN;
+		auctionEndPrice?: BN;
 	}): Promise<TransactionSignature> {
 		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
 			throw new Error(
@@ -3286,23 +3243,36 @@ export class DriftClient {
 		}
 		const cancelOrderIx = await this.getCancelOrderByUserIdIx(userOrderId);
 
+		const orderTypeHasTrigger = newOrderType
+			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
+		const orderTypeHasLimitPrice = newOrderType
+			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
+
 		const newOrderParams: OptionalOrderParams = {
 			orderType: newOrderType || openOrder.orderType,
 			marketType: openOrder.marketType,
 			direction: openOrder.direction,
 			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: newLimitPrice || openOrder.price,
+			price: orderTypeHasLimitPrice
+				? newLimitPrice || openOrder.price
+				: undefined,
 			marketIndex: openOrder.marketIndex,
 			reduceOnly: openOrder.reduceOnly,
 			postOnly: openOrder.postOnly,
 			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: newTriggerPrice || openOrder.triggerPrice,
-			triggerCondition: openOrder.triggerCondition,
+			triggerPrice: orderTypeHasTrigger
+				? newTriggerPrice || openOrder.triggerPrice
+				: undefined,
+			triggerCondition: orderTypeHasTrigger
+				? newTriggerCondition || openOrder.triggerCondition
+				: undefined,
 			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: openOrder.auctionDuration,
+			auctionDuration: auctionDuration || openOrder.auctionDuration,
 			maxTs: openOrder.maxTs,
-			auctionStartPrice: openOrder.auctionStartPrice,
-			auctionEndPrice: openOrder.auctionEndPrice,
+			auctionStartPrice: auctionStartPrice || openOrder.auctionStartPrice,
+			auctionEndPrice: auctionEndPrice || openOrder.auctionEndPrice,
 			userOrderId: openOrder.userOrderId,
 		};
 		const placeOrderIx = isSpot
