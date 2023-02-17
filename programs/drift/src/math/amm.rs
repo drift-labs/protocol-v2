@@ -428,10 +428,10 @@ pub fn calculate_new_oracle_price_twap(
     };
 
     let since_last = max(
-        0_i64,
+        if period == 0 { 1_i64 } else { 0_i64 },
         now.safe_sub(amm.historical_oracle_data.last_oracle_price_twap_ts)?,
     );
-    let from_start = max(0_i64, max(1, period).safe_sub(since_last)?);
+    let from_start = max(0_i64, period.safe_sub(since_last)?);
 
     // if an oracle delay impacted last oracle_twap, shrink toward mark_twap
     let interpolated_oracle_price =
