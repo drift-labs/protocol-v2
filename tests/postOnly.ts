@@ -31,6 +31,7 @@ import {
 	getLimitOrderParams,
 	isVariant,
 	OracleSource,
+	PostOnlyParams,
 	ZERO,
 } from '../sdk';
 
@@ -191,7 +192,7 @@ describe('post only', () => {
 			baseAssetAmount,
 			price: reservePrice,
 			userOrderId: 1,
-			postOnly: true,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
 		});
 		await driftClient.placePerpOrder(makerOrderParams);
 		await driftClientUser.fetchAccounts();
@@ -280,7 +281,7 @@ describe('post only', () => {
 			baseAssetAmount,
 			price: reservePrice,
 			userOrderId: 1,
-			postOnly: true,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
 		});
 		await driftClient.placePerpOrder(makerOrderParams);
 		await driftClientUser.fetchAccounts();

@@ -8,7 +8,6 @@ use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
 use serum_dex::matching::Side;
 use solana_program::msg;
 
-use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
@@ -55,6 +54,7 @@ use crate::math::serum::{
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
+use crate::{controller, PostOnlyParam};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -197,16 +197,7 @@ pub fn place_perp_order(
             standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?
         };
 
-        let market_position = &mut user.perp_positions[position_index];
-        market_position.open_orders += 1;
-
-        if !matches!(
-            &params.order_type,
-            OrderType::TriggerMarket | OrderType::TriggerLimit
-        ) {
-            increase_open_bids_and_asks(market_position, &params.direction, base_asset_amount)?;
-        }
-
+        let market_position = &user.perp_positions[position_index];
         let existing_position_direction = if market_position.base_asset_amount >= 0 {
             PositionDirection::Long
         } else {
@@ -251,7 +242,7 @@ pub fn place_perp_order(
             params.direction,
         )?,
         trigger_condition: params.trigger_condition,
-        post_only: params.post_only,
+        post_only: params.post_only != PostOnlyParam::None,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
         immediate_or_cancel: params.immediate_or_cancel,
         auction_start_price,
@@ -268,9 +259,26 @@ pub fn place_perp_order(
         &state.oracle_guard_rails.validity,
     )?;
 
-    validate_order(&new_order, market, valid_oracle_price, slot)?;
+    match validate_order(&new_order, market, valid_oracle_price, slot) {
+        Ok(()) => {}
+        Err(ErrorCode::PlacePostOnlyLimitFailure)
+            if params.post_only == PostOnlyParam::TryPostOnly =>
+        {
+            // just want place to succeeds without error if TryPostOnly
+            return Ok(());
+        }
+        Err(err) => return Err(err),
+    };
 
     user.orders[new_order_index] = new_order;
+    user.perp_positions[position_index].open_orders += 1;
+    if !new_order.must_be_triggered() {
+        increase_open_bids_and_asks(
+            &mut user.perp_positions[position_index],
+            &params.direction,
+            order_base_asset_amount,
+        )?;
+    }
 
     let worst_case_base_asset_amount_after =
         user.perp_positions[position_index].worst_case_base_asset_amount()?;
@@ -2693,16 +2701,6 @@ pub fn place_spot_order(
             step_size
         )?;
 
-        let spot_position = &mut user.spot_positions[spot_position_index];
-        spot_position.open_orders += 1;
-
-        if !matches!(
-            &params.order_type,
-            OrderType::TriggerMarket | OrderType::TriggerLimit
-        ) {
-            increase_spot_open_bids_and_asks(spot_position, &params.direction, base_asset_amount)?;
-        }
-
         let existing_position_direction = if signed_token_amount >= 0 {
             PositionDirection::Long
         } else {
@@ -2756,7 +2754,7 @@ pub fn place_spot_order(
             params.direction,
         )?,
         trigger_condition: params.trigger_condition,
-        post_only: params.post_only,
+        post_only: params.post_only != PostOnlyParam::None,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
         immediate_or_cancel: params.immediate_or_cancel,
         auction_start_price,
@@ -2779,6 +2777,14 @@ pub fn place_spot_order(
     )?;
 
     user.orders[new_order_index] = new_order;
+    user.spot_positions[spot_position_index].open_orders += 1;
+    if !new_order.must_be_triggered() {
+        increase_spot_open_bids_and_asks(
+            &mut user.spot_positions[spot_position_index],
+            &params.direction,
+            order_base_asset_amount,
+        )?;
+    }
 
     let (worst_case_token_amount_after, _) = user.spot_positions[spot_position_index]
         .get_worst_case_token_amounts(spot_market, &oracle_price_data, None, None)?;

@@ -27,6 +27,7 @@ import {
 	isVariant,
 	OrderTriggerCondition,
 	isOneOfVariant,
+	PostOnlyParams,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import driftIDL from './idl/drift.json';
@@ -3150,7 +3151,9 @@ export class DriftClient {
 				: undefined,
 			marketIndex: openOrder.marketIndex,
 			reduceOnly: openOrder.reduceOnly,
-			postOnly: openOrder.postOnly,
+			postOnly: openOrder.postOnly
+				? PostOnlyParams.MUST_POST_ONLY
+				: PostOnlyParams.NONE,
 			immediateOrCancel: openOrder.immediateOrCancel,
 			triggerPrice: orderTypeHasTrigger
 				? newTriggerPrice || openOrder.triggerPrice
@@ -3260,7 +3263,9 @@ export class DriftClient {
 				: undefined,
 			marketIndex: openOrder.marketIndex,
 			reduceOnly: openOrder.reduceOnly,
-			postOnly: openOrder.postOnly,
+			postOnly: openOrder.postOnly
+				? PostOnlyParams.MUST_POST_ONLY
+				: PostOnlyParams.NONE,
 			immediateOrCancel: openOrder.immediateOrCancel,
 			triggerPrice: orderTypeHasTrigger
 				? newTriggerPrice || openOrder.triggerPrice

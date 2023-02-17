@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: order params utilize post only enum ([#361](https://github.com/drift-labs/protocol-v2/pull/361))
+
 ### Fixes
 
 ### Breaking
