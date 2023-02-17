@@ -331,7 +331,7 @@ export function calculateWithdrawLimit(
 		BN.min(
 			BN.max(
 				marketDepositTokenAmount.div(new BN(6)),
-				borrowTokenTwapLive.add(borrowTokenTwapLive.div(new BN(5)))
+				borrowTokenTwapLive.add(marketDepositTokenAmount.div(new BN(10)))
 			),
 			marketDepositTokenAmount.sub(marketDepositTokenAmount.div(new BN(5)))
 		)
