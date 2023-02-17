@@ -213,6 +213,7 @@ pub mod liquidate_perp {
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+                funding_period: 3600,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -357,6 +358,7 @@ pub mod liquidate_perp {
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+                funding_period: 3600,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,

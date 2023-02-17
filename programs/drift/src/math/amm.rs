@@ -9,9 +9,10 @@ use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
-    CONCENTRATION_PRECISION, DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, ONE_MINUTE, FIVE_MINUTE, ONE_HOUR,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION_I64,
+    CONCENTRATION_PRECISION, DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR,
+    ONE_MINUTE, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_TO_PEG_PRECISION_RATIO,
+    QUOTE_PRECISION_I64,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
@@ -430,7 +431,7 @@ pub fn calculate_new_oracle_price_twap(
         0_i64,
         now.safe_sub(amm.historical_oracle_data.last_oracle_price_twap_ts)?,
     );
-    let from_start = max(0_i64, period.safe_sub(since_last)?);
+    let from_start = max(0_i64, max(1, period).safe_sub(since_last)?);
 
     // if an oracle delay impacted last oracle_twap, shrink toward mark_twap
     let interpolated_oracle_price =
