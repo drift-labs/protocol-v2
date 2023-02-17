@@ -4655,7 +4655,9 @@
           },
           {
             "name": "postOnly",
-            "type": "bool"
+            "type": {
+              "defined": "PostOnlyParam"
+            }
           },
           {
             "name": "immediateOrCancel",
@@ -5858,6 +5860,23 @@
           },
           {
             "name": "None"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PostOnlyParam",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "MustPostOnly"
+          },
+          {
+            "name": "TryPostOnly"
           }
         ]
       }

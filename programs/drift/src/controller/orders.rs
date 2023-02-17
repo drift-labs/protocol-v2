@@ -272,7 +272,7 @@ pub fn place_perp_order(
 
     user.orders[new_order_index] = new_order;
     user.perp_positions[position_index].open_orders += 1;
-    if new_order.must_be_triggered() {
+    if !new_order.must_be_triggered() {
         increase_open_bids_and_asks(
             &mut user.perp_positions[position_index],
             &params.direction,
@@ -2778,7 +2778,7 @@ pub fn place_spot_order(
 
     user.orders[new_order_index] = new_order;
     user.spot_positions[spot_position_index].open_orders += 1;
-    if new_order.must_be_triggered() {
+    if !new_order.must_be_triggered() {
         increase_spot_open_bids_and_asks(
             &mut user.spot_positions[spot_position_index],
             &params.direction,
