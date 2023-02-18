@@ -29,6 +29,7 @@ import {
 	BN_MAX,
 	isRestingLimitOrder,
 	isTakingOrder,
+	isFallbackAvailableLiquiditySource,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -475,6 +476,10 @@ export class DLOB {
 
 		const isAmmPaused = ammPaused(stateAccount, marketAccount);
 
+		const minAuctionDuration = isVariant(marketType, 'perp')
+			? stateAccount.minPerpAuctionDuration
+			: 0;
+
 		const takingOrderNodesToFill: Array<NodeToFill> =
 			this.findTakingNodesToFill(
 				marketIndex,
@@ -482,6 +487,7 @@ export class DLOB {
 				marketType,
 				oraclePriceData,
 				isAmmPaused,
+				minAuctionDuration,
 				fallbackAsk,
 				fallbackBid
 			);
@@ -493,6 +499,7 @@ export class DLOB {
 				marketType,
 				oraclePriceData,
 				isAmmPaused,
+				minAuctionDuration,
 				fallbackAsk,
 				fallbackBid
 			);
@@ -515,6 +522,7 @@ export class DLOB {
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData,
 		isAmmPaused: boolean,
+		minAuctionDuration: number,
 		fallbackAsk: BN | undefined,
 		fallbackBid: BN | undefined
 	): NodeToFill[] {
@@ -525,6 +533,7 @@ export class DLOB {
 			slot,
 			marketType,
 			oraclePriceData,
+			minAuctionDuration,
 			fallbackAsk,
 			fallbackBid
 		);
@@ -548,7 +557,8 @@ export class DLOB {
 				fallbackBid,
 				(askPrice, fallbackPrice) => {
 					return askPrice.lte(fallbackPrice);
-				}
+				},
+				minAuctionDuration
 			);
 
 			for (const askCrossingFallback of asksCrossingFallback) {
@@ -571,7 +581,8 @@ export class DLOB {
 				fallbackAsk,
 				(bidPrice, fallbackPrice) => {
 					return bidPrice.gte(fallbackPrice);
-				}
+				},
+				minAuctionDuration
 			);
 
 			for (const bidCrossingFallback of bidsCrossingFallback) {
@@ -588,6 +599,7 @@ export class DLOB {
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData,
 		isAmmPaused: boolean,
+		minAuctionDuration: number,
 		fallbackAsk: BN | undefined,
 		fallbackBid?: BN | undefined
 	): NodeToFill[] {
@@ -641,7 +653,8 @@ export class DLOB {
 					fallbackBid,
 					(takerPrice, fallbackPrice) => {
 						return takerPrice === undefined || takerPrice.lte(fallbackPrice);
-					}
+					},
+					minAuctionDuration
 				);
 
 			for (const takingAskCrossingFallback of takingAsksCrossingFallback) {
@@ -699,7 +712,8 @@ export class DLOB {
 					fallbackAsk,
 					(takerPrice, fallbackPrice) => {
 						return takerPrice === undefined || takerPrice.gte(fallbackPrice);
-					}
+					},
+					minAuctionDuration
 				);
 			for (const marketBidCrossingFallback of takingBidsCrossingFallback) {
 				nodesToFill.push(marketBidCrossingFallback);
@@ -803,7 +817,8 @@ export class DLOB {
 		oraclePriceData: OraclePriceData,
 		nodeGenerator: Generator<DLOBNode>,
 		fallbackPrice: BN,
-		doesCross: (nodePrice: BN | undefined, fallbackPrice: BN) => boolean
+		doesCross: (nodePrice: BN | undefined, fallbackPrice: BN) => boolean,
+		minAuctionDuration: number
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -823,7 +838,12 @@ export class DLOB {
 
 			// fallback is available if auction is complete or it's a spot order
 			const fallbackAvailable =
-				isVariant(marketType, 'spot') || isAuctionComplete(node.order, slot);
+				isVariant(marketType, 'spot') ||
+				isFallbackAvailableLiquiditySource(
+					node.order,
+					minAuctionDuration,
+					slot
+				);
 
 			if (crosses && fallbackAvailable) {
 				nodesToFill.push({
@@ -1276,6 +1296,7 @@ export class DLOB {
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData,
+		minAuctionDuration: number,
 		fallbackAsk: BN | undefined,
 		fallbackBid: BN | undefined
 	): NodeToFill[] {
@@ -1316,7 +1337,13 @@ export class DLOB {
 				);
 
 				// extra guard against bad fills for limit orders where auction is incomplete
-				if (!isAuctionComplete(takerNode.order, slot)) {
+				if (
+					!isFallbackAvailableLiquiditySource(
+						takerNode.order,
+						minAuctionDuration,
+						slot
+					)
+				) {
 					let bidPrice: BN;
 					let askPrice: BN;
 					if (isVariant(takerNode.order.direction, 'long')) {

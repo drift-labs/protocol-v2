@@ -9,6 +9,18 @@ export function isAuctionComplete(order: Order, slot: number): boolean {
 	return new BN(slot).sub(order.slot).gt(new BN(order.auctionDuration));
 }
 
+export function isFallbackAvailableLiquiditySource(
+	order: Order,
+	minAuctionDuration: number,
+	slot: number
+): boolean {
+	if (minAuctionDuration === 0) {
+		return true;
+	}
+
+	return new BN(slot).sub(order.slot).gt(new BN(minAuctionDuration));
+}
+
 export function getAuctionPrice(
 	order: Order,
 	slot: number,

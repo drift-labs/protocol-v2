@@ -1648,6 +1648,7 @@ describe('DLOB Perp Tests', () => {
 				hasSufficientNumberOfDataPoints: true,
 			},
 			false,
+			10,
 			undefined,
 			undefined
 		);
@@ -1792,6 +1793,7 @@ describe('DLOB Perp Tests', () => {
 				hasSufficientNumberOfDataPoints: true,
 			},
 			false,
+			10,
 			undefined,
 			undefined
 		);
@@ -2590,6 +2592,7 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle,
 			false,
+			10,
 			undefined,
 			undefined
 		);
@@ -3406,6 +3409,7 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle,
 			false,
+			10,
 			vAsk,
 			vBid
 		);
@@ -3458,6 +3462,7 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle,
 			false,
+			10,
 			vAsk,
 			vBid
 		);
