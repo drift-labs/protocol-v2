@@ -1090,11 +1090,12 @@ fn sanitize_maker_order<'a>(
         let maker_order_price = *maker_order_price;
 
         let maker_order = &maker.orders[maker_order_index];
-        if !is_maker_for_taker(maker_order, taker_order)? {
+        if !is_maker_for_taker(maker_order, taker_order, slot)? {
             continue;
         }
 
-        if !maker_order.is_resting_limit_order(slot)? || maker_order.is_jit_maker() {
+        // dont use maker if order is < 30 slots old and cross amm
+        if slot.safe_sub(maker_order.slot)? < 30 {
             match maker_direction {
                 PositionDirection::Long => {
                     if maker_order_price >= amm_ask_price {
@@ -3170,11 +3171,7 @@ fn sanitize_spot_maker_order<'a>(
 
     {
         let maker_order = &maker.orders[maker_order_index];
-        if !is_maker_for_taker(maker_order, taker_order)? {
-            return Ok((None, None, None, None));
-        }
-
-        if !maker_order.is_resting_limit_order(slot)? {
+        if !is_maker_for_taker(maker_order, taker_order, slot)? {
             return Ok((None, None, None, None));
         }
 

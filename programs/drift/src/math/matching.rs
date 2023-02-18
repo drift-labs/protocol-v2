@@ -1,7 +1,7 @@
 use std::cmp::min;
 
 use crate::controller::position::PositionDirection;
-use crate::error::{DriftResult, ErrorCode};
+use crate::error::DriftResult;
 use crate::math::casting::Cast;
 use crate::math::constants::{BID_ASK_SPREAD_PRECISION_I128, TEN_BPS_I64};
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
@@ -13,15 +13,24 @@ use crate::state::user::Order;
 mod tests;
 
 #[allow(clippy::if_same_then_else)]
-pub fn is_maker_for_taker(maker_order: &Order, taker_order: &Order) -> DriftResult<bool> {
+pub fn is_maker_for_taker(
+    maker_order: &Order,
+    taker_order: &Order,
+    slot: u64,
+) -> DriftResult<bool> {
+    // taker cant be post only
     if taker_order.post_only {
-        Err(ErrorCode::CantMatchTwoPostOnlys)
+        Ok(false)
+    // maker must be resting limit order
+    } else if !maker_order.is_resting_limit_order(slot)? {
+        Ok(false)
+    // can make taker if order is market order or limit order going through auction
+    } else if !taker_order.is_resting_limit_order(slot)? {
+        Ok(true)
+    // if taker is resting limit order but not post only, let post only order make it
     } else if maker_order.post_only && !taker_order.post_only {
         Ok(true)
-    } else if maker_order.is_limit_order() && taker_order.is_market_order() {
-        Ok(true)
-    } else if maker_order.is_market_order() {
-        Ok(false)
+    // otherwise the maker must be older than the taker order
     } else {
         Ok(maker_order.slot < taker_order.slot)
     }

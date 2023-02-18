@@ -4183,7 +4183,7 @@ pub mod fill_order {
     #[test]
     fn maker_order_canceled_for_breaching_oracle_price_band() {
         let clock = Clock {
-            slot: 6,
+            slot: 56,
             epoch_start_timestamp: 0,
             epoch: 0,
             leader_schedule_epoch: 0,
@@ -4383,7 +4383,7 @@ pub mod fill_order {
     #[test]
     fn fallback_maker_order_id() {
         let clock = Clock {
-            slot: 6,
+            slot: 56,
             epoch_start_timestamp: 0,
             epoch: 0,
             leader_schedule_epoch: 0,
@@ -8325,7 +8325,7 @@ pub mod sanitize_maker_orders {
     #[test]
     fn one_maker_order_canceled_for_breaching_oracle_price_band() {
         let clock = Clock {
-            slot: 6,
+            slot: 56,
             epoch_start_timestamp: 0,
             epoch: 0,
             leader_schedule_epoch: 0,
@@ -8524,7 +8524,7 @@ pub mod sanitize_maker_orders {
     #[test]
     fn one_maker_order_canceled_for_being_expired() {
         let clock = Clock {
-            slot: 6,
+            slot: 56,
             epoch_start_timestamp: 0,
             epoch: 0,
             leader_schedule_epoch: 0,
