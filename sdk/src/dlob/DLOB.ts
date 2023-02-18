@@ -937,9 +937,11 @@ export class DLOB {
 			return;
 		}
 
+		this.updateRestingLimitOrders(slot);
+
 		const generatorList = [
 			orderLists.market.bid.getGenerator(),
-			orderLists.market.bid.getGenerator(),
+			orderLists.takingLimit.bid.getGenerator(),
 		];
 
 		yield* this.getBestNode(
@@ -964,9 +966,11 @@ export class DLOB {
 			return;
 		}
 
+		this.updateRestingLimitOrders(slot);
+
 		const generatorList = [
 			orderLists.market.ask.getGenerator(),
-			orderLists.market.ask.getGenerator(),
+			orderLists.takingLimit.ask.getGenerator(),
 		];
 
 		yield* this.getBestNode(
@@ -1011,14 +1015,6 @@ export class DLOB {
 
 					const bestValue = bestGenerator.next.value as DLOBNode;
 					const currentValue = currentGenerator.next.value as DLOBNode;
-
-					// always return the market orders first
-					if (bestValue.order) {
-						return bestGenerator;
-					}
-					if (currentValue.order) {
-						return currentGenerator;
-					}
 
 					return compareFcn(bestValue, currentValue, slot, oraclePriceData)
 						? bestGenerator
@@ -1197,8 +1193,12 @@ export class DLOB {
 			oraclePriceData,
 			slot,
 			(bestNode, currentNode, slot, oraclePriceData) => {
-				const bestNodeTaking = isTakingOrder(bestNode.order, slot);
-				const currentNodeTaking = isTakingOrder(currentNode.order, slot);
+				const bestNodeTaking = bestNode.order
+					? isTakingOrder(bestNode.order, slot)
+					: false;
+				const currentNodeTaking = currentNode.order
+					? isTakingOrder(currentNode.order, slot)
+					: false;
 
 				if (bestNodeTaking && currentNodeTaking) {
 					return bestNode.order.slot.lt(currentNode.order.slot);
@@ -1245,8 +1245,12 @@ export class DLOB {
 			oraclePriceData,
 			slot,
 			(bestNode, currentNode, slot, oraclePriceData) => {
-				const bestNodeTaking = isTakingOrder(bestNode.order, slot);
-				const currentNodeTaking = isTakingOrder(currentNode.order, slot);
+				const bestNodeTaking = bestNode.order
+					? isTakingOrder(bestNode.order, slot)
+					: false;
+				const currentNodeTaking = currentNode.order
+					? isTakingOrder(currentNode.order, slot)
+					: false;
 
 				if (bestNodeTaking && currentNodeTaking) {
 					return bestNode.order.slot.lt(currentNode.order.slot);
