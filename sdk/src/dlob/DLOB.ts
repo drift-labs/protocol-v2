@@ -400,14 +400,23 @@ export class DLOB {
 		];
 	}
 
-	public updateRestingLimitOrders(slot: number) {
+	public updateRestingLimitOrders(slot: number): void {
 		if (slot <= this.maxSlotForRestingLimitOrders) {
 			return;
 		}
 
 		this.maxSlotForRestingLimitOrders = slot;
 
-		for (const [_, nodeLists] of this.orderLists.get('perp')) {
+		this.updateRestingLimitOrdersForMarketType(slot, 'perp');
+
+		this.updateRestingLimitOrdersForMarketType(slot, 'spot');
+	}
+
+	updateRestingLimitOrdersForMarketType(
+		slot: number,
+		marketTypeStr: MarketTypeStr
+	): void {
+		for (const [_, nodeLists] of this.orderLists.get(marketTypeStr)) {
 			const nodesToUpdate = [];
 			for (const node of nodeLists.takingLimit.ask.getGenerator()) {
 				if (!isRestingLimitOrder(node.order, slot)) {
@@ -436,42 +445,7 @@ export class DLOB {
 				nodeLists.takingLimit[side].remove(node.order, node.userAccount);
 				nodeLists.restingLimit[side].insert(
 					node.order,
-					'perp',
-					node.userAccount
-				);
-			}
-		}
-
-		for (const [_, nodeLists] of this.orderLists.get('spot')) {
-			const nodesToUpdate = [];
-			for (const node of nodeLists.takingLimit.ask.getGenerator()) {
-				if (!isRestingLimitOrder(node.order, slot)) {
-					continue;
-				}
-
-				nodesToUpdate.push({
-					side: 'ask',
-					node,
-				});
-			}
-
-			for (const node of nodeLists.takingLimit.bid.getGenerator()) {
-				if (!isRestingLimitOrder(node.order, slot)) {
-					continue;
-				}
-
-				nodesToUpdate.push({
-					side: 'bid',
-					node,
-				});
-			}
-
-			for (const nodeToUpdate of nodesToUpdate) {
-				const { side, node } = nodeToUpdate;
-				nodeLists.takingLimit[side].remove(node.order, node.userAccount);
-				nodeLists.restingLimit[side].insert(
-					node.order,
-					'perp',
+					marketTypeStr,
 					node.userAccount
 				);
 			}

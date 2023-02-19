@@ -550,6 +550,266 @@ describe('DLOB Tests', () => {
 			true
 		);
 	});
+
+	it('DLOB update resting limit orders bids', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(10);
+
+		let slot = 1;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		const user0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user2 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+		const marketType = MarketType.PERP;
+
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			1, // orderId
+			marketIndex,
+			new BN(11), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(1)
+		);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(12), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(11)
+		);
+		insertOrderToDLOB(
+			dlob,
+			user2.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(13), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(21)
+		);
+
+		let takingBids = Array.from(
+			dlob.getTakingBids(marketIndex, marketType, slot, oracle)
+		);
+
+		expect(takingBids.length).to.equal(3);
+		expect(takingBids[0].order.orderId).to.equal(1);
+		expect(takingBids[1].order.orderId).to.equal(2);
+		expect(takingBids[2].order.orderId).to.equal(3);
+
+		let restingBids = Array.from(
+			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
+		);
+
+		expect(restingBids.length).to.equal(0);
+
+		slot += 11;
+
+		takingBids = Array.from(
+			dlob.getTakingBids(marketIndex, marketType, slot, oracle)
+		);
+
+		expect(takingBids.length).to.equal(2);
+		expect(takingBids[0].order.orderId).to.equal(2);
+		expect(takingBids[1].order.orderId).to.equal(3);
+
+		restingBids = Array.from(
+			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
+		);
+
+		expect(restingBids.length).to.equal(1);
+		expect(restingBids[0].order.orderId).to.equal(1);
+
+		slot += 11;
+
+		takingBids = Array.from(
+			dlob.getTakingBids(marketIndex, marketType, slot, oracle)
+		);
+
+		expect(takingBids.length).to.equal(1);
+		expect(takingBids[0].order.orderId).to.equal(3);
+
+		restingBids = Array.from(
+			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
+		);
+
+		expect(restingBids.length).to.equal(2);
+		expect(restingBids[0].order.orderId).to.equal(2);
+		expect(restingBids[1].order.orderId).to.equal(1);
+
+		slot += 11;
+
+		takingBids = Array.from(
+			dlob.getTakingBids(marketIndex, marketType, slot, oracle)
+		);
+
+		expect(takingBids.length).to.equal(0);
+
+		restingBids = Array.from(
+			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
+		);
+
+		expect(restingBids.length).to.equal(3);
+		expect(restingBids[0].order.orderId).to.equal(3);
+		expect(restingBids[1].order.orderId).to.equal(2);
+		expect(restingBids[2].order.orderId).to.equal(1);
+	});
+
+	it('DLOB update resting limit orders asks', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(10);
+
+		let slot = 1;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		const user0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user2 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+		const marketType = MarketType.PERP;
+
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			1, // orderId
+			marketIndex,
+			new BN(13), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk,
+			new BN(1)
+		);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(12), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk,
+			new BN(11)
+		);
+		insertOrderToDLOB(
+			dlob,
+			user2.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(11), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk,
+			new BN(21)
+		);
+
+		let takingBids = Array.from(
+			dlob.getTakingAsks(marketIndex, marketType, slot, oracle)
+		);
+
+		expect(takingBids.length).to.equal(3);
+		expect(takingBids[0].order.orderId).to.equal(1);
+		expect(takingBids[1].order.orderId).to.equal(2);
+		expect(takingBids[2].order.orderId).to.equal(3);
+
+		let restingBids = Array.from(
+			dlob.getRestingLimitAsks(marketIndex, slot, marketType, oracle)
+		);
+
+		expect(restingBids.length).to.equal(0);
+
+		slot += 11;
+
+		takingBids = Array.from(
+			dlob.getTakingAsks(marketIndex, marketType, slot, oracle)
+		);
+
+		expect(takingBids.length).to.equal(2);
+		expect(takingBids[0].order.orderId).to.equal(2);
+		expect(takingBids[1].order.orderId).to.equal(3);
+
+		restingBids = Array.from(
+			dlob.getRestingLimitAsks(marketIndex, slot, marketType, oracle)
+		);
+
+		expect(restingBids.length).to.equal(1);
+		expect(restingBids[0].order.orderId).to.equal(1);
+
+		slot += 11;
+
+		takingBids = Array.from(
+			dlob.getTakingAsks(marketIndex, marketType, slot, oracle)
+		);
+
+		expect(takingBids.length).to.equal(1);
+		expect(takingBids[0].order.orderId).to.equal(3);
+
+		restingBids = Array.from(
+			dlob.getRestingLimitAsks(marketIndex, slot, marketType, oracle)
+		);
+
+		expect(restingBids.length).to.equal(2);
+		expect(restingBids[0].order.orderId).to.equal(2);
+		expect(restingBids[1].order.orderId).to.equal(1);
+
+		slot += 11;
+
+		takingBids = Array.from(
+			dlob.getTakingAsks(marketIndex, marketType, slot, oracle)
+		);
+
+		expect(takingBids.length).to.equal(0);
+
+		restingBids = Array.from(
+			dlob.getRestingLimitAsks(marketIndex, slot, marketType, oracle)
+		);
+
+		expect(restingBids.length).to.equal(3);
+		expect(restingBids[0].order.orderId).to.equal(3);
+		expect(restingBids[1].order.orderId).to.equal(2);
+		expect(restingBids[2].order.orderId).to.equal(1);
+	});
 });
 
 describe('DLOB Perp Tests', () => {
