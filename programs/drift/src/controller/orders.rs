@@ -28,9 +28,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
-use crate::math::auction::{
-    calculate_auction_prices, is_amm_available_liquidity_source, is_auction_complete,
-};
+use crate::math::auction::{calculate_auction_prices, is_amm_available_liquidity_source};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
@@ -384,13 +382,16 @@ fn get_auction_params(
         return Ok((0_i64, 0_i64, 0_u8));
     }
 
+    let auction_duration = params
+        .auction_duration
+        .unwrap_or(0)
+        .max(min_auction_duration);
+
     if params.order_type == OrderType::Limit {
         return match (params.auction_start_price, params.auction_end_price) {
-            (Some(auction_start_price), Some(auction_end_price)) => Ok((
-                auction_start_price,
-                auction_end_price,
-                params.auction_duration.unwrap_or(min_auction_duration), // for limit orders, don't need to enforce min auction time
-            )),
+            (Some(auction_start_price), Some(auction_end_price)) => {
+                Ok((auction_start_price, auction_end_price, auction_duration))
+            }
             _ => Ok((0_i64, 0_i64, 0_u8)),
         };
     }
@@ -406,11 +407,6 @@ fn get_auction_params(
             }
             _ => calculate_auction_prices(oracle_price_data, params.direction, params.price)?,
         };
-
-    let auction_duration = params
-        .auction_duration
-        .unwrap_or(0)
-        .max(min_auction_duration);
 
     Ok((
         standardize_price_i64(auction_start_price, tick_size.cast()?, params.direction)?,
@@ -1102,8 +1098,8 @@ fn sanitize_maker_order<'a>(
             continue;
         }
 
-        // dont use maker if order is < 30 slots old and cross amm
-        if slot.safe_sub(maker_order.slot)? < 30 {
+        // dont use maker if order is < 45 slots old and cross amm
+        if slot.safe_sub(maker_order.slot)? < 45 {
             match maker_direction {
                 PositionDirection::Long => {
                     if maker_order_price >= amm_ask_price {
@@ -4302,14 +4298,6 @@ pub fn trigger_spot_order(
 
     let oracle_price = oracle_price_data.price;
 
-    let order_slot = user.orders[order_index].slot;
-    let auction_duration = user.orders[order_index].auction_duration;
-    validate!(
-        is_auction_complete(order_slot, auction_duration, slot)?,
-        ErrorCode::OrderDidNotSatisfyTriggerCondition,
-        "Auction duration must elapse before triggering"
-    )?;
-
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
         oracle_price.unsigned_abs().cast()?,
@@ -4331,6 +4319,7 @@ pub fn trigger_spot_order(
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
+            user.orders[order_index].auction_duration = state.default_spot_auction_duration;
             let (auction_start_price, auction_end_price) =
                 calculate_auction_prices(oracle_price_data, direction, 0)?;
             user.orders[order_index].auction_start_price = auction_start_price;
