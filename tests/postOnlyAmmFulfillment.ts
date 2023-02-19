@@ -33,6 +33,7 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
+import { PostOnlyParams } from '../sdk';
 
 describe('post only maker order w/ amm fulfillments', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -193,7 +194,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			baseAssetAmount,
 			price: reservePrice,
 			userOrderId: 1,
-			postOnly: false,
+			postOnly: PostOnlyParams.NONE,
 		});
 		await driftClient.placePerpOrder(makerOrderParams);
 		await driftClientUser.fetchAccounts();
@@ -231,7 +232,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 				driftClient.getPerpMarketAccount(marketIndex).amm.orderTickSize
 			),
 			userOrderId: 1,
-			postOnly: true,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
 		});
 		await fillerDriftClient.placePerpOrder(makerOrderParams2);
 		await fillerDriftClient.fetchAccounts();

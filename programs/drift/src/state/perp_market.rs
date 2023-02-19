@@ -665,7 +665,7 @@ impl AMM {
 
             base_spread: 250,
             max_spread: 975,
-
+            funding_period: 3600,
             last_oracle_valid: true,
             ..AMM::default()
         }

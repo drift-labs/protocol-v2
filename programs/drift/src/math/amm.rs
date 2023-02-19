@@ -10,8 +10,9 @@ use crate::math::casting::Cast;
 use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
     CONCENTRATION_PRECISION, DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION_I64,
+    ONE_MINUTE, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_TO_PEG_PRECISION_RATIO,
+    QUOTE_PRECISION_I64,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
@@ -215,7 +216,7 @@ pub fn update_mark_twap(
     // if an delayed more than 10th of funding period, shrink toward oracle_twap
     (bid_price_capped_update, ask_price_capped_update) =
         if last_valid_trade_since_oracle_twap_update
-            > amm.funding_period.safe_div(10)?.max(FIVE_MINUTE.cast()?)
+            > amm.funding_period.safe_div(60)?.max(ONE_MINUTE.cast()?)
         {
             msg!(
                 "correcting mark twap update (oracle previously invalid for {:?} seconds)",
@@ -427,7 +428,7 @@ pub fn calculate_new_oracle_price_twap(
     };
 
     let since_last = max(
-        1_i64,
+        if period == 0 { 1_i64 } else { 0_i64 },
         now.safe_sub(amm.historical_oracle_data.last_oracle_price_twap_ts)?,
     );
     let from_start = max(0_i64, period.safe_sub(since_last)?);

@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.17.0] - 2023-02-17
+
+### Features
+
+- program: order params utilize post only enum ([#361](https://github.com/drift-labs/protocol-v2/pull/361))
+
+### Fixes
+- program: twap tweaks, update only on new cluster time ([#362](https://github.com/drift-labs/protocol-v2/pull/362))
+
+### Breaking
+
 ## [2.16.0] - 2023-02-14
 
 ### Features
