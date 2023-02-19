@@ -3103,21 +3103,19 @@ describe('DLOB Perp Tests', () => {
 			printCrossedNodes(n, afterAuctionSlot);
 		}
 
-		// taker order placed first fills first
 		expect(
 			nodesToFillAfter[0].node.order?.orderId,
 			'wrong taker orderId'
-		).to.equal(2);
+		).to.equal(3);
 		expect(
 			nodesToFillAfter[0].makerNode?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(undefined);
 
-		// taker order placed second fills second
 		expect(
 			nodesToFillAfter[1].node.order?.orderId,
 			'wrong taker orderId'
-		).to.equal(3);
+		).to.equal(2);
 		expect(
 			nodesToFillAfter[1].makerNode?.order?.orderId,
 			'wrong maker orderId'
@@ -4260,7 +4258,7 @@ describe('DLOB Spot Tests', () => {
 			expect(getVariant(bid.order?.status)).to.equal('open');
 			expect(getVariant(bid.order?.orderType)).to.equal('limit');
 			expect(getVariant(bid.order?.direction)).to.equal('long');
-			expect(bid.order?.orderId).to.equal(3 - bids);
+			expect(bid.order?.orderId).to.equal(bids + 1);
 			expect(bid.order?.price.lt(vBid)).to.equal(true);
 			bids++;
 		}
