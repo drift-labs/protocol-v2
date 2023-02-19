@@ -9,12 +9,24 @@ export function isAuctionComplete(order: Order, slot: number): boolean {
 	return new BN(slot).sub(order.slot).gt(new BN(order.auctionDuration));
 }
 
+export function isFallbackAvailableLiquiditySource(
+	order: Order,
+	minAuctionDuration: number,
+	slot: number
+): boolean {
+	if (minAuctionDuration === 0) {
+		return true;
+	}
+
+	return new BN(slot).sub(order.slot).gt(new BN(minAuctionDuration));
+}
+
 export function getAuctionPrice(
 	order: Order,
 	slot: number,
 	oraclePrice: BN
 ): BN {
-	if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
+	if (isOneOfVariant(order.orderType, ['market', 'triggerMarket', 'limit'])) {
 		return getAuctionPriceForFixedAuction(order, slot);
 	} else if (isVariant(order.orderType, 'oracle')) {
 		return getAuctionPriceForOracleOffsetAuction(order, slot, oraclePrice);

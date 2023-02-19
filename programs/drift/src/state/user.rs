@@ -643,15 +643,19 @@ impl Order {
         is_auction_complete(self.slot, self.auction_duration, slot)
     }
 
+    pub fn has_auction(&self) -> bool {
+        self.auction_duration != 0
+    }
+
     pub fn has_auction_price(
         &self,
         order_slot: u64,
         auction_duration: u8,
         slot: u64,
     ) -> DriftResult<bool> {
-        let has_auction_price =
-            self.is_market_order() && !is_auction_complete(order_slot, auction_duration, slot)?;
-        Ok(has_auction_price)
+        let auction_complete = is_auction_complete(order_slot, auction_duration, slot)?;
+        let has_auction_prices = self.auction_start_price != 0 || self.auction_end_price != 0;
+        Ok(!auction_complete && has_auction_prices)
     }
 
     /// Passing in an existing_position forces the function to consider the order's reduce only status
@@ -742,7 +746,7 @@ impl Order {
     }
 
     pub fn is_resting_limit_order(&self, slot: u64) -> DriftResult<bool> {
-        Ok(self.is_limit_order() && (self.post_only || slot.safe_sub(self.slot)? >= 45))
+        Ok(self.is_limit_order() && (self.post_only || self.is_auction_complete(slot)?))
     }
 }
 

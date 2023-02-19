@@ -60,6 +60,7 @@ mod determine_perp_fulfillment_methods {
             Some(oracle_price),
             true,
             0,
+            0,
         )
         .unwrap();
 
@@ -115,6 +116,7 @@ mod determine_perp_fulfillment_methods {
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
             true,
+            0,
             0,
         )
         .unwrap();
@@ -184,6 +186,7 @@ mod determine_perp_fulfillment_methods {
             Some(oracle_price),
             true,
             0,
+            0,
         )
         .unwrap();
 
@@ -249,6 +252,7 @@ mod determine_perp_fulfillment_methods {
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
             true,
+            0,
             0,
         )
         .unwrap();
@@ -317,6 +321,7 @@ mod determine_perp_fulfillment_methods {
             Some(oracle_price),
             true,
             0,
+            0,
         )
         .unwrap();
 
@@ -382,6 +387,7 @@ mod determine_perp_fulfillment_methods {
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
             true,
+            0,
             0,
         )
         .unwrap();
@@ -451,6 +457,7 @@ mod determine_perp_fulfillment_methods {
             Some(oracle_price),
             true,
             0,
+            0,
         )
         .unwrap();
 
@@ -518,6 +525,7 @@ mod determine_perp_fulfillment_methods {
             Some(oracle_price),
             true,
             0,
+            0,
         )
         .unwrap();
 
@@ -583,6 +591,7 @@ mod determine_perp_fulfillment_methods {
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
             true,
+            0,
             0,
         )
         .unwrap();
@@ -652,6 +661,7 @@ mod determine_perp_fulfillment_methods {
             Some(oracle_price),
             true,
             0,
+            0,
         )
         .unwrap();
 
@@ -710,6 +720,7 @@ mod determine_perp_fulfillment_methods {
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
             true,
+            0,
             0,
         )
         .unwrap();
