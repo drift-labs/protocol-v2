@@ -28,7 +28,7 @@ pub fn is_maker_for_taker(
     } else if !taker_order.is_resting_limit_order(slot)? {
         Ok(true)
     // if taker is resting limit order but not post only, let post only order make it
-    } else if maker_order.post_only && !taker_order.post_only {
+    } else if maker_order.post_only {
         Ok(true)
     // otherwise the maker must be older than the taker order
     } else {
