@@ -12,23 +12,16 @@ use crate::state::user::Order;
 #[cfg(test)]
 mod tests;
 
-#[allow(clippy::if_same_then_else)]
 pub fn is_maker_for_taker(
     maker_order: &Order,
     taker_order: &Order,
     slot: u64,
 ) -> DriftResult<bool> {
-    // taker cant be post only
-    if taker_order.post_only {
+    // taker cant be post only and maker must be resting limit order
+    if taker_order.post_only || !maker_order.is_resting_limit_order(slot)? {
         Ok(false)
-    // maker must be resting limit order
-    } else if !maker_order.is_resting_limit_order(slot)? {
-        Ok(false)
-    // can make taker if order is market order or limit order going through auction
-    } else if !taker_order.is_resting_limit_order(slot)? {
-        Ok(true)
-    // if taker is resting limit order but not post only, let post only order make it
-    } else if maker_order.post_only {
+    // can make if taker order isn't resting (market order or limit going through auction) or if maker is post only
+    } else if !taker_order.is_resting_limit_order(slot)? || maker_order.post_only {
         Ok(true)
     // otherwise the maker must be older than the taker order
     } else {
