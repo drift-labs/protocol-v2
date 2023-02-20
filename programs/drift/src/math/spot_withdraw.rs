@@ -105,10 +105,12 @@ pub fn check_withdraw_limits(
         spot_market.withdraw_guard_threshold.cast()?,
     )?;
 
+    // for resulting deposit or ZERO, check if deposits above minimum
+    // for resulting borrow, check both deposit and borrow constraints
     let valid_global_withdrawal = if let Some(user) = user {
         let spot_position_index = user.get_spot_position_index(spot_market.market_index)?;
         if user.spot_positions[spot_position_index].balance_type() == &SpotBalanceType::Borrow {
-            borrow_token_amount <= max_borrow_token
+            borrow_token_amount <= max_borrow_token && deposit_token_amount >= min_deposit_token
         } else {
             deposit_token_amount >= min_deposit_token
         }
