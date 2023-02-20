@@ -370,6 +370,18 @@ fn validate_base_asset_amount(
 }
 
 fn validate_auction_params(order: &Order) -> DriftResult {
+    validate!(
+        order.auction_start_price != 0,
+        ErrorCode::InvalidOrderAuction,
+        "Auction start price was 0"
+    )?;
+
+    validate!(
+        order.auction_end_price != 0,
+        ErrorCode::InvalidOrderAuction,
+        "Auction end price was 0"
+    )?;
+
     match order.direction {
         PositionDirection::Long => {
             if order.auction_start_price >= order.auction_end_price {
