@@ -419,6 +419,7 @@ fn test_check_withdraw_limits() {
         deposit_balance: 2 * SPOT_BALANCE_PRECISION,
         borrow_balance: SPOT_BALANCE_PRECISION,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+        deposit_token_twap: 26_000_000_000_u64,
         status: MarketStatus::Active,
 
         ..SpotMarket::default()
@@ -458,7 +459,10 @@ fn test_check_withdraw_limits() {
     assert!(valid_withdraw);
 
     let valid_withdraw =
-        check_withdraw_limits(&sol_spot_market, Some(&user), Some(QUOTE_PRECISION)).unwrap();
+        check_withdraw_limits(&sol_spot_market, Some(&user), Some(10_000_000_000)).unwrap();
+    assert!(!valid_withdraw);
+
+    let valid_withdraw = check_withdraw_limits(&sol_spot_market, None, None).unwrap();
     assert!(!valid_withdraw);
 }
 
