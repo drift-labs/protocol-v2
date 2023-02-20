@@ -6,7 +6,6 @@ import {
 	calculateBidPrice,
 	DriftClient,
 	convertToNumber,
-	isAuctionComplete,
 	isOrderExpired,
 	isOneOfVariant,
 	isVariant,
