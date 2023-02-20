@@ -5,7 +5,7 @@ use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 
 use crate::math::spot_balance::get_token_amount;
-use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::User;
 use crate::validate;
 
@@ -26,7 +26,7 @@ pub fn calculate_max_borrow_token_amount(
 ) -> DriftResult<u128> {
     let max_borrow_token = withdraw_guard_threshold.max(
         (deposit_token_amount / 6)
-            .max(borrow_token_twap.safe_add(borrow_token_twap / 5)?)
+            .max(borrow_token_twap.safe_add(deposit_token_amount / 10)?)
             .min(deposit_token_amount.safe_sub(deposit_token_amount / 5)?),
     ); // between ~15-80% utilization with friction on twap
 
@@ -105,8 +105,18 @@ pub fn check_withdraw_limits(
         spot_market.withdraw_guard_threshold.cast()?,
     )?;
 
-    let valid_global_withdrawal =
-        deposit_token_amount >= min_deposit_token && borrow_token_amount <= max_borrow_token;
+    // for resulting deposit or ZERO, check if deposits above minimum
+    // for resulting borrow, check both deposit and borrow constraints
+    let valid_global_withdrawal = if let Some(user) = user {
+        let spot_position_index = user.get_spot_position_index(spot_market.market_index)?;
+        if user.spot_positions[spot_position_index].balance_type() == &SpotBalanceType::Borrow {
+            borrow_token_amount <= max_borrow_token && deposit_token_amount >= min_deposit_token
+        } else {
+            deposit_token_amount >= min_deposit_token
+        }
+    } else {
+        deposit_token_amount >= min_deposit_token && borrow_token_amount <= max_borrow_token
+    };
 
     let valid_withdrawal = if !valid_global_withdrawal {
         msg!(
