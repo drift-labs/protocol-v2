@@ -4266,8 +4266,8 @@ describe('DLOB Spot Tests', () => {
 	});
 
 	it('Test two market orders to fill one limit order', () => {
-		const vAsk = new BN(15);
-		const vBid = new BN(8);
+		const fallbackAsk = new BN(15);
+		const fallbackBid = new BN(8);
 
 		const user0 = Keypair.generate();
 		const user1 = Keypair.generate();
@@ -4280,7 +4280,7 @@ describe('DLOB Spot Tests', () => {
 
 		const slot = 12;
 		const oracle = {
-			price: vBid.add(vAsk).div(new BN(2)),
+			price: fallbackBid.add(fallbackAsk).div(new BN(2)),
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
@@ -4297,8 +4297,8 @@ describe('DLOB Spot Tests', () => {
 			new BN(14), // price
 			BASE_PRECISION, // quantity
 			PositionDirection.SHORT,
-			vBid,
-			vAsk,
+			fallbackBid,
+			fallbackAsk,
 			undefined,
 			undefined,
 			undefined,
@@ -4314,8 +4314,8 @@ describe('DLOB Spot Tests', () => {
 			new BN(13), // price
 			BASE_PRECISION, // quantity
 			PositionDirection.SHORT,
-			vBid,
-			vAsk,
+			fallbackBid,
+			fallbackAsk,
 			undefined,
 			undefined,
 			undefined,
@@ -4331,8 +4331,8 @@ describe('DLOB Spot Tests', () => {
 			new BN(8), // price <-- best price
 			new BN(3).mul(BASE_PRECISION), // quantity
 			PositionDirection.SHORT,
-			vBid,
-			vAsk,
+			fallbackBid,
+			fallbackAsk,
 			undefined,
 			undefined,
 			undefined,
@@ -4361,11 +4361,11 @@ describe('DLOB Spot Tests', () => {
 			MarketType.SPOT,
 			4, // orderId
 			marketIndex,
-			new BN(0), // price
+			fallbackAsk, // price
 			new BN(1).mul(BASE_PRECISION), // quantity
 			PositionDirection.LONG,
-			vBid,
-			vAsk
+			fallbackBid,
+			fallbackAsk
 		);
 		insertOrderToDLOB(
 			dlob,
@@ -4374,11 +4374,11 @@ describe('DLOB Spot Tests', () => {
 			MarketType.SPOT,
 			5, // orderId
 			marketIndex,
-			new BN(0), // price
+			fallbackAsk, // price
 			new BN(2).mul(BASE_PRECISION), // quantity
 			PositionDirection.LONG,
-			vBid,
-			vAsk
+			fallbackBid,
+			fallbackAsk
 		);
 
 		const nodesToFillAfter = dlob.findNodesToFill(
@@ -4399,7 +4399,7 @@ describe('DLOB Spot Tests', () => {
 		);
 		console.log(`market nodes: ${mktNodes.length}`);
 
-		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
+		printBookState(dlob, marketIndex, fallbackBid, fallbackAsk, slot, oracle);
 
 		for (const n of nodesToFillAfter) {
 			console.log(

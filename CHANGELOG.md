@@ -10,12 +10,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
--ts-sdk: updates for accounting for spot leverage ([#295](https://github.com/drift-labs/protocol-v2/pull/295))
+### Fixes
+
+### Breaking
+
+## [2.17.0] - 2023-02-17
+
+### Features
+
+- program: order params utilize post only enum ([#361](https://github.com/drift-labs/protocol-v2/pull/361))
+
+### Fixes
+- program: twap tweaks, update only on new cluster time ([#362](https://github.com/drift-labs/protocol-v2/pull/362))
+
+### Breaking
+
+## [2.16.0] - 2023-02-14
+
+### Features
+
+- sdk: add support for market lookup table ([#359](https://github.com/drift-labs/protocol-v2/pull/359))
+- program: tweak calculate_size_premium_liability_weight to have smaller effect on initial margin ([#350](https://github.com/drift-labs/protocol-v2/pull/350))
+- ts-sdk: updates for accounting for spot leverage ([#295](https://github.com/drift-labs/protocol-v2/pull/295))
+- ts-sdk: added new methods for modifying orders to include spot and more params ([#353](https://github.com/drift-labs/protocol-v2/pull/353))
+- ts-sdk: flagged old modifyPerpOrder and modifyPerpOrderByUserOrderId as deprecated
 
 ### Fixes
 
+- ts-sdk: DLOB matching logic accounts for zero-price spot market orders not matching resting limit orders
+- ts-sdk: new squareRootBN implementation using bit shifting (2x speed improvement)
+- program: fix overflow in calculate_long_short_vol_spread ([#352](https://github.com/drift-labs/protocol-v2/pull/352))
 - program: dont let users disable margin trading if they have margin orders open 
 - program: tweaks to fix max leverage order param flag with imf factor ([#351](https://github.com/drift-labs/protocol-v2/pull/351))
+- program: improve bid/ask twap calculation for funding rate stability ([#345](https://github.com/drift-labs/protocol-v2/pull/345))
+- ts-sdk: fix borrow limit calc ([#356](https://github.com/drift-labs/protocol-v2/pull/356))
 
 ### Breaking
 
@@ -25,9 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - ts-sdk: add aptos
 
-### Fixes
-
-- ts-sdk: fix npe in liquidationPrice
+### Fixes 
 
 ### Breaking
 

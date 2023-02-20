@@ -502,7 +502,7 @@ describe('delist market', () => {
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'settlement'));
-		console.log('market.expirytPrice:', convertToNumber(market.expiryPrice));
+		console.log('market.expiryPrice:', convertToNumber(market.expiryPrice));
 		console.log(
 			'market.amm.historicalOracleData.lastOraclePriceTwap:',
 			convertToNumber(market.amm.historicalOracleData.lastOraclePriceTwap)
