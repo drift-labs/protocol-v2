@@ -927,11 +927,9 @@ export class DLOB {
 			slot,
 			oraclePriceData
 		)) {
-			if (!isAuctionComplete(marketBid.order, slot)) {
-				nodesToFill.push({
-					node: marketBid,
-				});
-			}
+			nodesToFill.push({
+				node: marketBid,
+			});
 		}
 
 		for (const marketAsk of this.getTakingAsks(
@@ -940,11 +938,9 @@ export class DLOB {
 			slot,
 			oraclePriceData
 		)) {
-			if (!isAuctionComplete(marketAsk.order, slot)) {
-				nodesToFill.push({
-					node: marketAsk,
-				});
-			}
+			nodesToFill.push({
+				node: marketAsk,
+			});
 		}
 		return nodesToFill;
 	}
