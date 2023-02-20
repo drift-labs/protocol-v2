@@ -222,7 +222,7 @@ export type NewUserRecord = {
 	ts: BN;
 	userAuthority: PublicKey;
 	user: PublicKey;
-	subAccount: number;
+	subAccountId: number;
 	name: number[];
 	referrer: PublicKey;
 };
