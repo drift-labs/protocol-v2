@@ -1046,9 +1046,8 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
 		tx.add(
-			ComputeBudgetProgram.requestUnits({
+			ComputeBudgetProgram.setComputeUnitLimit({
 				units: 600_000,
-				additionalFee: 0,
 			})
 		);
 
@@ -1394,9 +1393,8 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
 		tx.add(
-			ComputeBudgetProgram.requestUnits({
+			ComputeBudgetProgram.setComputeUnitLimit({
 				units: 600_000,
-				additionalFee: 0,
 			})
 		);
 
@@ -3174,9 +3172,8 @@ export class DriftClient {
 
 		const tx = new Transaction();
 		tx.add(
-			ComputeBudgetProgram.requestUnits({
+			ComputeBudgetProgram.setComputeUnitLimit({
 				units: 1_000_000,
-				additionalFee: 0,
 			})
 		);
 		tx.add(cancelOrderIx);
@@ -3286,9 +3283,8 @@ export class DriftClient {
 
 		const tx = new Transaction();
 		tx.add(
-			ComputeBudgetProgram.requestUnits({
+			ComputeBudgetProgram.setComputeUnitLimit({
 				units: 1_000_000,
-				additionalFee: 0,
 			})
 		);
 		tx.add(cancelOrderIx);
@@ -3325,9 +3321,8 @@ export class DriftClient {
 
 		const tx = new Transaction()
 			.add(
-				ComputeBudgetProgram.requestUnits({
+				ComputeBudgetProgram.setComputeUnitLimit({
 					units: 1_000_000,
-					additionalFee: 0,
 				})
 			)
 			.add(...ixs);
