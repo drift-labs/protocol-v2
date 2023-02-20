@@ -50,25 +50,7 @@ fn validate_market_order(order: &Order, step_size: u64, min_order_size: u64) -> 
         "Auction start and end price must be greater than 0"
     )?;
 
-    match order.direction {
-        PositionDirection::Long if order.auction_start_price >= order.auction_end_price => {
-            msg!(
-                "Auction start price ({}) was greater than auction end price ({})",
-                order.auction_start_price,
-                order.auction_end_price
-            );
-            return Err(ErrorCode::InvalidOrderAuction);
-        }
-        PositionDirection::Short if order.auction_start_price <= order.auction_end_price => {
-            msg!(
-                "Auction start price ({}) was less than auction end price ({})",
-                order.auction_start_price,
-                order.auction_end_price
-            );
-            return Err(ErrorCode::InvalidOrderAuction);
-        }
-        _ => {}
-    }
+    validate_auction_params(order)?;
 
     if order.trigger_price > 0 {
         msg!("Market should not have trigger price");
@@ -193,6 +175,12 @@ fn validate_limit_order(
     }
 
     if order.post_only {
+        validate!(
+            !order.has_auction(),
+            ErrorCode::InvalidOrder,
+            "post only limit order cant have auction"
+        )?;
+
         validate_post_only_order(order, market, valid_oracle_price, slot)?;
 
         let order_breaches_oracle_price_limits = order_breaches_oracle_price_bands(
@@ -207,6 +195,22 @@ fn validate_limit_order(
         if order_breaches_oracle_price_limits {
             return Err(ErrorCode::OrderBreachesOraclePriceLimits);
         }
+    }
+
+    validate_limit_order_auction_params(order)?;
+
+    Ok(())
+}
+
+fn validate_limit_order_auction_params(order: &Order) -> DriftResult {
+    if order.has_auction() {
+        validate!(
+            !order.has_oracle_price_offset(),
+            ErrorCode::InvalidOrder,
+            "limit order with auction can not have an oracle price offset"
+        )?;
+
+        validate_auction_params(order)?;
     }
 
     Ok(())
@@ -365,6 +369,63 @@ fn validate_base_asset_amount(
     Ok(())
 }
 
+fn validate_auction_params(order: &Order) -> DriftResult {
+    validate!(
+        order.auction_start_price != 0,
+        ErrorCode::InvalidOrderAuction,
+        "Auction start price was 0"
+    )?;
+
+    validate!(
+        order.auction_end_price != 0,
+        ErrorCode::InvalidOrderAuction,
+        "Auction end price was 0"
+    )?;
+
+    match order.direction {
+        PositionDirection::Long => {
+            if order.auction_start_price >= order.auction_end_price {
+                msg!(
+                    "Auction start price ({}) was greater than auction end price ({})",
+                    order.auction_start_price,
+                    order.auction_end_price
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+
+            if order.price != 0 && order.price < order.auction_end_price.cast()? {
+                msg!(
+                    "Order price ({}) was less than auction end price ({})",
+                    order.price,
+                    order.auction_end_price
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+        }
+        PositionDirection::Short => {
+            if order.auction_start_price <= order.auction_end_price {
+                msg!(
+                    "Auction start price ({}) was less than auction end price ({})",
+                    order.auction_start_price,
+                    order.auction_end_price
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+
+            if order.price != 0 && order.price > order.auction_end_price.cast()? {
+                msg!(
+                    "Order price ({}) was greater than auction end price ({})",
+                    order.price,
+                    order.auction_end_price
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub fn validate_spot_order(
     order: &Order,
     valid_oracle_price: Option<i64>,
@@ -425,6 +486,12 @@ fn validate_spot_limit_order(
     }
 
     if order.post_only {
+        validate!(
+            !order.has_auction(),
+            ErrorCode::InvalidOrder,
+            "post only limit order cant have auction"
+        )?;
+
         let order_breaches_oracle_price_limits = order_breaches_oracle_price_bands(
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
@@ -438,6 +505,8 @@ fn validate_spot_limit_order(
             return Err(ErrorCode::OrderBreachesOraclePriceLimits);
         }
     }
+
+    validate_limit_order_auction_params(order)?;
 
     Ok(())
 }

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+
+- program: allow limit orders to go through auction ([#355](https://github.com/drift-labs/protocol-v2/pull/355))
 - program: improve conditions for withdraw/borrow guard ([#354](https://github.com/drift-labs/protocol-v2/pull/354))
 
 ### Fixes

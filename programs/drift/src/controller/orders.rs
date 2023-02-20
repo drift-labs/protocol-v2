@@ -1,5 +1,4 @@
 use std::cell::RefMut;
-use std::cmp::max;
 use std::num::NonZeroU64;
 use std::ops::DerefMut;
 
@@ -29,7 +28,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
-use crate::math::auction::{calculate_auction_prices, is_auction_complete};
+use crate::math::auction::{calculate_auction_prices, is_amm_available_liquidity_source};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
@@ -207,19 +206,18 @@ pub fn place_perp_order(
     };
 
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-    let (auction_start_price, auction_end_price) =
-        get_auction_prices(&params, oracle_price_data, market.amm.order_tick_size)?;
+    let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
+        &params,
+        oracle_price_data,
+        market.amm.order_tick_size,
+        state.min_perp_auction_duration,
+    )?;
 
     validate!(
         params.market_type == MarketType::Perp,
         ErrorCode::InvalidOrderMarketType,
         "must be perp order"
     )?;
-
-    let auction_duration = max(
-        params.auction_duration.unwrap_or(0),
-        state.min_perp_auction_duration,
-    );
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -371,13 +369,31 @@ pub fn place_perp_order(
     Ok(())
 }
 
-fn get_auction_prices(
+fn get_auction_params(
     params: &OrderParams,
     oracle_price_data: &OraclePriceData,
     tick_size: u64,
-) -> DriftResult<(i64, i64)> {
-    if !matches!(params.order_type, OrderType::Market | OrderType::Oracle) {
-        return Ok((0_i64, 0_i64));
+    min_auction_duration: u8,
+) -> DriftResult<(i64, i64, u8)> {
+    if !matches!(
+        params.order_type,
+        OrderType::Market | OrderType::Oracle | OrderType::Limit
+    ) {
+        return Ok((0_i64, 0_i64, 0_u8));
+    }
+
+    let auction_duration = params
+        .auction_duration
+        .unwrap_or(0)
+        .max(min_auction_duration);
+
+    if params.order_type == OrderType::Limit {
+        return match (params.auction_start_price, params.auction_end_price) {
+            (Some(auction_start_price), Some(auction_end_price)) => {
+                Ok((auction_start_price, auction_end_price, auction_duration))
+            }
+            _ => Ok((0_i64, 0_i64, 0_u8)),
+        };
     }
 
     let (auction_start_price, auction_end_price) =
@@ -395,6 +411,7 @@ fn get_auction_prices(
     Ok((
         standardize_price_i64(auction_start_price, tick_size.cast()?, params.direction)?,
         standardize_price_i64(auction_end_price, tick_size.cast()?, params.direction)?,
+        auction_duration,
     ))
 }
 
@@ -856,6 +873,7 @@ pub fn fill_perp_order(
             valid_oracle_price,
             now,
             slot,
+            state.min_perp_auction_duration,
             amm_is_available,
         )?;
 
@@ -1076,11 +1094,12 @@ fn sanitize_maker_order<'a>(
         let maker_order_price = *maker_order_price;
 
         let maker_order = &maker.orders[maker_order_index];
-        if !is_maker_for_taker(maker_order, taker_order)? {
+        if !is_maker_for_taker(maker_order, taker_order, slot)? {
             continue;
         }
 
-        if !maker_order.is_resting_limit_order(slot)? || maker_order.is_jit_maker() {
+        // dont use maker if order is < 45 slots old and cross amm
+        if slot.safe_sub(maker_order.slot)? < 45 {
             match maker_direction {
                 PositionDirection::Long => {
                     if maker_order_price >= amm_ask_price {
@@ -1258,6 +1277,7 @@ fn fulfill_perp_order(
     valid_oracle_price: Option<i64>,
     now: i64,
     slot: u64,
+    min_auction_duration: u8,
     amm_is_available: bool,
 ) -> DriftResult<(u64, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
@@ -1287,6 +1307,7 @@ fn fulfill_perp_order(
             Some(oracle_price),
             amm_is_available,
             slot,
+            min_auction_duration,
         )?
     };
 
@@ -1347,6 +1368,7 @@ fn fulfill_perp_order(
                 valid_oracle_price,
                 now,
                 slot,
+                min_auction_duration,
                 fee_structure,
                 oracle_map,
                 &mut order_records,
@@ -1764,6 +1786,7 @@ pub fn fulfill_perp_order_with_match(
     valid_oracle_price: Option<i64>,
     now: i64,
     slot: u64,
+    min_auction_duration: u8,
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     order_records: &mut Vec<OrderActionRecord>,
@@ -1816,7 +1839,11 @@ pub fn fulfill_perp_order_with_match(
     // if the auction isn't complete, cant fill against vamm yet
     // use the vamm price to guard against bad fill for taker
     if taker.orders[taker_order_index].is_limit_order()
-        && !taker.orders[taker_order_index].is_auction_complete(slot)?
+        && !is_amm_available_liquidity_source(
+            &taker.orders[taker_order_index],
+            min_auction_duration,
+            slot,
+        )?
     {
         taker_price = match taker_direction {
             PositionDirection::Long => {
@@ -2298,14 +2325,6 @@ pub fn trigger_order(
 
     let oracle_price = oracle_price_data.price;
 
-    let order_slot = user.orders[order_index].slot;
-    let auction_duration = user.orders[order_index].auction_duration;
-    validate!(
-        is_auction_complete(order_slot, auction_duration, slot)?,
-        ErrorCode::OrderDidNotSatisfyTriggerCondition,
-        "Auction duration must elapse before triggering"
-    )?;
-
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
         oracle_price.unsigned_abs().cast()?,
@@ -2328,6 +2347,7 @@ pub fn trigger_order(
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
+            user.orders[order_index].auction_duration = state.min_perp_auction_duration;
             let (auction_start_price, auction_end_price) =
                 calculate_auction_prices(oracle_price_data, direction, 0)?;
             user.orders[order_index].auction_start_price = auction_start_price;
@@ -2712,8 +2732,12 @@ pub fn place_spot_order(
         )
     };
 
-    let (auction_start_price, auction_end_price) =
-        get_auction_prices(&params, &oracle_price_data, spot_market.order_tick_size)?;
+    let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
+        &params,
+        &oracle_price_data,
+        spot_market.order_tick_size,
+        state.default_spot_auction_duration,
+    )?;
 
     validate!(spot_market.orders_enabled, ErrorCode::SpotOrdersDisabled)?;
 
@@ -2728,10 +2752,6 @@ pub fn place_spot_order(
         ErrorCode::InvalidOrderMarketType,
         "must be spot order"
     )?;
-
-    let auction_duration = params
-        .auction_duration
-        .unwrap_or(state.default_spot_auction_duration);
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -3153,11 +3173,7 @@ fn sanitize_spot_maker_order<'a>(
 
     {
         let maker_order = &maker.orders[maker_order_index];
-        if !is_maker_for_taker(maker_order, taker_order)? {
-            return Ok((None, None, None, None));
-        }
-
-        if !maker_order.is_resting_limit_order(slot)? {
+        if !is_maker_for_taker(maker_order, taker_order, slot)? {
             return Ok((None, None, None, None));
         }
 
@@ -4282,14 +4298,6 @@ pub fn trigger_spot_order(
 
     let oracle_price = oracle_price_data.price;
 
-    let order_slot = user.orders[order_index].slot;
-    let auction_duration = user.orders[order_index].auction_duration;
-    validate!(
-        is_auction_complete(order_slot, auction_duration, slot)?,
-        ErrorCode::OrderDidNotSatisfyTriggerCondition,
-        "Auction duration must elapse before triggering"
-    )?;
-
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
         oracle_price.unsigned_abs().cast()?,
@@ -4311,6 +4319,7 @@ pub fn trigger_spot_order(
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
+            user.orders[order_index].auction_duration = state.default_spot_auction_duration;
             let (auction_start_price, auction_end_price) =
                 calculate_auction_prices(oracle_price_data, direction, 0)?;
             user.orders[order_index].auction_start_price = auction_start_price;

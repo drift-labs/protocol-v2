@@ -85,7 +85,7 @@ pub fn calculate_auction_price(
     valid_oracle_price: Option<i64>,
 ) -> DriftResult<u64> {
     match order.order_type {
-        OrderType::Market | OrderType::TriggerMarket => {
+        OrderType::Market | OrderType::TriggerMarket | OrderType::Limit => {
             calculate_auction_price_for_fixed_auction(order, slot, tick_size)
         }
         OrderType::Oracle => calculate_auction_price_for_oracle_offset_auction(
@@ -220,4 +220,12 @@ pub fn is_auction_complete(order_slot: u64, auction_duration: u8, slot: u64) -> 
     let slots_elapsed = slot.safe_sub(order_slot)?;
 
     Ok(slots_elapsed > auction_duration.cast()?)
+}
+
+pub fn is_amm_available_liquidity_source(
+    order: &Order,
+    min_auction_duration: u8,
+    slot: u64,
+) -> DriftResult<bool> {
+    is_auction_complete(order.slot, min_auction_duration, slot)
 }
