@@ -1414,15 +1414,18 @@ export class DLOB {
 		askNode: DLOBNode,
 		bidNode: DLOBNode
 	): { takerNode: DLOBNode; makerNode: DLOBNode } | undefined {
-		if (askNode.order.slot.lt(bidNode.order.slot) && !bidNode.order.postOnly) {
+		const askSlot = askNode.order.slot.add(
+			new BN(askNode.order.auctionDuration)
+		);
+		const bidSlot = bidNode.order.slot.add(
+			new BN(bidNode.order.auctionDuration)
+		);
+		if (askSlot.lt(bidSlot) && !bidNode.order.postOnly) {
 			return {
 				takerNode: bidNode,
 				makerNode: askNode,
 			};
-		} else if (
-			bidNode.order.slot.lt(askNode.order.slot) &&
-			!askNode.order.postOnly
-		) {
+		} else if (bidSlot.lt(askSlot) && !askNode.order.postOnly) {
 			return {
 				takerNode: askNode,
 				makerNode: bidNode,

@@ -135,7 +135,7 @@ mod is_maker_for_taker {
             order_type: OrderType::Limit,
             ..Default::default()
         };
-        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), false);
+        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
     }
 
     #[test]

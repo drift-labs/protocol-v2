@@ -25,7 +25,12 @@ pub fn is_maker_for_taker(
         Ok(true)
     // otherwise the maker must be older than the taker order
     } else {
-        Ok(maker_order.slot < taker_order.slot)
+        Ok(maker_order
+            .slot
+            .safe_add(maker_order.auction_duration.cast()?)?
+            < taker_order
+                .slot
+                .safe_add(taker_order.auction_duration.cast()?)?)
     }
 }
 
