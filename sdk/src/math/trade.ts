@@ -52,6 +52,9 @@ export type PriceImpactUnit =
 
 /**
  * Calculates avg/max slippage (price impact) for candidate trade
+ *
+ * @deprecated use calculateEstimatedPerpEntryPrice instead
+ *
  * @param direction
  * @param amount
  * @param market
@@ -200,6 +203,9 @@ export function calculateTradeAcquiredAmounts(
 /**
  * calculateTargetPriceTrade
  * simple function for finding arbitraging trades
+ *
+ * @deprecated
+ *
  * @param market
  * @param targetPrice
  * @param pct optional default is 100% gap filling, can set smaller.
