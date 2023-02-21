@@ -1420,12 +1420,12 @@ export class DLOB {
 		const bidSlot = bidNode.order.slot.add(
 			new BN(bidNode.order.auctionDuration)
 		);
-		if (askSlot.lt(bidSlot) && !bidNode.order.postOnly) {
+		if (askSlot.lte(bidSlot) && !bidNode.order.postOnly) {
 			return {
 				takerNode: bidNode,
 				makerNode: askNode,
 			};
-		} else if (bidSlot.lt(askSlot) && !askNode.order.postOnly) {
+		} else if (bidSlot.lte(askSlot) && !askNode.order.postOnly) {
 			return {
 				takerNode: askNode,
 				makerNode: bidNode,

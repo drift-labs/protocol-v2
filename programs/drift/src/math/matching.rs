@@ -28,7 +28,7 @@ pub fn is_maker_for_taker(
         Ok(maker_order
             .slot
             .safe_add(maker_order.auction_duration.cast()?)?
-            < taker_order
+            <= taker_order
                 .slot
                 .safe_add(taker_order.auction_duration.cast()?)?)
     }
