@@ -4,6 +4,7 @@ use solana_program::pubkey::Pubkey;
 
 use crate::create_account_info;
 use crate::state::oracle::{get_oracle_price, OracleSource};
+use crate::state::perp_market::AMM;
 use crate::test_utils::*;
 
 #[test]
@@ -22,4 +23,12 @@ fn pyth_1000() {
     let oracle_price_data =
         get_oracle_price(&OracleSource::Pyth1000, &oracle_account_info, 0).unwrap();
     assert_eq!(oracle_price_data.price, 839);
+
+    let amm = AMM {
+        oracle_source: OracleSource::Pyth1000,
+        ..AMM::default()
+    };
+
+    let twap = amm.get_oracle_twap(&oracle_account_info).unwrap();
+    assert_eq!(twap, Some(839));
 }

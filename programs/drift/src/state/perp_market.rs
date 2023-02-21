@@ -576,8 +576,8 @@ impl AMM {
 
         if oracle_precision > PRICE_PRECISION {
             oracle_scale_div = oracle_precision
-                .safe_mul(multiple)?
-                .safe_div(PRICE_PRECISION)?;
+                .safe_div(PRICE_PRECISION)?
+                .safe_div(multiple)?;
         } else {
             oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
         }
