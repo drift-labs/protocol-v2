@@ -2,13 +2,15 @@ import { parsePriceData } from '@pythnetwork/client';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { OracleClient, OraclePriceData } from './types';
 import { BN } from '@project-serum/anchor';
-import { PRICE_PRECISION, TEN } from '../constants/numericConstants';
+import { ONE, PRICE_PRECISION, TEN } from '../constants/numericConstants';
 
 export class PythClient implements OracleClient {
 	private connection: Connection;
+	private multiple: BN;
 
-	public constructor(connection: Connection) {
+	public constructor(connection: Connection, multiple = ONE) {
 		this.connection = connection;
+		this.multiple = multiple;
 	}
 
 	public async getOraclePriceData(
@@ -36,7 +38,7 @@ export class PythClient implements OracleClient {
 
 export function convertPythPrice(price: number, exponent: number): BN {
 	exponent = Math.abs(exponent);
-	const pythPrecision = TEN.pow(new BN(exponent).abs());
+	const pythPrecision = TEN.pow(new BN(exponent).abs()).div(this.multiple);
 	return new BN(price * Math.pow(10, exponent))
 		.mul(PRICE_PRECISION)
 		.div(pythPrecision);
