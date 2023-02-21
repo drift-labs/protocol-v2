@@ -157,9 +157,14 @@ pub fn get_pyth_price(
     let oracle_price = price_data.agg.price;
     let oracle_conf = price_data.agg.conf;
 
-    let oracle_precision = 10_u128
-        .pow(price_data.expo.unsigned_abs())
-        .safe_div(multiple)?;
+    let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
+
+    if oracle_precision <= multiple {
+        msg!("Multiple larger than oracle precision");
+        return Err(crate::error::ErrorCode::InvalidOracle);
+    }
+
+    let oracle_precision = oracle_precision.safe_div(multiple)?;
 
     let mut oracle_scale_mult = 1;
     let mut oracle_scale_div = 1;
