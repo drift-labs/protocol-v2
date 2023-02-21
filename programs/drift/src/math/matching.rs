@@ -20,8 +20,8 @@ pub fn is_maker_for_taker(
     // taker cant be post only and maker must be resting limit order
     if taker_order.post_only || !maker_order.is_resting_limit_order(slot)? {
         Ok(false)
-    // can make if taker order isn't resting (market order or limit going through auction) or if maker is post only
-    } else if !taker_order.is_resting_limit_order(slot)? || maker_order.post_only {
+    // can make if taker order isn't resting (market order or limit going through auction)
+    } else if !taker_order.is_resting_limit_order(slot)? {
         Ok(true)
     // otherwise the maker must be older than the taker order
     } else {

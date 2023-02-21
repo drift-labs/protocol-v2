@@ -3435,7 +3435,7 @@ describe('DLOB Perp Tests', () => {
 			PositionDirection.LONG,
 			vBid,
 			vAsk,
-			new BN(slot - 1), // later order becomes taker
+			new BN(slot + 1), // later order becomes taker
 			new BN(200),
 			undefined,
 			undefined,
@@ -5109,7 +5109,8 @@ describe('DLOB Spot Tests', () => {
 			BASE_PRECISION, // quantity
 			PositionDirection.SHORT,
 			vBid,
-			vAsk
+			vAsk,
+			new BN(1)
 		);
 		insertOrderToDLOB(
 			dlob,
@@ -5122,7 +5123,8 @@ describe('DLOB Spot Tests', () => {
 			BASE_PRECISION, // quantity
 			PositionDirection.SHORT,
 			vBid,
-			vAsk
+			vAsk,
+			new BN(1)
 		);
 
 		// should have no crossing orders
@@ -5152,7 +5154,7 @@ describe('DLOB Spot Tests', () => {
 			PositionDirection.LONG,
 			vBid,
 			vAsk,
-			undefined,
+			new BN(0),
 			undefined,
 			undefined,
 			true
@@ -5169,7 +5171,7 @@ describe('DLOB Spot Tests', () => {
 			PositionDirection.LONG,
 			vBid,
 			vAsk,
-			undefined,
+			new BN(0),
 			undefined,
 			undefined,
 			true
