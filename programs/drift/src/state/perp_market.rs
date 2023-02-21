@@ -549,7 +549,8 @@ impl AMM {
 
     pub fn get_oracle_twap(&self, price_oracle: &AccountInfo) -> DriftResult<Option<i64>> {
         match self.oracle_source {
-            OracleSource::Pyth => Ok(Some(self.get_pyth_twap(price_oracle)?)),
+            OracleSource::Pyth => Ok(Some(self.get_pyth_twap(price_oracle, 1)?)),
+            OracleSource::Pyth1000 => Ok(Some(self.get_pyth_twap(price_oracle, 1000)?)),
             OracleSource::Switchboard => Ok(None),
             OracleSource::QuoteAsset => {
                 msg!("Can't get oracle twap for quote asset");
@@ -558,7 +559,7 @@ impl AMM {
         }
     }
 
-    pub fn get_pyth_twap(&self, price_oracle: &AccountInfo) -> DriftResult<i64> {
+    pub fn get_pyth_twap(&self, price_oracle: &AccountInfo, multiple: u128) -> DriftResult<i64> {
         let pyth_price_data = price_oracle
             .try_borrow_data()
             .or(Err(ErrorCode::UnableToLoadOracle))?;
@@ -574,7 +575,9 @@ impl AMM {
         let mut oracle_scale_div = 1;
 
         if oracle_precision > PRICE_PRECISION {
-            oracle_scale_div = oracle_precision.safe_div(PRICE_PRECISION)?;
+            oracle_scale_div = oracle_precision
+                .safe_mul(multiple)?
+                .safe_div(PRICE_PRECISION)?;
         } else {
             oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
         }

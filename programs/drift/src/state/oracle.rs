@@ -8,6 +8,9 @@ use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
 use switchboard_v2::decimal::SwitchboardDecimal;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct HistoricalOracleData {
     pub last_oracle_price: i64,
@@ -89,6 +92,7 @@ impl HistoricalIndexData {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub enum OracleSource {
     Pyth,
+    Pyth1000,
     Switchboard,
     QuoteAsset,
 }
@@ -125,7 +129,8 @@ pub fn get_oracle_price(
     clock_slot: u64,
 ) -> DriftResult<OraclePriceData> {
     match oracle_source {
-        OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot),
+        OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot, 1),
+        OracleSource::Pyth1000 => get_pyth_price(price_oracle, clock_slot, 1000),
         OracleSource::Switchboard => {
             msg!("Switchboard oracle not yet supported");
             Err(crate::error::ErrorCode::InvalidOracle)
@@ -139,7 +144,11 @@ pub fn get_oracle_price(
     }
 }
 
-pub fn get_pyth_price(price_oracle: &AccountInfo, clock_slot: u64) -> DriftResult<OraclePriceData> {
+pub fn get_pyth_price(
+    price_oracle: &AccountInfo,
+    clock_slot: u64,
+    multiple: u128,
+) -> DriftResult<OraclePriceData> {
     let pyth_price_data = price_oracle
         .try_borrow_data()
         .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
@@ -154,7 +163,9 @@ pub fn get_pyth_price(price_oracle: &AccountInfo, clock_slot: u64) -> DriftResul
     let mut oracle_scale_div = 1;
 
     if oracle_precision > PRICE_PRECISION {
-        oracle_scale_div = oracle_precision.safe_div(PRICE_PRECISION)?;
+        oracle_scale_div = oracle_precision
+            .safe_div(PRICE_PRECISION)?
+            .safe_div(multiple)?;
     } else {
         oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
     }

@@ -77,6 +77,14 @@ pub fn get_pyth_price(price: i64, expo: i32) -> Price {
     pyth_price
 }
 
+pub fn get_hardcoded_pyth_price(price: i64, expo: i32) -> Price {
+    let mut pyth_price = Price::default();
+    pyth_price.agg.price = price;
+    pyth_price.twap = price;
+    pyth_price.expo = expo;
+    pyth_price
+}
+
 #[macro_export]
 macro_rules! create_anchor_account_info {
     ($account:expr, $type:ident, $name: ident) => {
