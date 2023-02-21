@@ -8,16 +8,18 @@ use crate::math::amm::_calculate_market_open_bids_asks;
 use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    BID_ASK_SPREAD_PRECISION_U128, DEFAULT_LARGE_BID_ASK_FACTOR,
-    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
-    PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128,
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
+    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
+    DEFAULT_LARGE_BID_ASK_FACTOR, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION,
+    PRICE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::AMM;
 use crate::validate;
+
+use super::constants::PERCENTAGE_PRECISION_I128;
 
 #[cfg(test)]
 mod tests;
@@ -175,14 +177,20 @@ pub fn calculate_spread_inventory_scale(
     let min_side_liquidity = max_bids.min(max_asks.abs());
 
     // cap so (6e9 * AMM_RESERVE_PRECISION)^2 < 2^127
-    let amm_inventory_size = base_asset_amount_with_amm.abs().min(6000000000000000000);
+    let amm_inventory_pct = if base_asset_amount_with_amm < 6000000000000000000 {
+        base_asset_amount_with_amm
+            .abs()
+            .safe_mul(PERCENTAGE_PRECISION_I128)?
+            .safe_div(min_side_liquidity.max(1))?
+    } else {
+        PERCENTAGE_PRECISION_I128 * 100
+    };
 
     // inventory scale
-    let inventory_scale = amm_inventory_size
-        .safe_mul(amm_inventory_size.max(AMM_RESERVE_PRECISION_I128))?
-        .safe_div(AMM_RESERVE_PRECISION_I128)?
+    let inventory_scale = amm_inventory_pct
+        .safe_mul(amm_inventory_pct.max(PERCENTAGE_PRECISION_I128))?
+        .safe_div(PERCENTAGE_PRECISION_I128)?
         .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>()?)?
-        .safe_div(min_side_liquidity.max(1))?
         .unsigned_abs();
 
     // only allow up to scale up of larger of MAX_BID_ASK_INVENTORY_SKEW_FACTOR or half of max spread
