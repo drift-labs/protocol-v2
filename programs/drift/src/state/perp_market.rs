@@ -569,15 +569,15 @@ impl AMM {
 
         assert!(oracle_twap > price_data.agg.price / 10);
 
-        let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
+        let oracle_precision = 10_u128
+            .pow(price_data.expo.unsigned_abs())
+            .safe_div(multiple)?;
 
         let mut oracle_scale_mult = 1;
         let mut oracle_scale_div = 1;
 
         if oracle_precision > PRICE_PRECISION {
-            oracle_scale_div = oracle_precision
-                .safe_div(PRICE_PRECISION)?
-                .safe_div(multiple)?;
+            oracle_scale_div = oracle_precision.safe_div(PRICE_PRECISION)?;
         } else {
             oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
         }
