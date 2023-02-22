@@ -8596,6 +8596,11 @@
       "code": 6226,
       "name": "MarginOrdersOpen",
       "msg": "MarginOrdersOpen"
+    },
+    {
+      "code": 6227,
+      "name": "TierViolationLiquidatingPerpPnl",
+      "msg": "TierViolationLiquidatingPerpPnl"
     }
   ]
 }
