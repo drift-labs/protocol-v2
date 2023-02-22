@@ -256,8 +256,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     let mut num_spot_liabilities: u8 = 0;
     let mut num_perp_liabilities: u8 = 0;
     let mut with_isolated_liability: bool = false;
-    let mut highest_tier_spot_liablity: AssetTier = AssetTier::default();
-    let mut highest_tier_perp_liablity: ContractTier = ContractTier::default();
+    let mut safest_tier_spot_liablity: AssetTier = AssetTier::default();
+    let mut safest_tier_perp_liablity: ContractTier = ContractTier::default();
 
     let user_custom_margin_ratio = if margin_requirement_type == MarginRequirementType::Initial {
         user.max_margin_ratio
@@ -319,8 +319,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     )?;
 
                     margin_requirement = margin_requirement.safe_add(weighted_token_value)?;
-                    highest_tier_spot_liablity =
-                        min(highest_tier_spot_liablity, spot_market.asset_tier);
+                    safest_tier_spot_liablity =
+                        min(safest_tier_spot_liablity, spot_market.asset_tier);
                     num_spot_liabilities += 1;
 
                     if let Some(margin_buffer_ratio) = margin_buffer_ratio {
@@ -431,8 +431,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     )?;
 
                     margin_requirement = margin_requirement.safe_add(weighted_token_value)?;
-                    highest_tier_spot_liablity =
-                        min(highest_tier_spot_liablity, spot_market.asset_tier);
+                    safest_tier_spot_liablity =
+                        min(safest_tier_spot_liablity, spot_market.asset_tier);
 
                     if let Some(margin_buffer_ratio) = margin_buffer_ratio {
                         margin_requirement_plus_buffer = margin_requirement_plus_buffer.safe_add(
@@ -449,8 +449,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 }
                 Ordering::Equal => {
                     if spot_position.has_open_order() {
-                        highest_tier_spot_liablity =
-                            min(highest_tier_spot_liablity, spot_market.asset_tier);
+                        safest_tier_spot_liablity =
+                            min(safest_tier_spot_liablity, spot_market.asset_tier);
                         num_spot_liabilities += 1;
                     }
                 }
@@ -532,7 +532,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             || market_position.has_open_order()
         {
             num_perp_liabilities += 1;
-            highest_tier_perp_liablity = min(highest_tier_perp_liablity, market.contract_tier);
+            safest_tier_perp_liablity = min(safest_tier_perp_liablity, market.contract_tier);
         }
 
         with_isolated_liability &=
@@ -556,8 +556,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         all_oracles_valid,
         num_of_liabilities,
         with_isolated_liability,
-        highest_tier_spot_liablity,
-        highest_tier_perp_liablity,
+        safest_tier_spot_liablity,
+        safest_tier_perp_liablity,
     ))
 }
 

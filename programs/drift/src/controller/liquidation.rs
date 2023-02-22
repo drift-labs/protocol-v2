@@ -1719,8 +1719,8 @@ pub fn liquidate_perp_pnl_for_deposit(
         _all_oracles_valid,
         _,
         _,
-        highest_tier_spot_liability,
-        highest_tier_perp_liability,
+        safest_tier_spot_liability,
+        safest_tier_perp_liability,
     ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
@@ -1730,12 +1730,6 @@ pub fn liquidate_perp_pnl_for_deposit(
         Some(liquidation_margin_buffer_ratio as u128),
         false,
     )?;
-
-    if contract_tier > highest_tier_perp_liability
-        || highest_tier_spot_liability > AssetTier::default()
-    {
-        return Err(ErrorCode::TierViolationLiquidatingPerpPnl);
-    }
 
     if !user.is_being_liquidated() && total_collateral >= margin_requirement.cast()? {
         return Err(ErrorCode::SufficientCollateral);
@@ -1913,6 +1907,12 @@ pub fn liquidate_perp_pnl_for_deposit(
             asset_transfer
         );
         return Err(ErrorCode::InvalidLiquidation);
+    } else {
+        if contract_tier > safest_tier_perp_liability
+            || safest_tier_spot_liability > AssetTier::default()
+        {
+            return Err(ErrorCode::TierViolationLiquidatingPerpPnl);
+        }
     }
 
     validate_transfer_satisfies_limit_price(
