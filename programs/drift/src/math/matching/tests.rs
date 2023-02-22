@@ -63,27 +63,31 @@ mod is_maker_for_taker {
 
     #[test]
     fn maker_is_post_only() {
+        let slot = 1;
         // market order
         let taker = Order {
             post_only: false,
             order_type: OrderType::Market,
+            slot: slot - 1,
             ..Default::default()
         };
         let maker = Order {
             post_only: true,
             order_type: OrderType::Limit,
+            slot: slot - 1,
             ..Default::default()
         };
-        assert_eq!(is_maker_for_taker(&maker, &taker, 0).unwrap(), true);
+        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
 
         // limit order in auction
         let taker = Order {
             post_only: false,
             order_type: OrderType::Limit,
             auction_duration: 10,
+            slot: slot - 1,
             ..Default::default()
         };
-        assert_eq!(is_maker_for_taker(&maker, &taker, 0).unwrap(), true);
+        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
     }
 
     #[test]
