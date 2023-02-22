@@ -1307,18 +1307,20 @@ export class DLOB {
 			marketType,
 			oraclePriceData
 		)) {
-			for (const bidNode of this.getRestingLimitBids(
+			const bidGenerator = this.getRestingLimitBids(
 				marketIndex,
 				slot,
 				marketType,
 				oraclePriceData
-			)) {
+			);
+
+			for (const bidNode of bidGenerator) {
 				const bidPrice = bidNode.getPrice(oraclePriceData, slot);
 				const askPrice = askNode.getPrice(oraclePriceData, slot);
 
-				// orders don't cross - we're done walking the book
+				// orders don't cross
 				if (bidPrice.lt(askPrice)) {
-					return nodesToFill;
+					break;
 				}
 
 				const bidOrder = bidNode.order;
@@ -1326,14 +1328,18 @@ export class DLOB {
 
 				// Can't match orders from the same user
 				const sameUser = bidNode.userAccount.equals(askNode.userAccount);
-				if (sameUser || (bidOrder.postOnly && askOrder.postOnly)) {
+				if (sameUser) {
 					continue;
 				}
 
-				const { takerNode, makerNode } = this.determineMakerAndTaker(
-					askNode,
-					bidNode
-				);
+				const makerAndTaker = this.determineMakerAndTaker(askNode, bidNode);
+
+				// unable to match maker and taker due to post only or slot
+				if (!makerAndTaker) {
+					continue;
+				}
+
+				const { takerNode, makerNode } = makerAndTaker;
 
 				// extra guard against bad fills for limit orders where auction is incomplete
 				if (
@@ -1407,27 +1413,25 @@ export class DLOB {
 	determineMakerAndTaker(
 		askNode: DLOBNode,
 		bidNode: DLOBNode
-	): { takerNode: DLOBNode; makerNode: DLOBNode } {
-		if (bidNode.order.postOnly) {
+	): { takerNode: DLOBNode; makerNode: DLOBNode } | undefined {
+		const askSlot = askNode.order.slot.add(
+			new BN(askNode.order.auctionDuration)
+		);
+		const bidSlot = bidNode.order.slot.add(
+			new BN(bidNode.order.auctionDuration)
+		);
+		if (askSlot.lte(bidSlot) && !bidNode.order.postOnly) {
+			return {
+				takerNode: bidNode,
+				makerNode: askNode,
+			};
+		} else if (bidSlot.lte(askSlot) && !askNode.order.postOnly) {
 			return {
 				takerNode: askNode,
 				makerNode: bidNode,
-			};
-		} else if (askNode.order.postOnly) {
-			return {
-				takerNode: bidNode,
-				makerNode: askNode,
-			};
-		} else if (askNode.order.slot.lt(bidNode.order.slot)) {
-			return {
-				takerNode: bidNode,
-				makerNode: askNode,
 			};
 		} else {
-			return {
-				takerNode: askNode,
-				makerNode: bidNode,
-			};
+			return undefined;
 		}
 	}
 

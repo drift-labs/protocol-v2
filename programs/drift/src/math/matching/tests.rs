@@ -130,6 +130,7 @@ mod is_maker_for_taker {
         assert_eq!(taker.is_resting_limit_order(slot).unwrap(), true);
 
         let maker = Order {
+            slot: 1,
             post_only: true,
             order_type: OrderType::Limit,
             ..Default::default()
