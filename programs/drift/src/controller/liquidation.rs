@@ -1907,12 +1907,13 @@ pub fn liquidate_perp_pnl_for_deposit(
             asset_transfer
         );
         return Err(ErrorCode::InvalidLiquidation);
-    } else {
-        if contract_tier > safest_tier_perp_liability
-            || safest_tier_spot_liability > AssetTier::default()
-        {
-            return Err(ErrorCode::TierViolationLiquidatingPerpPnl);
-        }
+    }
+
+    if contract_tier > safest_tier_perp_liability
+        || safest_tier_spot_liability > AssetTier::default()
+    {   
+        msg!("liquidating contract tier={:?} is riskier than outstanding {:?} & {:?}", contract_tier, safest_tier_perp_liability, safest_tier_spot_liability);
+        return Err(ErrorCode::TierViolationLiquidatingPerpPnl);
     }
 
     validate_transfer_satisfies_limit_price(
