@@ -488,8 +488,18 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot)?;
-            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(&ctx.accounts.oracle)?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1)?;
+            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
+        OracleSource::Pyth1000 => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000)?;
+            let last_oracle_price_twap =
+                perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1000)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Switchboard => {
