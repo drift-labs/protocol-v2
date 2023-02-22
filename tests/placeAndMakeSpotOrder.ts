@@ -159,7 +159,7 @@ describe('place and make spot order', () => {
 			price: new BN(41).mul(PRICE_PRECISION),
 			auctionStartPrice: new BN(40).mul(PRICE_PRECISION),
 			auctionEndPrice: new BN(41).mul(PRICE_PRECISION),
-			auctionDuration: 1,
+			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
