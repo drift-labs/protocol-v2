@@ -459,6 +459,8 @@ pub enum ErrorCode {
     InvalidOracleForSettlePnl,
     #[msg("MarginOrdersOpen")]
     MarginOrdersOpen,
+    #[msg("TierViolationLiquidatingPerpPnl")]
+    TierViolationLiquidatingPerpPnl,
 }
 
 #[macro_export]

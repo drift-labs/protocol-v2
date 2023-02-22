@@ -58,7 +58,7 @@ impl Default for ContractType {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub enum ContractTier {
     A,           // max insurance capped at A level
     B,           // max insurance capped at B level

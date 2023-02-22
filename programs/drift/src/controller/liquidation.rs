@@ -36,8 +36,9 @@ use crate::math::liquidation::{
     validate_transfer_satisfies_limit_price, LiquidationMultiplierType,
 };
 use crate::math::margin::{
-    calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
-    MarginRequirementType,
+    calculate_margin_requirement_and_total_collateral,
+    calculate_margin_requirement_and_total_collateral_and_liability_info,
+    meets_initial_margin_requirement, MarginRequirementType,
 };
 use crate::math::oracle::DriftAction;
 use crate::math::orders::{
@@ -55,7 +56,7 @@ use crate::state::events::{
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::spot_market::SpotBalanceType;
+use crate::state::spot_market::{AssetTier, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
@@ -1551,7 +1552,8 @@ pub fn liquidate_perp_pnl_for_deposit(
 ) -> DriftResult {
     // liquidator takes over remaining negative perpetual pnl in exchange for a user deposit
     // can only be done once the perpetual position's size is 0
-    // blocked when the user deposit oracle is deemed invalid
+    // blocked when 1) user deposit oracle is deemed invalid
+    // or 2) user has outstanding liability with higher tier
 
     validate!(
         !user.is_bankrupt(),
@@ -1609,7 +1611,14 @@ pub fn liquidate_perp_pnl_for_deposit(
         now,
     )?;
 
-    let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
+    let (
+        asset_amount,
+        asset_price,
+        _asset_tier,
+        asset_decimals,
+        asset_weight,
+        asset_liquidation_multiplier,
+    ) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
         let (asset_price_data, validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&asset_market.oracle)?;
@@ -1643,6 +1652,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         (
             token_amount,
             token_price,
+            asset_market.asset_tier,
             asset_market.decimals,
             asset_market.maintenance_asset_weight,
             calculate_liquidation_multiplier(
@@ -1655,6 +1665,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     let (
         unsettled_pnl,
         quote_price,
+        contract_tier,
         quote_decimals,
         pnl_liability_weight,
         pnl_liquidation_multiplier,
@@ -1691,6 +1702,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         (
             unsettled_pnl.unsigned_abs(),
             quote_price,
+            market.contract_tier,
             6_u32,
             SPOT_WEIGHT_PRECISION,
             calculate_liquidation_multiplier(
@@ -1700,15 +1712,30 @@ pub fn liquidate_perp_pnl_for_deposit(
         )
     };
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
-        calculate_margin_requirement_and_total_collateral(
-            user,
-            perp_market_map,
-            MarginRequirementType::Maintenance,
-            spot_market_map,
-            oracle_map,
-            Some(liquidation_margin_buffer_ratio as u128),
-        )?;
+    let (
+        margin_requirement,
+        total_collateral,
+        margin_requirement_plus_buffer,
+        _all_oracles_valid,
+        _,
+        _,
+        highest_tier_spot_liability,
+        highest_tier_perp_liability,
+    ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        MarginRequirementType::Maintenance,
+        spot_market_map,
+        oracle_map,
+        Some(liquidation_margin_buffer_ratio as u128),
+        false,
+    )?;
+
+    if contract_tier > highest_tier_perp_liability
+        || highest_tier_spot_liability > AssetTier::default()
+    {
+        return Err(ErrorCode::TierViolationLiquidatingPerpPnl);
+    }
 
     if !user.is_being_liquidated() && total_collateral >= margin_requirement.cast()? {
         return Err(ErrorCode::SufficientCollateral);

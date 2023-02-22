@@ -1351,7 +1351,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             ..User::default()
         };
 
-        let (margin_requirement, _, _, _, num_of_liabilities, _) =
+        let (margin_requirement, _, _, _, num_of_liabilities, _, _, _) =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
                 &perp_market_map,
@@ -1463,7 +1463,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             ..User::default()
         };
 
-        let (margin_requirement, _, _, _, num_of_liabilities, _) =
+        let (margin_requirement, _, _, _, num_of_liabilities, _, _, _) =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
                 &perp_market_map,

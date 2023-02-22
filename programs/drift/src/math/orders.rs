@@ -684,7 +684,7 @@ pub fn calculate_max_perp_order_size(
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
     // calculate initial margin requirement
-    let (margin_requirement, total_collateral, _, _, _, _) =
+    let (margin_requirement, total_collateral, _, _, _, _, _, _) =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
             perp_market_map,
@@ -779,7 +779,7 @@ pub fn calculate_max_spot_order_size(
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
     // calculate initial margin requirement
-    let (margin_requirement, total_collateral, _, _, _, _) =
+    let (margin_requirement, total_collateral, _, _, _, _, _, _) =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
             perp_market_map,
