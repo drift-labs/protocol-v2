@@ -246,21 +246,19 @@ fn validate_post_only_order(
             );
         }
 
-        if !order.is_jit_maker() {
-            let mut invalid = true;
-            if let Some(valid_oracle_price) = valid_oracle_price {
-                if (valid_oracle_price > limit_price.cast()?
-                    && order.direction == PositionDirection::Long)
-                    || (valid_oracle_price < limit_price.cast()?
-                        && order.direction == PositionDirection::Short)
-                {
-                    invalid = false;
-                }
+        let mut invalid = true;
+        if let Some(valid_oracle_price) = valid_oracle_price {
+            if (valid_oracle_price > limit_price.cast()?
+                && order.direction == PositionDirection::Long)
+                || (valid_oracle_price < limit_price.cast()?
+                    && order.direction == PositionDirection::Short)
+            {
+                invalid = false;
             }
+        }
 
-            if invalid {
-                return Err(ErrorCode::PlacePostOnlyLimitFailure);
-            }
+        if invalid {
+            return Err(ErrorCode::PlacePostOnlyLimitFailure);
         }
     }
 
