@@ -24,8 +24,6 @@ import {
 	UserMap,
 	OrderRecord,
 	OrderActionRecord,
-	ZERO,
-	BN_MAX,
 	isRestingLimitOrder,
 	isTakingOrder,
 	isFallbackAvailableLiquiditySource,
@@ -535,10 +533,7 @@ export class DLOB {
 			marketIndex,
 			slot,
 			marketType,
-			oraclePriceData,
-			minAuctionDuration,
-			fallbackAsk,
-			fallbackBid
+			oraclePriceData
 		);
 
 		for (const crossingNode of crossingNodes) {
@@ -1294,10 +1289,7 @@ export class DLOB {
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
-		minAuctionDuration: number,
-		fallbackAsk: BN | undefined,
-		fallbackBid: BN | undefined
+		oraclePriceData: OraclePriceData
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -1340,35 +1332,6 @@ export class DLOB {
 				}
 
 				const { takerNode, makerNode } = makerAndTaker;
-
-				// extra guard against bad fills for limit orders where auction is incomplete
-				if (
-					!isFallbackAvailableLiquiditySource(
-						takerNode.order,
-						minAuctionDuration,
-						slot
-					)
-				) {
-					let bidPrice: BN;
-					let askPrice: BN;
-					if (isVariant(takerNode.order.direction, 'long')) {
-						bidPrice = BN.min(
-							takerNode.getPrice(oraclePriceData, slot),
-							fallbackAsk || BN_MAX
-						);
-						askPrice = makerNode.getPrice(oraclePriceData, slot);
-					} else {
-						bidPrice = makerNode.getPrice(oraclePriceData, slot);
-						askPrice = BN.max(
-							takerNode.getPrice(oraclePriceData, slot),
-							fallbackBid || ZERO
-						);
-					}
-
-					if (bidPrice.lt(askPrice)) {
-						continue;
-					}
-				}
 
 				const bidBaseRemaining = bidOrder.baseAssetAmount.sub(
 					bidOrder.baseAssetAmountFilled
