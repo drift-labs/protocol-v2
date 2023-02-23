@@ -4046,7 +4046,7 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{ContractTier, MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
-    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::*;
@@ -5223,6 +5223,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            asset_tier: AssetTier::Collateral,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -5244,6 +5245,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
+            asset_tier: AssetTier::Collateral,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -5509,6 +5511,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             150,
         )
         .is_err());
+        assert_eq!(user.perp_positions[0].quote_asset_amount, -100000000);
 
         liquidate_perp_pnl_for_deposit(
             0,
@@ -5529,6 +5532,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             150,
         )
         .unwrap();
+        assert_eq!(user.perp_positions[0].quote_asset_amount, 0);
 
         liquidate_perp_pnl_for_deposit(
             1,

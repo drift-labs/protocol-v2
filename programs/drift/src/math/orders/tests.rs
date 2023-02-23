@@ -1543,7 +1543,7 @@ mod calculate_max_spot_order_size {
         user.spot_positions[1].open_orders = 1;
         user.spot_positions[1].open_bids = max_order_size as i64;
 
-        let (margin_requirement, total_collateral, _, _, _, _, _, _) =
+        let (margin_requirement, total_collateral, _, _, _, _) =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
                 &PerpMarketMap::empty(),
@@ -1737,7 +1737,7 @@ mod calculate_max_spot_order_size {
         user.spot_positions[1].open_orders = 1;
         user.spot_positions[1].open_asks = -(max_order_size as i64);
 
-        let (margin_requirement, total_collateral, _, _, _, _, _, _) =
+        let (margin_requirement, total_collateral, _, _, _, _) =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
                 &PerpMarketMap::empty(),
@@ -1973,7 +1973,7 @@ mod calculate_max_perp_order_size {
         user.perp_positions[0].open_orders = 1;
         user.perp_positions[0].open_bids = max_order_size as i64;
 
-        let (margin_requirement, total_collateral, _, _, _, _, _, _) =
+        let (margin_requirement, total_collateral, _, _, _, _) =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
                 &market_map,
@@ -2189,7 +2189,7 @@ mod calculate_max_perp_order_size {
         user.perp_positions[0].open_orders = 1;
         user.perp_positions[0].open_asks = -(max_order_size as i64);
 
-        let (margin_requirement, total_collateral, _, _, _, _, _, _) =
+        let (margin_requirement, total_collateral, _, _, _, _) =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
                 &market_map,

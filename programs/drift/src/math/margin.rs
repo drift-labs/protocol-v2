@@ -240,6 +240,37 @@ pub fn calculate_perp_position_value_and_pnl(
     ))
 }
 
+pub fn calculate_user_safest_position_tiers(
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+) -> DriftResult<(AssetTier, ContractTier)> {
+    let mut safest_tier_spot_liablity: AssetTier = AssetTier::default();
+    let mut safest_tier_perp_liablity: ContractTier = ContractTier::default();
+
+    for spot_position in user.spot_positions.iter() {
+        if spot_position.scaled_balance == 0 && spot_position.open_orders == 0 {
+            continue;
+        }
+        let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
+        safest_tier_spot_liablity = min(safest_tier_spot_liablity, spot_market.asset_tier);
+    }
+
+    for market_position in user.perp_positions.iter() {
+        if market_position.base_asset_amount == 0
+            && market_position.quote_asset_amount == 0
+            && !market_position.has_open_order()
+            && !market_position.is_lp()
+        {
+            continue;
+        }
+        let market = &perp_market_map.get_ref(&market_position.market_index)?;
+        safest_tier_perp_liablity = min(safest_tier_perp_liablity, market.contract_tier);
+    }
+
+    Ok((safest_tier_spot_liablity, safest_tier_perp_liablity))
+}
+
 pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     user: &User,
     perp_market_map: &PerpMarketMap,
@@ -248,7 +279,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     oracle_map: &mut OracleMap,
     margin_buffer_ratio: Option<u128>,
     strict: bool,
-) -> DriftResult<(u128, i128, u128, bool, u8, bool, AssetTier, ContractTier)> {
+) -> DriftResult<(u128, i128, u128, bool, u8, bool)> {
     let mut total_collateral: i128 = 0;
     let mut margin_requirement: u128 = 0;
     let mut margin_requirement_plus_buffer: u128 = 0;
@@ -256,8 +287,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     let mut num_spot_liabilities: u8 = 0;
     let mut num_perp_liabilities: u8 = 0;
     let mut with_isolated_liability: bool = false;
-    let mut safest_tier_spot_liablity: AssetTier = AssetTier::default();
-    let mut safest_tier_perp_liablity: ContractTier = ContractTier::default();
 
     let user_custom_margin_ratio = if margin_requirement_type == MarginRequirementType::Initial {
         user.max_margin_ratio
@@ -319,8 +348,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     )?;
 
                     margin_requirement = margin_requirement.safe_add(weighted_token_value)?;
-                    safest_tier_spot_liablity =
-                        min(safest_tier_spot_liablity, spot_market.asset_tier);
                     num_spot_liabilities += 1;
 
                     if let Some(margin_buffer_ratio) = margin_buffer_ratio {
@@ -431,8 +458,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     )?;
 
                     margin_requirement = margin_requirement.safe_add(weighted_token_value)?;
-                    safest_tier_spot_liablity =
-                        min(safest_tier_spot_liablity, spot_market.asset_tier);
 
                     if let Some(margin_buffer_ratio) = margin_buffer_ratio {
                         margin_requirement_plus_buffer = margin_requirement_plus_buffer.safe_add(
@@ -449,8 +474,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 }
                 Ordering::Equal => {
                     if spot_position.has_open_order() {
-                        safest_tier_spot_liablity =
-                            min(safest_tier_spot_liablity, spot_market.asset_tier);
                         num_spot_liabilities += 1;
                     }
                 }
@@ -532,7 +555,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             || market_position.has_open_order()
         {
             num_perp_liabilities += 1;
-            safest_tier_perp_liablity = min(safest_tier_perp_liablity, market.contract_tier);
         }
 
         with_isolated_liability &=
@@ -556,8 +578,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         all_oracles_valid,
         num_of_liabilities,
         with_isolated_liability,
-        safest_tier_spot_liablity,
-        safest_tier_perp_liablity,
     ))
 }
 
@@ -574,8 +594,6 @@ pub fn calculate_margin_requirement_and_total_collateral(
         total_collateral,
         margin_requirement_plus_buffer,
         all_oracles_valid,
-        _,
-        _,
         _,
         _,
     ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
@@ -611,8 +629,6 @@ pub fn meets_withdraw_margin_requirement(
         oracles_valid,
         num_of_liabilities,
         includes_isolated_liability,
-        _,
-        _,
     ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
@@ -672,8 +688,6 @@ pub fn meets_place_order_margin_requirement(
         _,
         num_of_liabilities,
         includes_isolated_liability,
-        _,
-        _,
     ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
@@ -764,7 +778,7 @@ pub fn calculate_max_withdrawable_amount(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
-    let (margin_requirement, total_collateral, _, _, num_of_liabilities, _, _, _) =
+    let (margin_requirement, total_collateral, _, _, num_of_liabilities, _) =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
             perp_market_map,
