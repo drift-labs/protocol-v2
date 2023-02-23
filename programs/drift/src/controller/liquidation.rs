@@ -1911,8 +1911,13 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     if contract_tier > safest_tier_perp_liability
         || safest_tier_spot_liability > AssetTier::default()
-    {   
-        msg!("liquidating contract tier={:?} is riskier than outstanding {:?} & {:?}", contract_tier, safest_tier_perp_liability, safest_tier_spot_liability);
+    {
+        msg!(
+            "liquidating contract tier={:?} is riskier than outstanding {:?} & {:?}",
+            contract_tier,
+            safest_tier_perp_liability,
+            safest_tier_spot_liability
+        );
         return Err(ErrorCode::TierViolationLiquidatingPerpPnl);
     }
 

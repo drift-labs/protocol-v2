@@ -5457,7 +5457,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            scaled_balance: SPOT_BALANCE_PRECISION_U64/1000,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64 / 1000,
             ..SpotPosition::default()
         };
         let mut user = User {
@@ -5549,7 +5549,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             150,
         )
         .unwrap();
-
 
         assert_eq!(user.spot_positions[0].scaled_balance, 48484849000);
         assert_eq!(user.perp_positions[0].quote_asset_amount, 0);
