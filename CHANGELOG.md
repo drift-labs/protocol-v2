@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- ts-sdk: fix resolvePerpBankrupcty to work with all perp market indexes
+
 ### Breaking
 
 ## [2.17.0] - 2023-02-17
