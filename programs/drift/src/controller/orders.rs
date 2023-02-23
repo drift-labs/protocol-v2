@@ -28,7 +28,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
-use crate::math::auction::{calculate_auction_prices, is_amm_available_liquidity_source};
+use crate::math::auction::calculate_auction_prices;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
@@ -1346,7 +1346,6 @@ fn fulfill_perp_order(
                 valid_oracle_price,
                 now,
                 slot,
-                min_auction_duration,
                 fee_structure,
                 oracle_map,
                 &mut order_records,
@@ -1764,7 +1763,6 @@ pub fn fulfill_perp_order_with_match(
     valid_oracle_price: Option<i64>,
     now: i64,
     slot: u64,
-    min_auction_duration: u8,
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     order_records: &mut Vec<OrderActionRecord>,
@@ -1788,7 +1786,7 @@ pub fn fulfill_perp_order_with_match(
         amm_available_liquidity,
         oracle_price,
     )?;
-    let mut taker_price = taker.orders[taker_order_index].force_get_limit_price(
+    let taker_price = taker.orders[taker_order_index].force_get_limit_price(
         Some(oracle_price),
         Some(taker_fallback_price),
         slot,
@@ -1813,37 +1811,6 @@ pub fn fulfill_perp_order_with_match(
         .base_asset_amount;
     let maker_base_asset_amount = maker.orders[maker_order_index]
         .get_base_asset_amount_unfilled(Some(maker_existing_position))?;
-
-    // if the auction isn't complete, cant fill against vamm yet
-    // use the vamm price to guard against bad fill for taker
-    if taker.orders[taker_order_index].is_limit_order()
-        && !is_amm_available_liquidity_source(
-            &taker.orders[taker_order_index],
-            min_auction_duration,
-            slot,
-        )?
-    {
-        taker_price = match taker_direction {
-            PositionDirection::Long => {
-                msg!(
-                    "taker limit order auction incomplete. vamm ask {} taker bid {} maker ask {}",
-                    ask_price,
-                    taker_price,
-                    maker_price,
-                );
-                taker_price.min(ask_price)
-            }
-            PositionDirection::Short => {
-                msg!(
-                    "taker limit order auction incomplete. vamm bid {} taker ask {} make bid {}",
-                    bid_price,
-                    taker_price,
-                    maker_price,
-                );
-                taker_price.max(bid_price)
-            }
-        };
-    }
 
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
