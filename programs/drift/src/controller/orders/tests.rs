@@ -8509,7 +8509,6 @@ pub mod sanitize_maker_orders {
             &filler_key,
             0,
             oracle_price,
-            100 * PRICE_PRECISION_U64,
             clock.unix_timestamp,
             clock.slot,
         )
@@ -8709,7 +8708,6 @@ pub mod sanitize_maker_orders {
             &filler_key,
             0,
             oracle_price,
-            100 * PRICE_PRECISION_U64,
             clock.unix_timestamp,
             clock.slot,
         )
@@ -8898,7 +8896,6 @@ pub mod sanitize_maker_orders {
             &filler_key,
             0,
             oracle_price,
-            100 * PRICE_PRECISION_U64,
             clock.unix_timestamp,
             clock.slot,
         )
