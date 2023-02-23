@@ -17,7 +17,7 @@ pub fn is_maker_for_taker(
     taker_order: &Order,
     slot: u64,
 ) -> DriftResult<bool> {
-    // Maker and taker order not allowed to both be placed in the current slot
+    // Maker and taker order not allowed to match if both were placed in the current slot
     if slot == maker_order.slot && slot == taker_order.slot {
         return Ok(false);
     };
