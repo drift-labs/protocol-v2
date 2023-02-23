@@ -439,6 +439,7 @@ fn decrease_spot_balance(
     spot_market: &mut SpotMarket,
     balance_type: &SpotBalanceType,
 ) -> DriftResult {
+    msg!("{:?} vs {:?}", spot_market.borrow_balance, delta);
     match balance_type {
         SpotBalanceType::Deposit => {
             spot_market.deposit_balance = spot_market.deposit_balance.safe_sub(delta)?

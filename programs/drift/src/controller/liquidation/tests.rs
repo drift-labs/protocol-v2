@@ -4027,7 +4027,7 @@ pub mod liquidate_perp_pnl_for_deposit {
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
-    use crate::controller::liquidation::liquidate_perp_pnl_for_deposit;
+    use crate::controller::liquidation::{liquidate_perp_pnl_for_deposit, liquidate_spot};
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
@@ -4048,7 +4048,7 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::{Order, PerpPosition, SpotPosition, User};
+    use crate::state::user::{Order, PerpPosition, SpotPosition, User, UserStatus};
     use crate::test_utils::*;
     use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 
@@ -5224,6 +5224,12 @@ pub mod liquidate_perp_pnl_for_deposit {
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             asset_tier: AssetTier::Collateral,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION as i64,
+                last_oracle_price_twap_5min: PRICE_PRECISION as i64,
+
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -5238,11 +5244,13 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
-            deposit_balance: SPOT_BALANCE_PRECISION,
-            borrow_balance: 0,
+            deposit_balance: 10 * SPOT_BALANCE_PRECISION,
+            borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
+
                 ..HistoricalOracleData::default()
             },
             asset_tier: AssetTier::Collateral,
@@ -5284,7 +5292,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 2500 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -5313,15 +5321,75 @@ pub mod liquidate_perp_pnl_for_deposit {
         )
         .is_err());
 
-        // assert_eq!(user.spot_positions[0].scaled_balance, 494445000);
-        // assert_eq!(user.perp_positions[0].quote_asset_amount, -50000000);
+        liquidate_spot(
+            0,
+            1,
+            10_u128.pow(9),
+            None,
+            &mut user,
+            &user_key,
+            &mut liquidator,
+            &liquidator_key,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            slot,
+            10,
+            PERCENTAGE_PRECISION,
+            150,
+        )
+        .unwrap();
 
-        // assert_eq!(
-        //     liquidator.spot_positions[1].balance_type,
-        //     SpotBalanceType::Deposit
-        // );
-        // assert_eq!(liquidator.spot_positions[1].scaled_balance, 505555000);
-        // assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -50000000);
+        assert_eq!(user.spot_positions[1].scaled_balance, 0);
+
+        liquidate_perp_pnl_for_deposit(
+            0,
+            0,
+            50 * 10_u128.pow(6), // .8
+            None,
+            &mut user,
+            &user_key,
+            &mut liquidator,
+            &liquidator_key,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            slot,
+            10,
+            PERCENTAGE_PRECISION,
+            150,
+        )
+        .unwrap();
+        assert_eq!(user.perp_positions[0].quote_asset_amount, -50000000);
+        assert_eq!(user.spot_positions[0].scaled_balance, 49394850000); // <$50
+        assert_eq!(user.status, UserStatus::BeingLiquidated);
+
+        liquidate_perp_pnl_for_deposit(
+            0,
+            0,
+            50 * 10_u128.pow(6), // .8
+            None,
+            &mut user,
+            &user_key,
+            &mut liquidator,
+            &liquidator_key,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            slot,
+            10,
+            PERCENTAGE_PRECISION,
+            150,
+        )
+        .unwrap();
+        assert_eq!(user.spot_positions[0].scaled_balance, 0);
+        assert_eq!(user.spot_positions[1].scaled_balance, 0);
+
+        assert_eq!(user.perp_positions[0].quote_asset_amount, -1099099);
+        assert_eq!(user.status, UserStatus::Bankrupt);
     }
 
     #[test]

@@ -249,7 +249,9 @@ pub fn calculate_user_safest_position_tiers(
     let mut safest_tier_perp_liablity: ContractTier = ContractTier::default();
 
     for spot_position in user.spot_positions.iter() {
-        if spot_position.scaled_balance == 0 && spot_position.open_orders == 0 {
+        if spot_position.scaled_balance == 0 && spot_position.open_orders == 0
+            || spot_position.balance_type == SpotBalanceType::Deposit
+        {
             continue;
         }
         let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
