@@ -6,6 +6,14 @@ pub mod pyth_program {
     declare_id!("gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s");
 }
 
+pub mod bonk_oracle {
+    use solana_program::declare_id;
+    #[cfg(feature = "mainnet-beta")]
+    declare_id!("8ihFLu5FimgTQ1Unh4dVyEHUGodJ5gJQCrQf4KUVB9bN");
+    #[cfg(not(feature = "mainnet-beta"))]
+    declare_id!("6bquU99ktV1VRiHDr8gMhDFt3kMfhCQo5nfNrg2Urvsn");
+}
+
 pub mod serum_program {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]
