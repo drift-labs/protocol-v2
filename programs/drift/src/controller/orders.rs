@@ -389,6 +389,11 @@ fn get_auction_params(
             params.auction_duration,
         ) {
             (Some(auction_start_price), Some(auction_end_price), Some(auction_duration)) => {
+                let auction_duration = if auction_duration == 0 {
+                    auction_duration
+                } else {
+                    auction_duration.min(min_auction_duration)
+                };
                 Ok((auction_start_price, auction_end_price, auction_duration))
             }
             _ => Ok((0_i64, 0_i64, 0_u8)),
