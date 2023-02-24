@@ -1823,12 +1823,6 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     let (safest_tier_spot_liability, safest_tier_perp_liability) =
         calculate_user_safest_position_tiers(user, perp_market_map, spot_market_map)?;
-    msg!(
-        "liquidating contract tier={:?} pnl is riskier than outstanding {:?} & {:?}",
-        contract_tier,
-        safest_tier_perp_liability,
-        safest_tier_spot_liability
-    );
     if !(contract_tier.is_as_safe_as(&safest_tier_perp_liability, &safest_tier_spot_liability)) {
         msg!(
             "liquidating contract tier={:?} pnl is riskier than outstanding {:?} & {:?}",
