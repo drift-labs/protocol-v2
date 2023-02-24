@@ -393,7 +393,7 @@ fn get_auction_params(
                     auction_duration
                 } else {
                     // if auction is non-zero, force it to be at least min_auction_duration
-                    auction_duration.min(min_auction_duration)
+                    auction_duration.max(min_auction_duration)
                 };
                 Ok((auction_start_price, auction_end_price, auction_duration))
             }
