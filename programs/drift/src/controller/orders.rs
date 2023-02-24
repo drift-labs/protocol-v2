@@ -382,19 +382,29 @@ fn get_auction_params(
         return Ok((0_i64, 0_i64, 0_u8));
     }
 
-    let auction_duration = params
-        .auction_duration
-        .unwrap_or(0)
-        .max(min_auction_duration);
-
     if params.order_type == OrderType::Limit {
-        return match (params.auction_start_price, params.auction_end_price) {
-            (Some(auction_start_price), Some(auction_end_price)) => {
+        return match (
+            params.auction_start_price,
+            params.auction_end_price,
+            params.auction_duration,
+        ) {
+            (Some(auction_start_price), Some(auction_end_price), Some(auction_duration)) => {
+                let auction_duration = if auction_duration == 0 {
+                    auction_duration
+                } else {
+                    // if auction is non-zero, force it to be at least min_auction_duration
+                    auction_duration.min(min_auction_duration)
+                };
                 Ok((auction_start_price, auction_end_price, auction_duration))
             }
             _ => Ok((0_i64, 0_i64, 0_u8)),
         };
     }
+
+    let auction_duration = params
+        .auction_duration
+        .unwrap_or(0)
+        .max(min_auction_duration);
 
     let (auction_start_price, auction_end_price) =
         match (params.auction_start_price, params.auction_end_price) {
