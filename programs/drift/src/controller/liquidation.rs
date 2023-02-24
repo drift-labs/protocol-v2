@@ -1756,6 +1756,10 @@ pub fn liquidate_perp_pnl_for_deposit(
         None,
     )?;
 
+    let (safest_tier_spot_liability, safest_tier_perp_liability) =
+        calculate_user_safest_position_tiers(user, perp_market_map, spot_market_map)?;
+    let is_contract_tier_violation =
+        !(contract_tier.is_as_safe_as(&safest_tier_perp_liability, &safest_tier_spot_liability));
     // check if user exited liquidation territory
     let (intermediate_total_collateral, intermediate_margin_requirement_with_buffer) =
         if !canceled_order_ids.is_empty() {
@@ -1781,9 +1785,10 @@ pub fn liquidate_perp_pnl_for_deposit(
                 .cast::<u64>()?;
             user.increment_margin_freed(margin_freed)?;
 
-            if intermediate_total_collateral
-                >= intermediate_margin_requirement_plus_buffer.cast()?
-            {
+            let exiting_liq_territory = intermediate_total_collateral
+                >= intermediate_margin_requirement_plus_buffer.cast()?;
+
+            if exiting_liq_territory || is_contract_tier_violation {
                 let market = perp_market_map.get_ref(&perp_market_index)?;
                 let market_oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
@@ -1809,7 +1814,17 @@ pub fn liquidate_perp_pnl_for_deposit(
                     ..LiquidationRecord::default()
                 });
 
-                user.exit_liquidation();
+                if exiting_liq_territory {
+                    user.exit_liquidation();
+                } else if is_contract_tier_violation {
+                    msg!(
+                        "return early after cancel orders: liquidating contract tier={:?} pnl is riskier than outstanding {:?} & {:?}",
+                        contract_tier,
+                        safest_tier_perp_liability,
+                        safest_tier_spot_liability
+                    );
+                }
+
                 return Ok(());
             }
 
@@ -1821,9 +1836,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             (total_collateral, margin_requirement_plus_buffer)
         };
 
-    let (safest_tier_spot_liability, safest_tier_perp_liability) =
-        calculate_user_safest_position_tiers(user, perp_market_map, spot_market_map)?;
-    if !(contract_tier.is_as_safe_as(&safest_tier_perp_liability, &safest_tier_spot_liability)) {
+    if is_contract_tier_violation {
         msg!(
             "liquidating contract tier={:?} pnl is riskier than outstanding {:?} & {:?}",
             contract_tier,
