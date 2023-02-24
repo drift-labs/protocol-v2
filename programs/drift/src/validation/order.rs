@@ -211,6 +211,18 @@ fn validate_limit_order_auction_params(order: &Order) -> DriftResult {
         )?;
 
         validate_auction_params(order)?;
+    } else {
+        validate!(
+            order.auction_start_price == 0,
+            ErrorCode::InvalidOrder,
+            "limit order without auction can not have an auction start price"
+        )?;
+
+        validate!(
+            order.auction_end_price == 0,
+            ErrorCode::InvalidOrder,
+            "limit order without auction can not have an auction end price"
+        )?;
     }
 
     Ok(())
