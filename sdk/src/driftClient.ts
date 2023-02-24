@@ -3160,7 +3160,7 @@ export class DriftClient {
 				? newTriggerCondition || openOrder.triggerCondition
 				: undefined,
 			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: auctionDuration || openOrder.auctionDuration,
+			auctionDuration: auctionDuration ?? openOrder.auctionDuration,
 			maxTs: openOrder.maxTs,
 			auctionStartPrice: auctionStartPrice || openOrder.auctionStartPrice,
 			auctionEndPrice: auctionEndPrice || openOrder.auctionEndPrice,
