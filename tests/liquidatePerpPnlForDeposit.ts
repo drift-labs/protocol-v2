@@ -31,8 +31,7 @@ import {
 	initializeSolSpotMarket,
 	printTxLogs,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant } from '../sdk';
-import { QUOTE_PRECISION } from '@drift-labs/sdk';
+import { BulkAccountLoader, isVariant, QUOTE_PRECISION } from '../sdk';
 
 describe('liquidate perp pnl for deposit', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
