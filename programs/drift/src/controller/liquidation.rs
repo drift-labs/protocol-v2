@@ -1712,22 +1712,15 @@ pub fn liquidate_perp_pnl_for_deposit(
         )
     };
 
-    let (
-        margin_requirement,
-        total_collateral,
-        margin_requirement_plus_buffer,
-        _all_oracles_valid,
-        _,
-        _,
-    ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        user,
-        perp_market_map,
-        MarginRequirementType::Maintenance,
-        spot_market_map,
-        oracle_map,
-        Some(liquidation_margin_buffer_ratio as u128),
-        false,
-    )?;
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            perp_market_map,
+            MarginRequirementType::Maintenance,
+            spot_market_map,
+            oracle_map,
+            Some(liquidation_margin_buffer_ratio as u128),
+        )?;
 
     if !user.is_being_liquidated() && total_collateral >= margin_requirement.cast()? {
         return Err(ErrorCode::SufficientCollateral);
