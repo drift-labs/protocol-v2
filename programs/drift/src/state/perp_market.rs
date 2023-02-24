@@ -22,7 +22,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::stats;
 
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
-use crate::state::spot_market::{SpotBalance, SpotBalanceType};
+use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -58,7 +58,7 @@ impl Default for ContractType {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub enum ContractTier {
     A,           // max insurance capped at A level
     B,           // max insurance capped at B level
@@ -67,9 +67,26 @@ pub enum ContractTier {
     Isolated,    // no insurance, only single position allowed
 }
 
-impl Default for ContractTier {
-    fn default() -> Self {
+impl ContractTier {
+    pub fn default() -> Self {
         ContractTier::Speculative
+    }
+
+    pub fn is_as_safe_as(&self, best_contract: &ContractTier, best_asset: &AssetTier) -> bool {
+        self.is_as_safe_as_contract(best_contract) && self.is_as_safe_as_asset(best_asset)
+    }
+
+    pub fn is_as_safe_as_contract(&self, other: &ContractTier) -> bool {
+        // Contract Tier A safest
+        self <= other
+    }
+    pub fn is_as_safe_as_asset(&self, other: &AssetTier) -> bool {
+        // allow Contract Tier A,B,C to rank above Assets below Collateral status
+        if other == &AssetTier::Unlisted {
+            true
+        } else {
+            other >= &AssetTier::Cross && self <= &ContractTier::C
+        }
     }
 }
 
