@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: account for contract tier in liquidate_perp_pnl_for_deposit ([#368](https://github.com/drift-labs/protocol-v2/pull/368))
 - program: simplifications for order fills ([#370](https://github.com/drift-labs/protocol-v2/pull/370))
 - program: block atomic fills ([#369](https://github.com/drift-labs/protocol-v2/pull/369))
 - program: allow limit orders to go through auction ([#355](https://github.com/drift-labs/protocol-v2/pull/355))
