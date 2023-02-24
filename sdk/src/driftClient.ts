@@ -3695,7 +3695,7 @@ export class DriftClient {
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
 
-		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const spotMarket = this.getQuoteSpotMarketAccount();
 
 		return await this.program.instruction.resolvePerpBankruptcy(
 			QUOTE_SPOT_MARKET_INDEX,

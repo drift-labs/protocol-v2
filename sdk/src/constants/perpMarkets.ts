@@ -54,6 +54,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1675610186000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Bonk',
+		category: ['Meme'],
+		symbol: 'BONK-PERP',
+		baseAssetSymbol: 'BONK',
+		marketIndex: 4,
+		oracle: new PublicKey('6bquU99ktV1VRiHDr8gMhDFt3kMfhCQo5nfNrg2Urvsn'),
+		launchTs: 1677068931000,
+		oracleSource: OracleSource.PYTH_1000,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
