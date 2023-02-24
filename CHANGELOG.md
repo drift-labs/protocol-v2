@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 - ts-sdk: fix resolvePerpBankrupcty to work with all perp market indexes
+- program: allow limit orders to have explicit zero auction duration passed in params ([#373](https://github.com/drift-labs/protocol-v2/pull/373))
 
 ### Breaking
 
