@@ -56,7 +56,7 @@ use crate::state::events::{
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::spot_market::{AssetTier, SpotBalanceType};
+use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
@@ -1712,9 +1712,6 @@ pub fn liquidate_perp_pnl_for_deposit(
         )
     };
 
-    let (safest_tier_spot_liability, safest_tier_perp_liability) =
-        calculate_user_safest_position_tiers(user, perp_market_map, spot_market_map)?;
-
     let (
         margin_requirement,
         total_collateral,
@@ -1824,6 +1821,24 @@ pub fn liquidate_perp_pnl_for_deposit(
             (total_collateral, margin_requirement_plus_buffer)
         };
 
+    let (safest_tier_spot_liability, safest_tier_perp_liability) =
+        calculate_user_safest_position_tiers(user, perp_market_map, spot_market_map)?;
+    msg!(
+        "liquidating contract tier={:?} pnl is riskier than outstanding {:?} & {:?}",
+        contract_tier,
+        safest_tier_perp_liability,
+        safest_tier_spot_liability
+    );
+    if !(contract_tier.is_as_safe_as(&safest_tier_perp_liability, &safest_tier_spot_liability)) {
+        msg!(
+            "liquidating contract tier={:?} pnl is riskier than outstanding {:?} & {:?}",
+            contract_tier,
+            safest_tier_perp_liability,
+            safest_tier_spot_liability
+        );
+        return Err(ErrorCode::TierViolationLiquidatingPerpPnl);
+    }
+
     let margin_shortage = calculate_margin_shortage(
         intermediate_margin_requirement_with_buffer,
         intermediate_total_collateral,
@@ -1908,18 +1923,6 @@ pub fn liquidate_perp_pnl_for_deposit(
             asset_transfer
         );
         return Err(ErrorCode::InvalidLiquidation);
-    }
-
-    if safest_tier_perp_liability < contract_tier
-        || safest_tier_spot_liability < AssetTier::default()
-    {
-        msg!(
-            "liquidating contract tier={:?} is riskier than outstanding {:?} & {:?}",
-            contract_tier,
-            safest_tier_perp_liability,
-            safest_tier_spot_liability
-        );
-        return Err(ErrorCode::TierViolationLiquidatingPerpPnl);
     }
 
     validate_transfer_satisfies_limit_price(

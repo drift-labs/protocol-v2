@@ -249,9 +249,7 @@ pub fn calculate_user_safest_position_tiers(
     let mut safest_tier_perp_liablity: ContractTier = ContractTier::default();
 
     for spot_position in user.spot_positions.iter() {
-        if spot_position.scaled_balance == 0 && spot_position.open_orders == 0
-            || spot_position.balance_type == SpotBalanceType::Deposit
-        {
+        if spot_position.is_available() || spot_position.balance_type == SpotBalanceType::Deposit {
             continue;
         }
         let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
@@ -259,11 +257,7 @@ pub fn calculate_user_safest_position_tiers(
     }
 
     for market_position in user.perp_positions.iter() {
-        if market_position.base_asset_amount == 0
-            && market_position.quote_asset_amount == 0
-            && !market_position.has_open_order()
-            && !market_position.is_lp()
-        {
+        if market_position.is_available() {
             continue;
         }
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
@@ -299,7 +293,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
 
-        if spot_position.scaled_balance == 0 && spot_position.open_orders == 0 {
+        if spot_position.is_available() {
             continue;
         }
 
@@ -511,11 +505,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     }
 
     for market_position in user.perp_positions.iter() {
-        if market_position.base_asset_amount == 0
-            && market_position.quote_asset_amount == 0
-            && !market_position.has_open_order()
-            && !market_position.is_lp()
-        {
+        if market_position.is_available() {
             continue;
         }
 
