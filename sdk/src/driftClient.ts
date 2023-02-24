@@ -3160,10 +3160,20 @@ export class DriftClient {
 				? newTriggerCondition || openOrder.triggerCondition
 				: undefined,
 			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: auctionDuration || openOrder.auctionDuration,
+			auctionDuration:
+				auctionDuration ||
+				(openOrder.auctionDuration ? openOrder.auctionDuration : null),
 			maxTs: openOrder.maxTs,
-			auctionStartPrice: auctionStartPrice || openOrder.auctionStartPrice,
-			auctionEndPrice: auctionEndPrice || openOrder.auctionEndPrice,
+			auctionStartPrice:
+				auctionStartPrice ||
+				(!openOrder.auctionStartPrice.eq(ZERO)
+					? openOrder.auctionStartPrice
+					: null),
+			auctionEndPrice:
+				auctionEndPrice ||
+				(!openOrder.auctionEndPrice.eq(ZERO)
+					? openOrder.auctionEndPrice
+					: null),
 			userOrderId: openOrder.userOrderId,
 		};
 		const placeOrderIx = isSpot
