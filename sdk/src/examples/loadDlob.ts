@@ -64,7 +64,7 @@ const main = async () => {
 
 	console.log('Loading dlob from user map...');
 	const dlob = new DLOB();
-	await dlob.initFromUserMap(userMap);
+	await dlob.initFromUserMap(userMap, bulkAccountLoader.mostRecentSlot);
 
 	console.log('number of orders', dlob.getDLOBOrders().length);
 

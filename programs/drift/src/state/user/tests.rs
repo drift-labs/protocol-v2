@@ -630,7 +630,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 10_i128.pow(9));
@@ -665,7 +665,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
@@ -700,7 +700,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 2 * 10_i128.pow(9));
@@ -735,7 +735,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
@@ -770,7 +770,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
@@ -806,7 +806,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -2 * 10_i128.pow(9));
@@ -842,7 +842,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
@@ -878,7 +878,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -3 * 10_i128.pow(9));

@@ -16,9 +16,61 @@ mod test {
         calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
     };
     use crate::state::oracle::OraclePriceData;
-    use crate::state::perp_market::{PerpMarket, AMM};
-    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
+    use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
     use crate::state::user::{PerpPosition, SpotPosition, User};
+
+    #[test]
+    fn asset_tier_checks() {
+        // first is as safe or safer
+        assert!(ContractTier::A.is_as_safe_as(&ContractTier::A, &AssetTier::default()));
+        assert!(ContractTier::A.is_as_safe_as(&ContractTier::A, &AssetTier::Cross));
+        assert!(ContractTier::B.is_as_safe_as(&ContractTier::default(), &AssetTier::default()));
+        assert!(ContractTier::C.is_as_safe_as(&ContractTier::Speculative, &AssetTier::Unlisted));
+        assert!(ContractTier::C.is_as_safe_as(&ContractTier::C, &AssetTier::Cross));
+        assert!(ContractTier::Speculative
+            .is_as_safe_as(&ContractTier::Speculative, &AssetTier::Unlisted));
+        assert!(
+            ContractTier::Speculative.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Unlisted)
+        );
+        assert!(ContractTier::Speculative
+            .is_as_safe_as(&ContractTier::default(), &AssetTier::default()));
+        assert!(ContractTier::Isolated.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Unlisted));
+
+        // one (or more) of the candidates are safer
+        assert!(!ContractTier::A.is_as_safe_as(&ContractTier::A, &AssetTier::Collateral));
+        assert!(!ContractTier::A.is_as_safe_as(&ContractTier::B, &AssetTier::Collateral));
+        assert!(!ContractTier::B.is_as_safe_as(&ContractTier::A, &AssetTier::Collateral));
+        assert!(!ContractTier::B.is_as_safe_as(&ContractTier::A, &AssetTier::default()));
+        assert!(!ContractTier::C.is_as_safe_as(&ContractTier::B, &AssetTier::Cross));
+        assert!(!ContractTier::C.is_as_safe_as(&ContractTier::B, &AssetTier::Isolated));
+        assert!(!ContractTier::C.is_as_safe_as(&ContractTier::A, &AssetTier::default()));
+        assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::A, &AssetTier::default()));
+        assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::A, &AssetTier::Collateral));
+        assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::B, &AssetTier::Collateral));
+        assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::B, &AssetTier::Cross));
+        assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::C, &AssetTier::Collateral));
+        assert!(!ContractTier::Speculative
+            .is_as_safe_as(&ContractTier::Speculative, &AssetTier::Collateral));
+        assert!(
+            !ContractTier::Speculative.is_as_safe_as(&ContractTier::Speculative, &AssetTier::Cross)
+        );
+        assert!(!ContractTier::Speculative
+            .is_as_safe_as(&ContractTier::Isolated, &AssetTier::Collateral));
+        assert!(
+            !ContractTier::Speculative.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Cross)
+        );
+        assert!(
+            !ContractTier::Speculative.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Isolated)
+        );
+        assert!(!ContractTier::Isolated.is_as_safe_as(&ContractTier::A, &AssetTier::default()));
+        assert!(
+            !ContractTier::Isolated.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Isolated)
+        );
+        assert!(
+            !ContractTier::Isolated.is_as_safe_as(&ContractTier::default(), &AssetTier::default())
+        );
+    }
 
     #[test]
     fn spot_market_asset_weight() {
@@ -50,7 +102,7 @@ mod test {
         let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(lib_weight, 11003);
+        assert_eq!(lib_weight, 11000);
 
         let same_asset_weight_diff_imf_factor = 8357;
         let asset_weight = spot_market
@@ -67,7 +119,7 @@ mod test {
         let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(lib_weight, 14052);
+        assert_eq!(lib_weight, 11962);
 
         spot_market.imf_factor = SPOT_IMF_PRECISION / 10;
         let asset_weight = spot_market
@@ -78,7 +130,7 @@ mod test {
         let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(lib_weight, 41522);
+        assert_eq!(lib_weight, 40422);
 
         let maint_lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Maintenance)
@@ -266,7 +318,7 @@ mod test {
         assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
-        assert_eq!(pmr, 13867100408);
+        assert_eq!(pmr, 13555327867);
 
         oracle_price_data.price = (21050 * PRICE_PRECISION) as i64; // lower by $1000 (in favor of user)
         oracle_price_data.confidence = PRICE_PRECISION_U64;
@@ -346,9 +398,9 @@ mod test {
         assert_eq!(upnl_2, 23107500010);
         assert!(upnl_2 > upnl);
         assert!(pmr_2 > 0);
-        assert_eq!(pmr_2, 13238206965); //$12940.5737702000
+        assert_eq!(pmr_2, 12940573769); //$12940.5737702000
         assert!(pmr > pmr_2);
-        assert_eq!(pmr - pmr_2, 628893443);
+        assert_eq!(pmr - pmr_2, 614754098);
         //-6.1475409835 * 1000 / 10 = 614.75
     }
 

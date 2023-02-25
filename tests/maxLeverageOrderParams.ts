@@ -6,12 +6,9 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	BASE_PRECISION,
 	BN,
 	OracleSource,
-	ZERO,
 	TestClient,
-	findComputeUnitConsumption,
 	PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
@@ -24,15 +21,17 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	setFeedPrice,
 	initializeQuoteSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
-	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant } from '../sdk';
+import {
+	BulkAccountLoader,
+	getMarketOrderParams,
+	MAX_LEVERAGE_ORDER_SIZE,
+} from '../sdk';
 
-describe('liquidate borrow for perp pnl', () => {
+describe('max leverage order params', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -51,10 +50,10 @@ describe('liquidate borrow for perp pnl', () => {
 
 	let usdcMint;
 	let userUSDCAccount;
-	let userWSOLAccount;
 
-	let liquidatorDriftClient: TestClient;
-	let liquidatorDriftClientWSOLAccount: PublicKey;
+	let lendorDriftClient: TestClient;
+	let lendorDriftClientWSOLAccount: PublicKey;
+	let lendorDriftClientUSDCAccount: PublicKey;
 
 	let solOracle: PublicKey;
 
@@ -72,12 +71,6 @@ describe('liquidate borrow for perp pnl', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
-		userWSOLAccount = await createWSolTokenAccountForUser(
-			provider,
-			// @ts-ignore
-			provider.wallet,
-			ZERO
-		);
 
 		solOracle = await mockOracle(1);
 
@@ -132,7 +125,7 @@ describe('liquidate borrow for perp pnl', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(1),
+				markOracleDivergenceDenominator: new BN(10),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -144,119 +137,78 @@ describe('liquidate borrow for perp pnl', () => {
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
-		await driftClient.openPosition(
-			PositionDirection.LONG,
-			new BN(10).mul(BASE_PRECISION),
-			0,
-			new BN(0)
+		const lenderSolAmount = new BN(100 * 10 ** 9);
+		const lenderUSDCAmount = usdcAmount.mul(new BN(100));
+		[
+			lendorDriftClient,
+			lendorDriftClientWSOLAccount,
+			lendorDriftClientUSDCAccount,
+		] = await createUserWithUSDCAndWSOLAccount(
+			provider,
+			usdcMint,
+			chProgram,
+			lenderSolAmount,
+			lenderUSDCAmount,
+			[0],
+			[0, 1],
+			[
+				{
+					publicKey: solOracle,
+					source: OracleSource.PYTH,
+				},
+			],
+			bulkAccountLoader
 		);
-
-		await driftClient.moveAmmToPrice(0, new BN(2).mul(PRICE_PRECISION));
-
-		await driftClient.closePosition(0);
-
-		const solAmount = new BN(1 * 10 ** 9);
-		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount] =
-			await createUserWithUSDCAndWSOLAccount(
-				provider,
-				usdcMint,
-				chProgram,
-				solAmount,
-				usdcAmount,
-				[0],
-				[0, 1],
-				[
-					{
-						publicKey: solOracle,
-						source: OracleSource.PYTH,
-					},
-				],
-				bulkAccountLoader
-			);
-		await liquidatorDriftClient.subscribe();
+		await lendorDriftClient.subscribe();
 
 		const spotMarketIndex = 1;
-		await liquidatorDriftClient.deposit(
-			solAmount,
+		await lendorDriftClient.deposit(
+			lenderSolAmount,
 			spotMarketIndex,
-			liquidatorDriftClientWSOLAccount
+			lendorDriftClientWSOLAccount
 		);
-		const solBorrow = new BN(5 * 10 ** 8);
-		await driftClient.withdraw(solBorrow, 1, userWSOLAccount);
+
+		await lendorDriftClient.deposit(
+			lenderUSDCAmount,
+			0,
+			lendorDriftClientUSDCAccount
+		);
 	});
 
 	after(async () => {
 		await driftClient.unsubscribe();
-		await liquidatorDriftClient.unsubscribe();
+		await lendorDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('liquidate', async () => {
-		await setFeedPrice(anchor.workspace.Pyth, 50, solOracle);
-
-		const txSig = await liquidatorDriftClient.liquidateBorrowForPerpPnl(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
-			0,
-			1,
-			new BN(6 * 10 ** 8)
+	it('max perp leverage', async () => {
+		await driftClient.placePerpOrder(
+			getMarketOrderParams({
+				direction: PositionDirection.LONG,
+				marketIndex: 0,
+				baseAssetAmount: MAX_LEVERAGE_ORDER_SIZE,
+				userOrderId: 1,
+			})
 		);
 
-		const computeUnits = await findComputeUnitConsumption(
-			driftClient.program.programId,
-			connection,
-			txSig,
-			'confirmed'
-		);
-		console.log('compute units', computeUnits);
-		console.log(
-			'tx logs',
-			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-				.logMessages
+		let leverage = driftClient.getUser().getLeverage().toNumber() / 10000;
+		assert(leverage === 4.995);
+
+		await driftClient.cancelOrderByUserId(1);
+
+		// test placing order with short direction
+		await driftClient.placePerpOrder(
+			getMarketOrderParams({
+				direction: PositionDirection.SHORT,
+				marketIndex: 0,
+				baseAssetAmount: MAX_LEVERAGE_ORDER_SIZE,
+				userOrderId: 1,
+			})
 		);
 
-		assert(isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
-		assert(driftClient.getUserAccount().nextLiquidationId === 2);
-		assert(
-			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
-		);
+		leverage = driftClient.getUser().getLeverage().toNumber() / 10000;
+		assert(leverage === 4.995);
 
-		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0];
-
-		assert(liquidationRecord.liquidationId === 1);
-		assert(
-			isVariant(liquidationRecord.liquidationType, 'liquidateBorrowForPerpPnl')
-		);
-		assert(
-			liquidationRecord.liquidateBorrowForPerpPnl.marketOraclePrice.eq(
-				new BN(50).mul(PRICE_PRECISION)
-			)
-		);
-		assert(liquidationRecord.liquidateBorrowForPerpPnl.perpMarketIndex === 0);
-		assert(
-			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.gt(
-				new BN(9969992 - 10)
-			)
-		);
-		assert(
-			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.lt(
-				new BN(9969992 + 10)
-			)
-		);
-		assert(
-			liquidationRecord.liquidateBorrowForPerpPnl.liabilityPrice.eq(
-				new BN(50).mul(PRICE_PRECISION)
-			)
-		);
-		assert(
-			liquidationRecord.liquidateBorrowForPerpPnl.liabilityMarketIndex === 1
-		);
-
-		assert(
-			liquidationRecord.liquidateBorrowForPerpPnl.liabilityTransfer.eq(
-				new BN(199399800)
-			)
-		);
+		await driftClient.cancelOrderByUserId(1);
 	});
 });

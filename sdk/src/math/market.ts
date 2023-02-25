@@ -25,9 +25,11 @@ import {
 	MARGIN_PRECISION,
 	PRICE_TO_QUOTE_PRECISION,
 	ZERO,
+	QUOTE_SPOT_MARKET_INDEX,
 } from '../constants/numericConstants';
 import { getTokenAmount } from './spotBalance';
 import { DLOB } from '../dlob/DLOB';
+import { assert } from '../assert/assert';
 
 /**
  * Calculates market mark price
@@ -131,7 +133,7 @@ export function calculateMarketMarginRatio(
 ): number {
 	let marginRatio;
 	switch (marginCategory) {
-		case 'Initial':
+		case 'Initial': {
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
 				new BN(market.imfFactor),
@@ -139,7 +141,8 @@ export function calculateMarketMarginRatio(
 				MARGIN_PRECISION
 			).toNumber();
 			break;
-		case 'Maintenance':
+		}
+		case 'Maintenance': {
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
 				new BN(market.imfFactor),
@@ -147,6 +150,7 @@ export function calculateMarketMarginRatio(
 				MARGIN_PRECISION
 			).toNumber();
 			break;
+		}
 	}
 
 	return marginRatio;
@@ -200,6 +204,25 @@ export function calculateMarketAvailablePNL(
 		spotMarket,
 		SpotBalanceType.DEPOSIT
 	);
+}
+
+export function calculateMarketMaxAvailableInsurance(
+	perpMarket: PerpMarketAccount,
+	spotMarket: SpotMarketAccount
+): BN {
+	assert(spotMarket.marketIndex == QUOTE_SPOT_MARKET_INDEX);
+
+	// todo: insuranceFundAllocation technically not guaranteed to be in Insurance Fund
+	const insuranceFundAllocation =
+		perpMarket.insuranceClaim.quoteMaxInsurance.sub(
+			perpMarket.insuranceClaim.quoteSettledInsurance
+		);
+	const ammFeePool = getTokenAmount(
+		perpMarket.amm.feePool.scaledBalance,
+		spotMarket,
+		SpotBalanceType.DEPOSIT
+	);
+	return insuranceFundAllocation.add(ammFeePool);
 }
 
 export function calculateNetUserPnl(

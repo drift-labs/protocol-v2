@@ -15,6 +15,7 @@ export type DriftClientConfig = {
 	activeSubAccountId?: number;
 	perpMarketIndexes?: number[];
 	spotMarketIndexes?: number[];
+	marketLookupTable?: PublicKey;
 	oracleInfos?: OracleInfo[];
 	env?: DriftEnv;
 	userStats?: boolean;

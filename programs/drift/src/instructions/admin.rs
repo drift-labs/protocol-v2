@@ -17,11 +17,11 @@ use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
-    DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
-    INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
-    MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
-    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
-    TWENTY_FOUR_HOUR,
+    DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION,
+    INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX,
+    LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K,
+    MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
@@ -488,8 +488,18 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot)?;
-            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(&ctx.accounts.oracle)?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1)?;
+            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
+        OracleSource::Pyth1000 => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000)?;
+            let last_oracle_price_twap =
+                perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1000)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Switchboard => {
@@ -1255,7 +1265,8 @@ pub fn handle_update_perp_market_max_imbalances(
     };
 
     validate!(
-        max_revenue_withdraw_per_period <= max_insurance_for_tier
+        max_revenue_withdraw_per_period
+            <= max_insurance_for_tier.max(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?)
             && unrealized_max_imbalance <= max_insurance_for_tier + 1
             && quote_max_insurance <= max_insurance_for_tier,
         ErrorCode::DefaultError,

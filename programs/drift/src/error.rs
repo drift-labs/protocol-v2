@@ -457,6 +457,10 @@ pub enum ErrorCode {
     MaxNumberOfUsers,
     #[msg("InvalidOracleForSettlePnl")]
     InvalidOracleForSettlePnl,
+    #[msg("MarginOrdersOpen")]
+    MarginOrdersOpen,
+    #[msg("TierViolationLiquidatingPerpPnl")]
+    TierViolationLiquidatingPerpPnl,
     #[msg("CouldNotLoadUserData")]
     CouldNotLoadUserData,
     #[msg("UserWrongMutability")]

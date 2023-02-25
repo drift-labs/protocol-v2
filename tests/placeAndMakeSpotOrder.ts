@@ -28,7 +28,7 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import { BulkAccountLoader, PostOnlyParams } from '../sdk';
 
 describe('place and make spot order', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -156,9 +156,12 @@ describe('place and make spot order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: new BN(40).mul(PRICE_PRECISION),
+			price: new BN(41).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(40).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(41).mul(PRICE_PRECISION),
+			auctionDuration: 10,
 			userOrderId: 1,
-			postOnly: false,
+			postOnly: PostOnlyParams.NONE,
 		});
 		await takerDriftClient.placeSpotOrder(takerOrderParams);
 		await takerDriftClientUser.fetchAccounts();
@@ -171,7 +174,7 @@ describe('place and make spot order', () => {
 			baseAssetAmount,
 			price: new BN(40).mul(PRICE_PRECISION),
 			userOrderId: 1,
-			postOnly: true,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 		});
 

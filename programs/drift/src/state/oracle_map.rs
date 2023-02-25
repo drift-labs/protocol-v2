@@ -1,5 +1,5 @@
 use crate::error::{DriftResult, ErrorCode};
-use crate::ids::pyth_program;
+use crate::ids::{bonk_oracle, pyth_program};
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
@@ -161,11 +161,18 @@ impl<'a> OracleMap<'a> {
             if account_info.owner == &pyth_program::id() {
                 let account_info = account_info_iter.next().safe_unwrap()?;
                 let pubkey = account_info.key();
+
+                let oracle_source = if pubkey == bonk_oracle::id() {
+                    OracleSource::Pyth1000
+                } else {
+                    OracleSource::Pyth
+                };
+
                 oracles.insert(
                     pubkey,
                     AccountInfoAndOracleSource {
                         account_info: account_info.clone(),
-                        oracle_source: OracleSource::Pyth,
+                        oracle_source,
                     },
                 );
 
@@ -204,11 +211,16 @@ impl<'a> OracleMap<'a> {
 
         if account_info.owner == &pyth_program::id() {
             let pubkey = account_info.key();
+            let oracle_source = if pubkey == bonk_oracle::id() {
+                OracleSource::Pyth1000
+            } else {
+                OracleSource::Pyth
+            };
             oracles.insert(
                 pubkey,
                 AccountInfoAndOracleSource {
                     account_info: account_info.clone(),
-                    oracle_source: OracleSource::Pyth,
+                    oracle_source,
                 },
             );
         } else if account_info.key() != Pubkey::default() {

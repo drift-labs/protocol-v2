@@ -1,5 +1,4 @@
 use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
-use anchor_spl::token::accessor::authority;
 use anchor_spl::token::{Token, TokenAccount};
 
 use crate::controller::orders::cancel_orders;
@@ -45,6 +44,7 @@ use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 pub fn handle_initialize_user(
     ctx: Context<InitializeUser>,
@@ -687,7 +687,7 @@ pub struct OrderParams {
     pub price: u64,
     pub market_index: u16,
     pub reduce_only: bool,
-    pub post_only: bool,
+    pub post_only: PostOnlyParam,
     pub immediate_or_cancel: bool,
     pub max_ts: Option<i64>,
     pub trigger_price: Option<u64>,
@@ -696,6 +696,19 @@ pub struct OrderParams {
     pub auction_duration: Option<u8>,
     pub auction_start_price: Option<i64>,
     pub auction_end_price: Option<i64>,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum PostOnlyParam {
+    None,
+    MustPostOnly, // Tx fails if order can't be post only
+    TryPostOnly,  // Tx succeeds and order not placed if can't be post only
+}
+
+impl Default for PostOnlyParam {
+    fn default() -> Self {
+        PostOnlyParam::None
+    }
 }
 
 #[access_control(
@@ -871,7 +884,7 @@ pub fn handle_place_and_take_perp_order<'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    if params.post_only {
+    if params.post_only != PostOnlyParam::None {
         msg!("post_only cant be used in place_and_take");
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
@@ -960,7 +973,10 @@ pub fn handle_place_and_make_perp_order<'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
+    if !params.immediate_or_cancel
+        || params.post_only == PostOnlyParam::None
+        || params.order_type != OrderType::Limit
+    {
         msg!("place_and_make must use IOC post only limit order");
         return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
@@ -1084,7 +1100,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         None,
     )?;
 
-    if params.post_only {
+    if params.post_only != PostOnlyParam::None {
         msg!("post_only cant be used in place_and_take");
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
@@ -1214,7 +1230,10 @@ pub fn handle_place_and_make_spot_order<'info>(
 
     let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
-    if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
+    if !params.immediate_or_cancel
+        || params.post_only == PostOnlyParam::None
+        || params.order_type != OrderType::Limit
+    {
         msg!("place_and_make must use IOC post only limit order");
         return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
@@ -1519,8 +1538,25 @@ pub fn handle_update_user_margin_trading_enabled(
     _sub_account_id: u16,
     margin_trading_enabled: bool,
 ) -> Result<()> {
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        spot_market_map,
+        mut oracle_map,
+        ..
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
     let mut user = load_mut!(ctx.accounts.user)?;
     user.is_margin_trading_enabled = margin_trading_enabled;
+
+    validate_spot_margin_trading(&user, &spot_market_map, &mut oracle_map)
+        .map_err(|_| ErrorCode::MarginOrdersOpen)?;
+
     Ok(())
 }
 

@@ -44,6 +44,26 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1637691133472,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Aptos',
+		category: ['L1', 'Infra'],
+		symbol: 'APT-PERP',
+		baseAssetSymbol: 'APT',
+		marketIndex: 3,
+		oracle: new PublicKey('5d2QJ6u2NveZufmJ4noHja5EHs3Bv1DUMPLG5xfasSVs'),
+		launchTs: 1675610186000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Bonk',
+		category: ['Meme'],
+		symbol: 'BONK-PERP',
+		baseAssetSymbol: 'BONK',
+		marketIndex: 4,
+		oracle: new PublicKey('6bquU99ktV1VRiHDr8gMhDFt3kMfhCQo5nfNrg2Urvsn'),
+		launchTs: 1677068931000,
+		oracleSource: OracleSource.PYTH_1000,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -75,6 +95,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 2,
 		oracle: new PublicKey('JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB'),
 		launchTs: 1670347281000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Aptos',
+		category: ['L1', 'Infra'],
+		symbol: 'APT-PERP',
+		baseAssetSymbol: 'APT',
+		marketIndex: 3,
+		oracle: new PublicKey('FNNvb1AFDnDVPkocEri8mWbJ1952HQZtFLuwPiUjSJQ'),
+		launchTs: 1675802661000,
 		oracleSource: OracleSource.PYTH,
 	},
 ];

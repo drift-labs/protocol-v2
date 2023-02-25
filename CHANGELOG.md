@@ -1,11 +1,99 @@
 # Changelog
 
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Features
+
+### Fixes
+
+### Breaking
+
+## [2.18.0] - 2023-02-24
+
+### Features
+
+- program: account for contract tier in liquidate_perp_pnl_for_deposit ([#368](https://github.com/drift-labs/protocol-v2/pull/368))
+- program: simplifications for order fills ([#370](https://github.com/drift-labs/protocol-v2/pull/370))
+- program: block atomic fills ([#369](https://github.com/drift-labs/protocol-v2/pull/369))
+- program: allow limit orders to go through auction ([#355](https://github.com/drift-labs/protocol-v2/pull/355))
+- program: improve conditions for withdraw/borrow guard ([#354](https://github.com/drift-labs/protocol-v2/pull/354))
+
+### Fixes
+
+- ts-sdk: fix resolvePerpBankrupcty to work with all perp market indexes
+- ts-sdk: getTokenAmount uses divCeil ([#371](https://github.com/drift-labs/protocol-v2/pull/371))
+- program: allow limit orders to have explicit zero auction duration passed in params ([#373](https://github.com/drift-labs/protocol-v2/pull/373))
+
+### Breaking
+
+## [2.17.0] - 2023-02-17
+
+### Features
+
+- program: order params utilize post only enum ([#361](https://github.com/drift-labs/protocol-v2/pull/361))
+
+### Fixes
+- program: twap tweaks, update only on new cluster time ([#362](https://github.com/drift-labs/protocol-v2/pull/362))
+
+### Breaking
+
+## [2.16.0] - 2023-02-14
+
+### Features
+
+- sdk: add support for market lookup table ([#359](https://github.com/drift-labs/protocol-v2/pull/359))
+- program: tweak calculate_size_premium_liability_weight to have smaller effect on initial margin ([#350](https://github.com/drift-labs/protocol-v2/pull/350))
+- ts-sdk: updates for accounting for spot leverage ([#295](https://github.com/drift-labs/protocol-v2/pull/295))
+- ts-sdk: added new methods for modifying orders to include spot and more params ([#353](https://github.com/drift-labs/protocol-v2/pull/353))
+- ts-sdk: flagged old modifyPerpOrder and modifyPerpOrderByUserOrderId as deprecated
+
+### Fixes
+
+- ts-sdk: DLOB matching logic accounts for zero-price spot market orders not matching resting limit orders
+- ts-sdk: new squareRootBN implementation using bit shifting (2x speed improvement)
+- program: fix overflow in calculate_long_short_vol_spread ([#352](https://github.com/drift-labs/protocol-v2/pull/352))
+- program: dont let users disable margin trading if they have margin orders open 
+- program: tweaks to fix max leverage order param flag with imf factor ([#351](https://github.com/drift-labs/protocol-v2/pull/351))
+- program: improve bid/ask twap calculation for funding rate stability ([#345](https://github.com/drift-labs/protocol-v2/pull/345))
+- ts-sdk: fix borrow limit calc ([#356](https://github.com/drift-labs/protocol-v2/pull/356))
+
+### Breaking
+
+## [2.15.0] - 2023-02-07
+
+### Features
+
+- ts-sdk: add aptos
+
+### Fixes 
+
+### Breaking
+
+## [2.14.0] - 2023-02-06
+
+### Features
+
+- program: flag to set max leverage for orders ([#346](https://github.com/drift-labs/protocol-v2/pull/346))
+- program: do imf size discount for maintainance spot asset weight ([#343](https://github.com/drift-labs/protocol-v2/pull/343))
+- ts-sdk: new liquidation price to account for delta neutral strategies ([#340](https://github.com/drift-labs/protocol-v2/pull/340))
+- ts-sdk: add txParams to all instructions, bump @solana/web3.js ([#344](https://github.com/drift-labs/protocol-v2/pull/344))
+
+### Fixes
+
+- program: extend time before limit order is considered resting ([#349](https://github.com/drift-labs/protocol-v2/pull/349))
+- ts-sdk: improve funding rate prediction
+- program: block jit maker orders from cross vamm
+- program: cancel_order_by_user_order_id fails if order is not found
+
+### Breaking
+
+## [2.13.0] - 2023-01-31
 
 ### Features
 

@@ -21,6 +21,7 @@ type DriftConfig = {
 	V2_ALPHA_TICKET_MINT_ADDRESS: string;
 	PERP_MARKETS: PerpMarketConfig[];
 	SPOT_MARKETS: SpotMarketConfig[];
+	MARKET_LOOKUP_TABLE: string;
 };
 
 export type DriftEnv = 'devnet' | 'mainnet-beta';
@@ -36,6 +37,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 			'DeEiGWfCMP9psnLGkxGrBBMEAW5Jv8bBGMN8DCtFRCyB',
 		PERP_MARKETS: DevnetPerpMarkets,
 		SPOT_MARKETS: DevnetSpotMarkets,
+		MARKET_LOOKUP_TABLE: 'FaMS3U4uBojvGn5FSDEPimddcXsCfwkKsFgMVVnDdxGb',
 	},
 	'mainnet-beta': {
 		ENV: 'mainnet-beta',
@@ -47,6 +49,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 			'Cmvhycb6LQvvzaShGw4iDHRLzeSSryioAsU98DSSkMNa',
 		PERP_MARKETS: MainnetPerpMarkets,
 		SPOT_MARKETS: MainnetSpotMarkets,
+		MARKET_LOOKUP_TABLE: 'D9cnvzswDikQDf53k4HpQ3KJ9y1Fv3HGGDFYMXnK5T6c',
 	},
 };
 

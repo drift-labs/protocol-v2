@@ -10,7 +10,7 @@ export function parseTokenAccount(data: Buffer): AccountInfo {
 	if (accountInfo.delegateOption === 0) {
 		accountInfo.delegate = null;
 		// eslint-disable-next-line new-cap
-		accountInfo.delegatedAmount = new u64(0);
+		accountInfo.delegatedAmount = u64.fromBuffer(Buffer.from('0'));
 	} else {
 		accountInfo.delegate = new PublicKey(accountInfo.delegate);
 		accountInfo.delegatedAmount = u64.fromBuffer(accountInfo.delegatedAmount);

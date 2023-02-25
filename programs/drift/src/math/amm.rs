@@ -10,8 +10,9 @@ use crate::math::casting::Cast;
 use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
     CONCENTRATION_PRECISION, DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION_I64,
+    ONE_MINUTE, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_TO_PEG_PRECISION_RATIO,
+    QUOTE_PRECISION_I64,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
@@ -137,6 +138,9 @@ pub fn update_mark_twap(
         None => last_oracle_price_u64,
     };
 
+    let trade_premium: i64 = trade_price
+        .cast::<i64>()?
+        .safe_sub(amm.historical_oracle_data.last_oracle_price)?;
     validate!(
         amm.historical_oracle_data.last_oracle_price > 0,
         ErrorCode::InvalidOracle,
@@ -148,37 +152,32 @@ pub fn update_mark_twap(
     // estimation of bid/ask by looking at execution premium
 
     // trade is a long
-    let best_bid_estimate = if trade_price > last_oracle_price_u64 {
+    let best_bid_estimate = if trade_premium > 0 {
         let discount = min(base_spread_u64, amm.short_spread.cast::<u64>()? / 2);
-        last_oracle_price_u64.safe_sub(discount)?
+        last_oracle_price_u64.safe_sub(discount.min(trade_premium.unsigned_abs()))?
     } else {
         trade_price
-    };
+    }
+    .max(amm_bid_price);
 
     // trade is a short
-    let best_ask_estimate = if trade_price < last_oracle_price_u64 {
+    let best_ask_estimate = if trade_premium < 0 {
         let premium = min(base_spread_u64, amm.long_spread.cast::<u64>()? / 2);
-        last_oracle_price_u64.safe_add(premium)?
+        last_oracle_price_u64.safe_add(premium.min(trade_premium.unsigned_abs()))?
     } else {
         trade_price
-    };
-
-    validate!(
-        best_bid_estimate <= best_ask_estimate,
-        ErrorCode::InvalidMarkTwapUpdateDetected,
-        "best_bid_estimate({}, {}) not <= best_ask_estimate({}, {})",
-        amm_bid_price,
-        best_bid_estimate,
-        best_ask_estimate,
-        amm_ask_price,
-    )?;
+    }
+    .min(amm_ask_price);
 
     let (bid_price, ask_price) = match direction {
         Some(direction) => match direction {
-            PositionDirection::Long => (best_bid_estimate, trade_price),
-            PositionDirection::Short => (trade_price, best_ask_estimate),
+            PositionDirection::Long => (best_bid_estimate, trade_price.max(best_bid_estimate)),
+            PositionDirection::Short => (trade_price.min(best_ask_estimate), best_ask_estimate),
         },
-        None => (trade_price, trade_price),
+        None => (
+            trade_price.max(amm_bid_price).min(amm_ask_price),
+            trade_price.max(amm_bid_price).min(amm_ask_price),
+        ),
     };
 
     validate!(
@@ -191,7 +190,7 @@ pub fn update_mark_twap(
         best_ask_estimate,
     )?;
 
-    let (bid_price_capped_update, ask_price_capped_update) = (
+    let (mut bid_price_capped_update, mut ask_price_capped_update) = (
         sanitize_new_price(
             bid_price.cast()?,
             amm.last_bid_price_twap.cast()?,
@@ -209,6 +208,47 @@ pub fn update_mark_twap(
         ErrorCode::InvalidMarkTwapUpdateDetected,
         "bid_price_capped_update not <= ask_price_capped_update,"
     )?;
+    let last_valid_trade_since_oracle_twap_update = amm
+        .historical_oracle_data
+        .last_oracle_price_twap_ts
+        .safe_sub(amm.last_mark_price_twap_ts)?;
+
+    // if an delayed more than 10th of funding period, shrink toward oracle_twap
+    (bid_price_capped_update, ask_price_capped_update) =
+        if last_valid_trade_since_oracle_twap_update
+            > amm.funding_period.safe_div(60)?.max(ONE_MINUTE.cast()?)
+        {
+            msg!(
+                "correcting mark twap update (oracle previously invalid for {:?} seconds)",
+                last_valid_trade_since_oracle_twap_update
+            );
+
+            let from_start_valid = max(
+                0,
+                amm.funding_period
+                    .safe_sub(last_valid_trade_since_oracle_twap_update)?,
+            );
+            (
+                calculate_weighted_average(
+                    amm.historical_oracle_data
+                        .last_oracle_price_twap
+                        .cast::<i64>()?,
+                    bid_price_capped_update,
+                    last_valid_trade_since_oracle_twap_update,
+                    from_start_valid,
+                )?,
+                calculate_weighted_average(
+                    amm.historical_oracle_data
+                        .last_oracle_price_twap
+                        .cast::<i64>()?,
+                    ask_price_capped_update,
+                    last_valid_trade_since_oracle_twap_update,
+                    from_start_valid,
+                )?,
+            )
+        } else {
+            (bid_price_capped_update, ask_price_capped_update)
+        };
 
     // update bid and ask twaps
     let bid_twap = calculate_new_twap(
@@ -388,7 +428,7 @@ pub fn calculate_new_oracle_price_twap(
     };
 
     let since_last = max(
-        1_i64,
+        if period == 0 { 1_i64 } else { 0_i64 },
         now.safe_sub(amm.historical_oracle_data.last_oracle_price_twap_ts)?,
     );
     let from_start = max(0_i64, period.safe_sub(since_last)?);

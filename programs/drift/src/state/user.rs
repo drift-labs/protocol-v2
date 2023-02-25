@@ -367,6 +367,7 @@ impl SpotPosition {
         &self,
         spot_market: &SpotMarket,
         oracle_price_data: &OraclePriceData,
+        twap_5min: Option<i64>,
         token_amount: Option<i128>,
     ) -> DriftResult<(i128, i128)> {
         let token_amount = match token_amount {
@@ -378,19 +379,18 @@ impl SpotPosition {
 
         let token_amount_all_asks_fill = token_amount.safe_add(self.open_asks as i128)?;
 
+        let oracle_price = match twap_5min {
+            Some(twap_5min) => twap_5min.max(oracle_price_data.price),
+            None => oracle_price_data.price,
+        };
+
         if token_amount_all_bids_fill.abs() > token_amount_all_asks_fill.abs() {
-            let worst_case_quote_token_amount = get_token_value(
-                -self.open_bids as i128,
-                spot_market.decimals,
-                oracle_price_data.price,
-            )?;
+            let worst_case_quote_token_amount =
+                get_token_value(-self.open_bids as i128, spot_market.decimals, oracle_price)?;
             Ok((token_amount_all_bids_fill, worst_case_quote_token_amount))
         } else {
-            let worst_case_quote_token_amount = get_token_value(
-                -self.open_asks as i128,
-                spot_market.decimals,
-                oracle_price_data.price,
-            )?;
+            let worst_case_quote_token_amount =
+                get_token_value(-self.open_asks as i128, spot_market.decimals, oracle_price)?;
             Ok((token_amount_all_asks_fill, worst_case_quote_token_amount))
         }
     }
@@ -643,15 +643,19 @@ impl Order {
         is_auction_complete(self.slot, self.auction_duration, slot)
     }
 
+    pub fn has_auction(&self) -> bool {
+        self.auction_duration != 0
+    }
+
     pub fn has_auction_price(
         &self,
         order_slot: u64,
         auction_duration: u8,
         slot: u64,
     ) -> DriftResult<bool> {
-        let has_auction_price =
-            self.is_market_order() && !is_auction_complete(order_slot, auction_duration, slot)?;
-        Ok(has_auction_price)
+        let auction_complete = is_auction_complete(order_slot, auction_duration, slot)?;
+        let has_auction_prices = self.auction_start_price != 0 || self.auction_end_price != 0;
+        Ok(!auction_complete && has_auction_prices)
     }
 
     /// Passing in an existing_position forces the function to consider the order's reduce only status
@@ -742,7 +746,7 @@ impl Order {
     }
 
     pub fn is_resting_limit_order(&self, slot: u64) -> DriftResult<bool> {
-        Ok(self.is_limit_order() && (self.post_only || slot.safe_sub(self.slot)? >= 15))
+        Ok(self.is_limit_order() && (self.post_only || self.is_auction_complete(slot)?))
     }
 }
 

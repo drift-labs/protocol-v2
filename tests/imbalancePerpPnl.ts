@@ -380,9 +380,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			MARGIN_PRECISION
 		);
 		const driftClientLoserUserLiqPrice = convertToNumber(
-			driftClientLoserUser.liquidationPrice({
-				marketIndex: 0,
-			}),
+			driftClientLoserUser.liquidationPrice(0),
 			PRICE_PRECISION
 		);
 
@@ -475,9 +473,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			MARGIN_PRECISION
 		);
 		const driftClientLoserUserLiqPrice2 = convertToNumber(
-			driftClientLoserUser.liquidationPrice({
-				marketIndex: 0,
-			}),
+			driftClientLoserUser.liquidationPrice(0),
 			PRICE_PRECISION
 		);
 
@@ -732,9 +728,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			MARGIN_PRECISION
 		);
 		const driftClientLoserUserLiqPrice = convertToNumber(
-			driftClientLoserUser.liquidationPrice({
-				marketIndex: 0,
-			}),
+			driftClientLoserUser.liquidationPrice(0),
 			PRICE_PRECISION
 		);
 
@@ -889,8 +883,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.lt(new BN(44454575549 + 20000))); //44k still :o
-		assert(imbalance.gt(new BN(44454575549 - 20000))); //44k still :o
+		assert(imbalance.lt(new BN(44454544927 + 20000))); //44k still :o
+		assert(imbalance.gt(new BN(44454544927 - 20000))); //44k still :o
 
 		console.log(
 			'revenueWithdrawSinceLastSettle:',
