@@ -538,7 +538,7 @@ mod test {
     }
 
     #[test]
-    fn calculate_spread_inventory_scale_tests() {
+    fn calculate_spread_inventory_scale_2_tests() {
         // from mainnet 2022/11/22
 
         let d1 = 250;
@@ -554,10 +554,33 @@ mod test {
         .unwrap();
         assert_eq!(iscale / BID_ASK_SPREAD_PRECISION, 600);
         assert_eq!(250 * iscale / BID_ASK_SPREAD_PRECISION, 300000 / 2);
+
+        let iscale = calculate_spread_inventory_scale(
+            0,
+            AMM_RESERVE_PRECISION,
+            AMM_RESERVE_PRECISION/10,
+            AMM_RESERVE_PRECISION * 19 / 10,
+            250,
+            300000,
+        )
+        .unwrap();
+        assert_eq!(iscale, 1_000_000);
+
+        let iscale = calculate_spread_inventory_scale(
+            450000000_i128,
+            AMM_RESERVE_PRECISION,
+            AMM_RESERVE_PRECISION/10,
+            AMM_RESERVE_PRECISION * 19 / 10,
+            250,
+            300_000,
+        )
+        .unwrap();
+        assert_eq!(iscale, 1_000_000);
+
     }
 
     #[test]
-    fn calculate_spread_scales_tests() {
+    fn calculate_spread_leverage_scales_tests() {
         let lscale = calculate_spread_leverage_scale(
             AMM_RESERVE_PRECISION,
             AMM_RESERVE_PRECISION,
