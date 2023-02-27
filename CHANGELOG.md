@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: max number of subaccounts to 3000
+
+### Fixes
+
+### Breaking
+
+## [2.18.0] - 2023-02-24
+
+### Features
+
 - program: account for contract tier in liquidate_perp_pnl_for_deposit ([#368](https://github.com/drift-labs/protocol-v2/pull/368))
 - program: simplifications for order fills ([#370](https://github.com/drift-labs/protocol-v2/pull/370))
 - program: block atomic fills ([#369](https://github.com/drift-labs/protocol-v2/pull/369))
