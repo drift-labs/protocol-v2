@@ -129,6 +129,47 @@ impl<'a> UserMap<'a> {
     }
 }
 
+#[cfg(test)]
+impl<'a> UserMap<'a> {
+    pub fn load_one<'b>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserMap<'a>> {
+        let mut user_map = UserMap(BTreeMap::new());
+
+        let user_discriminator: [u8; 8] = User::discriminator();
+
+        let user_key = account_info.key;
+
+        let data = account_info
+            .try_borrow_data()
+            .or(Err(ErrorCode::CouldNotLoadUserData))?;
+
+        let expected_data_len = User::SIZE;
+        if data.len() < expected_data_len {
+            return Err(ErrorCode::CouldNotLoadUserData);
+        }
+
+        let account_discriminator = array_ref![data, 0, 8];
+        if account_discriminator != &user_discriminator {
+            return Err(ErrorCode::CouldNotLoadUserData);
+        }
+
+        let is_writable = account_info.is_writable;
+        if !is_writable {
+            return Err(ErrorCode::UserWrongMutability);
+        }
+
+        let user_account_loader: AccountLoader<User> =
+            AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidUserAccount))?;
+
+        user_map.0.insert(*user_key, user_account_loader);
+
+        Ok(user_map)
+    }
+
+    pub fn empty() -> UserMap<'a> {
+        UserMap(BTreeMap::new())
+    }
+}
+
 pub struct UserStatsMap<'a>(pub BTreeMap<Pubkey, AccountLoader<'a, UserStats>>);
 
 impl<'a> UserStatsMap<'a> {
@@ -248,5 +289,51 @@ impl<'a> UserStatsMap<'a> {
         }
 
         Ok(user_stats_map)
+    }
+}
+
+#[cfg(test)]
+impl<'a> UserStatsMap<'a> {
+    pub fn load_one<'b>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserStatsMap<'a>> {
+        let mut user_stats_map = UserStatsMap(BTreeMap::new());
+
+        let user_stats_discriminator: [u8; 8] = UserStats::discriminator();
+
+        let user_stats_key = account_info.key;
+
+        let data = account_info
+            .try_borrow_data()
+            .or(Err(ErrorCode::CouldNotLoadUserStatsData))?;
+
+        let expected_data_len = UserStats::SIZE;
+        if data.len() < expected_data_len {
+            return Err(ErrorCode::DefaultError);
+        }
+
+        let account_discriminator = array_ref![data, 0, 8];
+        if account_discriminator != &user_stats_discriminator {
+            return Err(ErrorCode::DefaultError);
+        }
+
+        let authority_slice = array_ref![data, 8, 32];
+        let authority = Pubkey::new(authority_slice);
+
+        let is_writable = account_info.is_writable;
+        if !is_writable {
+            return Err(ErrorCode::UserStatsWrongMutability);
+        }
+
+        let user_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidUserStatsAccount))?;
+
+        user_stats_map
+            .0
+            .insert(authority, user_stats_account_loader);
+
+        Ok(user_stats_map)
+    }
+
+    pub fn empty() -> UserStatsMap<'a> {
+        UserStatsMap(BTreeMap::new())
     }
 }

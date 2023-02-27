@@ -795,7 +795,7 @@ pub fn fill_perp_order(
         (None, None)
     };
 
-    let maker_order_info = sanitize_maker_order2(
+    let maker_order_info = sanitize_maker_order(
         perp_market_map,
         spot_market_map,
         oracle_map,
@@ -806,7 +806,6 @@ pub fn fill_perp_order(
         &filler_key,
         state.perp_fee_structure.flat_filler_fee,
         oracle_price,
-        reserve_price_before,
         now,
         slot,
     )?;
@@ -1042,173 +1041,6 @@ fn sanitize_maker_order<'a>(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    maker: Option<&'a AccountLoader<User>>,
-    maker_stats: Option<&'a AccountLoader<UserStats>>,
-    taker_key: &Pubkey,
-    taker_authority: &Pubkey,
-    taker_order: &Order,
-    filler: &mut Option<&mut User>,
-    filler_key: &Pubkey,
-    filler_reward: u64,
-    oracle_price: i64,
-    now: i64,
-    slot: u64,
-) -> DriftResult<(
-    Option<RefMut<'a, User>>,
-    Option<RefMut<'a, UserStats>>,
-    Option<Pubkey>,
-    Option<Vec<(usize, u64)>>,
-)> {
-    if maker.is_none() || maker_stats.is_none() {
-        return Ok((None, None, None, None));
-    }
-
-    let maker = maker.safe_unwrap()?;
-    if &maker.key() == taker_key {
-        return Ok((None, None, None, None));
-    }
-    let maker_key = maker.key();
-    let mut maker = load_mut!(maker)?;
-
-    let maker_stats = if &maker.authority == taker_authority {
-        None
-    } else {
-        let maker_stats = load_mut!(maker_stats.safe_unwrap()?)?;
-
-        validate!(
-            maker.authority.eq(&maker_stats.authority),
-            ErrorCode::InvalidMaker,
-            "maker authority != maker stats authority"
-        )?;
-
-        Some(maker_stats)
-    };
-
-    if maker.is_being_liquidated() || maker.is_bankrupt() {
-        return Ok((None, None, None, None));
-    }
-
-    let market = perp_market_map.get_ref(&taker_order.market_index)?;
-
-    let maker_direction = taker_order.direction.opposite();
-    let mut maker_order_price_and_indexes = find_maker_orders(
-        &maker,
-        &maker_direction,
-        &MarketType::Perp,
-        taker_order.market_index,
-        Some(oracle_price),
-        slot,
-        market.amm.order_tick_size,
-    )?;
-
-    drop(market);
-
-    sort_maker_orders(&mut maker_order_price_and_indexes, taker_order.direction);
-
-    let mut filtered_maker_order_price_and_indexes = vec![];
-    for (maker_order_index, maker_order_price) in maker_order_price_and_indexes.iter() {
-        let maker_order_index = *maker_order_index;
-        let maker_order_price = *maker_order_price;
-
-        let maker_order = &maker.orders[maker_order_index];
-        if !is_maker_for_taker(maker_order, taker_order, slot)? {
-            continue;
-        }
-
-        if !are_orders_same_market_but_different_sides(maker_order, taker_order) {
-            continue;
-        }
-
-        let market = perp_market_map.get_ref(&taker_order.market_index)?;
-
-        let breaches_oracle_price_limits = {
-            limit_price_breaches_oracle_price_bands(
-                maker_order_price,
-                maker_order.direction,
-                oracle_price,
-                market.margin_ratio_initial,
-                market.margin_ratio_maintenance,
-            )?
-        };
-
-        drop(market);
-
-        let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
-
-        let existing_base_asset_amount = maker
-            .get_perp_position(maker.orders[maker_order_index].market_index)?
-            .base_asset_amount;
-        let should_cancel_reduce_only_order = should_cancel_reduce_only_order(
-            &maker.orders[maker_order_index],
-            existing_base_asset_amount,
-        )?;
-
-        if breaches_oracle_price_limits || should_expire_order || should_cancel_reduce_only_order {
-            let filler_reward = {
-                let mut market =
-                    perp_market_map.get_ref_mut(&maker.orders[maker_order_index].market_index)?;
-                pay_keeper_flat_reward_for_perps(
-                    &mut maker,
-                    filler.as_deref_mut(),
-                    market.deref_mut(),
-                    filler_reward,
-                )?
-            };
-
-            let explanation = if breaches_oracle_price_limits {
-                OrderActionExplanation::OraclePriceBreachedLimitPrice
-            } else if should_expire_order {
-                OrderActionExplanation::OrderExpired
-            } else {
-                OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
-            };
-
-            cancel_order(
-                maker_order_index,
-                maker.deref_mut(),
-                &maker_key,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                now,
-                slot,
-                explanation,
-                Some(filler_key),
-                filler_reward,
-                false,
-            )?;
-
-            continue;
-        }
-
-        filtered_maker_order_price_and_indexes.push((maker_order_index, maker_order_price));
-    }
-
-    if filtered_maker_order_price_and_indexes.is_empty() {
-        return Ok((None, None, None, None));
-    }
-
-    let market_index = taker_order.market_index;
-    settle_funding_payment(
-        &mut maker,
-        &maker_key,
-        perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
-        now,
-    )?;
-
-    Ok((
-        Some(maker),
-        maker_stats,
-        Some(maker_key),
-        Some(filtered_maker_order_price_and_indexes),
-    ))
-}
-
-#[allow(clippy::type_complexity)]
-fn sanitize_maker_order2<'a>(
-    perp_market_map: &PerpMarketMap,
-    spot_market_map: &SpotMarketMap,
-    oracle_map: &mut OracleMap,
     makers_and_referrer: &mut UserMap,
     taker_key: &Pubkey,
     taker_order: &Order,
@@ -1216,14 +1048,9 @@ fn sanitize_maker_order2<'a>(
     filler_key: &Pubkey,
     filler_reward: u64,
     oracle_price: i64,
-    reserve_price: u64,
     now: i64,
     slot: u64,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
-    let market = perp_market_map.get_ref(&taker_order.market_index)?;
-
-    let (amm_bid_price, amm_ask_price) = market.amm.bid_ask_price(reserve_price)?;
-
     let maker_direction = taker_order.direction.opposite();
 
     let mut maker_order_info = Vec::with_capacity(32);
@@ -1238,6 +1065,7 @@ fn sanitize_maker_order2<'a>(
             continue;
         }
 
+        let mut market = perp_market_map.get_ref_mut(&taker_order.market_index)?;
         let maker_order_price_and_indexes = find_maker_orders(
             &maker,
             &maker_direction,
@@ -1248,6 +1076,17 @@ fn sanitize_maker_order2<'a>(
             market.amm.order_tick_size,
         )?;
 
+        if maker_order_price_and_indexes.is_empty() {
+            continue;
+        }
+
+        settle_funding_payment(&mut maker, &maker_key, &mut market, now)?;
+
+        let initial_margin_ratio = market.margin_ratio_initial;
+        let maintenance_margin_ratio = market.margin_ratio_maintenance;
+
+        drop(market);
+
         for (maker_order_index, maker_order_price) in maker_order_price_and_indexes.iter() {
             let maker_order_index = *maker_order_index;
             let maker_order_price = *maker_order_price;
@@ -1255,23 +1094,6 @@ fn sanitize_maker_order2<'a>(
             let maker_order = &maker.orders[maker_order_index];
             if !is_maker_for_taker(maker_order, taker_order, slot)? {
                 continue;
-            }
-
-            if !maker_order.is_resting_limit_order(slot)? {
-                match maker_direction {
-                    PositionDirection::Long => {
-                        if maker_order_price >= amm_ask_price {
-                            msg!("maker order {} crosses the amm price", maker_order.order_id);
-                            continue;
-                        }
-                    }
-                    PositionDirection::Short => {
-                        if maker_order_price <= amm_bid_price {
-                            msg!("maker order {} crosses the amm price", maker_order.order_id);
-                            continue;
-                        }
-                    }
-                }
             }
 
             if !are_orders_same_market_but_different_sides(maker_order, taker_order) {
@@ -1283,8 +1105,8 @@ fn sanitize_maker_order2<'a>(
                     maker_order_price,
                     maker_order.direction,
                     oracle_price,
-                    market.margin_ratio_initial,
-                    market.margin_ratio_maintenance,
+                    initial_margin_ratio,
+                    maintenance_margin_ratio,
                 )?
             };
 
@@ -1343,24 +1165,13 @@ fn sanitize_maker_order2<'a>(
         }
     }
 
-    sort_maker_orders2(&mut maker_order_info, taker_order.direction);
+    sort_maker_orders(&mut maker_order_info, taker_order.direction);
 
     Ok(maker_order_info)
 }
 
 #[inline(always)]
 fn sort_maker_orders(
-    maker_order_price_and_indexes: &mut [(usize, u64)],
-    taker_order_direction: PositionDirection,
-) {
-    maker_order_price_and_indexes.sort_by(|a, b| match taker_order_direction {
-        PositionDirection::Long => a.1.cmp(&b.1),
-        PositionDirection::Short => b.1.cmp(&a.1),
-    });
-}
-
-#[inline(always)]
-fn sort_maker_orders2(
     maker_order_info: &mut [(Pubkey, usize, u64)],
     taker_order_direction: PositionDirection,
 ) {
