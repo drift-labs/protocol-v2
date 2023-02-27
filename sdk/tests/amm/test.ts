@@ -150,9 +150,9 @@ describe('AMM Tests', () => {
 
 		console.log(terms2);
 		assert(terms2.effectiveLeverageCapped >= 1.0002);
-		assert(terms2.inventorySpreadScale == 10);
-		assert(terms2.longSpread == 798);
-		assert(terms2.shortSpread == 46702);
+		assert(terms2.inventorySpreadScale == 1.73492);
+		assert(terms2.longSpread == 4262);
+		assert(terms2.shortSpread == 43238);
 	});
 
 	it('Corner Case Spreads', () => {
@@ -183,8 +183,8 @@ describe('AMM Tests', () => {
 
 		console.log(terms2);
 		assert(terms2.effectiveLeverageCapped <= 1.000001);
-		assert(terms2.inventorySpreadScale == 1.117371);
-		assert(terms2.longSpread == 1263);
+		assert(terms2.inventorySpreadScale == 1.013527);
+		assert(terms2.longSpread == 1146);
 		assert(terms2.shortSpread == 6686);
 	});
 

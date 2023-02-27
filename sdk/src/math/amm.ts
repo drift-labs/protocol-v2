@@ -11,7 +11,6 @@ import {
 	MARGIN_PRECISION,
 	PRICE_DIV_PEG,
 	PERCENTAGE_PRECISION,
-	BASE_PRECISION,
 	DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
 	TWO,
 } from '../constants/numericConstants';
@@ -373,28 +372,28 @@ export function calculateInventoryScale(
 		maxBaseAssetReserve
 	);
 
-	const minSideLiquidity = BN.max(
-		new BN(1),
-		BN.min(openBids.abs(), openAsks.abs())
+	const minSideLiquidity = BN.min(openBids.abs(), openAsks.abs());
+
+	const inventoryScaleBN = BN.min(
+		baseAssetAmountWithAmm
+			.mul(PERCENTAGE_PRECISION)
+			.div(BN.max(minSideLiquidity, ONE))
+			.abs(),
+		PERCENTAGE_PRECISION
 	);
 
 	const inventoryScaleMaxBN = BN.max(
 		defaultLargeBidAskFactor,
-		new BN(maxSpread / 2)
+		new BN(maxSpread)
 			.mul(BID_ASK_SPREAD_PRECISION)
 			.div(new BN(Math.max(directionalSpread, 1)))
 	);
 
-	const inventoryScaleBN = baseAssetAmountWithAmm
-		.mul(BN.max(baseAssetAmountWithAmm.abs(), BASE_PRECISION))
-		.div(BASE_PRECISION)
-		.mul(defaultLargeBidAskFactor)
-		.div(minSideLiquidity)
-		.abs();
-
 	const inventoryScale =
-		BN.min(inventoryScaleMaxBN, inventoryScaleBN).toNumber() /
-		BID_ASK_SPREAD_PRECISION.toNumber();
+		BN.min(
+			inventoryScaleMaxBN,
+			inventoryScaleMaxBN.mul(inventoryScaleBN).div(PERCENTAGE_PRECISION)
+		).toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
 	const inventoryScaleMax =
 		inventoryScaleMaxBN.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
