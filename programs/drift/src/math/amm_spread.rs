@@ -155,17 +155,13 @@ pub fn calculate_long_short_vol_spread(
     ))
 }
 
-pub fn calculate_spread_inventory_scale(
+pub fn calculate_inventory_liquidity_ratio(
     base_asset_amount_with_amm: i128,
     base_asset_reserve: u128,
     min_base_asset_reserve: u128,
     max_base_asset_reserve: u128,
-    directional_spread: u64,
-    max_spread: u64,
-) -> DriftResult<u64> {
-    if base_asset_amount_with_amm == 0 {
-        return Ok(BID_ASK_SPREAD_PRECISION);
-    }
+) -> DriftResult<i128> {
+    // computes min(1, x/(1-x)) for 0 < x < 1
 
     // inventory scale
     let (max_bids, max_asks) = _calculate_market_open_bids_asks(
@@ -184,22 +180,44 @@ pub fn calculate_spread_inventory_scale(
             .safe_mul(PERCENTAGE_PRECISION_I128)?
             .safe_div(min_side_liquidity.max(1))?
     } else {
-        PERCENTAGE_PRECISION_I128 * 100
+        PERCENTAGE_PRECISION_I128 // 100%
     };
-    msg!("amm_inventory_pct={:?}", amm_inventory_pct);
+
+    Ok(amm_inventory_pct.min(PERCENTAGE_PRECISION_I128))
+}
+
+pub fn calculate_spread_inventory_scale(
+    base_asset_amount_with_amm: i128,
+    base_asset_reserve: u128,
+    min_base_asset_reserve: u128,
+    max_base_asset_reserve: u128,
+    directional_spread: u64,
+    max_spread: u64,
+) -> DriftResult<u64> {
+    if base_asset_amount_with_amm == 0 {
+        return Ok(BID_ASK_SPREAD_PRECISION);
+    }
+
+    let amm_inventory_pct = calculate_inventory_liquidity_ratio(
+        base_asset_amount_with_amm,
+        base_asset_reserve,
+        min_base_asset_reserve,
+        max_base_asset_reserve,
+    )?;
+
+    msg!(
+        "{:?} => amm_inventory_pct={:?}",
+        base_asset_amount_with_amm,
+        amm_inventory_pct
+    );
 
     // inventory scale
-    let inventory_scale = amm_inventory_pct
-        .safe_mul(amm_inventory_pct.max(PERCENTAGE_PRECISION_I128/10))?
-        .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>()?)?
-        .safe_div(PERCENTAGE_PRECISION_I128)?
-        .unsigned_abs();
+    let inventory_scale = amm_inventory_pct.unsigned_abs();
     msg!("inventory_scale={:?}", inventory_scale);
 
-    // only allow up to scale up of larger of MAX_BID_ASK_INVENTORY_SKEW_FACTOR or half of max spread
+    // only allow up to scale up of larger of MAX_BID_ASK_INVENTORY_SKEW_FACTOR or max spread
     let inventory_scale_max = MAX_BID_ASK_INVENTORY_SKEW_FACTOR.max(
         max_spread
-            .safe_div(2)?
             .safe_mul(BID_ASK_SPREAD_PRECISION)?
             .safe_div(max(directional_spread, 1))?,
     );
@@ -208,7 +226,12 @@ pub fn calculate_spread_inventory_scale(
     let inventory_scale_capped = min(
         inventory_scale_max,
         BID_ASK_SPREAD_PRECISION
-            .safe_add(inventory_scale.cast()?)
+            .safe_add(
+                inventory_scale_max
+                    .safe_mul(inventory_scale.cast()?)
+                    .unwrap_or(u64::MAX)
+                    .safe_div(PERCENTAGE_PRECISION_I128.cast()?)?,
+            )
             .unwrap_or(u64::MAX),
     );
 
