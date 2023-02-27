@@ -14,12 +14,9 @@ use std::iter::Peekable;
 use std::panic::Location;
 use std::slice::Iter;
 
-pub struct UserMap<'a, 'b>(
-    pub BTreeMap<Pubkey, AccountLoader<'a, User>>,
-    pub Option<(Pubkey, AccountLoader<'b, User>, u32)>,
-);
+pub struct UserMap<'a>(pub BTreeMap<Pubkey, AccountLoader<'a, User>>);
 
-impl<'a, 'b> UserMap<'a, 'b> {
+impl<'a> UserMap<'a> {
     // #[track_caller]
     // #[inline(always)]
     // pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<PerpMarket>> {
@@ -56,25 +53,6 @@ impl<'a, 'b> UserMap<'a, 'b> {
     #[track_caller]
     #[inline(always)]
     pub fn get_ref_mut(&self, user: &Pubkey) -> DriftResult<RefMut<User>> {
-        if let Some((jit_user, loader, _)) = &self.1 {
-            if jit_user == user {
-                return match loader.load_mut() {
-                    Ok(user) => Ok(user),
-                    Err(e) => {
-                        let caller = Location::caller();
-                        msg!("{:?}", e);
-                        msg!(
-                            "Could not user {} at {}:{}",
-                            user,
-                            caller.file(),
-                            caller.line()
-                        );
-                        Err(ErrorCode::UnableToLoadUserAccount)
-                    }
-                };
-            }
-        }
-
         let loader = match self.0.get(user) {
             Some(loader) => loader,
             None => {
@@ -105,11 +83,11 @@ impl<'a, 'b> UserMap<'a, 'b> {
         }
     }
 
-    pub fn load<'c>(
-        account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
-        jit_maker: Option<(Pubkey, AccountLoader<'b, User>, u32)>,
-    ) -> DriftResult<UserMap<'a, 'b>> {
-        let mut user_map = UserMap(BTreeMap::new(), jit_maker);
+    pub fn load<'b>(
+        account_info_iter: &'b mut Peekable<Iter<AccountInfo<'a>>>,
+        jit_maker: Option<(Pubkey, AccountLoader<'a, User>, u32)>,
+    ) -> DriftResult<UserMap<'a>> {
+        let mut user_map = UserMap(BTreeMap::new());
 
         let user_discriminator: [u8; 8] = User::discriminator();
         while let Some(account_info) = account_info_iter.peek() {
@@ -143,16 +121,17 @@ impl<'a, 'b> UserMap<'a, 'b> {
             user_map.0.insert(*user_key, user_account_loader);
         }
 
+        if let Some((jit_user, jit_user_loader, _)) = jit_maker {
+            user_map.0.insert(jit_user, jit_user_loader);
+        }
+
         Ok(user_map)
     }
 }
 
-pub struct UserStatsMap<'a, 'b>(
-    pub BTreeMap<Pubkey, AccountLoader<'a, UserStats>>,
-    pub Option<(Pubkey, AccountLoader<'b, UserStats>)>,
-);
+pub struct UserStatsMap<'a>(pub BTreeMap<Pubkey, AccountLoader<'a, UserStats>>);
 
-impl<'a> UserStatsMap<'a, '_> {
+impl<'a> UserStatsMap<'a> {
     // #[track_caller]
     // #[inline(always)]
     // pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<PerpMarket>> {
@@ -189,25 +168,6 @@ impl<'a> UserStatsMap<'a, '_> {
     #[track_caller]
     #[inline(always)]
     pub fn get_ref_mut(&self, authority: &Pubkey) -> DriftResult<RefMut<UserStats>> {
-        if let Some((jit_authority, loader)) = &self.1 {
-            if jit_authority == authority {
-                return match loader.load_mut() {
-                    Ok(perp_market) => Ok(perp_market),
-                    Err(e) => {
-                        let caller = Location::caller();
-                        msg!("{:?}", e);
-                        msg!(
-                            "Could not user stats {} at {}:{}",
-                            authority,
-                            caller.file(),
-                            caller.line()
-                        );
-                        Err(ErrorCode::UnableToLoadUserStatsAccount)
-                    }
-                };
-            }
-        }
-
         let loader = match self.0.get(authority) {
             Some(loader) => loader,
             None => {
@@ -238,11 +198,11 @@ impl<'a> UserStatsMap<'a, '_> {
         }
     }
 
-    pub fn load<'b, 'c>(
-        account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
-        jit_maker_stats: Option<(Pubkey, AccountLoader<'b, UserStats>)>,
-    ) -> DriftResult<UserStatsMap<'a, 'b>> {
-        let mut user_stats_map = UserStatsMap(BTreeMap::new(), jit_maker_stats);
+    pub fn load<'b>(
+        account_info_iter: &'b mut Peekable<Iter<AccountInfo<'a>>>,
+        jit_maker_stats: Option<(Pubkey, AccountLoader<'a, UserStats>)>,
+    ) -> DriftResult<UserStatsMap<'a>> {
+        let mut user_stats_map = UserStatsMap(BTreeMap::new());
 
         let user_stats_discriminator: [u8; 8] = UserStats::discriminator();
         while let Some(account_info) = account_info_iter.peek() {
@@ -279,6 +239,12 @@ impl<'a> UserStatsMap<'a, '_> {
             user_stats_map
                 .0
                 .insert(authority, user_stats_account_loader);
+        }
+
+        if let Some((jit_user_stats, jit_user_stats_loader)) = jit_maker_stats {
+            user_stats_map
+                .0
+                .insert(jit_user_stats, jit_user_stats_loader);
         }
 
         Ok(user_stats_map)
