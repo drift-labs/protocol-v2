@@ -821,7 +821,7 @@ pub fn fill_perp_order(
         }
 
         if referrer_user_key == Pubkey::default() {
-            return Err(ErrorCode::ReferrerNotFound.into());
+            return Err(ErrorCode::ReferrerNotFound);
         }
 
         Some((referrer_authority_key, referrer_user_key))
@@ -1037,7 +1037,7 @@ pub fn validate_market_within_price_band(
 }
 
 #[allow(clippy::type_complexity)]
-fn sanitize_maker_order<'a>(
+fn sanitize_maker_order(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -1059,7 +1059,7 @@ fn sanitize_maker_order<'a>(
             continue;
         }
 
-        let mut maker = load_mut!(&user_account_loader)?;
+        let mut maker = load_mut!(user_account_loader)?;
 
         if maker.is_being_liquidated() || maker.is_bankrupt() {
             continue;
@@ -1080,7 +1080,7 @@ fn sanitize_maker_order<'a>(
             continue;
         }
 
-        settle_funding_payment(&mut maker, &maker_key, &mut market, now)?;
+        settle_funding_payment(&mut maker, maker_key, &mut market, now)?;
 
         let initial_margin_ratio = market.margin_ratio_initial;
         let maintenance_margin_ratio = market.margin_ratio_maintenance;
@@ -1146,7 +1146,7 @@ fn sanitize_maker_order<'a>(
                 cancel_order(
                     maker_order_index,
                     maker.deref_mut(),
-                    &maker_key,
+                    maker_key,
                     perp_market_map,
                     spot_market_map,
                     oracle_map,
@@ -1342,7 +1342,7 @@ fn fulfill_perp_order(
                         &mut maker,
                         &mut maker_stats.as_deref_mut(),
                         *maker_order_index,
-                        &maker_key,
+                        maker_key,
                         filler,
                         filler_stats,
                         filler_key,
@@ -1442,6 +1442,7 @@ fn fulfill_perp_order(
     Ok((base_asset_amount, risk_increasing, updated_user_state))
 }
 
+#[allow(clippy::type_complexity)]
 fn get_referrer<'a>(
     referrer_key: &'a Option<(Pubkey, Pubkey)>,
     makers_and_referrer: &'a UserMap,
@@ -1462,7 +1463,7 @@ fn get_referrer<'a>(
     let referrer = makers_and_referrer.get_ref_mut(referrer_user_key)?;
     let referrer_stats = makers_and_referrer_stats.get_ref_mut(referrer_authority_key)?;
 
-    return Ok((Some(referrer), Some(referrer_stats)));
+    Ok((Some(referrer), Some(referrer_stats)))
 }
 
 fn determine_if_user_order_is_risk_decreasing(

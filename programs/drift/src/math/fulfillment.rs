@@ -12,7 +12,7 @@ mod tests;
 
 pub fn determine_perp_fulfillment_methods(
     taker_order: &Order,
-    maker_order_info: &Vec<(Pubkey, usize, u64)>,
+    maker_order_info: &[(Pubkey, usize, u64)],
     amm: &AMM,
     amm_reserve_price: u64,
     valid_oracle_price: Option<i64>,

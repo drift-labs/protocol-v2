@@ -247,8 +247,6 @@ impl<'a> UserStatsMap<'a> {
 
         let user_stats_discriminator: [u8; 8] = UserStats::discriminator();
         while let Some(account_info) = account_info_iter.peek() {
-            let user_stats_key = account_info.key;
-
             let data = account_info
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadUserStatsData))?;
