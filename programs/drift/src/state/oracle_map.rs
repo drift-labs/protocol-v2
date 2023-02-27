@@ -163,7 +163,7 @@ impl<'a> OracleMap<'a> {
                 let pubkey = account_info.key();
 
                 let oracle_source = if pubkey == bonk_oracle::id() {
-                    OracleSource::Pyth1000
+                    OracleSource::Pyth1M
                 } else {
                     OracleSource::Pyth
                 };
@@ -212,7 +212,7 @@ impl<'a> OracleMap<'a> {
         if account_info.owner == &pyth_program::id() {
             let pubkey = account_info.key();
             let oracle_source = if pubkey == bonk_oracle::id() {
-                OracleSource::Pyth1000
+                OracleSource::Pyth1M
             } else {
                 OracleSource::Pyth
             };

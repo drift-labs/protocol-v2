@@ -93,6 +93,7 @@ impl HistoricalIndexData {
 pub enum OracleSource {
     Pyth,
     Pyth1000,
+    Pyth1M,
     Switchboard,
     QuoteAsset,
 }
@@ -131,6 +132,7 @@ pub fn get_oracle_price(
     match oracle_source {
         OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot, 1),
         OracleSource::Pyth1000 => get_pyth_price(price_oracle, clock_slot, 1000),
+        OracleSource::Pyth1M => get_pyth_price(price_oracle, clock_slot, 1000000),
         OracleSource::Switchboard => {
             msg!("Switchboard oracle not yet supported");
             Err(crate::error::ErrorCode::InvalidOracle)

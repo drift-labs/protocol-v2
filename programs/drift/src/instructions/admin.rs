@@ -502,6 +502,17 @@ pub fn handle_initialize_perp_market(
                 perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1000)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
+        OracleSource::Pyth1M => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000000)?;
+            let last_oracle_price_twap = perp_market
+                .amm
+                .get_pyth_twap(&ctx.accounts.oracle, 1000000)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
         OracleSource::Switchboard => {
             msg!("Switchboard oracle cant be used for perp market");
             return Err(ErrorCode::InvalidOracle.into());
