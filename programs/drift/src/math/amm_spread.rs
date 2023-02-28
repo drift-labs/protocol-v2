@@ -171,19 +171,19 @@ pub fn calculate_inventory_liquidity_ratio(
     )?;
 
     let min_side_liquidity = max_bids.min(max_asks.abs());
-    msg!("max_bids={:?} / max_asks={:?}", max_bids, max_asks);
 
-    // cap so (6e9 * AMM_RESERVE_PRECISION)^2 < 2^127
-    let amm_inventory_pct = if base_asset_amount_with_amm < 6000000000000000000 {
+    let amm_inventory_pct = if base_asset_amount_with_amm.abs() < min_side_liquidity {
         base_asset_amount_with_amm
             .abs()
-            .safe_mul(PERCENTAGE_PRECISION_I128)?
+            .safe_mul(PERCENTAGE_PRECISION_I128)
+            .unwrap_or(i128::MAX)
             .safe_div(min_side_liquidity.max(1))?
+            .min(PERCENTAGE_PRECISION_I128)
     } else {
         PERCENTAGE_PRECISION_I128 // 100%
     };
 
-    Ok(amm_inventory_pct.min(PERCENTAGE_PRECISION_I128))
+    Ok(amm_inventory_pct)
 }
 
 pub fn calculate_spread_inventory_scale(
@@ -205,30 +205,19 @@ pub fn calculate_spread_inventory_scale(
         max_base_asset_reserve,
     )?;
 
-    msg!(
-        "{:?} => amm_inventory_pct={:?}",
-        base_asset_amount_with_amm,
-        amm_inventory_pct
-    );
-
-    // inventory scale
-    let inventory_scale = amm_inventory_pct.unsigned_abs();
-    msg!("inventory_scale={:?}", inventory_scale);
-
     // only allow up to scale up of larger of MAX_BID_ASK_INVENTORY_SKEW_FACTOR or max spread
     let inventory_scale_max = MAX_BID_ASK_INVENTORY_SKEW_FACTOR.max(
         max_spread
             .safe_mul(BID_ASK_SPREAD_PRECISION)?
             .safe_div(max(directional_spread, 1))?,
     );
-    msg!("inventory_scale_max={:?}", inventory_scale_max);
 
     let inventory_scale_capped = min(
         inventory_scale_max,
         BID_ASK_SPREAD_PRECISION
             .safe_add(
                 inventory_scale_max
-                    .safe_mul(inventory_scale.cast()?)
+                    .safe_mul(amm_inventory_pct.unsigned_abs().cast()?)
                     .unwrap_or(u64::MAX)
                     .safe_div(PERCENTAGE_PRECISION_I128.cast()?)?,
             )

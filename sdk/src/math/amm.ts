@@ -361,7 +361,7 @@ export function calculateInventoryScale(
 	maxSpread: number
 ): number {
 	if (baseAssetAmountWithAmm.eq(ZERO)) {
-		return 0;
+		return 1;
 	}
 
 	const defaultLargeBidAskFactor = BID_ASK_SPREAD_PRECISION.mul(new BN(10));
