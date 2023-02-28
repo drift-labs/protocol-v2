@@ -85,7 +85,7 @@ impl<'a> UserMap<'a> {
 
     pub fn load<'b>(
         account_info_iter: &'b mut Peekable<Iter<AccountInfo<'a>>>,
-        jit_maker: Option<(Pubkey, AccountLoader<'a, User>, u32)>,
+        jit_maker: Option<(Pubkey, AccountLoader<'a, User>)>,
     ) -> DriftResult<UserMap<'a>> {
         let mut user_map = UserMap(BTreeMap::new());
 
@@ -121,7 +121,7 @@ impl<'a> UserMap<'a> {
             user_map.0.insert(*user_key, user_account_loader);
         }
 
-        if let Some((jit_user, jit_user_loader, _)) = jit_maker {
+        if let Some((jit_user, jit_user_loader)) = jit_maker {
             user_map.0.insert(jit_user, jit_user_loader);
         }
 

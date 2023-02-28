@@ -4229,6 +4229,7 @@ pub mod fill_order {
             &filler_stats_account_loader,
             &mut makers_and_referrers,
             &mut maker_and_referrer_stats,
+            None,
             &clock,
         )
         .unwrap();
@@ -4435,6 +4436,7 @@ pub mod fill_order {
             &filler_stats_account_loader,
             &mut makers_and_referrers,
             &mut maker_and_referrer_stats,
+            None,
             &clock,
         )
         .unwrap();
@@ -4561,6 +4563,7 @@ pub mod fill_order {
             &filler_stats_account_loader,
             &mut UserMap::empty(),
             &mut UserStatsMap::empty(),
+            None,
             &clock,
         )
         .unwrap();
@@ -4726,6 +4729,7 @@ pub mod fill_order {
             &filler_stats_account_loader,
             &mut UserMap::empty(),
             &mut UserStatsMap::empty(),
+            None,
             &clock,
         );
 
@@ -8385,6 +8389,7 @@ pub mod sanitize_maker_orders {
             &filler_key,
             0,
             oracle_price,
+            None,
             clock.unix_timestamp,
             clock.slot,
         )
@@ -8579,6 +8584,7 @@ pub mod sanitize_maker_orders {
             &filler_key,
             0,
             oracle_price,
+            None,
             clock.unix_timestamp,
             clock.slot,
         )
@@ -8762,6 +8768,7 @@ pub mod sanitize_maker_orders {
             &filler_key,
             0,
             oracle_price,
+            None,
             clock.unix_timestamp,
             clock.slot,
         )

@@ -667,6 +667,7 @@ pub fn fill_perp_order(
     filler_stats: &AccountLoader<UserStats>,
     makers_and_referrer: &mut UserMap,
     makers_and_referrer_stats: &mut UserStatsMap,
+    jit_maker_order_id: Option<u32>,
     clock: &Clock,
 ) -> DriftResult<(u64, bool)> {
     let now = clock.unix_timestamp;
@@ -806,6 +807,7 @@ pub fn fill_perp_order(
         &filler_key,
         state.perp_fee_structure.flat_filler_fee,
         oracle_price,
+        jit_maker_order_id,
         now,
         slot,
     )?;
@@ -1048,12 +1050,14 @@ fn sanitize_maker_order(
     filler_key: &Pubkey,
     filler_reward: u64,
     oracle_price: i64,
+    jit_maker_order_id: Option<u32>,
     now: i64,
     slot: u64,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
+    let mut maker_order_info = Vec::with_capacity(32);
+
     let maker_direction = taker_order.direction.opposite();
 
-    let mut maker_order_info = Vec::with_capacity(32);
     for (maker_key, user_account_loader) in makers_and_referrer.0.iter_mut() {
         if maker_key == taker_key {
             continue;
@@ -1098,6 +1102,13 @@ fn sanitize_maker_order(
 
             if !are_orders_same_market_but_different_sides(maker_order, taker_order) {
                 continue;
+            }
+
+            if let Some(jit_maker_order_id) = jit_maker_order_id {
+                // if jit maker order id exists, must only use that order
+                if maker_order.order_id != jit_maker_order_id {
+                    continue;
+                }
             }
 
             let breaches_oracle_price_limits = {

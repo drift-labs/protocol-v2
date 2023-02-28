@@ -31,11 +31,7 @@ use crate::{controller, load, math};
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_fill_perp_order<'info>(
-    ctx: Context<FillOrder>,
-    order_id: Option<u32>,
-    maker_order_id: Option<u32>,
-) -> Result<()> {
+pub fn handle_fill_perp_order<'info>(ctx: Context<FillOrder>, order_id: Option<u32>) -> Result<()> {
     let (order_id, market_index) = {
         let user = &load!(ctx.accounts.user)?;
         // if there is no order id, use the users last order id
@@ -51,7 +47,7 @@ pub fn handle_fill_perp_order<'info>(
     };
 
     let user_key = &ctx.accounts.user.key();
-    fill_order(ctx, order_id, market_index, maker_order_id).map_err(|e| {
+    fill_order(ctx, order_id, market_index).map_err(|e| {
         msg!(
             "Err filling order id {} for user {} for market index {}",
             order_id,
@@ -64,12 +60,7 @@ pub fn handle_fill_perp_order<'info>(
     Ok(())
 }
 
-fn fill_order(
-    ctx: Context<FillOrder>,
-    order_id: u32,
-    market_index: u16,
-    maker_order_id: Option<u32>,
-) -> Result<()> {
+fn fill_order(ctx: Context<FillOrder>, order_id: u32, market_index: u16) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -109,6 +100,7 @@ fn fill_order(
         &ctx.accounts.filler_stats,
         &mut makers_and_referrer,
         &mut makers_and_referrer_stats,
+        None,
         clock,
     )?;
 

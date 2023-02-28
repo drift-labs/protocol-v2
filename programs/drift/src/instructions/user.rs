@@ -927,6 +927,7 @@ pub fn handle_place_and_take_perp_order<'info>(
         &ctx.accounts.user_stats.clone(),
         &mut makers_and_referrer,
         &mut makers_and_referrer_stats,
+        None,
         &Clock::get()?,
     )?;
 
@@ -1001,10 +1002,11 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
 
     let (order_id, authority) = {
         let user = load!(ctx.accounts.user)?;
-        (user.get_last_order_id(), user.authority)
+        let order_id = user.get_last_order_id();
+        (order_id, user.authority)
     };
 
-    let jit_maker = (ctx.accounts.user.key(), ctx.accounts.user.clone(), order_id);
+    let jit_maker = (ctx.accounts.user.key(), ctx.accounts.user.clone());
     let mut makers_and_referrer = UserMap::load(remaining_accounts_iter, Some(jit_maker))?;
     let jit_maker_stats = (authority, ctx.accounts.user_stats.clone());
     let mut makers_and_referrer_stats =
@@ -1022,6 +1024,7 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         &ctx.accounts.user_stats.clone(),
         &mut makers_and_referrer,
         &mut makers_and_referrer_stats,
+        Some(order_id),
         clock,
     )?;
 

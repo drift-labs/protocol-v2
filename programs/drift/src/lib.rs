@@ -205,9 +205,9 @@ pub mod drift {
     pub fn fill_perp_order(
         ctx: Context<FillOrder>,
         order_id: Option<u32>,
-        maker_order_id: Option<u32>,
+        _maker_order_id: Option<u32>,
     ) -> Result<()> {
-        handle_fill_perp_order(ctx, order_id, maker_order_id)
+        handle_fill_perp_order(ctx, order_id)
     }
 
     pub fn fill_spot_order(
