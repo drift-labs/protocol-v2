@@ -24,8 +24,6 @@ import {
 	UserMap,
 	OrderRecord,
 	OrderActionRecord,
-	ZERO,
-	BN_MAX,
 	isRestingLimitOrder,
 	isTakingOrder,
 	isFallbackAvailableLiquiditySource,
@@ -452,8 +450,9 @@ export class DLOB {
 	}
 
 	public getOrder(orderId: number, userAccount: PublicKey): Order | undefined {
+		const orderSignature = getOrderSignature(orderId, userAccount);
 		for (const nodeList of this.getNodeLists()) {
-			const node = nodeList.get(orderId, userAccount);
+			const node = nodeList.get(orderSignature);
 			if (node) {
 				return node.order;
 			}
@@ -535,10 +534,7 @@ export class DLOB {
 			marketIndex,
 			slot,
 			marketType,
-			oraclePriceData,
-			minAuctionDuration,
-			fallbackAsk,
-			fallbackBid
+			oraclePriceData
 		);
 
 		for (const crossingNode of crossingNodes) {
@@ -1294,10 +1290,7 @@ export class DLOB {
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
-		minAuctionDuration: number,
-		fallbackAsk: BN | undefined,
-		fallbackBid: BN | undefined
+		oraclePriceData: OraclePriceData
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -1307,18 +1300,20 @@ export class DLOB {
 			marketType,
 			oraclePriceData
 		)) {
-			for (const bidNode of this.getRestingLimitBids(
+			const bidGenerator = this.getRestingLimitBids(
 				marketIndex,
 				slot,
 				marketType,
 				oraclePriceData
-			)) {
+			);
+
+			for (const bidNode of bidGenerator) {
 				const bidPrice = bidNode.getPrice(oraclePriceData, slot);
 				const askPrice = askNode.getPrice(oraclePriceData, slot);
 
-				// orders don't cross - we're done walking the book
+				// orders don't cross
 				if (bidPrice.lt(askPrice)) {
-					return nodesToFill;
+					break;
 				}
 
 				const bidOrder = bidNode.order;
@@ -1326,43 +1321,18 @@ export class DLOB {
 
 				// Can't match orders from the same user
 				const sameUser = bidNode.userAccount.equals(askNode.userAccount);
-				if (sameUser || (bidOrder.postOnly && askOrder.postOnly)) {
+				if (sameUser) {
 					continue;
 				}
 
-				const { takerNode, makerNode } = this.determineMakerAndTaker(
-					askNode,
-					bidNode
-				);
+				const makerAndTaker = this.determineMakerAndTaker(askNode, bidNode);
 
-				// extra guard against bad fills for limit orders where auction is incomplete
-				if (
-					!isFallbackAvailableLiquiditySource(
-						takerNode.order,
-						minAuctionDuration,
-						slot
-					)
-				) {
-					let bidPrice: BN;
-					let askPrice: BN;
-					if (isVariant(takerNode.order.direction, 'long')) {
-						bidPrice = BN.min(
-							takerNode.getPrice(oraclePriceData, slot),
-							fallbackAsk || BN_MAX
-						);
-						askPrice = makerNode.getPrice(oraclePriceData, slot);
-					} else {
-						bidPrice = makerNode.getPrice(oraclePriceData, slot);
-						askPrice = BN.max(
-							takerNode.getPrice(oraclePriceData, slot),
-							fallbackBid || ZERO
-						);
-					}
-
-					if (bidPrice.lt(askPrice)) {
-						continue;
-					}
+				// unable to match maker and taker due to post only or slot
+				if (!makerAndTaker) {
+					continue;
 				}
+
+				const { takerNode, makerNode } = makerAndTaker;
 
 				const bidBaseRemaining = bidOrder.baseAssetAmount.sub(
 					bidOrder.baseAssetAmountFilled
@@ -1407,27 +1377,25 @@ export class DLOB {
 	determineMakerAndTaker(
 		askNode: DLOBNode,
 		bidNode: DLOBNode
-	): { takerNode: DLOBNode; makerNode: DLOBNode } {
-		if (bidNode.order.postOnly) {
+	): { takerNode: DLOBNode; makerNode: DLOBNode } | undefined {
+		const askSlot = askNode.order.slot.add(
+			new BN(askNode.order.auctionDuration)
+		);
+		const bidSlot = bidNode.order.slot.add(
+			new BN(bidNode.order.auctionDuration)
+		);
+		if (askSlot.lte(bidSlot) && !bidNode.order.postOnly) {
+			return {
+				takerNode: bidNode,
+				makerNode: askNode,
+			};
+		} else if (bidSlot.lte(askSlot) && !askNode.order.postOnly) {
 			return {
 				takerNode: askNode,
 				makerNode: bidNode,
-			};
-		} else if (askNode.order.postOnly) {
-			return {
-				takerNode: bidNode,
-				makerNode: askNode,
-			};
-		} else if (askNode.order.slot.lt(bidNode.order.slot)) {
-			return {
-				takerNode: bidNode,
-				makerNode: askNode,
 			};
 		} else {
-			return {
-				takerNode: askNode,
-				makerNode: bidNode,
-			};
+			return undefined;
 		}
 	}
 

@@ -1,5 +1,5 @@
 {
-  "version": "2.18.0-beta.0",
+  "version": "2.18.0",
   "name": "drift",
   "instructions": [
     {
@@ -6238,6 +6238,12 @@
             "name": "Pyth"
           },
           {
+            "name": "Pyth1K"
+          },
+          {
+            "name": "Pyth1M"
+          },
+          {
             "name": "Switchboard"
           },
           {
@@ -8593,6 +8599,11 @@
       "code": 6226,
       "name": "MarginOrdersOpen",
       "msg": "MarginOrdersOpen"
+    },
+    {
+      "code": 6227,
+      "name": "TierViolationLiquidatingPerpPnl",
+      "msg": "TierViolationLiquidatingPerpPnl"
     }
   ]
 }

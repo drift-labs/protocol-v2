@@ -211,6 +211,18 @@ fn validate_limit_order_auction_params(order: &Order) -> DriftResult {
         )?;
 
         validate_auction_params(order)?;
+    } else {
+        validate!(
+            order.auction_start_price == 0,
+            ErrorCode::InvalidOrder,
+            "limit order without auction can not have an auction start price"
+        )?;
+
+        validate!(
+            order.auction_end_price == 0,
+            ErrorCode::InvalidOrder,
+            "limit order without auction can not have an auction end price"
+        )?;
     }
 
     Ok(())
@@ -246,21 +258,19 @@ fn validate_post_only_order(
             );
         }
 
-        if !order.is_jit_maker() {
-            let mut invalid = true;
-            if let Some(valid_oracle_price) = valid_oracle_price {
-                if (valid_oracle_price > limit_price.cast()?
-                    && order.direction == PositionDirection::Long)
-                    || (valid_oracle_price < limit_price.cast()?
-                        && order.direction == PositionDirection::Short)
-                {
-                    invalid = false;
-                }
+        let mut invalid = true;
+        if let Some(valid_oracle_price) = valid_oracle_price {
+            if (valid_oracle_price > limit_price.cast()?
+                && order.direction == PositionDirection::Long)
+                || (valid_oracle_price < limit_price.cast()?
+                    && order.direction == PositionDirection::Short)
+            {
+                invalid = false;
             }
+        }
 
-            if invalid {
-                return Err(ErrorCode::PlacePostOnlyLimitFailure);
-            }
+        if invalid {
+            return Err(ErrorCode::PlacePostOnlyLimitFailure);
         }
     }
 

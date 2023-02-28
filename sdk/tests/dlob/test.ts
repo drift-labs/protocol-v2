@@ -3435,7 +3435,7 @@ describe('DLOB Perp Tests', () => {
 			PositionDirection.LONG,
 			vBid,
 			vAsk,
-			new BN(slot - 1), // later order becomes taker
+			new BN(slot + 1), // later order becomes taker
 			new BN(200),
 			undefined,
 			undefined,
@@ -5109,7 +5109,8 @@ describe('DLOB Spot Tests', () => {
 			BASE_PRECISION, // quantity
 			PositionDirection.SHORT,
 			vBid,
-			vAsk
+			vAsk,
+			new BN(1)
 		);
 		insertOrderToDLOB(
 			dlob,
@@ -5122,7 +5123,8 @@ describe('DLOB Spot Tests', () => {
 			BASE_PRECISION, // quantity
 			PositionDirection.SHORT,
 			vBid,
-			vAsk
+			vAsk,
+			new BN(1)
 		);
 
 		// should have no crossing orders
@@ -5152,7 +5154,7 @@ describe('DLOB Spot Tests', () => {
 			PositionDirection.LONG,
 			vBid,
 			vAsk,
-			undefined,
+			new BN(0),
 			undefined,
 			undefined,
 			true
@@ -5169,7 +5171,7 @@ describe('DLOB Spot Tests', () => {
 			PositionDirection.LONG,
 			vBid,
 			vAsk,
-			undefined,
+			new BN(0),
 			undefined,
 			undefined,
 			true
@@ -5203,6 +5205,186 @@ describe('DLOB Spot Tests', () => {
 		// taker should fill completely with second best maker
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(1);
 		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(3);
+	});
+
+	it('Test limit orders skipping more recent post onlys', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(8);
+
+		const user0 = Keypair.generate();
+		const user1 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+
+		const slot = 12;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		// insert some limit sells below vAMM ask, above bid
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			1, // orderId
+			marketIndex,
+			new BN(14), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk,
+			new BN(1)
+		);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(13), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk,
+			new BN(1)
+		);
+
+		// should have no crossing orders
+		const nodesToFillBefore = dlob.findNodesToFill(
+			marketIndex,
+			undefined,
+			undefined,
+			12, // auction over
+			Date.now(),
+			MarketType.PERP,
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
+		);
+		expect(nodesToFillBefore.length).to.equal(0);
+
+		// add post only orders that are newer than resting limit orders and thus cant match
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(15), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(2),
+			undefined,
+			undefined,
+			true
+		);
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			4, // orderId
+			marketIndex,
+			new BN(14), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(2),
+			undefined,
+			undefined,
+			true
+		);
+
+		let nodesToFillAfter = dlob.findNodesToFill(
+			marketIndex,
+			undefined,
+			undefined,
+			slot, // auction over
+			Date.now(),
+			MarketType.PERP,
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
+		);
+
+		expect(nodesToFillAfter.length).to.equal(0);
+
+		// add post only orders that are older than resting limit orders
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			5, // orderId
+			marketIndex,
+			new BN(15), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(0),
+			undefined,
+			undefined,
+			true
+		);
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			6, // orderId
+			marketIndex,
+			new BN(14), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(0),
+			undefined,
+			undefined,
+			true
+		);
+
+		nodesToFillAfter = dlob.findNodesToFill(
+			marketIndex,
+			undefined,
+			undefined,
+			slot, // auction over
+			Date.now(),
+			MarketType.PERP,
+			oracle,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex]
+		);
+
+		expect(nodesToFillAfter.length).to.equal(2);
+
+		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
+
+		for (const n of nodesToFillAfter) {
+			console.log(
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: BAA: ${n.makerNode?.order?.baseAssetAmountFilled.toString()}/${n.makerNode?.order?.baseAssetAmount.toString()}`
+			);
+		}
+		expect(nodesToFillAfter.length).to.equal(2);
+
+		// taker should fill completely with best maker
+		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(2);
+		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(6);
+
+		// taker should fill completely with second best maker
+		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(1);
+		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(5);
 	});
 
 	it('Test trigger orders', () => {

@@ -11,7 +11,6 @@ import {
 	MARGIN_PRECISION,
 	PRICE_DIV_PEG,
 	PERCENTAGE_PRECISION,
-	BASE_PRECISION,
 	DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
 	TWO,
 } from '../constants/numericConstants';
@@ -362,10 +361,12 @@ export function calculateInventoryScale(
 	maxSpread: number
 ): number {
 	if (baseAssetAmountWithAmm.eq(ZERO)) {
-		return 0;
+		return 1;
 	}
 
-	const defaultLargeBidAskFactor = BID_ASK_SPREAD_PRECISION.mul(new BN(10));
+	const MAX_BID_ASK_INVENTORY_SKEW_FACTOR = BID_ASK_SPREAD_PRECISION.mul(
+		new BN(10)
+	);
 	// inventory skew
 	const [openBids, openAsks] = calculateMarketOpenBidAsk(
 		baseAssetReserve,
@@ -373,34 +374,32 @@ export function calculateInventoryScale(
 		maxBaseAssetReserve
 	);
 
-	const minSideLiquidity = BN.max(
-		new BN(1),
-		BN.min(openBids.abs(), openAsks.abs())
+	const minSideLiquidity = BN.min(openBids.abs(), openAsks.abs());
+
+	const inventoryScaleBN = BN.min(
+		baseAssetAmountWithAmm
+			.mul(PERCENTAGE_PRECISION)
+			.div(BN.max(minSideLiquidity, ONE))
+			.abs(),
+		PERCENTAGE_PRECISION
 	);
 
 	const inventoryScaleMaxBN = BN.max(
-		defaultLargeBidAskFactor,
-		new BN(maxSpread / 2)
+		MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+		new BN(maxSpread)
 			.mul(BID_ASK_SPREAD_PRECISION)
 			.div(new BN(Math.max(directionalSpread, 1)))
 	);
 
-	const inventoryScaleBN = baseAssetAmountWithAmm
-		.mul(BN.max(baseAssetAmountWithAmm.abs(), BASE_PRECISION))
-		.div(BASE_PRECISION)
-		.mul(defaultLargeBidAskFactor)
-		.div(minSideLiquidity)
-		.abs();
+	const inventoryScaleCapped =
+		BN.min(
+			inventoryScaleMaxBN,
+			BID_ASK_SPREAD_PRECISION.add(
+				inventoryScaleMaxBN.mul(inventoryScaleBN).div(PERCENTAGE_PRECISION)
+			)
+		).toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
-	const inventoryScale =
-		BN.min(inventoryScaleMaxBN, inventoryScaleBN).toNumber() /
-		BID_ASK_SPREAD_PRECISION.toNumber();
-
-	const inventoryScaleMax =
-		inventoryScaleMaxBN.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
-	const inventorySpreadScale = Math.min(inventoryScaleMax, 1 + inventoryScale);
-
-	return inventorySpreadScale;
+	return inventoryScaleCapped;
 }
 
 export function calculateEffectiveLeverage(

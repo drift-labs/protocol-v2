@@ -354,7 +354,7 @@ impl Default for SpotFulfillmentConfigStatus {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub enum AssetTier {
     Collateral, // full priviledge
     Protected,  // collateral, but no borrow

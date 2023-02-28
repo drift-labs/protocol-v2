@@ -28,7 +28,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant, ONE } from '../sdk';
+import { BulkAccountLoader, isVariant } from '../sdk';
 
 describe('liquidate spot w/ social loss', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -288,7 +288,7 @@ describe('liquidate spot w/ social loss', () => {
 
 		const interestOfUpdate = currentDepositAmount.sub(depositAmountBefore);
 		console.log('interestOfUpdate:', interestOfUpdate.toString());
-		assert(interestOfUpdate.eq(ONE));
+		assert(interestOfUpdate.eq(ZERO));
 	});
 
 	it('resolve bankruptcy', async () => {
