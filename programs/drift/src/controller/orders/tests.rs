@@ -2680,7 +2680,7 @@ pub mod fulfill_order {
             ..User::default()
         };
         create_anchor_account_info!(maker, User, maker_account_info);
-        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
@@ -2694,8 +2694,7 @@ pub mod fulfill_order {
             ..UserStats::default()
         };
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
-        let mut maker_and_referrer_stats =
-            UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let mut filler_stats = UserStats::default();
 
@@ -2704,8 +2703,8 @@ pub mod fulfill_order {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut makers_and_referrers,
-            &mut maker_and_referrer_stats,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
             vec![(
                 Pubkey::default(),
                 0,
@@ -2922,7 +2921,7 @@ pub mod fulfill_order {
             ..User::default()
         };
         create_anchor_account_info!(maker, User, maker_account_info);
-        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
@@ -2937,8 +2936,7 @@ pub mod fulfill_order {
             ..UserStats::default()
         };
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
-        let mut maker_and_referrer_stats =
-            UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let mut filler_stats = UserStats::default();
 
@@ -2947,8 +2945,8 @@ pub mod fulfill_order {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut makers_and_referrers,
-            &mut maker_and_referrer_stats,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
             vec![
                 (maker_key, 0, 90 * PRICE_PRECISION_U64),
                 (maker_key, 1, 95 * PRICE_PRECISION_U64),
@@ -3113,7 +3111,7 @@ pub mod fulfill_order {
             ..User::default()
         };
         create_anchor_account_info!(maker, User, maker_account_info);
-        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
@@ -3128,8 +3126,7 @@ pub mod fulfill_order {
             ..UserStats::default()
         };
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
-        let mut maker_and_referrer_stats =
-            UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let mut filler_stats = UserStats::default();
 
@@ -3138,8 +3135,8 @@ pub mod fulfill_order {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut makers_and_referrers,
-            &mut maker_and_referrer_stats,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
             vec![(maker_key, 0, 100_010_000 * PRICE_PRECISION_U64 / 1_000_000)],
             &mut Some(&mut filler),
             &filler_key,
@@ -3319,7 +3316,7 @@ pub mod fulfill_order {
             ..User::default()
         };
         create_anchor_account_info!(maker, User, maker_account_info);
-        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let now = 0_i64;
         let slot = 0_u64;
@@ -3334,16 +3331,15 @@ pub mod fulfill_order {
             ..UserStats::default()
         };
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
-        let mut maker_and_referrer_stats =
-            UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let (base_asset_amount, _, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
             &mut taker_stats,
-            &mut makers_and_referrers,
-            &mut maker_and_referrer_stats,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
             vec![(maker_key, 0, 100 * PRICE_PRECISION_U64)],
             &mut None,
             &filler_key,
@@ -3505,8 +3501,8 @@ pub mod fulfill_order {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut UserMap::empty(),
-            &mut UserStatsMap::empty(),
+            &UserMap::empty(),
+            &UserStatsMap::empty(),
             vec![],
             &mut None,
             &filler_key,
@@ -3880,7 +3876,7 @@ pub mod fulfill_order {
             ..User::default()
         };
         create_anchor_account_info!(maker, User, maker_account_info);
-        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         // random
         let now = 1; //80080880_i64;
@@ -3896,8 +3892,7 @@ pub mod fulfill_order {
             ..UserStats::default()
         };
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
-        let mut maker_and_referrer_stats =
-            UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let taker_before = taker;
         let maker_before = maker;
@@ -3906,8 +3901,8 @@ pub mod fulfill_order {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut makers_and_referrers,
-            &mut maker_and_referrer_stats,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
             vec![(maker_key, 1, 100 * PRICE_PRECISION_U64)],
             &mut None,
             &filler_key,
@@ -4192,15 +4187,14 @@ pub mod fill_order {
             ..User::default()
         };
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
-        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut maker_stats = UserStats {
             authority: maker_authority,
             ..UserStats::default()
         };
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
-        let mut maker_and_referrer_stats =
-            UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
@@ -4227,8 +4221,8 @@ pub mod fill_order {
             &mut oracle_map,
             &filler_account_loader,
             &filler_stats_account_loader,
-            &mut makers_and_referrers,
-            &mut maker_and_referrer_stats,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
             None,
             &clock,
         )
@@ -4399,15 +4393,14 @@ pub mod fill_order {
             ..User::default()
         };
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
-        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut maker_stats = UserStats {
             authority: maker_authority,
             ..UserStats::default()
         };
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
-        let mut maker_and_referrer_stats =
-            UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
@@ -4434,8 +4427,8 @@ pub mod fill_order {
             &mut oracle_map,
             &filler_account_loader,
             &filler_stats_account_loader,
-            &mut makers_and_referrers,
-            &mut maker_and_referrer_stats,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
             None,
             &clock,
         )
@@ -4561,8 +4554,8 @@ pub mod fill_order {
             &mut oracle_map,
             &filler_account_loader,
             &filler_stats_account_loader,
-            &mut UserMap::empty(),
-            &mut UserStatsMap::empty(),
+            &UserMap::empty(),
+            &UserStatsMap::empty(),
             None,
             &clock,
         )
@@ -4727,8 +4720,8 @@ pub mod fill_order {
             &mut oracle_map,
             &filler_account_loader,
             &filler_stats_account_loader,
-            &mut UserMap::empty(),
-            &mut UserStatsMap::empty(),
+            &UserMap::empty(),
+            &UserStatsMap::empty(),
             None,
             &clock,
         );
@@ -8181,7 +8174,7 @@ pub mod sort_maker_orders {
 pub mod get_maker_order_info {
     use std::str::FromStr;
 
-    use anchor_lang::prelude::{AccountLoader, Clock};
+    use anchor_lang::prelude::Clock;
 
     use crate::controller::orders::get_maker_order_info;
     use crate::controller::position::PositionDirection;
@@ -8198,7 +8191,7 @@ pub mod get_maker_order_info {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
+    use crate::state::user::{OrderStatus, OrderType, SpotPosition, User};
     use crate::state::user_map::UserMap;
     use crate::test_utils::*;
     use crate::test_utils::{
@@ -8372,7 +8365,7 @@ pub mod get_maker_order_info {
         let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
 
-        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
@@ -8381,7 +8374,7 @@ pub mod get_maker_order_info {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &mut makers_and_referrers,
+            &makers_and_referrers,
             &taker_key,
             &user.orders[0],
             &mut Some(&mut filler),
@@ -8566,7 +8559,7 @@ pub mod get_maker_order_info {
         let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
 
-        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
@@ -8575,7 +8568,7 @@ pub mod get_maker_order_info {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &mut makers_and_referrers,
+            &makers_and_referrers,
             &taker_key,
             &user.orders[0],
             &mut Some(&mut filler),
@@ -8749,7 +8742,7 @@ pub mod get_maker_order_info {
         let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
 
-        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
@@ -8758,7 +8751,7 @@ pub mod get_maker_order_info {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &mut makers_and_referrers,
+            &makers_and_referrers,
             &taker_key,
             &user.orders[0],
             &mut Some(&mut filler),

@@ -665,8 +665,8 @@ pub fn fill_perp_order(
     oracle_map: &mut OracleMap,
     filler: &AccountLoader<User>,
     filler_stats: &AccountLoader<UserStats>,
-    makers_and_referrer: &mut UserMap,
-    makers_and_referrer_stats: &mut UserStatsMap,
+    makers_and_referrer: &UserMap,
+    makers_and_referrer_stats: &UserStatsMap,
     jit_maker_order_id: Option<u32>,
     clock: &Clock,
 ) -> DriftResult<(u64, bool)> {
@@ -1027,7 +1027,7 @@ fn get_maker_order_info(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    makers_and_referrer: &mut UserMap,
+    makers_and_referrer: &UserMap,
     taker_key: &Pubkey,
     taker_order: &Order,
     filler: &mut Option<&mut User>,
@@ -1042,7 +1042,7 @@ fn get_maker_order_info(
 
     let maker_direction = taker_order.direction.opposite();
 
-    for (maker_key, user_account_loader) in makers_and_referrer.0.iter_mut() {
+    for (maker_key, user_account_loader) in makers_and_referrer.0.iter() {
         if maker_key == taker_key {
             continue;
         }

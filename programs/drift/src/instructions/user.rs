@@ -889,8 +889,7 @@ pub fn handle_place_and_take_perp_order<'info>(
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
-    let (mut makers_and_referrer, mut makers_and_referrer_stats) =
-        load_user_maps(remaining_accounts_iter)?;
+    let (makers_and_referrer, makers_and_referrer_stats) = load_user_maps(remaining_accounts_iter)?;
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
@@ -925,8 +924,8 @@ pub fn handle_place_and_take_perp_order<'info>(
         &mut oracle_map,
         &user.clone(),
         &ctx.accounts.user_stats.clone(),
-        &mut makers_and_referrer,
-        &mut makers_and_referrer_stats,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
         None,
         &Clock::get()?,
     )?;
@@ -1025,8 +1024,8 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         &mut oracle_map,
         &ctx.accounts.user.clone(),
         &ctx.accounts.user_stats.clone(),
-        &mut makers_and_referrer,
-        &mut makers_and_referrer_stats,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
         Some(order_id),
         clock,
     )?;

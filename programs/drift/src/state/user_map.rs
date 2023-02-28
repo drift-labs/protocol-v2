@@ -207,7 +207,7 @@ impl<'a> UserStatsMap<'a> {
 
         let user_stats_discriminator: [u8; 8] = UserStats::discriminator();
 
-        let user_stats_key = account_info.key;
+        let _user_stats_key = account_info.key;
 
         let data = account_info
             .try_borrow_data()

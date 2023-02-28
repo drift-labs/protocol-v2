@@ -3,10 +3,9 @@ import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
 
-import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
 	PRICE_PRECISION,
 	TestClient,
@@ -21,7 +20,6 @@ import {
 
 import {
 	initializeQuoteSpotMarket,
-	initializeSolSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,

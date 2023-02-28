@@ -77,8 +77,7 @@ fn fill_order(ctx: Context<FillOrder>, order_id: u32, market_index: u16) -> Resu
         Some(state.oracle_guard_rails),
     )?;
 
-    let (mut makers_and_referrer, mut makers_and_referrer_stats) =
-        load_user_maps(remaining_accounts_iter)?;
+    let (makers_and_referrer, makers_and_referrer_stats) = load_user_maps(remaining_accounts_iter)?;
 
     controller::repeg::update_amm(
         market_index,
@@ -98,8 +97,8 @@ fn fill_order(ctx: Context<FillOrder>, order_id: u32, market_index: u16) -> Resu
         &mut oracle_map,
         &ctx.accounts.filler,
         &ctx.accounts.filler_stats,
-        &mut makers_and_referrer,
-        &mut makers_and_referrer_stats,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
         None,
         clock,
     )?;

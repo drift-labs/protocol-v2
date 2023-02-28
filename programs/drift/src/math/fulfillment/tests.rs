@@ -55,7 +55,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &vec![(Pubkey::default(), 0, 103 * PRICE_PRECISION_U64)],
+            &[(Pubkey::default(), 0, 103 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -112,7 +112,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &vec![(Pubkey::default(), 0, 99 * PRICE_PRECISION_U64)],
+            &[(Pubkey::default(), 0, 99 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -181,7 +181,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &vec![(Pubkey::default(), 0, 101 * PRICE_PRECISION_U64)],
+            &[(Pubkey::default(), 0, 101 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -245,7 +245,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &vec![
+            &[
                 (Pubkey::default(), 0, 99 * PRICE_PRECISION_U64),
                 (Pubkey::default(), 1, 101 * PRICE_PRECISION_U64),
             ],
@@ -313,7 +313,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &vec![
+            &[
                 (Pubkey::default(), 0, 99 * PRICE_PRECISION_U64),
                 (
                     Pubkey::default(),
@@ -384,7 +384,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &vec![
+            &[
                 (Pubkey::default(), 0, 102 * PRICE_PRECISION_U64),
                 (Pubkey::default(), 1, 103 * PRICE_PRECISION_U64),
             ],
@@ -453,7 +453,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &vec![
+            &[
                 (Pubkey::default(), 0, 101 * PRICE_PRECISION_U64),
                 (Pubkey::default(), 1, 99 * PRICE_PRECISION_U64),
             ],
@@ -521,7 +521,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &vec![
+            &[
                 (Pubkey::default(), 0, 102 * PRICE_PRECISION_U64),
                 (Pubkey::default(), 1, 101 * PRICE_PRECISION_U64),
             ],
@@ -588,7 +588,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &vec![
+            &[
                 (Pubkey::default(), 0, 99 * PRICE_PRECISION_U64),
                 (Pubkey::default(), 1, 98 * PRICE_PRECISION_U64),
             ],
@@ -657,7 +657,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &vec![
+            &[
                 (Pubkey::default(), 0, 101 * PRICE_PRECISION_U64),
                 (Pubkey::default(), 1, 102 * PRICE_PRECISION_U64),
             ],
@@ -717,7 +717,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &vec![
+            &[
                 (Pubkey::default(), 0, 99 * PRICE_PRECISION_U64),
                 (Pubkey::default(), 1, 98 * PRICE_PRECISION_U64),
             ],
