@@ -812,24 +812,8 @@ pub fn fill_perp_order(
         slot,
     )?;
 
-    let referrer_keys = if !user_stats.referrer.eq(&Pubkey::default()) {
-        let referrer_authority_key = user_stats.referrer;
-        let mut referrer_user_key = Pubkey::default();
-        for (maker_key, maker) in makers_and_referrer.0.iter() {
-            if load!(maker)?.authority == referrer_authority_key {
-                referrer_user_key = *maker_key;
-                break;
-            }
-        }
-
-        if referrer_user_key == Pubkey::default() {
-            return Err(ErrorCode::ReferrerNotFound);
-        }
-
-        Some((referrer_authority_key, referrer_user_key))
-    } else {
-        None
-    };
+    let referrer_info =
+        get_referrer_info(user_stats, makers_and_referrer, makers_and_referrer_stats)?;
 
     let should_expire_order = should_expire_order(user, order_index, now)?;
 
@@ -885,7 +869,7 @@ pub fn fill_perp_order(
             &mut filler.as_deref_mut(),
             &filler_key,
             &mut filler_stats.as_deref_mut(),
-            referrer_keys,
+            referrer_info,
             spot_market_map,
             perp_market_map,
             oracle_map,
@@ -1192,43 +1176,44 @@ fn sort_maker_orders(
     });
 }
 
-#[allow(clippy::type_complexity)]
-fn sanitize_referrer<'a>(
-    referrer: Option<&'a AccountLoader<User>>,
-    referrer_stats: Option<&'a AccountLoader<UserStats>>,
+fn get_referrer_info(
     user_stats: &UserStats,
-) -> DriftResult<(Option<RefMut<'a, User>>, Option<RefMut<'a, UserStats>>)> {
-    if referrer.is_none() || referrer_stats.is_none() {
-        validate!(
-            !user_stats.has_referrer(),
-            ErrorCode::InvalidReferrer,
-            "User has referrer but referrer/referrer stats missing"
-        )?;
-
-        return Ok((None, None));
+    makers_and_referrer: &UserMap,
+    makers_and_referrer_stats: &UserStatsMap,
+) -> DriftResult<Option<(Pubkey, Pubkey)>> {
+    if user_stats.referrer.eq(&Pubkey::default()) {
+        return Ok(None);
     }
 
-    let referrer = load_mut!(referrer.safe_unwrap()?)?;
-    let referrer_stats = load_mut!(referrer_stats.safe_unwrap()?)?;
     validate!(
-        referrer.sub_account_id == 0,
-        ErrorCode::InvalidReferrer,
-        "Referrer must be user id 0"
+        makers_and_referrer_stats
+            .0
+            .contains_key(&user_stats.referrer),
+        ErrorCode::ReferrerStatsNotFound
     )?;
 
-    validate!(
-        referrer.authority.eq(&referrer_stats.authority),
-        ErrorCode::InvalidReferrer,
-        "Referrer authority != Referrer stats authority"
-    )?;
+    let referrer_authority_key = user_stats.referrer;
+    let mut referrer_user_key = Pubkey::default();
+    for (referrer_key, referrer) in makers_and_referrer.0.iter() {
+        let referrer = load!(referrer)?;
+        if referrer.authority != referrer_authority_key {
+            continue;
+        }
 
-    validate!(
-        referrer.authority.eq(&user_stats.referrer),
-        ErrorCode::InvalidReferrer,
-        "Referrer authority != user stats authority"
-    )?;
+        validate!(
+            referrer.sub_account_id == 0,
+            ErrorCode::InvalidReferrer,
+            "Referrer must be user id 0"
+        )?;
 
-    Ok((Some(referrer), Some(referrer_stats)))
+        referrer_user_key = *referrer_key;
+    }
+
+    if referrer_user_key == Pubkey::default() {
+        return Err(ErrorCode::ReferrerNotFound);
+    }
+
+    Ok(Some((referrer_authority_key, referrer_user_key)))
 }
 
 fn fulfill_perp_order(
@@ -1242,7 +1227,7 @@ fn fulfill_perp_order(
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
     filler_stats: &mut Option<&mut UserStats>,
-    referrer_keys: Option<(Pubkey, Pubkey)>,
+    referrer_info: Option<(Pubkey, Pubkey)>,
     spot_market_map: &SpotMarketMap,
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
@@ -1296,7 +1281,7 @@ fn fulfill_perp_order(
         let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
             PerpFulfillmentMethod::AMM(maker_price) => {
                 let (mut referrer, mut referrer_stats) = get_referrer(
-                    &referrer_keys,
+                    &referrer_info,
                     makers_and_referrer,
                     makers_and_referrer_stats,
                     None,
@@ -1337,7 +1322,7 @@ fn fulfill_perp_order(
                 };
 
                 let (mut referrer, mut referrer_stats) = get_referrer(
-                    &referrer_keys,
+                    &referrer_info,
                     makers_and_referrer,
                     makers_and_referrer_stats,
                     Some(&maker),
@@ -1455,12 +1440,12 @@ fn fulfill_perp_order(
 
 #[allow(clippy::type_complexity)]
 fn get_referrer<'a>(
-    referrer_key: &'a Option<(Pubkey, Pubkey)>,
+    referrer_info: &'a Option<(Pubkey, Pubkey)>,
     makers_and_referrer: &'a UserMap,
     makers_and_referrer_stats: &'a UserStatsMap,
     maker: Option<&User>,
 ) -> DriftResult<(Option<RefMut<'a, User>>, Option<RefMut<'a, UserStats>>)> {
-    let (referrer_authority_key, referrer_user_key) = match referrer_key {
+    let (referrer_authority_key, referrer_user_key) = match referrer_info {
         Some(referrer_keys) => referrer_keys,
         None => return Ok((None, None)),
     };
