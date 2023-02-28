@@ -595,6 +595,34 @@ mod test {
             .unsigned_abs(),
             116587 // 11.6587%
         );
+
+        assert_eq!(
+            calculate_spread_inventory_scale(
+                100000,
+                AMM_RESERVE_PRECISION + 100000,
+                AMM_RESERVE_PRECISION / 2,
+                AMM_RESERVE_PRECISION * 3 / 2,
+                250,
+                30000,
+            )
+            .unwrap(),
+            1024000
+        );
+
+        assert_eq!(
+            calculate_spread_inventory_scale(
+                30228000000000000,
+                2496788386034912600,
+                2443167585342470000,
+                2545411471321696000,
+                3500,
+                100000,
+            )
+            .unwrap(),
+            18762285
+        );
+        assert_eq!(3500_u128 * 18762285_u128 / 1000000_u128, 65667_u128);
+
         let d1 = 250;
         let max_spread = 300000;
         let iscale = calculate_spread_inventory_scale(
