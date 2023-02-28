@@ -84,6 +84,19 @@ impl<'a> UserMap<'a> {
         }
     }
 
+    pub fn insert(&mut self, user: Pubkey, account_loader: AccountLoader<'a, User>) -> DriftResult {
+        validate!(
+            !self.0.contains_key(&user),
+            ErrorCode::InvalidUserAccount,
+            "User already exists in map {:?}",
+            user
+        )?;
+
+        self.0.insert(user, account_loader);
+
+        Ok(())
+    }
+
     pub fn empty() -> UserMap<'a> {
         UserMap(BTreeMap::new())
     }
@@ -120,7 +133,7 @@ impl<'a> UserMap<'a> {
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidUserAccount))?;
 
-        user_map.0.insert(*user_key, user_account_loader);
+        user_map.insert(*user_key, user_account_loader)?;
 
         Ok(user_map)
     }
@@ -193,6 +206,23 @@ impl<'a> UserStatsMap<'a> {
                 Err(ErrorCode::UnableToLoadUserStatsAccount)
             }
         }
+    }
+
+    pub fn insert(
+        &mut self,
+        authority: Pubkey,
+        account_loader: AccountLoader<'a, UserStats>,
+    ) -> DriftResult {
+        validate!(
+            !self.0.contains_key(&authority),
+            ErrorCode::InvalidUserStatsAccount,
+            "User stats already exists in map {:?}",
+            authority
+        )?;
+
+        self.0.insert(authority, account_loader);
+
+        Ok(())
     }
 
     pub fn empty() -> UserStatsMap<'a> {
@@ -314,9 +344,7 @@ pub fn load_user_maps<'a>(
             AccountLoader::try_from(user_stats_account_info)
                 .or(Err(ErrorCode::InvalidUserStatsAccount))?;
 
-        user_stats_map
-            .0
-            .insert(authority, user_stats_account_loader);
+        user_stats_map.insert(authority, user_stats_account_loader)?;
     }
 
     Ok((user_map, user_stats_map))

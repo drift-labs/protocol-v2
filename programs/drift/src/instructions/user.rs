@@ -1007,12 +1007,8 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
 
     let (mut makers_and_referrer, mut makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter)?;
-    makers_and_referrer
-        .0
-        .insert(ctx.accounts.user.key(), ctx.accounts.user.clone());
-    makers_and_referrer_stats
-        .0
-        .insert(authority, ctx.accounts.user_stats.clone());
+    makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
+    makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
     controller::orders::fill_perp_order(
         taker_order_id,
