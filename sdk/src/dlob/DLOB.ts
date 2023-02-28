@@ -450,8 +450,9 @@ export class DLOB {
 	}
 
 	public getOrder(orderId: number, userAccount: PublicKey): Order | undefined {
+		const orderSignature = getOrderSignature(orderId, userAccount);
 		for (const nodeList of this.getNodeLists()) {
-			const node = nodeList.get(orderId, userAccount);
+			const node = nodeList.get(orderSignature);
 			if (node) {
 				return node.order;
 			}
