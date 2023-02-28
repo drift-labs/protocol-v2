@@ -567,7 +567,8 @@ impl AMM {
     pub fn get_oracle_twap(&self, price_oracle: &AccountInfo) -> DriftResult<Option<i64>> {
         match self.oracle_source {
             OracleSource::Pyth => Ok(Some(self.get_pyth_twap(price_oracle, 1)?)),
-            OracleSource::Pyth1000 => Ok(Some(self.get_pyth_twap(price_oracle, 1000)?)),
+            OracleSource::Pyth1K => Ok(Some(self.get_pyth_twap(price_oracle, 1000)?)),
+            OracleSource::Pyth1M => Ok(Some(self.get_pyth_twap(price_oracle, 1000000)?)),
             OracleSource::Switchboard => Ok(None),
             OracleSource::QuoteAsset => {
                 msg!("Can't get oracle twap for quote asset");
