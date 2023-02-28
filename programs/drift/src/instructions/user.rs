@@ -866,7 +866,7 @@ pub fn handle_cancel_orders(
 pub fn handle_place_and_take_perp_order<'info>(
     ctx: Context<PlaceAndTake>,
     params: OrderParams,
-    maker_order_id: Option<u32>,
+    _maker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
