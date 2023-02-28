@@ -21,11 +21,11 @@ fn pyth_1000() {
     );
 
     let oracle_price_data =
-        get_oracle_price(&OracleSource::Pyth1000, &oracle_account_info, 0).unwrap();
+        get_oracle_price(&OracleSource::Pyth1K, &oracle_account_info, 0).unwrap();
     assert_eq!(oracle_price_data.price, 839);
 
     let amm = AMM {
-        oracle_source: OracleSource::Pyth1000,
+        oracle_source: OracleSource::Pyth1K,
         ..AMM::default()
     };
 

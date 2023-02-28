@@ -62,7 +62,7 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 4,
 		oracle: new PublicKey('6bquU99ktV1VRiHDr8gMhDFt3kMfhCQo5nfNrg2Urvsn'),
 		launchTs: 1677068931000,
-		oracleSource: OracleSource.PYTH_1000,
+		oracleSource: OracleSource.PYTH_1K,
 	},
 ];
 
