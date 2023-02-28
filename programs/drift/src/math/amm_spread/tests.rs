@@ -97,7 +97,7 @@ mod test {
             base_spread,
             last_oracle_reserve_price_spread_pct,
             last_oracle_conf_pct,
-            max_spread,
+            base_spread * 20,
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
@@ -115,8 +115,8 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread2, (base_spread * 10));
-        assert_eq!(short_spread2, (base_spread * 10 / 2));
+        assert_eq!(long_spread2, 16667);
+        assert_eq!(short_spread2, 3333);
 
         // oracle retreat * skew that increases long spread
         last_oracle_reserve_price_spread_pct = BID_ASK_SPREAD_PRECISION_I64 / 20; //5%
@@ -144,14 +144,16 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert!(short_spread3 > long_spread3);
 
         // 1000/2 * (1+(34562000-34000000)/QUOTE_PRECISION) -> 781
-        assert_eq!(long_spread3, 31246);
+        // assert_eq!(long_spread3, 31246);
+        assert_eq!(long_spread3, 46869);
 
         // last_oracle_reserve_price_spread_pct + conf retreat
         // assert_eq!(short_spread3, 1010000);
-        assert_eq!(short_spread3, 60000); // hitting max spread
+        assert_eq!(short_spread3, 60000);
+        assert!(short_spread3 > long_spread3);
+        assert_eq!(short_spread3 + long_spread3, 106869);
 
         last_oracle_reserve_price_spread_pct = -BID_ASK_SPREAD_PRECISION_I64 / 777;
         last_oracle_conf_pct = 1;
@@ -179,7 +181,7 @@ mod test {
         .unwrap();
         assert!(short_spread4 < long_spread4);
         // (1000000/777 + 1 )* 1.562 * 2 -> 2012 * 2
-        assert_eq!(long_spread4, 2012 * 2);
+        assert_eq!(long_spread4, 33256);
         // base_spread
         assert_eq!(short_spread4, 500);
 
@@ -228,8 +230,8 @@ mod test {
         assert!(qar_s < amm.quote_asset_reserve);
         assert!(bar_s > amm.base_asset_reserve);
         assert_eq!(bar_s, 2000500125);
-        assert_eq!(bar_l, 1996705107);
-        assert_eq!(qar_l, 2003300330);
+        assert_eq!(bar_l, 1972972973);
+        assert_eq!(qar_l, 2027397260);
         assert_eq!(qar_s, 1999500000);
 
         let (long_spread_btc, short_spread_btc) = calculate_spread(
@@ -282,7 +284,7 @@ mod test {
         .unwrap();
 
         assert_eq!(long_spread_btc1, 211);
-        assert_eq!(short_spread_btc1, 200000 - 211); // max spread
+        assert_eq!(short_spread_btc1, 200000 - long_spread_btc1); // max spread
     }
 
     #[test]
@@ -356,7 +358,7 @@ mod test {
         assert_eq!(inventory_scale, 714285);
 
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 2166);
+        assert_eq!(short_spread1, 67166);
 
         base_asset_amount_with_amm *= 2;
         let (long_spread1, short_spread1) = calculate_spread(
@@ -382,7 +384,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 5000 + 2166);
+        assert_eq!(short_spread1, 133833);
 
         terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 11;
         total_fee_minus_distributions = QUOTE_PRECISION_I128 * 5;
@@ -408,8 +410,8 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 10787 + 4674);
+        assert_eq!(long_spread1, 345);
+        assert_eq!(short_spread1, 199655);
 
         total_fee_minus_distributions = QUOTE_PRECISION_I128;
         let (long_spread1, short_spread1) = calculate_spread(
@@ -434,8 +436,8 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 48641); // 1214 * 40.06
+        assert_eq!(long_spread1, 110);
+        assert_eq!(short_spread1, 199890); // todo
 
         // flip sign
         let (d1, _) = calculate_long_short_vol_spread(
@@ -459,7 +461,7 @@ mod test {
             max_spread as u64,
         )
         .unwrap();
-        assert_eq!(iscale, 14333333); //14.3x
+        assert_eq!(iscale, 133334200000);
 
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
@@ -483,8 +485,8 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread1, 71660);
-        assert_eq!(short_spread1, 500);
+        assert_eq!(long_spread1, 199926);
+        assert_eq!(short_spread1, max_spread - long_spread1);
 
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
@@ -508,8 +510,8 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread1, 199901);
-        assert_eq!(short_spread1, 99); // max on long
+        assert_eq!(long_spread1, 199951);
+        assert_eq!(short_spread1, max_spread - long_spread1); // max on long
 
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
@@ -533,13 +535,93 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread1, 31660);
-        assert_eq!(short_spread1, 500);
+        assert_eq!(long_spread1, 199815);
+        assert_eq!(short_spread1, 185);
     }
 
     #[test]
-    fn calculate_spread_inventory_scale_tests() {
-        // from mainnet 2022/11/22
+    fn calculate_spread_inventory_scale_2_tests() {
+        assert_eq!(
+            calculate_inventory_liquidity_ratio(1, 10, 0, 20,)
+                .unwrap()
+                .unsigned_abs(),
+            PERCENTAGE_PRECISION / 10
+        );
+        assert_eq!(
+            calculate_inventory_liquidity_ratio(1000000000, 10000000000, 0, 20000000000)
+                .unwrap()
+                .unsigned_abs(),
+            PERCENTAGE_PRECISION / 10
+        );
+        assert_eq!(
+            calculate_inventory_liquidity_ratio(-1000000000, 10000000000, 0, 20000000000)
+                .unwrap()
+                .unsigned_abs(),
+            PERCENTAGE_PRECISION / 10
+        );
+        assert_eq!(
+            calculate_inventory_liquidity_ratio(-1000000000, 10000000000, 5000, 20000000000)
+                .unwrap()
+                .unsigned_abs(),
+            PERCENTAGE_PRECISION / 10
+        );
+        assert_eq!(
+            calculate_inventory_liquidity_ratio(-1000000000, 10000000000, 5000000, 20000000000)
+                .unwrap()
+                .unsigned_abs(),
+            100050
+        );
+        assert_eq!(
+            calculate_inventory_liquidity_ratio(-1000000000, 10000000000, 9000000000, 20000000000)
+                .unwrap()
+                .unsigned_abs(),
+            1000000 // 100%
+        );
+        assert_eq!(
+            calculate_inventory_liquidity_ratio(-1000000000, 10000000000, 11000000000, 20000000000)
+                .unwrap()
+                .unsigned_abs(),
+            1000000 // way over but clamped to 100%
+        );
+
+        assert_eq!(
+            calculate_inventory_liquidity_ratio(
+                941291801615,
+                443370320987941,
+                435296619793629,
+                453513306290427
+            )
+            .unwrap()
+            .unsigned_abs(),
+            116587 // 11.6587%
+        );
+
+        assert_eq!(
+            calculate_spread_inventory_scale(
+                100000,
+                AMM_RESERVE_PRECISION + 100000,
+                AMM_RESERVE_PRECISION / 2,
+                AMM_RESERVE_PRECISION * 3 / 2,
+                250,
+                30000,
+            )
+            .unwrap(),
+            1024000
+        );
+
+        assert_eq!(
+            calculate_spread_inventory_scale(
+                30228000000000000,
+                2496788386034912600,
+                2443167585342470000,
+                2545411471321696000,
+                3500,
+                100000,
+            )
+            .unwrap(),
+            18762285
+        );
+        assert_eq!(3500_u128 * 18762285_u128 / 1000000_u128, 65667_u128);
 
         let d1 = 250;
         let max_spread = 300000;
@@ -552,12 +634,70 @@ mod test {
             max_spread,
         )
         .unwrap();
-        assert_eq!(iscale / BID_ASK_SPREAD_PRECISION, 600);
-        assert_eq!(250 * iscale / BID_ASK_SPREAD_PRECISION, 300000 / 2);
+
+        assert_eq!(max_spread / d1, 1200);
+        assert_eq!(iscale / BID_ASK_SPREAD_PRECISION, 140);
+        assert_eq!(250 * iscale / BID_ASK_SPREAD_PRECISION, 35226);
+
+        let iscale = calculate_spread_inventory_scale(
+            0,
+            AMM_RESERVE_PRECISION,
+            AMM_RESERVE_PRECISION / 10,
+            AMM_RESERVE_PRECISION * 19 / 10,
+            250,
+            300000,
+        )
+        .unwrap();
+        assert_eq!(iscale, 1_000_000);
+        assert_eq!(
+            calculate_inventory_liquidity_ratio(
+                450000000_i128,
+                AMM_RESERVE_PRECISION,
+                AMM_RESERVE_PRECISION / 10,
+                AMM_RESERVE_PRECISION * 19 / 10,
+            )
+            .unwrap()
+            .unsigned_abs(),
+            500000 // 50%
+        );
+        let iscale = calculate_spread_inventory_scale(
+            450000000_i128,
+            AMM_RESERVE_PRECISION,
+            AMM_RESERVE_PRECISION / 10,
+            AMM_RESERVE_PRECISION * 19 / 10,
+            250,
+            300_000,
+        )
+        .unwrap();
+        assert_eq!(250 * iscale / 1000000, 150250);
+        assert_eq!(iscale / 1000000, 601); //601x base spread gets you to half of max spread
+
+        assert_eq!(
+            calculate_inventory_liquidity_ratio(
+                450000000_i128,
+                AMM_RESERVE_PRECISION + 450000000,
+                AMM_RESERVE_PRECISION / 10,
+                AMM_RESERVE_PRECISION * 19 / 10,
+            )
+            .unwrap()
+            .unsigned_abs(),
+            1000000 // 100%
+        );
+        let iscale = calculate_spread_inventory_scale(
+            450000000_i128,
+            AMM_RESERVE_PRECISION + 450000000,
+            AMM_RESERVE_PRECISION / 10,
+            AMM_RESERVE_PRECISION * 19 / 10,
+            250,
+            300_000,
+        )
+        .unwrap();
+        assert_eq!(250 * iscale / 1000000, 300000);
+        assert_eq!(iscale / 1000000, 1200); //1200x base spread gets you to max spread
     }
 
     #[test]
-    fn calculate_spread_scales_tests() {
+    fn calculate_spread_leverage_scales_tests() {
         let lscale = calculate_spread_leverage_scale(
             AMM_RESERVE_PRECISION,
             AMM_RESERVE_PRECISION,
@@ -567,7 +707,7 @@ mod test {
             QUOTE_PRECISION_I128,
         )
         .unwrap();
-        assert_eq!(lscale, 10000000); // 10x (max)
+        assert_eq!(lscale, 10000000); // 10x
 
         // more total fee minus dist => lower leverage
         let lscale = calculate_spread_leverage_scale(
@@ -817,8 +957,8 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread, 1639 * 20); // inventory scale = 1e6 (=>2x), effective_leverage = 10 (10x, max) when terminal=quote reserves and amm long
-        assert_eq!(short_spread, 4918);
+        assert_eq!(long_spread, 195556);
+        assert_eq!(short_spread, max_spread - long_spread);
 
         let (long_spread, short_spread) = calculate_spread(
             base_spread,
@@ -843,7 +983,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread, 1639);
-        assert_eq!(short_spread, 4918 * 2); // inventory scale = 1e6, effective_leverage = 0 when terminal=quote reserves and amm short
+        assert_eq!(short_spread, 24917);
     }
 
     #[test]
@@ -1007,8 +1147,8 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_spread, 71020); // big cause of oracel pct
-        assert_eq!(short_spread, 9918);
+        assert_eq!(long_spread, 197138); // big cause of oracel pct
+        assert_eq!(short_spread, 2862);
 
         let (long_spread, short_spread) = calculate_spread(
             base_spread,
@@ -1033,7 +1173,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread, 1639);
-        assert_eq!(short_spread, 42977); // big
+        assert_eq!(short_spread, 76584); // big
     }
 
     #[test]
@@ -1060,8 +1200,8 @@ mod test {
             432067603632,
         )
         .unwrap();
-        assert_eq!(long_spread, 798);
-        assert_eq!(short_spread, 46702);
+        assert_eq!(long_spread, 4262);
+        assert_eq!(short_spread, 43238);
 
         let (long_spread, short_spread) = calculate_spread(
             300,
@@ -1085,7 +1225,7 @@ mod test {
             427588331503,
         )
         .unwrap();
-        assert_eq!(long_spread, 823);
-        assert_eq!(short_spread, 46677);
+        assert_eq!(long_spread, 4390);
+        assert_eq!(short_spread, 43110);
     }
 }
