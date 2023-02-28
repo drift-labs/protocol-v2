@@ -796,7 +796,7 @@ pub fn fill_perp_order(
         (None, None)
     };
 
-    let maker_order_info = sanitize_maker_order(
+    let maker_order_info = get_maker_order_info(
         perp_market_map,
         spot_market_map,
         oracle_map,
@@ -1039,7 +1039,7 @@ pub fn validate_market_within_price_band(
 }
 
 #[allow(clippy::type_complexity)]
-fn sanitize_maker_order(
+fn get_maker_order_info(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,

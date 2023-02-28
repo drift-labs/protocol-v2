@@ -8178,12 +8178,12 @@ pub mod sort_maker_orders {
     }
 }
 
-pub mod sanitize_maker_orders {
+pub mod get_maker_order_info {
     use std::str::FromStr;
 
     use anchor_lang::prelude::{AccountLoader, Clock};
 
-    use crate::controller::orders::sanitize_maker_order;
+    use crate::controller::orders::get_maker_order_info;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
@@ -8378,7 +8378,7 @@ pub mod sanitize_maker_orders {
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
 
-        let maker_order_price_and_indexes = sanitize_maker_order(
+        let maker_order_price_and_indexes = get_maker_order_info(
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -8573,7 +8573,7 @@ pub mod sanitize_maker_orders {
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
 
-        let maker_order_price_and_indexes = sanitize_maker_order(
+        let maker_order_price_and_indexes = get_maker_order_info(
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -8757,7 +8757,7 @@ pub mod sanitize_maker_orders {
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
 
-        let maker_order_price_and_indexes = sanitize_maker_order(
+        let maker_order_price_and_indexes = get_maker_order_info(
             &market_map,
             &spot_market_map,
             &mut oracle_map,
