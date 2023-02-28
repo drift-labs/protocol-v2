@@ -8372,8 +8372,7 @@ pub mod get_maker_order_info {
         let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
 
-        let mut makers_and_referrers =
-            UserMap::load(&mut vec![maker_account_info].iter().peekable(), None).unwrap();
+        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
@@ -8567,8 +8566,7 @@ pub mod get_maker_order_info {
         let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
 
-        let mut makers_and_referrers =
-            UserMap::load(&mut vec![maker_account_info].iter().peekable(), None).unwrap();
+        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
@@ -8751,8 +8749,7 @@ pub mod get_maker_order_info {
         let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
 
-        let mut makers_and_referrers =
-            UserMap::load(&mut vec![maker_account_info].iter().peekable(), None).unwrap();
+        let mut makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();

@@ -24,7 +24,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::user::{MarketType, User, UserStats};
-use crate::state::user_map::{UserMap, UserStatsMap};
+use crate::state::user_map::load_user_maps;
 use crate::validate;
 use crate::{controller, load, math};
 
@@ -77,8 +77,8 @@ fn fill_order(ctx: Context<FillOrder>, order_id: u32, market_index: u16) -> Resu
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut makers_and_referrer = UserMap::load(remaining_accounts_iter, None)?;
-    let mut makers_and_referrer_stats = UserStatsMap::load(remaining_accounts_iter, None)?;
+    let (mut makers_and_referrer, mut makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter)?;
 
     controller::repeg::update_amm(
         market_index,

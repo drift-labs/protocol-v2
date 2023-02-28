@@ -2,6 +2,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
+use crate::validate;
 use anchor_lang::prelude::AccountLoader;
 use anchor_lang::Discriminator;
 use arrayref::array_ref;
@@ -83,49 +84,8 @@ impl<'a> UserMap<'a> {
         }
     }
 
-    pub fn load<'b>(
-        account_info_iter: &'b mut Peekable<Iter<AccountInfo<'a>>>,
-        jit_maker: Option<(Pubkey, AccountLoader<'a, User>)>,
-    ) -> DriftResult<UserMap<'a>> {
-        let mut user_map = UserMap(BTreeMap::new());
-
-        let user_discriminator: [u8; 8] = User::discriminator();
-        while let Some(account_info) = account_info_iter.peek() {
-            let user_key = account_info.key;
-
-            let data = account_info
-                .try_borrow_data()
-                .or(Err(ErrorCode::CouldNotLoadUserData))?;
-
-            let expected_data_len = User::SIZE;
-            if data.len() < expected_data_len {
-                break;
-            }
-
-            let account_discriminator = array_ref![data, 0, 8];
-            if account_discriminator != &user_discriminator {
-                break;
-            }
-
-            let user_account_info = account_info_iter.next().safe_unwrap()?;
-
-            let is_writable = user_account_info.is_writable;
-            if !is_writable {
-                return Err(ErrorCode::UserWrongMutability);
-            }
-
-            let user_account_loader: AccountLoader<User> =
-                AccountLoader::try_from(user_account_info)
-                    .or(Err(ErrorCode::InvalidUserAccount))?;
-
-            user_map.0.insert(*user_key, user_account_loader);
-        }
-
-        if let Some((jit_user, jit_user_loader)) = jit_maker {
-            user_map.0.insert(jit_user, jit_user_loader);
-        }
-
-        Ok(user_map)
+    pub fn empty() -> UserMap<'a> {
+        UserMap(BTreeMap::new())
     }
 }
 
@@ -163,10 +123,6 @@ impl<'a> UserMap<'a> {
         user_map.0.insert(*user_key, user_account_loader);
 
         Ok(user_map)
-    }
-
-    pub fn empty() -> UserMap<'a> {
-        UserMap(BTreeMap::new())
     }
 }
 
@@ -239,54 +195,8 @@ impl<'a> UserStatsMap<'a> {
         }
     }
 
-    pub fn load<'b>(
-        account_info_iter: &'b mut Peekable<Iter<AccountInfo<'a>>>,
-        jit_maker_stats: Option<(Pubkey, AccountLoader<'a, UserStats>)>,
-    ) -> DriftResult<UserStatsMap<'a>> {
-        let mut user_stats_map = UserStatsMap(BTreeMap::new());
-
-        let user_stats_discriminator: [u8; 8] = UserStats::discriminator();
-        while let Some(account_info) = account_info_iter.peek() {
-            let data = account_info
-                .try_borrow_data()
-                .or(Err(ErrorCode::CouldNotLoadUserStatsData))?;
-
-            let expected_data_len = UserStats::SIZE;
-            if data.len() < expected_data_len {
-                break;
-            }
-
-            let account_discriminator = array_ref![data, 0, 8];
-            if account_discriminator != &user_stats_discriminator {
-                break;
-            }
-
-            let authority_slice = array_ref![data, 8, 32];
-            let authority = Pubkey::new(authority_slice);
-
-            let user_stats_account_info = account_info_iter.next().safe_unwrap()?;
-
-            let is_writable = user_stats_account_info.is_writable;
-            if !is_writable {
-                return Err(ErrorCode::UserStatsWrongMutability);
-            }
-
-            let user_stats_account_loader: AccountLoader<UserStats> =
-                AccountLoader::try_from(user_stats_account_info)
-                    .or(Err(ErrorCode::InvalidUserStatsAccount))?;
-
-            user_stats_map
-                .0
-                .insert(authority, user_stats_account_loader);
-        }
-
-        if let Some((jit_user_stats, jit_user_stats_loader)) = jit_maker_stats {
-            user_stats_map
-                .0
-                .insert(jit_user_stats, jit_user_stats_loader);
-        }
-
-        Ok(user_stats_map)
+    pub fn empty() -> UserStatsMap<'a> {
+        UserStatsMap(BTreeMap::new())
     }
 }
 
@@ -330,8 +240,84 @@ impl<'a> UserStatsMap<'a> {
 
         Ok(user_stats_map)
     }
+}
 
-    pub fn empty() -> UserStatsMap<'a> {
-        UserStatsMap(BTreeMap::new())
+pub fn load_user_maps<'a>(
+    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+) -> DriftResult<(UserMap<'a>, UserStatsMap<'a>)> {
+    let mut user_map = UserMap::empty();
+    let mut user_stats_map = UserStatsMap::empty();
+
+    let user_discriminator: [u8; 8] = User::discriminator();
+    let user_stats_discriminator: [u8; 8] = UserStats::discriminator();
+    while let Some(user_account_info) = account_info_iter.peek() {
+        let user_key = user_account_info.key;
+
+        let data = user_account_info
+            .try_borrow_data()
+            .or(Err(ErrorCode::CouldNotLoadUserData))?;
+
+        let expected_data_len = User::SIZE;
+        if data.len() < expected_data_len {
+            break;
+        }
+
+        let account_discriminator = array_ref![data, 0, 8];
+        if account_discriminator != &user_discriminator {
+            break;
+        }
+
+        let user_account_info = account_info_iter.next().safe_unwrap()?;
+
+        let is_writable = user_account_info.is_writable;
+        if !is_writable {
+            return Err(ErrorCode::UserWrongMutability);
+        }
+
+        let user_account_loader: AccountLoader<User> =
+            AccountLoader::try_from(user_account_info).or(Err(ErrorCode::InvalidUserAccount))?;
+
+        user_map.0.insert(*user_key, user_account_loader);
+
+        validate!(
+            account_info_iter.peek().is_some(),
+            ErrorCode::UserStatsNotFound
+        )?;
+
+        let user_stats_account_info = account_info_iter.peek().safe_unwrap()?;
+
+        let data = user_stats_account_info
+            .try_borrow_data()
+            .or(Err(ErrorCode::CouldNotLoadUserStatsData))?;
+
+        let expected_data_len = UserStats::SIZE;
+        if data.len() < expected_data_len {
+            return Err(ErrorCode::InvalidUserStatsAccount);
+        }
+
+        let account_discriminator = array_ref![data, 0, 8];
+        if account_discriminator != &user_stats_discriminator {
+            return Err(ErrorCode::InvalidUserStatsAccount);
+        }
+
+        let authority_slice = array_ref![data, 8, 32];
+        let authority = Pubkey::new(authority_slice);
+
+        let user_stats_account_info = account_info_iter.next().safe_unwrap()?;
+
+        let is_writable = user_stats_account_info.is_writable;
+        if !is_writable {
+            return Err(ErrorCode::UserStatsWrongMutability);
+        }
+
+        let user_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(user_stats_account_info)
+                .or(Err(ErrorCode::InvalidUserStatsAccount))?;
+
+        user_stats_map
+            .0
+            .insert(authority, user_stats_account_loader);
     }
+
+    Ok((user_map, user_stats_map))
 }

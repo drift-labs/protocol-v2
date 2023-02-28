@@ -39,7 +39,7 @@ use crate::state::traits::Size;
 use crate::state::user::{
     MarketType, OrderTriggerCondition, OrderType, User, UserStats, UserStatus,
 };
-use crate::state::user_map::{UserMap, UserStatsMap};
+use crate::state::user_map::load_user_maps;
 use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
@@ -889,8 +889,8 @@ pub fn handle_place_and_take_perp_order<'info>(
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
-    let mut makers_and_referrer = UserMap::load(remaining_accounts_iter, None)?;
-    let mut makers_and_referrer_stats = UserStatsMap::load(remaining_accounts_iter, None)?;
+    let (mut makers_and_referrer, mut makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter)?;
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
@@ -1006,11 +1006,14 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         (order_id, user.authority)
     };
 
-    let jit_maker = (ctx.accounts.user.key(), ctx.accounts.user.clone());
-    let mut makers_and_referrer = UserMap::load(remaining_accounts_iter, Some(jit_maker))?;
-    let jit_maker_stats = (authority, ctx.accounts.user_stats.clone());
-    let mut makers_and_referrer_stats =
-        UserStatsMap::load(remaining_accounts_iter, Some(jit_maker_stats))?;
+    let (mut makers_and_referrer, mut makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter)?;
+    makers_and_referrer
+        .0
+        .insert(ctx.accounts.user.key(), ctx.accounts.user.clone());
+    makers_and_referrer_stats
+        .0
+        .insert(authority, ctx.accounts.user_stats.clone());
 
     controller::orders::fill_perp_order(
         taker_order_id,

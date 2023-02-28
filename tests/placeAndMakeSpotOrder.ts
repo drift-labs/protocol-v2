@@ -9,7 +9,6 @@ import {
 	TestClient,
 	BN,
 	PRICE_PRECISION,
-	TestClient,
 	PositionDirection,
 	User,
 	Wallet,
