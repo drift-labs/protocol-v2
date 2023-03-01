@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.19.0] - 2023-03-01
+
+### Features
+
 - program: allow post only to match older taker limit orders ([#378](https://github.com/drift-labs/protocol-v2/pull/378)) 
 - ts-sdk: serum subscriber supports websockets ([#365](https://github.com/drift-labs/protocol-v2/pull/365))
 - program: max number of subaccounts to 3000
