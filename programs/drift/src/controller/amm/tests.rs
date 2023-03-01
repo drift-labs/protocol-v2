@@ -242,7 +242,7 @@ fn iterative_no_bounds_formualic_k_tests() {
     let mut count = 0;
     let mut prev_k = market.amm.sqrt_k;
     let mut new_k = 0;
-    while prev_k != new_k && count < 100000 {
+    while prev_k != new_k && count < 100000 && prev_k < MAX_SQRT_K * 99 / 100 {
         let funding_cost = -((QUOTE_PRECISION * 100000) as i128);
         prev_k = market.amm.sqrt_k;
         formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
@@ -251,8 +251,8 @@ fn iterative_no_bounds_formualic_k_tests() {
     }
 
     assert_eq!(market.amm.base_asset_amount_with_amm, -12295081967);
-    assert_eq!(market.amm.sqrt_k, 1000880506218211275599);
-    assert_eq!(market.amm.total_fee_minus_distributions, 985625040);
+    assert_eq!(market.amm.sqrt_k, 991917456633894384209); // below MAX_SQRT_K
+    assert_eq!(market.amm.total_fee_minus_distributions, 985625029);
 }
 
 #[test]

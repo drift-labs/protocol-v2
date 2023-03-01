@@ -7,7 +7,7 @@ use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_TO_QUOTE_PRECISION_RATIO_I128, K_BPS_UPDATE_SCALE,
-    MAX_K_BPS_DECREASE, PEG_PRECISION, PERCENTAGE_PRECISION_I128, QUOTE_PRECISION,
+    MAX_K_BPS_DECREASE, MAX_SQRT_K, PEG_PRECISION, PERCENTAGE_PRECISION_I128, QUOTE_PRECISION,
 };
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
 use crate::math::safe_math::SafeMath;
@@ -245,6 +245,13 @@ pub fn get_update_k_result(
     }
 
     let sqrt_k = new_sqrt_k.try_to_u128()?;
+
+    validate!(
+        sqrt_k <= MAX_SQRT_K,
+        ErrorCode::InvalidUpdateK,
+        "cannot increase sqrt_k={} past MAX_SQRT_K",
+        sqrt_k
+    )?;
 
     // only allow too small when market is in reduce only mode
     if market.status != MarketStatus::ReduceOnly

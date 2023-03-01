@@ -12,7 +12,9 @@ use crate::load_mut;
 use crate::math::amm;
 use crate::math::bn;
 use crate::math::casting::Cast;
-use crate::math::constants::{K_BPS_UPDATE_SCALE, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX};
+use crate::math::constants::{
+    K_BPS_UPDATE_SCALE, MAX_SQRT_K, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
+};
 use crate::math::cp_curve;
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::cp_curve::UpdateKResult;
@@ -367,7 +369,8 @@ pub fn settle_expired_market(
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .safe_mul(bn::U192::from(k_scale_numerator))?
-            .safe_div(bn::U192::from(k_scale_denominator))?;
+            .safe_div(bn::U192::from(k_scale_denominator))?
+            .min(bn::U192::from(MAX_SQRT_K));
 
         let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 
