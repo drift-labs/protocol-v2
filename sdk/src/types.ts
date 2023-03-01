@@ -80,7 +80,6 @@ export class OracleSource {
 	static readonly PYTH_1M = { pyth1M: {} };
 	// static readonly SWITCHBOARD = { switchboard: {} };
 	static readonly QUOTE_ASSET = { quoteAsset: {} };
-	static readonly PYTH_1000 = { pyth1000: {} };
 }
 
 export class OrderType {
