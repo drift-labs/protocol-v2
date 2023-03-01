@@ -1171,8 +1171,8 @@ fn sort_maker_orders(
     taker_order_direction: PositionDirection,
 ) {
     maker_orders_info.sort_by(|a, b| match taker_order_direction {
-        PositionDirection::Long => a.1.cmp(&b.1),
-        PositionDirection::Short => b.1.cmp(&a.1),
+        PositionDirection::Long => a.2.cmp(&b.2),
+        PositionDirection::Short => b.2.cmp(&a.2),
     });
 }
 
