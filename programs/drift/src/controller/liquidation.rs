@@ -36,8 +36,8 @@ use crate::math::liquidation::{
     validate_transfer_satisfies_limit_price, LiquidationMultiplierType,
 };
 use crate::math::margin::{
-    calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
-    MarginRequirementType,
+    calculate_margin_requirement_and_total_collateral, calculate_user_safest_position_tiers,
+    meets_initial_margin_requirement, MarginRequirementType,
 };
 use crate::math::oracle::DriftAction;
 use crate::math::orders::{
@@ -1551,7 +1551,8 @@ pub fn liquidate_perp_pnl_for_deposit(
 ) -> DriftResult {
     // liquidator takes over remaining negative perpetual pnl in exchange for a user deposit
     // can only be done once the perpetual position's size is 0
-    // blocked when the user deposit oracle is deemed invalid
+    // blocked when 1) user deposit oracle is deemed invalid
+    // or 2) user has outstanding liability with higher tier
 
     validate!(
         !user.is_bankrupt(),
@@ -1609,7 +1610,14 @@ pub fn liquidate_perp_pnl_for_deposit(
         now,
     )?;
 
-    let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
+    let (
+        asset_amount,
+        asset_price,
+        _asset_tier,
+        asset_decimals,
+        asset_weight,
+        asset_liquidation_multiplier,
+    ) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
         let (asset_price_data, validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&asset_market.oracle)?;
@@ -1643,6 +1651,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         (
             token_amount,
             token_price,
+            asset_market.asset_tier,
             asset_market.decimals,
             asset_market.maintenance_asset_weight,
             calculate_liquidation_multiplier(
@@ -1655,6 +1664,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     let (
         unsettled_pnl,
         quote_price,
+        contract_tier,
         quote_decimals,
         pnl_liability_weight,
         pnl_liquidation_multiplier,
@@ -1691,6 +1701,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         (
             unsettled_pnl.unsigned_abs(),
             quote_price,
+            market.contract_tier,
             6_u32,
             SPOT_WEIGHT_PRECISION,
             calculate_liquidation_multiplier(
@@ -1737,6 +1748,10 @@ pub fn liquidate_perp_pnl_for_deposit(
         None,
     )?;
 
+    let (safest_tier_spot_liability, safest_tier_perp_liability) =
+        calculate_user_safest_position_tiers(user, perp_market_map, spot_market_map)?;
+    let is_contract_tier_violation =
+        !(contract_tier.is_as_safe_as(&safest_tier_perp_liability, &safest_tier_spot_liability));
     // check if user exited liquidation territory
     let (intermediate_total_collateral, intermediate_margin_requirement_with_buffer) =
         if !canceled_order_ids.is_empty() {
@@ -1762,9 +1777,10 @@ pub fn liquidate_perp_pnl_for_deposit(
                 .cast::<u64>()?;
             user.increment_margin_freed(margin_freed)?;
 
-            if intermediate_total_collateral
-                >= intermediate_margin_requirement_plus_buffer.cast()?
-            {
+            let exiting_liq_territory = intermediate_total_collateral
+                >= intermediate_margin_requirement_plus_buffer.cast()?;
+
+            if exiting_liq_territory || is_contract_tier_violation {
                 let market = perp_market_map.get_ref(&perp_market_index)?;
                 let market_oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
@@ -1790,7 +1806,17 @@ pub fn liquidate_perp_pnl_for_deposit(
                     ..LiquidationRecord::default()
                 });
 
-                user.exit_liquidation();
+                if exiting_liq_territory {
+                    user.exit_liquidation();
+                } else if is_contract_tier_violation {
+                    msg!(
+                        "return early after cancel orders: liquidating contract tier={:?} pnl is riskier than outstanding {:?} & {:?}",
+                        contract_tier,
+                        safest_tier_perp_liability,
+                        safest_tier_spot_liability
+                    );
+                }
+
                 return Ok(());
             }
 
@@ -1801,6 +1827,16 @@ pub fn liquidate_perp_pnl_for_deposit(
         } else {
             (total_collateral, margin_requirement_plus_buffer)
         };
+
+    if is_contract_tier_violation {
+        msg!(
+            "liquidating contract tier={:?} pnl is riskier than outstanding {:?} & {:?}",
+            contract_tier,
+            safest_tier_perp_liability,
+            safest_tier_spot_liability
+        );
+        return Err(ErrorCode::TierViolationLiquidatingPerpPnl);
+    }
 
     let margin_shortage = calculate_margin_shortage(
         intermediate_margin_requirement_with_buffer,

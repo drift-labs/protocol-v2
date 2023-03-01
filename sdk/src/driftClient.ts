@@ -3160,7 +3160,7 @@ export class DriftClient {
 				? newTriggerCondition || openOrder.triggerCondition
 				: undefined,
 			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: auctionDuration || openOrder.auctionDuration,
+			auctionDuration: auctionDuration ?? openOrder.auctionDuration,
 			maxTs: openOrder.maxTs,
 			auctionStartPrice: auctionStartPrice || openOrder.auctionStartPrice,
 			auctionEndPrice: auctionEndPrice || openOrder.auctionEndPrice,
@@ -3695,7 +3695,7 @@ export class DriftClient {
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
 
-		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const spotMarket = this.getQuoteSpotMarketAccount();
 
 		return await this.program.instruction.resolvePerpBankruptcy(
 			QUOTE_SPOT_MARKET_INDEX,

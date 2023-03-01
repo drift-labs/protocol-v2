@@ -10,10 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- ts-sdk: serum subscriber supports websockets ([#365](https://github.com/drift-labs/protocol-v2/pull/365))
+- program: max number of subaccounts to 3000
+- program: amm spread logic more consistent across market by using liquidity ratio rather than base asset amount for inventory spread scaling([#374](https://github.com/drift-labs/protocol-v2/pull/374))
+- program: add pyth1M/pyth1K as OracleSource ([#375](https://github.com/drift-labs/protocol-v2/pull/375))
+
+### Fixes
+
+### Breaking
+
+## [2.18.0] - 2023-02-24
+
+### Features
+
+- program: account for contract tier in liquidate_perp_pnl_for_deposit ([#368](https://github.com/drift-labs/protocol-v2/pull/368))
+- program: simplifications for order fills ([#370](https://github.com/drift-labs/protocol-v2/pull/370))
+- program: block atomic fills ([#369](https://github.com/drift-labs/protocol-v2/pull/369))
 - program: allow limit orders to go through auction ([#355](https://github.com/drift-labs/protocol-v2/pull/355))
 - program: improve conditions for withdraw/borrow guard ([#354](https://github.com/drift-labs/protocol-v2/pull/354))
 
 ### Fixes
+
+- ts-sdk: fix resolvePerpBankrupcty to work with all perp market indexes
+- ts-sdk: getTokenAmount uses divCeil ([#371](https://github.com/drift-labs/protocol-v2/pull/371))
+- program: allow limit orders to have explicit zero auction duration passed in params ([#373](https://github.com/drift-labs/protocol-v2/pull/373))
 
 ### Breaking
 

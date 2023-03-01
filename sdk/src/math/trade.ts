@@ -782,7 +782,7 @@ export function calculateEstimatedSpotEntryPrice(
 				cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
 				cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
 
-				worstPrice = dlobLimitOrder;
+				worstPrice = dlobLimitOrderPrice;
 
 				dlobLimitOrder = dlobLimitOrders.next().value;
 			} else {

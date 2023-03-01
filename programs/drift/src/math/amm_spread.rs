@@ -8,16 +8,18 @@ use crate::math::amm::_calculate_market_open_bids_asks;
 use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    BID_ASK_SPREAD_PRECISION_U128, DEFAULT_LARGE_BID_ASK_FACTOR,
-    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
-    PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128,
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
+    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
+    DEFAULT_LARGE_BID_ASK_FACTOR, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION,
+    PRICE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::AMM;
 use crate::validate;
+
+use super::constants::PERCENTAGE_PRECISION_I128;
 
 #[cfg(test)]
 mod tests;
@@ -153,6 +155,37 @@ pub fn calculate_long_short_vol_spread(
     ))
 }
 
+pub fn calculate_inventory_liquidity_ratio(
+    base_asset_amount_with_amm: i128,
+    base_asset_reserve: u128,
+    min_base_asset_reserve: u128,
+    max_base_asset_reserve: u128,
+) -> DriftResult<i128> {
+    // computes min(1, x/(1-x)) for 0 < x < 1
+
+    // inventory scale
+    let (max_bids, max_asks) = _calculate_market_open_bids_asks(
+        base_asset_reserve,
+        min_base_asset_reserve,
+        max_base_asset_reserve,
+    )?;
+
+    let min_side_liquidity = max_bids.min(max_asks.abs());
+
+    let amm_inventory_pct = if base_asset_amount_with_amm.abs() < min_side_liquidity {
+        base_asset_amount_with_amm
+            .abs()
+            .safe_mul(PERCENTAGE_PRECISION_I128)
+            .unwrap_or(i128::MAX)
+            .safe_div(min_side_liquidity.max(1))?
+            .min(PERCENTAGE_PRECISION_I128)
+    } else {
+        PERCENTAGE_PRECISION_I128 // 100%
+    };
+
+    Ok(amm_inventory_pct)
+}
+
 pub fn calculate_spread_inventory_scale(
     base_asset_amount_with_amm: i128,
     base_asset_reserve: u128,
@@ -165,30 +198,16 @@ pub fn calculate_spread_inventory_scale(
         return Ok(BID_ASK_SPREAD_PRECISION);
     }
 
-    // inventory scale
-    let (max_bids, max_asks) = _calculate_market_open_bids_asks(
+    let amm_inventory_pct = calculate_inventory_liquidity_ratio(
+        base_asset_amount_with_amm,
         base_asset_reserve,
         min_base_asset_reserve,
         max_base_asset_reserve,
     )?;
 
-    let min_side_liquidity = max_bids.min(max_asks.abs());
-
-    // cap so (6e9 * AMM_RESERVE_PRECISION)^2 < 2^127
-    let amm_inventory_size = base_asset_amount_with_amm.abs().min(6000000000000000000);
-
-    // inventory scale
-    let inventory_scale = amm_inventory_size
-        .safe_mul(amm_inventory_size.max(AMM_RESERVE_PRECISION_I128))?
-        .safe_div(AMM_RESERVE_PRECISION_I128)?
-        .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>()?)?
-        .safe_div(min_side_liquidity.max(1))?
-        .unsigned_abs();
-
-    // only allow up to scale up of larger of MAX_BID_ASK_INVENTORY_SKEW_FACTOR or half of max spread
+    // only allow up to scale up of larger of MAX_BID_ASK_INVENTORY_SKEW_FACTOR or max spread
     let inventory_scale_max = MAX_BID_ASK_INVENTORY_SKEW_FACTOR.max(
         max_spread
-            .safe_div(2)?
             .safe_mul(BID_ASK_SPREAD_PRECISION)?
             .safe_div(max(directional_spread, 1))?,
     );
@@ -196,7 +215,12 @@ pub fn calculate_spread_inventory_scale(
     let inventory_scale_capped = min(
         inventory_scale_max,
         BID_ASK_SPREAD_PRECISION
-            .safe_add(inventory_scale.cast()?)
+            .safe_add(
+                inventory_scale_max
+                    .safe_mul(amm_inventory_pct.unsigned_abs().cast()?)
+                    .unwrap_or(u64::MAX)
+                    .safe_div(PERCENTAGE_PRECISION_I128.cast()?)?,
+            )
             .unwrap_or(u64::MAX),
     );
 
