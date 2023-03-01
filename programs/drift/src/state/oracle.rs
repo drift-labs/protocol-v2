@@ -92,10 +92,10 @@ impl HistoricalIndexData {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub enum OracleSource {
     Pyth,
-    Pyth1K,
-    Pyth1M,
     Switchboard,
     QuoteAsset,
+    Pyth1K,
+    Pyth1M,
 }
 
 impl Default for OracleSource {

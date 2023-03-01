@@ -6238,16 +6238,16 @@
             "name": "Pyth"
           },
           {
-            "name": "Pyth1K"
-          },
-          {
-            "name": "Pyth1M"
-          },
-          {
             "name": "Switchboard"
           },
           {
             "name": "QuoteAsset"
+          },
+          {
+            "name": "Pyth1K"
+          },
+          {
+            "name": "Pyth1M"
           }
         ]
       }
