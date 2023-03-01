@@ -1384,18 +1384,29 @@ export class DLOB {
 		const bidSlot = bidNode.order.slot.add(
 			new BN(bidNode.order.auctionDuration)
 		);
-		if (askSlot.lte(bidSlot) && !bidNode.order.postOnly) {
-			return {
-				takerNode: bidNode,
-				makerNode: askNode,
-			};
-		} else if (bidSlot.lte(askSlot) && !askNode.order.postOnly) {
+
+		if (bidNode.order.postOnly && askNode.order.postOnly) {
+			return undefined;
+		} else if (bidNode.order.postOnly) {
 			return {
 				takerNode: askNode,
 				makerNode: bidNode,
 			};
+		} else if (askNode.order.postOnly) {
+			return {
+				takerNode: bidNode,
+				makerNode: askNode,
+			};
+		} else if (askSlot.lte(bidSlot)) {
+			return {
+				takerNode: bidNode,
+				makerNode: askNode,
+			};
 		} else {
-			return undefined;
+			return {
+				takerNode: askNode,
+				makerNode: bidNode,
+			};
 		}
 	}
 
