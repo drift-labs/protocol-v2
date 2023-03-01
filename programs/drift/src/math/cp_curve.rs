@@ -247,7 +247,7 @@ pub fn get_update_k_result(
     let sqrt_k = new_sqrt_k.try_to_u128()?;
 
     validate!(
-        sqrt_k <= MAX_SQRT_K,
+        sqrt_k_ratio < sqrt_k_ratio_precision || sqrt_k <= MAX_SQRT_K,
         ErrorCode::InvalidUpdateK,
         "cannot increase sqrt_k={} past MAX_SQRT_K",
         sqrt_k
