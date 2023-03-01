@@ -796,7 +796,7 @@ pub fn fill_perp_order(
         (None, None)
     };
 
-    let maker_order_info = get_maker_order_info(
+    let maker_orders_info = get_maker_orders_info(
         perp_market_map,
         spot_market_map,
         oracle_map,
@@ -865,7 +865,7 @@ pub fn fill_perp_order(
             user_stats,
             makers_and_referrer,
             makers_and_referrer_stats,
-            maker_order_info,
+            maker_orders_info,
             &mut filler.as_deref_mut(),
             &filler_key,
             &mut filler_stats.as_deref_mut(),
@@ -1023,7 +1023,7 @@ pub fn validate_market_within_price_band(
 }
 
 #[allow(clippy::type_complexity)]
-fn get_maker_order_info(
+fn get_maker_orders_info(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -1038,7 +1038,7 @@ fn get_maker_order_info(
     now: i64,
     slot: u64,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
-    let mut maker_order_info = Vec::with_capacity(32);
+    let mut maker_orders_info = Vec::with_capacity(32);
 
     let maker_direction = taker_order.direction.opposite();
 
@@ -1156,21 +1156,21 @@ fn get_maker_order_info(
                 continue;
             }
 
-            maker_order_info.push((*maker_key, maker_order_index, maker_order_price));
+            maker_orders_info.push((*maker_key, maker_order_index, maker_order_price));
         }
     }
 
-    sort_maker_orders(&mut maker_order_info, taker_order.direction);
+    sort_maker_orders(&mut maker_orders_info, taker_order.direction);
 
-    Ok(maker_order_info)
+    Ok(maker_orders_info)
 }
 
 #[inline(always)]
 fn sort_maker_orders(
-    maker_order_info: &mut [(Pubkey, usize, u64)],
+    maker_orders_info: &mut [(Pubkey, usize, u64)],
     taker_order_direction: PositionDirection,
 ) {
-    maker_order_info.sort_by(|a, b| match taker_order_direction {
+    maker_orders_info.sort_by(|a, b| match taker_order_direction {
         PositionDirection::Long => a.1.cmp(&b.1),
         PositionDirection::Short => b.1.cmp(&a.1),
     });
@@ -1223,7 +1223,7 @@ fn fulfill_perp_order(
     user_stats: &mut UserStats,
     makers_and_referrer: &UserMap,
     makers_and_referrer_stats: &UserStatsMap,
-    maker_order_info: Vec<(Pubkey, usize, u64)>,
+    maker_orders_info: Vec<(Pubkey, usize, u64)>,
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
     filler_stats: &mut Option<&mut UserStats>,
@@ -1253,7 +1253,7 @@ fn fulfill_perp_order(
 
         determine_perp_fulfillment_methods(
             &user.orders[user_order_index],
-            &maker_order_info,
+            &maker_orders_info,
             &market.amm,
             reserve_price_before,
             Some(oracle_price),
