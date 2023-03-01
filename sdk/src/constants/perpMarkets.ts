@@ -107,6 +107,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1675802661000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Bonk',
+		category: ['Meme'],
+		symbol: '1MBONK-PERP',
+		baseAssetSymbol: '1MBONK',
+		marketIndex: 4,
+		oracle: new PublicKey('8ihFLu5FimgTQ1Unh4dVyEHUGodJ5gJQCrQf4KUVB9bN'),
+		launchTs: 1677690149000,
+		oracleSource: OracleSource.PYTH_1M,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
