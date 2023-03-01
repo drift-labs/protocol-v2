@@ -1404,7 +1404,7 @@ fn fulfill_perp_order(
     }
 
     for (maker_key, _) in makers_filled {
-        let maker = makers_and_referrer.get_ref_mut(&maker_key)?;
+        let maker = makers_and_referrer.get_ref(&maker_key)?;
 
         let (_, maker_total_collateral, maker_margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(

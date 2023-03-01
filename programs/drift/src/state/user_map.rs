@@ -9,7 +9,7 @@ use arrayref::array_ref;
 use solana_program::account_info::AccountInfo;
 use solana_program::msg;
 use solana_program::pubkey::Pubkey;
-use std::cell::RefMut;
+use std::cell::{Ref, RefMut};
 use std::collections::BTreeMap;
 use std::iter::Peekable;
 use std::panic::Location;
@@ -18,39 +18,39 @@ use std::slice::Iter;
 pub struct UserMap<'a>(pub BTreeMap<Pubkey, AccountLoader<'a, User>>);
 
 impl<'a> UserMap<'a> {
-    // #[track_caller]
-    // #[inline(always)]
-    // pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<PerpMarket>> {
-    //     let loader = match self.0.get(market_index) {
-    //         Some(loader) => loader,
-    //         None => {
-    //             let caller = Location::caller();
-    //             msg!(
-    //                 "Could not find perp market {} at {}:{}",
-    //                 market_index,
-    //                 caller.file(),
-    //                 caller.line()
-    //             );
-    //             return Err(ErrorCode::PerpMarketNotFound);
-    //         }
-    //     };
-    //
-    //     match loader.load() {
-    //         Ok(perp_market) => Ok(perp_market),
-    //         Err(e) => {
-    //             let caller = Location::caller();
-    //             msg!("{:?}", e);
-    //             msg!(
-    //                 "Could not load perp market {} at {}:{}",
-    //                 market_index,
-    //                 caller.file(),
-    //                 caller.line()
-    //             );
-    //             Err(ErrorCode::UnableToLoadPerpMarketAccount)
-    //         }
-    //     }
-    // }
-    //
+    #[track_caller]
+    #[inline(always)]
+    pub fn get_ref(&self, user: &Pubkey) -> DriftResult<Ref<User>> {
+        let loader = match self.0.get(user) {
+            Some(loader) => loader,
+            None => {
+                let caller = Location::caller();
+                msg!(
+                    "Could not find user {} at {}:{}",
+                    user,
+                    caller.file(),
+                    caller.line()
+                );
+                return Err(ErrorCode::UserNotFound);
+            }
+        };
+
+        match loader.load() {
+            Ok(user) => Ok(user),
+            Err(e) => {
+                let caller = Location::caller();
+                msg!("{:?}", e);
+                msg!(
+                    "Could not load user {} at {}:{}",
+                    user,
+                    caller.file(),
+                    caller.line()
+                );
+                Err(ErrorCode::UnableToLoadUserAccount)
+            }
+        }
+    }
+
     #[track_caller]
     #[inline(always)]
     pub fn get_ref_mut(&self, user: &Pubkey) -> DriftResult<RefMut<User>> {
@@ -64,7 +64,7 @@ impl<'a> UserMap<'a> {
                     caller.file(),
                     caller.line()
                 );
-                return Err(ErrorCode::PerpMarketNotFound);
+                return Err(ErrorCode::UserNotFound);
             }
         };
 
@@ -142,39 +142,39 @@ impl<'a> UserMap<'a> {
 pub struct UserStatsMap<'a>(pub BTreeMap<Pubkey, AccountLoader<'a, UserStats>>);
 
 impl<'a> UserStatsMap<'a> {
-    // #[track_caller]
-    // #[inline(always)]
-    // pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<PerpMarket>> {
-    //     let loader = match self.0.get(market_index) {
-    //         Some(loader) => loader,
-    //         None => {
-    //             let caller = Location::caller();
-    //             msg!(
-    //                 "Could not find perp market {} at {}:{}",
-    //                 market_index,
-    //                 caller.file(),
-    //                 caller.line()
-    //             );
-    //             return Err(ErrorCode::PerpMarketNotFound);
-    //         }
-    //     };
-    //
-    //     match loader.load() {
-    //         Ok(perp_market) => Ok(perp_market),
-    //         Err(e) => {
-    //             let caller = Location::caller();
-    //             msg!("{:?}", e);
-    //             msg!(
-    //                 "Could not load perp market {} at {}:{}",
-    //                 market_index,
-    //                 caller.file(),
-    //                 caller.line()
-    //             );
-    //             Err(ErrorCode::UnableToLoadPerpMarketAccount)
-    //         }
-    //     }
-    // }
-    //
+    #[track_caller]
+    #[inline(always)]
+    pub fn get_ref(&self, authority: &Pubkey) -> DriftResult<Ref<UserStats>> {
+        let loader = match self.0.get(authority) {
+            Some(loader) => loader,
+            None => {
+                let caller = Location::caller();
+                msg!(
+                    "Could not find user stats {} at {}:{}",
+                    authority,
+                    caller.file(),
+                    caller.line()
+                );
+                return Err(ErrorCode::UserStatsNotFound);
+            }
+        };
+
+        match loader.load() {
+            Ok(user_stats) => Ok(user_stats),
+            Err(e) => {
+                let caller = Location::caller();
+                msg!("{:?}", e);
+                msg!(
+                    "Could not user stats {} at {}:{}",
+                    authority,
+                    caller.file(),
+                    caller.line()
+                );
+                Err(ErrorCode::UnableToLoadUserStatsAccount)
+            }
+        }
+    }
+
     #[track_caller]
     #[inline(always)]
     pub fn get_ref_mut(&self, authority: &Pubkey) -> DriftResult<RefMut<UserStats>> {
