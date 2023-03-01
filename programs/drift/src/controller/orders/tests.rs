@@ -8132,8 +8132,8 @@ pub mod sort_maker_orders {
     fn bids() {
         let mut bids = vec![
             (Pubkey::default(), 0, 1),
-            (Pubkey::default(), 1, 10),
             (Pubkey::default(), 2, 100),
+            (Pubkey::default(), 1, 10),
         ];
         let taker_direction = PositionDirection::Short;
 
@@ -8152,8 +8152,8 @@ pub mod sort_maker_orders {
     #[test]
     fn asks() {
         let mut asks = vec![
-            (Pubkey::default(), 2, 100),
             (Pubkey::default(), 1, 10),
+            (Pubkey::default(), 2, 100),
             (Pubkey::default(), 0, 1),
         ];
         let taker_direction = PositionDirection::Long;
@@ -9189,7 +9189,7 @@ pub mod get_maker_orders_info {
             first_maker_account_info
         );
 
-        let mut makers_and_referrers = UserMap::load_one(&first_maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&first_maker_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         let mut filler = User::default();
