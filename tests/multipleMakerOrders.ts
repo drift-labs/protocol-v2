@@ -459,7 +459,7 @@ describe('multiple maker orders', () => {
 			.getEventsArray('OrderActionRecord')
 			.filter((record) => isVariant(record.action, 'fill'));
 		console.log('orderActionRecords.length=', orderActionRecords.length);
-		assert(orderActionRecords.length === 8);
+		assert(orderActionRecords.length === 20);
 
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(1);
 		console.log(
