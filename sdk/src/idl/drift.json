@@ -1,5 +1,5 @@
 {
-  "version": "2.18.0",
+  "version": "2.19.0",
   "name": "drift",
   "instructions": [
     {
@@ -6239,13 +6239,16 @@
             "name": "Pyth"
           },
           {
-            "name": "Pyth1000"
-          },
-          {
             "name": "Switchboard"
           },
           {
             "name": "QuoteAsset"
+          },
+          {
+            "name": "Pyth1K"
+          },
+          {
+            "name": "Pyth1M"
           }
         ]
       }

@@ -9,26 +9,32 @@ export class SerumSubscriber {
 	connection: Connection;
 	programId: PublicKey;
 	marketAddress: PublicKey;
-	accountLoader: BulkAccountLoader;
+	subscriptionType: 'polling' | 'websocket';
+	accountLoader: BulkAccountLoader | undefined;
 	market: Market;
 
 	subscribed: boolean;
 
 	asksAddress: PublicKey;
 	asks: Orderbook;
-	asksCallbackId: string;
+	asksCallbackId: string | number;
 	lastAsksSlot: number;
 
 	bidsAddress: PublicKey;
 	bids: Orderbook;
-	bidsCallbackId: string;
+	bidsCallbackId: string | number;
 	lastBidsSlot: number;
 
 	public constructor(config: SerumMarketSubscriberConfig) {
 		this.connection = config.connection;
 		this.programId = config.programId;
 		this.marketAddress = config.marketAddress;
-		this.accountLoader = config.accountSubscription.accountLoader;
+		if (config.accountSubscription.type === 'polling') {
+			this.subscriptionType = 'polling';
+			this.accountLoader = config.accountSubscription.accountLoader;
+		} else {
+			this.subscriptionType = 'websocket';
+		}
 	}
 
 	public async subscribe(): Promise<void> {
@@ -46,24 +52,44 @@ export class SerumSubscriber {
 		this.asksAddress = this.market.asksAddress;
 		this.asks = await this.market.loadAsks(this.connection);
 
-		this.asksCallbackId = await this.accountLoader.addAccount(
-			this.asksAddress,
-			(buffer, slot) => {
-				this.lastAsksSlot = slot;
-				this.asks = Orderbook.decode(this.market, buffer);
-			}
-		);
+		if (this.subscriptionType === 'websocket') {
+			this.asksCallbackId = this.connection.onAccountChange(
+				this.asksAddress,
+				(accountInfo, ctx) => {
+					this.lastAsksSlot = ctx.slot;
+					this.asks = Orderbook.decode(this.market, accountInfo.data);
+				}
+			);
+		} else {
+			this.asksCallbackId = await this.accountLoader.addAccount(
+				this.asksAddress,
+				(buffer, slot) => {
+					this.lastAsksSlot = slot;
+					this.asks = Orderbook.decode(this.market, buffer);
+				}
+			);
+		}
 
 		this.bidsAddress = this.market.bidsAddress;
 		this.bids = await this.market.loadBids(this.connection);
 
-		this.bidsCallbackId = await this.accountLoader.addAccount(
-			this.bidsAddress,
-			(buffer, slot) => {
-				this.lastBidsSlot = slot;
-				this.bids = Orderbook.decode(this.market, buffer);
-			}
-		);
+		if (this.subscriptionType === 'websocket') {
+			this.bidsCallbackId = this.connection.onAccountChange(
+				this.bidsAddress,
+				(accountInfo, ctx) => {
+					this.lastBidsSlot = ctx.slot;
+					this.bids = Orderbook.decode(this.market, accountInfo.data);
+				}
+			);
+		} else {
+			this.bidsCallbackId = await this.accountLoader.addAccount(
+				this.bidsAddress,
+				(buffer, slot) => {
+					this.lastBidsSlot = slot;
+					this.bids = Orderbook.decode(this.market, buffer);
+				}
+			);
+		}
 
 		this.subscribed = true;
 	}
@@ -91,8 +117,24 @@ export class SerumSubscriber {
 			return;
 		}
 
-		this.accountLoader.removeAccount(this.asksAddress, this.asksCallbackId);
-		this.accountLoader.removeAccount(this.bidsAddress, this.bidsCallbackId);
+		// remove listeners
+		if (this.subscriptionType === 'websocket') {
+			await this.connection.removeAccountChangeListener(
+				this.asksCallbackId as number
+			);
+			await this.connection.removeAccountChangeListener(
+				this.bidsCallbackId as number
+			);
+		} else {
+			this.accountLoader.removeAccount(
+				this.asksAddress,
+				this.asksCallbackId as string
+			);
+			this.accountLoader.removeAccount(
+				this.bidsAddress,
+				this.bidsCallbackId as string
+			);
+		}
 
 		this.subscribed = false;
 	}

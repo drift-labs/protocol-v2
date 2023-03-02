@@ -14,8 +14,12 @@ export function getOracleClient(
 		return new PythClient(connection);
 	}
 
-	if (isVariant(oracleSource, 'pyth1000')) {
+	if (isVariant(oracleSource, 'pyth1K')) {
 		return new PythClient(connection, new BN(1000));
+	}
+
+	if (isVariant(oracleSource, 'pyth1M')) {
+		return new PythClient(connection, new BN(1000000));
 	}
 
 	// if (isVariant(oracleSource, 'switchboard')) {

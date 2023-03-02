@@ -6,8 +6,10 @@ import {
 	QUOTE_PRECISION,
 	calculateSpreadBN,
 	ZERO,
+	ONE,
 	calculateLiveOracleStd,
 	calculateLiveOracleTwap,
+	calculateInventoryScale,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 
@@ -36,6 +38,176 @@ class AMMSpreadTerms {
 }
 
 describe('AMM Tests', () => {
+	it('Spread Maths', () => {
+		let iscale = calculateInventoryScale(
+			ZERO,
+			AMM_RESERVE_PRECISION,
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000,
+		);
+		assert(iscale == 1);
+
+		iscale = calculateInventoryScale(
+			ONE,
+			AMM_RESERVE_PRECISION,
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000,
+		);
+		assert(iscale == 1);
+
+		let baa = new BN(1000); 
+		iscale = calculateInventoryScale(
+			baa,
+			AMM_RESERVE_PRECISION.add(baa),
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000,
+		);
+		console.log(iscale);
+		assert(iscale == 1.00024);
+
+		baa = new BN(100000); 
+		iscale = calculateInventoryScale(
+			baa,
+			AMM_RESERVE_PRECISION.add(baa),
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000,
+		);
+		console.log(iscale);
+		assert(iscale == 1.024);
+
+		baa = new BN(1000000); 
+		iscale = calculateInventoryScale(
+			baa,
+			AMM_RESERVE_PRECISION.add(baa),
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000,
+		);
+		console.log(iscale);
+		assert(iscale == 1.24048);
+
+		baa = new BN(10000000); // 2%
+		iscale = calculateInventoryScale(
+			baa,
+			AMM_RESERVE_PRECISION.add(baa),
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000,
+		);
+		console.log(iscale);
+		assert(iscale == 3.44896);
+
+		baa = new BN(50000000); // 10%
+		iscale = calculateInventoryScale(
+			baa,
+			AMM_RESERVE_PRECISION.add(baa),
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000,
+		);
+		console.log(iscale);
+		assert(iscale == 14.33332);
+
+
+		baa = AMM_RESERVE_PRECISION.div(new BN(4)); // 50%
+		iscale = calculateInventoryScale(
+			baa,
+			AMM_RESERVE_PRECISION.add(baa),
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000,
+		);
+		console.log(iscale);
+		assert(iscale == 120); //100%
+
+		baa = AMM_RESERVE_PRECISION.div(new BN(4)); // 50%
+		iscale = calculateInventoryScale(
+			baa,
+			AMM_RESERVE_PRECISION.add(baa),
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000 * 2,
+		);
+		console.log(iscale);
+		assert(iscale == 120 * 2); //100%
+
+		baa = AMM_RESERVE_PRECISION.div(new BN(5)); // <50%
+		iscale = calculateInventoryScale(
+			baa,
+			AMM_RESERVE_PRECISION.add(baa),
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000 * 2,
+		);
+		assert(iscale == 160.99984); 
+
+		baa = new BN(855329058); 
+		iscale = calculateInventoryScale(
+			baa,
+			AMM_RESERVE_PRECISION.add(baa),
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION,
+			250,
+			30000,
+		); // >100%
+		assert(iscale == 120);
+		assert(250*iscale == 30000);
+
+		iscale = calculateInventoryScale(
+			baa,
+			AMM_RESERVE_PRECISION.add(baa), // ~85%
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000,
+		);
+		assert(iscale == 120);
+		assert(250*iscale == 30000);
+
+		baa = new BN(-855329058); // ~85%
+		iscale = calculateInventoryScale(
+			baa,
+			AMM_RESERVE_PRECISION.add(baa),
+			AMM_RESERVE_PRECISION.div(new BN(2)),
+			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			250,
+			30000,
+		);
+		assert(iscale == 120);
+		assert(250*iscale == 30000);
+
+		// 'bonk' scale
+		iscale = calculateInventoryScale(
+			new BN('30228000000000000'),
+			new BN('2496788386034912600'),
+			new BN('2443167585342470000'),
+			new BN('2545411471321696000'),
+			3500,
+			100000,
+		);
+		console.log(iscale);
+		console.log(3500*iscale/1e6);
+		assert(iscale == 18.762285);
+		assert(3500*iscale/1e6 == 0.06566799749999999); //6.5%
+
+
+
+	});
+
 	it('Various Spreads', () => {
 		const baseSpread: number = 0.025 * 1e6;
 		const lastOracleReservePriceSpreadPct: BN = ZERO;
@@ -150,9 +322,9 @@ describe('AMM Tests', () => {
 
 		console.log(terms2);
 		assert(terms2.effectiveLeverageCapped >= 1.0002);
-		assert(terms2.inventorySpreadScale == 10);
-		assert(terms2.longSpread == 798);
-		assert(terms2.shortSpread == 46702);
+		assert(terms2.inventorySpreadScale == 1.73492);
+		assert(terms2.longSpread == 4262);
+		assert(terms2.shortSpread == 43238);
 	});
 
 	it('Corner Case Spreads', () => {
@@ -183,8 +355,8 @@ describe('AMM Tests', () => {
 
 		console.log(terms2);
 		assert(terms2.effectiveLeverageCapped <= 1.000001);
-		assert(terms2.inventorySpreadScale == 1.117371);
-		assert(terms2.longSpread == 1263);
+		assert(terms2.inventorySpreadScale == 1.013527);
+		assert(terms2.longSpread == 1146);
 		assert(terms2.shortSpread == 6686);
 	});
 

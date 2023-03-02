@@ -5207,7 +5207,8 @@ describe('DLOB Spot Tests', () => {
 		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(3);
 	});
 
-	it('Test limit orders skipping more recent post onlys', () => {
+	// add back if dlob checks limit order age again
+	it.skip('Test limit orders skipping more recent post onlys', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 

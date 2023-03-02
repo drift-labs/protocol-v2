@@ -57,12 +57,12 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 	{
 		fullName: 'Bonk',
 		category: ['Meme'],
-		symbol: 'BONK-PERP',
-		baseAssetSymbol: 'BONK',
+		symbol: '1MBONK-PERP',
+		baseAssetSymbol: '1MBONK',
 		marketIndex: 4,
 		oracle: new PublicKey('6bquU99ktV1VRiHDr8gMhDFt3kMfhCQo5nfNrg2Urvsn'),
 		launchTs: 1677068931000,
-		oracleSource: OracleSource.PYTH_1000,
+		oracleSource: OracleSource.PYTH_1M,
 	},
 ];
 
@@ -106,6 +106,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('FNNvb1AFDnDVPkocEri8mWbJ1952HQZtFLuwPiUjSJQ'),
 		launchTs: 1675802661000,
 		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Bonk',
+		category: ['Meme'],
+		symbol: '1MBONK-PERP',
+		baseAssetSymbol: '1MBONK',
+		marketIndex: 4,
+		oracle: new PublicKey('8ihFLu5FimgTQ1Unh4dVyEHUGodJ5gJQCrQf4KUVB9bN'),
+		launchTs: 1677690149000,
+		oracleSource: OracleSource.PYTH_1M,
 	},
 ];
 
