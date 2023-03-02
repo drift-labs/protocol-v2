@@ -159,170 +159,170 @@ describe('multiple maker orders', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	// it('taker long solUsd', async () => {
-	// 	const [takerDriftClient, takerUSDCAccount] =
-	// 		await createUserWithUSDCAccount(
-	// 			provider,
-	// 			usdcMint,
-	// 			chProgram,
-	// 			usdcAmount,
-	// 			marketIndexes,
-	// 			spotMarketIndexes,
-	// 			oracleInfos,
-	// 			bulkAccountLoader
-	// 		);
+	it('taker long solUsd', async () => {
+		const [takerDriftClient, takerUSDCAccount] =
+			await createUserWithUSDCAccount(
+				provider,
+				usdcMint,
+				chProgram,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
 
-	// 	await takerDriftClient.deposit(usdcAmount, 0, takerUSDCAccount);
+		await takerDriftClient.deposit(usdcAmount, 0, takerUSDCAccount);
 
-	// 	const [makerDriftClient, makerUSDCAccount] =
-	// 		await createUserWithUSDCAccount(
-	// 			provider,
-	// 			usdcMint,
-	// 			chProgram,
-	// 			usdcAmount,
-	// 			marketIndexes,
-	// 			spotMarketIndexes,
-	// 			oracleInfos,
-	// 			bulkAccountLoader
-	// 		);
+		const [makerDriftClient, makerUSDCAccount] =
+			await createUserWithUSDCAccount(
+				provider,
+				usdcMint,
+				chProgram,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
 
-	// 	await makerDriftClient.deposit(usdcAmount, 0, makerUSDCAccount);
+		await makerDriftClient.deposit(usdcAmount, 0, makerUSDCAccount);
 
-	// 	for (let i = 0; i < 6; i++) {
-	// 		await makerDriftClient.placePerpOrder({
-	// 			marketIndex: 0,
-	// 			direction: PositionDirection.SHORT,
-	// 			price: new BN(95 + i).mul(PRICE_PRECISION),
-	// 			orderType: OrderType.LIMIT,
-	// 			baseAssetAmount: BASE_PRECISION,
-	// 		});
-	// 	}
+		for (let i = 0; i < 6; i++) {
+			await makerDriftClient.placePerpOrder({
+				marketIndex: 0,
+				direction: PositionDirection.SHORT,
+				price: new BN(95 + i).mul(PRICE_PRECISION),
+				orderType: OrderType.LIMIT,
+				baseAssetAmount: BASE_PRECISION,
+			});
+		}
 
-	// 	const [secondMakerDriftClient, secondMakerUSDCAccount] =
-	// 		await createUserWithUSDCAccount(
-	// 			provider,
-	// 			usdcMint,
-	// 			chProgram,
-	// 			usdcAmount,
-	// 			marketIndexes,
-	// 			spotMarketIndexes,
-	// 			oracleInfos,
-	// 			bulkAccountLoader
-	// 		);
+		const [secondMakerDriftClient, secondMakerUSDCAccount] =
+			await createUserWithUSDCAccount(
+				provider,
+				usdcMint,
+				chProgram,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
 
-	// 	await secondMakerDriftClient.deposit(usdcAmount, 0, secondMakerUSDCAccount);
+		await secondMakerDriftClient.deposit(usdcAmount, 0, secondMakerUSDCAccount);
 
-	// 	for (let i = 0; i < 6; i++) {
-	// 		await secondMakerDriftClient.placePerpOrder({
-	// 			marketIndex: 0,
-	// 			direction: PositionDirection.SHORT,
-	// 			price: new BN(95 + i).mul(PRICE_PRECISION),
-	// 			orderType: OrderType.LIMIT,
-	// 			baseAssetAmount: BASE_PRECISION,
-	// 		});
-	// 	}
+		for (let i = 0; i < 6; i++) {
+			await secondMakerDriftClient.placePerpOrder({
+				marketIndex: 0,
+				direction: PositionDirection.SHORT,
+				price: new BN(95 + i).mul(PRICE_PRECISION),
+				orderType: OrderType.LIMIT,
+				baseAssetAmount: BASE_PRECISION,
+			});
+		}
 
-	// 	const takerBaseAssetAmount = new BN(6).mul(BASE_PRECISION);
-	// 	await takerDriftClient.placePerpOrder({
-	// 		marketIndex: 0,
-	// 		orderType: OrderType.LIMIT,
-	// 		price: new BN(100).mul(PRICE_PRECISION),
-	// 		direction: PositionDirection.LONG,
-	// 		baseAssetAmount: takerBaseAssetAmount,
-	// 	});
+		const takerBaseAssetAmount = new BN(6).mul(BASE_PRECISION);
+		await takerDriftClient.placePerpOrder({
+			marketIndex: 0,
+			orderType: OrderType.LIMIT,
+			price: new BN(100).mul(PRICE_PRECISION),
+			direction: PositionDirection.LONG,
+			baseAssetAmount: takerBaseAssetAmount,
+		});
 
-	// 	const makerInfo = [
-	// 		{
-	// 			maker: await makerDriftClient.getUserAccountPublicKey(),
-	// 			makerUserAccount: makerDriftClient.getUserAccount(),
-	// 			makerStats: await makerDriftClient.getUserStatsAccountPublicKey(),
-	// 		},
-	// 		{
-	// 			maker: await secondMakerDriftClient.getUserAccountPublicKey(),
-	// 			makerUserAccount: secondMakerDriftClient.getUserAccount(),
-	// 			makerStats: await secondMakerDriftClient.getUserStatsAccountPublicKey(),
-	// 		},
-	// 	];
-	// 	const txSig = await fillerDriftClient.fillPerpOrder(
-	// 		await takerDriftClient.getUserAccountPublicKey(),
-	// 		takerDriftClient.getUserAccount(),
-	// 		takerDriftClient.getOrder(1),
-	// 		makerInfo
-	// 	);
+		const makerInfo = [
+			{
+				maker: await makerDriftClient.getUserAccountPublicKey(),
+				makerUserAccount: makerDriftClient.getUserAccount(),
+				makerStats: await makerDriftClient.getUserStatsAccountPublicKey(),
+			},
+			{
+				maker: await secondMakerDriftClient.getUserAccountPublicKey(),
+				makerUserAccount: secondMakerDriftClient.getUserAccount(),
+				makerStats: await secondMakerDriftClient.getUserStatsAccountPublicKey(),
+			},
+		];
+		const txSig = await fillerDriftClient.fillPerpOrder(
+			await takerDriftClient.getUserAccountPublicKey(),
+			takerDriftClient.getUserAccount(),
+			takerDriftClient.getOrder(1),
+			makerInfo
+		);
 
-	// 	await printTxLogs(connection, txSig);
+		await printTxLogs(connection, txSig);
 
-	// 	const orderActionRecords = eventSubscriber
-	// 		.getEventsArray('OrderActionRecord')
-	// 		.filter((record) => isVariant(record.action, 'fill'));
-	// 	assert(orderActionRecords.length === 6);
+		const orderActionRecords = eventSubscriber
+			.getEventsArray('OrderActionRecord')
+			.filter((record) => isVariant(record.action, 'fill'));
+		assert(orderActionRecords.length === 6);
 
-	// 	const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-	// 	assert(takerPosition.baseAssetAmount.eq(takerBaseAssetAmount));
-	// 	assert(takerPosition.quoteAssetAmount.eq(new BN(-576576000)));
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition.baseAssetAmount.eq(takerBaseAssetAmount));
+		assert(takerPosition.quoteAssetAmount.eq(new BN(-576576000)));
 
-	// 	const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
-	// 	assert(
-	// 		makerPosition.baseAssetAmount.eq(
-	// 			takerBaseAssetAmount.neg().div(new BN(2))
-	// 		)
-	// 	);
-	// 	assert(makerPosition.quoteAssetAmount.eq(new BN(288057600)));
+		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
+		assert(
+			makerPosition.baseAssetAmount.eq(
+				takerBaseAssetAmount.neg().div(new BN(2))
+			)
+		);
+		assert(makerPosition.quoteAssetAmount.eq(new BN(288057600)));
 
-	// 	const secondMakerPosition = secondMakerDriftClient
-	// 		.getUser()
-	// 		.getPerpPosition(0);
-	// 	assert(
-	// 		secondMakerPosition.baseAssetAmount.eq(
-	// 			takerBaseAssetAmount.neg().div(new BN(2))
-	// 		)
-	// 	);
-	// 	assert(secondMakerPosition.quoteAssetAmount.eq(new BN(288057600)));
+		const secondMakerPosition = secondMakerDriftClient
+			.getUser()
+			.getPerpPosition(0);
+		assert(
+			secondMakerPosition.baseAssetAmount.eq(
+				takerBaseAssetAmount.neg().div(new BN(2))
+			)
+		);
+		assert(secondMakerPosition.quoteAssetAmount.eq(new BN(288057600)));
 
-	// 	for (let i = 0; i < 3; i++) {
-	// 		await makerDriftClient.placePerpOrder({
-	// 			marketIndex: 0,
-	// 			direction: PositionDirection.LONG,
-	// 			price: new BN(101 - i).mul(PRICE_PRECISION),
-	// 			orderType: OrderType.LIMIT,
-	// 			baseAssetAmount: BASE_PRECISION,
-	// 		});
-	// 	}
+		for (let i = 0; i < 3; i++) {
+			await makerDriftClient.placePerpOrder({
+				marketIndex: 0,
+				direction: PositionDirection.LONG,
+				price: new BN(101 - i).mul(PRICE_PRECISION),
+				orderType: OrderType.LIMIT,
+				baseAssetAmount: BASE_PRECISION,
+			});
+		}
 
-	// 	for (let i = 0; i < 3; i++) {
-	// 		await secondMakerDriftClient.placePerpOrder({
-	// 			marketIndex: 0,
-	// 			direction: PositionDirection.LONG,
-	// 			price: new BN(101 - i).mul(PRICE_PRECISION),
-	// 			orderType: OrderType.LIMIT,
-	// 			baseAssetAmount: BASE_PRECISION,
-	// 		});
-	// 	}
+		for (let i = 0; i < 3; i++) {
+			await secondMakerDriftClient.placePerpOrder({
+				marketIndex: 0,
+				direction: PositionDirection.LONG,
+				price: new BN(101 - i).mul(PRICE_PRECISION),
+				orderType: OrderType.LIMIT,
+				baseAssetAmount: BASE_PRECISION,
+			});
+		}
 
-	// 	await takerDriftClient.placePerpOrder({
-	// 		marketIndex: 0,
-	// 		orderType: OrderType.LIMIT,
-	// 		price: new BN(90).mul(PRICE_PRECISION),
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount: takerBaseAssetAmount,
-	// 	});
+		await takerDriftClient.placePerpOrder({
+			marketIndex: 0,
+			orderType: OrderType.LIMIT,
+			price: new BN(90).mul(PRICE_PRECISION),
+			direction: PositionDirection.SHORT,
+			baseAssetAmount: takerBaseAssetAmount,
+		});
 
-	// 	const txSig2 = await fillerDriftClient.fillPerpOrder(
-	// 		await takerDriftClient.getUserAccountPublicKey(),
-	// 		takerDriftClient.getUserAccount(),
-	// 		takerDriftClient.getOrder(2),
-	// 		makerInfo
-	// 	);
+		const txSig2 = await fillerDriftClient.fillPerpOrder(
+			await takerDriftClient.getUserAccountPublicKey(),
+			takerDriftClient.getUserAccount(),
+			takerDriftClient.getOrder(2),
+			makerInfo
+		);
 
-	// 	const takerPosition2 = takerDriftClient.getUser().getPerpPosition(0);
-	// 	assert(takerPosition2.baseAssetAmount.eq(new BN(0)));
+		const takerPosition2 = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition2.baseAssetAmount.eq(new BN(0)));
 
-	// 	await printTxLogs(connection, txSig2);
+		await printTxLogs(connection, txSig2);
 
-	// 	await takerDriftClient.unsubscribe();
-	// 	await makerDriftClient.unsubscribe();
-	// 	await secondMakerDriftClient.unsubscribe();
-	// });
+		await takerDriftClient.unsubscribe();
+		await makerDriftClient.unsubscribe();
+		await secondMakerDriftClient.unsubscribe();
+	});
 
 	it('taker short dogUsd', async () => {
 		const [takerDriftClient, takerUSDCAccount] =
@@ -381,7 +381,7 @@ describe('multiple maker orders', () => {
 			await secondMakerDriftClient.placePerpOrder({
 				marketIndex: 1,
 				direction: PositionDirection.LONG,
-				price: new BN((0.69 - i / 50) * PRICE_PRECISION.toNumber()),
+				price: new BN((0.69 - i / 500) * PRICE_PRECISION.toNumber()),
 				orderType: OrderType.LIMIT,
 				baseAssetAmount: BASE_PRECISION,
 			});
@@ -405,7 +405,7 @@ describe('multiple maker orders', () => {
 				await thirdMakerDriftClient.placePerpOrder({
 					marketIndex: 1,
 					direction: PositionDirection.LONG,
-					price: new BN((0.69 - i / 300) * PRICE_PRECISION.toNumber()),
+					price: new BN((0.69 - i / 1000) * PRICE_PRECISION.toNumber()),
 					orderType: OrderType.LIMIT,
 					baseAssetAmount: BASE_PRECISION,
 				});
@@ -413,7 +413,7 @@ describe('multiple maker orders', () => {
 				await thirdMakerDriftClient.placePerpOrder({
 					marketIndex: 1,
 					direction: PositionDirection.LONG,
-					oraclePriceOffset: -(i / 300) * PRICE_PRECISION.toNumber(),
+					oraclePriceOffset: -(i / 1000) * PRICE_PRECISION.toNumber(),
 					orderType: OrderType.LIMIT,
 					baseAssetAmount: BASE_PRECISION,
 				});
@@ -459,56 +459,95 @@ describe('multiple maker orders', () => {
 			.getEventsArray('OrderActionRecord')
 			.filter((record) => isVariant(record.action, 'fill'));
 		console.log('orderActionRecords.length=', orderActionRecords.length);
-		assert(orderActionRecords.length === 6);
+		assert(orderActionRecords.length === 8);
 
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-		assert(takerPosition.baseAssetAmount.eq(takerBaseAssetAmount));
-		assert(takerPosition.quoteAssetAmount.eq(new BN(-576576000)));
-
-		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
-		assert(
-			makerPosition.baseAssetAmount.eq(
-				takerBaseAssetAmount.neg().div(new BN(2))
-			)
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(1);
+		console.log(
+			'takerPosition.baseAssetAmount=',
+			takerPosition.baseAssetAmount.toString()
 		);
-		assert(makerPosition.quoteAssetAmount.eq(new BN(288057600)));
+		console.log(
+			'takerPosition.quoteAssetAmount=',
+			takerPosition.quoteAssetAmount.toString()
+		);
+		assert(takerPosition.baseAssetAmount.eq(new BN('-402763100000')));
+		assert(takerPosition.quoteAssetAmount.eq(new BN('273795699')));
+
+		const makerPosition = makerDriftClient.getUser().getPerpPosition(1);
+		console.log(
+			'makerPosition.baseAssetAmount=',
+			makerPosition.baseAssetAmount.toString()
+		);
+		console.log(
+			'makerPosition.quoteAssetAmount=',
+			makerPosition.quoteAssetAmount.toString()
+		);
+		assert(makerPosition.baseAssetAmount.eq(new BN('1000000000')));
+		assert(makerPosition.quoteAssetAmount.eq(new BN('-689862')));
 
 		const secondMakerPosition = secondMakerDriftClient
 			.getUser()
-			.getPerpPosition(0);
-		assert(
-			secondMakerPosition.baseAssetAmount.eq(
-				takerBaseAssetAmount.neg().div(new BN(2))
-			)
+			.getPerpPosition(1);
+		console.log(
+			'secondMakerPosition.baseAssetAmount=',
+			secondMakerPosition.baseAssetAmount.toString()
 		);
-		assert(secondMakerPosition.quoteAssetAmount.eq(new BN(288057600)));
+		console.log(
+			'secondMakerPosition.quoteAssetAmount=',
+			secondMakerPosition.quoteAssetAmount.toString()
+		);
+		assert(secondMakerPosition.baseAssetAmount.eq(new BN('2000000000')));
+		assert(secondMakerPosition.quoteAssetAmount.eq(new BN('-1377725')));
+
+		const thirdMakerPosition = thirdMakerDriftClient
+			.getUser()
+			.getPerpPosition(1);
+		console.log(
+			'thirdMakerPosition.baseAssetAmount=',
+			thirdMakerPosition.baseAssetAmount.toString()
+		);
+		console.log(
+			'thirdMakerPosition.quoteAssetAmount=',
+			thirdMakerPosition.quoteAssetAmount.toString()
+		);
+		assert(thirdMakerPosition.baseAssetAmount.eq(new BN('4000000000')));
+		assert(thirdMakerPosition.quoteAssetAmount.eq(new BN('-2753251')));
+
+		const dogMarket = takerDriftClient.getPerpMarketAccount(1);
+		console.log(
+			'dogMarket.amm.baseAssetAmountWithAmm=',
+			dogMarket.amm.baseAssetAmountWithAmm.toString()
+		);
+		assert(dogMarket.amm.baseAssetAmountWithAmm.eq(new BN('-395763100000')));
+
+		// close position
 
 		for (let i = 0; i < 3; i++) {
 			await makerDriftClient.placePerpOrder({
 				marketIndex: 1,
-				direction: PositionDirection.LONG,
-				price: new BN(101 - i).mul(PRICE_PRECISION),
+				direction: PositionDirection.SHORT,
+				price: new BN((0.69 + i / 100) * PRICE_PRECISION.toNumber()),
 				orderType: OrderType.LIMIT,
 				baseAssetAmount: BASE_PRECISION,
 			});
 		}
 
-		for (let i = 0; i < 3; i++) {
+		for (let i = 1; i < 2; i++) {
 			await secondMakerDriftClient.placePerpOrder({
 				marketIndex: 1,
-				direction: PositionDirection.LONG,
-				price: new BN(101 - i).mul(PRICE_PRECISION),
+				direction: PositionDirection.SHORT,
+				price: new BN((0.69 + i / 400) * PRICE_PRECISION.toNumber()),
 				orderType: OrderType.LIMIT,
-				baseAssetAmount: BASE_PRECISION,
+				baseAssetAmount: BASE_PRECISION.mul(new BN(100)),
 			});
 		}
 
 		await takerDriftClient.placePerpOrder({
-			marketIndex: 0,
+			marketIndex: 1,
 			orderType: OrderType.LIMIT,
-			price: new BN(90).mul(PRICE_PRECISION),
-			direction: PositionDirection.SHORT,
-			baseAssetAmount: takerBaseAssetAmount,
+			price: new BN(0.75 * PRICE_PRECISION.toNumber()),
+			direction: PositionDirection.LONG,
+			baseAssetAmount: takerPosition.baseAssetAmount,
 		});
 
 		const txSig2 = await fillerDriftClient.fillPerpOrder(
@@ -518,8 +557,21 @@ describe('multiple maker orders', () => {
 			makerInfo
 		);
 
-		const takerPosition2 = takerDriftClient.getUser().getPerpPosition(0);
+		const takerPosition2 = takerDriftClient.getUser().getPerpPosition(1);
+		console.log(
+			'takerPosition2.baseAssetAmount=',
+			takerPosition2.baseAssetAmount.toString()
+		);
 		assert(takerPosition2.baseAssetAmount.eq(new BN(0)));
+
+		const dogMarketAfter = takerDriftClient.getPerpMarketAccount(1);
+		console.log(
+			'dogMarketAfter.amm.baseAssetAmountWithAmm=',
+			dogMarketAfter.amm.baseAssetAmountWithAmm.toString()
+		);
+		assert(
+			dogMarketAfter.amm.baseAssetAmountWithAmm.eq(new BN('-65918100000'))
+		);
 
 		await printTxLogs(connection, txSig2);
 
