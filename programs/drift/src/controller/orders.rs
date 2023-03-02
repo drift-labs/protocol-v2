@@ -1369,7 +1369,7 @@ fn fulfill_perp_order(
     }
 
     for order_record in order_records {
-        emit!(order_record)
+        emit_stack::<_, { OrderActionRecord::SIZE }>(order_record)?;
     }
 
     let perp_market = perp_market_map.get_ref(&market_index)?;

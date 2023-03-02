@@ -20,7 +20,7 @@ pub fn determine_perp_fulfillment_methods(
     slot: u64,
     min_auction_duration: u8,
 ) -> DriftResult<Vec<PerpFulfillmentMethod>> {
-    let mut fulfillment_methods = vec![];
+    let mut fulfillment_methods = Vec::with_capacity(8);
 
     let can_fill_with_amm = amm_is_available
         && valid_oracle_price.is_some()
