@@ -2705,7 +2705,7 @@ pub mod fulfill_order {
             &mut taker_stats,
             &makers_and_referrers,
             &maker_and_referrer_stats,
-            vec![(
+            &[(
                 Pubkey::default(),
                 0,
                 100_010_000 * PRICE_PRECISION_U64 / 1_000_000,
@@ -2947,7 +2947,7 @@ pub mod fulfill_order {
             &mut taker_stats,
             &makers_and_referrers,
             &maker_and_referrer_stats,
-            vec![
+            &[
                 (maker_key, 0, 90 * PRICE_PRECISION_U64),
                 (maker_key, 1, 95 * PRICE_PRECISION_U64),
             ],
@@ -3137,7 +3137,7 @@ pub mod fulfill_order {
             &mut taker_stats,
             &makers_and_referrers,
             &maker_and_referrer_stats,
-            vec![(maker_key, 0, 100_010_000 * PRICE_PRECISION_U64 / 1_000_000)],
+            &[(maker_key, 0, 100_010_000 * PRICE_PRECISION_U64 / 1_000_000)],
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
@@ -3340,7 +3340,7 @@ pub mod fulfill_order {
             &mut taker_stats,
             &makers_and_referrers,
             &maker_and_referrer_stats,
-            vec![(maker_key, 0, 100 * PRICE_PRECISION_U64)],
+            &[(maker_key, 0, 100 * PRICE_PRECISION_U64)],
             &mut None,
             &filler_key,
             &mut None,
@@ -3503,7 +3503,7 @@ pub mod fulfill_order {
             &mut taker_stats,
             &UserMap::empty(),
             &UserStatsMap::empty(),
-            vec![],
+            &[],
             &mut None,
             &filler_key,
             &mut None,
@@ -3903,7 +3903,7 @@ pub mod fulfill_order {
             &mut taker_stats,
             &makers_and_referrers,
             &maker_and_referrer_stats,
-            vec![(maker_key, 1, 100 * PRICE_PRECISION_U64)],
+            &[(maker_key, 1, 100 * PRICE_PRECISION_U64)],
             &mut None,
             &filler_key,
             &mut None,
@@ -8123,21 +8123,19 @@ pub mod force_cancel_orders {
     }
 }
 
-pub mod sort_maker_orders {
-    use crate::controller::orders::sort_maker_orders;
+pub mod insert_maker_order_info {
+    use crate::controller::orders::insert_maker_order_info;
     use crate::controller::position::PositionDirection;
     use solana_program::pubkey::Pubkey;
 
     #[test]
     fn bids() {
-        let mut bids = vec![
-            (Pubkey::default(), 0, 1),
-            (Pubkey::default(), 2, 100),
-            (Pubkey::default(), 1, 10),
-        ];
-        let taker_direction = PositionDirection::Short;
+        let mut bids = Vec::with_capacity(3);
+        bids.push((Pubkey::default(), 1, 10));
+        bids.push((Pubkey::default(), 0, 1));
+        let maker_direction = PositionDirection::Long;
 
-        sort_maker_orders(&mut bids, taker_direction);
+        insert_maker_order_info(&mut bids, (Pubkey::default(), 2, 100), maker_direction);
 
         assert_eq!(
             bids,
@@ -8151,14 +8149,12 @@ pub mod sort_maker_orders {
 
     #[test]
     fn asks() {
-        let mut asks = vec![
-            (Pubkey::default(), 1, 10),
-            (Pubkey::default(), 2, 100),
-            (Pubkey::default(), 0, 1),
-        ];
-        let taker_direction = PositionDirection::Long;
+        let mut asks = Vec::with_capacity(3);
+        asks.push((Pubkey::default(), 0, 1));
+        asks.push((Pubkey::default(), 1, 10));
+        let maker_direction = PositionDirection::Short;
 
-        sort_maker_orders(&mut asks, taker_direction);
+        insert_maker_order_info(&mut asks, (Pubkey::default(), 2, 100), maker_direction);
 
         assert_eq!(
             asks,

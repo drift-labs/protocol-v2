@@ -2,6 +2,7 @@ use std::cell::RefMut;
 use std::collections::BTreeMap;
 use std::num::NonZeroU64;
 use std::ops::DerefMut;
+use std::u64;
 
 use anchor_lang::prelude::*;
 use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
@@ -865,7 +866,7 @@ pub fn fill_perp_order(
             user_stats,
             makers_and_referrer,
             makers_and_referrer_stats,
-            maker_orders_info,
+            &maker_orders_info,
             &mut filler.as_deref_mut(),
             &filler_key,
             &mut filler_stats.as_deref_mut(),
@@ -1038,9 +1039,9 @@ fn get_maker_orders_info(
     now: i64,
     slot: u64,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
-    let mut maker_orders_info = Vec::with_capacity(32);
-
     let maker_direction = taker_order.direction.opposite();
+
+    let mut maker_orders_info = Vec::with_capacity(16);
 
     for (maker_key, user_account_loader) in makers_and_referrer.0.iter() {
         if maker_key == taker_key {
@@ -1156,24 +1157,35 @@ fn get_maker_orders_info(
                 continue;
             }
 
-            maker_orders_info.push((*maker_key, maker_order_index, maker_order_price));
+            insert_maker_order_info(
+                &mut maker_orders_info,
+                (*maker_key, maker_order_index, maker_order_price),
+                maker_direction,
+            );
         }
     }
-
-    sort_maker_orders(&mut maker_orders_info, taker_order.direction);
 
     Ok(maker_orders_info)
 }
 
 #[inline(always)]
-fn sort_maker_orders(
-    maker_orders_info: &mut [(Pubkey, usize, u64)],
-    taker_order_direction: PositionDirection,
+fn insert_maker_order_info(
+    maker_orders_info: &mut Vec<(Pubkey, usize, u64)>,
+    maker_order_info: (Pubkey, usize, u64),
+    direction: PositionDirection,
 ) {
-    maker_orders_info.sort_by(|a, b| match taker_order_direction {
-        PositionDirection::Long => a.2.cmp(&b.2),
-        PositionDirection::Short => b.2.cmp(&a.2),
-    });
+    let price = maker_order_info.2;
+    let index = match maker_orders_info.binary_search_by(|item| match direction {
+        PositionDirection::Short => item.2.cmp(&price),
+        PositionDirection::Long => price.cmp(&item.2),
+    }) {
+        Ok(index) => index,
+        Err(index) => index,
+    };
+
+    if index < maker_orders_info.capacity() {
+        maker_orders_info.insert(index, maker_order_info);
+    }
 }
 
 fn get_referrer_info(
@@ -1223,7 +1235,7 @@ fn fulfill_perp_order(
     user_stats: &mut UserStats,
     makers_and_referrer: &UserMap,
     makers_and_referrer_stats: &UserStatsMap,
-    maker_orders_info: Vec<(Pubkey, usize, u64)>,
+    maker_orders_info: &[(Pubkey, usize, u64)],
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
     filler_stats: &mut Option<&mut UserStats>,
@@ -1253,7 +1265,7 @@ fn fulfill_perp_order(
 
         determine_perp_fulfillment_methods(
             &user.orders[user_order_index],
-            &maker_orders_info,
+            maker_orders_info,
             &market.amm,
             reserve_price_before,
             Some(oracle_price),
