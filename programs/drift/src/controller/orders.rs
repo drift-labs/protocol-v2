@@ -1281,7 +1281,6 @@ fn fulfill_perp_order(
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
-    let mut order_records: Vec<OrderActionRecord> = vec![];
     let mut makers_filled: BTreeMap<Pubkey, bool> = BTreeMap::new();
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -1317,7 +1316,6 @@ fn fulfill_perp_order(
                         &mut referrer.as_deref_mut(),
                         &mut referrer_stats.as_deref_mut(),
                         fee_structure,
-                        &mut order_records,
                         None,
                         *maker_price,
                         true,
@@ -1362,7 +1360,6 @@ fn fulfill_perp_order(
                         slot,
                         fee_structure,
                         oracle_map,
-                        &mut order_records,
                     )?;
 
                 if fill_base_asset_amount != 0 {
@@ -1378,10 +1375,6 @@ fn fulfill_perp_order(
         market
             .amm
             .update_volume_24h(fill_quote_asset_amount, user_order_direction, now)?;
-    }
-
-    for order_record in order_records {
-        emit_stack::<_, { OrderActionRecord::SIZE }>(order_record)?;
     }
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
@@ -1521,7 +1514,6 @@ pub fn fulfill_perp_order_with_amm(
     referrer: &mut Option<&mut User>,
     referrer_stats: &mut Option<&mut UserStats>,
     fee_structure: &FeeStructure,
-    order_records: &mut Vec<OrderActionRecord>,
     override_base_asset_amount: Option<u64>,
     override_fill_price: Option<u64>,
     split_with_lps: bool,
@@ -1762,7 +1754,7 @@ pub fn fulfill_perp_order_with_amm(
         maker_order,
         oracle_map.get_price_data(&market.amm.oracle)?.price,
     )?;
-    order_records.push(order_action_record);
+    emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     // Cant reset order until after its logged
     if user.orders[order_index].get_base_asset_amount_unfilled(None)? == 0 {
@@ -1795,7 +1787,6 @@ pub fn fulfill_perp_order_with_match(
     slot: u64,
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
-    order_records: &mut Vec<OrderActionRecord>,
 ) -> DriftResult<(u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -1912,7 +1903,6 @@ pub fn fulfill_perp_order_with_match(
                 &mut None,
                 &mut None,
                 fee_structure,
-                order_records,
                 Some(jit_base_asset_amount),
                 Some(maker_price), // match the makers price
                 false,             // dont split with the lps
@@ -2145,7 +2135,7 @@ pub fn fulfill_perp_order_with_match(
         Some(maker.orders[maker_order_index]),
         oracle_map.get_price_data(&market.amm.oracle)?.price,
     )?;
-    order_records.push(order_action_record);
+    emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         taker.orders[taker_order_index] = Order::default();
@@ -3276,7 +3266,6 @@ fn fulfill_spot_order(
     let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
     let mut base_market = spot_market_map.get_ref_mut(&base_market_index)?;
 
-    let mut order_records: Vec<OrderActionRecord> = vec![];
     let mut base_asset_amount = 0_u64;
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -3302,7 +3291,6 @@ fn fulfill_spot_order(
                 slot,
                 oracle_map,
                 fee_structure,
-                &mut order_records,
             )?,
             SpotFulfillmentMethod::SerumV3 => fulfill_spot_order_with_serum(
                 &mut base_market,
@@ -3318,7 +3306,6 @@ fn fulfill_spot_order(
                 slot,
                 oracle_map,
                 fee_structure,
-                &mut order_records,
                 serum_fulfillment_params,
             )?,
         };
@@ -3335,10 +3322,6 @@ fn fulfill_spot_order(
 
     drop(base_market);
     drop(quote_market);
-
-    for order_record in order_records {
-        emit!(order_record)
-    }
 
     let (_, taker_total_collateral, taker_margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
@@ -3416,7 +3399,6 @@ pub fn fulfill_spot_order_with_match(
     slot: u64,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-    order_records: &mut Vec<OrderActionRecord>,
 ) -> DriftResult<u64> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -3725,7 +3707,7 @@ pub fn fulfill_spot_order_with_match(
         Some(maker.orders[maker_order_index]),
         oracle_map.get_price_data(&base_market.oracle)?.price,
     )?;
-    order_records.push(order_action_record);
+    emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     // Clear taker/maker order if completely filled
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
@@ -3755,7 +3737,6 @@ pub fn fulfill_spot_order_with_serum(
     slot: u64,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-    order_records: &mut Vec<OrderActionRecord>,
     serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
 ) -> DriftResult<u64> {
     let serum_new_order_accounts = match serum_fulfillment_params {
@@ -4186,7 +4167,7 @@ pub fn fulfill_spot_order_with_serum(
         None,
         oracle_price,
     )?;
-    order_records.push(order_action_record);
+    emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         taker.orders[taker_order_index] = Order::default();

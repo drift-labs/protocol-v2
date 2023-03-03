@@ -100,8 +100,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -126,7 +124,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -217,8 +214,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -243,7 +238,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -334,8 +328,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -360,7 +352,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -451,8 +442,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -477,7 +466,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -568,8 +556,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -594,7 +580,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -651,8 +636,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -677,7 +660,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -735,8 +717,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -761,7 +741,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -819,8 +798,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -845,7 +822,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -903,8 +879,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -929,7 +903,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -1007,8 +980,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -1033,7 +1004,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -1114,8 +1084,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -1140,7 +1108,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -1228,8 +1195,6 @@ pub mod fulfill_order_with_maker_order {
         let fee_structure = get_fee_structure();
         let (maker_key, taker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -1254,7 +1219,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -1343,8 +1307,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (maker_key, taker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -1369,7 +1331,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -1482,8 +1443,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -1508,7 +1467,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -1596,8 +1554,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -1622,7 +1578,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -1692,8 +1647,6 @@ pub mod fulfill_order_with_maker_order {
         let fee_structure = get_fee_structure();
         let (maker_key, taker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -1720,7 +1673,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut oracle_map,
-            &mut order_records,
         )
         .unwrap();
 
@@ -1834,8 +1786,6 @@ pub mod fulfill_order_with_maker_order {
         let fee_structure = get_fee_structure();
         let (maker_key, taker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -1862,7 +1812,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut oracle_map,
-            &mut order_records,
         )
         .unwrap();
 
@@ -1966,8 +1915,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (maker_key, taker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -1992,7 +1939,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut oracle_map,
-            &mut order_records,
         )
         .unwrap();
 
@@ -2107,8 +2053,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (maker_key, taker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -2133,7 +2077,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut oracle_map,
-            &mut order_records,
         )
         .unwrap();
 
@@ -2232,8 +2175,6 @@ pub mod fulfill_order_with_maker_order {
 
         let (maker_key, taker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -2258,7 +2199,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -2356,8 +2296,6 @@ pub mod fulfill_order_with_maker_order {
         let fee_structure = get_fee_structure();
         let (maker_key, taker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -2382,7 +2320,6 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
-            &mut order_records,
         )
         .unwrap();
 
@@ -4816,8 +4753,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -4839,7 +4774,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -4944,8 +4878,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -4967,7 +4899,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -5072,8 +5003,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -5095,7 +5024,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -5200,8 +5128,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -5223,7 +5149,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -5328,8 +5253,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -5351,7 +5274,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -5430,8 +5352,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -5453,7 +5373,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -5532,8 +5451,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -5555,7 +5472,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -5634,8 +5550,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -5657,7 +5571,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -5736,8 +5649,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -5759,7 +5670,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -5876,8 +5786,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -5899,7 +5807,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -6018,8 +5925,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -6041,7 +5946,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -6144,8 +6048,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -6167,7 +6069,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -6270,8 +6171,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -6293,7 +6192,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -6397,8 +6295,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -6420,7 +6316,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -6497,8 +6392,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -6520,7 +6413,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -6597,8 +6489,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -6620,7 +6510,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -6697,8 +6586,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -6720,7 +6607,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -6797,8 +6683,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -6820,7 +6704,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -6897,8 +6780,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -6920,7 +6801,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -6997,8 +6877,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -7020,7 +6898,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -7097,8 +6974,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -7120,7 +6995,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
@@ -7197,8 +7071,6 @@ pub mod fulfill_spot_order_with_match {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let mut order_records = vec![];
-
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
@@ -7220,7 +7092,6 @@ pub mod fulfill_spot_order_with_match {
             slot,
             &mut get_oracle_map(),
             &fee_structure,
-            &mut order_records,
         )
         .unwrap();
 
