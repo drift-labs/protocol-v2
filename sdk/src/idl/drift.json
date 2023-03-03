@@ -6207,6 +6207,7 @@
           {
             "name": "Match",
             "fields": [
+              "publicKey",
               {
                 "defined": "usize"
               }
@@ -8604,6 +8605,56 @@
       "code": 6227,
       "name": "TierViolationLiquidatingPerpPnl",
       "msg": "TierViolationLiquidatingPerpPnl"
+    },
+    {
+      "code": 6228,
+      "name": "CouldNotLoadUserData",
+      "msg": "CouldNotLoadUserData"
+    },
+    {
+      "code": 6229,
+      "name": "UserWrongMutability",
+      "msg": "UserWrongMutability"
+    },
+    {
+      "code": 6230,
+      "name": "InvalidUserAccount",
+      "msg": "InvalidUserAccount"
+    },
+    {
+      "code": 6231,
+      "name": "CouldNotLoadUserStatsData",
+      "msg": "CouldNotLoadUserData"
+    },
+    {
+      "code": 6232,
+      "name": "UserStatsWrongMutability",
+      "msg": "UserWrongMutability"
+    },
+    {
+      "code": 6233,
+      "name": "InvalidUserStatsAccount",
+      "msg": "InvalidUserAccount"
+    },
+    {
+      "code": 6234,
+      "name": "UserNotFound",
+      "msg": "UserNotFound"
+    },
+    {
+      "code": 6235,
+      "name": "UnableToLoadUserAccount",
+      "msg": "UnableToLoadUserAccount"
+    },
+    {
+      "code": 6236,
+      "name": "UserStatsNotFound",
+      "msg": "UserStatsNotFound"
+    },
+    {
+      "code": 6237,
+      "name": "UnableToLoadUserStatsAccount",
+      "msg": "UnableToLoadUserStatsAccount"
     }
   ]
 }

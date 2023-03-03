@@ -646,7 +646,7 @@ pub fn find_maker_orders(
     slot: u64,
     tick_size: u64,
 ) -> DriftResult<Vec<(usize, u64)>> {
-    let mut orders = vec![];
+    let mut orders: Vec<(usize, u64)> = Vec::with_capacity(32);
 
     for (order_index, order) in user.orders.iter().enumerate() {
         if order.status != OrderStatus::Open {

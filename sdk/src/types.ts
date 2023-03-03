@@ -902,7 +902,7 @@ export type MakerInfo = {
 	maker: PublicKey;
 	makerStats: PublicKey;
 	makerUserAccount: UserAccount;
-	order: Order;
+	order?: Order;
 };
 
 export type TakerInfo = {

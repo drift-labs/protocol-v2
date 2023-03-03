@@ -3,12 +3,12 @@ import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
 
-import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
 	PRICE_PRECISION,
+	TestClient,
 	PositionDirection,
 	User,
 	Wallet,
@@ -20,16 +20,15 @@ import {
 
 import {
 	initializeQuoteSpotMarket,
-	initializeSolSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	printTxLogs,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, PostOnlyParams } from '../sdk';
+import { BulkAccountLoader, PEG_PRECISION, PostOnlyParams } from '../sdk';
 
-describe('place and make spot order', () => {
+describe('place and make perp order', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		commitment: 'confirmed',
 		preflightCommitment: 'confirmed',
@@ -47,6 +46,15 @@ describe('place and make spot order', () => {
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
+	// ammInvariant == k == x * y
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
+	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+		mantissaSqrtScale
+	);
+	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+		mantissaSqrtScale
+	);
+
 	let usdcMint;
 	let userUSDCAccount;
 
@@ -63,7 +71,7 @@ describe('place and make spot order', () => {
 
 		solUsd = await mockOracle(32.821);
 
-		marketIndexes = [];
+		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
@@ -86,16 +94,20 @@ describe('place and make spot order', () => {
 		await makerDriftClient.initialize(usdcMint.publicKey, true);
 		await makerDriftClient.subscribe();
 		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(makerDriftClient, solUsd);
-		await makerDriftClient.updatePerpAuctionDuration(new BN(0));
+
+		const periodicity = new BN(0);
+		await makerDriftClient.initializePerpMarket(
+			solUsd,
+			ammInitialBaseAssetReserve,
+			ammInitialQuoteAssetReserve,
+			periodicity,
+			new BN(32 * PEG_PRECISION.toNumber())
+		);
 
 		await makerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-
-		const oneSol = new BN(LAMPORTS_PER_SOL);
-		await makerDriftClient.deposit(oneSol, 1, provider.wallet.publicKey);
 
 		makerDriftClientUser = new User({
 			driftClient: makerDriftClient,
@@ -149,20 +161,20 @@ describe('place and make spot order', () => {
 		});
 		await takerDriftClientUser.subscribe();
 
-		const marketIndex = 1;
+		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const takerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: new BN(41).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(40).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(41).mul(PRICE_PRECISION),
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
-		await takerDriftClient.placeSpotOrder(takerOrderParams);
+		await takerDriftClient.placePerpOrder(takerOrderParams);
 		await takerDriftClientUser.fetchAccounts();
 		const order = takerDriftClientUser.getOrderByUserOrderId(1);
 		assert(!order.postOnly);
@@ -171,13 +183,13 @@ describe('place and make spot order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(40).mul(PRICE_PRECISION),
+			price: new BN(33).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 		});
 
-		const txSig = await makerDriftClient.placeAndMakeSpotOrder(
+		const txSig = await makerDriftClient.placeAndMakePerpOrder(
 			makerOrderParams,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
@@ -189,15 +201,11 @@ describe('place and make spot order', () => {
 
 		await printTxLogs(connection, txSig);
 
-		const makerUSDCAmount = makerDriftClient.getQuoteAssetTokenAmount();
-		const makerSolAmount = makerDriftClient.getTokenAmount(1);
-		assert(makerUSDCAmount.eq(new BN(140008000)));
-		assert(makerSolAmount.eq(new BN(0)));
+		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
+		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg()));
 
-		const takerUSDCAmount = takerDriftClient.getQuoteAssetTokenAmount();
-		const takerSolAmount = takerDriftClient.getTokenAmount(1);
-		assert(takerUSDCAmount.eq(new BN(59960000)));
-		assert(takerSolAmount.eq(new BN(1000000000)));
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();

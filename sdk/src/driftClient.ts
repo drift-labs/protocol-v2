@@ -2214,7 +2214,7 @@ export class DriftClient {
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
 		order?: Pick<Order, 'marketIndex' | 'orderId'>,
-		makerInfo?: MakerInfo,
+		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
@@ -2240,7 +2240,7 @@ export class DriftClient {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		order: Pick<Order, 'marketIndex' | 'orderId'>,
-		makerInfo?: MakerInfo,
+		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
@@ -2257,45 +2257,54 @@ export class DriftClient {
 					(order) => order.orderId === userAccount.nextOrderId - 1
 			  ).marketIndex;
 
+		makerInfo = Array.isArray(makerInfo)
+			? makerInfo
+			: makerInfo
+			? [makerInfo]
+			: [];
+
 		const userAccounts = [userAccount];
-		if (makerInfo !== undefined) {
-			userAccounts.push(makerInfo.makerUserAccount);
+		for (const maker of makerInfo) {
+			userAccounts.push(maker.makerUserAccount);
 		}
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts,
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
-		if (makerInfo) {
+		for (const maker of makerInfo) {
 			remainingAccounts.push({
-				pubkey: makerInfo.maker,
+				pubkey: maker.maker,
 				isWritable: true,
 				isSigner: false,
 			});
 			remainingAccounts.push({
-				pubkey: makerInfo.makerStats,
+				pubkey: maker.makerStats,
 				isWritable: true,
 				isSigner: false,
 			});
 		}
 
 		if (referrerInfo) {
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrerStats,
-				isWritable: true,
-				isSigner: false,
-			});
+			const referrerIsMaker =
+				makerInfo.find((maker) => maker.maker.equals(referrerInfo.referrer)) !==
+				undefined;
+			if (!referrerIsMaker) {
+				remainingAccounts.push({
+					pubkey: referrerInfo.referrer,
+					isWritable: true,
+					isSigner: false,
+				});
+				remainingAccounts.push({
+					pubkey: referrerInfo.referrerStats,
+					isWritable: true,
+					isSigner: false,
+				});
+			}
 		}
 
 		const orderId = order.orderId;
-		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
-
-		return await this.program.instruction.fillPerpOrder(orderId, makerOrderId, {
+		return await this.program.instruction.fillPerpOrder(orderId, null, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				filler: fillerPublicKey,

@@ -39,6 +39,7 @@ use crate::state::traits::Size;
 use crate::state::user::{
     MarketType, OrderTriggerCondition, OrderType, User, UserStats, UserStatus,
 };
+use crate::state::user_map::load_user_maps;
 use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
@@ -865,7 +866,7 @@ pub fn handle_cancel_orders(
 pub fn handle_place_and_take_perp_order<'info>(
     ctx: Context<PlaceAndTake>,
     params: OrderParams,
-    maker_order_id: Option<u32>,
+    _maker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
@@ -888,15 +889,7 @@ pub fn handle_place_and_take_perp_order<'info>(
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
-    let (maker, maker_stats) = match maker_order_id {
-        Some(_) => {
-            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-            (Some(user), Some(user_stats))
-        }
-        None => (None, None),
-    };
-
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let (makers_and_referrer, makers_and_referrer_stats) = load_user_maps(remaining_accounts_iter)?;
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
@@ -931,11 +924,9 @@ pub fn handle_place_and_take_perp_order<'info>(
         &mut oracle_map,
         &user.clone(),
         &ctx.accounts.user_stats.clone(),
-        maker.as_ref(),
-        maker_stats.as_ref(),
-        maker_order_id,
-        referrer.as_ref(),
-        referrer_stats.as_ref(),
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        None,
         &Clock::get()?,
     )?;
 
@@ -961,8 +952,8 @@ pub fn handle_place_and_take_perp_order<'info>(
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_and_make_perp_order<'info>(
-    ctx: Context<PlaceAndMake>,
+pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, PlaceAndMake<'info>>,
     params: OrderParams,
     taker_order_id: u32,
 ) -> Result<()> {
@@ -981,8 +972,6 @@ pub fn handle_place_and_make_perp_order<'info>(
         Clock::get()?.slot,
         Some(state.oracle_guard_rails),
     )?;
-
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
     if !params.immediate_or_cancel
         || params.post_only == PostOnlyParam::None
@@ -1010,7 +999,16 @@ pub fn handle_place_and_make_perp_order<'info>(
         params,
     )?;
 
-    let order_id = load!(ctx.accounts.user)?.get_last_order_id();
+    let (order_id, authority) = {
+        let user = load!(ctx.accounts.user)?;
+        let order_id = user.get_last_order_id();
+        (order_id, user.authority)
+    };
+
+    let (mut makers_and_referrer, mut makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter)?;
+    makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
+    makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
     controller::orders::fill_perp_order(
         taker_order_id,
@@ -1022,11 +1020,9 @@ pub fn handle_place_and_make_perp_order<'info>(
         &mut oracle_map,
         &ctx.accounts.user.clone(),
         &ctx.accounts.user_stats.clone(),
-        Some(&ctx.accounts.user),
-        Some(&ctx.accounts.user_stats),
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
         Some(order_id),
-        referrer.as_ref(),
-        referrer_stats.as_ref(),
         clock,
     )?;
 

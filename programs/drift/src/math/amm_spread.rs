@@ -58,12 +58,14 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
     if new_base_asset_reserve > base_asset_reserve_before {
         let max_trade_amount = new_base_asset_reserve
             .safe_sub(base_asset_reserve_before)?
-            .cast::<u64>()?;
+            .cast::<u64>()
+            .unwrap_or(u64::MAX);
         Ok((max_trade_amount, PositionDirection::Short))
     } else {
         let max_trade_amount = base_asset_reserve_before
             .safe_sub(new_base_asset_reserve)?
-            .cast::<u64>()?;
+            .cast::<u64>()
+            .unwrap_or(u64::MAX);
         Ok((max_trade_amount, PositionDirection::Long))
     }
 }

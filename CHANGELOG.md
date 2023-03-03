@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: allow multiple makers in fill_perp_order ([#341](https://github.com/drift-labs/protocol-v2/pull/341))
+
 ### Fixes
 
 ### Breaking

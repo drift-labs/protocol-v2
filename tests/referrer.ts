@@ -21,6 +21,7 @@ import {
 	initializeQuoteSpotMarket,
 	createFundedKeyPair,
 	createUserWithUSDCAccount,
+	printTxLogs,
 } from './testHelpers';
 import {
 	BASE_PRECISION,
@@ -229,7 +230,7 @@ describe('referrer', () => {
 		const refereeStats = refereeDriftClient.getUserStats().getAccount();
 		assert(refereeStats.fees.totalRefereeDiscount.eq(new BN(5000)));
 
-		await refereeDriftClient.placeAndTakePerpOrder(
+		const txSig2 = await refereeDriftClient.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				baseAssetAmount: BASE_PRECISION,
 				direction: PositionDirection.SHORT,
@@ -238,6 +239,8 @@ describe('referrer', () => {
 			undefined,
 			refereeDriftClient.getUserStats().getReferrerInfo()
 		);
+
+		await printTxLogs(connection, txSig2);
 	});
 
 	it('withdraw', async () => {
