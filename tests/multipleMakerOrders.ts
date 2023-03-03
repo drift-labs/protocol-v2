@@ -578,5 +578,6 @@ describe('multiple maker orders', () => {
 		await takerDriftClient.unsubscribe();
 		await makerDriftClient.unsubscribe();
 		await secondMakerDriftClient.unsubscribe();
+		await thirdMakerDriftClient.unsubscribe();
 	});
 });
