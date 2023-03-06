@@ -60,7 +60,7 @@ type OrderBookCallback = () => void;
 
 export type NodeToFill = {
 	node: DLOBNode;
-	makerNode?: DLOBNode;
+	makerNodes: DLOBNode[];
 };
 
 export type NodeToTrigger = {
@@ -512,10 +512,53 @@ export class DLOB {
 			ts,
 			marketType
 		);
-		return restingLimitOrderNodesToFill.concat(
-			takingOrderNodesToFill,
-			expiredNodesToFill
-		);
+
+		// for spot, multiple makers isn't supported, so don't merge
+		if (isVariant(marketType, 'spot')) {
+			return restingLimitOrderNodesToFill.concat(
+				takingOrderNodesToFill,
+				expiredNodesToFill
+			);
+		}
+
+		return this.mergeNodesToFill(
+			restingLimitOrderNodesToFill,
+			takingOrderNodesToFill
+		).concat(expiredNodesToFill);
+	}
+
+	mergeNodesToFill(
+		restingLimitOrderNodesToFill: NodeToFill[],
+		takingOrderNodesToFill: NodeToFill[]
+	): NodeToFill[] {
+		const mergedNodesToFill = new Map<string, NodeToFill>();
+
+		const mergeNodesToFillHelper = (nodesToFillArray: NodeToFill[]) => {
+			nodesToFillArray.forEach((nodeToFill) => {
+				const nodeSignature = getOrderSignature(
+					nodeToFill.node.order.orderId,
+					nodeToFill.node.userAccount
+				);
+
+				if (!mergedNodesToFill.has(nodeSignature)) {
+					mergedNodesToFill.set(nodeSignature, {
+						node: nodeToFill.node,
+						makerNodes: [],
+					});
+				}
+
+				if (nodeToFill.makerNodes) {
+					mergedNodesToFill
+						.get(nodeSignature)
+						.makerNodes.push(...nodeToFill.makerNodes);
+				}
+			});
+		};
+
+		mergeNodesToFillHelper(restingLimitOrderNodesToFill);
+		mergeNodesToFillHelper(takingOrderNodesToFill);
+
+		return Array.from(mergedNodesToFill.values());
 	}
 
 	public findRestingLimitOrderNodesToFill(
@@ -768,7 +811,7 @@ export class DLOB {
 
 				nodesToFill.push({
 					node: takerNode,
-					makerNode: makerNode,
+					makerNodes: [makerNode],
 				});
 
 				const makerOrder = makerNode.order;
@@ -847,7 +890,7 @@ export class DLOB {
 			if (crosses && fallbackAvailable) {
 				nodesToFill.push({
 					node: node,
-					makerNode: undefined, // filled by fallback
+					makerNodes: [], // filled by fallback
 				});
 			}
 
@@ -890,6 +933,7 @@ export class DLOB {
 				if (isOrderExpired(bid.order, ts)) {
 					nodesToFill.push({
 						node: bid,
+						makerNodes: [],
 					});
 				}
 			}
@@ -900,6 +944,7 @@ export class DLOB {
 				if (isOrderExpired(ask.order, ts)) {
 					nodesToFill.push({
 						node: ask,
+						makerNodes: [],
 					});
 				}
 			}
@@ -924,6 +969,7 @@ export class DLOB {
 		)) {
 			nodesToFill.push({
 				node: marketBid,
+				makerNodes: [],
 			});
 		}
 
@@ -935,6 +981,7 @@ export class DLOB {
 		)) {
 			nodesToFill.push({
 				node: marketAsk,
+				makerNodes: [],
 			});
 		}
 		return nodesToFill;
@@ -1362,7 +1409,7 @@ export class DLOB {
 
 				nodesToFill.push({
 					node: takerNode,
-					makerNode: makerNode,
+					makerNodes: [makerNode],
 				});
 
 				if (newAskOrder.baseAssetAmount.eq(newAskOrder.baseAssetAmountFilled)) {
