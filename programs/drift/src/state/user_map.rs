@@ -335,6 +335,10 @@ pub fn load_user_maps<'a>(
 
         let user_stats_account_info = account_info_iter.next().safe_unwrap()?;
 
+        if user_stats_map.0.contains_key(&authority) {
+            continue;
+        }
+
         let is_writable = user_stats_account_info.is_writable;
         if !is_writable {
             return Err(ErrorCode::UserStatsWrongMutability);
