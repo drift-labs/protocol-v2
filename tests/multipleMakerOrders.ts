@@ -470,8 +470,8 @@ describe('multiple maker orders', () => {
 			'takerPosition.quoteAssetAmount=',
 			takerPosition.quoteAssetAmount.toString()
 		);
-		assert(takerPosition.baseAssetAmount.eq(new BN('-402763100000')));
-		assert(takerPosition.quoteAssetAmount.eq(new BN('273795699')));
+		assert(takerPosition.baseAssetAmount.eq(new BN('-402388600000')));
+		assert(takerPosition.quoteAssetAmount.eq(new BN('273543161')));
 
 		const makerPosition = makerDriftClient.getUser().getPerpPosition(1);
 		console.log(
@@ -518,7 +518,7 @@ describe('multiple maker orders', () => {
 			'dogMarket.amm.baseAssetAmountWithAmm=',
 			dogMarket.amm.baseAssetAmountWithAmm.toString()
 		);
-		assert(dogMarket.amm.baseAssetAmountWithAmm.eq(new BN('-395763100000')));
+		assert(dogMarket.amm.baseAssetAmountWithAmm.eq(new BN('-395388600000')));
 
 		// close position
 
@@ -570,7 +570,7 @@ describe('multiple maker orders', () => {
 			dogMarketAfter.amm.baseAssetAmountWithAmm.toString()
 		);
 		assert(
-			dogMarketAfter.amm.baseAssetAmountWithAmm.eq(new BN('-65918100000'))
+			dogMarketAfter.amm.baseAssetAmountWithAmm.eq(new BN('-66279600000'))
 		);
 
 		await printTxLogs(connection, txSig2);

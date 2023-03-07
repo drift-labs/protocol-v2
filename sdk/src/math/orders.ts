@@ -217,9 +217,13 @@ export function calculateBaseAssetAmountToFillUpToLimitPrice(
 	limitPrice: BN,
 	oraclePriceData: OraclePriceData
 ): BN {
+	const adjustedLimitPrice = isVariant(order.direction, 'long')
+		? limitPrice.sub(amm.orderTickSize)
+		: limitPrice.add(amm.orderTickSize);
+
 	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
 		amm,
-		limitPrice,
+		adjustedLimitPrice,
 		order.direction,
 		oraclePriceData
 	);
