@@ -235,7 +235,7 @@ impl PerpMarket {
             MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
         };
 
-        if margin_type == MarginRequirementType::Initial && self.unrealized_pnl_max_imbalance > 0 {
+        if self.unrealized_pnl_max_imbalance > 0 {
             let net_unsettled_pnl = amm::calculate_net_user_pnl(
                 &self.amm,
                 self.amm.historical_oracle_data.last_oracle_price,
