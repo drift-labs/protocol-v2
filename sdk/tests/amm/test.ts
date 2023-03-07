@@ -45,7 +45,7 @@ describe('AMM Tests', () => {
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000,
+			30000
 		);
 		assert(iscale == 1);
 
@@ -55,42 +55,42 @@ describe('AMM Tests', () => {
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000,
+			30000
 		);
 		assert(iscale == 1);
 
-		let baa = new BN(1000); 
+		let baa = new BN(1000);
 		iscale = calculateInventoryScale(
 			baa,
 			AMM_RESERVE_PRECISION.add(baa),
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000,
+			30000
 		);
 		console.log(iscale);
 		assert(iscale == 1.00024);
 
-		baa = new BN(100000); 
+		baa = new BN(100000);
 		iscale = calculateInventoryScale(
 			baa,
 			AMM_RESERVE_PRECISION.add(baa),
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000,
+			30000
 		);
 		console.log(iscale);
 		assert(iscale == 1.024);
 
-		baa = new BN(1000000); 
+		baa = new BN(1000000);
 		iscale = calculateInventoryScale(
 			baa,
 			AMM_RESERVE_PRECISION.add(baa),
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000,
+			30000
 		);
 		console.log(iscale);
 		assert(iscale == 1.24048);
@@ -102,7 +102,7 @@ describe('AMM Tests', () => {
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000,
+			30000
 		);
 		console.log(iscale);
 		assert(iscale == 3.44896);
@@ -114,11 +114,10 @@ describe('AMM Tests', () => {
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000,
+			30000
 		);
 		console.log(iscale);
 		assert(iscale == 14.33332);
-
 
 		baa = AMM_RESERVE_PRECISION.div(new BN(4)); // 50%
 		iscale = calculateInventoryScale(
@@ -127,7 +126,7 @@ describe('AMM Tests', () => {
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000,
+			30000
 		);
 		console.log(iscale);
 		assert(iscale == 120); //100%
@@ -139,7 +138,7 @@ describe('AMM Tests', () => {
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000 * 2,
+			30000 * 2
 		);
 		console.log(iscale);
 		assert(iscale == 120 * 2); //100%
@@ -151,21 +150,21 @@ describe('AMM Tests', () => {
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000 * 2,
+			30000 * 2
 		);
-		assert(iscale == 160.99984); 
+		assert(iscale == 160.99984);
 
-		baa = new BN(855329058); 
+		baa = new BN(855329058);
 		iscale = calculateInventoryScale(
 			baa,
 			AMM_RESERVE_PRECISION.add(baa),
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION,
 			250,
-			30000,
+			30000
 		); // >100%
 		assert(iscale == 120);
-		assert(250*iscale == 30000);
+		assert(250 * iscale == 30000);
 
 		iscale = calculateInventoryScale(
 			baa,
@@ -173,10 +172,10 @@ describe('AMM Tests', () => {
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000,
+			30000
 		);
 		assert(iscale == 120);
-		assert(250*iscale == 30000);
+		assert(250 * iscale == 30000);
 
 		baa = new BN(-855329058); // ~85%
 		iscale = calculateInventoryScale(
@@ -185,10 +184,10 @@ describe('AMM Tests', () => {
 			AMM_RESERVE_PRECISION.div(new BN(2)),
 			AMM_RESERVE_PRECISION.mul(new BN(3)).div(new BN(2)),
 			250,
-			30000,
+			30000
 		);
 		assert(iscale == 120);
-		assert(250*iscale == 30000);
+		assert(250 * iscale == 30000);
 
 		// 'bonk' scale
 		iscale = calculateInventoryScale(
@@ -197,15 +196,12 @@ describe('AMM Tests', () => {
 			new BN('2443167585342470000'),
 			new BN('2545411471321696000'),
 			3500,
-			100000,
+			100000
 		);
 		console.log(iscale);
-		console.log(3500*iscale/1e6);
+		console.log((3500 * iscale) / 1e6);
 		assert(iscale == 18.762285);
-		assert(3500*iscale/1e6 == 0.06566799749999999); //6.5%
-
-
-
+		assert((3500 * iscale) / 1e6 == 0.06566799749999999); //6.5%
 	});
 
 	it('Various Spreads', () => {

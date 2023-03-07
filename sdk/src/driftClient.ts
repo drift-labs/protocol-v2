@@ -28,6 +28,8 @@ import {
 	OrderTriggerCondition,
 	isOneOfVariant,
 	PostOnlyParams,
+	SpotBalanceType,
+	PerpMarketExtendedInfo,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import driftIDL from './idl/drift.json';
@@ -85,6 +87,7 @@ import { configs, getMarketsAndOraclesForSubscription } from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
+import { calculateMarketMaxAvailableInsurance } from './math/market';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -4153,6 +4156,31 @@ export class DriftClient {
 				remainingAccounts: remainingAccounts,
 			}
 		);
+	}
+
+	public getPerpMarketExtendedInfo(
+		marketIndex: number
+	): PerpMarketExtendedInfo {
+		const marketAccount = this.getPerpMarketAccount(marketIndex);
+		const quoteAccount = this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
+
+		const extendedInfo: PerpMarketExtendedInfo = {
+			marketIndex,
+			minOrderSize: marketAccount.amm?.minOrderSize,
+			marginMaintenance: marketAccount.marginRatioMaintenance,
+			pnlPoolValue: getTokenAmount(
+				marketAccount.pnlPool?.scaledBalance,
+				quoteAccount,
+				SpotBalanceType.DEPOSIT
+			),
+			contractTier: marketAccount.contractTier,
+			availableInsurance: calculateMarketMaxAvailableInsurance(
+				marketAccount,
+				quoteAccount
+			),
+		};
+
+		return extendedInfo;
 	}
 
 	sendTransaction(
