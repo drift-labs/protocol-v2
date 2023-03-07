@@ -235,7 +235,9 @@ describe('stop limit', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const triggerPrice = PRICE_PRECISION;
-		const limitPrice = PRICE_PRECISION;
+		const limitPrice = PRICE_PRECISION.sub(
+			driftClient.getPerpMarketAccount(marketIndex).amm.orderTickSize
+		);
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 
 		await driftClient.placeAndTakePerpOrder(
@@ -319,7 +321,9 @@ describe('stop limit', () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const triggerPrice = PRICE_PRECISION;
-		const limitPrice = PRICE_PRECISION;
+		const limitPrice = PRICE_PRECISION.add(
+			driftClient.getPerpMarketAccount(marketIndex).amm.orderTickSize
+		);
 		const triggerCondition = OrderTriggerCondition.BELOW;
 
 		await driftClient.placeAndTakePerpOrder(
