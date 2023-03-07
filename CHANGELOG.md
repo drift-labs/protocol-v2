@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: only let amm fill up to tick above/below user limit price ([#381](https://github.com/drift-labs/protocol-v2/pull/381))
 - program: allow multiple makers in fill_perp_order ([#341](https://github.com/drift-labs/protocol-v2/pull/341))
+- sdk: add getPerpMarketExtendedInfo to drift client
 
 ### Fixes
 
