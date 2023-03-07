@@ -520,7 +520,7 @@ describe('multiple maker orders', () => {
 		);
 		assert(dogMarket.amm.baseAssetAmountWithAmm.eq(new BN('-395388600000')));
 
-		// close positionprotocol-v2/tests/multipleMakerOrders.ts:572:3
+		// close position
 
 		for (let i = 0; i < 3; i++) {
 			await makerDriftClient.placePerpOrder({
