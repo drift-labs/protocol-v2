@@ -12,3 +12,4 @@ pub mod spot_market_map;
 pub mod state;
 pub mod traits;
 pub mod user;
+pub mod user_map;

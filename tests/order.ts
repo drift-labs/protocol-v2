@@ -694,7 +694,7 @@ describe('orders', () => {
 		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const limitPrice = calculateReservePrice(market).sub(
-			market.amm.orderTickSize
+			market.amm.orderTickSize.mul(new BN(2))
 		); // 0 liquidity at current mark price
 		const [newDirection, amountToPrice, _entryPrice, newMarkPrice] =
 			calculateTargetPriceTrade(market, limitPrice, new BN(1000), 'base');
@@ -1552,7 +1552,7 @@ describe('orders', () => {
 		console.log(orderRecord);
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
-			isVariant(driftClientUser.getUserAccount().orders[0].status, 'init')
+			isVariant(driftClientUser.getUserAccount().orders[1].status, 'init')
 		);
 
 		await driftClient.placeAndTakePerpOrder(openPositionOrderParams);
@@ -1587,7 +1587,7 @@ describe('orders', () => {
 		orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[1];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
-			isVariant(driftClientUser.getUserAccount().orders[0].status, 'init')
+			isVariant(driftClientUser.getUserAccount().orders[1].status, 'init')
 		);
 	});
 });

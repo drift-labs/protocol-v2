@@ -9,6 +9,7 @@ mod determine_perp_fulfillment_methods {
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::user::Order;
+    use solana_program::pubkey::Pubkey;
 
     #[test]
     fn amm_available_and_taker_doesnt_cross_maker() {
@@ -54,7 +55,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &Some(&vec![(0, 103 * PRICE_PRECISION_U64)]),
+            &[(Pubkey::default(), 0, 103 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -111,7 +112,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &Some(&vec![(0, 99 * PRICE_PRECISION_U64)]),
+            &[(Pubkey::default(), 0, 99 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -124,7 +125,7 @@ mod determine_perp_fulfillment_methods {
         assert_eq!(
             fulfillment_methods,
             [
-                PerpFulfillmentMethod::Match(0),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 0),
                 PerpFulfillmentMethod::AMM(None)
             ]
         );
@@ -180,7 +181,7 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &Some(&vec![(0, 101 * PRICE_PRECISION_U64)]),
+            &[(Pubkey::default(), 0, 101 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -194,7 +195,7 @@ mod determine_perp_fulfillment_methods {
             fulfillment_methods,
             [
                 PerpFulfillmentMethod::AMM(Some(maker_order.price)),
-                PerpFulfillmentMethod::Match(0),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 0),
                 PerpFulfillmentMethod::AMM(None)
             ]
         );
@@ -244,10 +245,10 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &Some(&vec![
-                (0, 99 * PRICE_PRECISION_U64),
-                (1, 101 * PRICE_PRECISION_U64),
-            ]),
+            &[
+                (Pubkey::default(), 0, 99 * PRICE_PRECISION_U64),
+                (Pubkey::default(), 1, 101 * PRICE_PRECISION_U64),
+            ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -260,9 +261,9 @@ mod determine_perp_fulfillment_methods {
         assert_eq!(
             fulfillment_methods,
             [
-                PerpFulfillmentMethod::Match(0),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 0),
                 PerpFulfillmentMethod::AMM(Some(101 * PRICE_PRECISION_U64)),
-                PerpFulfillmentMethod::Match(1),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 1),
                 PerpFulfillmentMethod::AMM(None),
             ]
         );
@@ -312,10 +313,14 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &Some(&vec![
-                (0, 99 * PRICE_PRECISION_U64),
-                (1, 99 * PRICE_PRECISION_U64 + PRICE_PRECISION_U64 / 2),
-            ]),
+            &[
+                (Pubkey::default(), 0, 99 * PRICE_PRECISION_U64),
+                (
+                    Pubkey::default(),
+                    1,
+                    99 * PRICE_PRECISION_U64 + PRICE_PRECISION_U64 / 2,
+                ),
+            ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -328,8 +333,8 @@ mod determine_perp_fulfillment_methods {
         assert_eq!(
             fulfillment_methods,
             [
-                PerpFulfillmentMethod::Match(0),
-                PerpFulfillmentMethod::Match(1),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 0),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 1),
                 PerpFulfillmentMethod::AMM(None),
             ]
         );
@@ -379,10 +384,10 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &Some(&vec![
-                (0, 102 * PRICE_PRECISION_U64),
-                (1, 103 * PRICE_PRECISION_U64),
-            ]),
+            &[
+                (Pubkey::default(), 0, 102 * PRICE_PRECISION_U64),
+                (Pubkey::default(), 1, 103 * PRICE_PRECISION_U64),
+            ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -396,9 +401,9 @@ mod determine_perp_fulfillment_methods {
             fulfillment_methods,
             [
                 PerpFulfillmentMethod::AMM(Some(102 * PRICE_PRECISION_U64)),
-                PerpFulfillmentMethod::Match(0),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 0),
                 PerpFulfillmentMethod::AMM(Some(103 * PRICE_PRECISION_U64)),
-                PerpFulfillmentMethod::Match(1),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 1),
                 PerpFulfillmentMethod::AMM(None),
             ]
         );
@@ -448,10 +453,10 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &Some(&vec![
-                (0, 101 * PRICE_PRECISION_U64),
-                (1, 99 * PRICE_PRECISION_U64),
-            ]),
+            &[
+                (Pubkey::default(), 0, 101 * PRICE_PRECISION_U64),
+                (Pubkey::default(), 1, 99 * PRICE_PRECISION_U64),
+            ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -464,9 +469,9 @@ mod determine_perp_fulfillment_methods {
         assert_eq!(
             fulfillment_methods,
             [
-                PerpFulfillmentMethod::Match(0),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 0),
                 PerpFulfillmentMethod::AMM(Some(99 * PRICE_PRECISION_U64)),
-                PerpFulfillmentMethod::Match(1),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 1),
                 PerpFulfillmentMethod::AMM(None),
             ]
         );
@@ -516,10 +521,10 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &Some(&vec![
-                (0, 102 * PRICE_PRECISION_U64),
-                (1, 101 * PRICE_PRECISION_U64),
-            ]),
+            &[
+                (Pubkey::default(), 0, 102 * PRICE_PRECISION_U64),
+                (Pubkey::default(), 1, 101 * PRICE_PRECISION_U64),
+            ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -532,8 +537,8 @@ mod determine_perp_fulfillment_methods {
         assert_eq!(
             fulfillment_methods,
             [
-                PerpFulfillmentMethod::Match(0),
-                PerpFulfillmentMethod::Match(1),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 0),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 1),
                 PerpFulfillmentMethod::AMM(None),
             ]
         );
@@ -583,10 +588,10 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &Some(&vec![
-                (0, 99 * PRICE_PRECISION_U64),
-                (1, 98 * PRICE_PRECISION_U64),
-            ]),
+            &[
+                (Pubkey::default(), 0, 99 * PRICE_PRECISION_U64),
+                (Pubkey::default(), 1, 98 * PRICE_PRECISION_U64),
+            ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -600,9 +605,9 @@ mod determine_perp_fulfillment_methods {
             fulfillment_methods,
             [
                 PerpFulfillmentMethod::AMM(Some(99 * PRICE_PRECISION_U64)),
-                PerpFulfillmentMethod::Match(0),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 0),
                 PerpFulfillmentMethod::AMM(Some(98 * PRICE_PRECISION_U64)),
-                PerpFulfillmentMethod::Match(1),
+                PerpFulfillmentMethod::Match(Pubkey::default(), 1),
                 PerpFulfillmentMethod::AMM(None),
             ]
         );
@@ -652,10 +657,10 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &Some(&vec![
-                (0, 101 * PRICE_PRECISION_U64),
-                (1, 102 * PRICE_PRECISION_U64),
-            ]),
+            &[
+                (Pubkey::default(), 0, 101 * PRICE_PRECISION_U64),
+                (Pubkey::default(), 1, 102 * PRICE_PRECISION_U64),
+            ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
@@ -712,10 +717,10 @@ mod determine_perp_fulfillment_methods {
 
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
-            &Some(&vec![
-                (0, 99 * PRICE_PRECISION_U64),
-                (1, 98 * PRICE_PRECISION_U64),
-            ]),
+            &[
+                (Pubkey::default(), 0, 99 * PRICE_PRECISION_U64),
+                (Pubkey::default(), 1, 98 * PRICE_PRECISION_U64),
+            ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),

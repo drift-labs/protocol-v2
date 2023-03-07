@@ -183,8 +183,12 @@ export class BulkAccountLoader {
 			const accountsToLoad = accountsToLoadChunks[i];
 			for (const j in accountsToLoad) {
 				const accountToLoad = accountsToLoad[j];
-				const key = accountToLoad.publicKey.toString();
+				const key = accountToLoad.publicKey.toBase58();
 				const oldRPCResponse = this.bufferAndSlotMap.get(key);
+
+				if (oldRPCResponse && newSlot <= oldRPCResponse.slot) {
+					continue;
+				}
 
 				let newBuffer: Buffer | undefined = undefined;
 				if (rpcResponse.result.value[j]) {
@@ -199,10 +203,6 @@ export class BulkAccountLoader {
 						buffer: newBuffer,
 					});
 					this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
-					continue;
-				}
-
-				if (newSlot <= oldRPCResponse.slot) {
 					continue;
 				}
 

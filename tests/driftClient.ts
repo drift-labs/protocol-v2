@@ -624,7 +624,7 @@ describe('drift client', () => {
 			PositionDirection.LONG,
 			baseAssetAmount,
 			marketIndex,
-			estTradePrice
+			estTradePrice.add(market.amm.orderTickSize)
 		);
 
 		await driftClient.fetchAccounts();

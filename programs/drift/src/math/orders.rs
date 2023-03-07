@@ -91,9 +91,15 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
 
     let (max_trade_base_asset_amount, max_trade_direction) = if let Some(limit_price) = limit_price
     {
+        // buy to right below or sell up right above the limit price
+        let adjusted_limit_price = match order.direction {
+            PositionDirection::Long => limit_price.safe_sub(market.amm.order_tick_size)?,
+            PositionDirection::Short => limit_price.safe_add(market.amm.order_tick_size)?,
+        };
+
         math::amm_spread::calculate_base_asset_amount_to_trade_to_price(
             &market.amm,
-            limit_price,
+            adjusted_limit_price,
             order.direction,
         )?
     } else {
@@ -646,7 +652,7 @@ pub fn find_maker_orders(
     slot: u64,
     tick_size: u64,
 ) -> DriftResult<Vec<(usize, u64)>> {
-    let mut orders = vec![];
+    let mut orders: Vec<(usize, u64)> = Vec::with_capacity(32);
 
     for (order_index, order) in user.orders.iter().enumerate() {
         if order.status != OrderStatus::Open {

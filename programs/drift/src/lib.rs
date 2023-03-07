@@ -110,8 +110,8 @@ pub mod drift {
         handle_place_and_take_perp_order(ctx, params, maker_order_id)
     }
 
-    pub fn place_and_make_perp_order(
-        ctx: Context<PlaceAndMake>,
+    pub fn place_and_make_perp_order<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, PlaceAndMake<'info>>,
         params: OrderParams,
         taker_order_id: u32,
     ) -> Result<()> {
@@ -205,9 +205,9 @@ pub mod drift {
     pub fn fill_perp_order(
         ctx: Context<FillOrder>,
         order_id: Option<u32>,
-        maker_order_id: Option<u32>,
+        _maker_order_id: Option<u32>,
     ) -> Result<()> {
-        handle_fill_perp_order(ctx, order_id, maker_order_id)
+        handle_fill_perp_order(ctx, order_id)
     }
 
     pub fn fill_spot_order(

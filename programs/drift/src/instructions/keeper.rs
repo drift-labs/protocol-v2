@@ -24,17 +24,14 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::user::{MarketType, User, UserStats};
+use crate::state::user_map::load_user_maps;
 use crate::validate;
 use crate::{controller, load, math};
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_fill_perp_order<'info>(
-    ctx: Context<FillOrder>,
-    order_id: Option<u32>,
-    maker_order_id: Option<u32>,
-) -> Result<()> {
+pub fn handle_fill_perp_order<'info>(ctx: Context<FillOrder>, order_id: Option<u32>) -> Result<()> {
     let (order_id, market_index) = {
         let user = &load!(ctx.accounts.user)?;
         // if there is no order id, use the users last order id
@@ -50,7 +47,7 @@ pub fn handle_fill_perp_order<'info>(
     };
 
     let user_key = &ctx.accounts.user.key();
-    fill_order(ctx, order_id, market_index, maker_order_id).map_err(|e| {
+    fill_order(ctx, order_id, market_index).map_err(|e| {
         msg!(
             "Err filling order id {} for user {} for market index {}",
             order_id,
@@ -63,12 +60,7 @@ pub fn handle_fill_perp_order<'info>(
     Ok(())
 }
 
-fn fill_order(
-    ctx: Context<FillOrder>,
-    order_id: u32,
-    market_index: u16,
-    maker_order_id: Option<u32>,
-) -> Result<()> {
+fn fill_order(ctx: Context<FillOrder>, order_id: u32, market_index: u16) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -85,15 +77,7 @@ fn fill_order(
         Some(state.oracle_guard_rails),
     )?;
 
-    let (maker, maker_stats) = match maker_order_id {
-        Some(_) => {
-            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-            (Some(user), Some(user_stats))
-        }
-        None => (None, None),
-    };
-
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let (makers_and_referrer, makers_and_referrer_stats) = load_user_maps(remaining_accounts_iter)?;
 
     controller::repeg::update_amm(
         market_index,
@@ -113,11 +97,9 @@ fn fill_order(
         &mut oracle_map,
         &ctx.accounts.filler,
         &ctx.accounts.filler_stats,
-        maker.as_ref(),
-        maker_stats.as_ref(),
-        maker_order_id,
-        referrer.as_ref(),
-        referrer_stats.as_ref(),
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        None,
         clock,
     )?;
 
