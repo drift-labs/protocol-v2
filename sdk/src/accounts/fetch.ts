@@ -19,6 +19,14 @@ export async function fetchUserAccounts(
 		);
 	}
 
+	return fetchUserAccountsUsingKeys(connection, program, userAccountPublicKeys);
+}
+
+export async function fetchUserAccountsUsingKeys(
+	connection: Connection,
+	program: Program,
+	userAccountPublicKeys: PublicKey[]
+): Promise<(UserAccount | undefined)[]> {
 	const accountInfos = await connection.getMultipleAccountsInfo(
 		userAccountPublicKeys,
 		'confirmed'
