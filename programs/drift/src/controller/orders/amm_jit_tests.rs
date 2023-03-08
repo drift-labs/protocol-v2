@@ -47,6 +47,7 @@ pub mod amm_jit {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
+    use crate::state::user_map::{UserMap, UserStatsMap};
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
 
@@ -237,7 +238,11 @@ pub mod amm_jit {
             ..User::default()
         };
 
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let mut maker = User {
+            authority: maker_authority,
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,
@@ -261,15 +266,24 @@ pub mod amm_jit {
             }),
             ..User::default()
         };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
         let fee_structure = get_fee_structure();
 
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+        let (taker_key, _, filler_key) = get_user_keys();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+
         let mut filler_stats = UserStats::default();
 
         fulfill_perp_order(
@@ -277,15 +291,13 @@ pub mod amm_jit {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(vec![(0, 100 * PRICE_PRECISION_U64)]),
-            Some(&maker_key),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 100 * PRICE_PRECISION_U64)],
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            &mut None,
-            &mut None,
+            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -294,6 +306,7 @@ pub mod amm_jit {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
+            0,
             true,
         )
         .unwrap();
@@ -406,7 +419,11 @@ pub mod amm_jit {
             ..User::default()
         };
 
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let mut maker = User {
+            authority: maker_authority,
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,
@@ -430,15 +447,24 @@ pub mod amm_jit {
             }),
             ..User::default()
         };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
         let fee_structure = get_fee_structure();
 
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+        let (taker_key, _, filler_key) = get_user_keys();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+
         let mut filler_stats = UserStats::default();
 
         assert_eq!(market.amm.total_fee, 0);
@@ -452,15 +478,13 @@ pub mod amm_jit {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(vec![(0, 99 * PRICE_PRECISION_U64)]),
-            Some(&maker_key),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 99 * PRICE_PRECISION_U64)],
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            &mut None,
-            &mut None,
+            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -469,11 +493,13 @@ pub mod amm_jit {
             Some(PRICE_PRECISION_I64),
             now,
             slot,
+            10,
             true,
         )
         .unwrap();
 
         // maker got full size
+        let maker = makers_and_referrers.get_ref_mut(&maker_key).unwrap();
         let maker_position = &maker.perp_positions[0];
         assert_eq!(
             maker_position.base_asset_amount,
@@ -588,7 +614,11 @@ pub mod amm_jit {
             ..User::default()
         };
 
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let mut maker = User {
+            authority: maker_authority,
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,
@@ -612,15 +642,24 @@ pub mod amm_jit {
             }),
             ..User::default()
         };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
         let fee_structure = get_fee_structure();
 
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+        let (taker_key, _, filler_key) = get_user_keys();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+
         let mut filler_stats = UserStats::default();
 
         assert_eq!(market.amm.total_fee, 0);
@@ -634,15 +673,13 @@ pub mod amm_jit {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(vec![(0, 99 * PRICE_PRECISION_U64)]),
-            Some(&maker_key),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 99 * PRICE_PRECISION_U64)],
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            &mut None,
-            &mut None,
+            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -651,6 +688,7 @@ pub mod amm_jit {
             Some(PRICE_PRECISION_I64),
             now,
             slot,
+            10,
             true,
         )
         .unwrap();
@@ -662,6 +700,7 @@ pub mod amm_jit {
         // make sure lps didnt get anything
         assert_eq!(market_after.amm.base_asset_amount_per_lp, 0);
 
+        let maker = makers_and_referrers.get_ref_mut(&maker_key).unwrap();
         let maker_position = &maker.perp_positions[0];
         // maker got (full - net_baa)
         assert_eq!(
@@ -770,7 +809,11 @@ pub mod amm_jit {
             ..User::default()
         };
 
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let mut maker = User {
+            authority: maker_authority,
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,
@@ -794,15 +837,23 @@ pub mod amm_jit {
             }),
             ..User::default()
         };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
         let fee_structure = get_fee_structure();
 
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+        let (taker_key, _, filler_key) = get_user_keys();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
         let mut filler_stats = UserStats::default();
 
         assert_eq!(market.amm.total_fee, 0);
@@ -816,15 +867,13 @@ pub mod amm_jit {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(vec![(0, 100 * PRICE_PRECISION_U64)]),
-            Some(&maker_key),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 100 * PRICE_PRECISION_U64)],
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            &mut None,
-            &mut None,
+            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -833,6 +882,7 @@ pub mod amm_jit {
             Some(200 * PRICE_PRECISION_I64),
             now,
             slot,
+            10,
             true,
         )
         .unwrap();
@@ -841,6 +891,7 @@ pub mod amm_jit {
         // nets to zero
         assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
 
+        let maker = makers_and_referrers.get_ref_mut(&maker_key).unwrap();
         let maker_position = &maker.perp_positions[0];
         // maker got (full - net_baa)
         assert_eq!(
@@ -966,7 +1017,11 @@ pub mod amm_jit {
             ..User::default()
         };
 
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let mut maker = User {
+            authority: maker_authority,
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,
@@ -990,15 +1045,23 @@ pub mod amm_jit {
             }),
             ..User::default()
         };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
         let fee_structure = get_fee_structure();
 
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+        let (taker_key, _, filler_key) = get_user_keys();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
         let mut filler_stats = UserStats::default();
 
         let (base_asset_amount, _, _) = fulfill_perp_order(
@@ -1006,15 +1069,13 @@ pub mod amm_jit {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(vec![(0, 100 * PRICE_PRECISION_U64)]),
-            Some(&maker_key),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 100 * PRICE_PRECISION_U64)],
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            &mut None,
-            &mut None,
+            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -1023,6 +1084,7 @@ pub mod amm_jit {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
+            0,
             true,
         )
         .unwrap();
@@ -1033,6 +1095,7 @@ pub mod amm_jit {
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(taker.orders[0], Order::default());
 
+        let maker = makers_and_referrers.get_ref_mut(&maker_key).unwrap();
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_asset_amount, -49985000);
@@ -1158,7 +1221,11 @@ pub mod amm_jit {
             ..User::default()
         };
 
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let mut maker = User {
+            authority: maker_authority,
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,
@@ -1183,14 +1250,23 @@ pub mod amm_jit {
             ..User::default()
         };
 
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
         let mut filler = User::default();
 
         let fee_structure = get_fee_structure();
 
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+        let (taker_key, _, filler_key) = get_user_keys();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
         let mut filler_stats = UserStats::default();
 
         assert_eq!(market.amm.total_fee, 0);
@@ -1204,15 +1280,13 @@ pub mod amm_jit {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(vec![(0, 100 * PRICE_PRECISION_U64)]),
-            Some(&maker_key),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 100 * PRICE_PRECISION_U64)],
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            &mut None,
-            &mut None,
+            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -1221,6 +1295,7 @@ pub mod amm_jit {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
+            0,
             true,
         )
         .unwrap();
@@ -1353,7 +1428,11 @@ pub mod amm_jit {
             ..User::default()
         };
 
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let mut maker = User {
+            authority: maker_authority,
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,
@@ -1377,22 +1456,24 @@ pub mod amm_jit {
             }),
             ..User::default()
         };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
         let fee_structure = get_fee_structure();
 
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+        let (taker_key, _, filler_key) = get_user_keys();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
-        let mut filler_stats = UserStats::default();
 
-        assert_eq!(market.amm.total_fee, 0);
-        assert_eq!(market.amm.total_fee_minus_distributions, 0);
-        assert_eq!(market.amm.net_revenue_since_last_funding, 0);
-        assert_eq!(market.amm.total_mm_fee, 0);
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+        let mut filler_stats = UserStats::default();
 
         let reserve_price_before = market.amm.reserve_price().unwrap();
         assert_eq!(reserve_price_before, 100 * PRICE_PRECISION_U64);
@@ -1402,15 +1483,13 @@ pub mod amm_jit {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(vec![(0, 100 * PRICE_PRECISION_U64)]),
-            Some(&maker_key),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 100 * PRICE_PRECISION_U64)],
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            &mut None,
-            &mut None,
+            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -1419,6 +1498,7 @@ pub mod amm_jit {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
+            0,
             true,
         )
         .unwrap();
@@ -1529,7 +1609,11 @@ pub mod amm_jit {
             ..User::default()
         };
 
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let mut maker = User {
+            authority: maker_authority,
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,
@@ -1553,15 +1637,23 @@ pub mod amm_jit {
             }),
             ..User::default()
         };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
         let fee_structure = get_fee_structure();
 
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+        let (taker_key, _, filler_key) = get_user_keys();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
         let mut filler_stats = UserStats::default();
 
         assert_eq!(market.amm.total_fee, 0);
@@ -1576,15 +1668,13 @@ pub mod amm_jit {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(vec![(0, 10 * PRICE_PRECISION_U64)]),
-            Some(&maker_key),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 10 * PRICE_PRECISION_U64)],
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            &mut None,
-            &mut None,
+            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -1593,12 +1683,14 @@ pub mod amm_jit {
             Some(1),
             now,
             slot,
+            10,
             true,
         )
         .unwrap();
 
         assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2); // auctions not over so no amm fill
 
+        let maker = makers_and_referrers.get_ref_mut(&maker_key).unwrap();
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
 
@@ -1714,7 +1806,11 @@ pub mod amm_jit {
             ..User::default()
         };
 
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let mut maker = User {
+            authority: maker_authority,
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,
@@ -1738,15 +1834,23 @@ pub mod amm_jit {
             }),
             ..User::default()
         };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
         let fee_structure = get_fee_structure();
 
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+        let (taker_key, _, filler_key) = get_user_keys();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
         let mut filler_stats = UserStats::default();
 
         assert_eq!(market.amm.total_fee, 0);
@@ -1761,15 +1865,13 @@ pub mod amm_jit {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(vec![(0, 200 * PRICE_PRECISION_U64)]),
-            Some(&maker_key),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 200 * PRICE_PRECISION_U64)],
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            &mut None,
-            &mut None,
+            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -1778,6 +1880,7 @@ pub mod amm_jit {
             Some(200 * PRICE_PRECISION_I64),
             now,
             slot,
+            10,
             true,
         )
         .unwrap();
@@ -1919,11 +2022,22 @@ pub mod amm_jit {
         println!("start stop {} {}", auction_start_price, auction_end_price);
 
         let mut filler = User::default();
+
         let fee_structure = get_fee_structure();
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let (taker_key, _, filler_key) = get_user_keys();
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
         let mut filler_stats = UserStats::default();
 
         assert_eq!(market.amm.total_fee, 0);
@@ -1967,6 +2081,7 @@ pub mod amm_jit {
             println!("mark: {} bid ask: {} {}", mark, bid, ask);
 
             let mut maker = User {
+                authority: maker_authority,
                 orders: get_orders(Order {
                     market_index: 0,
                     post_only: true,
@@ -1990,6 +2105,8 @@ pub mod amm_jit {
                 }),
                 ..User::default()
             };
+            create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+            let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
             // fulfill with match
             fulfill_perp_order(
@@ -1997,15 +2114,13 @@ pub mod amm_jit {
                 0,
                 &taker_key,
                 &mut taker_stats,
-                &mut Some(&mut maker),
-                &mut Some(&mut maker_stats),
-                Some(vec![(0, auction_price)]),
-                Some(&maker_key),
+                &makers_and_referrers,
+                &maker_and_referrer_stats,
+                &[(maker_key, 0, auction_price)],
                 &mut Some(&mut filler),
                 &filler_key,
                 &mut Some(&mut filler_stats),
-                &mut None,
-                &mut None,
+                None,
                 &spot_market_map,
                 &market_map,
                 &mut oracle_map,
@@ -2014,6 +2129,7 @@ pub mod amm_jit {
                 Some(1),
                 now,
                 slot,
+                auction_duration,
                 true,
             )
             .unwrap();
@@ -2188,10 +2304,20 @@ pub mod amm_jit {
 
         let mut filler = User::default();
         let fee_structure = get_fee_structure();
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let (taker_key, _, filler_key) = get_user_keys();
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
         let mut filler_stats = UserStats::default();
 
         assert_eq!(market.amm.total_fee, 0);
@@ -2237,6 +2363,7 @@ pub mod amm_jit {
             println!("mark: {} bid ask: {} {}", mark, bid, ask);
 
             let mut maker = User {
+                authority: maker_authority,
                 orders: get_orders(Order {
                     market_index: 0,
                     post_only: true,
@@ -2260,6 +2387,8 @@ pub mod amm_jit {
                 }),
                 ..User::default()
             };
+            create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+            let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
             // fulfill with match
             fulfill_perp_order(
@@ -2267,15 +2396,13 @@ pub mod amm_jit {
                 0,
                 &taker_key,
                 &mut taker_stats,
-                &mut Some(&mut maker),
-                &mut Some(&mut maker_stats),
-                Some(vec![(0, auction_price)]),
-                Some(&maker_key),
+                &makers_and_referrers,
+                &maker_and_referrer_stats,
+                &[(maker_key, 0, auction_price)],
                 &mut Some(&mut filler),
                 &filler_key,
                 &mut Some(&mut filler_stats),
-                &mut None,
-                &mut None,
+                None,
                 &spot_market_map,
                 &market_map,
                 &mut oracle_map,
@@ -2284,6 +2411,7 @@ pub mod amm_jit {
                 Some(200 * PRICE_PRECISION_I64),
                 now,
                 slot,
+                10,
                 true,
             )
             .unwrap();
@@ -2431,7 +2559,11 @@ pub mod amm_jit {
             ..User::default()
         };
 
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let mut maker = User {
+            authority: maker_authority,
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,
@@ -2455,15 +2587,26 @@ pub mod amm_jit {
             }),
             ..User::default()
         };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut filler = User::default();
 
         let fee_structure = get_fee_structure();
 
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+        let (taker_key, _, filler_key) = get_user_keys();
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
         let mut filler_stats = UserStats::default();
 
         assert_eq!(market.amm.total_fee, 0);
@@ -2479,15 +2622,13 @@ pub mod amm_jit {
             0,
             &taker_key,
             &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(vec![(0, 10 * PRICE_PRECISION_U64)]),
-            Some(&maker_key),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 10 * PRICE_PRECISION_U64)],
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            &mut None,
-            &mut None,
+            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -2496,6 +2637,7 @@ pub mod amm_jit {
             Some(1),
             now,
             slot,
+            0,
             true,
         )
         .unwrap();

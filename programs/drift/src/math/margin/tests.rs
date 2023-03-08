@@ -16,9 +16,61 @@ mod test {
         calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
     };
     use crate::state::oracle::OraclePriceData;
-    use crate::state::perp_market::{PerpMarket, AMM};
-    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
+    use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
     use crate::state::user::{PerpPosition, SpotPosition, User};
+
+    #[test]
+    fn asset_tier_checks() {
+        // first is as safe or safer
+        assert!(ContractTier::A.is_as_safe_as(&ContractTier::A, &AssetTier::default()));
+        assert!(ContractTier::A.is_as_safe_as(&ContractTier::A, &AssetTier::Cross));
+        assert!(ContractTier::B.is_as_safe_as(&ContractTier::default(), &AssetTier::default()));
+        assert!(ContractTier::C.is_as_safe_as(&ContractTier::Speculative, &AssetTier::Unlisted));
+        assert!(ContractTier::C.is_as_safe_as(&ContractTier::C, &AssetTier::Cross));
+        assert!(ContractTier::Speculative
+            .is_as_safe_as(&ContractTier::Speculative, &AssetTier::Unlisted));
+        assert!(
+            ContractTier::Speculative.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Unlisted)
+        );
+        assert!(ContractTier::Speculative
+            .is_as_safe_as(&ContractTier::default(), &AssetTier::default()));
+        assert!(ContractTier::Isolated.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Unlisted));
+
+        // one (or more) of the candidates are safer
+        assert!(!ContractTier::A.is_as_safe_as(&ContractTier::A, &AssetTier::Collateral));
+        assert!(!ContractTier::A.is_as_safe_as(&ContractTier::B, &AssetTier::Collateral));
+        assert!(!ContractTier::B.is_as_safe_as(&ContractTier::A, &AssetTier::Collateral));
+        assert!(!ContractTier::B.is_as_safe_as(&ContractTier::A, &AssetTier::default()));
+        assert!(!ContractTier::C.is_as_safe_as(&ContractTier::B, &AssetTier::Cross));
+        assert!(!ContractTier::C.is_as_safe_as(&ContractTier::B, &AssetTier::Isolated));
+        assert!(!ContractTier::C.is_as_safe_as(&ContractTier::A, &AssetTier::default()));
+        assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::A, &AssetTier::default()));
+        assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::A, &AssetTier::Collateral));
+        assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::B, &AssetTier::Collateral));
+        assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::B, &AssetTier::Cross));
+        assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::C, &AssetTier::Collateral));
+        assert!(!ContractTier::Speculative
+            .is_as_safe_as(&ContractTier::Speculative, &AssetTier::Collateral));
+        assert!(
+            !ContractTier::Speculative.is_as_safe_as(&ContractTier::Speculative, &AssetTier::Cross)
+        );
+        assert!(!ContractTier::Speculative
+            .is_as_safe_as(&ContractTier::Isolated, &AssetTier::Collateral));
+        assert!(
+            !ContractTier::Speculative.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Cross)
+        );
+        assert!(
+            !ContractTier::Speculative.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Isolated)
+        );
+        assert!(!ContractTier::Isolated.is_as_safe_as(&ContractTier::A, &AssetTier::default()));
+        assert!(
+            !ContractTier::Isolated.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Isolated)
+        );
+        assert!(
+            !ContractTier::Isolated.is_as_safe_as(&ContractTier::default(), &AssetTier::default())
+        );
+    }
 
     #[test]
     fn spot_market_asset_weight() {

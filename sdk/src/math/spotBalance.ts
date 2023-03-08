@@ -21,6 +21,7 @@ import {
 } from './margin';
 import { OraclePriceData } from '../oracles/types';
 import { PERCENTAGE_PRECISION } from '../constants/numericConstants';
+import { divCeil } from './utils';
 
 export function getBalance(
 	tokenAmount: BN,
@@ -49,11 +50,16 @@ export function getTokenAmount(
 ): BN {
 	const precisionDecrease = TEN.pow(new BN(19 - spotMarket.decimals));
 
-	const cumulativeInterest = isVariant(balanceType, 'deposit')
-		? spotMarket.cumulativeDepositInterest
-		: spotMarket.cumulativeBorrowInterest;
-
-	return balanceAmount.mul(cumulativeInterest).div(precisionDecrease);
+	if (isVariant(balanceType, 'deposit')) {
+		return balanceAmount
+			.mul(spotMarket.cumulativeDepositInterest)
+			.div(precisionDecrease);
+	} else {
+		return divCeil(
+			balanceAmount.mul(spotMarket.cumulativeBorrowInterest),
+			precisionDecrease
+		);
+	}
 }
 
 export function getSignedTokenAmount(
@@ -331,7 +337,7 @@ export function calculateWithdrawLimit(
 		BN.min(
 			BN.max(
 				marketDepositTokenAmount.div(new BN(6)),
-				borrowTokenTwapLive.add(borrowTokenTwapLive.div(new BN(5)))
+				borrowTokenTwapLive.add(marketDepositTokenAmount.div(new BN(10)))
 			),
 			marketDepositTokenAmount.sub(marketDepositTokenAmount.div(new BN(5)))
 		)

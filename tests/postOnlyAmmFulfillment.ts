@@ -33,6 +33,7 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
+import { PostOnlyParams } from '../sdk';
 
 describe('post only maker order w/ amm fulfillments', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -187,18 +188,6 @@ describe('post only maker order w/ amm fulfillments', () => {
 			driftClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
-		const makerOrderParams = getLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.LONG,
-			baseAssetAmount,
-			price: reservePrice,
-			userOrderId: 1,
-			postOnly: false,
-		});
-		await driftClient.placePerpOrder(makerOrderParams);
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getOrderByUserOrderId(1);
-		assert(!order.postOnly);
 
 		const newOraclePrice = 0.98 * 32.821;
 		const newOraclePriceBN = new BN(
@@ -231,12 +220,25 @@ describe('post only maker order w/ amm fulfillments', () => {
 				driftClient.getPerpMarketAccount(marketIndex).amm.orderTickSize
 			),
 			userOrderId: 1,
-			postOnly: true,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
 		});
 		await fillerDriftClient.placePerpOrder(makerOrderParams2);
 		await fillerDriftClient.fetchAccounts();
 		const order2 = fillerDriftClient.getOrderByUserId(1);
 		assert(order2.postOnly);
+
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			price: reservePrice,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+		await driftClient.placePerpOrder(makerOrderParams);
+		await driftClientUser.fetchAccounts();
+		const order = driftClientUser.getOrderByUserOrderId(1);
+		assert(!order.postOnly);
 
 		const makerInfo = {
 			maker: await fillerDriftClient.getUserAccountPublicKey(),

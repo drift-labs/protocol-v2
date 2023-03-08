@@ -669,9 +669,7 @@ describe('spot deposit and withdraw', () => {
 			userBalanceAfter.scaledBalance.toString()
 		);
 
-		assert(
-			expectedUserBalance.eq(userBalanceAfter.scaledBalance.add(new BN(1000)))
-		);
+		assert(expectedUserBalance.eq(userBalanceAfter.scaledBalance));
 		assert(isVariant(userBalanceAfter.balanceType, 'deposit'));
 
 		const expectedSpotMarketDepositBalance =
@@ -683,9 +681,7 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		assert(
-			spotMarketAccount.depositBalance.eq(
-				expectedSpotMarketDepositBalance.sub(new BN(1000))
-			)
+			spotMarketAccount.depositBalance.eq(expectedSpotMarketDepositBalance)
 		);
 		assert(spotMarketAccount.borrowBalance.eq(ZERO));
 	});
@@ -780,7 +776,7 @@ describe('spot deposit and withdraw', () => {
 			expectedUserUSDCAmount.toString(),
 			userUSDCAmountAfter.toString()
 		);
-		assert(expectedUserUSDCAmount.eq(userUSDCAmountAfter.add(ONE)));
+		assert(expectedUserUSDCAmount.eq(userUSDCAmountAfter));
 
 		const userBalanceAfter = secondUserDriftClient.getSpotPosition(marketIndex);
 		assert(userBalanceAfter.scaledBalance.eq(ZERO));

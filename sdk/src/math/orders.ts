@@ -153,7 +153,10 @@ export function hasLimitPrice(order: Order, slot: number): boolean {
 }
 
 export function hasAuctionPrice(order: Order, slot: number): boolean {
-	return isMarketOrder(order) && !isAuctionComplete(order, slot);
+	return (
+		!isAuctionComplete(order, slot) &&
+		(!order.auctionStartPrice.eq(ZERO) || !order.auctionEndPrice.eq(ZERO))
+	);
 }
 
 export function isFillableByVAMM(
@@ -214,9 +217,13 @@ export function calculateBaseAssetAmountToFillUpToLimitPrice(
 	limitPrice: BN,
 	oraclePriceData: OraclePriceData
 ): BN {
+	const adjustedLimitPrice = isVariant(order.direction, 'long')
+		? limitPrice.sub(amm.orderTickSize)
+		: limitPrice.add(amm.orderTickSize);
+
 	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
 		amm,
-		limitPrice,
+		adjustedLimitPrice,
 		order.direction,
 		oraclePriceData
 	);
@@ -279,4 +286,14 @@ export function isTriggered(order: Order): boolean {
 		'triggeredAbove',
 		'triggeredBelow',
 	]);
+}
+
+export function isRestingLimitOrder(order: Order, slot: number): boolean {
+	return (
+		isLimitOrder(order) && (order.postOnly || isAuctionComplete(order, slot))
+	);
+}
+
+export function isTakingOrder(order: Order, slot: number): boolean {
+	return isMarketOrder(order) || !isRestingLimitOrder(order, slot);
 }

@@ -697,10 +697,12 @@ export class User {
 			);
 		}
 
-		if (netQuoteValue.gt(ZERO)) {
-			totalAssetValue = totalAssetValue.add(netQuoteValue);
-		} else {
-			totalLiabilityValue = totalLiabilityValue.add(netQuoteValue.abs());
+		if (marketIndex === undefined || marketIndex === QUOTE_SPOT_MARKET_INDEX) {
+			if (netQuoteValue.gt(ZERO)) {
+				totalAssetValue = totalAssetValue.add(netQuoteValue);
+			} else {
+				totalLiabilityValue = totalLiabilityValue.add(netQuoteValue.abs());
+			}
 		}
 
 		return { totalAssetValue, totalLiabilityValue };
@@ -1771,10 +1773,7 @@ export class User {
 			}
 		}
 
-		// subtract oneMillionth of maxPositionSize
-		// => to avoid rounding errors when taking max leverage
-		const oneMilli = maxPositionSize.div(QUOTE_PRECISION);
-		return maxPositionSize.sub(oneMilli);
+		return maxPositionSize;
 	}
 
 	/**

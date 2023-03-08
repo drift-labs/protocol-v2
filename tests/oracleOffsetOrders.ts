@@ -29,7 +29,7 @@ import {
 	setFeedPrice,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
-import { BulkAccountLoader, calculateEntryPrice } from '../sdk';
+import { BulkAccountLoader, calculateEntryPrice, PostOnlyParams } from '../sdk';
 
 describe('oracle offset', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -262,7 +262,7 @@ describe('oracle offset', () => {
 			baseAssetAmount,
 			reduceOnly,
 			userOrderId: 1,
-			postOnly: true,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			oraclePriceOffset: priceOffset.toNumber(),
 		});
 
@@ -429,7 +429,7 @@ describe('oracle offset', () => {
 			reduceOnly,
 			price,
 			userOrderId: 1,
-			postOnly: true,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await driftClient.placePerpOrder(orderParams);
@@ -510,7 +510,7 @@ describe('oracle offset', () => {
 			baseAssetAmount,
 			price,
 			reduceOnly,
-			postOnly: true,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await driftClient.placePerpOrder(orderParams);
@@ -572,7 +572,7 @@ describe('oracle offset', () => {
 			baseAssetAmount,
 			price,
 			reduceOnly,
-			postOnly: true,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			userOrderId: 1,
 			oraclePriceOffset: priceOffset.toNumber(),
 		});

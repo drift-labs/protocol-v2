@@ -52,10 +52,7 @@ export class UserStatsMap {
 
 			const chUserStat = new UserStats({
 				driftClient: this.driftClient,
-				userStatsAccountPublicKey: getUserStatsAccountPublicKey(
-					this.driftClient.program.programId,
-					userStat.authority
-				),
+				userStatsAccountPublicKey: programUserAccount.publicKey,
 				accountSubscription: this.accountSubscription,
 			});
 			userStatArray.push(chUserStat);
