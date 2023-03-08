@@ -191,7 +191,7 @@ function printBookState(
 function printCrossedNodes(n: NodeToFill, slot: number) {
 	console.log(
 		`Cross Found, takerExists: ${n.node.order !== undefined}, makerExists: ${
-			n.makerNode !== undefined
+			n.makerNodes !== undefined
 		}`
 	);
 	console.log(
@@ -199,12 +199,14 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 			n.node.order!
 		)})`
 	);
-	if (n.makerNode) {
-		console.log(
-			`mkrnode: (mkt: ${isMarketOrder(n.makerNode.order!)}, lim: ${isLimitOrder(
-				n.makerNode.order!
-			)})`
-		);
+	if (n.makerNodes) {
+		for (const makerNode of n.makerNodes) {
+			console.log(
+				`makerNode: (mkt: ${isMarketOrder(
+					makerNode.order
+				)}, lim: ${isLimitOrder(makerNode.order)})`
+			);
+		}
 	}
 
 	const printOrder = (o: Order) => {
@@ -224,13 +226,13 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 		console.log(`Taker Order:`);
 		printOrder(t);
 	}
-	if (n.makerNode) {
-		if (n.makerNode.isVammNode()) {
-			console.log(`  maker is vAMM node`);
-		} else {
-			const m = n.makerNode.order!;
+
+	if (n.makerNodes.length === 0) {
+		console.log(`  maker is vAMM node`);
+	} else {
+		for (const m of n.makerNodes) {
 			console.log(`Maker Order:`);
-			printOrder(m);
+			printOrder(m.order!);
 		}
 	}
 }
@@ -1966,11 +1968,11 @@ describe('DLOB Perp Tests', () => {
 
 		// first taker should fill with best maker
 		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(3);
+		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(3);
 
 		// second taker should fill with second best maker
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(5);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(2);
+		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(2);
 	});
 
 	it('Test one market orders fills two limit orders', () => {
@@ -2094,7 +2096,7 @@ describe('DLOB Perp Tests', () => {
 		for (const n of nodesToFillAfter) {
 			printCrossedNodes(n, endSlot);
 		}
-		expect(nodesToFillAfter.length).to.equal(2);
+		expect(nodesToFillAfter.length).to.equal(1);
 
 		// taker should fill completely with best maker
 		expect(
@@ -2102,17 +2104,12 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(4);
 		expect(
-			nodesToFillAfter[0].makerNode?.order?.orderId,
+			nodesToFillAfter[0].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(3);
 
-		// taker should fill completely with second best maker
 		expect(
-			nodesToFillAfter[1].node.order?.orderId,
-			'wrong taker orderId'
-		).to.equal(4);
-		expect(
-			nodesToFillAfter[1].makerNode?.order?.orderId,
+			nodesToFillAfter[0].makerNodes[1]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(2);
 	});
@@ -2260,11 +2257,11 @@ describe('DLOB Perp Tests', () => {
 
 		// taker should fill completely with best maker
 		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(3);
+		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(3);
 
 		// taker should fill completely with second best maker
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(5);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(3);
+		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(3);
 	});
 
 	it('Test trigger orders', () => {
@@ -2598,8 +2595,8 @@ describe('DLOB Perp Tests', () => {
 		expect(nodesToFillAfter.length).to.equal(2);
 
 		// check that the nodes have no makers
-		expect(nodesToFillAfter[0].makerNode).to.equal(undefined);
-		expect(nodesToFillAfter[1].makerNode).to.equal(undefined);
+		expect(nodesToFillAfter[0].makerNodes.length).to.equal(0);
+		expect(nodesToFillAfter[1].makerNodes.length).to.equal(0);
 	});
 
 	it('Test skips vAMM and fills market buy order with floating limit order during auction', () => {
@@ -2756,19 +2753,18 @@ describe('DLOB Perp Tests', () => {
 		for (const n of nodesToFillAfter) {
 			printCrossedNodes(n, slot);
 		}
-		expect(nodesToFillAfter.length).to.equal(3);
+		expect(nodesToFillAfter.length).to.equal(2);
 
 		// taker should fill first order completely with best maker (1/1)
 		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(1);
+		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(1);
 
 		// taker should fill partially with second best maker (1/2)
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(5);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(2);
+		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(2);
 
 		// taker should fill completely with third best maker (2/2)
-		expect(nodesToFillAfter[2].node.order?.orderId).to.equal(5);
-		expect(nodesToFillAfter[2].makerNode?.order?.orderId).to.equal(3);
+		expect(nodesToFillAfter[1].makerNodes[1]?.order?.orderId).to.equal(3);
 	});
 
 	it('Test fills market buy order with better priced vAMM after auction', () => {
@@ -2910,11 +2906,13 @@ describe('DLOB Perp Tests', () => {
 
 		// taker should fill completely with best maker
 		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(1);
+		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(1);
 
 		// taker should fill the rest with the vAMM
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(5);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(undefined);
+		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(
+			undefined
+		);
 	});
 
 	it('Test skips vAMM and fills market sell order with floating limit buys during auction', () => {
@@ -3057,7 +3055,7 @@ describe('DLOB Perp Tests', () => {
 		for (const n of nodesToFillAfter) {
 			printCrossedNodes(n, slot);
 		}
-		expect(nodesToFillAfter.length).to.equal(3);
+		expect(nodesToFillAfter.length).to.equal(2);
 
 		// taker should fill first order completely with best maker (1/1)
 		expect(
@@ -3065,7 +3063,7 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(4);
 		expect(
-			nodesToFillAfter[0].makerNode?.order?.orderId,
+			nodesToFillAfter[0].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(3);
 
@@ -3075,17 +3073,13 @@ describe('DLOB Perp Tests', () => {
 			'wrong maker orderId'
 		).to.equal(5);
 		expect(
-			nodesToFillAfter[1].makerNode?.order?.orderId,
+			nodesToFillAfter[1].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(2);
 
 		// taker should fill completely with third best maker (2/2)
 		expect(
-			nodesToFillAfter[2].node.order?.orderId,
-			'wrong taker orderId'
-		).to.equal(5);
-		expect(
-			nodesToFillAfter[2].makerNode?.order?.orderId,
+			nodesToFillAfter[1].makerNodes[1]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(1);
 	});
@@ -3240,7 +3234,7 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(4);
 		expect(
-			nodesToFillAfter[0].makerNode?.order?.orderId,
+			nodesToFillAfter[0].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(3);
 
@@ -3250,11 +3244,11 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(5);
 		expect(
-			nodesToFillAfter[1].makerNode?.order?.orderId,
+			nodesToFillAfter[1].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(2); // filler should match the DLOB makers, protocol will fill the taker with vAMM if it offers a better price.
 
-		expect(nodesToFillAfter.length).to.equal(3);
+		expect(nodesToFillAfter.length).to.equal(2);
 	});
 
 	it('Test fills crossing bids with vAMM after auction ends', () => {
@@ -3368,7 +3362,7 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(3);
 		expect(
-			nodesToFillAfter[0].makerNode?.order?.orderId,
+			nodesToFillAfter[0].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(undefined);
 
@@ -3377,7 +3371,7 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(2);
 		expect(
-			nodesToFillAfter[1].makerNode?.order?.orderId,
+			nodesToFillAfter[1].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(undefined);
 
@@ -3468,7 +3462,7 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(2);
 		expect(
-			nodesToFillBefore[0].makerNode?.order?.orderId,
+			nodesToFillBefore[0].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(3);
 	});
@@ -3559,7 +3553,7 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(3);
 		expect(
-			nodesToFillBefore[0].makerNode?.order?.orderId,
+			nodesToFillBefore[0].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(2);
 	});
@@ -3732,7 +3726,7 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(4);
 		expect(
-			nodesToFillAfter[0].makerNode?.order?.orderId,
+			nodesToFillAfter[0].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(6);
 
@@ -3741,7 +3735,7 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(2);
 		expect(
-			nodesToFillAfter[1].makerNode?.order?.orderId,
+			nodesToFillAfter[1].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(5);
 	});
@@ -3864,7 +3858,7 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(4);
 		expect(
-			nodesToFillAfter[0].makerNode?.order?.orderId,
+			nodesToFillAfter[0].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(6);
 
@@ -3873,7 +3867,7 @@ describe('DLOB Perp Tests', () => {
 			'wrong taker orderId'
 		).to.equal(2);
 		expect(
-			nodesToFillAfter[1].makerNode?.order?.orderId,
+			nodesToFillAfter[1].makerNodes[0]?.order?.orderId,
 			'wrong maker orderId'
 		).to.equal(5);
 	});
@@ -4656,18 +4650,18 @@ describe('DLOB Spot Tests', () => {
 		);
 		for (const n of nodesToFillAfter) {
 			console.log(
-				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: BAA: ${n.makerNode?.order?.baseAssetAmount.toString()}`
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNodes[0]?.order?.orderId.toString()}: BAA: ${n.makerNodes[0]?.order?.baseAssetAmount.toString()}`
 			);
 		}
 		expect(nodesToFillAfter.length).to.equal(2);
 
 		// first taker should fill with best maker
 		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(3);
+		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(3);
 
 		// second taker should fill with second best maker
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(5);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(2);
+		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(2);
 	});
 
 	it('Test one market order fills two limit orders', () => {
@@ -4787,18 +4781,18 @@ describe('DLOB Spot Tests', () => {
 		);
 		for (const n of nodesToFillAfter) {
 			console.log(
-				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: BAA: ${n.makerNode?.order?.baseAssetAmountFilled.toString()}/${n.makerNode?.order?.baseAssetAmount.toString()}`
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNodes[0]?.order?.orderId.toString()}: BAA: ${n.makerNodes[0]?.order?.baseAssetAmountFilled.toString()}/${n.makerNodes[0]?.order?.baseAssetAmount.toString()}`
 			);
 		}
 		expect(nodesToFillAfter.length).to.equal(2);
 
 		// taker should fill completely with best maker
 		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(3);
+		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(3);
 
 		// taker should fill completely with second best maker
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(2);
+		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(2);
 	});
 
 	it('Test two market orders to fill one limit order', () => {
@@ -4939,18 +4933,18 @@ describe('DLOB Spot Tests', () => {
 
 		for (const n of nodesToFillAfter) {
 			console.log(
-				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: BAA: ${n.makerNode?.order?.baseAssetAmountFilled.toString()}/${n.makerNode?.order?.baseAssetAmount.toString()}`
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNodes[0]?.order?.orderId.toString()}: BAA: ${n.makerNodes[0]?.order?.baseAssetAmountFilled.toString()}/${n.makerNodes[0]?.order?.baseAssetAmount.toString()}`
 			);
 		}
 		expect(nodesToFillAfter.length).to.equal(2);
 
 		// taker should fill completely with best maker
 		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(3);
+		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(3);
 
 		// taker should fill completely with second best maker
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(5);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(3);
+		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(3);
 	});
 
 	it('Test market orders skipping maker with same authority', () => {
@@ -5065,18 +5059,18 @@ describe('DLOB Spot Tests', () => {
 
 		for (const n of nodesToFillAfter) {
 			console.log(
-				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: BAA: ${n.makerNode?.order?.baseAssetAmountFilled.toString()}/${n.makerNode?.order?.baseAssetAmount.toString()}`
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNodes[0]?.order?.orderId.toString()}: BAA: ${n.makerNodes[0]?.order?.baseAssetAmountFilled.toString()}/${n.makerNodes[0]?.order?.baseAssetAmount.toString()}`
 			);
 		}
 		expect(nodesToFillAfter.length).to.equal(2);
 
 		// taker should fill completely with best maker
 		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(3);
-		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(1);
+		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(1);
 
 		// taker should fill completely with second best maker
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(2);
+		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(2);
 	});
 
 	it('Test limit orders skipping maker with same authority', () => {
@@ -5193,18 +5187,18 @@ describe('DLOB Spot Tests', () => {
 
 		for (const n of nodesToFillAfter) {
 			console.log(
-				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: BAA: ${n.makerNode?.order?.baseAssetAmountFilled.toString()}/${n.makerNode?.order?.baseAssetAmount.toString()}`
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNodes[0]?.order?.orderId.toString()}: BAA: ${n.makerNodes[0]?.order?.baseAssetAmountFilled.toString()}/${n.makerNodes[0]?.order?.baseAssetAmount.toString()}`
 			);
 		}
 		expect(nodesToFillAfter.length).to.equal(2);
 
 		// taker should fill completely with best maker
 		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(2);
-		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(4);
+		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(4);
 
 		// taker should fill completely with second best maker
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(1);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(3);
+		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(3);
 	});
 
 	// add back if dlob checks limit order age again
@@ -5374,18 +5368,18 @@ describe('DLOB Spot Tests', () => {
 
 		for (const n of nodesToFillAfter) {
 			console.log(
-				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: BAA: ${n.makerNode?.order?.baseAssetAmountFilled.toString()}/${n.makerNode?.order?.baseAssetAmount.toString()}`
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNodes[0]?.order?.orderId.toString()}: BAA: ${n.makerNodes[0]?.order?.baseAssetAmountFilled.toString()}/${n.makerNodes[0]?.order?.baseAssetAmount.toString()}`
 			);
 		}
 		expect(nodesToFillAfter.length).to.equal(2);
 
 		// taker should fill completely with best maker
 		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(2);
-		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(6);
+		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(6);
 
 		// taker should fill completely with second best maker
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(1);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(5);
+		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(5);
 	});
 
 	it('Test trigger orders', () => {
@@ -5714,7 +5708,7 @@ describe('DLOB Spot Tests', () => {
 		expect(nodesToFillAfter.length).to.equal(2);
 
 		// check that the nodes have no makers
-		expect(nodesToFillAfter[0].makerNode).to.equal(undefined);
-		expect(nodesToFillAfter[1].makerNode).to.equal(undefined);
+		expect(nodesToFillAfter[0].makerNodes.length).to.equal(0);
+		expect(nodesToFillAfter[1].makerNodes.length).to.equal(0);
 	});
 });
