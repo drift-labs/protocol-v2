@@ -6208,9 +6208,7 @@
             "name": "Match",
             "fields": [
               "publicKey",
-              {
-                "defined": "usize"
-              }
+              "u16"
             ]
           }
         ]

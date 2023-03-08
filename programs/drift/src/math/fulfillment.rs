@@ -59,7 +59,10 @@ pub fn determine_perp_fulfillment_methods(
             }
         }
 
-        fulfillment_methods.push(PerpFulfillmentMethod::Match(*maker_key, *maker_order_index));
+        fulfillment_methods.push(PerpFulfillmentMethod::Match(
+            *maker_key,
+            *maker_order_index as u16,
+        ));
 
         if fulfillment_methods.len() > 6 {
             break;

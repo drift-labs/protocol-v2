@@ -1347,7 +1347,7 @@ fn fulfill_perp_order(
                         user_key,
                         &mut maker,
                         &mut maker_stats.as_deref_mut(),
-                        *maker_order_index,
+                        *maker_order_index as usize,
                         maker_key,
                         filler,
                         filler_stats,

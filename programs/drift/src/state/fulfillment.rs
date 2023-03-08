@@ -3,7 +3,7 @@ use solana_program::pubkey::Pubkey;
 #[derive(Debug, PartialEq, Eq)]
 pub enum PerpFulfillmentMethod {
     AMM(Option<u64>),
-    Match(Pubkey, usize),
+    Match(Pubkey, u16),
 }
 
 #[derive(Debug)]
