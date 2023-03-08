@@ -15,6 +15,7 @@ import {
 	convertToNumber,
 	calculateBudgetedPeg,
 	QUOTE_SPOT_MARKET_INDEX,
+	PublicKey,
 } from '../sdk/src';
 
 import { liquidityBook } from './liquidityBook';
@@ -29,6 +30,40 @@ import {
 } from './testHelpers';
 import { BulkAccountLoader } from '../sdk';
 
+/**
+ * # Tests the functionality of the AMM Curve.
+ * 
+ * This test case tests the AMM Curve by initializing the quote and spot markets, creating a price feed,
+ * initializing the perp market, and initializing a user account. Then, it shows the curve and the book.
+ * 
+ * ## Common steps for each test:
+ * 1. Mock USDC mint and user account.
+ * 2. Initialize test drift client.
+ * 3. Create a SOL/USD oracle and set its initial price.
+ * 4. Initialize the perp market using the oracle and the initial asset amounts.
+ * 5. Initialize the user account and subscribe to updates.
+ * 6. Show the curve data and the book.
+ * 
+ * ## Test Cases
+ * 
+ * ### After Deposit
+ * 
+ * ### After Position Taken
+ * 
+ * ### Arb back to Oracle Price Moves
+ * Checks if the arbitrage between the oracle and perp market prices works as
+ * expected. It calculates the target price trade based on the given parameters
+ * and opens a position with the calculated direction and base size.
+ *
+ * ### Repeg Curve LONG  
+ * Scenario where the AMM curve of a perp market is repegged by a user, causing
+ * the reserve price to increase. It asserts that the new reserve price is greater
+ * than the old one, and that the cost to the user for the AMM change is less
+ * than the total cost to the AMM chain.
+ * 
+ * ### calculateBudgetedPeg (sdk tests)
+ * Tests Budgeted Peg calculation for up($150->$200) and down($150->$10) moves.
+ */
 describe('AMM Curve', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
@@ -63,7 +98,7 @@ describe('AMM Curve', () => {
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
 
-	let solUsdOracle;
+	let solUsdOracle: PublicKey;
 	const marketIndex = 0;
 	const initialSOLPrice = 150;
 
@@ -112,7 +147,14 @@ describe('AMM Curve', () => {
 		await userAccount.unsubscribe();
 	});
 
-	const showCurve = async (marketIndex) => {
+	/**
+	 * Shows curve data.
+	 * 
+	 * @param {number} marketIndex - The index of the perp market.
+	 * 
+	 * @returns {Promise<number>} - The difference between the total fee and the cumulative fee.
+	 */
+	const showCurve = async (marketIndex: number): Promise<number> => {
 		const marketData = driftClient.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 
@@ -141,7 +183,15 @@ describe('AMM Curve', () => {
 		return totalFeeNum - cumFeeNum;
 	};
 
-	const showBook = async (marketIndex) => {
+	/**
+	 * Displays the liquidity book for the specified perp market, including
+	 * the current mark price, the peg multiplier, and the current k value.
+	 * 
+	 * @param {number} marketIndex - The index of the perp market.
+	 * 
+	 * @returns {Promise<void>}
+	 */
+	const showBook = async (marketIndex: number) => {
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const currentMark = calculateReservePrice(market, undefined);
 
