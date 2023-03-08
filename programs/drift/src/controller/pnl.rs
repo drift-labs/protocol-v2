@@ -59,12 +59,11 @@ pub fn settle_pnl(
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
     let contract_tier = market.contract_tier;
+    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
-    validate_market_within_price_band(&market, state, true, None)?;
+    validate_market_within_price_band(&market, state, true, None, Some(oracle_price.cast()?))?;
 
     crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
-
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
     drop(market);
 
@@ -84,8 +83,13 @@ pub fn settle_pnl(
     }
 
     {
-        let (_, safest_tier_perp_liability) =
-            calculate_user_safest_position_tiers(user, perp_market_map, spot_market_map)?;
+        let (_, safest_tier_perp_liability) = calculate_user_safest_position_tiers(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            true,
+        )?;
 
         validate!(
             contract_tier.is_as_safe_as_contract(&safest_tier_perp_liability),
