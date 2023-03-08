@@ -94,6 +94,57 @@
       "args": []
     },
     {
+      "name": "initializeReferrerName",
+      "accounts": [
+        {
+          "name": "referrerName",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "deposit",
       "accounts": [
         {
@@ -4602,6 +4653,35 @@
               "array": [
                 "u8",
                 51
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReferrerName",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "user",
+            "type": "publicKey"
+          },
+          {
+            "name": "userStats",
+            "type": "publicKey"
+          },
+          {
+            "name": "name",
+            "type": {
+              "array": [
+                "u8",
+                32
               ]
             }
           }

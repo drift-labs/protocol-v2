@@ -25,6 +25,7 @@ import {
 	TxParams,
 	SerumV3FulfillmentConfigAccount,
 	isVariant,
+	ReferrerNameAccount,
 	OrderTriggerCondition,
 	isOneOfVariant,
 	PostOnlyParams,
@@ -58,6 +59,7 @@ import {
 	getDriftStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getPerpMarketPublicKey,
+	getReferrerNamePublicKeySync,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
 	getSpotMarketPublicKey,
@@ -584,6 +586,40 @@ export class DriftClient {
 		});
 	}
 
+	public async initializeReferrerName(
+		name: string
+	): Promise<TransactionSignature> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			0
+		);
+
+		const nameBuffer = encodeName(name);
+
+		const referrerNameAccountPublicKey = await getReferrerNamePublicKeySync(
+			this.program.programId,
+			nameBuffer
+		);
+
+		const tx = await this.program.transaction.initializeReferrerName(
+			nameBuffer,
+			{
+				accounts: {
+					referrerName: referrerNameAccountPublicKey,
+					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					payer: this.wallet.publicKey,
+					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async updateUserName(
 		name: string,
 		subAccountId = 0
@@ -758,6 +794,19 @@ export class DriftClient {
 
 	public getUserStats(): UserStats {
 		return this.userStats;
+	}
+
+	public async fetchReferrerNameAccount(
+		name: string
+	): Promise<ReferrerNameAccount | undefined> {
+		const nameBuffer = encodeName(name);
+		const referrerNameAccountPublicKey = getReferrerNamePublicKeySync(
+			this.program.programId,
+			nameBuffer
+		);
+		return (await this.program.account.referrerName.fetch(
+			referrerNameAccountPublicKey
+		)) as ReferrerNameAccount;
 	}
 
 	userStatsAccountPublicKey: PublicKey;

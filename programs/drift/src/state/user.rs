@@ -973,3 +973,17 @@ impl UserStats {
         self.taker_volume_30d.safe_add(self.maker_volume_30d)
     }
 }
+
+#[account(zero_copy)]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct ReferrerName {
+    pub authority: Pubkey,
+    pub user: Pubkey,
+    pub user_stats: Pubkey,
+    pub name: [u8; 32],
+}
+
+impl Size for ReferrerName {
+    const SIZE: usize = 136;
+}

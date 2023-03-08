@@ -30,6 +30,7 @@ import {
 	PEG_PRECISION,
 	PositionDirection,
 } from '../sdk';
+import { decodeName } from '../sdk/lib/userName';
 
 describe('referrer', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -172,6 +173,19 @@ describe('referrer', () => {
 		await refereeDriftClient.unsubscribe();
 		await fillerDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
+	});
+
+	it('initialize referrer name account', async () => {
+		await referrerDriftClient.initializeReferrerName('crisp');
+		const referrerNameAccount =
+			await referrerDriftClient.fetchReferrerNameAccount('crisp');
+		assert(decodeName(referrerNameAccount.name) === 'crisp');
+		assert(referrerNameAccount.authority.equals(referrerDriftClient.authority));
+		assert(
+			referrerNameAccount.user.equals(
+				await referrerDriftClient.getUserAccountPublicKey()
+			)
+		);
 	});
 
 	it('initialize with referrer', async () => {

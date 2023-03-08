@@ -999,6 +999,13 @@ export type SerumV3FulfillmentConfigAccount = {
 	serumSignerNonce: BN;
 };
 
+export type ReferrerNameAccount = {
+	name: number[];
+	user: PublicKey;
+	authority: PublicKey;
+	userStats: PublicKey;
+};
+
 export type PerpMarketExtendedInfo = {
 	marketIndex: number;
 	/**
