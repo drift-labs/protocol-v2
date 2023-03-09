@@ -800,6 +800,7 @@ export type UserAccount = {
 	liquidationMarginFreed: BN;
 	liquidationStartSlot: BN;
 	isMarginTradingEnabled: boolean;
+	inactive: boolean;
 };
 
 export type SpotPosition = {
