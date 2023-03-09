@@ -26,6 +26,7 @@ use crate::state::state::State;
 use crate::state::user::{MarketType, User, UserStats};
 use crate::state::user_map::load_user_maps;
 use crate::validate;
+use crate::validation::user::validate_user_is_inactive;
 use crate::{controller, load, math};
 
 #[access_control(
@@ -317,6 +318,19 @@ pub fn handle_force_cancel_orders<'info>(ctx: Context<ForceCancelOrder>) -> Resu
         &ctx.accounts.filler,
         &Clock::get()?,
     )?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_update_user_inactive<'info>(ctx: Context<UpdateUserInactive>) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate_user_is_inactive(&user)?;
+
+    user.inactive = true;
 
     Ok(())
 }
@@ -1299,6 +1313,19 @@ pub struct TriggerOrder<'info> {
 
 #[derive(Accounts)]
 pub struct ForceCancelOrder<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&filler, &authority)?
+    )]
+    pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserInactive<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(
