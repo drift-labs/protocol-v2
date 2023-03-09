@@ -1,4 +1,10 @@
-import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
+import {
+	AnchorProvider,
+	BN,
+	Idl,
+	Program,
+	ProgramAccount,
+} from '@project-serum/anchor';
 import bs58 from 'bs58';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -711,6 +717,25 @@ export class DriftClient {
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
+	}
+
+	public async fetchAllUserAccounts(
+		activeOnly = false
+	): Promise<ProgramAccount<UserAccount>[]> {
+		let filters = undefined;
+		if (activeOnly) {
+			filters = [
+				{
+					memcmp: {
+						offset: 4350,
+						bytes: bs58.encode(Uint8Array.from([0])),
+					},
+				},
+			];
+		}
+		return (await this.program.account.user.all(
+			filters
+		)) as ProgramAccount<UserAccount>[];
 	}
 
 	public async getUserAccountsForDelegate(
