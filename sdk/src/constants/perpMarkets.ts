@@ -64,6 +64,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1677068931000,
 		oracleSource: OracleSource.PYTH_1M,
 	},
+	{
+		fullName: 'Polygon',
+		category: ['L2', 'Infra'],
+		symbol: 'MATIC-PERP',
+		baseAssetSymbol: 'MATIC',
+		marketIndex: 5,
+		oracle: new PublicKey('FBirwuDFuRAu4iSGc7RGxN5koHB7EJM1wbCmyPuQoGur'),
+		launchTs: 1677690149000, //todo
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -116,6 +126,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('8ihFLu5FimgTQ1Unh4dVyEHUGodJ5gJQCrQf4KUVB9bN'),
 		launchTs: 1677690149000,
 		oracleSource: OracleSource.PYTH_1M,
+	},
+	{
+		fullName: 'Polygon',
+		category: ['L2', 'Infra'],
+		symbol: 'MATIC-PERP',
+		baseAssetSymbol: 'MATIC',
+		marketIndex: 5,
+		oracle: new PublicKey('7KVswB9vkCgeM3SHP7aGDijvdRAHK8P5wi9JXViCrtYh'),
+		launchTs: 1677690149000, //todo
+		oracleSource: OracleSource.PYTH,
 	},
 ];
 
