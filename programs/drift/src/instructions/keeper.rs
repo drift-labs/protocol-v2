@@ -360,6 +360,8 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             clock.slot,
             state,
         )?;
+
+        user.update_last_active_slot(clock.slot);
     } else {
         controller::repeg::update_amm(
             market_index,
@@ -382,6 +384,8 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             state,
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+
+        user.update_last_active_slot(clock.slot);
     }
 
     let spot_market = spot_market_map.get_quote_spot_market()?;
@@ -411,6 +415,7 @@ pub fn handle_settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> 
     )?;
 
     controller::funding::settle_funding_payments(user, &user_key, &perp_market_map, now)?;
+    user.update_last_active_slot(clock.slot);
     Ok(())
 }
 
@@ -437,6 +442,7 @@ pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Res
 
     let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     controller::lp::settle_funding_payment_then_lp(user, &user_key, market, now)?;
+    user.update_last_active_slot(clock.slot);
 
     Ok(())
 }

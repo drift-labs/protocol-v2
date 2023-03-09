@@ -199,6 +199,7 @@ pub fn handle_deposit(
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
+    let slot = clock.slot;
 
     let AccountMaps {
         perp_market_map,
@@ -311,6 +312,9 @@ pub fn handle_deposit(
             user.status = UserStatus::Active;
         }
     }
+
+    user.update_last_active_slot(slot);
+
     let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
     controller::token::receive(
@@ -375,6 +379,7 @@ pub fn handle_withdraw(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
+    let slot = clock.slot;
     let state = &ctx.accounts.state;
 
     let AccountMaps {
@@ -461,6 +466,8 @@ pub fn handle_withdraw(
 
     user.status = UserStatus::Active;
 
+    user.update_last_active_slot(slot);
+
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
 
@@ -519,6 +526,7 @@ pub fn handle_transfer_deposit(
 
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
+    let slot = clock.slot;
 
     let to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
@@ -615,6 +623,8 @@ pub fn handle_transfer_deposit(
 
     from_user.status = UserStatus::Active;
 
+    from_user.update_last_active_slot(slot);
+
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
@@ -695,6 +705,8 @@ pub fn handle_transfer_deposit(
         };
         emit!(deposit_record);
     }
+
+    to_user.update_last_active_slot(slot);
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
     math::spot_withdraw::validate_spot_market_vault_amount(
@@ -1441,6 +1453,8 @@ pub fn handle_add_perp_lp_shares<'info>(
         "User does not meet initial margin requirement"
     )?;
 
+    user.update_last_active_slot(clock.slot);
+
     emit!(LPRecord {
         ts: now,
         action: LPAction::AddLiquidity,
@@ -1498,6 +1512,8 @@ pub fn handle_remove_perp_lp_shares_in_expiring_market(
         now,
     )?;
 
+    user.update_last_active_slot(clock.slot);
+
     Ok(())
 }
 
@@ -1538,6 +1554,8 @@ pub fn handle_remove_perp_lp_shares(
         market_index,
         now,
     )?;
+
+    user.update_last_active_slot(clock.slot);
 
     Ok(())
 }
