@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.19.1] - 2023-03-10
+
+### Features
+
+- tsd-sdk: add matic perp market
+
+### Fixes
+
+### Breaking
+
 ## [2.19.0] - 2023-03-01
 
 ### Features
