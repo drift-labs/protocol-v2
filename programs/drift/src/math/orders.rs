@@ -11,7 +11,7 @@ use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
 use crate::{
     math, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PRICE_PRECISION_I128,
-    QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+    QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -801,6 +801,11 @@ pub fn calculate_max_spot_order_size(
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
 
+    let quote_initial_asset_weight = spot_market_map
+        .get_quote_spot_market()?
+        .initial_asset_weight
+        .cast::<i128>()?;
+
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
     let twap = spot_market
         .historical_oracle_data
@@ -835,11 +840,14 @@ pub fn calculate_max_spot_order_size(
             &MarginRequirementType::Initial,
         )?;
 
-        let free_collateral_consumption_before = worst_case_quote_amount.safe_add(
-            worst_case_token_value_before
-                .safe_mul(liability_weight.cast()?)?
-                .safe_div(SPOT_WEIGHT_PRECISION.cast()?)?,
-        )?;
+        let free_collateral_consumption_before = worst_case_quote_amount
+            .safe_mul(quote_initial_asset_weight)?
+            .safe_div(SPOT_WEIGHT_PRECISION_I128)?
+            .safe_add(
+                worst_case_token_value_before
+                    .safe_mul(liability_weight.cast()?)?
+                    .safe_div(SPOT_WEIGHT_PRECISION.cast()?)?,
+            )?;
 
         // then calculate the free collateral consumed by placing order to flip worst case token amount
 
@@ -937,6 +945,7 @@ pub fn calculate_max_spot_order_size(
         &spot_market,
         worst_case_token_amount.unsigned_abs(),
         direction,
+        quote_initial_asset_weight.cast()?,
     )?;
 
     let precision_increase = 10i128.pow(spot_market.decimals - 6);
@@ -958,6 +967,7 @@ pub fn calculate_max_spot_order_size(
             .unsigned_abs()
             .safe_add(order_size.cast()?)?,
         direction,
+        quote_initial_asset_weight.cast()?,
     )?;
 
     if updated_free_collateral_delta != free_collateral_delta {
@@ -981,6 +991,7 @@ fn calculate_free_collateral_delta_for_spot(
     spot_market: &SpotMarket,
     worst_case_token_amount: u128,
     order_direction: PositionDirection,
+    quote_asset_weight: u32,
 ) -> DriftResult<u32> {
     Ok(if order_direction == PositionDirection::Long {
         SPOT_WEIGHT_PRECISION.sub(
@@ -990,6 +1001,6 @@ fn calculate_free_collateral_delta_for_spot(
     } else {
         spot_market
             .get_liability_weight(worst_case_token_amount, &MarginRequirementType::Initial)?
-            .sub(SPOT_WEIGHT_PRECISION)
+            .sub(quote_asset_weight)
     })
 }
