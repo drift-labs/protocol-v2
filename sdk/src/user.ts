@@ -591,7 +591,17 @@ export class User {
 						spotPosition.balanceType
 					);
 
-					netQuoteValue = netQuoteValue.add(tokenAmount);
+					const quoteSpotMarket = this.driftClient.getQuoteSpotMarketAccount();
+					const assetWeight =
+						marginCategory === 'Initial'
+							? new BN(quoteSpotMarket.initialAssetWeight)
+							: marginCategory === 'Maintenance'
+							? new BN(quoteSpotMarket.maintenanceAssetWeight)
+							: SPOT_MARKET_WEIGHT_PRECISION;
+
+					netQuoteValue = netQuoteValue.add(
+						tokenAmount.mul(assetWeight).div(SPOT_MARKET_WEIGHT_PRECISION)
+					);
 
 					continue;
 				}
@@ -675,7 +685,19 @@ export class User {
 			}
 
 			if (worstCaseQuoteTokenAmount.gt(ZERO) && countForQuote) {
-				netQuoteValue = netQuoteValue.add(worstCaseQuoteTokenAmount);
+				const quoteSpotMarket = this.driftClient.getQuoteSpotMarketAccount();
+				const assetWeight =
+					marginCategory === 'Initial'
+						? new BN(quoteSpotMarket.initialAssetWeight)
+						: marginCategory === 'Maintenance'
+						? new BN(quoteSpotMarket.maintenanceAssetWeight)
+						: SPOT_MARKET_WEIGHT_PRECISION;
+
+				netQuoteValue = netQuoteValue.add(
+					worstCaseQuoteTokenAmount
+						.mul(assetWeight)
+						.div(SPOT_MARKET_WEIGHT_PRECISION)
+				);
 			}
 
 			if (worstCaseQuoteTokenAmount.lt(ZERO) && countForQuote) {

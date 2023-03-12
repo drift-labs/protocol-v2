@@ -9,8 +9,8 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 
-use crate::validate;
 use crate::validation;
+use crate::{validate, SPOT_WEIGHT_PRECISION_I128};
 
 use crate::math::casting::Cast;
 use crate::math::funding::calculate_funding_payment;
@@ -318,7 +318,17 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             }
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
-                    total_collateral = total_collateral.safe_add(token_amount.cast::<i128>()?)?
+                    let asset_weight = match margin_requirement_type {
+                        MarginRequirementType::Initial => spot_market.initial_asset_weight,
+                        MarginRequirementType::Maintenance => spot_market.maintenance_asset_weight,
+                    };
+
+                    total_collateral = total_collateral.safe_add(
+                        token_amount
+                            .safe_mul(asset_weight.cast()?)?
+                            .safe_div(SPOT_WEIGHT_PRECISION_U128)?
+                            .cast()?,
+                    )?
                 }
                 SpotBalanceType::Borrow => {
                     let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
@@ -477,8 +487,20 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             match worst_cast_quote_token_amount.cmp(&0) {
                 Ordering::Greater => {
-                    total_collateral =
-                        total_collateral.safe_add(worst_cast_quote_token_amount.cast::<i128>()?)?
+                    let quote_spot_market = spot_market_map.get_quote_spot_market()?;
+
+                    let asset_weight = match margin_requirement_type {
+                        MarginRequirementType::Initial => quote_spot_market.initial_asset_weight,
+                        MarginRequirementType::Maintenance => {
+                            quote_spot_market.maintenance_asset_weight
+                        }
+                    };
+
+                    total_collateral = total_collateral.safe_add(
+                        worst_cast_quote_token_amount
+                            .safe_mul(asset_weight.cast()?)?
+                            .safe_div(SPOT_WEIGHT_PRECISION_I128)?,
+                    )?
                 }
                 Ordering::Less => {
                     let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
