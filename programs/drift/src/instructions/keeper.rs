@@ -26,7 +26,7 @@ use crate::state::state::State;
 use crate::state::user::{MarketType, User, UserStats};
 use crate::state::user_map::load_user_maps;
 use crate::validate;
-use crate::validation::user::validate_user_is_inactive;
+use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math};
 
 #[access_control(
@@ -327,8 +327,9 @@ pub fn handle_force_cancel_orders<'info>(ctx: Context<ForceCancelOrder>) -> Resu
 )]
 pub fn handle_update_user_inactive<'info>(ctx: Context<UpdateUserInactive>) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
+    let clock = Clock::get()?;
 
-    validate_user_is_inactive(&user)?;
+    validate_user_is_idle(&user, clock.slot)?;
 
     user.idle = true;
 

@@ -52,7 +52,15 @@ pub fn validate_user_deletion(user: &User, user_stats: &UserStats) -> DriftResul
     Ok(())
 }
 
-pub fn validate_user_is_inactive(user: &User) -> DriftResult {
+pub fn validate_user_is_idle(user: &User, slot: u64) -> DriftResult {
+    let slots_since_last_active = slot.saturating_sub(user.last_active_slot);
+    validate!(
+        slots_since_last_active > 1512000,
+        ErrorCode::UserNotInactive,
+        "user only been idle for {} slot",
+        slots_since_last_active
+    )?;
+
     validate!(
         !user.is_bankrupt(),
         ErrorCode::UserNotInactive,
