@@ -41,12 +41,12 @@ export class UserMap implements UserMapInterface {
 		this.accountSubscription = accountSubscription;
 	}
 
-	public async fetchAllUsers(activeOnly = false) {
+	public async fetchAllUsers(includeIdle = true) {
 		const userArray: User[] = [];
 		const userAccountArray: UserAccount[] = [];
 
 		const programUserAccounts = await this.driftClient.fetchAllUserAccounts(
-			activeOnly
+			includeIdle
 		);
 		for (const programUserAccount of programUserAccounts) {
 			if (this.userMap.has(programUserAccount.publicKey.toString())) {

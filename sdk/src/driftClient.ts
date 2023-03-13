@@ -720,10 +720,10 @@ export class DriftClient {
 	}
 
 	public async fetchAllUserAccounts(
-		activeOnly = false
+		includeIdle = true
 	): Promise<ProgramAccount<UserAccount>[]> {
 		let filters = undefined;
-		if (activeOnly) {
+		if (!includeIdle) {
 			filters = [
 				{
 					memcmp: {
