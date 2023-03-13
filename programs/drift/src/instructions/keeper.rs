@@ -330,7 +330,7 @@ pub fn handle_update_user_inactive<'info>(ctx: Context<UpdateUserInactive>) -> R
 
     validate_user_is_inactive(&user)?;
 
-    user.inactive = true;
+    user.idle = true;
 
     Ok(())
 }

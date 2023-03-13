@@ -72,7 +72,7 @@ pub struct User {
     pub sub_account_id: u16,
     pub status: UserStatus,
     pub is_margin_trading_enabled: bool,
-    pub inactive: bool,
+    pub idle: bool,
     pub padding: [u8; 25],
 }
 
@@ -283,8 +283,8 @@ impl User {
     pub fn update_last_active_slot(&mut self, slot: u64) {
         if !self.is_being_liquidated() {
             self.last_active_slot = slot;
-            self.inactive = false;
         }
+        self.idle = false;
     }
 }
 
