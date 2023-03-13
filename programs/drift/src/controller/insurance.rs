@@ -695,7 +695,13 @@ pub fn resolve_perp_pnl_deficit(
     let max_revenue_withdraw_per_period = market
         .insurance_claim
         .max_revenue_withdraw_per_period
-        .safe_sub(market.insurance_claim.revenue_withdraw_since_last_settle)?
+        .cast::<i128>()?
+        .safe_sub(
+            market
+                .insurance_claim
+                .revenue_withdraw_since_last_settle
+                .cast()?,
+        )?
         .cast::<i128>()?;
     validate!(
         max_revenue_withdraw_per_period > 0,
