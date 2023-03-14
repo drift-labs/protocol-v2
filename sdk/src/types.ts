@@ -798,7 +798,7 @@ export type UserAccount = {
 	totalSocialLoss: BN;
 	cumulativePerpFunding: BN;
 	liquidationMarginFreed: BN;
-	liquidationStartSlot: BN;
+	lastActiveSlot: BN;
 	isMarginTradingEnabled: boolean;
 	inactive: boolean;
 };

@@ -2171,9 +2171,14 @@ export class User {
 		};
 	}
 
-	public canMakeInactive(): boolean {
+	public canMakeIdle(slot: BN, slotsBeforeIdle: BN): boolean {
 		const userAccount = this.getUserAccount();
 		if (userAccount.inactive) {
+			return false;
+		}
+
+		const userLastActiveSlot = userAccount.lastActiveSlot;
+		if (userLastActiveSlot.lt(slotsBeforeIdle)) {
 			return false;
 		}
 
