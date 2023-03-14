@@ -2394,6 +2394,20 @@ export class DriftClient {
 		});
 	}
 
+	public async getRevertFillIx(): Promise<TransactionInstruction> {
+		const fillerPublicKey = await this.getUserAccountPublicKey();
+		const fillerStatsPublicKey = this.getUserStatsAccountPublicKey();
+
+		return this.program.instruction.revertFill({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				filler: fillerPublicKey,
+				fillerStats: fillerStatsPublicKey,
+				authority: this.wallet.publicKey,
+			},
+		});
+	}
+
 	public async placeSpotOrder(
 		orderParams: OptionalOrderParams,
 		txParams?: TxParams
