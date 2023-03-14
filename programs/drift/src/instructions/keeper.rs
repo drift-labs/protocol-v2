@@ -26,6 +26,7 @@ use crate::state::state::State;
 use crate::state::user::{MarketType, User, UserStats};
 use crate::state::user_map::load_user_maps;
 use crate::validate;
+use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math};
 
 #[access_control(
@@ -322,6 +323,20 @@ pub fn handle_force_cancel_orders<'info>(ctx: Context<ForceCancelOrder>) -> Resu
 }
 
 #[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_update_user_inactive<'info>(ctx: Context<UpdateUserInactive>) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+    let clock = Clock::get()?;
+
+    validate_user_is_idle(&user, clock.slot)?;
+
+    user.idle = true;
+
+    Ok(())
+}
+
+#[access_control(
     settle_pnl_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
@@ -360,6 +375,8 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             clock.slot,
             state,
         )?;
+
+        user.update_last_active_slot(clock.slot);
     } else {
         controller::repeg::update_amm(
             market_index,
@@ -382,6 +399,8 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             state,
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+
+        user.update_last_active_slot(clock.slot);
     }
 
     let spot_market = spot_market_map.get_quote_spot_market()?;
@@ -411,6 +430,7 @@ pub fn handle_settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> 
     )?;
 
     controller::funding::settle_funding_payments(user, &user_key, &perp_market_map, now)?;
+    user.update_last_active_slot(clock.slot);
     Ok(())
 }
 
@@ -437,6 +457,7 @@ pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Res
 
     let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     controller::lp::settle_funding_payment_then_lp(user, &user_key, market, now)?;
+    user.update_last_active_slot(clock.slot);
 
     Ok(())
 }
@@ -1293,6 +1314,19 @@ pub struct TriggerOrder<'info> {
 
 #[derive(Accounts)]
 pub struct ForceCancelOrder<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&filler, &authority)?
+    )]
+    pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserInactive<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(

@@ -14,7 +14,6 @@ import {
 	NewUserRecord,
 	LPRecord,
 } from '..';
-import { ProgramAccount } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
@@ -42,12 +41,13 @@ export class UserMap implements UserMapInterface {
 		this.accountSubscription = accountSubscription;
 	}
 
-	public async fetchAllUsers() {
+	public async fetchAllUsers(includeIdle = true) {
 		const userArray: User[] = [];
 		const userAccountArray: UserAccount[] = [];
 
-		const programUserAccounts =
-			(await this.driftClient.program.account.user.all()) as ProgramAccount<UserAccount>[];
+		const programUserAccounts = await this.driftClient.fetchAllUserAccounts(
+			includeIdle
+		);
 		for (const programUserAccount of programUserAccounts) {
 			if (this.userMap.has(programUserAccount.publicKey.toString())) {
 				continue;

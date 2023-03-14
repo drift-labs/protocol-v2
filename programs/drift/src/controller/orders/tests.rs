@@ -7509,6 +7509,7 @@ pub mod fulfill_spot_order {
             ..SpotPosition::default()
         };
         expected_taker.cumulative_spot_fees = -100000;
+        expected_taker.last_active_slot = clock.slot;
 
         let mut expected_maker = maker;
         expected_maker.orders[1] = Order::default();
@@ -7527,6 +7528,7 @@ pub mod fulfill_spot_order {
             ..SpotPosition::default()
         };
         expected_maker.cumulative_spot_fees = 20000;
+        expected_maker.last_active_slot = clock.slot;
 
         let base_asset_amount = fill_spot_order(
             1,

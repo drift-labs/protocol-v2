@@ -4543,7 +4543,7 @@
             "type": "u64"
           },
           {
-            "name": "liquidationStartSlot",
+            "name": "lastActiveSlot",
             "type": "u64"
           },
           {
@@ -4573,11 +4573,15 @@
             "type": "bool"
           },
           {
+            "name": "idle",
+            "type": "bool"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                26
+                25
               ]
             }
           }
@@ -8733,6 +8737,11 @@
       "code": 6237,
       "name": "UnableToLoadUserStatsAccount",
       "msg": "UnableToLoadUserStatsAccount"
+    },
+    {
+      "code": 6238,
+      "name": "UserNotInactive",
+      "msg": "User Not Inactive"
     }
   ]
 }

@@ -12,7 +12,7 @@ import {
 	isOneOfVariant,
 	PerpMarketAccount,
 } from './types';
-import { calculateEntryPrice } from './math/position';
+import { calculateEntryPrice, positionIsAvailable } from './math/position';
 import {
 	PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
@@ -2169,6 +2169,46 @@ export class User {
 			netDeposits,
 			depositAmount,
 		};
+	}
+
+	public canMakeIdle(slot: BN, slotsBeforeIdle: BN): boolean {
+		const userAccount = this.getUserAccount();
+		if (userAccount.inactive) {
+			return false;
+		}
+
+		const userLastActiveSlot = userAccount.lastActiveSlot;
+		if (userLastActiveSlot.lt(slotsBeforeIdle)) {
+			return false;
+		}
+
+		if (this.isBeingLiquidated()) {
+			return false;
+		}
+
+		for (const perpPosition of userAccount.perpPositions) {
+			if (!positionIsAvailable(perpPosition)) {
+				return false;
+			}
+		}
+
+		for (const spotPosition of userAccount.spotPositions) {
+			if (isVariant(spotPosition.balanceType, 'borrow')) {
+				return false;
+			}
+
+			if (spotPosition.openOrders !== 0) {
+				return false;
+			}
+		}
+
+		for (const order of userAccount.orders) {
+			if (!isVariant(order.status, 'init')) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
