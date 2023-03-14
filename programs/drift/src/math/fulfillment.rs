@@ -50,7 +50,7 @@ pub fn determine_perp_fulfillment_methods(
             };
 
             if !maker_better_than_amm {
-                fulfillment_methods.push(PerpFulfillmentMethod::AMM(Some(*maker_price)));
+                fulfillment_methods.push(PerpFulfillmentMethod::AMM(Some(*maker_price), None));
 
                 match taker_order.direction {
                     PositionDirection::Long => amm_ask_price = *maker_price,
@@ -69,6 +69,33 @@ pub fn determine_perp_fulfillment_methods(
         }
     }
 
+    {
+        let amm_wants_to_make = match taker_order.direction {
+            PositionDirection::Long => amm.base_asset_amount_with_amm < 0,
+            PositionDirection::Short => amm.base_asset_amount_with_amm > 0,
+        } && amm.amm_jit_is_active();
+
+        // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
+        // market order will always land and fill on amm next round
+        // let amm_will_fill_next_round = !taker.orders[taker_order_index].has_limit_price(slot)?
+        //     && maker_base_asset_amount < taker_base_asset_amount;
+        let jit_price = 0; // todo
+        let jit_size = 0; // todo
+        if amm_wants_to_make { // && !amm_will_fill_next_round {
+            let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+                amm,
+                jit_size,
+                jit_price,
+                valid_oracle_price,
+                taker_order.direction,
+            )?;
+
+            if jit_base_asset_amount > 0 {
+                fulfillment_methods.push(PerpFulfillmentMethod::AMM(Some(jit_price), Some(jit_size)));
+            };
+        };
+    }
+
     if can_fill_with_amm {
         let amm_price = match maker_direction {
             PositionDirection::Long => amm_bid_price,
@@ -81,7 +108,7 @@ pub fn determine_perp_fulfillment_methods(
         };
 
         if taker_crosses_maker {
-            fulfillment_methods.push(PerpFulfillmentMethod::AMM(None));
+            fulfillment_methods.push(PerpFulfillmentMethod::AMM(None, None));
         }
     }
 

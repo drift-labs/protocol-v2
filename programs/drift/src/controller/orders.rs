@@ -1290,7 +1290,7 @@ fn fulfill_perp_order(
         let user_order_direction = user.orders[user_order_index].direction;
 
         let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
-            PerpFulfillmentMethod::AMM(maker_price) => {
+            PerpFulfillmentMethod::AMM(maker_price, _) => {
                 let (mut referrer, mut referrer_stats) = get_referrer(
                     &referrer_info,
                     makers_and_referrer,
@@ -1864,52 +1864,8 @@ pub fn fulfill_perp_order_with_match(
         Some(taker_direction),
         sanitize_clamp_denominator,
     )?;
-
-    let amm_wants_to_make = match taker_direction {
-        PositionDirection::Long => market.amm.base_asset_amount_with_amm < 0,
-        PositionDirection::Short => market.amm.base_asset_amount_with_amm > 0,
-    } && market.amm.amm_jit_is_active();
-
-    // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
-    // market order will always land and fill on amm next round
-    let amm_will_fill_next_round = !taker.orders[taker_order_index].has_limit_price(slot)?
-        && maker_base_asset_amount < taker_base_asset_amount;
-
+    
     let mut total_quote_asset_amount = 0_u64;
-    if amm_wants_to_make && !amm_will_fill_next_round {
-        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
-            market,
-            base_asset_amount,
-            maker_price,
-            valid_oracle_price,
-            taker_direction,
-        )?;
-
-        if jit_base_asset_amount > 0 {
-            let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
-                taker,
-                taker_stats,
-                taker_order_index,
-                market,
-                oracle_map,
-                reserve_price_before,
-                now,
-                slot,
-                valid_oracle_price,
-                taker_key,
-                filler_key,
-                filler,
-                filler_stats,
-                &mut None,
-                &mut None,
-                fee_structure,
-                Some(jit_base_asset_amount),
-                Some(maker_price), // match the makers price
-                false,             // dont split with the lps
-            )?;
-            total_quote_asset_amount = quote_asset_amount_filled_by_amm;
-        };
-    };
 
     let taker_existing_position = taker
         .get_perp_position(market.market_index)?

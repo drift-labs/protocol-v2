@@ -5,7 +5,7 @@ use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::safe_math::SafeMath;
 
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::AMM;
 
 #[cfg(test)]
 mod tests;
@@ -13,7 +13,7 @@ mod tests;
 // assumption: market.amm.amm_jit_is_active() == true
 // assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
 pub fn calculate_jit_base_asset_amount(
-    market: &PerpMarket,
+    amm: &AMM,
     maker_base_asset_amount: u64,
     auction_price: u64,
     valid_oracle_price: Option<i64>,
@@ -51,7 +51,7 @@ pub fn calculate_jit_base_asset_amount(
     // base @ mim = ratio = 2.5 / 7.5 = 3 == imbalanced
     // ratio >= 3 == imbalanced
 
-    let (max_bids, max_asks) = crate::math::amm::calculate_market_open_bids_asks(&market.amm)?;
+    let (max_bids, max_asks) = crate::math::amm::calculate_market_open_bids_asks(&amm)?;
     let (max_bids, max_asks) = (max_bids.unsigned_abs(), max_asks.unsigned_abs());
 
     let numerator = max_bids.max(max_asks);
@@ -76,13 +76,13 @@ pub fn calculate_jit_base_asset_amount(
         return Ok(0);
     }
 
-    jit_base_asset_amount = calculate_clamped_jit_base_asset_amount(market, jit_base_asset_amount)?;
+    jit_base_asset_amount = calculate_clamped_jit_base_asset_amount(amm, jit_base_asset_amount)?;
 
     jit_base_asset_amount = jit_base_asset_amount.min(max_jit_amount);
 
     // last step we always standardize
     jit_base_asset_amount =
-        standardize_base_asset_amount(jit_base_asset_amount, market.amm.order_step_size)?;
+        standardize_base_asset_amount(jit_base_asset_amount, amm.order_step_size)?;
 
     Ok(jit_base_asset_amount)
 }
@@ -90,20 +90,20 @@ pub fn calculate_jit_base_asset_amount(
 // assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
 // note: we split it into two (calc and clamp) bc its easier to maintain tests
 pub fn calculate_clamped_jit_base_asset_amount(
-    market: &PerpMarket,
+    amm: &AMM,
     jit_base_asset_amount: u64,
 ) -> DriftResult<u64> {
     // apply intensity
     // todo more efficient method do here
     let jit_base_asset_amount = jit_base_asset_amount
         .cast::<u128>()?
-        .safe_mul(market.amm.amm_jit_intensity as u128)?
+        .safe_mul(amm.amm_jit_intensity as u128)?
         .safe_div(100)?
         .cast::<u64>()?;
 
     // bound it; dont flip the net_baa
-    let max_amm_base_asset_amount = market
-        .amm
+    let max_amm_base_asset_amount = 
+        amm
         .base_asset_amount_with_amm
         .unsigned_abs()
         .cast::<u64>()?;

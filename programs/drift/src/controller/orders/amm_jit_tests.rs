@@ -113,7 +113,7 @@ pub mod amm_jit {
 
         // shouldnt throw an error when bids/asks are zero
         crate::math::amm_jit::calculate_jit_base_asset_amount(
-            &market,
+            &market.amm,
             BASE_PRECISION_U64,
             PRICE_PRECISION_U64,
             Some(PRICE_PRECISION_I64),

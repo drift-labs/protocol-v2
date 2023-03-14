@@ -65,7 +65,7 @@ mod determine_perp_fulfillment_methods {
         )
         .unwrap();
 
-        assert_eq!(fulfillment_methods, [PerpFulfillmentMethod::AMM(None)]);
+        assert_eq!(fulfillment_methods, [PerpFulfillmentMethod::AMM(None, None)]);
     }
 
     #[test]
@@ -126,7 +126,7 @@ mod determine_perp_fulfillment_methods {
             fulfillment_methods,
             [
                 PerpFulfillmentMethod::Match(Pubkey::default(), 0),
-                PerpFulfillmentMethod::AMM(None)
+                PerpFulfillmentMethod::AMM(None, None)
             ]
         );
     }
@@ -194,9 +194,9 @@ mod determine_perp_fulfillment_methods {
         assert_eq!(
             fulfillment_methods,
             [
-                PerpFulfillmentMethod::AMM(Some(maker_order.price)),
+                PerpFulfillmentMethod::AMM(Some(maker_order.price), None),
                 PerpFulfillmentMethod::Match(Pubkey::default(), 0),
-                PerpFulfillmentMethod::AMM(None)
+                PerpFulfillmentMethod::AMM(None, None)
             ]
         );
     }
@@ -262,9 +262,9 @@ mod determine_perp_fulfillment_methods {
             fulfillment_methods,
             [
                 PerpFulfillmentMethod::Match(Pubkey::default(), 0),
-                PerpFulfillmentMethod::AMM(Some(101 * PRICE_PRECISION_U64)),
+                PerpFulfillmentMethod::AMM(Some(101 * PRICE_PRECISION_U64), None),
                 PerpFulfillmentMethod::Match(Pubkey::default(), 1),
-                PerpFulfillmentMethod::AMM(None),
+                PerpFulfillmentMethod::AMM(None, None),
             ]
         );
     }
@@ -335,7 +335,7 @@ mod determine_perp_fulfillment_methods {
             [
                 PerpFulfillmentMethod::Match(Pubkey::default(), 0),
                 PerpFulfillmentMethod::Match(Pubkey::default(), 1),
-                PerpFulfillmentMethod::AMM(None),
+                PerpFulfillmentMethod::AMM(None, None),
             ]
         );
     }
@@ -400,11 +400,11 @@ mod determine_perp_fulfillment_methods {
         assert_eq!(
             fulfillment_methods,
             [
-                PerpFulfillmentMethod::AMM(Some(102 * PRICE_PRECISION_U64)),
+                PerpFulfillmentMethod::AMM(Some(102 * PRICE_PRECISION_U64), None),
                 PerpFulfillmentMethod::Match(Pubkey::default(), 0),
-                PerpFulfillmentMethod::AMM(Some(103 * PRICE_PRECISION_U64)),
+                PerpFulfillmentMethod::AMM(Some(103 * PRICE_PRECISION_U64), None),
                 PerpFulfillmentMethod::Match(Pubkey::default(), 1),
-                PerpFulfillmentMethod::AMM(None),
+                PerpFulfillmentMethod::AMM(None, None),
             ]
         );
     }
@@ -470,9 +470,9 @@ mod determine_perp_fulfillment_methods {
             fulfillment_methods,
             [
                 PerpFulfillmentMethod::Match(Pubkey::default(), 0),
-                PerpFulfillmentMethod::AMM(Some(99 * PRICE_PRECISION_U64)),
+                PerpFulfillmentMethod::AMM(Some(99 * PRICE_PRECISION_U64), None),
                 PerpFulfillmentMethod::Match(Pubkey::default(), 1),
-                PerpFulfillmentMethod::AMM(None),
+                PerpFulfillmentMethod::AMM(None, None),
             ]
         );
     }
@@ -539,7 +539,7 @@ mod determine_perp_fulfillment_methods {
             [
                 PerpFulfillmentMethod::Match(Pubkey::default(), 0),
                 PerpFulfillmentMethod::Match(Pubkey::default(), 1),
-                PerpFulfillmentMethod::AMM(None),
+                PerpFulfillmentMethod::AMM(None, None),
             ]
         );
     }
@@ -604,11 +604,11 @@ mod determine_perp_fulfillment_methods {
         assert_eq!(
             fulfillment_methods,
             [
-                PerpFulfillmentMethod::AMM(Some(99 * PRICE_PRECISION_U64)),
+                PerpFulfillmentMethod::AMM(Some(99 * PRICE_PRECISION_U64), None),
                 PerpFulfillmentMethod::Match(Pubkey::default(), 0),
-                PerpFulfillmentMethod::AMM(Some(98 * PRICE_PRECISION_U64)),
+                PerpFulfillmentMethod::AMM(Some(98 * PRICE_PRECISION_U64), None),
                 PerpFulfillmentMethod::Match(Pubkey::default(), 1),
-                PerpFulfillmentMethod::AMM(None),
+                PerpFulfillmentMethod::AMM(None, None),
             ]
         );
     }
