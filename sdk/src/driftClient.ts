@@ -2799,7 +2799,7 @@ export class DriftClient {
 
 	public async placeAndTakePerpOrder(
 		orderParams: OptionalOrderParams,
-		makerInfo?: MakerInfo,
+		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
@@ -2822,54 +2822,64 @@ export class DriftClient {
 
 	public async getPlaceAndTakePerpOrderIx(
 		orderParams: OptionalOrderParams,
-		makerInfo?: MakerInfo,
+		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
+		makerInfo = Array.isArray(makerInfo)
+			? makerInfo
+			: makerInfo
+			? [makerInfo]
+			: [];
+
 		const userAccounts = [this.getUserAccount()];
-		if (makerInfo !== undefined) {
-			userAccounts.push(makerInfo.makerUserAccount);
+		for (const maker of makerInfo) {
+			userAccounts.push(maker.makerUserAccount);
 		}
+
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts,
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
 
-		let makerOrderId = null;
-		if (makerInfo) {
-			makerOrderId = makerInfo.order.orderId;
+		for (const maker of makerInfo) {
 			remainingAccounts.push({
-				pubkey: makerInfo.maker,
-				isSigner: false,
+				pubkey: maker.maker,
 				isWritable: true,
+				isSigner: false,
 			});
 			remainingAccounts.push({
-				pubkey: makerInfo.makerStats,
-				isSigner: false,
+				pubkey: maker.makerStats,
 				isWritable: true,
+				isSigner: false,
 			});
 		}
 
 		if (referrerInfo) {
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrerStats,
-				isWritable: true,
-				isSigner: false,
-			});
+			const referrerIsMaker =
+				makerInfo.find((maker) => maker.maker.equals(referrerInfo.referrer)) !==
+				undefined;
+			if (!referrerIsMaker) {
+				remainingAccounts.push({
+					pubkey: referrerInfo.referrer,
+					isWritable: true,
+					isSigner: false,
+				});
+				remainingAccounts.push({
+					pubkey: referrerInfo.referrerStats,
+					isWritable: true,
+					isSigner: false,
+				});
+			}
 		}
 
 		return await this.program.instruction.placeAndTakePerpOrder(
 			orderParams,
-			makerOrderId,
+			null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),

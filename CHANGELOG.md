@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.20.0] - 2023-03-10
+
+### Features
+
 - program: add referrer name account to enforce unique referrer names ([#357](https://github.com/drift-labs/protocol-v2/pull/357)) 
 - program: only let amm fill up to tick above/below user limit price ([#381](https://github.com/drift-labs/protocol-v2/pull/381))
 - program: allow multiple makers in fill_perp_order ([#341](https://github.com/drift-labs/protocol-v2/pull/341))
