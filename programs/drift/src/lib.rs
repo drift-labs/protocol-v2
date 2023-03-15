@@ -217,6 +217,10 @@ pub mod drift {
         handle_fill_perp_order(ctx, order_id)
     }
 
+    pub fn revert_fill(ctx: Context<RevertFill>) -> Result<()> {
+        handle_revert_fill(ctx)
+    }
+
     pub fn fill_spot_order(
         ctx: Context<FillOrder>,
         order_id: Option<u32>,

@@ -848,6 +848,7 @@ pub fn fill_perp_order(
                 filler.as_deref_mut(),
                 market.deref_mut(),
                 state.perp_fee_structure.flat_filler_fee,
+                slot,
             )?
         };
 
@@ -913,6 +914,7 @@ pub fn fill_perp_order(
                 filler.as_deref_mut(),
                 market.deref_mut(),
                 state.perp_fee_structure.flat_filler_fee,
+                slot,
             )?
         };
 
@@ -1148,6 +1150,7 @@ fn get_maker_orders_info(
                         filler.as_deref_mut(),
                         market.deref_mut(),
                         filler_reward,
+                        slot,
                     )?
                 };
 
@@ -1732,6 +1735,7 @@ pub fn fulfill_perp_order_with_amm(
                 .safe_unwrap()?
                 .update_filler_volume(quote_asset_amount, now)?;
         }
+        filler.update_last_active_slot(slot);
     }
 
     update_order_after_fill(
@@ -2096,6 +2100,7 @@ pub fn fulfill_perp_order_with_match(
                 .safe_unwrap()?
                 .update_filler_volume(quote_asset_amount, now)?;
         }
+        filler.update_last_active_slot(slot);
     }
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
@@ -2358,6 +2363,7 @@ pub fn trigger_order(
         filler.as_deref_mut(),
         &mut perp_market,
         state.perp_fee_structure.flat_filler_fee,
+        slot,
     )?;
 
     let order_action_record = get_order_action_record(
@@ -2531,6 +2537,7 @@ pub fn pay_keeper_flat_reward_for_perps(
     filler: Option<&mut User>,
     market: &mut PerpMarket,
     filler_reward: u64,
+    slot: u64,
 ) -> DriftResult<u64> {
     let filler_reward = if let Some(filler) = filler {
         let user_position = user.get_perp_position_mut(market.market_index)?;
@@ -2540,6 +2547,7 @@ pub fn pay_keeper_flat_reward_for_perps(
             -filler_reward.cast()?,
         )?;
 
+        filler.update_last_active_slot(slot);
         // Dont throw error if filler doesnt have position available
         let filler_position = match filler.force_get_perp_position_mut(market.market_index) {
             Ok(position) => position,
