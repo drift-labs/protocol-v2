@@ -483,6 +483,8 @@ pub enum ErrorCode {
     UnableToLoadUserStatsAccount,
     #[msg("User Not Inactive")]
     UserNotInactive,
+    #[msg("RevertFill")]
+    RevertFill,
 }
 
 #[macro_export]

@@ -107,6 +107,24 @@ fn fill_order(ctx: Context<FillOrder>, order_id: u32, market_index: u16) -> Resu
     Ok(())
 }
 
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_revert_fill<'info>(ctx: Context<RevertFill>) -> Result<()> {
+    let filler = load_mut!(ctx.accounts.filler)?;
+    let clock = Clock::get()?;
+
+    validate!(
+        filler.last_active_slot == clock.slot,
+        ErrorCode::RevertFill,
+        "filler last active slot ({}) != current slot ({})",
+        filler.last_active_slot,
+        clock.slot
+    )?;
+
+    Ok(())
+}
+
 #[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub enum SpotFulfillmentType {
     SerumV3,
@@ -1297,6 +1315,22 @@ pub struct FillOrder<'info> {
         constraint = is_stats_for_user(&user, &user_stats)?
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct RevertFill<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&filler, &authority)?
+    )]
+    pub filler: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&filler, &filler_stats)?
+    )]
+    pub filler_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]

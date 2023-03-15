@@ -910,6 +910,32 @@
       ]
     },
     {
+      "name": "revertFill",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fillerStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "fillSpotOrder",
       "accounts": [
         {
@@ -8768,6 +8794,11 @@
       "code": 6238,
       "name": "UserNotInactive",
       "msg": "User Not Inactive"
+    },
+    {
+      "code": 6239,
+      "name": "RevertFill",
+      "msg": "RevertFill"
     }
   ]
 }
