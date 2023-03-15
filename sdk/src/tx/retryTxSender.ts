@@ -75,12 +75,13 @@ export class RetryTxSender implements TxSender {
 			)
 		).blockhash;
 
-		const signedTx = await this.provider.wallet.signTransaction(tx);
 		additionalSigners
 			.filter((s): s is Signer => s !== undefined)
 			.forEach((kp) => {
-				signedTx.partialSign(kp);
+				tx.partialSign(kp);
 			});
+			
+		const signedTx = await this.provider.wallet.signTransaction(tx);
 
 		return signedTx;
 	}
