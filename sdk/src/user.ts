@@ -96,7 +96,7 @@ export class User {
 				config.driftClient.program,
 				config.userAccountPublicKey,
 				config.accountSubscription.accountLoader,
-				config.lazyDecode
+				config.accountSubscription.lazyDecode
 			);
 		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(

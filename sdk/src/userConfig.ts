@@ -6,7 +6,6 @@ export type UserConfig = {
 	accountSubscription?: UserSubscriptionConfig;
 	driftClient: DriftClient;
 	userAccountPublicKey: PublicKey;
-	lazyDecode?: boolean;
 };
 
 export type UserSubscriptionConfig =
@@ -16,4 +15,5 @@ export type UserSubscriptionConfig =
 	| {
 			type: 'polling';
 			accountLoader: BulkAccountLoader;
+			lazyDecode?: boolean;
 	  };

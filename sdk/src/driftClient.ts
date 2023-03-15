@@ -160,6 +160,7 @@ export class DriftClient {
 				? {
 						type: 'polling',
 						accountLoader: config.accountSubscription.accountLoader,
+						lazyDecode: config.accountSubscription.lazyDecode,
 				  }
 				: {
 						type: 'websocket',

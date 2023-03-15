@@ -97,8 +97,12 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	async fetchIfUnloaded(): Promise<void> {
 		let shouldFetch = false;
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			if (
-				!this.accountLoader.bufferAndSlotMap.has(
+			if (!this.lazyDecode && this[accountToPoll.key] === undefined) {
+				shouldFetch = true;
+				break;
+			} else if (
+				this.lazyDecode &&
+				this.accountLoader.bufferAndSlotMap.has(
 					accountToPoll.publicKey.toString()
 				)
 			) {
@@ -114,7 +118,6 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 
 	async fetch(): Promise<void> {
 		await this.accountLoader.load();
-
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
 				accountToPoll.publicKey
