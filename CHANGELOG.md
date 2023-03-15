@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: revert fill ix ([#391](https://github.com/drift-labs/protocol-v2/pull/391))
 - program: flag users as idle on-chain ([#386](https://github.com/drift-labs/protocol-v2/pull/386))
 
 ### Fixes
