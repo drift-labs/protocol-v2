@@ -7,6 +7,7 @@ pub mod orders;
 pub mod pda;
 pub mod pnl;
 pub mod position;
+pub mod print_trades;
 pub mod repeg;
 pub mod serum;
 pub mod spot_balance;
