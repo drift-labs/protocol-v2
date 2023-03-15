@@ -80,7 +80,7 @@ export class RetryTxSender implements TxSender {
 			.forEach((kp) => {
 				tx.partialSign(kp);
 			});
-			
+
 		const signedTx = await this.provider.wallet.signTransaction(tx);
 
 		return signedTx;

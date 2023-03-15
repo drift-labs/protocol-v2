@@ -325,7 +325,7 @@ pub fn handle_force_cancel_orders<'info>(ctx: Context<ForceCancelOrder>) -> Resu
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_update_user_inactive<'info>(ctx: Context<UpdateUserInactive>) -> Result<()> {
+pub fn handle_update_user_idle<'info>(ctx: Context<UpdateUserIdle>) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
     let clock = Clock::get()?;
 
@@ -1326,7 +1326,7 @@ pub struct ForceCancelOrder<'info> {
 }
 
 #[derive(Accounts)]
-pub struct UpdateUserInactive<'info> {
+pub struct UpdateUserIdle<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(

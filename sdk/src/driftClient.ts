@@ -2759,14 +2759,14 @@ export class DriftClient {
 		});
 	}
 
-	public async updateUserInactive(
+	public async updateUserIdle(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
-				await this.getUpdateUserInactiveIx(userAccountPublicKey, user),
+				await this.getUpdateUserIdleIx(userAccountPublicKey, user),
 				txParams?.computeUnits,
 				txParams?.computeUnitsPrice
 			),
@@ -2776,7 +2776,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getUpdateUserInactiveIx(
+	public async getUpdateUserIdleIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount
 	): Promise<TransactionInstruction> {
@@ -2786,7 +2786,7 @@ export class DriftClient {
 			userAccounts: [userAccount],
 		});
 
-		return await this.program.instruction.updateUserInactive({
+		return await this.program.instruction.updateUserIdle({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				filler: fillerPublicKey,

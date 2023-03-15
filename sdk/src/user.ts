@@ -2173,7 +2173,7 @@ export class User {
 
 	public canMakeIdle(slot: BN, slotsBeforeIdle: BN): boolean {
 		const userAccount = this.getUserAccount();
-		if (userAccount.inactive) {
+		if (userAccount.idle) {
 			return false;
 		}
 
