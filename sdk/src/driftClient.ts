@@ -1330,7 +1330,8 @@ export class DriftClient {
 		subAccountId = 0,
 		name = DEFAULT_USER_NAME,
 		fromSubAccountId?: number,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(
@@ -1346,6 +1347,18 @@ export class DriftClient {
 		const isSolMarket = spotMarket.mint.equals(WRAPPED_SOL_MINT);
 
 		const tx = new Transaction();
+
+		tx.add(
+			ComputeBudgetProgram.setComputeUnitLimit({
+				units: txParams?.computeUnits ?? 600_000,
+			})
+		);
+
+		if (txParams?.computeUnitsPrice) {
+			tx.add(
+				ComputeBudgetProgram.setComputeUnitPrice({microLamports: txParams.computeUnitsPrice})
+			);
+		}
 
 		const authority = this.wallet.publicKey;
 
