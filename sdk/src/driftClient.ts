@@ -1356,7 +1356,9 @@ export class DriftClient {
 
 		if (txParams?.computeUnitsPrice) {
 			tx.add(
-				ComputeBudgetProgram.setComputeUnitPrice({microLamports: txParams.computeUnitsPrice})
+				ComputeBudgetProgram.setComputeUnitPrice({
+					microLamports: txParams.computeUnitsPrice,
+				})
 			);
 		}
 
