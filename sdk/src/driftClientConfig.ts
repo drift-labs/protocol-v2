@@ -29,7 +29,6 @@ export type DriftClientSubscriptionConfig =
 	| {
 			type: 'polling';
 			accountLoader: BulkAccountLoader;
-			lazyDecode?: boolean;
 	  };
 
 type TxSenderConfig = {
