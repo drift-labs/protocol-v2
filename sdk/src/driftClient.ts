@@ -603,7 +603,7 @@ export class DriftClient {
 
 		const nameBuffer = encodeName(name);
 
-		const referrerNameAccountPublicKey = await getReferrerNamePublicKeySync(
+		const referrerNameAccountPublicKey = getReferrerNamePublicKeySync(
 			this.program.programId,
 			nameBuffer
 		);
@@ -771,6 +771,24 @@ export class DriftClient {
 
 		return programAccounts.map(
 			(programAccount) => programAccount.account as UserAccount
+		);
+	}
+
+	public async getReferrerNameAccountsForAuthority(
+		authority: PublicKey
+	): Promise<ReferrerNameAccount[]> {
+		const programAccounts = await this.program.account.referrerName.all([
+			{
+				memcmp: {
+					offset: 8,
+					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
+					bytes: bs58.encode(authority.toBuffer()),
+				},
+			},
+		]);
+
+		return programAccounts.map(
+			(programAccount) => programAccount.account as ReferrerNameAccount
 		);
 	}
 
