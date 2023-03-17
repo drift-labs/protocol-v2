@@ -1184,6 +1184,7 @@ fn attempt_borrow_with_massive_upnl() {
         deposit_balance: 100_000_000 * SPOT_BALANCE_PRECISION, //$100M usdc
         borrow_balance: 0,
         deposit_token_twap: QUOTE_PRECISION_U64 / 2,
+        historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
         status: MarketStatus::Active,
 
         ..SpotMarket::default()

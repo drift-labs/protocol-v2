@@ -369,7 +369,7 @@ impl SpotPosition {
         )
     }
 
-    pub fn get_worst_case_token_amounts(
+    pub fn get_worst_case_token_amount(
         &self,
         spot_market: &SpotMarket,
         oracle_price_data: &OraclePriceData,
@@ -391,13 +391,13 @@ impl SpotPosition {
         };
 
         if token_amount_all_bids_fill.abs() > token_amount_all_asks_fill.abs() {
-            let worst_case_quote_token_amount =
+            let worst_case_orders_value =
                 get_token_value(-self.open_bids as i128, spot_market.decimals, oracle_price)?;
-            Ok((token_amount_all_bids_fill, worst_case_quote_token_amount))
+            Ok((token_amount_all_bids_fill, worst_case_orders_value))
         } else {
-            let worst_case_quote_token_amount =
+            let worst_case_orders_value =
                 get_token_value(-self.open_asks as i128, spot_market.decimals, oracle_price)?;
-            Ok((token_amount_all_asks_fill, worst_case_quote_token_amount))
+            Ok((token_amount_all_asks_fill, worst_case_orders_value))
         }
     }
 }

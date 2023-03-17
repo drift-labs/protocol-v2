@@ -1480,6 +1480,7 @@ mod calculate_max_spot_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1585,6 +1586,7 @@ mod calculate_max_spot_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1674,6 +1676,7 @@ mod calculate_max_spot_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1779,6 +1782,7 @@ mod calculate_max_spot_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1866,7 +1870,7 @@ mod calculate_max_perp_order_size {
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
-    use crate::{create_account_info, PositionDirection};
+    use crate::{create_account_info, PositionDirection, PRICE_PRECISION_I64};
     use crate::{
         create_anchor_account_info, MarketStatus, AMM_RESERVE_PRECISION, PEG_PRECISION,
         PRICE_PRECISION,
@@ -1933,6 +1937,11 @@ mod calculate_max_perp_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -2049,6 +2058,11 @@ mod calculate_max_perp_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -2149,6 +2163,11 @@ mod calculate_max_perp_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -2265,6 +2284,11 @@ mod calculate_max_perp_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);

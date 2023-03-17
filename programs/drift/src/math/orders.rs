@@ -809,8 +809,8 @@ pub fn calculate_max_spot_order_size(
 
     let spot_position = user.get_spot_position(market_index)?;
     let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
-    let (worst_case_token_amount, worst_case_quote_amount) = spot_position
-        .get_worst_case_token_amounts(
+    let (worst_case_token_amount, worst_case_orders_value) = spot_position
+        .get_worst_case_token_amount(
             &spot_market,
             oracle_price_data,
             Some(twap),
@@ -825,7 +825,7 @@ pub fn calculate_max_spot_order_size(
     )?;
 
     let worst_case_token_value_before =
-        token_value_before.safe_add(worst_case_quote_amount.neg())?;
+        token_value_before.safe_add(worst_case_orders_value.neg())?;
 
     // account for order flipping worst case base asset amount
     if worst_case_token_amount < 0 && direction == PositionDirection::Long {
@@ -835,7 +835,7 @@ pub fn calculate_max_spot_order_size(
             &MarginRequirementType::Initial,
         )?;
 
-        let free_collateral_consumption_before = worst_case_quote_amount.safe_add(
+        let free_collateral_consumption_before = worst_case_orders_value.safe_add(
             worst_case_token_value_before
                 .safe_mul(liability_weight.cast()?)?
                 .safe_div(SPOT_WEIGHT_PRECISION.cast()?)?,
@@ -885,7 +885,7 @@ pub fn calculate_max_spot_order_size(
         let free_collateral_contribution_before = worst_case_token_value_before
             .safe_mul(asset_weight.cast()?)?
             .safe_div(SPOT_WEIGHT_PRECISION.cast()?)?
-            .safe_add(worst_case_quote_amount)?;
+            .safe_add(worst_case_orders_value)?;
 
         let asks_to_flip = worst_case_token_amount
             .neg()

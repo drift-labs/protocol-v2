@@ -219,6 +219,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -337,6 +338,7 @@ pub fn user_unsettled_negative_pnl() {
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -467,6 +469,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -597,6 +600,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -729,6 +733,7 @@ pub fn market_fee_pool_receives_portion() {
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -867,6 +872,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -998,6 +1004,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1130,6 +1137,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1259,6 +1267,7 @@ pub fn user_long_negative_unrealized_pnl() {
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1391,6 +1400,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1523,6 +1533,7 @@ pub fn user_short_negative_unrealized_pnl() {
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);

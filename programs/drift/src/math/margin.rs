@@ -9,8 +9,8 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 
-use crate::validate;
 use crate::validation;
+use crate::{validate, PRICE_PRECISION_I128};
 
 use crate::math::casting::Cast;
 use crate::math::funding::calculate_funding_payment;
@@ -131,6 +131,7 @@ pub fn calculate_perp_position_value_and_pnl(
     market_position: &PerpPosition,
     market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
+    quote_oracle_price: i64,
     margin_requirement_type: MarginRequirementType,
     user_custom_margin_ratio: u32,
     with_bounds: bool,
@@ -213,6 +214,8 @@ pub fn calculate_perp_position_value_and_pnl(
         0
     } else {
         worse_case_base_asset_value
+            .safe_mul(quote_oracle_price.cast()?)?
+            .safe_div(PRICE_PRECISION)?
             .safe_mul(margin_ratio.cast()?)?
             .safe_div(MARGIN_PRECISION_U128)?
     };
@@ -225,8 +228,10 @@ pub fn calculate_perp_position_value_and_pnl(
         market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
 
     let mut weighted_unrealized_pnl = total_unrealized_pnl
-        .safe_mul(unrealized_asset_weight as i128)?
-        .safe_div(SPOT_WEIGHT_PRECISION as i128)?;
+        .safe_mul(quote_oracle_price.cast()?)?
+        .safe_div(PRICE_PRECISION_I128)?
+        .safe_mul(unrealized_asset_weight.cast()?)?
+        .safe_div(SPOT_WEIGHT_PRECISION.cast()?)?;
 
     if with_bounds && margin_requirement_type == MarginRequirementType::Initial {
         // safety guard for dangerously configured perp market
@@ -306,7 +311,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
 
         if spot_market.market_index == 0 {
-            let token_amount = spot_position.get_token_amount(&spot_market)?;
+            let token_amount = spot_position.get_signed_token_amount(&spot_market)?;
             if token_amount == 0 {
                 validate!(
                     spot_position.scaled_balance == 0,
@@ -316,18 +321,29 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     token_amount,
                 )?;
             }
+
+            let token_value = get_strict_token_value(
+                token_amount,
+                spot_market.decimals,
+                oracle_price_data,
+                spot_market
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min,
+            )?;
+
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
-                    total_collateral = total_collateral.safe_add(token_amount.cast::<i128>()?)?
+                    total_collateral = total_collateral.safe_add(token_value)?
                 }
                 SpotBalanceType::Borrow => {
+                    let token_value = token_value.unsigned_abs();
                     let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
-                    let weighted_token_value = token_amount
+                    let weighted_token_value = token_value
                         .safe_mul(liability_weight.cast()?)?
                         .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
 
                     validate!(
-                        weighted_token_value >= token_amount,
+                        weighted_token_value >= token_value,
                         ErrorCode::InvalidMarginRatio,
                         "weighted_token_value={} < abs(token_amount={}) in spot market_index={}",
                         weighted_token_value,
@@ -350,7 +366,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         margin_requirement_plus_buffer = margin_requirement_plus_buffer.safe_add(
                             calculate_margin_requirement_with_buffer(
                                 weighted_token_value,
-                                token_amount,
+                                token_value,
                                 margin_buffer_ratio,
                             )?,
                         )?;
@@ -359,8 +375,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             }
         } else {
             let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
-            let (worst_case_token_amount, worst_cast_quote_token_amount): (i128, i128) =
-                spot_position.get_worst_case_token_amounts(
+            let (worst_case_token_amount, worst_case_orders_value): (i128, i128) = spot_position
+                .get_worst_case_token_amount(
                     &spot_market,
                     oracle_price_data,
                     if strict {
@@ -404,7 +420,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             // the worst case token value is the deposit/borrow amount * oracle + worst case order size * oracle
             let worst_case_token_value =
-                signed_token_value.safe_add(worst_cast_quote_token_amount.neg())?;
+                signed_token_value.safe_add(worst_case_orders_value.neg())?;
 
             margin_requirement =
                 margin_requirement.safe_add(spot_position.margin_requirement_for_open_orders()?)?;
@@ -475,14 +491,14 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 }
             }
 
-            match worst_cast_quote_token_amount.cmp(&0) {
+            match worst_case_orders_value.cmp(&0) {
                 Ordering::Greater => {
                     total_collateral =
-                        total_collateral.safe_add(worst_cast_quote_token_amount.cast::<i128>()?)?
+                        total_collateral.safe_add(worst_case_orders_value.cast::<i128>()?)?
                 }
                 Ordering::Less => {
                     let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
-                    let weighted_token_value = worst_cast_quote_token_amount
+                    let weighted_token_value = worst_case_orders_value
                         .unsigned_abs()
                         .safe_mul(liability_weight.cast()?)?
                         .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
@@ -493,7 +509,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         margin_requirement_plus_buffer = margin_requirement_plus_buffer.safe_add(
                             calculate_margin_requirement_with_buffer(
                                 weighted_token_value,
-                                worst_cast_quote_token_amount.unsigned_abs(),
+                                worst_case_orders_value.unsigned_abs(),
                                 margin_buffer_ratio,
                             )?,
                         )?;
@@ -511,6 +527,26 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
 
+        let quote_oracle_price = {
+            let quote_spot_market = spot_market_map.get_quote_spot_market()?;
+            let (quote_oracle_price_data, quote_oracle_validity) = oracle_map
+                .get_price_data_and_validity(
+                    &quote_spot_market.oracle,
+                    quote_spot_market
+                        .historical_oracle_data
+                        .last_oracle_price_twap,
+                )?;
+
+            all_oracles_valid &=
+                is_oracle_valid_for_action(quote_oracle_validity, Some(DriftAction::MarginCalc))?;
+
+            quote_oracle_price_data.price.min(
+                quote_spot_market
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min,
+            )
+        };
+
         let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
             &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
@@ -523,6 +559,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 market_position,
                 market,
                 oracle_price_data,
+                quote_oracle_price,
                 margin_requirement_type,
                 user_custom_margin_ratio,
                 true,

@@ -194,6 +194,7 @@ mod test {
             &market_position,
             &market,
             &oracle_price_data,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
             false,
@@ -308,6 +309,7 @@ mod test {
             &market_position,
             &market,
             &oracle_price_data,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
             false,
@@ -384,6 +386,7 @@ mod test {
             &market_position,
             &market,
             &oracle_price_data,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
             false,
@@ -446,6 +449,7 @@ mod test {
             &position,
             &market,
             &oracle_price_data,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
             false,
@@ -469,6 +473,7 @@ mod test {
             &position,
             &market,
             &oracle_price_data,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
             false,
@@ -515,6 +520,7 @@ mod test {
             &position,
             &market,
             &oracle_price_data,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
             false,
@@ -537,6 +543,7 @@ mod test {
             &position,
             &market,
             &oracle_price_data,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
             false,
@@ -565,7 +572,7 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
     };
-    use crate::state::oracle::OracleSource;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -602,6 +609,7 @@ mod calculate_margin_requirement_and_total_collateral {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -690,6 +698,7 @@ mod calculate_margin_requirement_and_total_collateral {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -778,6 +787,7 @@ mod calculate_margin_requirement_and_total_collateral {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -887,6 +897,7 @@ mod calculate_margin_requirement_and_total_collateral {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1051,6 +1062,7 @@ mod calculate_margin_requirement_and_total_collateral {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1168,6 +1180,7 @@ mod calculate_margin_requirement_and_total_collateral {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1298,7 +1311,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
     };
-    use crate::state::oracle::OracleSource;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -1355,6 +1368,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1466,6 +1480,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1546,7 +1561,7 @@ mod calculate_max_withdrawable_amount {
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::calculate_max_withdrawable_amount;
-    use crate::state::oracle::OracleSource;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -1582,6 +1597,7 @@ mod calculate_max_withdrawable_amount {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1670,6 +1686,7 @@ mod calculate_max_withdrawable_amount {
             initial_liability_weight: SPOT_WEIGHT_PRECISION,
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1757,6 +1774,7 @@ mod calculate_max_withdrawable_amount {
             initial_liability_weight: SPOT_WEIGHT_PRECISION,
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
