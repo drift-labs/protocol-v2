@@ -1148,6 +1148,7 @@ export class DLOB {
 		oraclePriceData: OraclePriceData,
 		fallbackBid?: BN
 	): Generator<DLOBNode> {
+		const isPerpMarket = isVariant(marketType, 'perp');
 		for (const node of this.getRestingLimitAsks(
 			marketIndex,
 			slot,
@@ -1155,6 +1156,7 @@ export class DLOB {
 			oraclePriceData
 		)) {
 			if (
+				isPerpMarket &&
 				fallbackBid &&
 				node.getPrice(oraclePriceData, slot).lte(fallbackBid)
 			) {
@@ -1213,6 +1215,7 @@ export class DLOB {
 		oraclePriceData: OraclePriceData,
 		fallbackAsk?: BN
 	): Generator<DLOBNode> {
+		const isPerpMarket = isVariant(marketType, 'perp');
 		for (const node of this.getRestingLimitBids(
 			marketIndex,
 			slot,
@@ -1220,6 +1223,7 @@ export class DLOB {
 			oraclePriceData
 		)) {
 			if (
+				isPerpMarket &&
 				fallbackAsk &&
 				node.getPrice(oraclePriceData, slot).gte(fallbackAsk)
 			) {

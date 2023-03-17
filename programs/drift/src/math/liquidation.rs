@@ -340,7 +340,7 @@ pub fn calculate_max_pct_to_liquidate(
     initial_pct_to_liquidate: u128,
     liquidation_duration: u128,
 ) -> DriftResult<u128> {
-    let slots_elapsed = slot.safe_sub(user.liquidation_start_slot)?;
+    let slots_elapsed = slot.safe_sub(user.last_active_slot)?;
 
     let pct_freeable = slots_elapsed
         .cast::<u128>()?

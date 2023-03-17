@@ -65,14 +65,15 @@ pub struct User {
     pub cumulative_spot_fees: i64,
     pub cumulative_perp_funding: i64,
     pub liquidation_margin_freed: u64,
-    pub liquidation_start_slot: u64,
+    pub last_active_slot: u64,
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
     pub sub_account_id: u16,
     pub status: UserStatus,
     pub is_margin_trading_enabled: bool,
-    pub padding: [u8; 26],
+    pub idle: bool,
+    pub padding: [u8; 25],
 }
 
 impl User {
@@ -256,14 +257,13 @@ impl User {
 
         self.status = UserStatus::BeingLiquidated;
         self.liquidation_margin_freed = 0;
-        self.liquidation_start_slot = slot;
+        self.last_active_slot = slot;
         Ok(get_then_update_id!(self, next_liquidation_id))
     }
 
     pub fn exit_liquidation(&mut self) {
         self.status = UserStatus::Active;
         self.liquidation_margin_freed = 0;
-        self.liquidation_start_slot = 0;
     }
 
     pub fn enter_bankruptcy(&mut self) {
@@ -273,12 +273,18 @@ impl User {
     pub fn exit_bankruptcy(&mut self) {
         self.status = UserStatus::Active;
         self.liquidation_margin_freed = 0;
-        self.liquidation_start_slot = 0;
     }
 
     pub fn increment_margin_freed(&mut self, margin_free: u64) -> DriftResult {
         self.liquidation_margin_freed = self.liquidation_margin_freed.safe_add(margin_free)?;
         Ok(())
+    }
+
+    pub fn update_last_active_slot(&mut self, slot: u64) {
+        if !self.is_being_liquidated() {
+            self.last_active_slot = slot;
+        }
+        self.idle = false;
     }
 }
 

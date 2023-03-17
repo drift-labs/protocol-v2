@@ -1490,7 +1490,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 7010000);
         assert_eq!(user.perp_positions[0].base_asset_amount, 2000000000);
 
@@ -1515,7 +1515,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 9610000);
         assert_eq!(user.perp_positions[0].base_asset_amount, 1480000000);
 
@@ -1558,7 +1558,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 9610000); // no new margin freed
         assert_eq!(user.perp_positions[0].base_asset_amount, 1480000000);
 
@@ -1583,7 +1583,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 12310000);
         assert_eq!(user.perp_positions[0].base_asset_amount, 940000000);
 
@@ -1627,7 +1627,7 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.status, UserStatus::Active);
-        assert_eq!(user.liquidation_start_slot, 0);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 0);
         assert_eq!(user.perp_positions[0].base_asset_amount, 200000000);
     }
@@ -1750,7 +1750,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 1560000);
         assert_eq!(user.perp_positions[0].base_asset_amount, 610000000);
     }
@@ -2740,7 +2740,7 @@ pub mod liquidate_spot {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 700032);
         assert_eq!(user.spot_positions[0].scaled_balance, 99055856000);
         assert_eq!(user.spot_positions[1].scaled_balance, 940676999);
@@ -2784,7 +2784,7 @@ pub mod liquidate_spot {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 3032982);
         assert_eq!(user.spot_positions[0].scaled_balance, 79245846000);
         assert_eq!(user.spot_positions[1].scaled_balance, 742971998);
@@ -2828,7 +2828,7 @@ pub mod liquidate_spot {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 0);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 0);
         assert_eq!(user.spot_positions[0].scaled_balance, 45559160000);
         assert_eq!(user.spot_positions[1].scaled_balance, 406777997);
@@ -3928,7 +3928,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 699993);
         assert_eq!(user.spot_positions[0].scaled_balance, 935773999);
         assert_eq!(user.perp_positions[0].quote_asset_amount, 98506681);
@@ -3972,7 +3972,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 3032859);
         assert_eq!(user.spot_positions[0].scaled_balance, 721727998);
         assert_eq!(user.perp_positions[0].quote_asset_amount, 76866395);
@@ -4017,7 +4017,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         .unwrap();
 
         assert_eq!(user.liquidation_margin_freed, 0);
-        assert_eq!(user.liquidation_start_slot, 0);
+        assert_eq!(user.last_active_slot, 1);
     }
 }
 
@@ -5075,7 +5075,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 100051);
         assert_eq!(user.spot_positions[0].scaled_balance, 988766000);
         assert_eq!(user.perp_positions[0].quote_asset_amount, -89888889);
@@ -5119,7 +5119,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 1);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 433231);
         assert_eq!(user.spot_positions[0].scaled_balance, 951337000);
         assert_eq!(user.perp_positions[0].quote_asset_amount, -86187099);
@@ -5163,7 +5163,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         )
         .unwrap();
 
-        assert_eq!(user.liquidation_start_slot, 0);
+        assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 0);
     }
 
