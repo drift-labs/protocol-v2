@@ -23,22 +23,18 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	accountsToPoll = new Map<string, AccountToPoll>();
 	errorCallbackId?: string;
 
-	lazyDecode: boolean;
-
 	user?: DataAndSlot<UserAccount>;
 
 	public constructor(
 		program: Program,
 		userAccountPublicKey: PublicKey,
-		accountLoader: BulkAccountLoader,
-		lazyDecode = false
+		accountLoader: BulkAccountLoader
 	) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.accountLoader = accountLoader;
 		this.eventEmitter = new EventEmitter();
 		this.userAccountPublicKey = userAccountPublicKey;
-		this.lazyDecode = lazyDecode;
 	}
 
 	async subscribe(): Promise<boolean> {
@@ -79,9 +75,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 					const account = this.program.account[
 						accountToPoll.key
 					].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-					if (!this.lazyDecode) {
-						this[accountToPoll.key] = { data: account, slot };
-					}
+					this[accountToPoll.key] = { data: account, slot };
 					// @ts-ignore
 					this.eventEmitter.emit(accountToPoll.eventType, account);
 					this.eventEmitter.emit('update');
@@ -97,15 +91,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	async fetchIfUnloaded(): Promise<void> {
 		let shouldFetch = false;
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			if (!this.lazyDecode && this[accountToPoll.key] === undefined) {
-				shouldFetch = true;
-				break;
-			} else if (
-				this.lazyDecode &&
-				this.accountLoader.bufferAndSlotMap.has(
-					accountToPoll.publicKey.toString()
-				)
-			) {
+			if (this[accountToPoll.key] === undefined) {
 				shouldFetch = true;
 				break;
 			}
@@ -122,7 +108,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
 				accountToPoll.publicKey
 			);
-			if (buffer && !this.lazyDecode) {
+			if (buffer) {
 				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
@@ -134,11 +120,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	doAccountsExist(): boolean {
 		let success = true;
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			if (
-				!this.accountLoader.bufferAndSlotMap.has(
-					accountToPoll.publicKey.toString()
-				)
-			) {
+			if (!this[accountToPoll.key]) {
 				success = false;
 				break;
 			}
@@ -176,17 +158,6 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 
 	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
 		this.assertIsSubscribed();
-		if (!this.lazyDecode) {
-			return this.user;
-		} else {
-			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
-				this.userAccountPublicKey
-			);
-			const account = this.program.account.user.coder.accounts.decode(
-				'User',
-				buffer
-			);
-			return { data: account, slot };
-		}
+		return this.user;
 	}
 }

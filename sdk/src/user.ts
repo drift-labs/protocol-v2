@@ -95,8 +95,7 @@ export class User {
 			this.accountSubscriber = new PollingUserAccountSubscriber(
 				config.driftClient.program,
 				config.userAccountPublicKey,
-				config.accountSubscription.accountLoader,
-				config.accountSubscription.lazyDecode
+				config.accountSubscription.accountLoader
 			);
 		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(

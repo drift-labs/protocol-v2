@@ -15,5 +15,4 @@ export type UserSubscriptionConfig =
 	| {
 			type: 'polling';
 			accountLoader: BulkAccountLoader;
-			lazyDecode?: boolean;
 	  };
