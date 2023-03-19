@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.21.0] - 2023-03-19
+
+### Features
+
 - program: account for openbook referrer rebate being greater than quote sold ([#394](https://github.com/drift-labs/protocol-v2/pull/394))
 - sdk: add sync to UserMap and UserStatsMap ([#395](https://github.com/drift-labs/protocol-v2/pull/395))
 - program: revert fill ix ([#391](https://github.com/drift-labs/protocol-v2/pull/391))
