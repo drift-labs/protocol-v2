@@ -560,6 +560,7 @@ export type PerpMarketAccount = {
 		quoteSettledInsurance: BN;
 		quoteMaxInsurance: BN;
 	};
+	quoteSpotMarketIndex: number;
 };
 
 export type HistoricalOracleData = {

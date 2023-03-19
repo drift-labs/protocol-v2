@@ -119,7 +119,9 @@ pub struct PerpMarket {
     pub status: MarketStatus,
     pub contract_type: ContractType,
     pub contract_tier: ContractTier,
-    pub padding: [u8; 51],
+    pub padding1: bool,
+    pub quote_spot_market_index: u16,
+    pub padding: [u8; 48],
 }
 
 impl Default for PerpMarket {
@@ -150,7 +152,9 @@ impl Default for PerpMarket {
             status: MarketStatus::default(),
             contract_type: ContractType::default(),
             contract_tier: ContractTier::default(),
-            padding: [0; 51],
+            padding1: false,
+            quote_spot_market_index: 0,
+            padding: [0; 48],
         }
     }
 }

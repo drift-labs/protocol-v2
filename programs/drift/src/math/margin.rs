@@ -528,7 +528,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
 
         let quote_oracle_price = {
-            let quote_spot_market = spot_market_map.get_quote_spot_market()?;
+            let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
             let (quote_oracle_price_data, quote_oracle_validity) = oracle_map
                 .get_price_data_and_validity(
                     &quote_spot_market.oracle,
