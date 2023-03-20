@@ -588,11 +588,7 @@ pub fn get_max_withdraw_for_market_with_token_amount(
     token_amount: i128,
     market: &SpotMarket,
 ) -> DriftResult<u128> {
-    let available_borrow_liquidity = calculate_availability_borrow_liquidity(market)?;
-    token_amount
-        .max(0)
-        .unsigned_abs()
-        .safe_add(available_borrow_liquidity)
+    calculate_availability_borrow_liquidity(market, token_amount)
 }
 
 pub fn find_fallback_maker_order(

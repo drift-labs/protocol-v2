@@ -419,7 +419,7 @@ fn test_check_withdraw_limits() {
         deposit_balance: 2 * SPOT_BALANCE_PRECISION,
         borrow_balance: SPOT_BALANCE_PRECISION,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
-        deposit_token_twap: 26_000_000_000_u64,
+        deposit_token_twap: 28_000_000_000_u64,
         status: MarketStatus::Active,
 
         ..SpotMarket::default()
@@ -450,7 +450,7 @@ fn test_check_withdraw_limits() {
     };
 
     let mdt = calculate_min_deposit_token(QUOTE_PRECISION, 0).unwrap();
-    assert_eq!(mdt, QUOTE_PRECISION - QUOTE_PRECISION * 2 / 10);
+    assert_eq!(mdt, QUOTE_PRECISION - QUOTE_PRECISION / 4);
 
     let mbt = calculate_max_borrow_token_amount(QUOTE_PRECISION, QUOTE_PRECISION / 2, 0).unwrap();
     assert_eq!(mbt, 600000);
