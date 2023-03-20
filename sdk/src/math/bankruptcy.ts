@@ -25,7 +25,7 @@ export function isUserBankrupt(user: User): boolean {
 			return false;
 		}
 
-		if (position.quoteAssetAmount) {
+		if (position.quoteAssetAmount.lt(ZERO)) {
 			hasLiability = true;
 		}
 	}
