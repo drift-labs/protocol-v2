@@ -14,7 +14,7 @@ pub fn calculate_min_deposit_token(
     withdraw_guard_threshold: u128,
 ) -> DriftResult<u128> {
     let min_deposit_token = deposit_token_twap
-        .safe_sub((deposit_token_twap / 5).max(withdraw_guard_threshold.min(deposit_token_twap)))?;
+        .safe_sub((deposit_token_twap / 4).max(withdraw_guard_threshold.min(deposit_token_twap)))?;
 
     Ok(min_deposit_token)
 }
