@@ -517,12 +517,21 @@ pub fn update_pool_balances(
                 market.insurance_claim.last_revenue_withdraw_ts = now;
             }
         } else {
-            let total_liq_fees_for_revenue_pool = if market.insurance_claim.quote_max_insurance == 0
-            {
-                0
-            } else {
-                market.amm.total_liquidation_fee.cast()?
-            };
+            let fee_pool_threshold = amm_fee_pool_token_amount_after
+                .saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD)
+                .cast()?;
+
+            let total_liq_fees_for_revenue_pool: i128 = market
+                .amm
+                .total_liquidation_fee
+                .min(
+                    market
+                        .insurance_claim
+                        .quote_settled_insurance
+                        .safe_add(market.insurance_claim.quote_max_insurance)?
+                        .cast()?,
+                )
+                .cast()?;
 
             let max_revenue_to_settle = market
                 .insurance_claim
@@ -533,11 +542,8 @@ pub fn update_pool_balances(
                         .max_revenue_withdraw_per_period
                         .cast()?,
                 )?
+                .min(market.amm.net_revenue_since_last_funding)
                 .max(0);
-
-            let fee_pool_threshold = amm_fee_pool_token_amount_after
-                .saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD)
-                .cast()?;
 
             let total_fee_for_if = get_total_fee_lower_bound(market)?.cast::<i128>()?;
 
@@ -549,6 +555,8 @@ pub fn update_pool_balances(
 
             crate::dlog!(total_fee_for_if);
             crate::dlog!(total_liq_fees_for_revenue_pool);
+            crate::dlog!(market.amm.total_fee_withdrawn);
+            crate::dlog!(market.amm.total_liquidation_fee);
             crate::dlog!(fee_pool_threshold);
             crate::dlog!(max_revenue_to_settle);
             crate::dlog!(revenue_pool_transfer);

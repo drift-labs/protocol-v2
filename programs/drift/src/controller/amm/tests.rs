@@ -556,7 +556,7 @@ fn update_pool_balances_fee_to_revenue_test() {
             total_mm_fee: 990 * QUOTE_PRECISION as i128,
             total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
             total_liquidation_fee: QUOTE_PRECISION,
-
+            net_revenue_since_last_funding: 10000 * QUOTE_PRECISION as i64,
             curve_update_intensity: 100,
 
             fee_pool: PoolBalance {
@@ -633,13 +633,23 @@ fn update_pool_balances_fee_to_revenue_test() {
     update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
 
     assert_eq!(market.pnl_pool.scaled_balance, 50000000000000000);
-    assert_eq!(market.amm.total_fee_withdrawn, 6000000);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 6000000000000000);
-    assert_eq!(market.amm.fee_pool.scaled_balance, 294000000000000000); // > FEE_POOL_TO_REVENUE_POOL_THRESHOLD
+    assert_eq!(market.amm.total_fee_withdrawn, 5000000);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 5000000000000000);
+    assert_eq!(market.amm.fee_pool.scaled_balance, 295000000000000000); // > FEE_POOL_TO_REVENUE_POOL_THRESHOLD
 
     assert!(market.amm.fee_pool.scaled_balance < prev_fee_pool_2);
     assert_eq!(market.pnl_pool.scaled_balance, prev_pnl_pool);
     assert!(spot_market.revenue_pool.scaled_balance > prev_rev_pool);
+
+    market.insurance_claim.quote_max_insurance = 1; // add min insurance
+    update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
+    assert_eq!(market.amm.total_fee_withdrawn, 5000001);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 5000001000000000);
+
+    market.insurance_claim.quote_max_insurance = 100000000; // add lots of insurance
+    update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
+    assert_eq!(market.amm.total_fee_withdrawn, 6000000);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 6000000000000000);
 }
 
 #[test]
