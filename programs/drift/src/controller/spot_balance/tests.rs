@@ -176,9 +176,9 @@ fn test_daily_withdraw_limits() {
     assert_eq!(spot_market.deposit_balance, 499999999);
     assert_eq!(spot_market.borrow_balance, 0);
 
-    // .50 * .2 = .1
+    // .50 * .25 = .125
     update_spot_balances_and_cumulative_deposits_with_limits(
-        ((amount / 10) - 2) as u128,
+        (125000 - 2) as u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
         &mut user,
@@ -197,19 +197,19 @@ fn test_daily_withdraw_limits() {
     .is_err());
     spot_market = spot_market_backup;
     user = user_backup;
-    assert_eq!(spot_market.deposit_balance, 400001998);
-    assert_eq!(user.spot_positions[0].scaled_balance, 400001998);
+    assert_eq!(spot_market.deposit_balance, 375001998);
+    assert_eq!(user.spot_positions[0].scaled_balance, 375001998);
     assert_eq!(user.spot_positions[0].market_index, 0);
 
     let old_twap = spot_market.deposit_token_twap;
     update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600).unwrap();
-    assert_eq!(spot_market.deposit_token_twap, 495834);
+    assert_eq!(spot_market.deposit_token_twap, 494792);
     update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600 * 24).unwrap();
-    assert_eq!(spot_market.deposit_token_twap, 403993); // little bit slower than 1 day
+    assert_eq!(spot_market.deposit_token_twap, 379991); // little bit slower than 1 day
     update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600 * 48 + 100).unwrap();
     let new_twap = spot_market.deposit_token_twap;
     assert!(old_twap >= new_twap);
-    assert_eq!(new_twap, 400001);
+    assert_eq!(new_twap, 375001);
 
     // Borrowing blocks
 
@@ -220,16 +220,16 @@ fn test_daily_withdraw_limits() {
         &mut user,
     )
     .unwrap();
-    assert_eq!(spot_market.deposit_balance, 100000400001998);
-    assert_eq!(user.spot_positions[0].scaled_balance, 100000400001998);
+    assert_eq!(spot_market.deposit_balance, 100000375001998);
+    assert_eq!(user.spot_positions[0].scaled_balance, 100000375001998);
     assert_eq!(user.spot_positions[1].scaled_balance, 0);
 
     spot_market.last_interest_ts = now as u64;
     spot_market.last_twap_ts = now as u64;
     update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600).unwrap();
-    assert_eq!(spot_market.deposit_token_twap, 4167066666); //$4167.06
+    assert_eq!(spot_market.deposit_token_twap, 4167041666); //$4167.04
     update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600 * 44).unwrap();
-    assert_eq!(spot_market.deposit_token_twap, 99999780926); //$4167.06
+    assert_eq!(spot_market.deposit_token_twap, 99999755926);
 
     // tiny whale who will grow
     let mut whale = User {
@@ -419,7 +419,7 @@ fn test_check_withdraw_limits() {
         deposit_balance: 2 * SPOT_BALANCE_PRECISION,
         borrow_balance: SPOT_BALANCE_PRECISION,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
-        deposit_token_twap: 26_000_000_000_u64,
+        deposit_token_twap: 28_000_000_000_u64,
         status: MarketStatus::Active,
 
         ..SpotMarket::default()
@@ -450,7 +450,7 @@ fn test_check_withdraw_limits() {
     };
 
     let mdt = calculate_min_deposit_token(QUOTE_PRECISION, 0).unwrap();
-    assert_eq!(mdt, QUOTE_PRECISION - QUOTE_PRECISION * 2 / 10);
+    assert_eq!(mdt, QUOTE_PRECISION - QUOTE_PRECISION / 4);
 
     let mbt = calculate_max_borrow_token_amount(QUOTE_PRECISION, QUOTE_PRECISION / 2, 0).unwrap();
     assert_eq!(mbt, 600000);

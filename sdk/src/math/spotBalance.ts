@@ -345,7 +345,7 @@ export function calculateWithdrawLimit(
 
 	const minDepositTokens = depositTokenTwapLive.sub(
 		BN.max(
-			depositTokenTwapLive.div(new BN(5)),
+			depositTokenTwapLive.div(new BN(4)),
 			BN.min(spotMarket.withdrawGuardThreshold, depositTokenTwapLive)
 		)
 	);
