@@ -350,7 +350,7 @@ export function calculateWithdrawLimit(
 		)
 	);
 
-	let withdrawLimit = BN.max(
+	const withdrawLimit = BN.max(
 		marketDepositTokenAmount.sub(minDepositTokens),
 		ZERO
 	);
@@ -358,16 +358,8 @@ export function calculateWithdrawLimit(
 	let borrowLimit = maxBorrowTokens.sub(marketBorrowTokenAmount);
 	borrowLimit = BN.min(
 		borrowLimit,
-		marketDepositTokenAmount.sub(minDepositTokens)
-	);
-	borrowLimit = BN.min(
-		borrowLimit,
 		marketDepositTokenAmount.sub(marketBorrowTokenAmount)
 	);
-
-	if (borrowLimit.eq(ZERO)) {
-		withdrawLimit = ZERO;
-	}
 
 	if (withdrawLimit.eq(ZERO)) {
 		borrowLimit = ZERO;
