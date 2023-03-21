@@ -518,7 +518,9 @@ pub fn update_pool_balances(
             }
         } else {
             let fee_pool_threshold = amm_fee_pool_token_amount_after
-                .saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD)
+                .saturating_sub(
+                    FEE_POOL_TO_REVENUE_POOL_THRESHOLD.safe_add(market.amm.total_social_loss)?,
+                )
                 .cast()?;
 
             let total_liq_fees_for_revenue_pool: i128 = market

@@ -580,7 +580,7 @@ pub fn settle_revenue_to_insurance_fund(
                     .max(1),
             )?
             .cast::<u128>()?;
-        let capped_token_pct_amount = token_amount.safe_div(5)?;
+        let capped_token_pct_amount = token_amount.safe_div(10)?;
         token_amount = capped_token_pct_amount.min(capped_apr_amount);
     }
 
