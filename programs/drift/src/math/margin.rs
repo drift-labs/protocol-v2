@@ -322,14 +322,18 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 )?;
             }
 
-            let token_value = get_strict_token_value(
-                token_amount,
-                spot_market.decimals,
-                oracle_price_data,
-                spot_market
-                    .historical_oracle_data
-                    .last_oracle_price_twap_5min,
-            )?;
+            let token_value = if strict {
+                get_strict_token_value(
+                    token_amount,
+                    spot_market.decimals,
+                    oracle_price_data,
+                    spot_market
+                        .historical_oracle_data
+                        .last_oracle_price_twap_5min,
+                )?
+            } else {
+                get_token_value(token_amount, spot_market.decimals, oracle_price_data.price)?
+            };
 
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
@@ -540,11 +544,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             all_oracles_valid &=
                 is_oracle_valid_for_action(quote_oracle_validity, Some(DriftAction::MarginCalc))?;
 
-            quote_oracle_price_data.price.min(
-                quote_spot_market
-                    .historical_oracle_data
-                    .last_oracle_price_twap_5min,
-            )
+            quote_oracle_price_data.price
         };
 
         let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(

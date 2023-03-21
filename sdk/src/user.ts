@@ -469,7 +469,6 @@ export class User {
 		marketIndex?: number,
 		withWeightMarginCategory?: MarginCategory
 	): BN {
-		const quoteSpotMarket = this.driftClient.getQuoteSpotMarketAccount();
 		return this.getActivePerpPositions()
 			.filter((pos) => (marketIndex ? pos.marketIndex === marketIndex : true))
 			.reduce((unrealizedPnl, perpPosition) => {
@@ -478,6 +477,13 @@ export class User {
 				);
 				const oraclePriceData = this.getOracleDataForPerpMarket(
 					market.marketIndex
+				);
+
+				const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
+					market.quoteSpotMarketIndex
+				);
+				const quoteOraclePriceData = this.getOracleDataForSpotMarket(
+					market.quoteSpotMarketIndex
 				);
 
 				if (perpPosition.lpShares.gt(ZERO)) {
@@ -489,7 +495,9 @@ export class User {
 					perpPosition,
 					withFunding,
 					oraclePriceData
-				);
+				)
+					.mul(quoteOraclePriceData.price)
+					.div(PRICE_PRECISION);
 
 				if (withWeightMarginCategory !== undefined) {
 					if (positionUnrealizedPnl.gt(ZERO)) {
@@ -558,55 +566,60 @@ export class User {
 			const spotMarketAccount: SpotMarketAccount =
 				this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
 
-			if (
-				spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX &&
-				countForQuote
-			) {
-				if (isVariant(spotPosition.balanceType, 'borrow')) {
-					const tokenAmount = getTokenAmount(
-						spotPosition.scaledBalance,
-						spotMarketAccount,
-						spotPosition.balanceType
-					);
-
-					let weight = SPOT_MARKET_WEIGHT_PRECISION;
-					if (marginCategory === 'Initial') {
-						weight = BN.max(
-							weight,
-							new BN(this.getUserAccount().maxMarginRatio)
-						);
-					}
-
-					const weightedTokenValue = tokenAmount
-						.mul(weight)
-						.div(SPOT_MARKET_WEIGHT_PRECISION);
-
-					netQuoteValue = netQuoteValue.sub(weightedTokenValue);
-
-					continue;
-				} else {
-					const tokenAmount = getTokenAmount(
-						spotPosition.scaledBalance,
-						spotMarketAccount,
-						spotPosition.balanceType
-					);
-
-					netQuoteValue = netQuoteValue.add(tokenAmount);
-
-					continue;
-				}
-			}
-
 			const oraclePriceData = this.getOracleDataForSpotMarket(
 				spotPosition.marketIndex
 			);
 
-			if (!includeOpenOrders && countForBase) {
-				if (isVariant(spotPosition.balanceType, 'borrow')) {
-					const tokenAmount = getTokenAmount(
+			if (
+				spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX &&
+				countForQuote
+			) {
+				const tokenAmount = getSignedTokenAmount(
+					getTokenAmount(
 						spotPosition.scaledBalance,
 						spotMarketAccount,
 						spotPosition.balanceType
+					),
+					spotPosition.balanceType
+				);
+
+				if (isVariant(spotPosition.balanceType, 'borrow')) {
+					const weightedTokenValue = this.getSpotLiabilityValue(
+						tokenAmount,
+						oraclePriceData,
+						spotMarketAccount,
+						marginCategory,
+						liquidationBuffer,
+						strict,
+						now
+					).abs();
+
+					netQuoteValue = netQuoteValue.sub(weightedTokenValue);
+				} else {
+					const weightedTokenValue = this.getSpotAssetValue(
+						tokenAmount,
+						oraclePriceData,
+						spotMarketAccount,
+						marginCategory,
+						strict,
+						now
+					);
+
+					netQuoteValue = netQuoteValue.add(weightedTokenValue);
+				}
+
+				continue;
+			}
+
+			if (!includeOpenOrders && countForBase) {
+				if (isVariant(spotPosition.balanceType, 'borrow')) {
+					const tokenAmount = getSignedTokenAmount(
+						getTokenAmount(
+							spotPosition.scaledBalance,
+							spotMarketAccount,
+							spotPosition.balanceType
+						),
+						SpotBalanceType.BORROW
 					);
 					const liabilityValue = this.getSpotLiabilityValue(
 						tokenAmount,
@@ -616,7 +629,7 @@ export class User {
 						liquidationBuffer,
 						strict,
 						now
-					);
+					).abs();
 					totalLiabilityValue = totalLiabilityValue.add(liabilityValue);
 
 					continue;
@@ -662,14 +675,14 @@ export class User {
 
 			if (worstCaseTokenAmount.lt(ZERO) && countForBase) {
 				const baseLiabilityValue = this.getSpotLiabilityValue(
-					worstCaseTokenAmount.abs(),
+					worstCaseTokenAmount,
 					oraclePriceData,
 					spotMarketAccount,
 					marginCategory,
 					liquidationBuffer,
 					strict,
 					now
-				);
+				).abs();
 
 				totalLiabilityValue = totalLiabilityValue.add(baseLiabilityValue);
 			}
@@ -738,7 +751,7 @@ export class User {
 	): BN {
 		let liabilityValue = null;
 
-		if (strict && spotMarketAccount.marketIndex != QUOTE_SPOT_MARKET_INDEX) {
+		if (strict) {
 			const estOracleTwap = calculateLiveOracleTwap(
 				spotMarketAccount.historicalOracleData,
 				oraclePriceData,
@@ -809,7 +822,7 @@ export class User {
 		now?: BN
 	): BN {
 		let assetValue = null;
-		if (strict && spotMarketAccount.marketIndex != QUOTE_SPOT_MARKET_INDEX) {
+		if (strict) {
 			const estOracleTwap = calculateLiveOracleTwap(
 				spotMarketAccount.historicalOracleData,
 				oraclePriceData,
