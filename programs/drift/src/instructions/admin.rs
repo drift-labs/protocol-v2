@@ -573,7 +573,8 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        padding: [0; 51],
+        unsettled_funding_pnl: 0,
+        padding: [0; 51-9],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,

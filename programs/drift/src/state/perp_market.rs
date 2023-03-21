@@ -119,7 +119,8 @@ pub struct PerpMarket {
     pub status: MarketStatus,
     pub contract_type: ContractType,
     pub contract_tier: ContractTier,
-    pub padding: [u8; 51],
+    pub unsettled_funding_pnl: i64,
+    pub padding: [u8; 51-9],
 }
 
 impl Default for PerpMarket {
@@ -150,7 +151,8 @@ impl Default for PerpMarket {
             status: MarketStatus::default(),
             contract_type: ContractType::default(),
             contract_tier: ContractTier::default(),
-            padding: [0; 51],
+            unsettled_funding_pnl: 0,
+            padding: [0; 51-9],
         }
     }
 }
