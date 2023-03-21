@@ -201,6 +201,13 @@ pub fn handle_remove_insurance_fund_stake(
         "insurance_fund_stake does not match market_index"
     )?;
 
+    // check if spot market is healthy
+    validate!(
+        spot_market.is_healthy_utilization()?,
+        ErrorCode::SpotMarketInsufficientDeposits,
+        "spot market utilization above health threshold"
+    )?;
+
     let amount = controller::insurance::remove_insurance_fund_stake(
         ctx.accounts.insurance_fund_vault.amount,
         insurance_fund_stake,
