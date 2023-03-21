@@ -56,12 +56,11 @@ pub fn settle_pnl(
     }
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
+    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
-    validate_market_within_price_band(&market, state, true, None)?;
+    validate_market_within_price_band(&market, state, true, None, Some(oracle_price.cast()?))?;
 
     crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
-
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
     drop(market);
 

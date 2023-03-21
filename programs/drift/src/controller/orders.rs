@@ -756,7 +756,7 @@ pub fn fill_perp_order(
     }
 
     let reserve_price_before: u64;
-    let oracle_reserve_price_spread_pct_before: i64;
+    let oracle_ref_price_spread_pct_before: i64;
     let is_oracle_valid: bool;
     let oracle_validity: OracleValidity;
     let oracle_price: i64;
@@ -782,7 +782,7 @@ pub fn fill_perp_order(
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmm))?;
 
         reserve_price_before = market.amm.reserve_price()?;
-        oracle_reserve_price_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
+        oracle_ref_price_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
             &market.amm,
             Some(reserve_price_before),
         )?;
@@ -946,7 +946,8 @@ pub fn fill_perp_order(
             &market,
             state,
             potentially_risk_increasing,
-            Some(oracle_reserve_price_spread_pct_before),
+            Some(oracle_ref_price_spread_pct_before),
+            None,
         )?;
 
         let open_interest = market.get_open_interest();
@@ -987,32 +988,35 @@ pub fn validate_market_within_price_band(
     market: &PerpMarket,
     state: &State,
     potentially_risk_increasing: bool,
-    oracle_reserve_price_spread_pct_before: Option<i64>,
+    oracle_ref_price_spread_pct_before: Option<i64>,
+    ref_price_after: Option<u64>,
 ) -> DriftResult<bool> {
-    let reserve_price_after = market.amm.reserve_price()?;
-
-    let is_oracle_mark_too_divergent_before = if let Some(oracle_reserve_price_spread_pct_before) =
-        oracle_reserve_price_spread_pct_before
-    {
-        amm::is_oracle_mark_too_divergent(
-            oracle_reserve_price_spread_pct_before,
-            &state.oracle_guard_rails.price_divergence,
-        )?
+    let ref_price_after = if let Some(ref_price_after) = ref_price_after {
+        ref_price_after
     } else {
-        false
+        market.amm.reserve_price()?
     };
+
+    let is_oracle_mark_too_divergent_before =
+        if let Some(oracle_ref_price_spread_pct_before) = oracle_ref_price_spread_pct_before {
+            amm::is_oracle_mark_too_divergent(
+                oracle_ref_price_spread_pct_before,
+                &state.oracle_guard_rails.price_divergence,
+            )?
+        } else {
+            false
+        };
 
     let oracle_reserve_price_spread_pct_after =
-        amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(reserve_price_after))?;
+        amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(ref_price_after))?;
 
-    let breach_increases = if let Some(oracle_reserve_price_spread_pct_before) =
-        oracle_reserve_price_spread_pct_before
-    {
-        oracle_reserve_price_spread_pct_after.unsigned_abs()
-            >= oracle_reserve_price_spread_pct_before.unsigned_abs()
-    } else {
-        false
-    };
+    let breach_increases =
+        if let Some(oracle_ref_price_spread_pct_before) = oracle_ref_price_spread_pct_before {
+            oracle_reserve_price_spread_pct_after.unsigned_abs()
+                >= oracle_ref_price_spread_pct_before.unsigned_abs()
+        } else {
+            false
+        };
 
     let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
         oracle_reserve_price_spread_pct_after,
@@ -1021,9 +1025,9 @@ pub fn validate_market_within_price_band(
 
     // if oracle-mark divergence pushed outside limit, block order
     if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before {
-        msg!("price pushed outside bounds: last_oracle_price_twap_5min={} vs mark_price={},(breach spread {})",
+        msg!("price pushed outside bounds: last_oracle_price_twap_5min={} vs ref_price={},(breach spread {})",
                 market.amm.historical_oracle_data.last_oracle_price_twap_5min,
-                reserve_price_after,
+                ref_price_after,
                 oracle_reserve_price_spread_pct_after,
             );
         return Err(ErrorCode::PriceBandsBreached);
@@ -1031,9 +1035,9 @@ pub fn validate_market_within_price_band(
 
     // if oracle-mark divergence outside limit and risk-increasing, block order
     if is_oracle_mark_too_divergent_after && breach_increases && potentially_risk_increasing {
-        msg!("risk-increasing outside bounds: last_oracle_price_twap_5min={} vs mark_price={}, (breach spread {})", 
+        msg!("risk-increasing outside bounds: last_oracle_price_twap_5min={} vs ref_price={}, (breach spread {})", 
                 market.amm.historical_oracle_data.last_oracle_price_twap_5min,
-                reserve_price_after,
+                ref_price_after,
                 oracle_reserve_price_spread_pct_after,
             );
 
