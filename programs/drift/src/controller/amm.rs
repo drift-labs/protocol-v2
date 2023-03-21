@@ -555,14 +555,6 @@ pub fn update_pool_balances(
                 .min(fee_pool_threshold)
                 .min(max_revenue_to_settle.cast()?);
 
-            crate::dlog!(total_fee_for_if);
-            crate::dlog!(total_liq_fees_for_revenue_pool);
-            crate::dlog!(market.amm.total_fee_withdrawn);
-            crate::dlog!(market.amm.total_liquidation_fee);
-            crate::dlog!(fee_pool_threshold);
-            crate::dlog!(max_revenue_to_settle);
-            crate::dlog!(revenue_pool_transfer);
-
             transfer_spot_balance_to_revenue_pool(
                 revenue_pool_transfer.unsigned_abs(),
                 spot_market,
