@@ -139,9 +139,7 @@ export function calculateClaimablePnl(
 		oraclePriceData
 	);
 
-	const fundingPnL = calculatePositionFundingPNL(market, perpPosition);
-
-	let unsettledPnl = unrealizedPnl.add(fundingPnL);
+	let unsettledPnl = unrealizedPnl;
 	if (unrealizedPnl.gt(ZERO)) {
 		const excessPnlPool = BN.max(
 			ZERO,
