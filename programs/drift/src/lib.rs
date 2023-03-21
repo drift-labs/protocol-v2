@@ -217,6 +217,10 @@ pub mod drift {
         handle_fill_perp_order(ctx, order_id)
     }
 
+    pub fn revert_fill(ctx: Context<RevertFill>) -> Result<()> {
+        handle_revert_fill(ctx)
+    }
+
     pub fn fill_spot_order(
         ctx: Context<FillOrder>,
         order_id: Option<u32>,
@@ -232,6 +236,10 @@ pub mod drift {
 
     pub fn force_cancel_orders(ctx: Context<ForceCancelOrder>) -> Result<()> {
         handle_force_cancel_orders(ctx)
+    }
+
+    pub fn update_user_idle(ctx: Context<UpdateUserIdle>) -> Result<()> {
+        handle_update_user_idle(ctx)
     }
 
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {

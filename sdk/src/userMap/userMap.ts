@@ -14,9 +14,10 @@ import {
 	NewUserRecord,
 	LPRecord,
 } from '..';
-import { ProgramAccount } from '@project-serum/anchor';
 
-import { PublicKey } from '@solana/web3.js';
+import { AccountInfo, PublicKey } from '@solana/web3.js';
+import { Buffer } from 'buffer';
+import bs58 from 'bs58';
 
 export interface UserMapInterface {
 	fetchAllUsers(): Promise<void>;
@@ -42,12 +43,13 @@ export class UserMap implements UserMapInterface {
 		this.accountSubscription = accountSubscription;
 	}
 
-	public async fetchAllUsers() {
+	public async fetchAllUsers(includeIdle = true) {
 		const userArray: User[] = [];
 		const userAccountArray: UserAccount[] = [];
 
-		const programUserAccounts =
-			(await this.driftClient.program.account.user.all()) as ProgramAccount<UserAccount>[];
+		const programUserAccounts = await this.driftClient.fetchAllUserAccounts(
+			includeIdle
+		);
 		for (const programUserAccount of programUserAccounts) {
 			if (this.userMap.has(programUserAccount.publicKey.toString())) {
 				continue;
@@ -176,5 +178,54 @@ export class UserMap implements UserMapInterface {
 
 	public size(): number {
 		return this.userMap.size;
+	}
+
+	public async sync(includeIdle = true) {
+		let filters = undefined;
+		if (!includeIdle) {
+			filters = [
+				{
+					memcmp: {
+						offset: 4350,
+						bytes: bs58.encode(Uint8Array.from([0])),
+					},
+				},
+			];
+		}
+
+		const programAccounts =
+			await this.driftClient.connection.getProgramAccounts(
+				this.driftClient.program.programId,
+				{
+					commitment: this.driftClient.connection.commitment,
+					filters: [
+						{
+							memcmp: this.driftClient.program.coder.accounts.memcmp('User'),
+						},
+						...(Array.isArray(filters) ? filters : []),
+					],
+				}
+			);
+
+		const programAccountMap = new Map<string, AccountInfo<Buffer>>();
+		for (const programAccount of programAccounts) {
+			programAccountMap.set(
+				programAccount.pubkey.toString(),
+				programAccount.account
+			);
+		}
+
+		for (const key of programAccountMap.keys()) {
+			if (!this.has(key)) {
+				await this.addPubkey(new PublicKey(key));
+			}
+		}
+
+		for (const [key, user] of this.userMap.entries()) {
+			if (!programAccountMap.has(key)) {
+				await user.unsubscribe();
+				this.userMap.delete(key);
+			}
+		}
 	}
 }

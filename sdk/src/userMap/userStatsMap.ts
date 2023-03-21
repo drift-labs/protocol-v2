@@ -17,9 +17,10 @@ import {
 	InsuranceFundStakeRecord,
 } from '..';
 import { ProgramAccount } from '@project-serum/anchor';
-import { PublicKey } from '@solana/web3.js';
+import { AccountInfo, PublicKey } from '@solana/web3.js';
 
 import { UserMap } from './userMap';
+import { Buffer } from 'buffer';
 
 export class UserStatsMap {
 	/**
@@ -189,5 +190,35 @@ export class UserStatsMap {
 
 	public size(): number {
 		return this.userStatsMap.size;
+	}
+
+	public async sync() {
+		const programAccounts =
+			await this.driftClient.connection.getProgramAccounts(
+				this.driftClient.program.programId,
+				{
+					commitment: this.driftClient.connection.commitment,
+					filters: [
+						{
+							memcmp:
+								this.driftClient.program.coder.accounts.memcmp('UserStats'),
+						},
+					],
+				}
+			);
+
+		const programAccountMap = new Map<string, AccountInfo<Buffer>>();
+		for (const programAccount of programAccounts) {
+			programAccountMap.set(
+				new PublicKey(programAccount.account.data.slice(8, 40)).toString(),
+				programAccount.account
+			);
+		}
+
+		for (const key of programAccountMap.keys()) {
+			if (!this.has(key)) {
+				await this.addUserStat(new PublicKey(key));
+			}
+		}
 	}
 }

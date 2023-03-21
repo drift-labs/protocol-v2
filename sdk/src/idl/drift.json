@@ -1,5 +1,5 @@
 {
-  "version": "2.20.0-beta.2",
+  "version": "2.21.0",
   "name": "drift",
   "instructions": [
     {
@@ -910,6 +910,32 @@
       ]
     },
     {
+      "name": "revertFill",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fillerStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "fillSpotOrder",
       "accounts": [
         {
@@ -999,6 +1025,32 @@
     },
     {
       "name": "forceCancelOrders",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateUserIdle",
       "accounts": [
         {
           "name": "state",
@@ -4543,7 +4595,7 @@
             "type": "u64"
           },
           {
-            "name": "liquidationStartSlot",
+            "name": "lastActiveSlot",
             "type": "u64"
           },
           {
@@ -4573,11 +4625,15 @@
             "type": "bool"
           },
           {
+            "name": "idle",
+            "type": "bool"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                26
+                25
               ]
             }
           }
@@ -8733,6 +8789,16 @@
       "code": 6237,
       "name": "UnableToLoadUserStatsAccount",
       "msg": "UnableToLoadUserStatsAccount"
+    },
+    {
+      "code": 6238,
+      "name": "UserNotInactive",
+      "msg": "User Not Inactive"
+    },
+    {
+      "code": 6239,
+      "name": "RevertFill",
+      "msg": "RevertFill"
     }
   ]
 }

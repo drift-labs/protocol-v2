@@ -55,7 +55,7 @@ use crate::math::serum::{
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
-use crate::{controller, load, PostOnlyParam};
+use crate::{controller, PostOnlyParam};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -369,6 +369,8 @@ pub fn place_perp_order(
     };
     emit!(order_record);
 
+    user.update_last_active_slot(slot);
+
     Ok(())
 }
 
@@ -481,6 +483,8 @@ pub fn cancel_orders(
         )?;
     }
 
+    user.update_last_active_slot(slot);
+
     Ok(canceled_order_ids)
 }
 
@@ -515,7 +519,11 @@ pub fn cancel_order_by_order_id(
         None,
         0,
         false,
-    )
+    )?;
+
+    user.update_last_active_slot(clock.slot);
+
+    Ok(())
 }
 
 pub fn cancel_order_by_user_order_id(
@@ -553,7 +561,11 @@ pub fn cancel_order_by_user_order_id(
         None,
         0,
         false,
-    )
+    )?;
+
+    user.update_last_active_slot(clock.slot);
+
+    Ok(())
 }
 
 pub fn cancel_order(
@@ -813,8 +825,12 @@ pub fn fill_perp_order(
         slot,
     )?;
 
-    let referrer_info =
-        get_referrer_info(user_stats, makers_and_referrer, makers_and_referrer_stats)?;
+    let referrer_info = get_referrer_info(
+        user_stats,
+        makers_and_referrer,
+        makers_and_referrer_stats,
+        slot,
+    )?;
 
     let should_expire_order = should_expire_order(user, order_index, now)?;
 
@@ -832,6 +848,7 @@ pub fn fill_perp_order(
                 filler.as_deref_mut(),
                 market.deref_mut(),
                 state.perp_fee_structure.flat_filler_fee,
+                slot,
             )?
         };
 
@@ -897,6 +914,7 @@ pub fn fill_perp_order(
                 filler.as_deref_mut(),
                 market.deref_mut(),
                 state.perp_fee_structure.flat_filler_fee,
+                slot,
             )?
         };
 
@@ -959,6 +977,8 @@ pub fn fill_perp_order(
             Some(reserve_price_before),
         )?;
     }
+
+    user.update_last_active_slot(slot);
 
     Ok((base_asset_amount, updated_user_state))
 }
@@ -1069,6 +1089,8 @@ fn get_maker_orders_info(
             continue;
         }
 
+        maker.update_last_active_slot(slot);
+
         settle_funding_payment(&mut maker, maker_key, &mut market, now)?;
 
         let initial_margin_ratio = market.margin_ratio_initial;
@@ -1128,6 +1150,7 @@ fn get_maker_orders_info(
                         filler.as_deref_mut(),
                         market.deref_mut(),
                         filler_reward,
+                        slot,
                     )?
                 };
 
@@ -1192,6 +1215,7 @@ fn get_referrer_info(
     user_stats: &UserStats,
     makers_and_referrer: &UserMap,
     makers_and_referrer_stats: &UserStatsMap,
+    slot: u64,
 ) -> DriftResult<Option<(Pubkey, Pubkey)>> {
     if user_stats.referrer.eq(&Pubkey::default()) {
         return Ok(None);
@@ -1207,7 +1231,7 @@ fn get_referrer_info(
     let referrer_authority_key = user_stats.referrer;
     let mut referrer_user_key = Pubkey::default();
     for (referrer_key, referrer) in makers_and_referrer.0.iter() {
-        let referrer = load!(referrer)?;
+        let mut referrer = load_mut!(referrer)?;
         if referrer.authority != referrer_authority_key {
             continue;
         }
@@ -1217,6 +1241,8 @@ fn get_referrer_info(
             ErrorCode::InvalidReferrer,
             "Referrer must be user id 0"
         )?;
+
+        referrer.update_last_active_slot(slot);
 
         referrer_user_key = *referrer_key;
     }
@@ -1709,6 +1735,7 @@ pub fn fulfill_perp_order_with_amm(
                 .safe_unwrap()?
                 .update_filler_volume(quote_asset_amount, now)?;
         }
+        filler.update_last_active_slot(slot);
     }
 
     update_order_after_fill(
@@ -2073,6 +2100,7 @@ pub fn fulfill_perp_order_with_match(
                 .safe_unwrap()?
                 .update_filler_volume(quote_asset_amount, now)?;
         }
+        filler.update_last_active_slot(slot);
     }
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
@@ -2335,6 +2363,7 @@ pub fn trigger_order(
         filler.as_deref_mut(),
         &mut perp_market,
         state.perp_fee_structure.flat_filler_fee,
+        slot,
     )?;
 
     let order_action_record = get_order_action_record(
@@ -2393,6 +2422,8 @@ pub fn trigger_order(
             false,
         )?;
     }
+
+    user.update_last_active_slot(slot);
 
     Ok(())
 }
@@ -2489,6 +2520,8 @@ pub fn force_cancel_orders(
         total_fee,
     )?;
 
+    user.update_last_active_slot(slot);
+
     Ok(())
 }
 
@@ -2504,6 +2537,7 @@ pub fn pay_keeper_flat_reward_for_perps(
     filler: Option<&mut User>,
     market: &mut PerpMarket,
     filler_reward: u64,
+    slot: u64,
 ) -> DriftResult<u64> {
     let filler_reward = if let Some(filler) = filler {
         let user_position = user.get_perp_position_mut(market.market_index)?;
@@ -2513,6 +2547,7 @@ pub fn pay_keeper_flat_reward_for_perps(
             -filler_reward.cast()?,
         )?;
 
+        filler.update_last_active_slot(slot);
         // Dont throw error if filler doesnt have position available
         let filler_position = match filler.force_get_perp_position_mut(market.market_index) {
             Ok(position) => position,
@@ -2833,6 +2868,8 @@ pub fn place_spot_order(
     };
     emit!(order_record);
 
+    user.update_last_active_slot(slot);
+
     Ok(())
 }
 
@@ -2934,7 +2971,7 @@ pub fn fill_spot_order(
         (None, None)
     };
 
-    let (mut maker, mut maker_stats, maker_key, maker_order_index) = sanitize_spot_maker_order(
+    let (mut maker, mut maker_stats, maker_key, maker_order_index) = get_spot_maker_order(
         perp_market_map,
         spot_market_map,
         oracle_map,
@@ -3076,11 +3113,13 @@ pub fn fill_spot_order(
         )?
     }
 
+    user.update_last_active_slot(slot);
+
     Ok(base_asset_amount)
 }
 
 #[allow(clippy::type_complexity)]
-fn sanitize_spot_maker_order<'a>(
+fn get_spot_maker_order<'a>(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -3112,6 +3151,8 @@ fn sanitize_spot_maker_order<'a>(
 
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
+
+    maker.update_last_active_slot(slot);
 
     let maker_stats = if &maker.authority == taker_authority {
         None
@@ -3993,29 +4034,30 @@ pub fn fulfill_spot_order_with_serum(
     // rebate is half of taker fee
     let serum_fee = serum_referrer_rebate;
 
-    let (quote_update_direction, quote_asset_amount_filled) = if quote_after > quote_before {
-        let quote_asset_amount_delta = quote_after
-            .safe_sub(quote_before)?
-            .safe_sub(settled_referred_rebate)?;
+    let (quote_update_direction, quote_asset_amount_filled) =
+        if base_update_direction == SpotBalanceType::Borrow {
+            let quote_asset_amount_delta = quote_after
+                .safe_sub(quote_before)?
+                .safe_sub(settled_referred_rebate)?;
 
-        (
-            SpotBalanceType::Deposit,
-            quote_asset_amount_delta
-                .safe_add(serum_fee)?
-                .safe_add(serum_referrer_rebate)?,
-        )
-    } else {
-        let quote_asset_amount_delta = quote_before
-            .safe_sub(quote_after)?
-            .safe_add(settled_referred_rebate)?;
+            (
+                SpotBalanceType::Deposit,
+                quote_asset_amount_delta
+                    .safe_add(serum_fee)?
+                    .safe_add(serum_referrer_rebate)?,
+            )
+        } else {
+            let quote_asset_amount_delta = quote_before
+                .safe_add(settled_referred_rebate)?
+                .safe_sub(quote_after)?;
 
-        (
-            SpotBalanceType::Borrow,
-            quote_asset_amount_delta
-                .safe_sub(serum_fee)?
-                .safe_sub(serum_referrer_rebate)?,
-        )
-    };
+            (
+                SpotBalanceType::Borrow,
+                quote_asset_amount_delta
+                    .safe_sub(serum_fee)?
+                    .safe_sub(serum_referrer_rebate)?,
+            )
+        };
 
     validate_fill_price(
         quote_asset_amount_filled,
@@ -4355,6 +4397,8 @@ pub fn trigger_spot_order(
             false,
         )?;
     }
+
+    user.update_last_active_slot(slot);
 
     Ok(())
 }
