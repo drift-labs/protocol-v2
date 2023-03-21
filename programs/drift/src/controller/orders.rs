@@ -1016,12 +1016,12 @@ pub fn validate_market_within_price_band(
             false
         };
 
-    let oracle_reserve_price_spread_pct_after =
+    let oracle_ref_price_spread_pct_after =
         amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(ref_price_after))?;
 
     let breach_increases =
         if let Some(oracle_ref_price_spread_pct_before) = oracle_ref_price_spread_pct_before {
-            oracle_reserve_price_spread_pct_after.unsigned_abs()
+            oracle_ref_price_spread_pct_after.unsigned_abs()
                 >= oracle_ref_price_spread_pct_before.unsigned_abs()
         } else {
             false
@@ -1038,18 +1038,15 @@ pub fn validate_market_within_price_band(
                 .price_divergence
                 .mark_oracle_divergence_denominator,
         )?;
-    let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
-        oracle_reserve_price_spread_pct_after,
-        max_divergence,
-        // &state.oracle_guard_rails.price_divergence,
-    )?;
+    let is_oracle_mark_too_divergent_after =
+        amm::is_oracle_mark_too_divergent(oracle_ref_price_spread_pct_after, max_divergence)?;
 
     // if oracle-mark divergence pushed outside limit, block order
     if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before {
         msg!("price pushed outside bounds: last_oracle_price_twap_5min={} vs ref_price={},(breach spread {})",
                 market.amm.historical_oracle_data.last_oracle_price_twap_5min,
                 ref_price_after,
-                oracle_reserve_price_spread_pct_after,
+                oracle_ref_price_spread_pct_after,
             );
         return Err(ErrorCode::PriceBandsBreached);
     }
@@ -1059,7 +1056,7 @@ pub fn validate_market_within_price_band(
         msg!("risk-increasing outside bounds: last_oracle_price_twap_5min={} vs ref_price={}, (breach spread {})", 
                 market.amm.historical_oracle_data.last_oracle_price_twap_5min,
                 ref_price_after,
-                oracle_reserve_price_spread_pct_after,
+                oracle_ref_price_spread_pct_after,
             );
 
         return Err(ErrorCode::PriceBandsBreached);
