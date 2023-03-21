@@ -1,7 +1,7 @@
 use crate::controller::repeg::*;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
-    PRICE_PRECISION_U64, QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION, PRICE_PRECISION,
+    PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
 use crate::math::oracle::OracleValidity;
 use crate::math::repeg::{
@@ -85,11 +85,22 @@ pub fn update_amm_test() {
         amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(reserve_price_before))
             .unwrap();
     assert_eq!(oracle_ref_price_spread_pct_before, -5316);
-    let too_diverge = amm::is_oracle_mark_too_divergent(
-        oracle_ref_price_spread_pct_before,
-        &state.oracle_guard_rails.price_divergence,
-    )
-    .unwrap();
+    let max_divergence: u64 = state
+        .oracle_guard_rails
+        .price_divergence
+        .mark_oracle_divergence_numerator
+        .safe_mul(BID_ASK_SPREAD_PRECISION)
+        .unwrap()
+        .safe_div(
+            state
+                .oracle_guard_rails
+                .price_divergence
+                .mark_oracle_divergence_denominator,
+        )
+        .unwrap();
+    let too_diverge =
+        amm::is_oracle_mark_too_divergent(oracle_ref_price_spread_pct_before, max_divergence)
+            .unwrap();
     assert!(!too_diverge);
 
     let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
@@ -128,11 +139,22 @@ pub fn update_amm_test() {
     )
     .unwrap();
     assert_eq!(oracle_ref_price_spread_pct_before, -330370);
-    let too_diverge = amm::is_oracle_mark_too_divergent(
-        oracle_ref_price_spread_pct_before,
-        &state.oracle_guard_rails.price_divergence,
-    )
-    .unwrap();
+    let max_divergence: u64 = state
+        .oracle_guard_rails
+        .price_divergence
+        .mark_oracle_divergence_numerator
+        .safe_mul(BID_ASK_SPREAD_PRECISION)
+        .unwrap()
+        .safe_div(
+            state
+                .oracle_guard_rails
+                .price_divergence
+                .mark_oracle_divergence_denominator,
+        )
+        .unwrap();
+    let too_diverge =
+        amm::is_oracle_mark_too_divergent(oracle_ref_price_spread_pct_before, max_divergence)
+            .unwrap();
     assert!(too_diverge);
 
     let profit = market.amm.total_fee_minus_distributions;

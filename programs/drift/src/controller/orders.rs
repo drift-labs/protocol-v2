@@ -33,8 +33,8 @@ use crate::load_mut;
 use crate::math::auction::calculate_auction_prices;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
-    QUOTE_SPOT_MARKET_INDEX,
+    BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE,
+    ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
 };
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
@@ -999,10 +999,19 @@ pub fn validate_market_within_price_band(
 
     let is_oracle_mark_too_divergent_before =
         if let Some(oracle_ref_price_spread_pct_before) = oracle_ref_price_spread_pct_before {
-            amm::is_oracle_mark_too_divergent(
-                oracle_ref_price_spread_pct_before,
-                &state.oracle_guard_rails.price_divergence,
-            )?
+            let max_divergence: u64 = state
+                .oracle_guard_rails
+                .price_divergence
+                .mark_oracle_divergence_numerator
+                .safe_mul(BID_ASK_SPREAD_PRECISION)?
+                .safe_div(
+                    state
+                        .oracle_guard_rails
+                        .price_divergence
+                        .mark_oracle_divergence_denominator,
+                )?;
+
+            amm::is_oracle_mark_too_divergent(oracle_ref_price_spread_pct_before, max_divergence)?
         } else {
             false
         };
@@ -1018,9 +1027,21 @@ pub fn validate_market_within_price_band(
             false
         };
 
+    let max_divergence: u64 = state
+        .oracle_guard_rails
+        .price_divergence
+        .mark_oracle_divergence_numerator
+        .safe_mul(BID_ASK_SPREAD_PRECISION)?
+        .safe_div(
+            state
+                .oracle_guard_rails
+                .price_divergence
+                .mark_oracle_divergence_denominator,
+        )?;
     let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
         oracle_reserve_price_spread_pct_after,
-        &state.oracle_guard_rails.price_divergence,
+        max_divergence,
+        // &state.oracle_guard_rails.price_divergence,
     )?;
 
     // if oracle-mark divergence pushed outside limit, block order
