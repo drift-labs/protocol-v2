@@ -479,7 +479,7 @@ export class DriftClient {
 		this.userStatsAccountPublicKey = undefined;
 	}
 
-	public async switchActiveUser(subAccountId: number): Promise<void> {
+	public switchActiveUser(subAccountId: number) {
 		this.activeSubAccountId = subAccountId;
 	}
 
@@ -1946,14 +1946,18 @@ export class DriftClient {
 	 * @param userAccountPublicKey
 	 * @param userAccount
 	 * @param makerInfo
+	 * @param txParams
+	 * @param bracketOrdersParams
 	 * @returns
 	 */
 	public async sendMarketOrderAndGetSignedFillTx(
 		orderParams: OptionalOrderParams,
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		makerInfo?: MakerInfo,
-		txParams?: TxParams
+		makerInfo?: MakerInfo | MakerInfo[],
+		txParams?: TxParams,
+		bracketOrdersParams = new Array<OptionalOrderParams>(),
+		referrerInfo?: ReferrerInfo
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
@@ -1963,6 +1967,10 @@ export class DriftClient {
 			txParams?.computeUnits,
 			txParams?.computeUnitsPrice
 		);
+		for (const bracketOrderParams of bracketOrdersParams) {
+			marketOrderTx.add(await this.getPlacePerpOrderIx(bracketOrderParams));
+		}
+
 		const fillTx = wrapInTx(
 			await this.getFillPerpOrderIx(
 				userAccountPublicKey,
@@ -1971,7 +1979,8 @@ export class DriftClient {
 					orderId,
 					marketIndex,
 				},
-				makerInfo
+				makerInfo,
+				referrerInfo
 			),
 			txParams?.computeUnits,
 			txParams?.computeUnitsPrice

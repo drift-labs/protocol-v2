@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- sdk: fix claimable pnl ([#384](https://github.com/drift-labs/protocol-v2/pull/384))
+- program: borrow liquidity check accounts for if user has borrow or deposit ([#400](https://github.com/drift-labs/protocol-v2/pull/400))
+- program: slightly relax withdraw limits ([#400](https://github.com/drift-labs/protocol-v2/pull/400))
+
 ### Breaking
 
 ## [2.21.0] - 2023-03-19
