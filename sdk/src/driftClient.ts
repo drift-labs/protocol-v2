@@ -1956,7 +1956,8 @@ export class DriftClient {
 		userAccount: UserAccount,
 		makerInfo?: MakerInfo | MakerInfo[],
 		txParams?: TxParams,
-		bracketOrdersParams = new Array<OptionalOrderParams>()
+		bracketOrdersParams = new Array<OptionalOrderParams>(),
+		referrerInfo?: ReferrerInfo
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
@@ -1978,7 +1979,8 @@ export class DriftClient {
 					orderId,
 					marketIndex,
 				},
-				makerInfo
+				makerInfo,
+				referrerInfo
 			),
 			txParams?.computeUnits,
 			txParams?.computeUnitsPrice
