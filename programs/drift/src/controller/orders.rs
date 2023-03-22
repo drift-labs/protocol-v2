@@ -1027,7 +1027,7 @@ pub fn validate_market_within_price_band(
             false
         };
 
-    let max_divergence: u64 = state
+    let mut max_divergence: u64 = state
         .oracle_guard_rails
         .price_divergence
         .mark_oracle_divergence_numerator
@@ -1038,6 +1038,12 @@ pub fn validate_market_within_price_band(
                 .price_divergence
                 .mark_oracle_divergence_denominator,
         )?;
+
+    let max_divergence = max_divergence.max(
+        market.margin_ratio_initial.cast::<u128>()?
+            * (BID_ASK_SPREAD_PRECISION_U128 / MARGIN_PRECISION_U128).cast::<u64>()?,
+    );
+    
     let is_oracle_mark_too_divergent_after =
         amm::is_oracle_mark_too_divergent(oracle_ref_price_spread_pct_after, max_divergence)?;
 
