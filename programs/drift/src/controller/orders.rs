@@ -33,8 +33,9 @@ use crate::load_mut;
 use crate::math::auction::calculate_auction_prices;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE,
-    ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
+    BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_U128,
+    FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, MARGIN_PRECISION_U128, ONE_HOUR,
+    PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
 };
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
@@ -1027,7 +1028,7 @@ pub fn validate_market_within_price_band(
             false
         };
 
-    let mut max_divergence: u64 = state
+    let default_oracle_guard_rail_divergence: u64 = state
         .oracle_guard_rails
         .price_divergence
         .mark_oracle_divergence_numerator
@@ -1039,11 +1040,14 @@ pub fn validate_market_within_price_band(
                 .mark_oracle_divergence_denominator,
         )?;
 
-    let max_divergence = max_divergence.max(
-        market.margin_ratio_initial.cast::<u128>()?
-            * (BID_ASK_SPREAD_PRECISION_U128 / MARGIN_PRECISION_U128).cast::<u64>()?,
+    let max_divergence = default_oracle_guard_rail_divergence.max(
+        market
+            .margin_ratio_initial
+            .cast::<u128>()?
+            .safe_mul(BID_ASK_SPREAD_PRECISION_U128 / MARGIN_PRECISION_U128)?
+            .cast::<u64>()?,
     );
-    
+
     let is_oracle_mark_too_divergent_after =
         amm::is_oracle_mark_too_divergent(oracle_ref_price_spread_pct_after, max_divergence)?;
 
