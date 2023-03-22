@@ -998,36 +998,6 @@ pub fn validate_market_within_price_band(
         market.amm.reserve_price()?
     };
 
-    let is_oracle_mark_too_divergent_before =
-        if let Some(oracle_ref_price_spread_pct_before) = oracle_ref_price_spread_pct_before {
-            let max_divergence: u64 = state
-                .oracle_guard_rails
-                .price_divergence
-                .mark_oracle_divergence_numerator
-                .safe_mul(BID_ASK_SPREAD_PRECISION)?
-                .safe_div(
-                    state
-                        .oracle_guard_rails
-                        .price_divergence
-                        .mark_oracle_divergence_denominator,
-                )?;
-
-            amm::is_oracle_mark_too_divergent(oracle_ref_price_spread_pct_before, max_divergence)?
-        } else {
-            false
-        };
-
-    let oracle_ref_price_spread_pct_after =
-        amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(ref_price_after))?;
-
-    let breach_increases =
-        if let Some(oracle_ref_price_spread_pct_before) = oracle_ref_price_spread_pct_before {
-            oracle_ref_price_spread_pct_after.unsigned_abs()
-                >= oracle_ref_price_spread_pct_before.unsigned_abs()
-        } else {
-            false
-        };
-
     let default_oracle_guard_rail_divergence: u64 = state
         .oracle_guard_rails
         .price_divergence
@@ -1047,6 +1017,24 @@ pub fn validate_market_within_price_band(
             .safe_mul(BID_ASK_SPREAD_PRECISION_U128 / MARGIN_PRECISION_U128)?
             .cast::<u64>()?,
     );
+
+    let is_oracle_mark_too_divergent_before =
+        if let Some(oracle_ref_price_spread_pct_before) = oracle_ref_price_spread_pct_before {
+            amm::is_oracle_mark_too_divergent(oracle_ref_price_spread_pct_before, max_divergence)?
+        } else {
+            false
+        };
+
+    let oracle_ref_price_spread_pct_after =
+        amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(ref_price_after))?;
+
+    let breach_increases =
+        if let Some(oracle_ref_price_spread_pct_before) = oracle_ref_price_spread_pct_before {
+            oracle_ref_price_spread_pct_after.unsigned_abs()
+                >= oracle_ref_price_spread_pct_before.unsigned_abs()
+        } else {
+            false
+        };
 
     let is_oracle_mark_too_divergent_after =
         amm::is_oracle_mark_too_divergent(oracle_ref_price_spread_pct_after, max_divergence)?;
