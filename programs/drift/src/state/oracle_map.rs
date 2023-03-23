@@ -1,5 +1,5 @@
 use crate::error::{DriftResult, ErrorCode};
-use crate::ids::{bonk_oracle, pyth_program};
+use crate::ids::{bonk_oracle, pyth_program, usdc_oracle};
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
@@ -42,8 +42,16 @@ impl<'a> OracleMap<'a> {
             .clone())
     }
 
+    fn should_get_quote_asset_price_data(&self, pubkey: &Pubkey) -> bool {
+        #[cfg(feature = "mainnet-beta")]
+        return (self.slot < 185740418 && pubkey == &usdc_oracle::id())
+            || pubkey == &Pubkey::default();
+        #[cfg(not(feature = "mainnet-beta"))]
+        return pubkey == &Pubkey::default();
+    }
+
     pub fn get_price_data(&mut self, pubkey: &Pubkey) -> DriftResult<&OraclePriceData> {
-        if pubkey == &Pubkey::default() {
+        if self.should_get_quote_asset_price_data(pubkey) {
             return Ok(&self.quote_asset_price_data);
         }
 
@@ -74,7 +82,7 @@ impl<'a> OracleMap<'a> {
         pubkey: &Pubkey,
         last_oracle_price_twap: i64,
     ) -> DriftResult<(&OraclePriceData, OracleValidity)> {
-        if pubkey == &Pubkey::default() {
+        if self.should_get_quote_asset_price_data(pubkey) {
             return Ok((&self.quote_asset_price_data, OracleValidity::Valid));
         }
 
@@ -117,7 +125,7 @@ impl<'a> OracleMap<'a> {
         &mut self,
         pubkey: &Pubkey,
     ) -> DriftResult<(&OraclePriceData, &ValidityGuardRails)> {
-        if pubkey == &Pubkey::default() {
+        if self.should_get_quote_asset_price_data(pubkey) {
             let validity_guard_rails = &self.oracle_guard_rails.validity;
             return Ok((&self.quote_asset_price_data, validity_guard_rails));
         }
