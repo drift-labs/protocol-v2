@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.22.0] - 2023-03-23
+
+### Features
+
 - sdk: add isUserBankrupt ([#399](https://github.com/drift-labs/protocol-v2/pull/399))
 
 ### Fixes
