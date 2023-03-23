@@ -360,6 +360,7 @@ export class DriftClient {
 	public getPerpMarketAccounts(): PerpMarketAccount[] {
 		return this.accountSubscriber
 			.getMarketAccountsAndSlots()
+			.filter((value) => value !== undefined)
 			.map((value) => value.data);
 	}
 
@@ -383,6 +384,7 @@ export class DriftClient {
 	public getSpotMarketAccounts(): SpotMarketAccount[] {
 		return this.accountSubscriber
 			.getSpotMarketAccountsAndSlots()
+			.filter((value) => value !== undefined)
 			.map((value) => value.data);
 	}
 
