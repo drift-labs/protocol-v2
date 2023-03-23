@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- sdk: add isUserBankrupt ([#399](https://github.com/drift-labs/protocol-v2/pull/399))
+- program: update revenue pool fund settlement logic ([#398](https://github.com/drift-labs/protocol-v2/pull/398))
+
+### Fixes
+
+- sdk: fix claimable pnl ([#384](https://github.com/drift-labs/protocol-v2/pull/384))
+- program: borrow liquidity check accounts for if user has borrow or deposit ([#400](https://github.com/drift-labs/protocol-v2/pull/400))
+- program: slightly relax withdraw limits ([#400](https://github.com/drift-labs/protocol-v2/pull/400))
+
+### Breaking
+
+## [2.21.0] - 2023-03-19
+
+### Features
+
+- program: account for openbook referrer rebate being greater than quote sold ([#394](https://github.com/drift-labs/protocol-v2/pull/394))
 - sdk: add sync to UserMap and UserStatsMap ([#395](https://github.com/drift-labs/protocol-v2/pull/395))
 - program: revert fill ix ([#391](https://github.com/drift-labs/protocol-v2/pull/391))
 - program: flag users as idle on-chain ([#386](https://github.com/drift-labs/protocol-v2/pull/386))

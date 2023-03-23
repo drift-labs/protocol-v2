@@ -74,6 +74,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1677690149000, //todo
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Arbitrum',
+		category: ['L2', 'Infra'],
+		symbol: 'ARB-PERP',
+		baseAssetSymbol: 'ARB',
+		marketIndex: 6,
+		oracle: new PublicKey('4mRGHzjGerQNWKXyQAmr9kWqb9saPPHKqo1xziXGQ5Dh'),
+		launchTs: 1679501812000, //todo
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -135,6 +145,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 5,
 		oracle: new PublicKey('7KVswB9vkCgeM3SHP7aGDijvdRAHK8P5wi9JXViCrtYh'),
 		launchTs: 1677690149000, //todo
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Arbitrum',
+		category: ['L2', 'Infra'],
+		symbol: 'ARB-PERP',
+		baseAssetSymbol: 'ARB',
+		marketIndex: 6,
+		oracle: new PublicKey('5HRrdmghsnU3i2u5StaKaydS7eq3vnKVKwXMzCNKsc4C'),
+		launchTs: 1679501812000, //todo
 		oracleSource: OracleSource.PYTH,
 	},
 ];

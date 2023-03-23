@@ -21,7 +21,7 @@ use crate::math::margin::{
 use crate::math::position::calculate_entry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_strict_token_value, get_token_value};
-use crate::math::spot_withdraw::calculate_availability_borrow_liquidity;
+use crate::math::spot_withdraw::get_max_withdraw_for_market_with_token_amount;
 use crate::math_error;
 use crate::print_error;
 use crate::state::oracle_map::OracleMap;
@@ -580,19 +580,7 @@ pub fn get_max_fill_amounts(
 fn get_max_fill_amounts_for_market(user: &User, market: &SpotMarket) -> DriftResult<u128> {
     let position_index = user.get_spot_position_index(market.market_index)?;
     let token_amount = user.spot_positions[position_index].get_signed_token_amount(market)?;
-    get_max_withdraw_for_market_with_token_amount(token_amount, market)
-}
-
-#[inline(always)]
-pub fn get_max_withdraw_for_market_with_token_amount(
-    token_amount: i128,
-    market: &SpotMarket,
-) -> DriftResult<u128> {
-    let available_borrow_liquidity = calculate_availability_borrow_liquidity(market)?;
-    token_amount
-        .max(0)
-        .unsigned_abs()
-        .safe_add(available_borrow_liquidity)
+    get_max_withdraw_for_market_with_token_amount(market, token_amount)
 }
 
 pub fn find_fallback_maker_order(

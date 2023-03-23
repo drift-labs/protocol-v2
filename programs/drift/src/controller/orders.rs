@@ -4034,29 +4034,30 @@ pub fn fulfill_spot_order_with_serum(
     // rebate is half of taker fee
     let serum_fee = serum_referrer_rebate;
 
-    let (quote_update_direction, quote_asset_amount_filled) = if quote_after > quote_before {
-        let quote_asset_amount_delta = quote_after
-            .safe_sub(quote_before)?
-            .safe_sub(settled_referred_rebate)?;
+    let (quote_update_direction, quote_asset_amount_filled) =
+        if base_update_direction == SpotBalanceType::Borrow {
+            let quote_asset_amount_delta = quote_after
+                .safe_sub(quote_before)?
+                .safe_sub(settled_referred_rebate)?;
 
-        (
-            SpotBalanceType::Deposit,
-            quote_asset_amount_delta
-                .safe_add(serum_fee)?
-                .safe_add(serum_referrer_rebate)?,
-        )
-    } else {
-        let quote_asset_amount_delta = quote_before
-            .safe_sub(quote_after)?
-            .safe_add(settled_referred_rebate)?;
+            (
+                SpotBalanceType::Deposit,
+                quote_asset_amount_delta
+                    .safe_add(serum_fee)?
+                    .safe_add(serum_referrer_rebate)?,
+            )
+        } else {
+            let quote_asset_amount_delta = quote_before
+                .safe_add(settled_referred_rebate)?
+                .safe_sub(quote_after)?;
 
-        (
-            SpotBalanceType::Borrow,
-            quote_asset_amount_delta
-                .safe_sub(serum_fee)?
-                .safe_sub(serum_referrer_rebate)?,
-        )
-    };
+            (
+                SpotBalanceType::Borrow,
+                quote_asset_amount_delta
+                    .safe_sub(serum_fee)?
+                    .safe_sub(serum_referrer_rebate)?,
+            )
+        };
 
     validate_fill_price(
         quote_asset_amount_filled,

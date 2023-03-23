@@ -532,11 +532,16 @@ mod get_max_fill_amounts {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{Order, SpotPosition, User};
     use crate::test_utils::get_orders;
+    use crate::LAMPORTS_PER_SOL_U64;
     use anchor_spl::token::spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
 
     #[test]
     fn fully_collateralized_selling_base() {
-        let base_market = SpotMarket::default_base_market();
+        let base_market = SpotMarket {
+            deposit_balance: 4 * 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 4 * 100 * LAMPORTS_PER_SOL_U64,
+            ..SpotMarket::default_base_market()
+        };
         let quote_market = SpotMarket::default_quote_market();
 
         let mut spot_positions = [SpotPosition::default(); 8];
@@ -653,7 +658,11 @@ mod get_max_fill_amounts {
     #[test]
     fn fully_collateralized_selling_quote() {
         let base_market = SpotMarket::default_base_market();
-        let quote_market = SpotMarket::default_quote_market();
+        let quote_market = SpotMarket {
+            deposit_balance: 4 * 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 4 * 100 * QUOTE_PRECISION_U64,
+            ..SpotMarket::default_quote_market()
+        };
 
         let mut spot_positions = [SpotPosition::default(); 8];
         spot_positions[0] = SpotPosition {
