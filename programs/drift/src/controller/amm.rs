@@ -495,7 +495,7 @@ pub fn update_pool_balances(
                     &SpotBalanceType::Deposit,
                 )?;
 
-                let revenue_pool_transfer = terminal_state_surplus
+                let revenue_pool_transfer: u128 = terminal_state_surplus
                     .unsigned_abs()
                     .min(spot_market_revenue_pool_amount)
                     .min(max_revenue_withdraw_allowed);
@@ -554,8 +554,16 @@ pub fn update_pool_balances(
             let revenue_pool_transfer = total_fee_for_if
                 .safe_add(total_liq_fees_for_revenue_pool)?
                 .safe_sub(market.amm.total_fee_withdrawn.cast()?)?
+                .max(0)
                 .min(fee_pool_threshold)
                 .min(max_revenue_to_settle.cast()?);
+
+            validate!(
+                revenue_pool_transfer >= 0,
+                ErrorCode::InsufficientPerpPnlPool,
+                "revenue_pool_transfer negative ({})",
+                revenue_pool_transfer,
+            )?;
 
             transfer_spot_balance_to_revenue_pool(
                 revenue_pool_transfer.unsigned_abs(),
