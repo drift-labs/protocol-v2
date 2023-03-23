@@ -1024,7 +1024,13 @@ export class User {
 						marginRatio = ZERO;
 					}
 
+					const quoteOraclePrice = this.getOracleDataForSpotMarket(
+						market.quoteSpotMarketIndex
+					).price;
+
 					baseAssetValue = baseAssetValue
+						.mul(quoteOraclePrice)
+						.div(PRICE_PRECISION)
 						.mul(marginRatio)
 						.div(MARGIN_PRECISION);
 
