@@ -195,8 +195,10 @@ mod test {
             &market,
             &oracle_price_data,
             QUOTE_PRECISION_I64,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
+            false,
             false,
         )
         .unwrap();
@@ -310,8 +312,10 @@ mod test {
             &market,
             &oracle_price_data,
             QUOTE_PRECISION_I64,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
+            false,
             false,
         )
         .unwrap();
@@ -387,8 +391,10 @@ mod test {
             &market,
             &oracle_price_data,
             QUOTE_PRECISION_I64,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
+            false,
             false,
         )
         .unwrap();
@@ -450,8 +456,10 @@ mod test {
             &market,
             &oracle_price_data,
             QUOTE_PRECISION_I64,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
+            false,
             false,
         )
         .unwrap();
@@ -474,8 +482,10 @@ mod test {
             &market,
             &oracle_price_data,
             QUOTE_PRECISION_I64,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
+            false,
             false,
         )
         .unwrap();
@@ -521,8 +531,10 @@ mod test {
             &market,
             &oracle_price_data,
             QUOTE_PRECISION_I64,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
+            false,
             false,
         )
         .unwrap();
@@ -544,8 +556,10 @@ mod test {
             &market,
             &oracle_price_data,
             QUOTE_PRECISION_I64,
+            QUOTE_PRECISION_I64,
             MarginRequirementType::Initial,
             0,
+            false,
             false,
         )
         .unwrap();

@@ -424,7 +424,8 @@ export class User {
 		return this.getTotalPerpPositionValue(
 			marginCategory,
 			liquidationBuffer,
-			true
+			true,
+			strict
 		).add(
 			this.getSpotMarketLiabilityValue(
 				undefined,
@@ -467,7 +468,8 @@ export class User {
 	public getUnrealizedPNL(
 		withFunding?: boolean,
 		marketIndex?: number,
-		withWeightMarginCategory?: MarginCategory
+		withWeightMarginCategory?: MarginCategory,
+		strict = false
 	): BN {
 		return this.getActivePerpPositions()
 			.filter((pos) => (marketIndex ? pos.marketIndex === marketIndex : true))
@@ -495,9 +497,26 @@ export class User {
 					perpPosition,
 					withFunding,
 					oraclePriceData
-				)
-					.mul(quoteOraclePriceData.price)
-					.div(PRICE_PRECISION);
+				);
+
+				let quotePrice;
+				if (strict && positionUnrealizedPnl.gt(ZERO)) {
+					quotePrice = BN.min(
+						quoteOraclePriceData.price,
+						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+					);
+				} else if (strict && positionUnrealizedPnl.lt(ZERO)) {
+					quotePrice = BN.max(
+						quoteOraclePriceData.price,
+						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+					);
+				} else {
+					quotePrice = quoteOraclePriceData.price;
+				}
+
+				positionUnrealizedPnl = positionUnrealizedPnl
+					.mul(quotePrice)
+					.div(new BN(PRICE_PRECISION));
 
 				if (withWeightMarginCategory !== undefined) {
 					if (positionUnrealizedPnl.gt(ZERO)) {
@@ -899,10 +918,16 @@ export class User {
 	 * calculates TotalCollateral: collateral + unrealized pnl
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getTotalCollateral(marginCategory: MarginCategory = 'Initial'): BN {
-		return this.getSpotMarketAssetValue(undefined, marginCategory, true).add(
-			this.getUnrealizedPNL(true, undefined, marginCategory)
-		);
+	public getTotalCollateral(
+		marginCategory: MarginCategory = 'Initial',
+		strict = false
+	): BN {
+		return this.getSpotMarketAssetValue(
+			undefined,
+			marginCategory,
+			true,
+			strict
+		).add(this.getUnrealizedPNL(true, undefined, marginCategory, strict));
 	}
 
 	/**
@@ -954,7 +979,8 @@ export class User {
 	getTotalPerpPositionValue(
 		marginCategory?: MarginCategory,
 		liquidationBuffer?: BN,
-		includeOpenOrders?: boolean
+		includeOpenOrders?: boolean,
+		strict = false
 	): BN {
 		return this.getActivePerpPositions().reduce(
 			(totalPerpValue, perpPosition) => {
@@ -1024,12 +1050,26 @@ export class User {
 						marginRatio = ZERO;
 					}
 
-					const quoteOraclePrice = this.getOracleDataForSpotMarket(
+					const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
 						market.quoteSpotMarketIndex
-					).price;
+					);
+					const quoteOraclePriceData =
+						this.driftClient.getOraclePriceDataAndSlot(
+							quoteSpotMarket.oracle
+						).data;
+
+					let quotePrice;
+					if (strict) {
+						quotePrice = BN.max(
+							quoteOraclePriceData.price,
+							quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+						);
+					} else {
+						quotePrice = quoteOraclePriceData.price;
+					}
 
 					baseAssetValue = baseAssetValue
-						.mul(quoteOraclePrice)
+						.mul(quotePrice)
 						.div(PRICE_PRECISION)
 						.mul(marginRatio)
 						.div(MARGIN_PRECISION);

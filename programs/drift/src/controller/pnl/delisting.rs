@@ -2355,8 +2355,10 @@ pub mod delisting_test {
                 &market,
                 oracle_price_data,
                 QUOTE_PRECISION_I64,
+                QUOTE_PRECISION_I64,
                 MarginRequirementType::Initial,
                 0,
+                false,
                 false,
             )
             .unwrap();
@@ -2434,8 +2436,10 @@ pub mod delisting_test {
                         &market,
                         oracle_price_data,
                         QUOTE_PRECISION_I64,
+                        QUOTE_PRECISION_I64,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();
@@ -2520,8 +2524,10 @@ pub mod delisting_test {
                         &market,
                         oracle_price_data,
                         QUOTE_PRECISION_I64,
+                        QUOTE_PRECISION_I64,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();
@@ -2610,8 +2616,10 @@ pub mod delisting_test {
                         &market,
                         oracle_price_data,
                         QUOTE_PRECISION_I64,
+                        QUOTE_PRECISION_I64,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();

@@ -132,9 +132,11 @@ pub fn calculate_perp_position_value_and_pnl(
     market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
     quote_oracle_price: i64,
+    quote_oracle_twap: i64,
     margin_requirement_type: MarginRequirementType,
     user_custom_margin_ratio: u32,
     with_bounds: bool,
+    strict: bool,
 ) -> DriftResult<(u128, i128, u128)> {
     let unrealized_funding = calculate_funding_payment(
         if market_position.base_asset_amount > 0 {
@@ -205,6 +207,17 @@ pub fn calculate_perp_position_value_and_pnl(
         valuation_price,
     )?;
 
+    // for calculating the perps value, since it's a liability, use the large of twap and quote oracle price
+    let quote_price = if strict {
+        quote_oracle_price.max(quote_oracle_twap)
+    } else {
+        quote_oracle_price
+    };
+
+    let worse_case_base_asset_value = worse_case_base_asset_value
+        .safe_mul(quote_price.cast()?)?
+        .safe_div(PRICE_PRECISION)?;
+
     let margin_ratio = user_custom_margin_ratio.max(market.get_margin_ratio(
         worst_case_base_asset_amount.unsigned_abs(),
         margin_requirement_type,
@@ -214,8 +227,6 @@ pub fn calculate_perp_position_value_and_pnl(
         0
     } else {
         worse_case_base_asset_value
-            .safe_mul(quote_oracle_price.cast()?)?
-            .safe_div(PRICE_PRECISION)?
             .safe_mul(margin_ratio.cast()?)?
             .safe_div(MARGIN_PRECISION_U128)?
     };
@@ -227,8 +238,16 @@ pub fn calculate_perp_position_value_and_pnl(
     let unrealized_asset_weight =
         market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
 
+    let quote_price = if strict && unrealized_pnl > 0 {
+        quote_oracle_price.min(quote_oracle_twap)
+    } else if strict && unrealized_pnl < 0 {
+        quote_oracle_price.max(quote_oracle_twap)
+    } else {
+        quote_oracle_price
+    };
+
     let mut weighted_unrealized_pnl = total_unrealized_pnl
-        .safe_mul(quote_oracle_price.cast()?)?
+        .safe_mul(quote_price.cast()?)?
         .safe_div(PRICE_PRECISION_I128)?
         .safe_mul(unrealized_asset_weight.cast()?)?
         .safe_div(SPOT_WEIGHT_PRECISION.cast()?)?;
@@ -531,7 +550,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
 
-        let quote_oracle_price = {
+        let (quote_oracle_price, quote_oracle_twap) = {
             let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
             let (quote_oracle_price_data, quote_oracle_validity) = oracle_map
                 .get_price_data_and_validity(
@@ -544,7 +563,12 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             all_oracles_valid &=
                 is_oracle_valid_for_action(quote_oracle_validity, Some(DriftAction::MarginCalc))?;
 
-            quote_oracle_price_data.price
+            (
+                quote_oracle_price_data.price,
+                quote_spot_market
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min,
+            )
         };
 
         let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
@@ -560,9 +584,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 market,
                 oracle_price_data,
                 quote_oracle_price,
+                quote_oracle_twap,
                 margin_requirement_type,
                 user_custom_margin_ratio,
                 true,
+                strict,
             )?;
 
         margin_requirement = margin_requirement.safe_add(perp_margin_requirement)?;
