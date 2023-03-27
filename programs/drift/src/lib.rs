@@ -204,8 +204,7 @@ pub mod drift {
         ctx: Context<InitializePrintTrade>,
         params: PrintTradeParams,
     ) -> Result<()> {
-        Ok(())
-        // handle_initialize_print_trade(ctx, params)
+        handle_initialize_print_trade(ctx, params)
     }
 
     // Keeper Instructions

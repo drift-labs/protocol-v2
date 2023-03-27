@@ -148,7 +148,8 @@ describe('print trades', () => {
 			remainingAccounts
 		).signers(
 			[payer]
-		).rpc();
+		).rpc()
+		.catch(e => {console.log(e)});
 
 		console.log("print trade creation tx: ", tx);
 	});

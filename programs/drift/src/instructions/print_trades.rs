@@ -29,6 +29,7 @@ pub struct InitializePrintTrade<'info> {
         constraint = can_sign_for_user(&creator, &creator_owner)?
     )]
     pub creator_owner: Signer<'info>,
+    #[account(mut)]
     pub creator: AccountLoader<'info, User>,
 
     #[account(
@@ -36,6 +37,7 @@ pub struct InitializePrintTrade<'info> {
         constraint = can_sign_for_user(&counterparty, &counterparty_owner)?
     )]
     pub counterparty_owner: Signer<'info>,
+    #[account(mut)]
     pub counterparty: AccountLoader<'info, User>,
 
     pub system_program: Program<'info, System>,
