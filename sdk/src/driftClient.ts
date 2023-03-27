@@ -37,6 +37,7 @@ import {
 	PostOnlyParams,
 	SpotBalanceType,
 	PerpMarketExtendedInfo,
+	UserStatsAccount,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import driftIDL from './idl/drift.json';
@@ -773,6 +774,24 @@ export class DriftClient {
 
 		return programAccounts.map(
 			(programAccount) => programAccount.account as UserAccount
+		);
+	}
+
+	public async getReferredUserStatsAccountsByReferrer(
+		referrer: PublicKey
+	): Promise<UserStatsAccount[]> {
+		const programAccounts = await this.program.account.userStats.all([
+			{
+				memcmp: {
+					offset: 40,
+					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
+					bytes: bs58.encode(referrer.toBuffer()),
+				},
+			},
+		]);
+
+		return programAccounts.map(
+			(programAccount) => programAccount.account as UserStatsAccount
 		);
 	}
 
