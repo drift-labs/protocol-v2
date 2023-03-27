@@ -10,15 +10,113 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: tweak calculate_size_premium_liability_weight to have smaller effect on initial margin ([#350](https://github.com/drift-labs/protocol-v2/pull/350))
-- ts-sdk: updates for accounting for spot leverage ([#295](https://github.com/drift-labs/protocol-v2/pull/295))
+### Fixes
+
+### Breaking
+
+## [2.22.0] - 2023-03-23
+
+### Features
+
+- sdk: add isUserBankrupt ([#399](https://github.com/drift-labs/protocol-v2/pull/399))
 
 ### Fixes
 
+- sdk: fix claimable pnl ([#384](https://github.com/drift-labs/protocol-v2/pull/384))
+- program: borrow liquidity check accounts for if user has borrow or deposit ([#400](https://github.com/drift-labs/protocol-v2/pull/400))
+- program: slightly relax withdraw limits ([#400](https://github.com/drift-labs/protocol-v2/pull/400))
+- sdk: filter undefined accounts ([#406](https://github.com/drift-labs/protocol-v2/pull/406))
+
+### Breaking
+
+## [2.21.0] - 2023-03-19
+
+### Features
+
+- program: account for openbook referrer rebate being greater than quote sold ([#394](https://github.com/drift-labs/protocol-v2/pull/394))
+- sdk: add sync to UserMap and UserStatsMap ([#395](https://github.com/drift-labs/protocol-v2/pull/395))
+- program: revert fill ix ([#391](https://github.com/drift-labs/protocol-v2/pull/391))
+- program: flag users as idle on-chain ([#386](https://github.com/drift-labs/protocol-v2/pull/386))
+
+### Fixes
+
+### Breaking
+
+## [2.20.0] - 2023-03-10
+
+### Features
+
+- program: add referrer name account to enforce unique referrer names ([#357](https://github.com/drift-labs/protocol-v2/pull/357)) 
+- program: only let amm fill up to tick above/below user limit price ([#381](https://github.com/drift-labs/protocol-v2/pull/381))
+- program: allow multiple makers in fill_perp_order ([#341](https://github.com/drift-labs/protocol-v2/pull/341))
+- sdk: add getPerpMarketExtendedInfo to drift client
+
+### Fixes
+
+### Breaking
+
+## [2.19.0] - 2023-03-01
+
+### Features
+
+- program: allow post only to match older taker limit orders ([#378](https://github.com/drift-labs/protocol-v2/pull/378)) 
+- ts-sdk: serum subscriber supports websockets ([#365](https://github.com/drift-labs/protocol-v2/pull/365))
+- program: max number of subaccounts to 3000
+- program: amm spread logic more consistent across market by using liquidity ratio rather than base asset amount for inventory spread scaling([#374](https://github.com/drift-labs/protocol-v2/pull/374))
+- program: add pyth1M/pyth1K as OracleSource ([#375](https://github.com/drift-labs/protocol-v2/pull/375))
+
+### Fixes
+
+### Breaking
+
+## [2.18.0] - 2023-02-24
+
+### Features
+
+- program: account for contract tier in liquidate_perp_pnl_for_deposit ([#368](https://github.com/drift-labs/protocol-v2/pull/368))
+- program: simplifications for order fills ([#370](https://github.com/drift-labs/protocol-v2/pull/370))
+- program: block atomic fills ([#369](https://github.com/drift-labs/protocol-v2/pull/369))
+- program: allow limit orders to go through auction ([#355](https://github.com/drift-labs/protocol-v2/pull/355))
+- program: improve conditions for withdraw/borrow guard ([#354](https://github.com/drift-labs/protocol-v2/pull/354))
+
+### Fixes
+
+- ts-sdk: fix resolvePerpBankrupcty to work with all perp market indexes
+- ts-sdk: getTokenAmount uses divCeil ([#371](https://github.com/drift-labs/protocol-v2/pull/371))
+- program: allow limit orders to have explicit zero auction duration passed in params ([#373](https://github.com/drift-labs/protocol-v2/pull/373))
+
+### Breaking
+
+## [2.17.0] - 2023-02-17
+
+### Features
+
+- program: order params utilize post only enum ([#361](https://github.com/drift-labs/protocol-v2/pull/361))
+
+### Fixes
+- program: twap tweaks, update only on new cluster time ([#362](https://github.com/drift-labs/protocol-v2/pull/362))
+
+### Breaking
+
+## [2.16.0] - 2023-02-14
+
+### Features
+
+- sdk: add support for market lookup table ([#359](https://github.com/drift-labs/protocol-v2/pull/359))
+- program: tweak calculate_size_premium_liability_weight to have smaller effect on initial margin ([#350](https://github.com/drift-labs/protocol-v2/pull/350))
+- ts-sdk: updates for accounting for spot leverage ([#295](https://github.com/drift-labs/protocol-v2/pull/295))
+- ts-sdk: added new methods for modifying orders to include spot and more params ([#353](https://github.com/drift-labs/protocol-v2/pull/353))
+- ts-sdk: flagged old modifyPerpOrder and modifyPerpOrderByUserOrderId as deprecated
+
+### Fixes
+
+- ts-sdk: DLOB matching logic accounts for zero-price spot market orders not matching resting limit orders
+- ts-sdk: new squareRootBN implementation using bit shifting (2x speed improvement)
 - program: fix overflow in calculate_long_short_vol_spread ([#352](https://github.com/drift-labs/protocol-v2/pull/352))
 - program: dont let users disable margin trading if they have margin orders open 
 - program: tweaks to fix max leverage order param flag with imf factor ([#351](https://github.com/drift-labs/protocol-v2/pull/351))
 - program: improve bid/ask twap calculation for funding rate stability ([#345](https://github.com/drift-labs/protocol-v2/pull/345))
+- ts-sdk: fix borrow limit calc ([#356](https://github.com/drift-labs/protocol-v2/pull/356))
 
 ### Breaking
 

@@ -65,14 +65,15 @@ pub struct User {
     pub cumulative_spot_fees: i64,
     pub cumulative_perp_funding: i64,
     pub liquidation_margin_freed: u64,
-    pub liquidation_start_slot: u64,
+    pub last_active_slot: u64,
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
     pub sub_account_id: u16,
     pub status: UserStatus,
     pub is_margin_trading_enabled: bool,
-    pub padding: [u8; 26],
+    pub idle: bool,
+    pub padding: [u8; 25],
 }
 
 impl User {
@@ -256,14 +257,13 @@ impl User {
 
         self.status = UserStatus::BeingLiquidated;
         self.liquidation_margin_freed = 0;
-        self.liquidation_start_slot = slot;
+        self.last_active_slot = slot;
         Ok(get_then_update_id!(self, next_liquidation_id))
     }
 
     pub fn exit_liquidation(&mut self) {
         self.status = UserStatus::Active;
         self.liquidation_margin_freed = 0;
-        self.liquidation_start_slot = 0;
     }
 
     pub fn enter_bankruptcy(&mut self) {
@@ -273,12 +273,18 @@ impl User {
     pub fn exit_bankruptcy(&mut self) {
         self.status = UserStatus::Active;
         self.liquidation_margin_freed = 0;
-        self.liquidation_start_slot = 0;
     }
 
     pub fn increment_margin_freed(&mut self, margin_free: u64) -> DriftResult {
         self.liquidation_margin_freed = self.liquidation_margin_freed.safe_add(margin_free)?;
         Ok(())
+    }
+
+    pub fn update_last_active_slot(&mut self, slot: u64) {
+        if !self.is_being_liquidated() {
+            self.last_active_slot = slot;
+        }
+        self.idle = false;
     }
 }
 
@@ -643,15 +649,19 @@ impl Order {
         is_auction_complete(self.slot, self.auction_duration, slot)
     }
 
+    pub fn has_auction(&self) -> bool {
+        self.auction_duration != 0
+    }
+
     pub fn has_auction_price(
         &self,
         order_slot: u64,
         auction_duration: u8,
         slot: u64,
     ) -> DriftResult<bool> {
-        let has_auction_price =
-            self.is_market_order() && !is_auction_complete(order_slot, auction_duration, slot)?;
-        Ok(has_auction_price)
+        let auction_complete = is_auction_complete(order_slot, auction_duration, slot)?;
+        let has_auction_prices = self.auction_start_price != 0 || self.auction_end_price != 0;
+        Ok(!auction_complete && has_auction_prices)
     }
 
     /// Passing in an existing_position forces the function to consider the order's reduce only status
@@ -742,7 +752,7 @@ impl Order {
     }
 
     pub fn is_resting_limit_order(&self, slot: u64) -> DriftResult<bool> {
-        Ok(self.is_limit_order() && (self.post_only || slot.safe_sub(self.slot)? >= 45))
+        Ok(self.is_limit_order() && (self.post_only || self.is_auction_complete(slot)?))
     }
 }
 
@@ -968,4 +978,18 @@ impl UserStats {
     pub fn get_total_30d_volume(&self) -> DriftResult<u64> {
         self.taker_volume_30d.safe_add(self.maker_volume_30d)
     }
+}
+
+#[account(zero_copy)]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct ReferrerName {
+    pub authority: Pubkey,
+    pub user: Pubkey,
+    pub user_stats: Pubkey,
+    pub name: [u8; 32],
+}
+
+impl Size for ReferrerName {
+    const SIZE: usize = 136;
 }

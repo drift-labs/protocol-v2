@@ -37,12 +37,14 @@ use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::{
-    MarketType, OrderTriggerCondition, OrderType, User, UserStats, UserStatus,
+    MarketType, OrderTriggerCondition, OrderType, ReferrerName, User, UserStats, UserStatus,
 };
+use crate::state::user_map::load_user_maps;
 use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 pub fn handle_initialize_user(
     ctx: Context<InitializeUser>,
@@ -114,7 +116,7 @@ pub fn handle_initialize_user(
     safe_increment!(state.number_of_sub_accounts, 1);
 
     validate!(
-        state.number_of_sub_accounts <= 2000,
+        state.number_of_sub_accounts <= 3000,
         ErrorCode::MaxNumberOfUsers
     )?;
 
@@ -154,6 +156,34 @@ pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result
     Ok(())
 }
 
+pub fn handle_initialize_referrer_name(
+    ctx: Context<InitializeReferrerName>,
+    name: [u8; 32],
+) -> Result<()> {
+    let authority_key = ctx.accounts.authority.key();
+    let user_stats_key = ctx.accounts.user_stats.key();
+    let user_key = ctx.accounts.user.key();
+    let mut referrer_name = ctx
+        .accounts
+        .referrer_name
+        .load_init()
+        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+
+    let user = load!(ctx.accounts.user)?;
+    validate!(
+        user.sub_account_id == 0,
+        ErrorCode::InvalidReferrer,
+        "must be subaccount 0"
+    )?;
+
+    referrer_name.authority = authority_key;
+    referrer_name.user = user_key;
+    referrer_name.user_stats = user_stats_key;
+    referrer_name.name = name;
+
+    Ok(())
+}
+
 #[access_control(
     deposit_not_paused(&ctx.accounts.state)
 )]
@@ -169,6 +199,7 @@ pub fn handle_deposit(
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
+    let slot = clock.slot;
 
     let AccountMaps {
         perp_market_map,
@@ -281,6 +312,9 @@ pub fn handle_deposit(
             user.status = UserStatus::Active;
         }
     }
+
+    user.update_last_active_slot(slot);
+
     let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
     controller::token::receive(
@@ -345,6 +379,7 @@ pub fn handle_withdraw(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
+    let slot = clock.slot;
     let state = &ctx.accounts.state;
 
     let AccountMaps {
@@ -431,6 +466,8 @@ pub fn handle_withdraw(
 
     user.status = UserStatus::Active;
 
+    user.update_last_active_slot(slot);
+
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
 
@@ -489,6 +526,7 @@ pub fn handle_transfer_deposit(
 
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
+    let slot = clock.slot;
 
     let to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
@@ -585,6 +623,8 @@ pub fn handle_transfer_deposit(
 
     from_user.status = UserStatus::Active;
 
+    from_user.update_last_active_slot(slot);
+
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
@@ -666,6 +706,8 @@ pub fn handle_transfer_deposit(
         emit!(deposit_record);
     }
 
+    to_user.update_last_active_slot(slot);
+
     let spot_market = spot_market_map.get_ref(&market_index)?;
     math::spot_withdraw::validate_spot_market_vault_amount(
         &spot_market,
@@ -685,7 +727,7 @@ pub struct OrderParams {
     pub price: u64,
     pub market_index: u16,
     pub reduce_only: bool,
-    pub post_only: bool,
+    pub post_only: PostOnlyParam,
     pub immediate_or_cancel: bool,
     pub max_ts: Option<i64>,
     pub trigger_price: Option<u64>,
@@ -694,6 +736,19 @@ pub struct OrderParams {
     pub auction_duration: Option<u8>,
     pub auction_start_price: Option<i64>,
     pub auction_end_price: Option<i64>,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum PostOnlyParam {
+    None,
+    MustPostOnly, // Tx fails if order can't be post only
+    TryPostOnly,  // Tx succeeds and order not placed if can't be post only
+}
+
+impl Default for PostOnlyParam {
+    fn default() -> Self {
+        PostOnlyParam::None
+    }
 }
 
 #[access_control(
@@ -851,7 +906,7 @@ pub fn handle_cancel_orders(
 pub fn handle_place_and_take_perp_order<'info>(
     ctx: Context<PlaceAndTake>,
     params: OrderParams,
-    maker_order_id: Option<u32>,
+    _maker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
@@ -869,20 +924,12 @@ pub fn handle_place_and_take_perp_order<'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    if params.post_only {
+    if params.post_only != PostOnlyParam::None {
         msg!("post_only cant be used in place_and_take");
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
-    let (maker, maker_stats) = match maker_order_id {
-        Some(_) => {
-            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-            (Some(user), Some(user_stats))
-        }
-        None => (None, None),
-    };
-
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+    let (makers_and_referrer, makers_and_referrer_stats) = load_user_maps(remaining_accounts_iter)?;
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
@@ -917,11 +964,9 @@ pub fn handle_place_and_take_perp_order<'info>(
         &mut oracle_map,
         &user.clone(),
         &ctx.accounts.user_stats.clone(),
-        maker.as_ref(),
-        maker_stats.as_ref(),
-        maker_order_id,
-        referrer.as_ref(),
-        referrer_stats.as_ref(),
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        None,
         &Clock::get()?,
     )?;
 
@@ -947,8 +992,8 @@ pub fn handle_place_and_take_perp_order<'info>(
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_and_make_perp_order<'info>(
-    ctx: Context<PlaceAndMake>,
+pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, PlaceAndMake<'info>>,
     params: OrderParams,
     taker_order_id: u32,
 ) -> Result<()> {
@@ -968,9 +1013,10 @@ pub fn handle_place_and_make_perp_order<'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
-
-    if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
+    if !params.immediate_or_cancel
+        || params.post_only == PostOnlyParam::None
+        || params.order_type != OrderType::Limit
+    {
         msg!("place_and_make must use IOC post only limit order");
         return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
@@ -993,7 +1039,16 @@ pub fn handle_place_and_make_perp_order<'info>(
         params,
     )?;
 
-    let order_id = load!(ctx.accounts.user)?.get_last_order_id();
+    let (order_id, authority) = {
+        let user = load!(ctx.accounts.user)?;
+        let order_id = user.get_last_order_id();
+        (order_id, user.authority)
+    };
+
+    let (mut makers_and_referrer, mut makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter)?;
+    makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
+    makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
     controller::orders::fill_perp_order(
         taker_order_id,
@@ -1005,11 +1060,9 @@ pub fn handle_place_and_make_perp_order<'info>(
         &mut oracle_map,
         &ctx.accounts.user.clone(),
         &ctx.accounts.user_stats.clone(),
-        Some(&ctx.accounts.user),
-        Some(&ctx.accounts.user_stats),
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
         Some(order_id),
-        referrer.as_ref(),
-        referrer_stats.as_ref(),
         clock,
     )?;
 
@@ -1088,7 +1141,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         None,
     )?;
 
-    if params.post_only {
+    if params.post_only != PostOnlyParam::None {
         msg!("post_only cant be used in place_and_take");
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
@@ -1218,7 +1271,10 @@ pub fn handle_place_and_make_spot_order<'info>(
 
     let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
-    if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
+    if !params.immediate_or_cancel
+        || params.post_only == PostOnlyParam::None
+        || params.order_type != OrderType::Limit
+    {
         msg!("place_and_make must use IOC post only limit order");
         return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
@@ -1397,6 +1453,8 @@ pub fn handle_add_perp_lp_shares<'info>(
         "User does not meet initial margin requirement"
     )?;
 
+    user.update_last_active_slot(clock.slot);
+
     emit!(LPRecord {
         ts: now,
         action: LPAction::AddLiquidity,
@@ -1454,6 +1512,8 @@ pub fn handle_remove_perp_lp_shares_in_expiring_market(
         now,
     )?;
 
+    user.update_last_active_slot(clock.slot);
+
     Ok(())
 }
 
@@ -1494,6 +1554,8 @@ pub fn handle_remove_perp_lp_shares(
         market_index,
         now,
     )?;
+
+    user.update_last_active_slot(clock.slot);
 
     Ok(())
 }
@@ -1608,6 +1670,36 @@ pub struct InitializeUserStats<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    name: [u8; 32],
+)]
+pub struct InitializeReferrerName<'info> {
+    #[account(
+        init,
+        seeds = [b"referrer_name", name.as_ref()],
+        space = ReferrerName::SIZE,
+        bump,
+        payer = payer
+    )]
+    pub referrer_name: AccountLoader<'info, ReferrerName>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,

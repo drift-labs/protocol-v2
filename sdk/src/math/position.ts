@@ -139,9 +139,7 @@ export function calculateClaimablePnl(
 		oraclePriceData
 	);
 
-	const fundingPnL = calculatePositionFundingPNL(market, perpPosition);
-
-	let unsettledPnl = unrealizedPnl.add(fundingPnL);
+	let unsettledPnl = unrealizedPnl;
 	if (unrealizedPnl.gt(ZERO)) {
 		const excessPnlPool = BN.max(
 			ZERO,
@@ -269,4 +267,12 @@ export function positionCurrentDirection(
 
 export function isEmptyPosition(userPosition: PerpPosition): boolean {
 	return userPosition.baseAssetAmount.eq(ZERO) && userPosition.openOrders === 0;
+}
+
+export function hasOpenOrders(position: PerpPosition): boolean {
+	return (
+		position.openOrders != 0 ||
+		!position.openBids.eq(ZERO) ||
+		!position.openAsks.eq(ZERO)
+	);
 }

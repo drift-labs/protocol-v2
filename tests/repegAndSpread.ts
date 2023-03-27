@@ -499,7 +499,8 @@ describe('repeg and spread amm', () => {
 		console.log('inventoryScale:', inventoryScale);
 		console.log('effectiveLeverage:', effectiveLeverage);
 		assert(Math.min(effectiveLeverage, 10) == 10); // lol
-		assert(Math.min(inventoryScale, 10) == 1.069887);
+		assert(Math.min(inventoryScale, 10) >= 1.66386);
+		assert(Math.min(inventoryScale, 10) <= 1.66387);
 
 		try {
 			const txSig = await driftClient.updateAMMs([marketIndex]);

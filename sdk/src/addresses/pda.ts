@@ -188,3 +188,16 @@ export function getSerumFulfillmentConfigPublicKey(
 		programId
 	)[0];
 }
+
+export function getReferrerNamePublicKeySync(
+	programId: PublicKey,
+	nameBuffer: number[]
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('referrer_name')),
+			Buffer.from(nameBuffer),
+		],
+		programId
+	)[0];
+}

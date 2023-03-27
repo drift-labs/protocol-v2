@@ -488,8 +488,29 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot)?;
-            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(&ctx.accounts.oracle)?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1)?;
+            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
+        OracleSource::Pyth1K => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000)?;
+            let last_oracle_price_twap =
+                perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1000)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
+        OracleSource::Pyth1M => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000000)?;
+            let last_oracle_price_twap = perp_market
+                .amm
+                .get_pyth_twap(&ctx.accounts.oracle, 1000000)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Switchboard => {
@@ -1059,13 +1080,18 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
             .total_fee_minus_distributions
             .safe_sub(get_total_fee_lower_bound(perp_market)?.cast()?)?
             .safe_sub(perp_market.amm.total_fee_withdrawn.cast()?)?;
-        if adjustment_cost > max_cost {
-            return Err(ErrorCode::InvalidUpdateK.into());
-        }
+
+        validate!(
+            adjustment_cost <= max_cost,
+            ErrorCode::InvalidUpdateK,
+            "adjustment_cost={} > max_cost={} for k change",
+            adjustment_cost,
+            max_cost
+        )?;
     }
 
     validate!(
-        perp_market.amm.sqrt_k < MAX_SQRT_K,
+        !k_increasing || perp_market.amm.sqrt_k < MAX_SQRT_K,
         ErrorCode::InvalidUpdateK,
         "cannot increase sqrt_k={} past MAX_SQRT_K",
         perp_market.amm.sqrt_k

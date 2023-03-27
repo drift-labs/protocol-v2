@@ -77,9 +77,18 @@ export abstract class OrderNode implements DLOBNode {
 	}
 }
 
-export class LimitOrderNode extends OrderNode {
-	next?: LimitOrderNode;
-	previous?: LimitOrderNode;
+export class TakingLimitOrderNode extends OrderNode {
+	next?: TakingLimitOrderNode;
+	previous?: TakingLimitOrderNode;
+
+	getSortValue(order: Order): BN {
+		return order.slot;
+	}
+}
+
+export class RestingLimitOrderNode extends OrderNode {
+	next?: RestingLimitOrderNode;
+	previous?: RestingLimitOrderNode;
 
 	getSortValue(order: Order): BN {
 		return order.price;
@@ -114,14 +123,16 @@ export class TriggerOrderNode extends OrderNode {
 }
 
 export type DLOBNodeMap = {
-	limit: LimitOrderNode;
+	restingLimit: RestingLimitOrderNode;
+	takingLimit: TakingLimitOrderNode;
 	floatingLimit: FloatingLimitOrderNode;
 	market: MarketOrderNode;
 	trigger: TriggerOrderNode;
 };
 
 export type DLOBNodeType =
-	| 'limit'
+	| 'restingLimit'
+	| 'takingLimit'
 	| 'floatingLimit'
 	| 'market'
 	| ('trigger' & keyof DLOBNodeMap);
@@ -134,8 +145,10 @@ export function createNode<T extends DLOBNodeType>(
 	switch (nodeType) {
 		case 'floatingLimit':
 			return new FloatingLimitOrderNode(order, userAccount);
-		case 'limit':
-			return new LimitOrderNode(order, userAccount);
+		case 'restingLimit':
+			return new RestingLimitOrderNode(order, userAccount);
+		case 'takingLimit':
+			return new TakingLimitOrderNode(order, userAccount);
 		case 'market':
 			return new MarketOrderNode(order, userAccount);
 		case 'trigger':

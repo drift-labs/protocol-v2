@@ -21,6 +21,7 @@ import {
 } from './margin';
 import { OraclePriceData } from '../oracles/types';
 import { PERCENTAGE_PRECISION } from '../constants/numericConstants';
+import { divCeil } from './utils';
 
 export function getBalance(
 	tokenAmount: BN,
@@ -49,11 +50,16 @@ export function getTokenAmount(
 ): BN {
 	const precisionDecrease = TEN.pow(new BN(19 - spotMarket.decimals));
 
-	const cumulativeInterest = isVariant(balanceType, 'deposit')
-		? spotMarket.cumulativeDepositInterest
-		: spotMarket.cumulativeBorrowInterest;
-
-	return balanceAmount.mul(cumulativeInterest).div(precisionDecrease);
+	if (isVariant(balanceType, 'deposit')) {
+		return balanceAmount
+			.mul(spotMarket.cumulativeDepositInterest)
+			.div(precisionDecrease);
+	} else {
+		return divCeil(
+			balanceAmount.mul(spotMarket.cumulativeBorrowInterest),
+			precisionDecrease
+		);
+	}
 }
 
 export function getSignedTokenAmount(
@@ -331,32 +337,29 @@ export function calculateWithdrawLimit(
 		BN.min(
 			BN.max(
 				marketDepositTokenAmount.div(new BN(6)),
-				borrowTokenTwapLive.add(borrowTokenTwapLive.div(new BN(5)))
+				borrowTokenTwapLive.add(marketDepositTokenAmount.div(new BN(10)))
 			),
 			marketDepositTokenAmount.sub(marketDepositTokenAmount.div(new BN(5)))
 		)
 	); // between ~15-80% utilization with friction on twap
 
 	const minDepositTokens = depositTokenTwapLive.sub(
-		BN.min(
-			BN.max(
-				depositTokenTwapLive.div(new BN(5)),
-				spotMarket.withdrawGuardThreshold
-			),
-			depositTokenTwapLive
+		BN.max(
+			depositTokenTwapLive.div(new BN(4)),
+			BN.min(spotMarket.withdrawGuardThreshold, depositTokenTwapLive)
 		)
 	);
 
-	let withdrawLimit = BN.max(
+	const withdrawLimit = BN.max(
 		marketDepositTokenAmount.sub(minDepositTokens),
 		ZERO
 	);
 
-	let borrowLimit = BN.max(maxBorrowTokens.sub(marketBorrowTokenAmount), ZERO);
-
-	if (borrowLimit.eq(ZERO)) {
-		withdrawLimit = ZERO;
-	}
+	let borrowLimit = maxBorrowTokens.sub(marketBorrowTokenAmount);
+	borrowLimit = BN.min(
+		borrowLimit,
+		marketDepositTokenAmount.sub(marketBorrowTokenAmount)
+	);
 
 	if (withdrawLimit.eq(ZERO)) {
 		borrowLimit = ZERO;

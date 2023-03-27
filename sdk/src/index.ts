@@ -68,5 +68,6 @@ export * from './dlob/DLOBOrders';
 export * from './dlob/NodeList';
 export * from './userMap/userMap';
 export * from './userMap/userStatsMap';
+export * from './math/bankruptcy';
 
 export { BN, PublicKey, pyth };

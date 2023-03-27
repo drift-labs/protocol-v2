@@ -59,7 +59,7 @@ pub fn calculate_new_twap(
     last_ts: i64,
     period: i64,
 ) -> DriftResult<i64> {
-    let since_last = max(1_i64, current_ts.safe_sub(last_ts)?);
+    let since_last = max(0_i64, current_ts.safe_sub(last_ts)?);
     let from_start = max(1_i64, period.safe_sub(since_last)?);
 
     calculate_weighted_average(current_price, last_twap, since_last, from_start)

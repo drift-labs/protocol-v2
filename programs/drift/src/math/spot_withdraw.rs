@@ -5,7 +5,7 @@ use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 
 use crate::math::spot_balance::get_token_amount;
-use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::User;
 use crate::validate;
 
@@ -14,7 +14,7 @@ pub fn calculate_min_deposit_token(
     withdraw_guard_threshold: u128,
 ) -> DriftResult<u128> {
     let min_deposit_token = deposit_token_twap
-        .safe_sub((deposit_token_twap / 5).max(withdraw_guard_threshold.min(deposit_token_twap)))?;
+        .safe_sub((deposit_token_twap / 4).max(withdraw_guard_threshold.min(deposit_token_twap)))?;
 
     Ok(min_deposit_token)
 }
@@ -26,7 +26,7 @@ pub fn calculate_max_borrow_token_amount(
 ) -> DriftResult<u128> {
     let max_borrow_token = withdraw_guard_threshold.max(
         (deposit_token_amount / 6)
-            .max(borrow_token_twap.safe_add(borrow_token_twap / 5)?)
+            .max(borrow_token_twap.safe_add(deposit_token_amount / 10)?)
             .min(deposit_token_amount.safe_sub(deposit_token_amount / 5)?),
     ); // between ~15-80% utilization with friction on twap
 
@@ -105,8 +105,18 @@ pub fn check_withdraw_limits(
         spot_market.withdraw_guard_threshold.cast()?,
     )?;
 
-    let valid_global_withdrawal =
-        deposit_token_amount >= min_deposit_token && borrow_token_amount <= max_borrow_token;
+    // for resulting deposit or ZERO, check if deposits above minimum
+    // for resulting borrow, check both deposit and borrow constraints
+    let valid_global_withdrawal = if let Some(user) = user {
+        let spot_position_index = user.get_spot_position_index(spot_market.market_index)?;
+        if user.spot_positions[spot_position_index].balance_type() == &SpotBalanceType::Borrow {
+            borrow_token_amount <= max_borrow_token && deposit_token_amount >= min_deposit_token
+        } else {
+            deposit_token_amount >= min_deposit_token
+        }
+    } else {
+        deposit_token_amount >= min_deposit_token && borrow_token_amount <= max_borrow_token
+    };
 
     let valid_withdrawal = if !valid_global_withdrawal {
         msg!(
@@ -126,12 +136,32 @@ pub fn check_withdraw_limits(
     Ok(valid_withdrawal)
 }
 
-pub fn calculate_availability_borrow_liquidity(spot_market: &SpotMarket) -> DriftResult<u128> {
+pub fn get_max_withdraw_for_market_with_token_amount(
+    spot_market: &SpotMarket,
+    token_amount: i128,
+) -> DriftResult<u128> {
     let deposit_token_amount = get_token_amount(
         spot_market.deposit_balance,
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
+
+    let mut max_withdraw_amount = 0_u128;
+    if token_amount > 0 {
+        let min_deposit_token = calculate_min_deposit_token(
+            spot_market.deposit_token_twap.cast()?,
+            spot_market.withdraw_guard_threshold.cast()?,
+        )?;
+
+        let withdraw_limit = deposit_token_amount.saturating_sub(min_deposit_token);
+
+        let token_amount = token_amount.unsigned_abs();
+        if withdraw_limit <= token_amount {
+            return Ok(withdraw_limit);
+        }
+
+        max_withdraw_amount = token_amount;
+    }
 
     let borrow_token_amount = get_token_amount(
         spot_market.borrow_balance,
@@ -145,15 +175,11 @@ pub fn calculate_availability_borrow_liquidity(spot_market: &SpotMarket) -> Drif
         spot_market.withdraw_guard_threshold.cast()?,
     )?;
 
-    let min_deposit_token = calculate_min_deposit_token(
-        spot_market.deposit_token_twap.cast()?,
-        spot_market.withdraw_guard_threshold.cast()?,
-    )?;
-
-    Ok(max_borrow_token
+    let borrow_limit = max_borrow_token
         .saturating_sub(borrow_token_amount)
-        .min(deposit_token_amount.saturating_sub(min_deposit_token))
-        .min(deposit_token_amount.saturating_sub(borrow_token_amount)))
+        .min(deposit_token_amount.saturating_sub(borrow_token_amount));
+
+    max_withdraw_amount.safe_add(borrow_limit)
 }
 
 pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<u64> {

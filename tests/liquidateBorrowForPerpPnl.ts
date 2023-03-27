@@ -132,7 +132,7 @@ describe('liquidate borrow for perp pnl', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(10),
+				markOracleDivergenceDenominator: new BN(1),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

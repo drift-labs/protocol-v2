@@ -21,6 +21,7 @@ import {
 	initializeQuoteSpotMarket,
 	createFundedKeyPair,
 	createUserWithUSDCAccount,
+	printTxLogs,
 } from './testHelpers';
 import {
 	BASE_PRECISION,
@@ -29,6 +30,7 @@ import {
 	PEG_PRECISION,
 	PositionDirection,
 } from '../sdk';
+import { decodeName } from '../sdk/lib/userName';
 
 describe('referrer', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -173,6 +175,19 @@ describe('referrer', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
+	it('initialize referrer name account', async () => {
+		await referrerDriftClient.initializeReferrerName('crisp');
+		const referrerNameAccount =
+			await referrerDriftClient.fetchReferrerNameAccount('crisp');
+		assert(decodeName(referrerNameAccount.name) === 'crisp');
+		assert(referrerNameAccount.authority.equals(referrerDriftClient.authority));
+		assert(
+			referrerNameAccount.user.equals(
+				await referrerDriftClient.getUserAccountPublicKey()
+			)
+		);
+	});
+
 	it('initialize with referrer', async () => {
 		const [txSig] =
 			await refereeDriftClient.initializeUserAccountAndDepositCollateral(
@@ -229,7 +244,7 @@ describe('referrer', () => {
 		const refereeStats = refereeDriftClient.getUserStats().getAccount();
 		assert(refereeStats.fees.totalRefereeDiscount.eq(new BN(5000)));
 
-		await refereeDriftClient.placeAndTakePerpOrder(
+		const txSig2 = await refereeDriftClient.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				baseAssetAmount: BASE_PRECISION,
 				direction: PositionDirection.SHORT,
@@ -238,6 +253,8 @@ describe('referrer', () => {
 			undefined,
 			refereeDriftClient.getUserStats().getReferrerInfo()
 		);
+
+		await printTxLogs(connection, txSig2);
 	});
 
 	it('withdraw', async () => {

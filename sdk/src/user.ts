@@ -12,7 +12,7 @@ import {
 	isOneOfVariant,
 	PerpMarketAccount,
 } from './types';
-import { calculateEntryPrice } from './math/position';
+import { calculateEntryPrice, positionIsAvailable } from './math/position';
 import {
 	PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
@@ -697,10 +697,12 @@ export class User {
 			);
 		}
 
-		if (netQuoteValue.gt(ZERO)) {
-			totalAssetValue = totalAssetValue.add(netQuoteValue);
-		} else {
-			totalLiabilityValue = totalLiabilityValue.add(netQuoteValue.abs());
+		if (marketIndex === undefined || marketIndex === QUOTE_SPOT_MARKET_INDEX) {
+			if (netQuoteValue.gt(ZERO)) {
+				totalAssetValue = totalAssetValue.add(netQuoteValue);
+			} else {
+				totalLiabilityValue = totalLiabilityValue.add(netQuoteValue.abs());
+			}
 		}
 
 		return { totalAssetValue, totalLiabilityValue };
@@ -1771,10 +1773,7 @@ export class User {
 			}
 		}
 
-		// subtract oneMillionth of maxPositionSize
-		// => to avoid rounding errors when taking max leverage
-		const oneMilli = maxPositionSize.div(QUOTE_PRECISION);
-		return maxPositionSize.sub(oneMilli);
+		return maxPositionSize;
 	}
 
 	/**
@@ -2170,6 +2169,46 @@ export class User {
 			netDeposits,
 			depositAmount,
 		};
+	}
+
+	public canMakeIdle(slot: BN, slotsBeforeIdle: BN): boolean {
+		const userAccount = this.getUserAccount();
+		if (userAccount.idle) {
+			return false;
+		}
+
+		const userLastActiveSlot = userAccount.lastActiveSlot;
+		if (userLastActiveSlot.lt(slotsBeforeIdle)) {
+			return false;
+		}
+
+		if (this.isBeingLiquidated()) {
+			return false;
+		}
+
+		for (const perpPosition of userAccount.perpPositions) {
+			if (!positionIsAvailable(perpPosition)) {
+				return false;
+			}
+		}
+
+		for (const spotPosition of userAccount.spotPositions) {
+			if (isVariant(spotPosition.balanceType, 'borrow')) {
+				return false;
+			}
+
+			if (spotPosition.openOrders !== 0) {
+				return false;
+			}
+		}
+
+		for (const order of userAccount.orders) {
+			if (!isVariant(order.status, 'init')) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**

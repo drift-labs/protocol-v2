@@ -1,4 +1,10 @@
-import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
+import {
+	AnchorProvider,
+	BN,
+	Idl,
+	Program,
+	ProgramAccount,
+} from '@project-serum/anchor';
 import bs58 from 'bs58';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -25,6 +31,12 @@ import {
 	TxParams,
 	SerumV3FulfillmentConfigAccount,
 	isVariant,
+	ReferrerNameAccount,
+	OrderTriggerCondition,
+	isOneOfVariant,
+	PostOnlyParams,
+	SpotBalanceType,
+	PerpMarketExtendedInfo,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import driftIDL from './idl/drift.json';
@@ -42,6 +54,7 @@ import {
 	Signer,
 	SystemProgram,
 	ComputeBudgetProgram,
+	AddressLookupTableAccount,
 } from '@solana/web3.js';
 
 import { TokenFaucet } from './tokenFaucet';
@@ -52,6 +65,7 @@ import {
 	getDriftStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getPerpMarketPublicKey,
+	getReferrerNamePublicKeySync,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
 	getSpotMarketPublicKey,
@@ -77,10 +91,11 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import { getMarketsAndOraclesForSubscription } from './config';
+import { configs, getMarketsAndOraclesForSubscription } from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
+import { calculateMarketMaxAvailableInsurance } from './math/market';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -112,6 +127,7 @@ export class DriftClient {
 	perpMarketLastSlotCache = new Map<number, number>();
 	spotMarketLastSlotCache = new Map<number, number>();
 	authority: PublicKey;
+	marketLookupTable: PublicKey;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -176,6 +192,13 @@ export class DriftClient {
 				? spotMarketIndexes
 				: envSpotMarketIndexes;
 			oracleInfos = oracleInfos ? oracleInfos : envOracleInfos;
+		}
+
+		this.marketLookupTable = config.marketLookupTable;
+		if (config.env && !this.marketLookupTable) {
+			this.marketLookupTable = new PublicKey(
+				configs[config.env].MARKET_LOOKUP_TABLE
+			);
 		}
 
 		if (config.accountSubscription?.type === 'polling') {
@@ -337,6 +360,7 @@ export class DriftClient {
 	public getPerpMarketAccounts(): PerpMarketAccount[] {
 		return this.accountSubscriber
 			.getMarketAccountsAndSlots()
+			.filter((value) => value !== undefined)
 			.map((value) => value.data);
 	}
 
@@ -360,6 +384,7 @@ export class DriftClient {
 	public getSpotMarketAccounts(): SpotMarketAccount[] {
 		return this.accountSubscriber
 			.getSpotMarketAccountsAndSlots()
+			.filter((value) => value !== undefined)
 			.map((value) => value.data);
 	}
 
@@ -385,6 +410,15 @@ export class DriftClient {
 		return (await this.program.account.serumV3FulfillmentConfig.fetch(
 			address
 		)) as SerumV3FulfillmentConfigAccount;
+	}
+
+	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
+		if (!this.marketLookupTable) {
+			throw Error('Market lookup table address not set');
+		}
+
+		return (await this.connection.getAddressLookupTable(this.marketLookupTable))
+			.value;
 	}
 
 	/**
@@ -447,7 +481,7 @@ export class DriftClient {
 		this.userStatsAccountPublicKey = undefined;
 	}
 
-	public async switchActiveUser(subAccountId: number): Promise<void> {
+	public switchActiveUser(subAccountId: number) {
 		this.activeSubAccountId = subAccountId;
 	}
 
@@ -560,6 +594,40 @@ export class DriftClient {
 		});
 	}
 
+	public async initializeReferrerName(
+		name: string
+	): Promise<TransactionSignature> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			0
+		);
+
+		const nameBuffer = encodeName(name);
+
+		const referrerNameAccountPublicKey = getReferrerNamePublicKeySync(
+			this.program.programId,
+			nameBuffer
+		);
+
+		const tx = await this.program.transaction.initializeReferrerName(
+			nameBuffer,
+			{
+				accounts: {
+					referrerName: referrerNameAccountPublicKey,
+					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					payer: this.wallet.publicKey,
+					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async updateUserName(
 		name: string,
 		subAccountId = 0
@@ -653,6 +721,25 @@ export class DriftClient {
 		return txSig;
 	}
 
+	public async fetchAllUserAccounts(
+		includeIdle = true
+	): Promise<ProgramAccount<UserAccount>[]> {
+		let filters = undefined;
+		if (!includeIdle) {
+			filters = [
+				{
+					memcmp: {
+						offset: 4350,
+						bytes: bs58.encode(Uint8Array.from([0])),
+					},
+				},
+			];
+		}
+		return (await this.program.account.user.all(
+			filters
+		)) as ProgramAccount<UserAccount>[];
+	}
+
 	public async getUserAccountsForDelegate(
 		delegate: PublicKey
 	): Promise<UserAccount[]> {
@@ -686,6 +773,24 @@ export class DriftClient {
 
 		return programAccounts.map(
 			(programAccount) => programAccount.account as UserAccount
+		);
+	}
+
+	public async getReferrerNameAccountsForAuthority(
+		authority: PublicKey
+	): Promise<ReferrerNameAccount[]> {
+		const programAccounts = await this.program.account.referrerName.all([
+			{
+				memcmp: {
+					offset: 8,
+					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
+					bytes: bs58.encode(authority.toBuffer()),
+				},
+			},
+		]);
+
+		return programAccounts.map(
+			(programAccount) => programAccount.account as ReferrerNameAccount
 		);
 	}
 
@@ -734,6 +839,19 @@ export class DriftClient {
 
 	public getUserStats(): UserStats {
 		return this.userStats;
+	}
+
+	public async fetchReferrerNameAccount(
+		name: string
+	): Promise<ReferrerNameAccount | undefined> {
+		const nameBuffer = encodeName(name);
+		const referrerNameAccountPublicKey = getReferrerNamePublicKeySync(
+			this.program.programId,
+			nameBuffer
+		);
+		return (await this.program.account.referrerName.fetch(
+			referrerNameAccountPublicKey
+		)) as ReferrerNameAccount;
 	}
 
 	userStatsAccountPublicKey: PublicKey;
@@ -1025,9 +1143,8 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
 		tx.add(
-			ComputeBudgetProgram.requestUnits({
+			ComputeBudgetProgram.setComputeUnitLimit({
 				units: 600_000,
-				additionalFee: 0,
 			})
 		);
 
@@ -1232,7 +1349,8 @@ export class DriftClient {
 		subAccountId = 0,
 		name = DEFAULT_USER_NAME,
 		fromSubAccountId?: number,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(
@@ -1248,6 +1366,20 @@ export class DriftClient {
 		const isSolMarket = spotMarket.mint.equals(WRAPPED_SOL_MINT);
 
 		const tx = new Transaction();
+
+		tx.add(
+			ComputeBudgetProgram.setComputeUnitLimit({
+				units: txParams?.computeUnits ?? 600_000,
+			})
+		);
+
+		if (txParams?.computeUnitsPrice) {
+			tx.add(
+				ComputeBudgetProgram.setComputeUnitPrice({
+					microLamports: txParams.computeUnitsPrice,
+				})
+			);
+		}
 
 		const authority = this.wallet.publicKey;
 
@@ -1373,9 +1505,8 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
 		tx.add(
-			ComputeBudgetProgram.requestUnits({
+			ComputeBudgetProgram.setComputeUnitLimit({
 				units: 600_000,
-				additionalFee: 0,
 			})
 		);
 
@@ -1817,14 +1948,18 @@ export class DriftClient {
 	 * @param userAccountPublicKey
 	 * @param userAccount
 	 * @param makerInfo
+	 * @param txParams
+	 * @param bracketOrdersParams
 	 * @returns
 	 */
 	public async sendMarketOrderAndGetSignedFillTx(
 		orderParams: OptionalOrderParams,
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		makerInfo?: MakerInfo,
-		txParams?: TxParams
+		makerInfo?: MakerInfo | MakerInfo[],
+		txParams?: TxParams,
+		bracketOrdersParams = new Array<OptionalOrderParams>(),
+		referrerInfo?: ReferrerInfo
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
@@ -1834,6 +1969,10 @@ export class DriftClient {
 			txParams?.computeUnits,
 			txParams?.computeUnitsPrice
 		);
+		for (const bracketOrderParams of bracketOrdersParams) {
+			marketOrderTx.add(await this.getPlacePerpOrderIx(bracketOrderParams));
+		}
+
 		const fillTx = wrapInTx(
 			await this.getFillPerpOrderIx(
 				userAccountPublicKey,
@@ -1842,7 +1981,8 @@ export class DriftClient {
 					orderId,
 					marketIndex,
 				},
-				makerInfo
+				makerInfo,
+				referrerInfo
 			),
 			txParams?.computeUnits,
 			txParams?.computeUnitsPrice
@@ -2195,7 +2335,7 @@ export class DriftClient {
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
 		order?: Pick<Order, 'marketIndex' | 'orderId'>,
-		makerInfo?: MakerInfo,
+		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
@@ -2221,7 +2361,7 @@ export class DriftClient {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		order: Pick<Order, 'marketIndex' | 'orderId'>,
-		makerInfo?: MakerInfo,
+		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
@@ -2238,45 +2378,54 @@ export class DriftClient {
 					(order) => order.orderId === userAccount.nextOrderId - 1
 			  ).marketIndex;
 
+		makerInfo = Array.isArray(makerInfo)
+			? makerInfo
+			: makerInfo
+			? [makerInfo]
+			: [];
+
 		const userAccounts = [userAccount];
-		if (makerInfo !== undefined) {
-			userAccounts.push(makerInfo.makerUserAccount);
+		for (const maker of makerInfo) {
+			userAccounts.push(maker.makerUserAccount);
 		}
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts,
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
-		if (makerInfo) {
+		for (const maker of makerInfo) {
 			remainingAccounts.push({
-				pubkey: makerInfo.maker,
+				pubkey: maker.maker,
 				isWritable: true,
 				isSigner: false,
 			});
 			remainingAccounts.push({
-				pubkey: makerInfo.makerStats,
+				pubkey: maker.makerStats,
 				isWritable: true,
 				isSigner: false,
 			});
 		}
 
 		if (referrerInfo) {
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrerStats,
-				isWritable: true,
-				isSigner: false,
-			});
+			const referrerIsMaker =
+				makerInfo.find((maker) => maker.maker.equals(referrerInfo.referrer)) !==
+				undefined;
+			if (!referrerIsMaker) {
+				remainingAccounts.push({
+					pubkey: referrerInfo.referrer,
+					isWritable: true,
+					isSigner: false,
+				});
+				remainingAccounts.push({
+					pubkey: referrerInfo.referrerStats,
+					isWritable: true,
+					isSigner: false,
+				});
+			}
 		}
 
 		const orderId = order.orderId;
-		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
-
-		return await this.program.instruction.fillPerpOrder(orderId, makerOrderId, {
+		return await this.program.instruction.fillPerpOrder(orderId, null, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				filler: fillerPublicKey,
@@ -2286,6 +2435,20 @@ export class DriftClient {
 				authority: this.wallet.publicKey,
 			},
 			remainingAccounts,
+		});
+	}
+
+	public async getRevertFillIx(): Promise<TransactionInstruction> {
+		const fillerPublicKey = await this.getUserAccountPublicKey();
+		const fillerStatsPublicKey = this.getUserStatsAccountPublicKey();
+
+		return this.program.instruction.revertFill({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				filler: fillerPublicKey,
+				fillerStats: fillerStatsPublicKey,
+				authority: this.wallet.publicKey,
+			},
 		});
 	}
 
@@ -2654,9 +2817,47 @@ export class DriftClient {
 		});
 	}
 
+	public async updateUserIdle(
+		userAccountPublicKey: PublicKey,
+		user: UserAccount,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getUpdateUserIdleIx(userAccountPublicKey, user),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateUserIdleIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount
+	): Promise<TransactionInstruction> {
+		const fillerPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+		});
+
+		return await this.program.instruction.updateUserIdle({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				filler: fillerPublicKey,
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async placeAndTakePerpOrder(
 		orderParams: OptionalOrderParams,
-		makerInfo?: MakerInfo,
+		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
@@ -2679,54 +2880,64 @@ export class DriftClient {
 
 	public async getPlaceAndTakePerpOrderIx(
 		orderParams: OptionalOrderParams,
-		makerInfo?: MakerInfo,
+		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
+		makerInfo = Array.isArray(makerInfo)
+			? makerInfo
+			: makerInfo
+			? [makerInfo]
+			: [];
+
 		const userAccounts = [this.getUserAccount()];
-		if (makerInfo !== undefined) {
-			userAccounts.push(makerInfo.makerUserAccount);
+		for (const maker of makerInfo) {
+			userAccounts.push(maker.makerUserAccount);
 		}
+
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts,
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
 
-		let makerOrderId = null;
-		if (makerInfo) {
-			makerOrderId = makerInfo.order.orderId;
+		for (const maker of makerInfo) {
 			remainingAccounts.push({
-				pubkey: makerInfo.maker,
-				isSigner: false,
+				pubkey: maker.maker,
 				isWritable: true,
+				isSigner: false,
 			});
 			remainingAccounts.push({
-				pubkey: makerInfo.makerStats,
-				isSigner: false,
+				pubkey: maker.makerStats,
 				isWritable: true,
+				isSigner: false,
 			});
 		}
 
 		if (referrerInfo) {
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrerStats,
-				isWritable: true,
-				isSigner: false,
-			});
+			const referrerIsMaker =
+				makerInfo.find((maker) => maker.maker.equals(referrerInfo.referrer)) !==
+				undefined;
+			if (!referrerIsMaker) {
+				remainingAccounts.push({
+					pubkey: referrerInfo.referrer,
+					isWritable: true,
+					isSigner: false,
+				});
+				remainingAccounts.push({
+					pubkey: referrerInfo.referrerStats,
+					isWritable: true,
+					isSigner: false,
+				});
+			}
 		}
 
 		return await this.program.instruction.placeAndTakePerpOrder(
 			orderParams,
-			makerOrderId,
+			null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -3018,6 +3229,7 @@ export class DriftClient {
 
 	/**
 	 * Modifies an open order by closing it and replacing it with a new order.
+	 * @deprecated use modifyOrder instead
 	 * @param orderId: The open order to modify
 	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
 	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
@@ -3030,55 +3242,17 @@ export class DriftClient {
 		newLimitPrice?: BN,
 		newOraclePriceOffset?: number
 	): Promise<TransactionSignature> {
-		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
-			throw new Error(
-				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
-			);
-		}
-
-		const openOrder = this.getUser().getOrder(orderId);
-		if (!openOrder) {
-			throw new Error(`No open order with id ${orderId.toString()}`);
-		}
-		const cancelOrderIx = await this.getCancelOrderIx(orderId);
-
-		const newOrderParams: OptionalOrderParams = {
-			orderType: openOrder.orderType,
-			marketType: openOrder.marketType,
-			direction: openOrder.direction,
-			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: newLimitPrice || openOrder.price,
-			marketIndex: openOrder.marketIndex,
-			reduceOnly: openOrder.reduceOnly,
-			postOnly: openOrder.postOnly,
-			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: openOrder.triggerPrice,
-			triggerCondition: openOrder.triggerCondition,
-			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: openOrder.auctionDuration,
-			maxTs: openOrder.maxTs,
-			auctionStartPrice: openOrder.auctionStartPrice,
-			auctionEndPrice: openOrder.auctionEndPrice,
-			userOrderId: openOrder.userOrderId,
-		};
-		const placeOrderIx = await this.getPlacePerpOrderIx(newOrderParams);
-
-		const tx = new Transaction();
-		tx.add(
-			ComputeBudgetProgram.requestUnits({
-				units: 1_000_000,
-				additionalFee: 0,
-			})
-		);
-		tx.add(cancelOrderIx);
-		tx.add(placeOrderIx);
-		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
-		this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
-		return txSig;
+		return this.modifyOrder({
+			orderId,
+			newBaseAmount,
+			newLimitPrice,
+			newOraclePriceOffset,
+		});
 	}
 
 	/**
 	 * Modifies an open order by closing it and replacing it with a new order.
+	 * @deprecated use modifyOrderByUserOrderId instead
 	 * @param userOrderId: The open order to modify
 	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
 	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
@@ -3091,6 +3265,162 @@ export class DriftClient {
 		newLimitPrice?: BN,
 		newOraclePriceOffset?: number
 	): Promise<TransactionSignature> {
+		return this.modifyOrderByUserOrderId({
+			userOrderId,
+			newBaseAmount,
+			newLimitPrice,
+			newOraclePriceOffset,
+		});
+	}
+
+	/**
+	 * Modifies an open order (spot or perp) by closing it and replacing it with a new order.
+	 * @param orderId: The open order to modify
+	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newOraclePriceOffset: The new oracle price offset for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newOrderType: Optional - New order type for the order.
+	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
+	 * @param isSpot: Optional - Set to true if the order is a spot order
+	 * @param auctionDuration: Only required if order type changed to market from something else
+	 * @param auctionStartPrice: Only required if order type changed to market from something else
+	 * @param auctionEndPrice: Only required if order type changed to market from something else
+	 * @returns
+	 */
+	public async modifyOrder({
+		orderId,
+		newBaseAmount,
+		newLimitPrice,
+		newOraclePriceOffset,
+		newOrderType,
+		newTriggerPrice,
+		newTriggerCondition,
+		isSpot,
+		auctionDuration,
+		auctionStartPrice,
+		auctionEndPrice,
+	}: {
+		orderId: number;
+		newBaseAmount?: BN;
+		newLimitPrice?: BN;
+		newOraclePriceOffset?: number;
+		newOrderType?: OrderType;
+		newTriggerPrice?: BN;
+		newTriggerCondition?: OrderTriggerCondition;
+		isSpot?: boolean;
+		auctionDuration?: number;
+		auctionStartPrice?: BN;
+		auctionEndPrice?: BN;
+	}): Promise<TransactionSignature> {
+		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
+			throw new Error(
+				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
+			);
+		}
+
+		const openOrder = this.getUser().getOrder(orderId);
+		if (!openOrder) {
+			throw new Error(`No open order with id ${orderId.toString()}`);
+		}
+		const cancelOrderIx = await this.getCancelOrderIx(orderId);
+
+		const orderTypeHasTrigger = newOrderType
+			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
+		const orderTypeHasLimitPrice = newOrderType
+			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
+
+		const newOrderParams: OptionalOrderParams = {
+			orderType: newOrderType || openOrder.orderType,
+			marketType: openOrder.marketType,
+			direction: openOrder.direction,
+			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
+			price: orderTypeHasLimitPrice
+				? newLimitPrice || openOrder.price
+				: undefined,
+			marketIndex: openOrder.marketIndex,
+			reduceOnly: openOrder.reduceOnly,
+			postOnly: openOrder.postOnly
+				? PostOnlyParams.MUST_POST_ONLY
+				: PostOnlyParams.NONE,
+			immediateOrCancel: openOrder.immediateOrCancel,
+			triggerPrice: orderTypeHasTrigger
+				? newTriggerPrice || openOrder.triggerPrice
+				: undefined,
+			triggerCondition: orderTypeHasTrigger
+				? newTriggerCondition || openOrder.triggerCondition
+				: undefined,
+			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
+			auctionDuration: auctionDuration ?? openOrder.auctionDuration,
+			maxTs: openOrder.maxTs,
+			auctionStartPrice: auctionStartPrice || openOrder.auctionStartPrice,
+			auctionEndPrice: auctionEndPrice || openOrder.auctionEndPrice,
+			userOrderId: openOrder.userOrderId,
+		};
+		const placeOrderIx = isSpot
+			? await this.getPlaceSpotOrderIx(newOrderParams)
+			: await this.getPlacePerpOrderIx(newOrderParams);
+
+		const tx = new Transaction();
+		tx.add(
+			ComputeBudgetProgram.setComputeUnitLimit({
+				units: 1_000_000,
+			})
+		);
+		tx.add(cancelOrderIx);
+		tx.add(placeOrderIx);
+		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
+
+		if (isSpot) {
+			this.spotMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
+			this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
+		} else {
+			this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
+		}
+
+		return txSig;
+	}
+
+	/**
+	 * Modifies an open order by closing it and replacing it with a new order.
+	 * @param userOrderId: The open order to modify
+	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newOraclePriceOffset: The new oracle price offset for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newOrderType: Optional - New order type for the order.
+	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
+	 * @param isSpot: Set to true if the order is a spot order
+	 * @param auctionDuration: Only required if order type changed to market from something else
+	 * @param auctionStartPrice: Only required if order type changed to market from something else
+	 * @param auctionEndPrice: Only required if order type changed to market from something else
+	 * @returns
+	 */
+	public async modifyOrderByUserOrderId({
+		userOrderId,
+		newBaseAmount,
+		newLimitPrice,
+		newOraclePriceOffset,
+		newOrderType,
+		newTriggerPrice,
+		newTriggerCondition,
+		isSpot,
+		auctionDuration,
+		auctionStartPrice,
+		auctionEndPrice,
+	}: {
+		userOrderId: number;
+		newBaseAmount?: BN;
+		newLimitPrice?: BN;
+		newOraclePriceOffset?: number;
+		newOrderType?: OrderType;
+		newTriggerPrice?: BN;
+		newTriggerCondition?: OrderTriggerCondition;
+		isSpot?: boolean;
+		auctionDuration?: number;
+		auctionStartPrice?: BN;
+		auctionEndPrice?: BN;
+	}): Promise<TransactionSignature> {
 		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
 			throw new Error(
 				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
@@ -3105,38 +3435,61 @@ export class DriftClient {
 		}
 		const cancelOrderIx = await this.getCancelOrderByUserIdIx(userOrderId);
 
+		const orderTypeHasTrigger = newOrderType
+			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
+		const orderTypeHasLimitPrice = newOrderType
+			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
+			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
+
 		const newOrderParams: OptionalOrderParams = {
-			orderType: openOrder.orderType,
+			orderType: newOrderType || openOrder.orderType,
 			marketType: openOrder.marketType,
 			direction: openOrder.direction,
 			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: newLimitPrice || openOrder.price,
+			price: orderTypeHasLimitPrice
+				? newLimitPrice || openOrder.price
+				: undefined,
 			marketIndex: openOrder.marketIndex,
 			reduceOnly: openOrder.reduceOnly,
-			postOnly: openOrder.postOnly,
+			postOnly: openOrder.postOnly
+				? PostOnlyParams.MUST_POST_ONLY
+				: PostOnlyParams.NONE,
 			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: openOrder.triggerPrice,
-			triggerCondition: openOrder.triggerCondition,
+			triggerPrice: orderTypeHasTrigger
+				? newTriggerPrice || openOrder.triggerPrice
+				: undefined,
+			triggerCondition: orderTypeHasTrigger
+				? newTriggerCondition || openOrder.triggerCondition
+				: undefined,
 			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: openOrder.auctionDuration,
+			auctionDuration: auctionDuration || openOrder.auctionDuration,
 			maxTs: openOrder.maxTs,
-			auctionStartPrice: openOrder.auctionStartPrice,
-			auctionEndPrice: openOrder.auctionEndPrice,
+			auctionStartPrice: auctionStartPrice || openOrder.auctionStartPrice,
+			auctionEndPrice: auctionEndPrice || openOrder.auctionEndPrice,
 			userOrderId: openOrder.userOrderId,
 		};
-		const placeOrderIx = await this.getPlacePerpOrderIx(newOrderParams);
+		const placeOrderIx = isSpot
+			? await this.getPlaceSpotOrderIx(newOrderParams)
+			: await this.getPlacePerpOrderIx(newOrderParams);
 
 		const tx = new Transaction();
 		tx.add(
-			ComputeBudgetProgram.requestUnits({
+			ComputeBudgetProgram.setComputeUnitLimit({
 				units: 1_000_000,
-				additionalFee: 0,
 			})
 		);
 		tx.add(cancelOrderIx);
 		tx.add(placeOrderIx);
 		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
-		this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
+
+		if (isSpot) {
+			this.spotMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
+			this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
+		} else {
+			this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
+		}
+
 		return txSig;
 	}
 
@@ -3145,24 +3498,25 @@ export class DriftClient {
 			settleeUserAccountPublicKey: PublicKey;
 			settleeUserAccount: UserAccount;
 		}[],
-		marketIndex: number
+		marketIndexes: number[]
 	): Promise<TransactionSignature> {
 		const ixs = [];
 		for (const { settleeUserAccountPublicKey, settleeUserAccount } of users) {
-			ixs.push(
-				await this.settlePNLIx(
-					settleeUserAccountPublicKey,
-					settleeUserAccount,
-					marketIndex
-				)
-			);
+			for (const marketIndex of marketIndexes) {
+				ixs.push(
+					await this.settlePNLIx(
+						settleeUserAccountPublicKey,
+						settleeUserAccount,
+						marketIndex
+					)
+				);
+			}
 		}
 
 		const tx = new Transaction()
 			.add(
-				ComputeBudgetProgram.requestUnits({
+				ComputeBudgetProgram.setComputeUnitLimit({
 					units: 1_000_000,
-					additionalFee: 0,
 				})
 			)
 			.add(...ixs);
@@ -3535,7 +3889,7 @@ export class DriftClient {
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
 
-		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const spotMarket = this.getQuoteSpotMarketAccount();
 
 		return await this.program.instruction.resolvePerpBankruptcy(
 			QUOTE_SPOT_MARKET_INDEX,
@@ -3984,6 +4338,31 @@ export class DriftClient {
 				remainingAccounts: remainingAccounts,
 			}
 		);
+	}
+
+	public getPerpMarketExtendedInfo(
+		marketIndex: number
+	): PerpMarketExtendedInfo {
+		const marketAccount = this.getPerpMarketAccount(marketIndex);
+		const quoteAccount = this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
+
+		const extendedInfo: PerpMarketExtendedInfo = {
+			marketIndex,
+			minOrderSize: marketAccount.amm?.minOrderSize,
+			marginMaintenance: marketAccount.marginRatioMaintenance,
+			pnlPoolValue: getTokenAmount(
+				marketAccount.pnlPool?.scaledBalance,
+				quoteAccount,
+				SpotBalanceType.DEPOSIT
+			),
+			contractTier: marketAccount.contractTier,
+			availableInsurance: calculateMarketMaxAvailableInsurance(
+				marketAccount,
+				quoteAccount
+			),
+		};
+
+		return extendedInfo;
 	}
 
 	sendTransaction(

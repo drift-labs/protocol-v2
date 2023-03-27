@@ -21,7 +21,7 @@ use crate::math::margin::{
 use crate::math::position::calculate_entry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_strict_token_value, get_token_value};
-use crate::math::spot_withdraw::calculate_availability_borrow_liquidity;
+use crate::math::spot_withdraw::get_max_withdraw_for_market_with_token_amount;
 use crate::math_error;
 use crate::print_error;
 use crate::state::oracle_map::OracleMap;
@@ -91,9 +91,15 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
 
     let (max_trade_base_asset_amount, max_trade_direction) = if let Some(limit_price) = limit_price
     {
+        // buy to right below or sell up right above the limit price
+        let adjusted_limit_price = match order.direction {
+            PositionDirection::Long => limit_price.safe_sub(market.amm.order_tick_size)?,
+            PositionDirection::Short => limit_price.safe_add(market.amm.order_tick_size)?,
+        };
+
         math::amm_spread::calculate_base_asset_amount_to_trade_to_price(
             &market.amm,
-            limit_price,
+            adjusted_limit_price,
             order.direction,
         )?
     } else {
@@ -574,19 +580,7 @@ pub fn get_max_fill_amounts(
 fn get_max_fill_amounts_for_market(user: &User, market: &SpotMarket) -> DriftResult<u128> {
     let position_index = user.get_spot_position_index(market.market_index)?;
     let token_amount = user.spot_positions[position_index].get_signed_token_amount(market)?;
-    get_max_withdraw_for_market_with_token_amount(token_amount, market)
-}
-
-#[inline(always)]
-pub fn get_max_withdraw_for_market_with_token_amount(
-    token_amount: i128,
-    market: &SpotMarket,
-) -> DriftResult<u128> {
-    let available_borrow_liquidity = calculate_availability_borrow_liquidity(market)?;
-    token_amount
-        .max(0)
-        .unsigned_abs()
-        .safe_add(available_borrow_liquidity)
+    get_max_withdraw_for_market_with_token_amount(market, token_amount)
 }
 
 pub fn find_fallback_maker_order(
@@ -646,7 +640,7 @@ pub fn find_maker_orders(
     slot: u64,
     tick_size: u64,
 ) -> DriftResult<Vec<(usize, u64)>> {
-    let mut orders = vec![];
+    let mut orders: Vec<(usize, u64)> = Vec::with_capacity(32);
 
     for (order_index, order) in user.orders.iter().enumerate() {
         if order.status != OrderStatus::Open {

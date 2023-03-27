@@ -35,6 +35,7 @@ test_files=(
   stopLimits.ts 
   userOrderId.ts 
   postOnly.ts
+  placeAndMakePerp.ts
   placeAndMakeSpotOrder.ts
   roundInFavorBaseAsset.ts
   marketOrderBaseAssetAmount.ts
