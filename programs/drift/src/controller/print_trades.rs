@@ -59,7 +59,7 @@ fn get_valid_oracle_price(
 
 pub fn place_perp_orders_for_print_trade(
     state: &State,
-    print_trade: &mut AccountLoader<PrintTrade>,
+    print_trade: &mut PrintTrade,
     creator: &AccountLoader<User>,
     counterparty: &AccountLoader<User>,
     perp_market_map: &PerpMarketMap,
@@ -74,7 +74,6 @@ pub fn place_perp_orders_for_print_trade(
     let counterparty_key = counterparty.key();
     let creator = &mut load_mut!(creator)?;
     let counterparty = &mut load_mut!(counterparty)?;
-    let print_trade = &mut load_mut!(print_trade)?;
 
     validate_user_not_being_liquidated(
         creator,
@@ -287,6 +286,8 @@ pub fn place_perp_orders_for_print_trade(
         creator_order,
         counterparty_order
     ];
+    print_trade.creator = creator_key;
+    print_trade.counterparty = counterparty_key;
 
     let valid_oracle_price = get_valid_oracle_price(
         oracle_map.get_price_data(&market.amm.oracle)?,

@@ -22,7 +22,7 @@ pub struct InitializePrintTrade<'info> {
         bump,
         payer = creator_owner
     )]
-    pub print_trade: AccountLoader<'info, PrintTrade>,
+    pub print_trade: Box<Account<'info, PrintTrade>>,
 
     #[account(
         mut,

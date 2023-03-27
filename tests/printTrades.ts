@@ -3,6 +3,16 @@ import {BulkAccountLoader, OracleSource, PRICE_PRECISION, TestClient} from "../s
 import {initializeQuoteSpotMarket, mockOracle, mockUSDCMint, mockUserUSDCAccount} from "./testHelpers";
 import {BN} from "../sdk/src";
 
+const MarketType = {
+    Spot: { spot: {} },
+    Perp: { perp: {} },
+}
+
+const PositionDirection = {
+    Long: { long: {} },
+    Short: { short: {}},
+}
+
 describe('print trades', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
@@ -112,7 +122,18 @@ describe('print trades', () => {
 			readablePerpMarketIndex: 0,
 		});
 
-		const tx = await chProgram.methods.initializePrintTrade().accounts(
+		const tx = await chProgram.methods.initializePrintTrade(
+			{
+				marketType: MarketType.Perp,
+			    creatorDirection: PositionDirection.Long,
+			    counterpartyDirection: PositionDirection.Short,
+			    baseAssetAmount: new BN(0),
+			    price: new BN(0),
+			    marketIndex: new BN(0),
+			    reduceOnly: false,
+			    postOnly: false,
+			}
+		).accounts(
 			{
 				state: await driftClient.getStatePublicKey(),
 				printTrade: print_trade,
@@ -121,6 +142,7 @@ describe('print trades', () => {
 				counterparty: creatorAccountPublicKey,
 				counterparty_owner: payer.publicKey,
 				systemProgram: anchor.web3.SystemProgram.programId,
+				clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
 			}
 		).remainingAccounts(
 			remainingAccounts

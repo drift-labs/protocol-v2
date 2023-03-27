@@ -810,6 +810,59 @@
       "args": []
     },
     {
+      "name": "initializePrintTrade",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "printTrade",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "creatorOwner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "creator",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "counterpartyOwner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "counterparty",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "PrintTradeParams"
+          }
+        }
+      ]
+    },
+    {
       "name": "fillPerpOrder",
       "accounts": [
         {
@@ -3991,6 +4044,37 @@
       }
     },
     {
+      "name": "PrintTrade",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creator",
+            "type": {
+              "defined": "User"
+            }
+          },
+          {
+            "name": "counterparty",
+            "type": {
+              "defined": "User"
+            }
+          },
+          {
+            "name": "orders",
+            "type": {
+              "array": [
+                {
+                  "defined": "Order"
+                },
+                2
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "SpotMarket",
       "type": {
         "kind": "struct",
@@ -4610,6 +4694,52 @@
     }
   ],
   "types": [
+    {
+      "name": "PrintTradeParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "creatorDirection",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "counterpartyDirection",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "reduceOnly",
+            "type": "bool"
+          },
+          {
+            "name": "postOnly",
+            "type": "bool"
+          }
+        ]
+      }
+    },
     {
       "name": "OrderParams",
       "type": {
