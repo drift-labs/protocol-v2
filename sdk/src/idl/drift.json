@@ -1,5 +1,5 @@
 {
-  "version": "2.22.0-beta.2",
+  "version": "2.22.0",
   "name": "drift",
   "instructions": [
     {
@@ -5127,7 +5127,7 @@
         "fields": [
           {
             "name": "revenueWithdrawSinceLastSettle",
-            "type": "i64"
+            "type": "u64"
           },
           {
             "name": "maxRevenueWithdrawPerPeriod",
