@@ -18,10 +18,44 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
             liquidation_fee,
             0,
             oracle_price,
+            PRICE_PRECISION_I64,
         )
         .unwrap();
 
         assert_eq!(base_asset_amount, BASE_PRECISION_U64); // must lose 1 base
+    }
+
+    #[test]
+    pub fn usdc_not_one() {
+        let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
+        let margin_ratio = MARGIN_PRECISION as u32 / 10; // 10x leverage
+        let liquidation_fee = 0; // 0 percent
+        let oracle_price = 100 * PRICE_PRECISION_I64; // $100 / base
+        let quote_oracle_price = 99 * 10000;
+        let base_asset_amount = calculate_base_asset_amount_to_cover_margin_shortage(
+            margin_shortage,
+            margin_ratio,
+            liquidation_fee,
+            0,
+            oracle_price,
+            quote_oracle_price,
+        )
+        .unwrap();
+
+        assert_eq!(base_asset_amount, 1010101010);
+
+        let quote_oracle_price = 101 * 10000;
+        let base_asset_amount = calculate_base_asset_amount_to_cover_margin_shortage(
+            margin_shortage,
+            margin_ratio,
+            liquidation_fee,
+            0,
+            oracle_price,
+            quote_oracle_price,
+        )
+        .unwrap();
+
+        assert_eq!(base_asset_amount, 990099009);
     }
 
     #[test]
@@ -36,6 +70,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
             liquidation_fee,
             0,
             oracle_price,
+            PRICE_PRECISION_I64,
         )
         .unwrap();
 
@@ -69,6 +104,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
             liquidation_fee,
             if_liquidation_fee,
             oracle_price,
+            PRICE_PRECISION_I64,
         )
         .unwrap();
 
