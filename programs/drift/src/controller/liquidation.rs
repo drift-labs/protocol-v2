@@ -1178,9 +1178,10 @@ pub fn liquidate_borrow_for_perp_pnl(
             "Perp position must have position pnl"
         )?;
 
-        let quote_price = oracle_map.quote_asset_price_data.price;
-
         let market = perp_market_map.get_ref(&perp_market_index)?;
+
+        let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
+        let quote_price = oracle_map.get_price_data(&quote_spot_market.oracle)?.price;
 
         let pnl_asset_weight =
             market.get_unrealized_asset_weight(pnl, MarginRequirementType::Maintenance)?;
@@ -1698,9 +1699,10 @@ pub fn liquidate_perp_pnl_for_deposit(
             "Perp position must have negative pnl"
         )?;
 
-        let quote_price = oracle_map.quote_asset_price_data.price;
-
         let market = perp_market_map.get_ref(&perp_market_index)?;
+
+        let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
+        let quote_price = oracle_map.get_price_data(&quote_spot_market.oracle)?.price;
 
         (
             unsettled_pnl.unsigned_abs(),
