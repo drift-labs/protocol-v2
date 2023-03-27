@@ -37,7 +37,7 @@ import {
 	PostOnlyParams,
 	SpotBalanceType,
 	PerpMarketExtendedInfo,
-  UserStatsAccount,
+	UserStatsAccount,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import driftIDL from './idl/drift.json';
