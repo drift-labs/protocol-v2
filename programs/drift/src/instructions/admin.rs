@@ -7,7 +7,6 @@ use bytemuck::cast_slice;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
-use crate::controller;
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::instructions::constraints::*;
@@ -51,6 +50,7 @@ use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
 use crate::validation::perp_market::validate_perp_market;
 use crate::validation::spot_market::validate_borrow_rate;
+use crate::{controller, QUOTE_PRECISION_I64};
 use crate::{math, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -512,6 +512,14 @@ pub fn handle_initialize_perp_market(
                 .amm
                 .get_pyth_twap(&ctx.accounts.oracle, 1000000)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
+        OracleSource::PythStableCoin => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1)?;
+            (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
         }
         OracleSource::Switchboard => {
             msg!("Switchboard oracle cant be used for perp market");

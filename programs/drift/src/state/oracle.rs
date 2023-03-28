@@ -96,6 +96,7 @@ pub enum OracleSource {
     QuoteAsset,
     Pyth1K,
     Pyth1M,
+    PythStableCoin,
 }
 
 impl Default for OracleSource {
@@ -133,6 +134,7 @@ pub fn get_oracle_price(
         OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot, 1),
         OracleSource::Pyth1K => get_pyth_price(price_oracle, clock_slot, 1000),
         OracleSource::Pyth1M => get_pyth_price(price_oracle, clock_slot, 1000000),
+        OracleSource::PythStableCoin => get_pyth_stable_coin_price(price_oracle, clock_slot),
         OracleSource::Switchboard => {
             msg!("Switchboard oracle not yet supported");
             Err(crate::error::ErrorCode::InvalidOracle)
@@ -199,6 +201,23 @@ pub fn get_pyth_price(
         delay: oracle_delay,
         has_sufficient_number_of_data_points: true,
     })
+}
+
+pub fn get_pyth_stable_coin_price(
+    price_oracle: &AccountInfo,
+    clock_slot: u64,
+) -> DriftResult<OraclePriceData> {
+    let mut oracle_price_data = get_pyth_price(price_oracle, clock_slot, 1)?;
+
+    let price = oracle_price_data.price;
+    let confidence = oracle_price_data.confidence;
+    let five_bps = 500_i64;
+
+    if price.safe_sub(PRICE_PRECISION_I64)?.abs() <= five_bps.min(confidence.cast()?) {
+        oracle_price_data.price = PRICE_PRECISION_I64;
+    }
+
+    Ok(oracle_price_data)
 }
 
 // pub fn get_switchboard_price(

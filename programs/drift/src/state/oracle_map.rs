@@ -172,6 +172,8 @@ impl<'a> OracleMap<'a> {
 
                 let oracle_source = if pubkey == bonk_oracle::id() {
                     OracleSource::Pyth1M
+                } else if pubkey == usdc_oracle::id() {
+                    OracleSource::PythStableCoin
                 } else {
                     OracleSource::Pyth
                 };
@@ -221,6 +223,8 @@ impl<'a> OracleMap<'a> {
             let pubkey = account_info.key();
             let oracle_source = if pubkey == bonk_oracle::id() {
                 OracleSource::Pyth1M
+            } else if pubkey == usdc_oracle::id() {
+                OracleSource::PythStableCoin
             } else {
                 OracleSource::Pyth
             };
