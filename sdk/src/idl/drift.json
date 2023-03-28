@@ -6391,6 +6391,9 @@
           },
           {
             "name": "Pyth1M"
+          },
+          {
+            "name": "PythStableCoin"
           }
         ]
       }
