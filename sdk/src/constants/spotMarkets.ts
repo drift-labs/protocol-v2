@@ -44,13 +44,13 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		serumMarket: new PublicKey('8N37SsnTu8RYxtjrV9SStjkkwVhmU8aCWhLvwduAPEKW'),
 	},
 	{
-		symbol: 'BTC',
+		symbol: 'mSOL',
 		marketIndex: 2,
-		oracle: new PublicKey('HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J'),
+		oracle: new PublicKey('9a6RNx3tCu1TSs6TBSfV2XRXEPEZXQ6WB7jRojZRvyeZ'),
 		oracleSource: OracleSource.PYTH,
 		mint: new PublicKey('3BZPwbcqB5kKScF3TEXxwNfx5ipV13kbRVDvfVp5c6fv'),
-		precision: new BN(10).pow(SIX),
-		precisionExp: SIX,
+		precision: LAMPORTS_PRECISION,
+		precisionExp: LAMPORTS_EXP,
 		serumMarket: new PublicKey('AGsmbVu3MS9u68GEYABWosQQCZwmLcBHu4pWEuBYH7Za'),
 	},
 ];
