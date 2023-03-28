@@ -1022,6 +1022,26 @@ export class DriftClient {
 			}
 		}
 
+		if (params.readableSpotMarketIndexes !== undefined) {
+			for (const readableSpotMarketIndex of params.readableSpotMarketIndexes) {
+				const spotMarketAccount = this.getSpotMarketAccount(
+					readableSpotMarketIndex
+				);
+				spotMarketAccountMap.set(readableSpotMarketIndex, {
+					pubkey: spotMarketAccount.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+						pubkey: spotMarketAccount.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
+
 		if (params.writablePerpMarketIndexes !== undefined) {
 			for (const writablePerpMarketIndex of params.writablePerpMarketIndexes) {
 				const perpMarketAccount = this.getPerpMarketAccount(
@@ -1041,26 +1061,6 @@ export class DriftClient {
 					perpMarketAccount.quoteSpotMarketIndex
 				);
 				spotMarketAccountMap.set(perpMarketAccount.quoteSpotMarketIndex, {
-					pubkey: spotMarketAccount.pubkey,
-					isSigner: false,
-					isWritable: false,
-				});
-				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-						pubkey: spotMarketAccount.oracle,
-						isSigner: false,
-						isWritable: false,
-					});
-				}
-			}
-		}
-
-		if (params.readableSpotMarketIndexes !== undefined) {
-			for (const readableSpotMarketIndex of params.readableSpotMarketIndexes) {
-				const spotMarketAccount = this.getSpotMarketAccount(
-					readableSpotMarketIndex
-				);
-				spotMarketAccountMap.set(readableSpotMarketIndex, {
 					pubkey: spotMarketAccount.pubkey,
 					isSigner: false,
 					isWritable: false,
