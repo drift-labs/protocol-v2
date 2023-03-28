@@ -21,6 +21,7 @@ use crate::math::margin::{
 use crate::math::spot_withdraw::{
     calculate_max_borrow_token_amount, calculate_min_deposit_token, check_withdraw_limits,
 };
+use crate::math::stats::calculate_weighted_average;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -1351,10 +1352,19 @@ fn check_usdc_spot_market_twap() {
         spot_market
             .historical_oracle_data
             .last_oracle_price_twap_5min,
-        1000301
+        1000001
     );
     assert_eq!(
         spot_market.historical_oracle_data.last_oracle_price_twap,
-        1000971
+        1000001
     );
+
+    let wa_res =
+        calculate_weighted_average(PRICE_PRECISION_I64, PRICE_PRECISION_I64, 0, ONE_HOUR).unwrap();
+
+    assert_eq!(wa_res, PRICE_PRECISION_I64);
+    let wa_res2 =
+        calculate_weighted_average(PRICE_PRECISION_I64, PRICE_PRECISION_I64 + 1, 0, ONE_HOUR)
+            .unwrap();
+    assert_eq!(wa_res2, PRICE_PRECISION_I64 + 1);
 }
