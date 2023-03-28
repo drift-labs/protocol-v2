@@ -4082,11 +4082,19 @@
             }
           },
           {
+            "name": "padding1",
+            "type": "bool"
+          },
+          {
+            "name": "quoteSpotMarketIndex",
+            "type": "u16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                51
+                48
               ]
             }
           }
@@ -6383,6 +6391,9 @@
           },
           {
             "name": "Pyth1M"
+          },
+          {
+            "name": "PythStableCoin"
           }
         ]
       }
