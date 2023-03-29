@@ -847,14 +847,14 @@ fn update_pool_balances_revenue_to_fee_test() {
 
     update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
 
-    assert_eq!(
-        market.amm.fee_pool.scaled_balance,
-        5 * SPOT_BALANCE_PRECISION
-    );
     assert_eq!(market.pnl_pool.scaled_balance, 95 * SPOT_BALANCE_PRECISION);
     assert_eq!(
         spot_market.revenue_pool.scaled_balance,
         100 * SPOT_BALANCE_PRECISION
+    );
+    assert_eq!(
+        market.amm.fee_pool.scaled_balance,
+        5 * SPOT_BALANCE_PRECISION
     );
     assert_eq!(market.amm.total_fee_withdrawn, 0);
     assert_eq!(market.amm.total_fee_minus_distributions, prev_tfmd);
