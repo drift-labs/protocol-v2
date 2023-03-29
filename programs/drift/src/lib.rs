@@ -207,6 +207,13 @@ pub mod drift {
         handle_delete_user(ctx)
     }
 
+    pub fn initialize_print_trade(
+        ctx: Context<InitializePrintTrade>,
+        params: PrintTradeParams,
+    ) -> Result<()> {
+        handle_initialize_print_trade(ctx, params)
+    }
+
     // Keeper Instructions
 
     pub fn fill_perp_order(

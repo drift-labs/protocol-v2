@@ -21,7 +21,9 @@
 		"husky": "^7.0.4",
 		"prettier": "^2.4.1",
 		"typedoc": "0.23.23",
-		"typescript": "4.5.4"
+		"typescript": "4.5.4",
+		"ts-mocha": "^10.0.0",
+		"mocha": "*"
 	},
 	"dependencies": {
 		"chai-bn": "^0.2.2",
