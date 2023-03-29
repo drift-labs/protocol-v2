@@ -80,6 +80,7 @@ export class OracleSource {
 	static readonly PYTH_1M = { pyth1M: {} };
 	// static readonly SWITCHBOARD = { switchboard: {} };
 	static readonly QUOTE_ASSET = { quoteAsset: {} };
+	static readonly PYTH_STABLE_COIN = { pythStableCoin: {} };
 }
 
 export class OrderType {
@@ -560,6 +561,7 @@ export type PerpMarketAccount = {
 		quoteSettledInsurance: BN;
 		quoteMaxInsurance: BN;
 	};
+	quoteSpotMarketIndex: number;
 };
 
 export type HistoricalOracleData = {

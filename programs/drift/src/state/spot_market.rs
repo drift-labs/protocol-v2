@@ -6,9 +6,9 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::DriftResult;
 use crate::instructions::SpotFulfillmentType;
-#[cfg(test)]
-use crate::math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION;
 use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
+#[cfg(test)]
+use crate::math::constants::{PRICE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -277,6 +277,11 @@ impl SpotMarket {
             maintenance_asset_weight: 10000,
             order_tick_size: 1,
             status: MarketStatus::Active,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         }
     }

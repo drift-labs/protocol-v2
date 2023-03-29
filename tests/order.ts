@@ -413,7 +413,7 @@ describe('orders', () => {
 					settleeUserAccount: fillerDriftClient.getUserAccount(),
 				},
 			],
-			marketIndex
+			[marketIndex]
 		);
 
 		await driftClient.fetchAccounts();
@@ -553,7 +553,7 @@ describe('orders', () => {
 					settleeUserAccount: fillerDriftClient.getUserAccount(),
 				},
 			],
-			marketIndex
+			[marketIndex]
 		);
 
 		await driftClient.fetchAccounts();
