@@ -552,7 +552,7 @@ fn update_spot_market_revenue_pool(
                         .max_revenue_withdraw_per_period
                         .cast()?,
                 )?
-                .min(market.amm.net_revenue_since_last_funding)
+                .min(market.amm.net_revenue_since_last_funding.abs())
                 .max(0);
 
             let total_fee_for_if = get_total_fee_lower_bound(market)?.cast::<i128>()?;
@@ -613,7 +613,7 @@ fn update_spot_market_revenue_pool(
                     .max_revenue_withdraw_per_period
                     .cast()?,
             )?
-            .max(market.amm.net_revenue_since_last_funding)
+            .min(market.amm.net_revenue_since_last_funding)
             .max(0);
 
         let fee_pool_threshold = amm_fee_pool_token_amount_after
