@@ -1689,4 +1689,66 @@ export class DLOB {
 			yield nodeLists.trigger.below;
 		}
 	}
+
+	public getSpreadInfo(
+		marketIndex: number, 
+		marketType: MarketType,
+		driftClient: DriftClient,
+		slot: number): 
+		{rawSpread: BN; spreadPct: number; } {
+
+		const oraclePriceData =
+				driftClient.getOracleDataForPerpMarket(marketIndex);
+
+		let bestBid;
+		let bestAsk;
+
+		if (isVariant(marketType, 'perp')) {
+			const market = driftClient.getPerpMarketAccount(marketIndex);
+
+			const fallbackAsk = calculateAskPrice(market, oraclePriceData);
+			const fallbackBid = calculateBidPrice(market, oraclePriceData);
+
+			bestAsk = this.getBestAsk(
+				marketIndex,
+				fallbackAsk,
+				slot,
+				marketType,
+				oraclePriceData
+			);
+			bestBid = this.getBestBid(
+				marketIndex,
+				fallbackBid,
+				slot,
+				marketType,
+				oraclePriceData
+			);
+
+		} else if (isVariant(marketType, 'spot')) {
+			bestAsk = this.getBestAsk(
+				marketIndex,
+				undefined,
+				slot,
+				marketType,
+				oraclePriceData
+			);
+			bestBid = this.getBestBid(
+				marketIndex,
+				undefined,
+				slot,
+				marketType,
+				oraclePriceData
+			);
+
+		}
+
+		if (bestBid && bestAsk) {
+			const rawSpread = bestBid.sub(bestAsk).abs();
+			const spreadPct = bestBid.gt(bestAsk) ? (rawSpread.toNumber() / oraclePriceData.price.toNumber()) * 100 : 0;
+	
+			return {rawSpread, spreadPct};
+		} else {
+			throw new Error('Spread info could not be retrieved');
+		}
+	}
 }
