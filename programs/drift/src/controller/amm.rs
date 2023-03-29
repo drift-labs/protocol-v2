@@ -458,8 +458,8 @@ fn update_amm_fee_pool(
     Ok(fraction_for_amm)
 }
 
-fn update_pnl_pool(market: &mut PerpMarket, spot_market: &mut SpotMarket,     now: i64) -> DriftResult<()> {
-    // Update PnL pool logic
+fn update_spot_market_revenue_pool(market: &mut PerpMarket, spot_market: &mut SpotMarket,     now: i64) -> DriftResult<()> {
+    // Update Revenue pool logic
     let amm_fee_pool_token_amount_after = get_token_amount(
         market.amm.fee_pool.balance(),
         spot_market,
@@ -494,18 +494,6 @@ fn update_pnl_pool(market: &mut PerpMarket, spot_market: &mut SpotMarket,     no
             .cast::<u128>()?;
 
         if max_revenue_withdraw_allowed > 0 {
-            let spot_market_revenue_pool_amount = get_token_amount(
-                spot_market.revenue_pool.scaled_balance,
-                spot_market,
-                &SpotBalanceType::Deposit,
-            )?;
-
-            let revenue_pool_transfer = terminal_state_surplus
-                .unsigned_abs()
-                .min(spot_market_revenue_pool_amount)
-                .min(max_revenue_withdraw_allowed);
-
-<<<<<<< Updated upstream
             let max_revenue_withdraw_allowed = market
                 .insurance_claim
                 .max_revenue_withdraw_per_period
@@ -513,36 +501,34 @@ fn update_pnl_pool(market: &mut PerpMarket, spot_market: &mut SpotMarket,     no
                 .safe_sub(market.insurance_claim.revenue_withdraw_since_last_settle)?
                 .cast::<u128>()?;
 
-            if max_revenue_withdraw_allowed > 0 {
-                let spot_market_revenue_pool_amount = get_token_amount(
-                    spot_market.revenue_pool.scaled_balance,
-                    spot_market,
-                    &SpotBalanceType::Deposit,
-                )?;
+            let spot_market_revenue_pool_amount = get_token_amount(
+                spot_market.revenue_pool.scaled_balance,
+                spot_market,
+                &SpotBalanceType::Deposit,
+            )?;
 
-                let revenue_pool_transfer: u128 = terminal_state_surplus
-                    .unsigned_abs()
-                    .min(spot_market_revenue_pool_amount)
-                    .min(max_revenue_withdraw_allowed);
+            let revenue_pool_transfer: u128 = terminal_state_surplus
+                .unsigned_abs()
+                .min(spot_market_revenue_pool_amount)
+                .min(max_revenue_withdraw_allowed);
 
-                transfer_revenue_pool_to_spot_balance(
-                    revenue_pool_transfer,
-                    spot_market,
-                    &mut market.amm.fee_pool,
-                )?;
+            transfer_revenue_pool_to_spot_balance(
+                revenue_pool_transfer,
+                spot_market,
+                &mut market.amm.fee_pool,
+            )?;
 
-                market.amm.total_fee_minus_distributions = market
-                    .amm
-                    .total_fee_minus_distributions
-                    .safe_add(revenue_pool_transfer.cast::<i128>()?)?;
+            market.amm.total_fee_minus_distributions = market
+                .amm
+                .total_fee_minus_distributions
+                .safe_add(revenue_pool_transfer.cast::<i128>()?)?;
 
-                market.insurance_claim.revenue_withdraw_since_last_settle = market
-                    .insurance_claim
-                    .revenue_withdraw_since_last_settle
-                    .safe_add(revenue_pool_transfer.cast()?)?;
+            market.insurance_claim.revenue_withdraw_since_last_settle = market
+                .insurance_claim
+                .revenue_withdraw_since_last_settle
+                .safe_add(revenue_pool_transfer.cast()?)?;
 
-                market.insurance_claim.last_revenue_withdraw_ts = now;
-            }
+            market.insurance_claim.last_revenue_withdraw_ts = now;
         } else {
             let fee_pool_threshold = amm_fee_pool_token_amount_after
                 .saturating_sub(
@@ -592,10 +578,6 @@ fn update_pnl_pool(market: &mut PerpMarket, spot_market: &mut SpotMarket,     no
 
             transfer_spot_balance_to_revenue_pool(
                 revenue_pool_transfer.unsigned_abs(),
-=======
-            transfer_revenue_pool_to_spot_balance(
-                revenue_pool_transfer,
->>>>>>> Stashed changes
                 spot_market,
                 &mut market.amm.fee_pool,
             )?;
@@ -736,7 +718,7 @@ pub fn update_pool_balances(
     now: i64,
 ) -> DriftResult<i128> {
     let fraction_for_amm = update_amm_fee_pool(market, spot_market, now)?;
-    update_pnl_pool(market, spot_market, now)?;
+    update_spot_market_revenue_pool(market, spot_market, now)?;
     let pnl_to_settle_with_user =
         settle_user_pnl(market, spot_market, user_quote_position, user_unsettled_pnl, fraction_for_amm)?;
 
