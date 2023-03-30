@@ -248,16 +248,16 @@ fn fill_spot_order(
     )?;
 
     match fulfillment_params {
-        FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params) => {
+        FulfillmentParams::SerumFulfillmentParams(fulfillment_params) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             validate_spot_market_vault_amount(
                 &base_market,
-                serum_fulfillment_params.base_market_vault.amount,
+                fulfillment_params.base_market_vault.amount,
             )?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             validate_spot_market_vault_amount(
                 &quote_market,
-                serum_fulfillment_params.quote_market_vault.amount,
+                fulfillment_params.quote_market_vault.amount,
             )?;
         }
         FulfillmentParams::None => {
