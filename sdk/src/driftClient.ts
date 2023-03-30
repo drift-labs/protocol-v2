@@ -4286,9 +4286,7 @@ export class DriftClient {
 		marketIndex: number,
 		amount: BN,
 		collateralAccountPublicKey: PublicKey,
-		txParams?: TxParams
 	): Promise<TransactionSignature> {
-
 		const tx = new Transaction();
 
 		const instructions = [
@@ -4296,13 +4294,7 @@ export class DriftClient {
 			await this.getAddInsuranceFundStakeIx(marketIndex, amount, collateralAccountPublicKey)
 		];
 
-		console.log(instructions);
-
 		tx.add(...instructions);
-
-		// Wat to do with these when bundleinng?
-		// txParams?.computeUnits,
-		// txParams?.computeUnitsPrice
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
