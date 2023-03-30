@@ -42,14 +42,8 @@ impl<'a> OracleMap<'a> {
             .clone())
     }
 
-    /// When switching to use usdc oracle, will start to enforce it on a specific slot
     fn should_get_quote_asset_price_data(&self, pubkey: &Pubkey) -> bool {
-        #[cfg(feature = "mainnet-beta")]
-        return (self.slot < 187188369 && pubkey == &usdc_oracle::id())
-            || pubkey == &Pubkey::default();
-        #[cfg(not(feature = "mainnet-beta"))]
-        return (self.slot < 205430247 && pubkey == &usdc_oracle::id())
-            || pubkey == &Pubkey::default();
+        pubkey == &Pubkey::default()
     }
 
     pub fn get_price_data(&mut self, pubkey: &Pubkey) -> DriftResult<&OraclePriceData> {
