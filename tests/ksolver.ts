@@ -208,6 +208,8 @@ describe('AMM Curve', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		const kSqrtNorm = normAssetAmount(kSqrt, initialSOLPriceBN);
 		await driftClient.initializePerpMarket(
+			0,
+
 			solUsdOracle,
 			kSqrtNorm,
 			kSqrtNorm,

@@ -443,6 +443,7 @@ pub fn handle_update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
 
 pub fn handle_initialize_perp_market(
     ctx: Context<InitializePerpMarket>,
+    market_index: u16,
     amm_base_asset_reserve: u128,
     amm_quote_asset_reserve: u128,
     amm_periodicity: i64,
@@ -551,7 +552,14 @@ pub fn handle_initialize_perp_market(
     )?;
 
     let state = &mut ctx.accounts.state;
-    let market_index = state.number_of_markets;
+    validate!(
+        market_index == state.number_of_markets,
+        ErrorCode::InvalidMarketAccount,
+        "market_index={} != state.number_of_markets={}",
+        market_index,
+        state.number_of_markets
+    )?;
+
     **perp_market = PerpMarket {
         contract_type: ContractType::Perpetual,
         contract_tier: ContractTier::Speculative, // default

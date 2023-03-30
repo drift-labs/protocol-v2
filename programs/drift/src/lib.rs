@@ -474,6 +474,7 @@ pub mod drift {
 
     pub fn initialize_perp_market(
         ctx: Context<InitializePerpMarket>,
+        market_index: u16,
         amm_base_asset_reserve: u128,
         amm_quote_asset_reserve: u128,
         amm_periodicity: i64,
@@ -487,6 +488,7 @@ pub mod drift {
     ) -> Result<()> {
         handle_initialize_perp_market(
             ctx,
+            market_index,
             amm_base_asset_reserve,
             amm_quote_asset_reserve,
             amm_periodicity,

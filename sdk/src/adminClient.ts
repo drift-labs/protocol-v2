@@ -182,6 +182,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializePerpMarket(
+		marketIndex: number,
 		priceOracle: PublicKey,
 		baseAssetReserve: BN,
 		quoteAssetReserve: BN,
@@ -203,6 +204,7 @@ export class AdminClient extends DriftClient {
 		const nameBuffer = encodeName(name);
 		const initializeMarketTx =
 			await this.program.transaction.initializePerpMarket(
+				marketIndex,
 				baseAssetReserve,
 				quoteAssetReserve,
 				periodicity,

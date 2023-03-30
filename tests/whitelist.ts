@@ -77,6 +77,7 @@ describe('whitelist', () => {
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 
 		await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

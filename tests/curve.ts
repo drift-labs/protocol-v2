@@ -92,6 +92,7 @@ describe('AMM Curve', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await driftClient.initializePerpMarket(
+			0,
 			solUsdOracle,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

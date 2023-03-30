@@ -197,6 +197,7 @@ async function cappedSymFundingScenario(
 	const periodicity = new BN(0);
 
 	await driftClient.initializePerpMarket(
+		0,
 		priceFeedAddress,
 		kSqrt,
 		kSqrt,
