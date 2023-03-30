@@ -46,6 +46,10 @@ pub fn invoke_init_open_orders<'a>(
     )
 }
 
+pub enum FulfillmentParams<'a, 'b> {
+    SerumFulfillmentParams(SerumFulfillmentParams<'a, 'b>),
+}
+
 pub struct SerumFulfillmentParams<'a, 'b> {
     pub drift_signer: &'a AccountInfo<'b>,
     pub serum_program_id: &'a AccountInfo<'b>,

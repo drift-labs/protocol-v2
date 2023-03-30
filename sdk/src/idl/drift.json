@@ -5995,6 +5995,22 @@
       }
     },
     {
+      "name": "FulfillmentParams",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SerumFulfillmentParams",
+            "fields": [
+              {
+                "defined": "SerumFulfillmentParams<'a,'b>"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "name": "SpotFulfillmentType",
       "type": {
         "kind": "enum",
