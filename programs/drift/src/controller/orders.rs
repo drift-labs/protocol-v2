@@ -16,7 +16,7 @@ use crate::controller::position::{
     update_lp_market_position, update_position_and_market, update_quote_asset_amount,
     PositionDirection,
 };
-use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfillmentParams};
+use crate::controller::serum::{invoke_new_order, invoke_settle_funds, FulfillmentParams};
 use crate::controller::spot_balance::{
     transfer_spot_balance_to_revenue_pool, update_spot_balances,
 };
@@ -2887,7 +2887,7 @@ pub fn fill_spot_order(
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u32>,
     clock: &Clock,
-    serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
+    fulfillment_params: &mut Option<FulfillmentParams>,
 ) -> DriftResult<u64> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -3053,7 +3053,7 @@ pub fn fill_spot_order(
         now,
         slot,
         &state.spot_fee_structure,
-        serum_fulfillment_params,
+        fulfillment_params,
     )?;
 
     let is_open = user.orders[order_index].status == OrderStatus::Open;
@@ -3294,14 +3294,14 @@ fn fulfill_spot_order(
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
-    serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
+    fulfillment_params: &mut Option<FulfillmentParams>,
 ) -> DriftResult<(u64, bool)> {
     let base_market_index = user.orders[user_order_index].market_index;
 
     let fulfillment_methods = determine_spot_fulfillment_methods(
         &user.orders[user_order_index],
         maker.is_some(),
-        serum_fulfillment_params.is_some(),
+        fulfillment_params.is_some(),
     )?;
 
     let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
@@ -3347,7 +3347,7 @@ fn fulfill_spot_order(
                 slot,
                 oracle_map,
                 fee_structure,
-                serum_fulfillment_params,
+                fulfillment_params,
             )?,
         };
 
@@ -3778,10 +3778,12 @@ pub fn fulfill_spot_order_with_serum(
     slot: u64,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-    serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
+    fulfillment_params: &mut Option<FulfillmentParams>,
 ) -> DriftResult<u64> {
-    let serum_new_order_accounts = match serum_fulfillment_params {
-        Some(serum_new_order_accounts) => serum_new_order_accounts,
+    let serum_new_order_accounts = match fulfillment_params {
+        Some(FulfillmentParams::SerumFulfillmentParams(serum_new_order_accounts)) => {
+            serum_new_order_accounts
+        }
         None => return Ok(0),
     };
 

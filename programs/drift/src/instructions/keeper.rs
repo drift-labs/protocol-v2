@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
 
+use crate::controller::serum::FulfillmentParams;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
@@ -140,8 +141,8 @@ impl Default for SpotFulfillmentType {
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_fill_spot_order<'info>(
-    ctx: Context<FillOrder>,
+pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
     order_id: Option<u32>,
     fulfillment_type: Option<SpotFulfillmentType>,
     maker_order_id: Option<u32>,
@@ -174,8 +175,8 @@ pub fn handle_fill_spot_order<'info>(
     Ok(())
 }
 
-fn fill_spot_order(
-    ctx: Context<FillOrder>,
+fn fill_spot_order<'a, 'b, 'c, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
     order_id: u32,
     market_index: u16,
     fulfillment_type: Option<SpotFulfillmentType>,
@@ -204,7 +205,7 @@ fn fill_spot_order(
 
     let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
-    let mut serum_fulfillment_params = match fulfillment_type {
+    let mut fulfillment_params = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -232,11 +233,11 @@ fn fill_spot_order(
         maker_stats.as_ref(),
         maker_order_id,
         &Clock::get()?,
-        &mut serum_fulfillment_params,
+        &mut fulfillment_params,
     )?;
 
-    match serum_fulfillment_params {
-        Some(serum_fulfillment_params) => {
+    match fulfillment_params {
+        Some(FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params)) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             validate_spot_market_vault_amount(
                 &base_market,
