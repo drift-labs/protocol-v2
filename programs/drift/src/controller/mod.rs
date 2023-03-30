@@ -5,6 +5,7 @@ pub mod liquidation;
 pub mod lp;
 pub mod orders;
 pub mod pda;
+pub mod phoenix;
 pub mod pnl;
 pub mod position;
 pub mod repeg;

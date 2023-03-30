@@ -3,7 +3,6 @@
 #![allow(clippy::comparison_chain)]
 
 use anchor_lang::prelude::*;
-use borsh::BorshSerialize;
 
 use instructions::*;
 #[cfg(test)]
@@ -227,7 +226,12 @@ pub mod drift {
         fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u32>,
     ) -> Result<()> {
-        handle_fill_spot_order(ctx, order_id, fulfillment_type, maker_order_id)
+        handle_fill_spot_order(
+            ctx,
+            order_id,
+            fulfillment_type.unwrap_or_else(|| SpotFulfillmentType::None),
+            maker_order_id,
+        )
     }
 
     pub fn trigger_order(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {

@@ -130,6 +130,7 @@ pub fn handle_revert_fill<'info>(ctx: Context<RevertFill>) -> Result<()> {
 pub enum SpotFulfillmentType {
     SerumV3,
     None,
+    Phoenix, // Note: Adding new enum values to the end of the list is important for backwards compatibility
 }
 
 impl Default for SpotFulfillmentType {
@@ -141,10 +142,10 @@ impl Default for SpotFulfillmentType {
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
+pub fn handle_fill_spot_order<'info>(
+    ctx: Context<FillOrder>,
     order_id: Option<u32>,
-    fulfillment_type: Option<SpotFulfillmentType>,
+    fulfillment_type: SpotFulfillmentType,
     maker_order_id: Option<u32>,
 ) -> Result<()> {
     let (order_id, market_index) = {
@@ -175,11 +176,11 @@ pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
     Ok(())
 }
 
-fn fill_spot_order<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
+fn fill_spot_order(
+    ctx: Context<FillOrder>,
     order_id: u32,
     market_index: u16,
-    fulfillment_type: Option<SpotFulfillmentType>,
+    fulfillment_type: SpotFulfillmentType,
     maker_order_id: Option<u32>,
 ) -> Result<()> {
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -206,7 +207,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
     let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
     let mut fulfillment_params = match fulfillment_type {
-        Some(SpotFulfillmentType::SerumV3) => {
+        SpotFulfillmentType::SerumV3 => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             get_serum_fulfillment_accounts(
@@ -216,7 +217,17 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
                 &quote_market,
             )?
         }
-        _ => None,
+        SpotFulfillmentType::Phoenix => {
+            // TODO:
+            // get_phoenix_fulfillment_accounts(
+            //     remaining_accounts_iter,
+            //     &ctx.accounts.state,
+            //     &base_market,
+            //     &quote_market,
+            // )?
+            unreachable!()
+        }
+        SpotFulfillmentType::None => FulfillmentParams::None,
     };
 
     controller::orders::fill_spot_order(
@@ -237,7 +248,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
     )?;
 
     match fulfillment_params {
-        Some(FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params)) => {
+        FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             validate_spot_market_vault_amount(
                 &base_market,
@@ -249,7 +260,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
                 serum_fulfillment_params.quote_market_vault.amount,
             )?;
         }
-        None => {
+        FulfillmentParams::None => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             let (base_market_vault, quote_market_vault) =

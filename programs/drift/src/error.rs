@@ -485,6 +485,14 @@ pub enum ErrorCode {
     UserNotInactive,
     #[msg("RevertFill")]
     RevertFill,
+    #[msg("FailedToGetMint")]
+    FailedToGetMint,
+    #[msg("FailedPhoenixCPI")]
+    FailedPhoenixCPI,
+    #[msg("FailedToDeserializePhoenixMarketHeader")]
+    FailedToDeserializePhoenixMarket,
+    #[msg("InvalidPricePrecision")]
+    InvalidPricePrecision,
 }
 
 #[macro_export]

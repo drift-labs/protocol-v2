@@ -47,7 +47,17 @@ pub fn invoke_init_open_orders<'a>(
 }
 
 pub enum FulfillmentParams<'a, 'b> {
+    None,
     SerumFulfillmentParams(SerumFulfillmentParams<'a, 'b>),
+}
+
+impl<'a, 'b> FulfillmentParams<'a, 'b> {
+    pub fn is_some(&self) -> bool {
+        match self {
+            FulfillmentParams::None => false,
+            _ => true,
+        }
+    }
 }
 
 pub struct SerumFulfillmentParams<'a, 'b> {

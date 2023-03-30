@@ -1,10 +1,14 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
+use std::mem::size_of;
 use std::num::NonZeroU64;
 use std::ops::DerefMut;
 use std::u64;
 
 use anchor_lang::prelude::*;
+use phoenix::program::{dispatch_market, MarketHeader};
+use phoenix::quantities::{BaseAtoms, BaseAtomsPerBaseLot, BaseLots, QuoteLots, WrapperU64};
+use phoenix::state::OrderPacket;
 use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
 use serum_dex::matching::Side;
 use solana_program::msg;
@@ -81,6 +85,11 @@ use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::validate;
 use crate::validation;
 use crate::validation::order::{validate_order, validate_spot_order};
+
+use super::phoenix::{
+    calculate_phoenix_limit_price, get_best_bid_and_ask_from_phoenix_market, invoke_phoenix_ioc,
+    PhoenixFulfillmentParams,
+};
 
 #[cfg(test)]
 mod tests;
@@ -2887,7 +2896,7 @@ pub fn fill_spot_order(
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u32>,
     clock: &Clock,
-    fulfillment_params: &mut Option<FulfillmentParams>,
+    fulfillment_params: &mut FulfillmentParams,
 ) -> DriftResult<u64> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -3294,7 +3303,7 @@ fn fulfill_spot_order(
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
-    fulfillment_params: &mut Option<FulfillmentParams>,
+    fulfillment_params: &mut FulfillmentParams,
 ) -> DriftResult<(u64, bool)> {
     let base_market_index = user.orders[user_order_index].market_index;
 
@@ -3764,6 +3773,374 @@ pub fn fulfill_spot_order_with_match(
     Ok(base_asset_amount)
 }
 
+pub fn fulfill_spot_order_with_phoenix(
+    base_market: &mut SpotMarket,
+    quote_market: &mut SpotMarket,
+    taker: &mut User,
+    taker_stats: &mut UserStats,
+    taker_order_index: usize,
+    taker_key: &Pubkey,
+    filler: Option<&mut User>,
+    filler_stats: Option<&mut UserStats>,
+    filler_key: &Pubkey,
+    now: i64,
+    slot: u64,
+    oracle_map: &mut OracleMap,
+    _fee_structure: &FeeStructure,
+    phoenix_fulfillment_params: &mut PhoenixFulfillmentParams,
+) -> DriftResult<u64> {
+    // Begin copy-paste
+    let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
+    let taker_price = taker.orders[taker_order_index].get_limit_price(
+        Some(oracle_price),
+        None,
+        slot,
+        base_market.order_tick_size,
+    )?;
+    let taker_token_amount = taker
+        .force_get_spot_position_mut(base_market.market_index)?
+        .get_signed_token_amount(base_market)?;
+    let taker_base_asset_amount = taker.orders[taker_order_index]
+        .get_base_asset_amount_unfilled(Some(taker_token_amount.cast()?))?;
+    let order_direction = taker.orders[taker_order_index].direction;
+    let _taker_order_slot = taker.orders[taker_order_index].slot;
+
+    let (max_base_asset_amount, _max_quote_asset_amount) =
+        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market)?;
+
+    let taker_base_asset_amount =
+        taker_base_asset_amount.min(max_base_asset_amount.unwrap_or(u64::MAX));
+    // End copy-paste
+
+    let market_data = phoenix_fulfillment_params.phoenix_market.data.borrow();
+    let (header_bytes, market_bytes) = market_data.split_at(size_of::<MarketHeader>());
+    let header = bytemuck::try_from_bytes::<MarketHeader>(header_bytes).map_err(|_| {
+        msg!("Failed to deserialize market header");
+        ErrorCode::FailedToDeserializePhoenixMarket
+    })?;
+    if header.quote_params.decimals != 6 {
+        msg!("Quote decimals must be 6");
+        return Err(ErrorCode::InvalidPricePrecision.into());
+    }
+
+    let market = dispatch_market::load_with_dispatch(&header.market_size_params, market_bytes)
+        .map_err(|_| {
+            msg!("Failed to deserialize market");
+            ErrorCode::FailedToDeserializePhoenixMarket
+        })?
+        .inner;
+
+    // Returns the best bid and best ask from the Phoenix market in quote atoms per raw base unit
+    let (best_bid, best_ask) = get_best_bid_and_ask_from_phoenix_market(header, market)?;
+
+    // Begin copy-paste
+    let mut mid_price = 0;
+    if let Some(best_bid) = best_bid {
+        base_market.historical_index_data.last_index_bid_price = best_bid;
+        mid_price += best_bid;
+    }
+
+    if let Some(best_ask) = best_ask {
+        base_market.historical_index_data.last_index_ask_price = best_ask;
+        mid_price = if mid_price == 0 {
+            best_ask
+        } else {
+            mid_price.safe_add(best_ask)?.safe_div(2)?
+        };
+    }
+
+    base_market.historical_index_data.last_index_price_twap = calculate_new_twap(
+        mid_price.cast()?,
+        now,
+        base_market
+            .historical_index_data
+            .last_index_price_twap
+            .cast()?,
+        base_market.historical_index_data.last_index_price_twap_ts,
+        ONE_HOUR as i64,
+    )?
+    .cast()?;
+
+    base_market.historical_index_data.last_index_price_twap_5min = calculate_new_twap(
+        mid_price.cast()?,
+        now,
+        base_market
+            .historical_index_data
+            .last_index_price_twap_5min
+            .cast()?,
+        base_market.historical_index_data.last_index_price_twap_ts,
+        FIVE_MINUTE as i64,
+    )?
+    .cast()?;
+
+    let taker_price = if let Some(price) = taker_price {
+        price
+    } else {
+        match order_direction {
+            PositionDirection::Long => {
+                if let Some(ask) = best_ask {
+                    ask.safe_add(ask / 100)?
+                } else {
+                    msg!("Serum has no ask");
+                    return Ok(0);
+                }
+            }
+            PositionDirection::Short => {
+                if let Some(bid) = best_bid {
+                    bid.safe_sub(bid / 100)?
+                } else {
+                    msg!("Serum has no bid");
+                    return Ok(0);
+                }
+            }
+        }
+    };
+    // End copy-paste
+
+    let side = match order_direction {
+        PositionDirection::Long => phoenix::state::Side::Bid,
+        PositionDirection::Short => phoenix::state::Side::Bid,
+    };
+
+    let price_in_ticks = calculate_phoenix_limit_price(header, market, taker_price);
+    let num_base_lots = BaseAtoms::new(taker_base_asset_amount)
+        .unchecked_div::<BaseAtomsPerBaseLot, BaseLots>(header.get_base_lot_size());
+
+    if num_base_lots == 0 {
+        msg!("No base lots to fill");
+        return Ok(0);
+    }
+
+    let phoenix_order = OrderPacket::ImmediateOrCancel {
+        side,
+        price_in_ticks,
+        num_base_lots,
+        num_quote_lots: QuoteLots::ZERO,
+        min_base_lots_to_fill: BaseLots::ZERO,
+        min_quote_lots_to_fill: QuoteLots::ZERO,
+        self_trade_behavior: phoenix::state::SelfTradeBehavior::Abort,
+        match_limit: Some(25),
+        client_order_id: 0, // Unimportant for IOC orders
+        use_only_deposited_funds: false,
+        // TIF parameters
+        last_valid_slot: None,
+        last_valid_unix_timestamp_in_seconds: None,
+    };
+
+    let base_before = phoenix_fulfillment_params.phoenix_base_vault.amount;
+    let quote_before = phoenix_fulfillment_params.phoenix_quote_vault.amount;
+
+    invoke_phoenix_ioc(phoenix_fulfillment_params, phoenix_order)?;
+
+    phoenix_fulfillment_params
+        .phoenix_base_vault
+        .reload()
+        .map_err(|_e| {
+            msg!("Failed to reload base_market_vault");
+            ErrorCode::FailedPhoenixCPI
+        })?;
+    phoenix_fulfillment_params
+        .phoenix_quote_vault
+        .reload()
+        .map_err(|_e| {
+            msg!("Failed to reload quote_market_vault");
+            ErrorCode::FailedPhoenixCPI
+        })?;
+
+    let base_after = phoenix_fulfillment_params.phoenix_base_vault.amount;
+    let quote_after = phoenix_fulfillment_params.phoenix_quote_vault.amount;
+
+    // Start copy-paste
+    let (base_update_direction, base_asset_amount_filled) = if base_after > base_before {
+        (SpotBalanceType::Deposit, base_after.safe_sub(base_before)?)
+    } else {
+        (SpotBalanceType::Borrow, base_before.safe_sub(base_after)?)
+    };
+
+    if base_asset_amount_filled == 0 {
+        msg!("No base filled on Phoenix");
+        return Ok(0);
+    }
+
+    let (quote_update_direction, quote_asset_amount_filled) =
+        if base_update_direction == SpotBalanceType::Borrow {
+            let quote_asset_amount_delta = quote_after.safe_sub(quote_before)?;
+            (SpotBalanceType::Deposit, quote_asset_amount_delta)
+        } else {
+            let quote_asset_amount_delta = quote_before.safe_sub(quote_after)?;
+            (SpotBalanceType::Borrow, quote_asset_amount_delta)
+        };
+
+    validate_fill_price(
+        quote_asset_amount_filled,
+        base_asset_amount_filled,
+        base_market.get_precision(),
+        order_direction,
+        taker_price,
+        true,
+    )?;
+
+    let fee_pool_amount = get_token_amount(
+        base_market.spot_fee_pool.scaled_balance,
+        quote_market,
+        &SpotBalanceType::Deposit,
+    )?;
+
+    if fee_pool_amount > FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
+        transfer_spot_balance_to_revenue_pool(
+            fee_pool_amount - FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+            quote_market,
+            &mut base_market.spot_fee_pool,
+        )?;
+    }
+    // End copy-paste
+
+    // let SerumFillFees {
+    //     user_fee: taker_fee,
+    //     fee_to_market,
+    //     fee_pool_delta,
+    //     filler_reward,
+    // } = fees::calculate_fee_for_fulfillment_with_serum(
+    //     taker_stats,
+    //     quote_asset_amount_filled,
+    //     fee_structure,
+    //     taker_order_slot,
+    //     slot,
+    //     filler.is_some(),
+    //     serum_fee,
+    //     serum_referrer_rebate,
+    //     fee_pool_amount.cast()?,
+    // )?;
+
+    // Placeholder until I understand this logic
+    let taker_fee = 0;
+    let fee_to_market = 0_i64;
+    let fee_pool_delta = 0_i64;
+    let filler_reward = 0;
+
+    let quote_spot_position_delta = match quote_update_direction {
+        SpotBalanceType::Deposit => quote_asset_amount_filled.safe_sub(taker_fee)?,
+        SpotBalanceType::Borrow => quote_asset_amount_filled.safe_add(taker_fee)?,
+    };
+
+    validate!(
+        base_update_direction
+            == taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
+        ErrorCode::FailedToFillOnSerum,
+        "Fill on serum lead to unexpected to update direction"
+    )?;
+
+    update_spot_balances_and_cumulative_deposits(
+        base_asset_amount_filled.cast()?,
+        &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
+        base_market,
+        taker.force_get_spot_position_mut(base_market.market_index)?,
+        false,
+        None,
+    )?;
+
+    validate!(
+        quote_update_direction
+            == taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
+        ErrorCode::FailedToFillOnSerum,
+        "Fill on serum lead to unexpected to update direction"
+    )?;
+
+    update_spot_balances_and_cumulative_deposits(
+        quote_spot_position_delta.cast()?,
+        &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
+        quote_market,
+        taker.get_quote_spot_position_mut(),
+        false,
+        Some(quote_asset_amount_filled.cast()?),
+    )?;
+
+    taker.update_cumulative_spot_fees(-taker_fee.cast()?)?;
+
+    taker_stats.update_taker_volume_30d(quote_asset_amount_filled.cast()?, now)?;
+
+    taker_stats.increment_total_fees(taker_fee.cast()?)?;
+
+    update_order_after_fill(
+        &mut taker.orders[taker_order_index],
+        base_asset_amount_filled,
+        quote_asset_amount_filled,
+    )?;
+
+    let taker_order_direction = taker.orders[taker_order_index].direction;
+    decrease_spot_open_bids_and_asks(
+        taker.force_get_spot_position_mut(base_market.market_index)?,
+        &taker_order_direction,
+        base_asset_amount_filled,
+    )?;
+
+    if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
+        if filler_reward > 0 {
+            update_spot_balances(
+                filler_reward.cast()?,
+                &SpotBalanceType::Deposit,
+                quote_market,
+                filler.get_quote_spot_position_mut(),
+                false,
+            )?;
+
+            filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
+        }
+
+        filler_stats.update_filler_volume(quote_asset_amount_filled.cast()?, now)?;
+    }
+
+    if fee_pool_delta != 0 {
+        update_spot_balances(
+            fee_pool_delta.unsigned_abs().cast()?,
+            if fee_pool_delta > 0 {
+                &SpotBalanceType::Deposit
+            } else {
+                &SpotBalanceType::Borrow
+            },
+            quote_market,
+            &mut base_market.spot_fee_pool,
+            false,
+        )?;
+    }
+
+    base_market.total_spot_fee = base_market.total_spot_fee.safe_add(fee_to_market.cast()?)?;
+
+    let fill_record_id = get_then_update_id!(base_market, next_fill_record_id);
+    let order_action_record = get_order_action_record(
+        now,
+        OrderAction::Fill,
+        OrderActionExplanation::OrderFillWithSerum,
+        taker.orders[taker_order_index].market_index,
+        Some(*filler_key),
+        Some(fill_record_id),
+        Some(filler_reward),
+        Some(base_asset_amount_filled),
+        Some(quote_asset_amount_filled.cast()?),
+        Some(taker_fee),
+        Some(0),
+        None,
+        Some(0),
+        // Some(serum_fee),
+        None, // Placeholder
+        Some(*taker_key),
+        Some(taker.orders[taker_order_index]),
+        None,
+        None,
+        oracle_price,
+    )?;
+    emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
+
+    if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        taker.orders[taker_order_index] = Order::default();
+        taker
+            .force_get_spot_position_mut(base_market.market_index)?
+            .open_orders -= 1;
+    }
+
+    Ok(base_asset_amount_filled)
+}
+
 pub fn fulfill_spot_order_with_serum(
     base_market: &mut SpotMarket,
     quote_market: &mut SpotMarket,
@@ -3778,13 +4155,13 @@ pub fn fulfill_spot_order_with_serum(
     slot: u64,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-    fulfillment_params: &mut Option<FulfillmentParams>,
+    fulfillment_params: &mut FulfillmentParams,
 ) -> DriftResult<u64> {
     let serum_new_order_accounts = match fulfillment_params {
-        Some(FulfillmentParams::SerumFulfillmentParams(serum_new_order_accounts)) => {
+        FulfillmentParams::SerumFulfillmentParams(serum_new_order_accounts) => {
             serum_new_order_accounts
         }
-        None => return Ok(0),
+        _ => return Ok(0),
     };
 
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
