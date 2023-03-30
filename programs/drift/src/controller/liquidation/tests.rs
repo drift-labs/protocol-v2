@@ -8,7 +8,6 @@ pub mod liquidate_perp {
 
     use crate::controller::liquidation::liquidate_perp;
     use crate::controller::position::PositionDirection;
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
@@ -34,6 +33,7 @@ pub mod liquidate_perp {
     };
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
+    use crate::{create_account_info, PRICE_PRECISION_I64};
 
     #[test]
     pub fn successful_liquidation_long_perp() {
@@ -88,6 +88,11 @@ pub mod liquidate_perp {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -233,6 +238,11 @@ pub mod liquidate_perp {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -378,6 +388,7 @@ pub mod liquidate_perp {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -511,6 +522,11 @@ pub mod liquidate_perp {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -656,6 +672,7 @@ pub mod liquidate_perp {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -829,6 +846,11 @@ pub mod liquidate_perp {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1019,6 +1041,11 @@ pub mod liquidate_perp {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1146,6 +1173,11 @@ pub mod liquidate_perp {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1273,6 +1305,11 @@ pub mod liquidate_perp {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1415,6 +1452,7 @@ pub mod liquidate_perp {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1687,6 +1725,7 @@ pub mod liquidate_perp {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1764,7 +1803,6 @@ pub mod liquidate_spot {
     use solana_program::pubkey::Pubkey;
 
     use crate::controller::liquidation::liquidate_spot;
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
@@ -1786,6 +1824,7 @@ pub mod liquidate_spot {
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::*;
     use crate::test_utils::{get_pyth_price, get_spot_positions};
+    use crate::{create_account_info, QUOTE_PRECISION_I64};
 
     #[test]
     pub fn successful_liquidation_liability_transfer_implied_by_asset_amount() {
@@ -1815,6 +1854,11 @@ pub mod liquidate_spot {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -1942,6 +1986,11 @@ pub mod liquidate_spot {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -2098,6 +2147,11 @@ pub mod liquidate_spot {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -2301,6 +2355,11 @@ pub mod liquidate_spot {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -2416,6 +2475,11 @@ pub mod liquidate_spot {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -2531,6 +2595,11 @@ pub mod liquidate_spot {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -2653,6 +2722,11 @@ pub mod liquidate_spot {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -2924,6 +2998,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -3073,6 +3152,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -3262,6 +3346,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -3411,6 +3500,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -3552,6 +3646,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -3693,6 +3792,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -3844,6 +3948,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -4108,6 +4217,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -4258,6 +4372,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -4410,6 +4529,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -4559,6 +4683,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -4700,6 +4829,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -4842,6 +4976,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -4992,6 +5131,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -5486,6 +5630,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -5644,7 +5793,6 @@ pub mod resolve_perp_bankruptcy {
     use crate::controller::funding::settle_funding_payment;
     use crate::controller::liquidation::resolve_perp_bankruptcy;
     use crate::controller::position::PositionDirection;
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
@@ -5653,7 +5801,7 @@ pub mod resolve_perp_bankruptcy {
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::oracle::OracleSource;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -5664,6 +5812,7 @@ pub mod resolve_perp_bankruptcy {
     };
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
+    use crate::{create_account_info, PRICE_PRECISION_I64};
 
     #[test]
     pub fn successful_resolve_perp_bankruptcy() {
@@ -5720,6 +5869,11 @@ pub mod resolve_perp_bankruptcy {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -6101,7 +6255,7 @@ pub mod resolve_spot_bankruptcy {
         SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::spot_balance::get_token_amount;
-    use crate::state::oracle::OracleSource;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -6170,6 +6324,7 @@ pub mod resolve_spot_bankruptcy {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 1000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);

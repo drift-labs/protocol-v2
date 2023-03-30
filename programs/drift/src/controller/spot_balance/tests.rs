@@ -10,10 +10,10 @@ use crate::create_account_info;
 use crate::create_anchor_account_info;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
-    PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
-    SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
-    SPOT_RATE_PRECISION_U32, SPOT_UTILIZATION_PRECISION, SPOT_UTILIZATION_PRECISION_U32,
-    SPOT_WEIGHT_PRECISION,
+    PEG_PRECISION, PRICE_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+    QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
+    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_RATE_PRECISION_U32, SPOT_UTILIZATION_PRECISION,
+    SPOT_UTILIZATION_PRECISION_U32, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -21,6 +21,7 @@ use crate::math::margin::{
 use crate::math::spot_withdraw::{
     calculate_max_borrow_token_amount, calculate_min_deposit_token, check_withdraw_limits,
 };
+use crate::math::stats::calculate_weighted_average;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -1184,6 +1185,7 @@ fn attempt_borrow_with_massive_upnl() {
         deposit_balance: 100_000_000 * SPOT_BALANCE_PRECISION, //$100M usdc
         borrow_balance: 0,
         deposit_token_twap: QUOTE_PRECISION_U64 / 2,
+        historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
         status: MarketStatus::Active,
 
         ..SpotMarket::default()
@@ -1282,4 +1284,87 @@ fn attempt_borrow_with_massive_upnl() {
 
     assert_eq!(margin_requirement, 10_000_000_000);
     assert_eq!(total_collateral, 8_100_000_000); //100 * 100 *.8 + 100 (cap of upnl for initial margin)
+}
+
+#[test]
+fn check_usdc_spot_market_twap() {
+    let mut now = 30_i64;
+    let _slot = 0_u64;
+
+    let _oracle_price = get_pyth_price(1, 6);
+    // let oracle_price_key =
+    //     Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+
+    // usdc market
+    let mut spot_market = SpotMarket {
+        market_index: 0,
+        oracle_source: OracleSource::QuoteAsset,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        decimals: 6,
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100_000_000 * SPOT_BALANCE_PRECISION, //$100M usdc
+        borrow_balance: 0,
+        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
+        historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+        status: MarketStatus::Active,
+        ..SpotMarket::default()
+    };
+    // create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let oracle_price_data = OraclePriceData {
+        price: PRICE_PRECISION_I64,
+        confidence: 1,
+        delay: 0,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    update_spot_market_twap_stats(&mut spot_market, Some(&oracle_price_data), now).unwrap();
+    assert_eq!(spot_market.historical_oracle_data.last_oracle_delay, 0);
+    assert_eq!(
+        spot_market.historical_oracle_data.last_oracle_price_twap,
+        1000001
+    );
+    assert_eq!(
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        1000001
+    );
+    let cur_time = 1679940002;
+    now += cur_time;
+    update_spot_market_twap_stats(&mut spot_market, Some(&oracle_price_data), now).unwrap();
+    assert_eq!(
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        1000000
+    );
+
+    while now < cur_time + 1000 {
+        now += 1;
+        update_spot_market_twap_stats(&mut spot_market, Some(&oracle_price_data), now).unwrap();
+        update_spot_market_twap_stats(&mut spot_market, Some(&oracle_price_data), now).unwrap();
+    }
+
+    // twap gets distorted with multiple stat update calls in same clock.unix_timestamp
+    assert_eq!(
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        1000001
+    );
+    assert_eq!(
+        spot_market.historical_oracle_data.last_oracle_price_twap,
+        1000001
+    );
+
+    let wa_res =
+        calculate_weighted_average(PRICE_PRECISION_I64, PRICE_PRECISION_I64, 0, ONE_HOUR).unwrap();
+
+    assert_eq!(wa_res, PRICE_PRECISION_I64);
+    let wa_res2 =
+        calculate_weighted_average(PRICE_PRECISION_I64, PRICE_PRECISION_I64 + 1, 0, ONE_HOUR)
+            .unwrap();
+    assert_eq!(wa_res2, PRICE_PRECISION_I64 + 1);
 }

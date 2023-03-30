@@ -10,12 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: include usdc oracle ([#397](https://github.com/drift-labs/protocol-v2/pull/397))
+
+### Fixes
+
+### Breaking
+
+## [2.22.0] - 2023-03-23
+
+### Features
+
 - sdk: add isUserBankrupt ([#399](https://github.com/drift-labs/protocol-v2/pull/399))
 
 ### Fixes
 
+- sdk: fix claimable pnl ([#384](https://github.com/drift-labs/protocol-v2/pull/384))
 - program: borrow liquidity check accounts for if user has borrow or deposit ([#400](https://github.com/drift-labs/protocol-v2/pull/400))
 - program: slightly relax withdraw limits ([#400](https://github.com/drift-labs/protocol-v2/pull/400))
+- sdk: filter undefined accounts ([#406](https://github.com/drift-labs/protocol-v2/pull/406))
 
 ### Breaking
 

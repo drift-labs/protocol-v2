@@ -358,7 +358,7 @@ describe('liquidity providing', () => {
 
 		const newInitMarginReq = driftClientUser.getInitialMarginRequirement();
 		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
-		assert(newInitMarginReq.eq(new BN(8283999)));
+		assert(newInitMarginReq.eq(new BN(8284008)));
 
 		// ensure margin calcs didnt modify user position
 		const _position = driftClientUser.getPerpPosition(0);

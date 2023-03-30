@@ -707,6 +707,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -924,6 +925,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1144,6 +1146,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1348,6 +1351,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 300000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1771,6 +1775,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -2150,6 +2155,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 40000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -2348,8 +2354,11 @@ pub mod delisting_test {
                 &shorter.perp_positions[0],
                 &market,
                 oracle_price_data,
+                QUOTE_PRECISION_I64,
+                QUOTE_PRECISION_I64,
                 MarginRequirementType::Initial,
                 0,
+                false,
                 false,
             )
             .unwrap();
@@ -2426,8 +2435,11 @@ pub mod delisting_test {
                         &shorter.perp_positions[0],
                         &market,
                         oracle_price_data,
+                        QUOTE_PRECISION_I64,
+                        QUOTE_PRECISION_I64,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();
@@ -2511,8 +2523,11 @@ pub mod delisting_test {
                         &shorter.perp_positions[0],
                         &market,
                         oracle_price_data,
+                        QUOTE_PRECISION_I64,
+                        QUOTE_PRECISION_I64,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();
@@ -2600,8 +2615,11 @@ pub mod delisting_test {
                         &shorter.perp_positions[0],
                         &market,
                         oracle_price_data,
+                        QUOTE_PRECISION_I64,
+                        QUOTE_PRECISION_I64,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();

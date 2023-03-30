@@ -22,6 +22,10 @@ export function getOracleClient(
 		return new PythClient(connection, new BN(1000000));
 	}
 
+	if (isVariant(oracleSource, 'pythStableCoin')) {
+		return new PythClient(connection, undefined, true);
+	}
+
 	// if (isVariant(oracleSource, 'switchboard')) {
 	// 	return new SwitchboardClient(connection);
 	// }

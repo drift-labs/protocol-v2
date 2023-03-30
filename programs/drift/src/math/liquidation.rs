@@ -30,6 +30,7 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     liquidation_fee: u32,
     if_liquidation_fee: u32,
     oracle_price: i64,
+    quote_oracle_price: i64,
 ) -> DriftResult<u64> {
     let margin_ratio = margin_ratio.safe_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)?;
 
@@ -42,6 +43,8 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
         .safe_div(
             oracle_price
                 .cast::<u128>()?
+                .safe_mul(quote_oracle_price.cast()?)?
+                .safe_div(PRICE_PRECISION)?
                 .safe_mul(margin_ratio.safe_sub(liquidation_fee)?.cast()?)?
                 .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
                 .safe_sub(
