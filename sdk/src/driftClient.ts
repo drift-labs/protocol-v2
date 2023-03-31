@@ -161,10 +161,10 @@ export class DriftClient {
 				? {
 						type: 'polling',
 						accountLoader: config.accountSubscription.accountLoader,
-					}
+				  }
 				: {
 						type: 'websocket',
-					};
+				  };
 		this.createUsers(subAccountIds, this.userAccountSubscriptionConfig);
 		if (config.userStats) {
 			this.userStats = new UserStats({
@@ -1332,7 +1332,7 @@ export class DriftClient {
 					this.program.programId,
 					this.authority,
 					subAccountId
-				)
+			  )
 			: await this.getUserAccountPublicKey();
 
 		let remainingAccounts = [];
@@ -1523,7 +1523,7 @@ export class DriftClient {
 						marketIndex,
 						fromSubAccountId,
 						subAccountId
-					)
+				  )
 				: await this.getDepositInstruction(
 						amount,
 						marketIndex,
@@ -1531,7 +1531,7 @@ export class DriftClient {
 						subAccountId,
 						false,
 						false
-					);
+				  );
 
 		if (subAccountId === 0) {
 			if (
@@ -2490,7 +2490,7 @@ export class DriftClient {
 			? order.marketIndex
 			: userAccount.orders.find(
 					(order) => order.orderId === userAccount.nextOrderId - 1
-				).marketIndex;
+			  ).marketIndex;
 
 		makerInfo = Array.isArray(makerInfo)
 			? makerInfo
@@ -2658,7 +2658,7 @@ export class DriftClient {
 			? order.marketIndex
 			: userAccount.orders.find(
 					(order) => order.orderId === userAccount.nextOrderId - 1
-				).marketIndex;
+			  ).marketIndex;
 
 		const userAccounts = [userAccount];
 		if (makerInfo !== undefined) {
@@ -4230,7 +4230,11 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			wrapInTx(
-				await this.getAddInsuranceFundStakeIx(marketIndex, amount, collateralAccountPublicKey),
+				await this.getAddInsuranceFundStakeIx(
+					marketIndex,
+					amount,
+					collateralAccountPublicKey
+				)
 			),
 			[],
 			this.opts
@@ -4285,13 +4289,17 @@ export class DriftClient {
 	public async initializeInsuranceFundStakeAndAddFunds(
 		marketIndex: number,
 		amount: BN,
-		collateralAccountPublicKey: PublicKey,
+		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
 
 		const instructions = [
 			await this.getInitializeInsuranceFundStakeIx(marketIndex),
-			await this.getAddInsuranceFundStakeIx(marketIndex, amount, collateralAccountPublicKey)
+			await this.getAddInsuranceFundStakeIx(
+				marketIndex,
+				amount,
+				collateralAccountPublicKey
+			),
 		];
 
 		tx.add(...instructions);
