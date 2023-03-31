@@ -502,6 +502,13 @@ pub mod drift {
         )
     }
 
+    pub fn delete_initialized_perp_market(
+        ctx: Context<DeleteInitializedPerpMarket>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_delete_initialized_perp_market(ctx, market_index)
+    }
+
     pub fn move_amm_price(
         ctx: Context<AdminUpdatePerpMarket>,
         base_asset_reserve: u128,

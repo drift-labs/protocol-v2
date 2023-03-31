@@ -51,7 +51,7 @@ use crate::validation::margin::{validate_margin, validate_margin_weights};
 use crate::validation::perp_market::validate_perp_market;
 use crate::validation::spot_market::validate_borrow_rate;
 use crate::{controller, QUOTE_PRECISION_I64};
-use crate::{math, safe_increment};
+use crate::{math, safe_decrement, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -683,6 +683,36 @@ pub fn handle_initialize_perp_market(
     };
 
     safe_increment!(state.number_of_markets, 1);
+
+    Ok(())
+}
+
+pub fn handle_delete_initialized_perp_market(
+    ctx: Context<DeleteInitializedPerpMarket>,
+    market_index: u16,
+) -> Result<()> {
+    let perp_market = &mut ctx.accounts.perp_market.load_init()?;
+    let state = &mut ctx.accounts.state;
+
+    // validate
+    validate!(
+        state.number_of_markets == market_index,
+        ErrorCode::InvalidInitialPeg
+    )?;
+    validate!(
+        perp_market.status == MarketStatus::Initialized,
+        ErrorCode::InvalidInitialPeg
+    )?;
+    validate!(
+        perp_market.number_of_users == 0,
+        ErrorCode::InvalidInitialPeg
+    )?;
+    validate!(
+        perp_market.market_index == market_index,
+        ErrorCode::InvalidInitialPeg
+    )?;
+
+    safe_decrement!(state.number_of_markets, 1);
 
     Ok(())
 }
@@ -2234,6 +2264,29 @@ pub struct UpdateSerumVault<'info> {
 
 #[derive(Accounts)]
 pub struct InitializePerpMarket<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        init,
+        seeds = [b"perp_market", state.number_of_markets.to_le_bytes().as_ref()],
+        space = PerpMarket::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    /// CHECK: checked in `initialize_perp_market`
+    pub oracle: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteInitializedPerpMarket<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
     #[account(
