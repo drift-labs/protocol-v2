@@ -1,4 +1,4 @@
-use crate::controller::serum::SerumFulfillmentParams;
+use crate::controller::serum::{FulfillmentParams, SerumFulfillmentParams};
 use crate::error::{DriftResult, ErrorCode};
 use crate::load;
 
@@ -157,7 +157,7 @@ pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
     state: &State,
     base_market: &SpotMarket,
     quote_market: &SpotMarket,
-) -> DriftResult<Option<SerumFulfillmentParams<'a, 'c>>> {
+) -> DriftResult<Option<FulfillmentParams<'a, 'c>>> {
     let account_info_vec = account_info_iter.collect::<Vec<_>>();
     let account_infos = array_ref![account_info_vec, 0, 16];
     let [serum_fulfillment_config, serum_program_id, serum_market, serum_request_queue, serum_event_queue, serum_bids, serum_asks, serum_base_vault, serum_quote_vault, serum_open_orders, serum_signer, drift_signer, token_program, base_market_vault, quote_market_vault, srm_vault] =
@@ -253,7 +253,9 @@ pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
         signer_nonce: state.signer_nonce,
     };
 
-    Ok(Some(serum_fulfillment_accounts))
+    Ok(Some(FulfillmentParams::SerumFulfillmentParams(
+        serum_fulfillment_accounts,
+    )))
 }
 
 #[allow(clippy::type_complexity)]
