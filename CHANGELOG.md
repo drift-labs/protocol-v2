@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.23.0] - 2023-04-03
+
+### Features
+
 - program: include usdc oracle ([#397](https://github.com/drift-labs/protocol-v2/pull/397))
 - ts-sdk: add addAllUsers to DriftClient
 - program: program: when checking if user is idle, let balanceType be borrow if scaled balance is 0 ([#397](https://github.com/drift-labs/protocol-v2/pull/397))
