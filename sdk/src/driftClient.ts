@@ -499,6 +499,13 @@ export class DriftClient {
 		this.users.set(subAccountId, user);
 	}
 
+	public async addAllUsers(): Promise<void> {
+		const userAccounts = await this.getUserAccountsForAuthority(this.authority);
+		for (const userAccount of userAccounts) {
+			await this.addUser(userAccount.subAccountId);
+		}
+	}
+
 	public async initializeUserAccount(
 		subAccountId = 0,
 		name = DEFAULT_USER_NAME,
