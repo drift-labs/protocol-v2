@@ -8871,6 +8871,11 @@
       "code": 6239,
       "name": "RevertFill",
       "msg": "RevertFill"
+    },
+    {
+      "code": 6240,
+      "name": "InvalidMarketAccountforDeletion",
+      "msg": "Invalid MarketAccount for Deletion"
     }
   ]
 }
