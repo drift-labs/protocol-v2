@@ -694,9 +694,10 @@ pub fn handle_delete_initialized_perp_market(
     let perp_market = &mut ctx.accounts.perp_market.load_init()?;
     let state = &mut ctx.accounts.state;
 
-    // validate
+    // to preserve all protocol invariants, can only remove the last market if it hasn't been "activated"
+
     validate!(
-        state.number_of_markets == market_index,
+        state.number_of_markets - 1 == market_index,
         ErrorCode::InvalidMarketAccountforDeletion,
         "state.number_of_markets={} != market_index={}",
         state.number_of_markets,
