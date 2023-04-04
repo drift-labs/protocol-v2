@@ -1,10 +1,10 @@
-name: main
+name: Main CI
 
 on:
   push:
-    branches: master
+    branches: ['master']
   pull_request:
-    branches: master
+    branches: ['master']
 
 defaults:
   run:
@@ -12,103 +12,78 @@ defaults:
     working-directory: .
 
 env:
-  CARGO_TERM_COLOR: always 
-  RUST_TOOLCHAIN: stable
-  SOLANA_VERSION: "1.13.2"
+  CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: '1.65.0'
+  SOLANA_VERSION: '1.13.2'
 
 jobs:
-  fmt-clippy:
-    name: fmt & clippy
+  format:
+    name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust nightly
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          profile: minimal
-          override: true
-          components: rustfmt, clippy
-      - name: Cache build files
-        uses: Swatinem/rust-cache@v1
-      - name: Cargo fmt
-        run: cargo fmt -- --check
-      - name: Cargo clippy
-        run: cargo clippy --all-targets
-  unit:
-    name: Unit tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          profile: minimal
-          override: true
-      - name: Cache build artefacts
-        uses: Swatinem/rust-cache@v1
-      - name: Run package checks
-        run: cargo check      # run package checks
-      - name: Run unit tests
-        run: cargo test --lib # run unit tests
-  cargo-audit:
-    name: Cargo audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Cache cargo-audit version
-        uses: Swatinem/rust-cache@v1
-      - name: Download cargo-audit
-        uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-audit
-          version: latest
-      - name: Run cargo-audit # Using args from .cargo/audit.toml
-        run: cargo audit
-  yarn-prettier:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14.x'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Install yarn
-        run: yarn
-      - name: Run prettier
-        run: yarn prettify
-  yarn-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14.x'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Install yarn
-        run: yarn
-      - name: Run lint
-        run: yarn lint
-  anchor-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          profile: minimal
-          override: true
+      - name: Install Rust
+        run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }} --component rustfmt
+
+      - name: Run Format
+        run: cargo fmt -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }} --component clippy
+
+      - name: Cache build files
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run Clippy
+        run: cargo clippy -- -D warnings --allow=clippy::bool-to-int-with-if --allow=clippy::result-large-err
+
+  unit:
+    name: Unit & Coverage tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Cache build artefacts
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-directories: .cargo/bin/cargo-tarpaulin
+        
+      - name: Install Rust
+        run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }}
+        
+      - name: install tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Run unit tests
+        run: cargo tarpaulin -p drift --run-types Lib --color always --timeout 120 --out Xml
+  
+  anchor-tests:
+    name: Anchor tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Cache build artefacts
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: "true"
-
-      - uses: ./.github/actions/setup-solana/
+      
+      - name: Setup Solana
+        uses: ./.github/actions/setup-solana/
 
       - name: install anchor cli
         run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.25.0 anchor-cli --locked
@@ -116,7 +91,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: '14.x'
+          node-version: '16.x'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Setup yarn
@@ -138,6 +113,132 @@ jobs:
 
       - name: run anchor tests
         run: bash test-scripts/run-anchor-tests.sh
+  
+  yarn-prettier:
+    name: Run prettier
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install yarn
+        run: yarn
+
+      - name: Run prettier
+        run: yarn prettify
+  
+  yarn-lint:
+    name: Run eslint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install yarn
+        run: yarn
+
+      - name: Run lint
+        run: yarn lint
+  
+  sca:
+    name: Vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Report all vulnerabilities in security tab
+      - name: Report all vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          hide-progress: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          
+      # Fail the job on critical vulnerabiliies with fix available
+      - name: Fail critical vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          hide-progress: true
+          format: 'table'
+          severity: 'CRITICAL'
+          exit-code: '1'
+
+      - name: Upload scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  sast:
+    name: Static security tests
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Run CodeQL
+        uses: github/codeql-action/analyze@v2
+
+  rust-pass:
+      name: Rust tests pass
+      needs: ['format', 'clippy', 'unit', 'anchor-tests']
+      runs-on: ubuntu-latest
+      steps:
+        - run: echo ok
+
+  yarn-pass:
+      name: Yarn tests pass
+      needs: ['yarn-prettier', 'yarn-lint']
+      runs-on: ubuntu-latest
+      steps:
+        - run: echo ok
+
+  security-pass:
+      name: Security tests pass
+      needs: ['sca', 'sast']
+      runs-on: ubuntu-latest
+      steps:
+        - run: echo ok
+
+  all-pass:
+      name: All tests pass 🚀
+      needs: ['rust-pass', 'yarn-pass', 'security-pass']
+      runs-on: ubuntu-latest
+      steps:
+        - run: echo ok
+
 #  check-for-sdk-changes:
 #    runs-on: ubuntu-latest
 #    # Set job outputs to values from filter step
