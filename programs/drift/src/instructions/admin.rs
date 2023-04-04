@@ -2304,7 +2304,7 @@ pub struct DeleteInitializedPerpMarket<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-    #[account(mut)]
+    #[account(mut, close = admin)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `initialize_perp_market`
     pub oracle: AccountInfo<'info>,
