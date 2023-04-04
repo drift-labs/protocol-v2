@@ -19,7 +19,6 @@ import {
 	PRICE_PRECISION,
 	FUNDING_RATE_BUFFER_PRECISION,
 	PEG_PRECISION,
-	TestClient,
 	User,
 	PositionDirection,
 	QUOTE_PRECISION,
