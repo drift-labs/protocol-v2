@@ -554,7 +554,7 @@ pub fn handle_initialize_perp_market(
     let state = &mut ctx.accounts.state;
     validate!(
         market_index == state.number_of_markets,
-        ErrorCode::InvalidMarketAccount,
+        ErrorCode::MarketIndexAlreadyInitialized,
         "market_index={} != state.number_of_markets={}",
         market_index,
         state.number_of_markets
@@ -697,19 +697,28 @@ pub fn handle_delete_initialized_perp_market(
     // validate
     validate!(
         state.number_of_markets == market_index,
-        ErrorCode::InvalidInitialPeg
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "state.number_of_markets={} != market_index={}",
+        state.number_of_markets,
+        market_index
     )?;
     validate!(
         perp_market.status == MarketStatus::Initialized,
-        ErrorCode::InvalidInitialPeg
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "perp_market.status != Initialized",
     )?;
     validate!(
         perp_market.number_of_users == 0,
-        ErrorCode::InvalidInitialPeg
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "perp_market.number_of_users={} != 0",
+        perp_market.number_of_users,
     )?;
     validate!(
         perp_market.market_index == market_index,
-        ErrorCode::InvalidInitialPeg
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "market_index={} != perp_market.market_index={}",
+        market_index,
+        perp_market.market_index
     )?;
 
     safe_decrement!(state.number_of_markets, 1);
