@@ -4,6 +4,12 @@ import { TxSigAndSlot } from './tx/types';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
 import { DriftClientConfig } from './driftClientConfig';
 
+/**
+ * # TestClient
+ * A test client for Drift protocol.
+ * 
+ * This is used to mock the behavior of a [DriftClient](./driftClient.ts) in tests.
+ */
 export class TestClient extends AdminClient {
 	public constructor(config: DriftClientConfig) {
 		if (config.accountSubscription.type !== 'polling') {
