@@ -243,6 +243,28 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async updatePerpMarketCumulativeVolume(
+		perpMarketIndex: number,
+		volume: BN
+	): Promise<TransactionSignature> {
+		const tx = await this.program.transaction.updatePerpMarketCumulativeVolume(
+			volume,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async moveAmmPrice(
 		perpMarketIndex: number,
 		baseAssetReserve: BN,

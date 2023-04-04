@@ -1401,6 +1401,7 @@ fn fulfill_perp_order(
         market
             .amm
             .update_volume_24h(fill_quote_asset_amount, user_order_direction, now)?;
+        market.amm.update_cumulative_volume(fill_quote_asset_amount);
     }
 
     let perp_market = perp_market_map.get_ref(&market_index)?;

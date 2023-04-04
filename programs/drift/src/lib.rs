@@ -500,6 +500,13 @@ pub mod drift {
         )
     }
 
+    pub fn move_perp_market_cumulative_volume(
+        ctx: Context<AdminUpdatePerpMarket>,
+        volume: u64,
+    ) -> Result<()> {
+        handle_update_perp_market_cumulative_volume(ctx, volume)
+    }
+
     pub fn move_amm_price(
         ctx: Context<AdminUpdatePerpMarket>,
         base_asset_reserve: u128,
