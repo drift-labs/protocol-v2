@@ -773,7 +773,7 @@ export class DriftClient {
 		]);
 
 		return programAccounts.map(
-			(programAccount) => (programAccount as ProgramAccount<UserAccount>)
+			(programAccount) => programAccount as ProgramAccount<UserAccount>
 		);
 	}
 
