@@ -2294,13 +2294,7 @@ pub struct DeleteInitializedPerpMarket<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-    #[account(
-        init,
-        seeds = [b"perp_market", state.number_of_markets.to_le_bytes().as_ref()],
-        space = PerpMarket::SIZE,
-        bump,
-        payer = admin
-    )]
+    #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `initialize_perp_market`
     pub oracle: AccountInfo<'info>,
