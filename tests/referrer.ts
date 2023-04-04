@@ -114,7 +114,7 @@ describe('referrer', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await referrerdriftClient.initializePerpMarket(
+		await referrerDriftClient.initializePerpMarket(
 			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
