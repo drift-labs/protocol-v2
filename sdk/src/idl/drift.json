@@ -1,5 +1,5 @@
 {
-  "version": "2.23.0-beta.0",
+  "version": "2.23.0",
   "name": "drift",
   "instructions": [
     {
@@ -6035,6 +6035,22 @@
           },
           {
             "name": "Short"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FulfillmentParams",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SerumFulfillmentParams",
+            "fields": [
+              {
+                "defined": "SerumFulfillmentParams<'a,'b>"
+              }
+            ]
           }
         ]
       }

@@ -2237,7 +2237,8 @@ export class User {
 		}
 
 		const userLastActiveSlot = userAccount.lastActiveSlot;
-		if (userLastActiveSlot.lt(slotsBeforeIdle)) {
+		const slotsSinceLastActive = slot.sub(userLastActiveSlot);
+		if (slotsSinceLastActive.lt(slotsBeforeIdle)) {
 			return false;
 		}
 
@@ -2252,7 +2253,10 @@ export class User {
 		}
 
 		for (const spotPosition of userAccount.spotPositions) {
-			if (isVariant(spotPosition.balanceType, 'borrow')) {
+			if (
+				isVariant(spotPosition.balanceType, 'borrow') &&
+				spotPosition.scaledBalance.gt(ZERO)
+			) {
 				return false;
 			}
 

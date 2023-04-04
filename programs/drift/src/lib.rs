@@ -221,8 +221,8 @@ pub mod drift {
         handle_revert_fill(ctx)
     }
 
-    pub fn fill_spot_order(
-        ctx: Context<FillOrder>,
+    pub fn fill_spot_order<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
         order_id: Option<u32>,
         fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u32>,

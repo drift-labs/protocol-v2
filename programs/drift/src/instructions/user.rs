@@ -3,6 +3,7 @@ use anchor_spl::token::{Token, TokenAccount};
 
 use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
+use crate::controller::serum::FulfillmentParams;
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::instructions::constraints::*;
@@ -1158,7 +1159,7 @@ pub fn handle_place_and_take_spot_order<'info>(
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
-    let mut serum_fulfillment_params = match fulfillment_type {
+    let mut fulfillment_params = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -1199,7 +1200,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         maker_stats.as_ref(),
         maker_order_id,
         &Clock::get()?,
-        &mut serum_fulfillment_params,
+        &mut fulfillment_params,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1218,8 +1219,8 @@ pub fn handle_place_and_take_spot_order<'info>(
         )?;
     }
 
-    match serum_fulfillment_params {
-        Some(serum_fulfillment_params) => {
+    match fulfillment_params {
+        Some(FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params)) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             validate_spot_market_vault_amount(
                 &base_market,
@@ -1280,7 +1281,7 @@ pub fn handle_place_and_make_spot_order<'info>(
     }
 
     let market_index = params.market_index;
-    let mut serum_fulfillment_params = match fulfillment_type {
+    let mut fulfillment_params = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -1320,7 +1321,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         Some(&ctx.accounts.user_stats),
         Some(order_id),
         clock,
-        &mut serum_fulfillment_params,
+        &mut fulfillment_params,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1339,8 +1340,8 @@ pub fn handle_place_and_make_spot_order<'info>(
         )?;
     }
 
-    match serum_fulfillment_params {
-        Some(serum_fulfillment_params) => {
+    match fulfillment_params {
+        Some(FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params)) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             validate_spot_market_vault_amount(
                 &base_market,

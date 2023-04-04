@@ -499,6 +499,13 @@ export class DriftClient {
 		this.users.set(subAccountId, user);
 	}
 
+	public async addAllUsers(): Promise<void> {
+		const userAccounts = await this.getUserAccountsForAuthority(this.authority);
+		for (const userAccount of userAccounts) {
+			await this.addUser(userAccount.subAccountId);
+		}
+	}
+
 	public async initializeUserAccount(
 		subAccountId = 0,
 		name = DEFAULT_USER_NAME,
@@ -756,6 +763,24 @@ export class DriftClient {
 
 		return programAccounts.map(
 			(programAccount) => programAccount.account as UserAccount
+		);
+	}
+
+	public async getUserAccountsAndAddressesForAuthority(
+		authority: PublicKey
+	): Promise<ProgramAccount<UserAccount>[]> {
+		const programAccounts = await this.program.account.user.all([
+			{
+				memcmp: {
+					offset: 8,
+					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
+					bytes: bs58.encode(authority.toBuffer()),
+				},
+			},
+		]);
+
+		return programAccounts.map(
+			(programAccount) => programAccount as ProgramAccount<UserAccount>
 		);
 	}
 
