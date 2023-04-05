@@ -94,6 +94,7 @@ jobs:
         run: yarn lint
   anchor-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v2
 

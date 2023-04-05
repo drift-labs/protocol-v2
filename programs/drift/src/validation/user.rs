@@ -90,7 +90,8 @@ pub fn validate_user_is_idle(user: &User, slot: u64) -> DriftResult {
 
     for spot_position in &user.spot_positions {
         validate!(
-            spot_position.balance_type != SpotBalanceType::Borrow,
+            spot_position.balance_type != SpotBalanceType::Borrow
+                || spot_position.scaled_balance == 0,
             ErrorCode::UserNotInactive,
             "user has borrow for market {}",
             spot_position.market_index
