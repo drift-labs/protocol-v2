@@ -185,7 +185,7 @@ describe('update amm', () => {
 			// init more markets
 			const thisUsd = mockOracles[i];
 			await driftClient.initializePerpMarket(
-				1,
+				i,
 				thisUsd,
 				ammInitialBaseAssetAmount,
 				ammInitialQuoteAssetAmount,
