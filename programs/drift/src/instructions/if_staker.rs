@@ -70,8 +70,9 @@ pub fn handle_add_insurance_fund_stake(
             state,
         )?;
 
-        // reload the spot market vault balance so it's up-to-date
+        // reload the vault balances so they're up-to-date
         ctx.accounts.spot_market_vault.reload()?;
+        ctx.accounts.insurance_fund_vault.reload()?;
         math::spot_withdraw::validate_spot_market_vault_amount(
             spot_market,
             ctx.accounts.spot_market_vault.amount,
@@ -200,6 +201,13 @@ pub fn handle_remove_insurance_fund_stake(
         "insurance_fund_stake does not match market_index"
     )?;
 
+    // check if spot market is healthy
+    validate!(
+        spot_market.is_healthy_utilization()?,
+        ErrorCode::SpotMarketInsufficientDeposits,
+        "spot market utilization above health threshold"
+    )?;
+
     let amount = controller::insurance::remove_insurance_fund_stake(
         ctx.accounts.insurance_fund_vault.amount,
         insurance_fund_stake,
@@ -217,6 +225,7 @@ pub fn handle_remove_insurance_fund_stake(
         amount,
     )?;
 
+    ctx.accounts.insurance_fund_vault.reload()?;
     validate!(
         ctx.accounts.insurance_fund_vault.amount > 0,
         ErrorCode::InvalidIFDetected,

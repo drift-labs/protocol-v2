@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+- program: revenue pool wont settle to IF if utilization unhealthy ([#402](https://github.com/drift-labs/protocol-v2/pull/402))
 
 ### Fixes
-
+- program: add ctx.accounts.insurance_fund_vault.reload()? after vault updates ([#402](https://github.com/drift-labs/protocol-v2/pull/402))
 ### Breaking
 
 ## [2.23.0] - 2023-04-03

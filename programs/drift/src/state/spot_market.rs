@@ -6,6 +6,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::DriftResult;
 use crate::instructions::SpotFulfillmentType;
+use crate::math::casting::Cast;
 use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
 #[cfg(test)]
 use crate::math::constants::{PRICE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION};
@@ -14,7 +15,7 @@ use crate::math::margin::{
     MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_balance::{calculate_utilization, get_token_amount};
 
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
@@ -244,6 +245,21 @@ impl SpotMarket {
 
     pub fn get_precision(self) -> u64 {
         10_u64.pow(self.decimals)
+    }
+
+    pub fn get_utilization(self) -> DriftResult<u128> {
+        let deposit_token_amount =
+            get_token_amount(self.deposit_balance, &self, &SpotBalanceType::Deposit)?;
+
+        let borrow_token_amount =
+            get_token_amount(self.borrow_balance, &self, &SpotBalanceType::Borrow)?;
+        calculate_utilization(deposit_token_amount, borrow_token_amount)
+    }
+
+    pub fn is_healthy_utilization(self) -> DriftResult<bool> {
+        let unhealthy_utilization = 800000; // 80%
+        let utilization: u64 = self.get_utilization()?.cast()?;
+        Ok(self.utilization_twap <= unhealthy_utilization && utilization <= unhealthy_utilization)
     }
 }
 
