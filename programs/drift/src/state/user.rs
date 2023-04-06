@@ -190,6 +190,15 @@ impl User {
             .ok_or(ErrorCode::OrderDoesNotExist)
     }
 
+    pub fn get_order_index_by_user_order_id(&self, user_order_id: u8) -> DriftResult<usize> {
+        self.orders
+            .iter()
+            .position(|order| {
+                order.user_order_id == user_order_id && order.status == OrderStatus::Open
+            })
+            .ok_or(ErrorCode::OrderDoesNotExist)
+    }
+
     pub fn get_order(&self, order_id: u32) -> Option<&Order> {
         self.orders.iter().find(|order| order.order_id == order_id)
     }
