@@ -104,6 +104,7 @@ describe('user order id', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -118,6 +119,7 @@ describe('user order id', () => {
 		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await driftClient.initializePerpMarket(
+			1,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),

@@ -51,7 +51,7 @@ use crate::validation::margin::{validate_margin, validate_margin_weights};
 use crate::validation::perp_market::validate_perp_market;
 use crate::validation::spot_market::validate_borrow_rate;
 use crate::{controller, QUOTE_PRECISION_I64};
-use crate::{math, safe_increment};
+use crate::{math, safe_decrement, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -443,6 +443,7 @@ pub fn handle_update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
 
 pub fn handle_initialize_perp_market(
     ctx: Context<InitializePerpMarket>,
+    market_index: u16,
     amm_base_asset_reserve: u128,
     amm_quote_asset_reserve: u128,
     amm_periodicity: i64,
@@ -551,7 +552,14 @@ pub fn handle_initialize_perp_market(
     )?;
 
     let state = &mut ctx.accounts.state;
-    let market_index = state.number_of_markets;
+    validate!(
+        market_index == state.number_of_markets,
+        ErrorCode::MarketIndexAlreadyInitialized,
+        "market_index={} != state.number_of_markets={}",
+        market_index,
+        state.number_of_markets
+    )?;
+
     **perp_market = PerpMarket {
         contract_type: ContractType::Perpetual,
         contract_tier: ContractTier::Speculative, // default
@@ -675,6 +683,46 @@ pub fn handle_initialize_perp_market(
     };
 
     safe_increment!(state.number_of_markets, 1);
+
+    Ok(())
+}
+
+pub fn handle_delete_initialized_perp_market(
+    ctx: Context<DeleteInitializedPerpMarket>,
+    market_index: u16,
+) -> Result<()> {
+    let perp_market = &mut ctx.accounts.perp_market.load_init()?;
+    let state = &mut ctx.accounts.state;
+
+    // to preserve all protocol invariants, can only remove the last market if it hasn't been "activated"
+
+    validate!(
+        state.number_of_markets - 1 == market_index,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "state.number_of_markets={} != market_index={}",
+        state.number_of_markets,
+        market_index
+    )?;
+    validate!(
+        perp_market.status == MarketStatus::Initialized,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "perp_market.status != Initialized",
+    )?;
+    validate!(
+        perp_market.number_of_users == 0,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "perp_market.number_of_users={} != 0",
+        perp_market.number_of_users,
+    )?;
+    validate!(
+        perp_market.market_index == market_index,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "market_index={} != perp_market.market_index={}",
+        market_index,
+        perp_market.market_index
+    )?;
+
+    safe_decrement!(state.number_of_markets, 1);
 
     Ok(())
 }
@@ -2240,6 +2288,23 @@ pub struct InitializePerpMarket<'info> {
         bump,
         payer = admin
     )]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    /// CHECK: checked in `initialize_perp_market`
+    pub oracle: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteInitializedPerpMarket<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut, close = admin)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `initialize_perp_market`
     pub oracle: AccountInfo<'info>,

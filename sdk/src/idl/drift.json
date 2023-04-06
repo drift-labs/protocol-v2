@@ -2284,6 +2284,10 @@
       ],
       "args": [
         {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
           "name": "ammBaseAssetReserve",
           "type": "u128"
         },
@@ -2329,6 +2333,47 @@
               32
             ]
           }
+        }
+      ]
+    },
+    {
+      "name": "deleteInitializedPerpMarket",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
         }
       ]
     },
@@ -8826,6 +8871,11 @@
       "code": 6239,
       "name": "RevertFill",
       "msg": "RevertFill"
+    },
+    {
+      "code": 6240,
+      "name": "InvalidMarketAccountforDeletion",
+      "msg": "Invalid MarketAccount for Deletion"
     }
   ]
 }

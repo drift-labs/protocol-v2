@@ -111,6 +111,8 @@ describe('liquidate perp and lp', () => {
 		const periodicity = new BN(0);
 
 		await driftClient.initializePerpMarket(
+			0,
+
 			oracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

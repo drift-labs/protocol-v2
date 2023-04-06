@@ -106,6 +106,7 @@ describe('post only', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await fillerDriftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

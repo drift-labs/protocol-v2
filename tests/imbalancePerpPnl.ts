@@ -214,6 +214,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const periodicity = new BN(0);
 
 		await driftClient.initializePerpMarket(
+			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
