@@ -691,7 +691,7 @@ pub fn handle_delete_initialized_perp_market(
     ctx: Context<DeleteInitializedPerpMarket>,
     market_index: u16,
 ) -> Result<()> {
-    let perp_market = &mut ctx.accounts.perp_market.load_init()?;
+    let perp_market = &mut ctx.accounts.perp_market.load()?;
     let state = &mut ctx.accounts.state;
 
     // to preserve all protocol invariants, can only remove the last market if it hasn't been "activated"
@@ -2306,10 +2306,6 @@ pub struct DeleteInitializedPerpMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut, close = admin)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
-    /// CHECK: checked in `initialize_perp_market`
-    pub oracle: AccountInfo<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
