@@ -56,7 +56,7 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 	},
 	{
 		fullName: 'Bonk',
-		category: ['Meme'],
+		category: ['Meme', 'Dog'],
 		symbol: '1MBONK-PERP',
 		baseAssetSymbol: '1MBONK',
 		marketIndex: 4,
@@ -82,6 +82,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 6,
 		oracle: new PublicKey('4mRGHzjGerQNWKXyQAmr9kWqb9saPPHKqo1xziXGQ5Dh'),
 		launchTs: 1679501812000, //todo
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Doge',
+		category: ['Meme', 'Dog'],
+		symbol: 'DOGE-PERP',
+		baseAssetSymbol: 'DOGE',
+		marketIndex: 7,
+		oracle: new PublicKey('4L6YhY8VvUgmqG5MvJkUJATtzB2rFqdrJwQCmFLv4Jzy'),
+		launchTs: 1680808053000,
 		oracleSource: OracleSource.PYTH,
 	},
 ];
@@ -155,6 +165,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 6,
 		oracle: new PublicKey('5HRrdmghsnU3i2u5StaKaydS7eq3vnKVKwXMzCNKsc4C'),
 		launchTs: 1679501812000, //todo
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Doge',
+		category: ['Meme', 'Dog'],
+		symbol: 'DOGE-PERP',
+		baseAssetSymbol: 'DOGE',
+		marketIndex: 7,
+		oracle: new PublicKey('FsSM3s38PX9K7Dn6eGzuE29S2Dsk1Sss1baytTQdCaQj'),
+		launchTs: 1680808053000,
 		oracleSource: OracleSource.PYTH,
 	},
 ];
