@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.24.0] - 2023-04-03
+
+### Features
+
 - program: ability to delete a market that was just initialized ([#413](https://github.com/drift-labs/protocol-v2/pull/413))
 - program: revenue pool wont settle to IF if utilization unhealthy ([#402](https://github.com/drift-labs/protocol-v2/pull/402))
 
