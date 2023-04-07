@@ -100,7 +100,7 @@ pub fn determine_spot_fulfillment_methods(
     }
 
     if !taker_order.post_only && fulfillment_params_available {
-        fulfillment_methods.push(SpotFulfillmentMethod::SerumV3)
+        fulfillment_methods.push(SpotFulfillmentMethod::ExternalMarket)
     }
 
     Ok(fulfillment_methods)

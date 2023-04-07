@@ -3,7 +3,6 @@ use anchor_spl::token::{Token, TokenAccount};
 
 use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
-use crate::controller::serum::FulfillmentParams;
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::instructions::constraints::*;
@@ -33,6 +32,7 @@ use crate::state::events::{
 };
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
+use crate::state::spot_fulfillment_params::FulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::State;

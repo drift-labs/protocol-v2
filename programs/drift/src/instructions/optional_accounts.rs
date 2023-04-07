@@ -1,10 +1,10 @@
-use crate::controller::serum::{FulfillmentParams, SerumFulfillmentParams};
 use crate::error::{DriftResult, ErrorCode};
 use crate::load;
 
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::{MarketSet, PerpMarketMap};
+use crate::state::spot_fulfillment_params::{FulfillmentParams, SerumFulfillmentParams};
 use crate::state::spot_market::{
     SerumV3FulfillmentConfig, SpotFulfillmentConfigStatus, SpotMarket,
 };

@@ -1,6 +1,9 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::comparison_chain)]
+#![feature(cfg_target_has_atomic)]
+
+extern crate core;
 
 use anchor_lang::prelude::*;
 

@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
 
-use crate::controller::serum::FulfillmentParams;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
@@ -19,6 +18,7 @@ use crate::state::perp_market_map::{
     get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
     MarketSet, PerpMarketMap,
 };
+use crate::state::spot_fulfillment_params::FulfillmentParams;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
