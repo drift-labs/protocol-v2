@@ -3,7 +3,6 @@ use anchor_spl::token::{Token, TokenAccount};
 
 use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
-use crate::controller::serum::FulfillmentParams;
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::instructions::constraints::*;
@@ -33,6 +32,7 @@ use crate::state::events::{
 };
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
+use crate::state::spot_fulfillment_params::FulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::State;
@@ -1170,7 +1170,7 @@ pub fn handle_place_and_take_spot_order<'info>(
                 &quote_market,
             )?
         }
-        _ => None,
+        _ => FulfillmentParams::None,
     };
 
     controller::orders::place_spot_order(
@@ -1220,7 +1220,7 @@ pub fn handle_place_and_take_spot_order<'info>(
     }
 
     match fulfillment_params {
-        Some(FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params)) => {
+        FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             validate_spot_market_vault_amount(
                 &base_market,
@@ -1232,7 +1232,7 @@ pub fn handle_place_and_take_spot_order<'info>(
                 serum_fulfillment_params.quote_market_vault.amount,
             )?;
         }
-        None => {
+        FulfillmentParams::None => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             let (base_market_vault, quote_market_vault) =
@@ -1292,7 +1292,7 @@ pub fn handle_place_and_make_spot_order<'info>(
                 &quote_market,
             )?
         }
-        _ => None,
+        _ => FulfillmentParams::None,
     };
 
     controller::orders::place_spot_order(
@@ -1341,7 +1341,7 @@ pub fn handle_place_and_make_spot_order<'info>(
     }
 
     match fulfillment_params {
-        Some(FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params)) => {
+        FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             validate_spot_market_vault_amount(
                 &base_market,
@@ -1353,7 +1353,7 @@ pub fn handle_place_and_make_spot_order<'info>(
                 serum_fulfillment_params.quote_market_vault.amount,
             )?;
         }
-        None => {
+        FulfillmentParams::None => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             let (base_market_vault, quote_market_vault) =

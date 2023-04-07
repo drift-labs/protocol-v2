@@ -6025,22 +6025,6 @@
       }
     },
     {
-      "name": "FulfillmentParams",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "SerumFulfillmentParams",
-            "fields": [
-              {
-                "defined": "SerumFulfillmentParams<'a,'b>"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
       "name": "SpotFulfillmentType",
       "type": {
         "kind": "enum",
@@ -6410,7 +6394,7 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "SerumV3"
+            "name": "ExternalMarket"
           },
           {
             "name": "Match"
@@ -6512,6 +6496,25 @@
           },
           {
             "name": "Isolated"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FulfillmentParams",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "SerumFulfillmentParams",
+            "fields": [
+              {
+                "defined": "SerumFulfillmentParams<'a,'b>"
+              }
+            ]
           }
         ]
       }

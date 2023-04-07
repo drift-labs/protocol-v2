@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
 
-use crate::controller::serum::FulfillmentParams;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
@@ -19,6 +18,7 @@ use crate::state::perp_market_map::{
     get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
     MarketSet, PerpMarketMap,
 };
+use crate::state::spot_fulfillment_params::FulfillmentParams;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
@@ -216,7 +216,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
                 &quote_market,
             )?
         }
-        _ => None,
+        _ => FulfillmentParams::None,
     };
 
     controller::orders::fill_spot_order(
@@ -237,7 +237,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
     )?;
 
     match fulfillment_params {
-        Some(FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params)) => {
+        FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             validate_spot_market_vault_amount(
                 &base_market,
@@ -249,7 +249,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
                 serum_fulfillment_params.quote_market_vault.amount,
             )?;
         }
-        None => {
+        FulfillmentParams::None => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             let (base_market_vault, quote_market_vault) =
