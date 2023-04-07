@@ -4977,12 +4977,6 @@
             }
           },
           {
-            "name": "userOrderId",
-            "type": {
-              "option": "u8"
-            }
-          },
-          {
             "name": "baseAssetAmount",
             "type": {
               "option": "u64"

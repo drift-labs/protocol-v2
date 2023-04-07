@@ -755,9 +755,7 @@ fn merge_modify_order_params_with_existing_order(
     let direction = modify_order_params
         .direction
         .unwrap_or(existing_order.direction);
-    let user_order_id = modify_order_params
-        .user_order_id
-        .unwrap_or(existing_order.user_order_id);
+    let user_order_id = existing_order.user_order_id;
     let base_asset_amount = modify_order_params
         .base_asset_amount
         .unwrap_or(existing_order.base_asset_amount);

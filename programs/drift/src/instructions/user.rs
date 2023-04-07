@@ -904,7 +904,6 @@ pub fn handle_cancel_orders(
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct ModifyOrderParams {
     pub direction: Option<PositionDirection>,
-    pub user_order_id: Option<u8>,
     pub base_asset_amount: Option<u64>,
     pub price: Option<u64>,
     pub reduce_only: Option<bool>,
@@ -951,7 +950,7 @@ pub fn handle_modify_order(
         ModifyOrderId::OrderId(order_id),
         modify_order_params,
         &ctx.accounts.user,
-        &state,
+        state,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -988,7 +987,7 @@ pub fn handle_modify_order_by_user_order_id(
         ModifyOrderId::UserOrderId(user_order_id),
         modify_order_params,
         &ctx.accounts.user,
-        &state,
+        state,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,

@@ -33,11 +33,10 @@ import {
 	isVariant,
 	ReferrerNameAccount,
 	OrderTriggerCondition,
-	isOneOfVariant,
-	PostOnlyParams,
 	SpotBalanceType,
 	PerpMarketExtendedInfo,
 	UserStatsAccount,
+	ModifyOrderParams,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import driftIDL from './idl/drift.json';
@@ -3390,221 +3389,205 @@ export class DriftClient {
 	/**
 	 * Modifies an open order (spot or perp) by closing it and replacing it with a new order.
 	 * @param orderId: The open order to modify
-	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newOraclePriceOffset: The new oracle price offset for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newOrderType: Optional - New order type for the order.
+	 * @param newDirection: The new direction for the order
+	 * @param newBaseAmount: The new base amount for the order
+	 * @param newLimitPice: The new limit price for the order
+	 * @param newOraclePriceOffset: The new oracle price offset for the order
 	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
-	 * @param isSpot: Optional - Set to true if the order is a spot order
-	 * @param auctionDuration: Only required if order type changed to market from something else
-	 * @param auctionStartPrice: Only required if order type changed to market from something else
-	 * @param auctionEndPrice: Only required if order type changed to market from something else
+	 * @param auctionDuration:
+	 * @param auctionStartPrice:
+	 * @param auctionEndPrice:
+	 * @param reduceOnly:
+	 * @param postOnly:
+	 * @param immediateOrCancel:
+	 * @param maxTs:
 	 * @returns
 	 */
 	public async modifyOrder({
 		orderId,
+		newDirection,
 		newBaseAmount,
 		newLimitPrice,
 		newOraclePriceOffset,
-		newOrderType,
 		newTriggerPrice,
 		newTriggerCondition,
-		isSpot,
 		auctionDuration,
 		auctionStartPrice,
 		auctionEndPrice,
+		reduceOnly,
+		postOnly,
+		immediateOrCancel,
+		maxTs,
+		txParams,
 	}: {
 		orderId: number;
+		newDirection?: PositionDirection;
 		newBaseAmount?: BN;
 		newLimitPrice?: BN;
 		newOraclePriceOffset?: number;
-		newOrderType?: OrderType;
 		newTriggerPrice?: BN;
 		newTriggerCondition?: OrderTriggerCondition;
-		isSpot?: boolean;
 		auctionDuration?: number;
 		auctionStartPrice?: BN;
 		auctionEndPrice?: BN;
+		reduceOnly?: boolean;
+		postOnly?: boolean;
+		immediateOrCancel?: boolean;
+		maxTs?: BN;
+		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
-		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
-			throw new Error(
-				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
-			);
-		}
-
-		const openOrder = this.getUser().getOrder(orderId);
-		if (!openOrder) {
-			throw new Error(`No open order with id ${orderId.toString()}`);
-		}
-		const cancelOrderIx = await this.getCancelOrderIx(orderId);
-
-		const orderTypeHasTrigger = newOrderType
-			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
-			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
-		const orderTypeHasLimitPrice = newOrderType
-			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
-			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
-
-		const newOrderParams: OptionalOrderParams = {
-			orderType: newOrderType || openOrder.orderType,
-			marketType: openOrder.marketType,
-			direction: openOrder.direction,
-			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: orderTypeHasLimitPrice
-				? newLimitPrice || openOrder.price
-				: undefined,
-			marketIndex: openOrder.marketIndex,
-			reduceOnly: openOrder.reduceOnly,
-			postOnly: openOrder.postOnly
-				? PostOnlyParams.MUST_POST_ONLY
-				: PostOnlyParams.NONE,
-			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: orderTypeHasTrigger
-				? newTriggerPrice || openOrder.triggerPrice
-				: undefined,
-			triggerCondition: orderTypeHasTrigger
-				? newTriggerCondition || openOrder.triggerCondition
-				: undefined,
-			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: auctionDuration ?? openOrder.auctionDuration,
-			maxTs: openOrder.maxTs,
-			auctionStartPrice: auctionStartPrice || openOrder.auctionStartPrice,
-			auctionEndPrice: auctionEndPrice || openOrder.auctionEndPrice,
-			userOrderId: openOrder.userOrderId,
+		const orderParams: ModifyOrderParams = {
+			baseAssetAmount: newBaseAmount || null,
+			direction: newDirection || null,
+			price: newLimitPrice || null,
+			oraclePriceOffset: newOraclePriceOffset || null,
+			triggerPrice: newTriggerPrice || null,
+			triggerCondition: newTriggerCondition || null,
+			auctionDuration: auctionDuration || null,
+			auctionStartPrice: auctionStartPrice || null,
+			auctionEndPrice: auctionEndPrice || null,
+			reduceOnly: reduceOnly || null,
+			postOnly: postOnly || null,
+			immediateOrCancel: immediateOrCancel || null,
+			maxTs: maxTs || null,
 		};
-		const placeOrderIx = isSpot
-			? await this.getPlaceSpotOrderIx(newOrderParams)
-			: await this.getPlacePerpOrderIx(newOrderParams);
 
-		const tx = new Transaction();
-		tx.add(
-			ComputeBudgetProgram.setComputeUnitLimit({
-				units: 1_000_000,
-			})
+		const { txSig } = await this.sendTransaction(
+			wrapInTx(
+				await this.getModifyOrderIx(orderId, orderParams),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
+			[],
+			this.opts
 		);
-		tx.add(cancelOrderIx);
-		tx.add(placeOrderIx);
-		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
-
-		if (isSpot) {
-			this.spotMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
-			this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
-		} else {
-			this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
-		}
-
 		return txSig;
+	}
+
+	public async getModifyOrderIx(
+		orderId: number,
+		orderParams: ModifyOrderParams
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			useMarketLastSlotCache: true,
+		});
+
+		return await this.program.instruction.modifyOrder(orderId, orderParams, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
 	}
 
 	/**
 	 * Modifies an open order by closing it and replacing it with a new order.
 	 * @param userOrderId: The open order to modify
-	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newOraclePriceOffset: The new oracle price offset for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newOrderType: Optional - New order type for the order.
+	 * @param newDirection: The new direction for the order
+	 * @param newBaseAmount: The new base amount for the order
+	 * @param newLimitPice: The new limit price for the order
+	 * @param newOraclePriceOffset: The new oracle price offset for the order
 	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
-	 * @param isSpot: Set to true if the order is a spot order
 	 * @param auctionDuration: Only required if order type changed to market from something else
 	 * @param auctionStartPrice: Only required if order type changed to market from something else
 	 * @param auctionEndPrice: Only required if order type changed to market from something else
+	 * @param reduceOnly:
+	 * @param postOnly:
+	 * @param immediateOrCancel:
+	 * @param maxTs:
 	 * @returns
 	 */
 	public async modifyOrderByUserOrderId({
 		userOrderId,
+		newDirection,
 		newBaseAmount,
 		newLimitPrice,
 		newOraclePriceOffset,
-		newOrderType,
 		newTriggerPrice,
 		newTriggerCondition,
-		isSpot,
 		auctionDuration,
 		auctionStartPrice,
 		auctionEndPrice,
+		reduceOnly,
+		postOnly,
+		immediateOrCancel,
+		maxTs,
+		txParams,
 	}: {
 		userOrderId: number;
+		newDirection?: PositionDirection;
 		newBaseAmount?: BN;
 		newLimitPrice?: BN;
 		newOraclePriceOffset?: number;
-		newOrderType?: OrderType;
 		newTriggerPrice?: BN;
 		newTriggerCondition?: OrderTriggerCondition;
-		isSpot?: boolean;
 		auctionDuration?: number;
 		auctionStartPrice?: BN;
 		auctionEndPrice?: BN;
+		reduceOnly?: boolean;
+		postOnly?: boolean;
+		immediateOrCancel?: boolean;
+		maxTs?: BN;
+		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
-		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
-			throw new Error(
-				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
-			);
-		}
-
-		const openOrder = this.getUser().getOrderByUserOrderId(userOrderId);
-		if (!openOrder) {
-			throw new Error(
-				`No open order with user order id ${userOrderId.toString()}`
-			);
-		}
-		const cancelOrderIx = await this.getCancelOrderByUserIdIx(userOrderId);
-
-		const orderTypeHasTrigger = newOrderType
-			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
-			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
-		const orderTypeHasLimitPrice = newOrderType
-			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
-			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
-
-		const newOrderParams: OptionalOrderParams = {
-			orderType: newOrderType || openOrder.orderType,
-			marketType: openOrder.marketType,
-			direction: openOrder.direction,
-			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: orderTypeHasLimitPrice
-				? newLimitPrice || openOrder.price
-				: undefined,
-			marketIndex: openOrder.marketIndex,
-			reduceOnly: openOrder.reduceOnly,
-			postOnly: openOrder.postOnly
-				? PostOnlyParams.MUST_POST_ONLY
-				: PostOnlyParams.NONE,
-			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: orderTypeHasTrigger
-				? newTriggerPrice || openOrder.triggerPrice
-				: undefined,
-			triggerCondition: orderTypeHasTrigger
-				? newTriggerCondition || openOrder.triggerCondition
-				: undefined,
-			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: auctionDuration || openOrder.auctionDuration,
-			maxTs: openOrder.maxTs,
-			auctionStartPrice: auctionStartPrice || openOrder.auctionStartPrice,
-			auctionEndPrice: auctionEndPrice || openOrder.auctionEndPrice,
-			userOrderId: openOrder.userOrderId,
+		const orderParams: ModifyOrderParams = {
+			baseAssetAmount: newBaseAmount || null,
+			direction: newDirection || null,
+			price: newLimitPrice || null,
+			oraclePriceOffset: newOraclePriceOffset || null,
+			triggerPrice: newTriggerPrice || null,
+			triggerCondition: newTriggerCondition || null,
+			auctionDuration: auctionDuration || null,
+			auctionStartPrice: auctionStartPrice || null,
+			auctionEndPrice: auctionEndPrice || null,
+			reduceOnly: reduceOnly || null,
+			postOnly: postOnly || null,
+			immediateOrCancel: immediateOrCancel || null,
+			maxTs: maxTs || null,
 		};
-		const placeOrderIx = isSpot
-			? await this.getPlaceSpotOrderIx(newOrderParams)
-			: await this.getPlacePerpOrderIx(newOrderParams);
 
-		const tx = new Transaction();
-		tx.add(
-			ComputeBudgetProgram.setComputeUnitLimit({
-				units: 1_000_000,
-			})
+		const { txSig } = await this.sendTransaction(
+			wrapInTx(
+				await this.getModifyOrderByUserIdIx(userOrderId, orderParams),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
+			[],
+			this.opts
 		);
-		tx.add(cancelOrderIx);
-		tx.add(placeOrderIx);
-		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
-
-		if (isSpot) {
-			this.spotMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
-			this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
-		} else {
-			this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
-		}
-
 		return txSig;
+	}
+
+	public async getModifyOrderByUserIdIx(
+		userOrderId: number,
+		orderParams: ModifyOrderParams
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			useMarketLastSlotCache: true,
+		});
+
+		return await this.program.instruction.modifyOrderByUserId(
+			userOrderId,
+			orderParams,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
 	}
 
 	public async settlePNLs(
