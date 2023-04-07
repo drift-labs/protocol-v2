@@ -5,6 +5,7 @@ import {
 	StateAccount,
 	UserAccount,
 	UserStatsAccount,
+	InsuranceFundStake,
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -76,6 +77,23 @@ export interface UserAccountSubscriber {
 	unsubscribe(): Promise<void>;
 
 	getUserAccountAndSlot(): DataAndSlot<UserAccount>;
+}
+
+export interface IFStakeAccountEvents {
+	ifStakeAccountUpdate: (payload: InsuranceFundStake) => void;
+	update: void;
+	error: (e: Error) => void;
+}
+
+export interface IFStakeAccountSubscriber {
+	eventEmitter: StrictEventEmitter<EventEmitter, IFStakeAccountEvents>;
+	isSubscribed: boolean;
+
+	subscribe(): Promise<boolean>;
+	fetch(): Promise<void>;
+	unsubscribe(): Promise<void>;
+
+	getIFStakeAccountAndSlot(): DataAndSlot<InsuranceFundStake>;
 }
 
 export interface TokenAccountEvents {
