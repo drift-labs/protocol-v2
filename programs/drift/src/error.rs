@@ -487,6 +487,8 @@ pub enum ErrorCode {
     RevertFill,
     #[msg("Invalid MarketAccount for Deletion")]
     InvalidMarketAccountforDeletion,
+    #[msg("InvalidSwap")]
+    InvalidSwap,
 }
 
 #[macro_export]

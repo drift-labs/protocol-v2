@@ -72,7 +72,10 @@ pub struct SpotMarket {
     pub oracle_source: OracleSource,
     pub status: MarketStatus,
     pub asset_tier: AssetTier,
-    pub padding: [u8; 86],
+    pub padding1: [u8; 6],
+    pub flash_loan_amount: u64,
+    pub flash_loan_initial_vault_amount: u64,
+    pub padding: [u8; 64],
 }
 
 impl Default for SpotMarket {
@@ -125,7 +128,10 @@ impl Default for SpotMarket {
             oracle_source: OracleSource::default(),
             status: MarketStatus::default(),
             asset_tier: AssetTier::default(),
-            padding: [0; 86],
+            padding1: [0; 6],
+            flash_loan_amount: 0,
+            flash_loan_initial_vault_amount: 0,
+            padding: [0; 64],
         }
     }
 }
