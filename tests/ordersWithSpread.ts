@@ -107,6 +107,7 @@ describe('amm spread: market order', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -645,6 +646,7 @@ describe('amm spread: market order', () => {
 		);
 
 		await driftClient.initializePerpMarket(
+			marketIndex2,
 			btcUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

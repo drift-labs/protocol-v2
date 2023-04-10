@@ -81,6 +81,7 @@ describe('Pause exchange', () => {
 		await driftClient.subscribe();
 
 		await driftClient.initializePerpMarket(
+			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

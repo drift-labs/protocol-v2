@@ -485,6 +485,8 @@ pub enum ErrorCode {
     UserNotInactive,
     #[msg("RevertFill")]
     RevertFill,
+    #[msg("Invalid MarketAccount for Deletion")]
+    InvalidMarketAccountforDeletion,
 }
 
 #[macro_export]

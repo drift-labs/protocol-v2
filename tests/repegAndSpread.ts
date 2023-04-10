@@ -214,6 +214,7 @@ describe('repeg and spread amm', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		// BTC
 		await driftClient.initializePerpMarket(
+			0,
 			btcUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

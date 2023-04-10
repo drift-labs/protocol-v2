@@ -275,6 +275,7 @@ describe('pyth-oracle', () => {
 		const marketIndex = 0;
 
 		await driftClient.initializePerpMarket(
+			0,
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -294,6 +295,7 @@ describe('pyth-oracle', () => {
 		const marketIndex = 1;
 
 		await driftClient.initializePerpMarket(
+			1,
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

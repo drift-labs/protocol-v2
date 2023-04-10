@@ -97,6 +97,7 @@ describe('update k', () => {
 		});
 
 		await driftClient.initializePerpMarket(
+			0,
 			solUsdOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

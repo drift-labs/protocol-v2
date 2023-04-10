@@ -59,8 +59,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'USDC',
 		marketIndex: 0,
-		oracle: PublicKey.default,
-		oracleSource: OracleSource.QUOTE_ASSET,
+		oracle: new PublicKey('Gnt27xtC473ZT2Mw5u8wZ68Z3gULkSTb5DuxJy7eJotD'),
+		oracleSource: OracleSource.PYTH_STABLE_COIN,
 		mint: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
 		precision: QUOTE_PRECISION,
 		precisionExp: QUOTE_PRECISION_EXP,

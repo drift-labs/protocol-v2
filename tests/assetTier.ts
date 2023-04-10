@@ -119,6 +119,7 @@ describe('asset tiers', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		await driftClient.initializePerpMarket(
+			0,
 			solOracle,
 			AMM_RESERVE_PRECISION,
 			AMM_RESERVE_PRECISION,
