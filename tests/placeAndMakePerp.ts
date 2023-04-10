@@ -97,6 +97,7 @@ describe('place and make perp order', () => {
 
 		const periodicity = new BN(0);
 		await makerDriftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

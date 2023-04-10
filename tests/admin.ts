@@ -66,6 +66,7 @@ describe('admin', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			new BN(1000),
 			new BN(1000),

@@ -214,6 +214,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const periodicity = new BN(0);
 
 		await driftClient.initializePerpMarket(
+			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -814,11 +815,11 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(ifStakeAccount.marketIndex === bankIndex);
 		assert(ifStakeAccount.authority.equals(provider.wallet.publicKey));
 
-		const txSig = await driftClient.addInsuranceFundStake(
-			bankIndex,
-			QUOTE_PRECISION.add(QUOTE_PRECISION.div(new BN(100))), // $1.01
-			userUSDCAccount.publicKey
-		);
+		const txSig = await driftClient.addInsuranceFundStake({
+			marketIndex: bankIndex,
+			amount: QUOTE_PRECISION.add(QUOTE_PRECISION.div(new BN(100))), // $1.01
+			collateralAccountPublicKey: userUSDCAccount.publicKey,
+		});
 		await printTxLogs(connection, txSig);
 
 		const market0 = driftClient.getPerpMarketAccount(marketIndex);

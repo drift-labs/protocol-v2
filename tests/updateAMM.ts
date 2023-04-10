@@ -169,6 +169,7 @@ describe('update amm', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -184,6 +185,7 @@ describe('update amm', () => {
 			// init more markets
 			const thisUsd = mockOracles[i];
 			await driftClient.initializePerpMarket(
+				i,
 				thisUsd,
 				ammInitialBaseAssetAmount,
 				ammInitialQuoteAssetAmount,

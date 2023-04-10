@@ -807,6 +807,7 @@ pub fn handle_resolve_perp_pnl_deficit(
 
         // reload the spot market vault balance so it's up-to-date
         ctx.accounts.spot_market_vault.reload()?;
+        ctx.accounts.insurance_fund_vault.reload()?;
         math::spot_withdraw::validate_spot_market_vault_amount(
             spot_market,
             ctx.accounts.spot_market_vault.amount,
@@ -947,6 +948,7 @@ pub fn handle_resolve_perp_bankruptcy(
 
         // reload the spot market vault balance so it's up-to-date
         ctx.accounts.spot_market_vault.reload()?;
+        ctx.accounts.insurance_fund_vault.reload()?;
         math::spot_withdraw::validate_spot_market_vault_amount(
             spot_market,
             ctx.accounts.spot_market_vault.amount,
@@ -1052,6 +1054,7 @@ pub fn handle_resolve_spot_bankruptcy(
 
         // reload the spot market vault balance so it's up-to-date
         ctx.accounts.spot_market_vault.reload()?;
+        ctx.accounts.insurance_fund_vault.reload()?;
         math::spot_withdraw::validate_spot_market_vault_amount(
             spot_market,
             ctx.accounts.spot_market_vault.amount,

@@ -974,6 +974,8 @@ export type OracleGuardRails = {
 export type MarginCategory = 'Initial' | 'Maintenance';
 
 export type InsuranceFundStake = {
+	costBasis: BN;
+
 	marketIndex: number;
 	authority: PublicKey;
 

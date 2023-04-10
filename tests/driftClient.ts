@@ -121,6 +121,7 @@ describe('drift client', () => {
 
 		const marketIndex = 0;
 		const txSig = await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

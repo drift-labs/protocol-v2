@@ -217,6 +217,7 @@ describe('liquidity providing', () => {
 		);
 		// used for trading / taking on baa
 		await driftClient.initializePerpMarket(
+			0,
 			solusdc,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -247,6 +248,7 @@ describe('liquidity providing', () => {
 
 		// second market -- used for funding ..
 		await driftClient.initializePerpMarket(
+			1,
 			solusdc2,
 			stableAmmInitialBaseAssetReserve,
 			stableAmmInitialQuoteAssetReserve,

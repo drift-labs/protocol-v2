@@ -182,6 +182,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializePerpMarket(
+		marketIndex: number,
 		priceOracle: PublicKey,
 		baseAssetReserve: BN,
 		quoteAssetReserve: BN,
@@ -203,6 +204,7 @@ export class AdminClient extends DriftClient {
 		const nameBuffer = encodeName(name);
 		const initializeMarketTx =
 			await this.program.transaction.initializePerpMarket(
+				marketIndex,
 				baseAssetReserve,
 				quoteAssetReserve,
 				periodicity,
@@ -239,6 +241,32 @@ export class AdminClient extends DriftClient {
 			source: oracleSource,
 			publicKey: priceOracle,
 		});
+
+		return txSig;
+	}
+
+	public async deleteInitializedPerpMarket(
+		marketIndex: number
+	): Promise<TransactionSignature> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		const deleteInitializeMarketTx =
+			await this.program.transaction.deleteInitializedPerpMarket(marketIndex, {
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					perpMarket: perpMarketPublicKey,
+				},
+			});
+
+		const { txSig } = await this.sendTransaction(
+			deleteInitializeMarketTx,
+			[],
+			this.opts
+		);
 
 		return txSig;
 	}

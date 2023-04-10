@@ -499,6 +499,13 @@ export class DriftClient {
 		this.users.set(subAccountId, user);
 	}
 
+	public async addAllUsers(): Promise<void> {
+		const userAccounts = await this.getUserAccountsForAuthority(this.authority);
+		for (const userAccount of userAccounts) {
+			await this.addUser(userAccount.subAccountId);
+		}
+	}
+
 	public async initializeUserAccount(
 		subAccountId = 0,
 		name = DEFAULT_USER_NAME,
@@ -756,6 +763,24 @@ export class DriftClient {
 
 		return programAccounts.map(
 			(programAccount) => programAccount.account as UserAccount
+		);
+	}
+
+	public async getUserAccountsAndAddressesForAuthority(
+		authority: PublicKey
+	): Promise<ProgramAccount<UserAccount>[]> {
+		const programAccounts = await this.program.account.user.all([
+			{
+				memcmp: {
+					offset: 8,
+					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
+					bytes: bs58.encode(authority.toBuffer()),
+				},
+			},
+		]);
+
+		return programAccounts.map(
+			(programAccount) => programAccount as ProgramAccount<UserAccount>
 		);
 	}
 
@@ -4198,11 +4223,11 @@ export class DriftClient {
 		);
 	}
 
-	public async addInsuranceFundStake(
+	public async getAddInsuranceFundStakeIx(
 		marketIndex: number,
 		amount: BN,
 		collateralAccountPublicKey: PublicKey
-	): Promise<TransactionSignature> {
+	): Promise<TransactionInstruction> {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
@@ -4216,7 +4241,7 @@ export class DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
-		const tx = await this.program.transaction.addInsuranceFundStake(
+		const ix = this.program.instruction.addInsuranceFundStake(
 			marketIndex,
 			amount,
 			{
@@ -4236,7 +4261,88 @@ export class DriftClient {
 			}
 		);
 
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return ix;
+	}
+
+	/**
+	 * Add to an insurance fund stake and optionally initialize the account
+	 */
+	public async addInsuranceFundStake({
+		marketIndex,
+		amount,
+		collateralAccountPublicKey,
+		initializeStakeAccount,
+	}: {
+		/**
+		 * Spot market index
+		 */
+		marketIndex: number;
+		amount: BN;
+		/**
+		 * The account where the funds to stake come from. Usually an associated token account
+		 */
+		collateralAccountPublicKey: PublicKey;
+		/**
+		 * Add instructions to initialize the staking account -- required if its the first time the currrent authority has staked in this market
+		 */
+		initializeStakeAccount?: boolean;
+	}): Promise<TransactionSignature> {
+		const tx = new Transaction();
+
+		const additionalSigners: Array<Signer> = [];
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
+		const createWSOLTokenAccount =
+			isSolMarket && collateralAccountPublicKey.equals(this.wallet.publicKey);
+
+		let tokenAccount;
+
+		if (createWSOLTokenAccount) {
+			const { ixs, signers, pubkey } =
+				await this.getWrappedSolAccountCreationIxs(amount, true);
+			tokenAccount = pubkey;
+			ixs.forEach((ix) => {
+				tx.add(ix);
+			});
+
+			signers.forEach((signer) => additionalSigners.push(signer));
+		} else {
+			tokenAccount = collateralAccountPublicKey;
+		}
+
+		if (initializeStakeAccount) {
+			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
+				marketIndex
+			);
+			tx.add(initializeIx);
+		}
+
+		const addFundsIx = await this.getAddInsuranceFundStakeIx(
+			marketIndex,
+			amount,
+			tokenAccount
+		);
+
+		tx.add(addFundsIx);
+
+		if (createWSOLTokenAccount) {
+			tx.add(
+				Token.createCloseAccountInstruction(
+					TOKEN_PROGRAM_ID,
+					tokenAccount,
+					this.wallet.publicKey,
+					this.wallet.publicKey,
+					[]
+				)
+			);
+		}
+
+		const { txSig } = await this.sendTransaction(
+			tx,
+			additionalSigners,
+			this.opts
+		);
+
 		return txSig;
 	}
 
@@ -4317,12 +4423,33 @@ export class DriftClient {
 		marketIndex: number,
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
+		const tx = new Transaction();
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
 			marketIndex
 		);
+		const tokenAccount = collateralAccountPublicKey;
+
+		// Todo wsol remove iF stake... how do we determine the amount?
+		// const amount = // get balance here...?
+
+		// const additionalSigners: Array<Signer> = [];
+		// const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
+		// const createWSOLTokenAccount =
+		// 	isSolMarket && collateralAccountPublicKey.equals(this.wallet.publicKey);
+
+		// if (createWSOLTokenAccount) {
+		// 	const { ixs, signers, pubkey } =
+		// 		await this.getWrappedSolAccountCreationIxs(amount, true);
+		// 	tokenAccount = pubkey;
+		// 	ixs.forEach((ix) => {
+		// 		tx.add(ix);
+		// 	});
+
+		// 	signers.forEach((signer) => additionalSigners.push(signer));
+		// }
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount()],
@@ -4330,9 +4457,8 @@ export class DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
-		const tx = await this.program.transaction.removeInsuranceFundStake(
-			marketIndex,
-			{
+		const removeStakeIx =
+			await this.program.instruction.removeInsuranceFundStake(marketIndex, {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					spotMarket: spotMarketAccount.pubkey,
@@ -4341,12 +4467,13 @@ export class DriftClient {
 					authority: this.wallet.publicKey,
 					insuranceFundVault: spotMarketAccount.insuranceFund.vault,
 					driftSigner: this.getSignerPublicKey(),
-					userTokenAccount: collateralAccountPublicKey,
+					userTokenAccount: tokenAccount,
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 				remainingAccounts,
-			}
-		);
+			});
+
+		tx.add(removeStakeIx);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;

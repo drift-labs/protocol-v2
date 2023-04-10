@@ -123,6 +123,7 @@ describe('insurance fund stake', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		await driftClient.initializePerpMarket(
+			0,
 			solOracle,
 			AMM_RESERVE_PRECISION,
 			AMM_RESERVE_PRECISION,
@@ -183,11 +184,11 @@ describe('insurance fund stake', () => {
 		);
 
 		try {
-			const txSig = await driftClient.addInsuranceFundStake(
-				marketIndex,
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+			const txSig = await driftClient.addInsuranceFundStake({
+				marketIndex: marketIndex,
+				amount: usdcAmount,
+				collateralAccountPublicKey: userUSDCAccount.publicKey,
+			});
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -699,11 +700,11 @@ describe('insurance fund stake', () => {
 		assert(usdcbalance.value.amount == '999999999999');
 
 		try {
-			const txSig = await driftClient.addInsuranceFundStake(
+			const txSig = await driftClient.addInsuranceFundStake({
 				marketIndex,
-				new BN(usdcbalance.value.amount),
-				userUSDCAccount.publicKey
-			);
+				amount: new BN(usdcbalance.value.amount),
+				collateralAccountPublicKey: userUSDCAccount.publicKey,
+			});
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
