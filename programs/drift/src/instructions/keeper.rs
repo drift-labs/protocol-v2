@@ -841,7 +841,7 @@ pub fn handle_resolve_perp_pnl_deficit(
             "Market is in settlement mode",
         )?;
 
-        controller::orders::validate_market_within_price_band(
+        controller::orders::validate_perp_market_within_price_band(
             perp_market,
             state,
             true,

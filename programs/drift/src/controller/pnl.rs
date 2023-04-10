@@ -1,6 +1,6 @@
 use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balances};
 use crate::controller::funding::settle_funding_payment;
-use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
+use crate::controller::orders::{cancel_orders, validate_perp_market_within_price_band};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
     update_quote_asset_and_break_even_amount, update_settled_pnl, PositionDelta,
@@ -58,7 +58,7 @@ pub fn settle_pnl(
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
-    validate_market_within_price_band(&market, state, true, None, Some(oracle_price.cast()?))?;
+    validate_perp_market_within_price_band(&market, state, true, None, Some(oracle_price.cast()?))?;
 
     crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
 

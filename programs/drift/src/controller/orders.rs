@@ -33,9 +33,9 @@ use crate::load_mut;
 use crate::math::auction::calculate_auction_prices;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_U128,
-    FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, MARGIN_PRECISION_U128, ONE_HOUR,
-    PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
+    BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
+    BID_ASK_SPREAD_PRECISION_U128, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE,
+    MARGIN_PRECISION_U128, ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
 };
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
@@ -943,7 +943,7 @@ pub fn fill_perp_order(
 
     {
         let market = perp_market_map.get_ref(&market_index)?;
-        validate_market_within_price_band(
+        validate_perp_market_within_price_band(
             &market,
             state,
             potentially_risk_increasing,
@@ -985,7 +985,7 @@ pub fn fill_perp_order(
     Ok((base_asset_amount, updated_user_state))
 }
 
-pub fn validate_market_within_price_band(
+pub fn validate_perp_market_within_price_band(
     market: &PerpMarket,
     state: &State,
     potentially_risk_increasing: bool,
@@ -1061,6 +1061,55 @@ pub fn validate_market_within_price_band(
     }
 
     Ok(true)
+}
+
+pub fn validate_spot_market_within_price_band(
+    spot_market: &SpotMarket,
+    state: &State,
+    ref_price_after: Option<u64>,
+) -> DriftResult<bool> {
+    let ref_price_after = if let Some(ref_price_after) = ref_price_after {
+        ref_price_after
+    } else {
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price
+            .cast()?
+    };
+
+    let default_oracle_guard_rail_divergence: u64 = state
+        .oracle_guard_rails
+        .price_divergence
+        .mark_oracle_divergence_numerator
+        .safe_mul(BID_ASK_SPREAD_PRECISION)?
+        .safe_div(
+            state
+                .oracle_guard_rails
+                .price_divergence
+                .mark_oracle_divergence_denominator,
+        )?;
+
+    let max_divergence = default_oracle_guard_rail_divergence.max(
+        spot_market
+            .get_margin_ratio(&MarginRequirementType::Initial)?
+            .cast::<u128>()?
+            .safe_mul(BID_ASK_SPREAD_PRECISION_U128 / MARGIN_PRECISION_U128)?
+            .cast::<u64>()?,
+    );
+
+    let price_spread = ref_price_after.cast::<i64>()?.safe_sub(
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+    )?;
+
+    let price_spread_pct: i64 = price_spread
+        .cast::<i128>()?
+        .safe_mul(BID_ASK_SPREAD_PRECISION_I128)?
+        .safe_div(ref_price_after.cast::<i128>()?)?
+        .cast()?;
+
+    Ok(price_spread_pct.unsigned_abs() < max_divergence)
 }
 
 #[allow(clippy::type_complexity)]

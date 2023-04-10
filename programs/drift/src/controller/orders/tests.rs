@@ -2363,7 +2363,7 @@ pub mod fulfill_order_with_maker_order {
 pub mod fulfill_order {
     use std::str::FromStr;
 
-    use crate::controller::orders::{fulfill_perp_order, validate_market_within_price_band};
+    use crate::controller::orders::{fulfill_perp_order, validate_perp_market_within_price_band};
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
@@ -2390,7 +2390,7 @@ pub mod fulfill_order {
     use super::*;
 
     #[test]
-    fn validate_market_within_price_band_tests() {
+    fn validate_perp_market_within_price_band_tests() {
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
 
@@ -2444,35 +2444,35 @@ pub mod fulfill_order {
         };
 
         // valid initial state
-        assert!(validate_market_within_price_band(&market, &state, true, None, None).unwrap());
+        assert!(validate_perp_market_within_price_band(&market, &state, true, None, None).unwrap());
 
         // twap_5min $50 and mark $100 breaches 10% divergence -> failure
         market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min = 50 * PRICE_PRECISION as i64;
-        assert!(validate_market_within_price_band(&market, &state, true, None, None).is_err());
+        assert!(validate_perp_market_within_price_band(&market, &state, true, None, None).is_err());
 
         // within 60% ok -> success
         state
             .oracle_guard_rails
             .price_divergence
             .mark_oracle_divergence_numerator = 6;
-        assert!(validate_market_within_price_band(&market, &state, true, None, None).unwrap());
+        assert!(validate_perp_market_within_price_band(&market, &state, true, None, None).unwrap());
 
         // twap_5min $20 and mark $100 breaches 60% divergence -> failure
         market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i64;
-        assert!(validate_market_within_price_band(&market, &state, true, None, None).is_err());
+        assert!(validate_perp_market_within_price_band(&market, &state, true, None, None).is_err());
 
         // twap_5min $20 and mark $100 but risk reduction when already breached -> success
         market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i64;
-        assert!(validate_market_within_price_band(
+        assert!(validate_perp_market_within_price_band(
             &market,
             &state,
             false,
@@ -2486,7 +2486,7 @@ pub mod fulfill_order {
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i64;
-        assert!(validate_market_within_price_band(
+        assert!(validate_perp_market_within_price_band(
             &market,
             &state,
             false,
