@@ -324,7 +324,7 @@ pub fn update_position_and_market(
     match position.get_direction() {
         PositionDirection::Long if position.base_asset_amount != 0 => {
             validate!(
-                position.last_cumulative_funding_rate == market.amm.cumulative_funding_rate_long.cast()?,
+                position.last_cumulative_funding_rate == market.amm.cumulative_funding_rate_long.cast::<i64>()?,
                 ErrorCode::InvalidPositionLastFundingRate,
                 "position.last_cumulative_funding_rate {} market.amm.cumulative_funding_rate_long {}",
                 position.last_cumulative_funding_rate,
@@ -333,7 +333,7 @@ pub fn update_position_and_market(
         }
         PositionDirection::Short => {
             validate!(
-                position.last_cumulative_funding_rate == market.amm.cumulative_funding_rate_short.cast()?,
+                position.last_cumulative_funding_rate == market.amm.cumulative_funding_rate_short.cast::<i64>()?,
                 ErrorCode::InvalidPositionLastFundingRate,
                 "position.last_cumulative_funding_rate {} market.amm.cumulative_funding_rate_short {}",
                 position.last_cumulative_funding_rate,
