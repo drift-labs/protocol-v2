@@ -14,8 +14,8 @@ import {
 	SpotFulfillmentConfigStatus,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
-import { BN } from '@project-serum/anchor';
-import * as anchor from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import {
 	getDriftStateAccountPublicKeyAndNonce,
 	getSpotMarketPublicKey,

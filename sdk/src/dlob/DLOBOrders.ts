@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
-import { Idl } from '@project-serum/anchor';
-import { IdlCoder } from '@project-serum/anchor/dist/cjs/coder/borsh/idl';
+import { Idl } from '@coral-xyz/anchor';
+import { IdlCoder } from '@coral-xyz/anchor/dist/cjs/coder/borsh/idl';
 import dlobIDL from './dlobIdl.json';
 import { Order } from '../types';
 

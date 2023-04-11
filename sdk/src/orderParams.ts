@@ -1,5 +1,5 @@
 import { OptionalOrderParams, OrderTriggerCondition, OrderType } from './types';
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 
 export function getLimitOrderParams(
 	params: Omit<OptionalOrderParams, 'orderType' | 'marketType'> & { price: BN }
