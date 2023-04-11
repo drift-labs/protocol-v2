@@ -120,6 +120,7 @@ export class DriftClient {
 	users = new Map<string, User>();
 	userStats?: UserStats;
 	activeSubAccountId: number;
+	activeAuthority: PublicKey;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
@@ -156,6 +157,7 @@ export class DriftClient {
 		this.authority = config.authority ?? this.wallet.publicKey;
 		const subAccountIds = config.subAccountIds ?? [0];
 		this.activeSubAccountId = config.activeSubAccountId ?? subAccountIds[0];
+		this.activeAuthority = this.authority;
 		this.userAccountSubscriptionConfig =
 			config.accountSubscription?.type === 'polling'
 				? {
@@ -491,7 +493,7 @@ export class DriftClient {
 
 	public switchActiveUser(subAccountId: number, authority?: PublicKey) {
 		this.activeSubAccountId = subAccountId;
-		this.authority = authority ?? this.authority;
+		this.activeAuthority = authority ?? this.authority;
 	}
 
 	public async addUser(subAccountId: number, authority?: PublicKey): Promise<void> {
@@ -889,7 +891,7 @@ export class DriftClient {
 
 	public getUser(subAccountId?: number, authority?: PublicKey): User {
 		subAccountId = subAccountId ?? this.activeSubAccountId;
-		authority = authority ?? this.authority;
+		authority = authority ?? this.activeAuthority;
 		const userMapKey = this.getUserMapKey(subAccountId, authority);
 
 		if (!this.users.has(userMapKey)) {
