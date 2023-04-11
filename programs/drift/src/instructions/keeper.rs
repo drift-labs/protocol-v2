@@ -18,7 +18,7 @@ use crate::state::perp_market_map::{
     get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
     MarketSet, PerpMarketMap,
 };
-use crate::state::spot_fulfillment_params::FulfillmentParams;
+use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
@@ -205,7 +205,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
 
     let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
-    let mut fulfillment_params: Box<dyn FulfillmentParams> = match fulfillment_type {
+    let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;

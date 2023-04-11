@@ -21,7 +21,7 @@ use solana_program::msg;
 use std::cell::Ref;
 use std::num::NonZeroU64;
 
-pub trait FulfillmentParams<'a, 'b> {
+pub trait SpotFulfillmentParams<'a, 'b> {
     fn is_external(&self) -> bool;
 
     fn get_best_bid_ask(
@@ -53,7 +53,7 @@ pub struct MatchFulfillmentParams<'a> {
     pub quote_market_vault: Box<Account<'a, TokenAccount>>,
 }
 
-impl<'a, 'b> FulfillmentParams<'a, 'b> for MatchFulfillmentParams<'b> {
+impl<'a, 'b> SpotFulfillmentParams<'a, 'b> for MatchFulfillmentParams<'b> {
     fn is_external(&self) -> bool {
         false
     }
@@ -137,7 +137,7 @@ pub struct SerumFulfillmentParams<'a, 'b> {
     pub signer_nonce: u8,
 }
 
-impl<'a, 'b> FulfillmentParams<'a, 'b> for SerumFulfillmentParams<'a, 'b> {
+impl<'a, 'b> SpotFulfillmentParams<'a, 'b> for SerumFulfillmentParams<'a, 'b> {
     fn is_external(&self) -> bool {
         true
     }
@@ -356,7 +356,7 @@ impl<'a, 'b> FulfillmentParams<'a, 'b> for SerumFulfillmentParams<'a, 'b> {
 pub struct TestFulfillmentParams {}
 
 #[cfg(test)]
-impl<'a, 'b> FulfillmentParams<'a, 'b> for TestFulfillmentParams {
+impl<'a, 'b> SpotFulfillmentParams<'a, 'b> for TestFulfillmentParams {
     fn is_external(&self) -> bool {
         false
     }
@@ -386,8 +386,8 @@ impl<'a, 'b> FulfillmentParams<'a, 'b> for TestFulfillmentParams {
 
     fn validate_vault_amounts(
         &self,
-        base_market: &Ref<SpotMarket>,
-        quote_market: &Ref<SpotMarket>,
+        _base_market: &Ref<SpotMarket>,
+        _quote_market: &Ref<SpotMarket>,
     ) -> DriftResult<()> {
         Err(ErrorCode::InvalidSpotFulfillmentParams)
     }

@@ -59,7 +59,7 @@ use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::spot_fulfillment_params::{ExternalSpotFill, FulfillmentParams};
+use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::FeeStructure;
@@ -2879,7 +2879,7 @@ pub fn fill_spot_order(
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u32>,
     clock: &Clock,
-    fulfillment_params: &mut dyn FulfillmentParams,
+    fulfillment_params: &mut dyn SpotFulfillmentParams,
 ) -> DriftResult<u64> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -3286,7 +3286,7 @@ fn fulfill_spot_order(
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
-    fulfillment_params: &mut dyn FulfillmentParams,
+    fulfillment_params: &mut dyn SpotFulfillmentParams,
 ) -> DriftResult<(u64, bool)> {
     let base_market_index = user.orders[user_order_index].market_index;
 
@@ -3770,7 +3770,7 @@ pub fn fulfill_spot_order_with_external_market(
     slot: u64,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-    fulfillment_params: &mut dyn FulfillmentParams,
+    fulfillment_params: &mut dyn SpotFulfillmentParams,
 ) -> DriftResult<u64> {
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
     let taker_price = taker.orders[taker_order_index].get_limit_price(

@@ -31,7 +31,7 @@ use crate::state::events::{
 };
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
-use crate::state::spot_fulfillment_params::FulfillmentParams;
+use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::State;
@@ -1158,7 +1158,7 @@ pub fn handle_place_and_take_spot_order<'info>(
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
-    let mut fulfillment_params: Box<dyn FulfillmentParams> = match fulfillment_type {
+    let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -1270,7 +1270,7 @@ pub fn handle_place_and_make_spot_order<'info>(
 
     let market_index = params.market_index;
 
-    let mut fulfillment_params: Box<dyn FulfillmentParams> = match fulfillment_type {
+    let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
