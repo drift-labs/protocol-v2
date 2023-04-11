@@ -22,7 +22,6 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
@@ -48,6 +47,7 @@ use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::{controller, PostOnlyParam};
+use crate::{get_struct_values, ModifyOrderParams};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -658,6 +658,159 @@ pub fn cancel_order(
     }
 
     Ok(())
+}
+
+pub enum ModifyOrderId {
+    UserOrderId(u8),
+    OrderId(u32),
+}
+
+pub fn modify_order(
+    order_id: ModifyOrderId,
+    modify_order_params: ModifyOrderParams,
+    user_loader: &AccountLoader<User>,
+    state: &State,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    clock: &Clock,
+) -> DriftResult {
+    let user_key = user_loader.key();
+    let mut user = load_mut!(user_loader)?;
+    let order_index = match order_id {
+        ModifyOrderId::UserOrderId(user_order_id) => user
+            .get_order_index_by_user_order_id(user_order_id)
+            .map_err(|e| {
+                msg!("User order id {} not found", user_order_id);
+                e
+            })?,
+        ModifyOrderId::OrderId(order_id) => user.get_order_index(order_id).map_err(|e| {
+            msg!("Order id {} not found", order_id);
+            e
+        })?,
+    };
+    let existing_order = user.orders[order_index];
+
+    cancel_order(
+        order_index,
+        &mut user,
+        &user_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        clock.unix_timestamp,
+        clock.slot,
+        OrderActionExplanation::None,
+        None,
+        0,
+        false,
+    )?;
+
+    user.update_last_active_slot(clock.slot);
+
+    drop(user);
+
+    let order_params =
+        merge_modify_order_params_with_existing_order(&existing_order, &modify_order_params)?;
+
+    if order_params.market_type == MarketType::Perp {
+        place_perp_order(
+            state,
+            user_loader,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+            order_params,
+        )?;
+    } else {
+        place_spot_order(
+            state,
+            user_loader,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+            order_params,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn merge_modify_order_params_with_existing_order(
+    existing_order: &Order,
+    modify_order_params: &ModifyOrderParams,
+) -> DriftResult<OrderParams> {
+    let order_type = existing_order.order_type;
+    let market_type = existing_order.market_type;
+    let direction = modify_order_params
+        .direction
+        .unwrap_or(existing_order.direction);
+    let user_order_id = existing_order.user_order_id;
+    let base_asset_amount = modify_order_params
+        .base_asset_amount
+        .unwrap_or(existing_order.get_base_asset_amount_unfilled(None)?);
+    let price = modify_order_params.price.unwrap_or(existing_order.price);
+    let market_index = existing_order.market_index;
+    let reduce_only = modify_order_params
+        .reduce_only
+        .unwrap_or(existing_order.reduce_only);
+    let post_only = modify_order_params
+        .post_only
+        .unwrap_or(if existing_order.post_only {
+            PostOnlyParam::MustPostOnly
+        } else {
+            PostOnlyParam::None
+        });
+    let immediate_or_cancel = false;
+    let max_ts = modify_order_params.max_ts.or(Some(existing_order.max_ts));
+    let trigger_price = modify_order_params
+        .trigger_price
+        .or(Some(existing_order.trigger_price));
+    let trigger_condition =
+        modify_order_params
+            .trigger_condition
+            .unwrap_or(match existing_order.trigger_condition {
+                OrderTriggerCondition::TriggeredAbove | OrderTriggerCondition::Above => {
+                    OrderTriggerCondition::TriggeredAbove
+                }
+                OrderTriggerCondition::TriggeredBelow | OrderTriggerCondition::Below => {
+                    OrderTriggerCondition::TriggeredBelow
+                }
+            });
+    let oracle_price_offset = modify_order_params
+        .oracle_price_offset
+        .or(Some(existing_order.oracle_price_offset));
+    let auction_duration = modify_order_params
+        .auction_duration
+        .or(Some(existing_order.auction_duration));
+    let auction_start_price = modify_order_params
+        .auction_start_price
+        .or(Some(existing_order.auction_start_price));
+    let auction_end_price = modify_order_params
+        .auction_end_price
+        .or(Some(existing_order.auction_end_price));
+
+    Ok(OrderParams {
+        order_type,
+        market_type,
+        direction,
+        user_order_id,
+        base_asset_amount,
+        price,
+        market_index,
+        reduce_only,
+        post_only,
+        immediate_or_cancel,
+        max_ts,
+        trigger_price,
+        trigger_condition,
+        oracle_price_offset,
+        auction_duration,
+        auction_start_price,
+        auction_end_price,
+    })
 }
 
 pub fn fill_perp_order(

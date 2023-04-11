@@ -1,7 +1,7 @@
 use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
 use anchor_spl::token::{Token, TokenAccount};
 
-use crate::controller::orders::cancel_orders;
+use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
@@ -897,6 +897,102 @@ pub fn handle_cancel_orders(
         market_type,
         market_index,
         direction,
+    )?;
+
+    Ok(())
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct ModifyOrderParams {
+    pub direction: Option<PositionDirection>,
+    pub base_asset_amount: Option<u64>,
+    pub price: Option<u64>,
+    pub reduce_only: Option<bool>,
+    pub post_only: Option<PostOnlyParam>,
+    pub immediate_or_cancel: Option<bool>,
+    pub max_ts: Option<i64>,
+    pub trigger_price: Option<u64>,
+    pub trigger_condition: Option<OrderTriggerCondition>,
+    pub oracle_price_offset: Option<i32>,
+    pub auction_duration: Option<u8>,
+    pub auction_start_price: Option<i64>,
+    pub auction_end_price: Option<i64>,
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_modify_order(
+    ctx: Context<CancelOrder>,
+    order_id: Option<u32>,
+    modify_order_params: ModifyOrderParams,
+) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let order_id = match order_id {
+        Some(order_id) => order_id,
+        None => load!(ctx.accounts.user)?.get_last_order_id(),
+    };
+
+    controller::orders::modify_order(
+        ModifyOrderId::OrderId(order_id),
+        modify_order_params,
+        &ctx.accounts.user,
+        state,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_modify_order_by_user_order_id(
+    ctx: Context<CancelOrder>,
+    user_order_id: u8,
+    modify_order_params: ModifyOrderParams,
+) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::orders::modify_order(
+        ModifyOrderId::UserOrderId(user_order_id),
+        modify_order_params,
+        &ctx.accounts.user,
+        state,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock,
     )?;
 
     Ok(())

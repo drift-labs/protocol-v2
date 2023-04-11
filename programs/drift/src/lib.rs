@@ -109,6 +109,22 @@ pub mod drift {
         handle_cancel_orders(ctx, market_type, market_index, direction)
     }
 
+    pub fn modify_order(
+        ctx: Context<CancelOrder>,
+        order_id: Option<u32>,
+        modify_order_params: ModifyOrderParams,
+    ) -> Result<()> {
+        handle_modify_order(ctx, order_id, modify_order_params)
+    }
+
+    pub fn modify_order_by_user_id(
+        ctx: Context<CancelOrder>,
+        user_order_id: u8,
+        modify_order_params: ModifyOrderParams,
+    ) -> Result<()> {
+        handle_modify_order_by_user_order_id(ctx, user_order_id, modify_order_params)
+    }
+
     pub fn place_and_take_perp_order(
         ctx: Context<PlaceAndTake>,
         params: OrderParams,

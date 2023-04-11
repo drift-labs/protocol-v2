@@ -429,6 +429,72 @@
       ]
     },
     {
+      "name": "modifyOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "modifyOrderParams",
+          "type": {
+            "defined": "ModifyOrderParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "modifyOrderByUserId",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userOrderId",
+          "type": "u8"
+        },
+        {
+          "name": "modifyOrderParams",
+          "type": {
+            "defined": "ModifyOrderParams"
+          }
+        }
+      ]
+    },
+    {
       "name": "placeAndTakePerpOrder",
       "accounts": [
         {
@@ -4883,6 +4949,98 @@
       }
     },
     {
+      "name": "ModifyOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "direction",
+            "type": {
+              "option": {
+                "defined": "PositionDirection"
+              }
+            }
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "price",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "reduceOnly",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "postOnly",
+            "type": {
+              "option": {
+                "defined": "PostOnlyParam"
+              }
+            }
+          },
+          {
+            "name": "immediateOrCancel",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "maxTs",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "triggerPrice",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "triggerCondition",
+            "type": {
+              "option": {
+                "defined": "OrderTriggerCondition"
+              }
+            }
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": {
+              "option": "i32"
+            }
+          },
+          {
+            "name": "auctionDuration",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "auctionStartPrice",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "auctionEndPrice",
+            "type": {
+              "option": "i64"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "LiquidatePerpRecord",
       "type": {
         "kind": "struct",
@@ -6006,6 +6164,26 @@
           },
           {
             "name": "Remove"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ModifyOrderId",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "UserOrderId",
+            "fields": [
+              "u8"
+            ]
+          },
+          {
+            "name": "OrderId",
+            "fields": [
+              "u32"
+            ]
           }
         ]
       }

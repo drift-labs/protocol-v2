@@ -881,6 +881,10 @@ export type OptionalOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property];
 } & NecessaryOrderParams;
 
+export type ModifyOrderParams = {
+	[Property in keyof OrderParams]?: OrderParams[Property] | null;
+};
+
 export const DefaultOrderParams: OrderParams = {
 	orderType: OrderType.MARKET,
 	marketType: MarketType.PERP,
