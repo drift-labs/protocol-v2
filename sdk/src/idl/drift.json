@@ -1,5 +1,5 @@
 {
-  "version": "2.23.0",
+  "version": "2.24.0",
   "name": "drift",
   "instructions": [
     {
@@ -2418,21 +2418,6 @@
         {
           "name": "perpMarket",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
           "isSigner": false
         }
       ],
@@ -5330,7 +5315,7 @@
         "fields": [
           {
             "name": "revenueWithdrawSinceLastSettle",
-            "type": "u64"
+            "type": "i64"
           },
           {
             "name": "maxRevenueWithdrawPerPeriod",
@@ -6218,22 +6203,6 @@
       }
     },
     {
-      "name": "FulfillmentParams",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "SerumFulfillmentParams",
-            "fields": [
-              {
-                "defined": "SerumFulfillmentParams<'a,'b>"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
       "name": "SpotFulfillmentType",
       "type": {
         "kind": "enum",
@@ -6242,7 +6211,7 @@
             "name": "SerumV3"
           },
           {
-            "name": "None"
+            "name": "Match"
           }
         ]
       }
@@ -6603,7 +6572,7 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "SerumV3"
+            "name": "ExternalMarket"
           },
           {
             "name": "Match"
@@ -9054,6 +9023,11 @@
       "code": 6240,
       "name": "InvalidMarketAccountforDeletion",
       "msg": "Invalid MarketAccount for Deletion"
+    },
+    {
+      "code": 6241,
+      "name": "InvalidSpotFulfillmentParams",
+      "msg": "Invalid Spot Fulfillment Params"
     }
   ]
 }

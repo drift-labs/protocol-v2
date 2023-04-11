@@ -184,11 +184,11 @@ describe('insurance fund stake', () => {
 		);
 
 		try {
-			const txSig = await driftClient.addInsuranceFundStake(
-				marketIndex,
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+			const txSig = await driftClient.addInsuranceFundStake({
+				marketIndex: marketIndex,
+				amount: usdcAmount,
+				collateralAccountPublicKey: userUSDCAccount.publicKey,
+			});
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -700,11 +700,11 @@ describe('insurance fund stake', () => {
 		assert(usdcbalance.value.amount == '999999999999');
 
 		try {
-			const txSig = await driftClient.addInsuranceFundStake(
+			const txSig = await driftClient.addInsuranceFundStake({
 				marketIndex,
-				new BN(usdcbalance.value.amount),
-				userUSDCAccount.publicKey
-			);
+				amount: new BN(usdcbalance.value.amount),
+				collateralAccountPublicKey: userUSDCAccount.publicKey,
+			});
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))

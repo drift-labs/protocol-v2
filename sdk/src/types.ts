@@ -161,7 +161,8 @@ export class OrderTriggerCondition {
 }
 
 export class SpotFulfillmentType {
-	static readonly SERUM_v3 = { serumV3: {} };
+	static readonly EXTERNAL = { external: {} };
+	static readonly MATCH = { match: {} };
 }
 
 export class SpotFulfillmentStatus {
@@ -978,6 +979,8 @@ export type OracleGuardRails = {
 export type MarginCategory = 'Initial' | 'Maintenance';
 
 export type InsuranceFundStake = {
+	costBasis: BN;
+
 	marketIndex: number;
 	authority: PublicKey;
 

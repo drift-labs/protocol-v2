@@ -815,11 +815,11 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(ifStakeAccount.marketIndex === bankIndex);
 		assert(ifStakeAccount.authority.equals(provider.wallet.publicKey));
 
-		const txSig = await driftClient.addInsuranceFundStake(
-			bankIndex,
-			QUOTE_PRECISION.add(QUOTE_PRECISION.div(new BN(100))), // $1.01
-			userUSDCAccount.publicKey
-		);
+		const txSig = await driftClient.addInsuranceFundStake({
+			marketIndex: bankIndex,
+			amount: QUOTE_PRECISION.add(QUOTE_PRECISION.div(new BN(100))), // $1.01
+			collateralAccountPublicKey: userUSDCAccount.publicKey,
+		});
 		await printTxLogs(connection, txSig);
 
 		const market0 = driftClient.getPerpMarketAccount(marketIndex);
@@ -884,8 +884,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.lt(new BN(43454544927 + 20000))); //44k still :o
-		assert(imbalance.gt(new BN(43454544927 - 20000))); //44k still :o
+		assert(imbalance.lt(new BN(43454561797 + 20000))); //44k still :o
+		assert(imbalance.gt(new BN(43454561797 - 20000))); //44k still :o
 
 		console.log(
 			'revenueWithdrawSinceLastSettle:',

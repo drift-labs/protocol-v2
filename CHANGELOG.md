@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+- sdk: more accurate calculation of insurance stake value during unstake request ([#426](https://github.com/drift-labs/protocol-v2/pull/426))
+### Fixes
+- sdk: fix isOracleValid confidenceTooLarge calc ([#425](https://github.com/drift-labs/protocol-v2/pull/425))
+
+### Breaking
+
+## [2.24.0] - 2023-04-03
+
+### Features
 
 - program: ability to delete a market that was just initialized ([#413](https://github.com/drift-labs/protocol-v2/pull/413))
 - program: revenue pool wont settle to IF if utilization unhealthy ([#402](https://github.com/drift-labs/protocol-v2/pull/402))
@@ -36,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - sdk: add isUserBankrupt ([#399](https://github.com/drift-labs/protocol-v2/pull/399))
+- program: update revenue pool fund settlement logic ([#398](https://github.com/drift-labs/protocol-v2/pull/398))
 
 ### Fixes
 

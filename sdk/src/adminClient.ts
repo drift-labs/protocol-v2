@@ -245,6 +245,32 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async deleteInitializedPerpMarket(
+		marketIndex: number
+	): Promise<TransactionSignature> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		const deleteInitializeMarketTx =
+			await this.program.transaction.deleteInitializedPerpMarket(marketIndex, {
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					perpMarket: perpMarketPublicKey,
+				},
+			});
+
+		const { txSig } = await this.sendTransaction(
+			deleteInitializeMarketTx,
+			[],
+			this.opts
+		);
+
+		return txSig;
+	}
+
 	public async moveAmmPrice(
 		perpMarketIndex: number,
 		baseAssetReserve: BN,
