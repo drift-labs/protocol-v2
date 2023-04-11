@@ -1,9 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::signer::get_signer_seeds;
-use anchor_lang::accounts::account::Account;
-use anchor_lang::prelude::{AccountInfo, Program, Pubkey, Rent, Sysvar};
+use anchor_lang::prelude::{AccountInfo, Pubkey, Rent, Sysvar};
 use anchor_lang::ToAccountInfo;
-use anchor_spl::token::{Token, TokenAccount};
 use serum_dex::instruction::NewOrderInstructionV3;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::msg;
@@ -44,29 +42,6 @@ pub fn invoke_init_open_orders<'a>(
             ErrorCode::FailedSerumCPI
         },
     )
-}
-
-pub enum FulfillmentParams<'a, 'b> {
-    SerumFulfillmentParams(SerumFulfillmentParams<'a, 'b>),
-}
-
-pub struct SerumFulfillmentParams<'a, 'b> {
-    pub drift_signer: &'a AccountInfo<'b>,
-    pub serum_program_id: &'a AccountInfo<'b>,
-    pub serum_market: &'a AccountInfo<'b>,
-    pub serum_request_queue: &'a AccountInfo<'b>,
-    pub serum_event_queue: &'a AccountInfo<'b>,
-    pub serum_bids: &'a AccountInfo<'b>,
-    pub serum_asks: &'a AccountInfo<'b>,
-    pub serum_base_vault: &'a AccountInfo<'b>,
-    pub serum_quote_vault: &'a AccountInfo<'b>,
-    pub serum_open_orders: &'a AccountInfo<'b>,
-    pub token_program: Program<'b, Token>,
-    pub base_market_vault: Box<Account<'b, TokenAccount>>,
-    pub quote_market_vault: Box<Account<'b, TokenAccount>>,
-    pub srm_vault: &'a AccountInfo<'b>,
-    pub serum_signer: &'a AccountInfo<'b>,
-    pub signer_nonce: u8,
 }
 
 pub fn invoke_new_order<'a>(

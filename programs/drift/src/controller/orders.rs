@@ -1,12 +1,9 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
-use std::num::NonZeroU64;
 use std::ops::DerefMut;
 use std::u64;
 
 use anchor_lang::prelude::*;
-use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
-use serum_dex::matching::Side;
 use solana_program::msg;
 
 use crate::controller::funding::settle_funding_payment;
@@ -16,7 +13,6 @@ use crate::controller::position::{
     update_lp_market_position, update_position_and_market, update_quote_asset_amount,
     PositionDirection,
 };
-use crate::controller::serum::{invoke_new_order, invoke_settle_funds, FulfillmentParams};
 use crate::controller::spot_balance::{
     transfer_spot_balance_to_revenue_pool, update_spot_balances,
 };
@@ -36,7 +32,7 @@ use crate::math::constants::{
     BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
     QUOTE_SPOT_MARKET_INDEX,
 };
-use crate::math::fees::{FillFees, SerumFillFees};
+use crate::math::fees::{ExternalFillFees, FillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
 };
@@ -48,10 +44,6 @@ use crate::math::matching::{
 use crate::math::oracle;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_math::SafeMath;
-use crate::math::serum::{
-    calculate_serum_limit_price, calculate_serum_max_coin_qty,
-    calculate_serum_max_native_pc_quantity,
-};
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
@@ -67,7 +59,7 @@ use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::serum::{get_best_bid_and_ask, load_open_orders, load_serum_market};
+use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::FeeStructure;
@@ -2887,7 +2879,7 @@ pub fn fill_spot_order(
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u32>,
     clock: &Clock,
-    fulfillment_params: &mut Option<FulfillmentParams>,
+    fulfillment_params: &mut dyn SpotFulfillmentParams,
 ) -> DriftResult<u64> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -3294,14 +3286,14 @@ fn fulfill_spot_order(
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
-    fulfillment_params: &mut Option<FulfillmentParams>,
+    fulfillment_params: &mut dyn SpotFulfillmentParams,
 ) -> DriftResult<(u64, bool)> {
     let base_market_index = user.orders[user_order_index].market_index;
 
     let fulfillment_methods = determine_spot_fulfillment_methods(
         &user.orders[user_order_index],
         maker.is_some(),
-        fulfillment_params.is_some(),
+        fulfillment_params.is_external(),
     )?;
 
     let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
@@ -3313,7 +3305,7 @@ fn fulfill_spot_order(
             break;
         }
 
-        let _base_asset_amount = match fulfillment_method {
+        let base_filled = match fulfillment_method {
             SpotFulfillmentMethod::Match => fulfill_spot_order_with_match(
                 &mut base_market,
                 &mut quote_market,
@@ -3333,7 +3325,7 @@ fn fulfill_spot_order(
                 oracle_map,
                 fee_structure,
             )?,
-            SpotFulfillmentMethod::SerumV3 => fulfill_spot_order_with_serum(
+            SpotFulfillmentMethod::ExternalMarket => fulfill_spot_order_with_external_market(
                 &mut base_market,
                 &mut quote_market,
                 user,
@@ -3351,7 +3343,7 @@ fn fulfill_spot_order(
             )?,
         };
 
-        base_asset_amount = base_asset_amount.safe_add(_base_asset_amount)?;
+        base_asset_amount = base_asset_amount.safe_add(base_filled)?;
     }
 
     let initial_margin_ratio = base_market.get_margin_ratio(&MarginRequirementType::Initial)?;
@@ -3764,7 +3756,7 @@ pub fn fulfill_spot_order_with_match(
     Ok(base_asset_amount)
 }
 
-pub fn fulfill_spot_order_with_serum(
+pub fn fulfill_spot_order_with_external_market(
     base_market: &mut SpotMarket,
     quote_market: &mut SpotMarket,
     taker: &mut User,
@@ -3778,15 +3770,8 @@ pub fn fulfill_spot_order_with_serum(
     slot: u64,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-    fulfillment_params: &mut Option<FulfillmentParams>,
+    fulfillment_params: &mut dyn SpotFulfillmentParams,
 ) -> DriftResult<u64> {
-    let serum_new_order_accounts = match fulfillment_params {
-        Some(FulfillmentParams::SerumFulfillmentParams(serum_new_order_accounts)) => {
-            serum_new_order_accounts
-        }
-        None => return Ok(0),
-    };
-
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
     let taker_price = taker.orders[taker_order_index].get_limit_price(
         Some(oracle_price),
@@ -3808,13 +3793,7 @@ pub fn fulfill_spot_order_with_serum(
     let taker_base_asset_amount =
         taker_base_asset_amount.min(max_base_asset_amount.unwrap_or(u64::MAX));
 
-    let (best_bid, best_ask) = get_best_bid_and_ask(
-        serum_new_order_accounts.serum_market,
-        serum_new_order_accounts.serum_bids,
-        serum_new_order_accounts.serum_asks,
-        serum_new_order_accounts.serum_program_id.key,
-        base_market.decimals,
-    )?;
+    let (best_bid, best_ask) = fulfillment_params.get_best_bid_and_ask()?;
 
     let mut mid_price = 0;
     if let Some(best_bid) = best_bid {
@@ -3863,7 +3842,7 @@ pub fn fulfill_spot_order_with_serum(
                 if let Some(ask) = best_ask {
                     ask.safe_add(ask / 100)?
                 } else {
-                    msg!("Serum has no ask");
+                    msg!("External market has no ask");
                     return Ok(0);
                 }
             }
@@ -3871,195 +3850,35 @@ pub fn fulfill_spot_order_with_serum(
                 if let Some(bid) = best_bid {
                     bid.safe_sub(bid / 100)?
                 } else {
-                    msg!("Serum has no bid");
+                    msg!("External market has no bid");
                     return Ok(0);
                 }
             }
         }
     };
 
-    let market_state_before = load_serum_market(
-        serum_new_order_accounts.serum_market,
-        serum_new_order_accounts.serum_program_id.key,
-    )?;
-
-    let serum_order_side = match order_direction {
-        PositionDirection::Long => Side::Bid,
-        PositionDirection::Short => Side::Ask,
-    };
-
-    let serum_max_coin_qty =
-        calculate_serum_max_coin_qty(taker_base_asset_amount, market_state_before.coin_lot_size)?;
-
-    let serum_limit_price = calculate_serum_limit_price(
-        taker_price,
-        market_state_before.pc_lot_size,
-        base_market.decimals,
-        market_state_before.coin_lot_size,
+    let ExternalSpotFill {
+        base_asset_amount_filled,
+        base_update_direction,
+        quote_asset_amount_filled,
+        quote_update_direction,
+        fee: external_market_fee,
+        settled_referrer_rebate,
+        unsettled_referrer_rebate,
+    } = fulfillment_params.fulfill_order(
         order_direction,
+        taker_price,
+        taker_base_asset_amount,
+        max_quote_asset_amount.unwrap_or(u64::MAX),
     )?;
-
-    let serum_max_native_pc_qty = calculate_serum_max_native_pc_quantity(
-        serum_limit_price,
-        serum_max_coin_qty,
-        market_state_before.pc_lot_size,
-    )?
-    .min(max_quote_asset_amount.unwrap_or(u64::MAX));
-
-    if serum_max_coin_qty == 0 || serum_max_native_pc_qty == 0 {
-        return Ok(0);
-    }
-
-    let serum_order = NewOrderInstructionV3 {
-        side: serum_order_side,
-        limit_price: NonZeroU64::new(serum_limit_price).safe_unwrap()?,
-        max_coin_qty: NonZeroU64::new(serum_max_coin_qty).safe_unwrap()?, // max base to deposit into serum
-        max_native_pc_qty_including_fees: NonZeroU64::new(serum_max_native_pc_qty).safe_unwrap()?, // max quote to deposit into serum
-        self_trade_behavior: SelfTradeBehavior::AbortTransaction,
-        order_type: serum_dex::matching::OrderType::ImmediateOrCancel,
-        client_order_id: 0,
-        limit: 10,
-        max_ts: now,
-    };
-
-    let _market_fees_accrued_before = market_state_before.pc_fees_accrued;
-    let base_before = serum_new_order_accounts.base_market_vault.amount;
-    let quote_before = serum_new_order_accounts.quote_market_vault.amount;
-    let market_rebates_accrued_before = market_state_before.referrer_rebates_accrued;
-
-    drop(market_state_before);
-
-    invoke_new_order(
-        serum_new_order_accounts.serum_program_id,
-        serum_new_order_accounts.serum_market,
-        serum_new_order_accounts.serum_open_orders,
-        serum_new_order_accounts.serum_request_queue,
-        serum_new_order_accounts.serum_event_queue,
-        serum_new_order_accounts.serum_bids,
-        serum_new_order_accounts.serum_asks,
-        &match order_direction {
-            PositionDirection::Long => serum_new_order_accounts
-                .quote_market_vault
-                .to_account_info(),
-            PositionDirection::Short => {
-                serum_new_order_accounts.base_market_vault.to_account_info()
-            }
-        },
-        serum_new_order_accounts.drift_signer,
-        serum_new_order_accounts.serum_base_vault,
-        serum_new_order_accounts.serum_quote_vault,
-        serum_new_order_accounts.srm_vault,
-        &serum_new_order_accounts.token_program.to_account_info(),
-        serum_order,
-        serum_new_order_accounts.signer_nonce,
-    )?;
-
-    let market_state_after = load_serum_market(
-        serum_new_order_accounts.serum_market,
-        serum_new_order_accounts.serum_program_id.key,
-    )?;
-
-    let _market_fees_accrued_after = market_state_after.pc_fees_accrued;
-    let market_rebates_accrued_after = market_state_after.referrer_rebates_accrued;
-
-    drop(market_state_after);
-
-    let open_orders_before = load_open_orders(serum_new_order_accounts.serum_open_orders)?;
-    let unsettled_referrer_rebate_before = open_orders_before.referrer_rebates_accrued;
-
-    drop(open_orders_before);
-
-    invoke_settle_funds(
-        serum_new_order_accounts.serum_program_id,
-        serum_new_order_accounts.serum_market,
-        serum_new_order_accounts.serum_open_orders,
-        serum_new_order_accounts.drift_signer,
-        serum_new_order_accounts.serum_base_vault,
-        serum_new_order_accounts.serum_quote_vault,
-        &serum_new_order_accounts.base_market_vault.to_account_info(),
-        &serum_new_order_accounts
-            .quote_market_vault
-            .to_account_info(),
-        serum_new_order_accounts.serum_signer,
-        &serum_new_order_accounts.token_program.to_account_info(),
-        serum_new_order_accounts.signer_nonce,
-    )?;
-
-    serum_new_order_accounts
-        .base_market_vault
-        .reload()
-        .map_err(|_e| {
-            msg!("Failed to reload base_market_vault");
-            ErrorCode::FailedSerumCPI
-        })?;
-    serum_new_order_accounts
-        .quote_market_vault
-        .reload()
-        .map_err(|_e| {
-            msg!("Failed to reload quote_market_vault");
-            ErrorCode::FailedSerumCPI
-        })?;
-
-    let base_after = serum_new_order_accounts.base_market_vault.amount;
-    let quote_after = serum_new_order_accounts.quote_market_vault.amount;
-
-    let open_orders_after = load_open_orders(serum_new_order_accounts.serum_open_orders)?;
-    let unsettled_referrer_rebate_after = open_orders_after.referrer_rebates_accrued;
-
-    drop(open_orders_after);
-
-    let settled_referred_rebate =
-        unsettled_referrer_rebate_before.safe_sub(unsettled_referrer_rebate_after)?;
 
     update_spot_balances(
-        settled_referred_rebate as u128,
+        settled_referrer_rebate as u128,
         &SpotBalanceType::Deposit,
         quote_market,
         &mut base_market.spot_fee_pool,
         false,
     )?;
-
-    let (base_update_direction, base_asset_amount_filled) = if base_after > base_before {
-        (SpotBalanceType::Deposit, base_after.safe_sub(base_before)?)
-    } else {
-        (SpotBalanceType::Borrow, base_before.safe_sub(base_after)?)
-    };
-
-    if base_asset_amount_filled == 0 {
-        msg!("No base filled on serum");
-        return Ok(0);
-    }
-
-    let serum_referrer_rebate =
-        market_rebates_accrued_after.safe_sub(market_rebates_accrued_before)?;
-
-    // rebate is half of taker fee
-    let serum_fee = serum_referrer_rebate;
-
-    let (quote_update_direction, quote_asset_amount_filled) =
-        if base_update_direction == SpotBalanceType::Borrow {
-            let quote_asset_amount_delta = quote_after
-                .safe_sub(quote_before)?
-                .safe_sub(settled_referred_rebate)?;
-
-            (
-                SpotBalanceType::Deposit,
-                quote_asset_amount_delta
-                    .safe_add(serum_fee)?
-                    .safe_add(serum_referrer_rebate)?,
-            )
-        } else {
-            let quote_asset_amount_delta = quote_before
-                .safe_add(settled_referred_rebate)?
-                .safe_sub(quote_after)?;
-
-            (
-                SpotBalanceType::Borrow,
-                quote_asset_amount_delta
-                    .safe_sub(serum_fee)?
-                    .safe_sub(serum_referrer_rebate)?,
-            )
-        };
 
     validate_fill_price(
         quote_asset_amount_filled,
@@ -4084,20 +3903,20 @@ pub fn fulfill_spot_order_with_serum(
         )?;
     }
 
-    let SerumFillFees {
+    let ExternalFillFees {
         user_fee: taker_fee,
         fee_to_market,
         fee_pool_delta,
         filler_reward,
-    } = fees::calculate_fee_for_fulfillment_with_serum(
+    } = fees::calculate_fee_for_fulfillment_with_external_market(
         taker_stats,
         quote_asset_amount_filled,
         fee_structure,
         taker_order_slot,
         slot,
         filler.is_some(),
-        serum_fee,
-        serum_referrer_rebate,
+        external_market_fee,
+        unsettled_referrer_rebate,
         fee_pool_amount.cast()?,
     )?;
 
@@ -4110,7 +3929,7 @@ pub fn fulfill_spot_order_with_serum(
         base_update_direction
             == taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
         ErrorCode::FailedToFillOnSerum,
-        "Fill on serum lead to unexpected to update direction"
+        "Fill on external spot market lead to unexpected to update direction"
     )?;
 
     update_spot_balances_and_cumulative_deposits(
@@ -4126,7 +3945,7 @@ pub fn fulfill_spot_order_with_serum(
         quote_update_direction
             == taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
         ErrorCode::FailedToFillOnSerum,
-        "Fill on serum lead to unexpected to update direction"
+        "Fill on external market lead to unexpected to update direction"
     )?;
 
     update_spot_balances_and_cumulative_deposits(
@@ -4193,7 +4012,7 @@ pub fn fulfill_spot_order_with_serum(
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::OrderFillWithSerum,
+        fulfillment_params.get_order_action_explanation()?,
         taker.orders[taker_order_index].market_index,
         Some(*filler_key),
         Some(fill_record_id),
@@ -4204,7 +4023,7 @@ pub fn fulfill_spot_order_with_serum(
         Some(0),
         None,
         Some(0),
-        Some(serum_fee),
+        Some(external_market_fee),
         Some(*taker_key),
         Some(taker.orders[taker_order_index]),
         None,

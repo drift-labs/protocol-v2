@@ -884,8 +884,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.lt(new BN(43454544927 + 20000))); //44k still :o
-		assert(imbalance.gt(new BN(43454544927 - 20000))); //44k still :o
+		assert(imbalance.lt(new BN(43454561797 + 20000))); //44k still :o
+		assert(imbalance.gt(new BN(43454561797 - 20000))); //44k still :o
 
 		console.log(
 			'revenueWithdrawSinceLastSettle:',

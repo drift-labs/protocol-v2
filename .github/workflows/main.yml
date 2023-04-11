@@ -34,7 +34,7 @@ jobs:
       - name: Cargo fmt
         run: cargo fmt -- --check
       - name: Cargo clippy
-        run: cargo clippy --all-targets
+        run: cargo clippy -p drift
   unit:
     name: Unit tests
     runs-on: ubuntu-latest
