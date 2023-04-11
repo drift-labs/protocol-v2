@@ -3971,7 +3971,7 @@ pub fn fulfill_spot_order_with_external_market(
             .last_index_price_twap
             .cast()?,
         base_market.historical_index_data.last_index_price_twap_ts,
-        ONE_HOUR as i64,
+        ONE_HOUR,
     )?
     .cast()?;
 

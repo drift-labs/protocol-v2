@@ -90,7 +90,7 @@ pub fn update_spot_market_twap_stats(
             now,
             spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.historical_oracle_data.last_oracle_price_twap_ts,
-            ONE_HOUR as i64,
+            ONE_HOUR,
         )?;
 
         let oracle_price_twap_5min = calculate_new_twap(

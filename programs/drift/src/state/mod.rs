@@ -1,5 +1,6 @@
 pub mod events;
 pub mod fulfillment;
+pub mod fulfillment_params;
 pub mod insurance_fund_stake;
 pub mod oracle;
 pub mod oracle_map;

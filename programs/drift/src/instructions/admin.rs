@@ -535,7 +535,7 @@ pub fn handle_initialize_perp_market(
         }
     };
 
-    let max_spread = ((margin_ratio_initial - margin_ratio_maintenance) * (100 - 5)) as u32;
+    let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
 
     // todo? should ensure peg within 1 cent of current oracle?
     // validate!(

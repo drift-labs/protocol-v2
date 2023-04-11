@@ -41,7 +41,7 @@ pub mod pyth {
             .unwrap()
             .checked_div(2)
             .unwrap(); //todo
-        price_oracle.agg.price = price as i64;
+        price_oracle.agg.price = price;
         Ok(())
     }
 
@@ -55,7 +55,7 @@ pub mod pyth {
             .unwrap()
             .checked_div(2)
             .unwrap(); //todo
-        price_oracle.agg.price = price as i64;
+        price_oracle.agg.price = price;
         price_oracle.agg.conf = conf;
         price_oracle.valid_slot = slot;
 
