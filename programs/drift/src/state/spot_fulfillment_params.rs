@@ -6,9 +6,10 @@ use crate::math::serum::{
     calculate_serum_limit_price, calculate_serum_max_coin_qty,
     calculate_serum_max_native_pc_quantity,
 };
+use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::events::OrderActionExplanation;
 use crate::state::serum::{get_best_bid_and_ask, load_open_orders, load_serum_market};
-use crate::state::spot_market::SpotBalanceType;
+use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::PositionDirection;
 use anchor_lang::prelude::{Account, Program};
 use anchor_lang::ToAccountInfo;
@@ -17,33 +18,18 @@ use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
 use serum_dex::matching::Side;
 use solana_program::account_info::AccountInfo;
 use solana_program::msg;
+use std::cell::Ref;
 use std::num::NonZeroU64;
 
-pub enum FulfillmentParams<'a, 'b> {
-    None,
-    SerumFulfillmentParams(SerumFulfillmentParams<'a, 'b>),
-}
+pub trait FulfillmentParams<'a, 'b> {
+    fn is_external(&self) -> bool;
 
-impl<'a, 'b> FulfillmentParams<'a, 'b> {
-    pub fn is_some(&self) -> bool {
-        !matches!(self, FulfillmentParams::None)
-    }
-
-    #[allow(clippy::panic)]
-    pub fn get_best_bid_ask(
+    fn get_best_bid_ask(
         &self,
         base_market_decimals: u32,
-    ) -> DriftResult<(Option<u64>, Option<u64>)> {
-        match self {
-            FulfillmentParams::SerumFulfillmentParams(params) => {
-                params.get_best_bid_ask(base_market_decimals)
-            }
-            FulfillmentParams::None => panic!(),
-        }
-    }
+    ) -> DriftResult<(Option<u64>, Option<u64>)>;
 
-    #[allow(clippy::panic)]
-    pub fn fulfill_order(
+    fn fulfill_order(
         &mut self,
         taker_direction: PositionDirection,
         taker_price: u64,
@@ -51,28 +37,60 @@ impl<'a, 'b> FulfillmentParams<'a, 'b> {
         taker_max_quote_asset_amount: u64,
         base_market_decimals: u32,
         now: i64,
-    ) -> DriftResult<ExternalSpotFill> {
-        match self {
-            FulfillmentParams::SerumFulfillmentParams(params) => params.fulfill_order(
-                taker_direction,
-                taker_price,
-                taker_base_asset_amount,
-                taker_max_quote_asset_amount,
-                base_market_decimals,
-                now,
-            ),
-            FulfillmentParams::None => panic!(),
-        }
+    ) -> DriftResult<ExternalSpotFill>;
+
+    fn get_order_action_explanation(&self) -> DriftResult<OrderActionExplanation>;
+
+    fn validate_vault_amounts(
+        &self,
+        base_market: &Ref<SpotMarket>,
+        quote_market: &Ref<SpotMarket>,
+    ) -> DriftResult<()>;
+}
+
+pub struct MatchFulfillmentParams<'a> {
+    pub base_market_vault: Box<Account<'a, TokenAccount>>,
+    pub quote_market_vault: Box<Account<'a, TokenAccount>>,
+}
+
+impl<'a, 'b> FulfillmentParams<'a, 'b> for MatchFulfillmentParams<'b> {
+    fn is_external(&self) -> bool {
+        false
     }
 
-    #[allow(clippy::panic)]
-    pub fn get_order_action_explanation(&self) -> OrderActionExplanation {
-        match self {
-            FulfillmentParams::SerumFulfillmentParams(_) => {
-                OrderActionExplanation::OrderFillWithSerum
-            }
-            FulfillmentParams::None => panic!(),
-        }
+    fn get_best_bid_ask(
+        &self,
+        _base_market_decimals: u32,
+    ) -> DriftResult<(Option<u64>, Option<u64>)> {
+        Err(ErrorCode::InvalidSpotFulfillmentParams)
+    }
+
+    fn fulfill_order(
+        &mut self,
+        _taker_direction: PositionDirection,
+        _taker_price: u64,
+        _taker_base_asset_amount: u64,
+        _taker_max_quote_asset_amount: u64,
+        _base_market_decimals: u32,
+        _now: i64,
+    ) -> DriftResult<ExternalSpotFill> {
+        Err(ErrorCode::InvalidSpotFulfillmentParams)
+    }
+
+    fn get_order_action_explanation(&self) -> DriftResult<OrderActionExplanation> {
+        Err(ErrorCode::InvalidSpotFulfillmentParams)
+    }
+
+    fn validate_vault_amounts(
+        &self,
+        base_market: &Ref<SpotMarket>,
+        quote_market: &Ref<SpotMarket>,
+    ) -> DriftResult<()> {
+        validate_spot_market_vault_amount(base_market, self.base_market_vault.amount)?;
+
+        validate_spot_market_vault_amount(quote_market, self.quote_market_vault.amount)?;
+
+        Ok(())
     }
 }
 
@@ -119,8 +137,12 @@ pub struct SerumFulfillmentParams<'a, 'b> {
     pub signer_nonce: u8,
 }
 
-impl<'a, 'b> SerumFulfillmentParams<'a, 'b> {
-    pub fn get_best_bid_ask(
+impl<'a, 'b> FulfillmentParams<'a, 'b> for SerumFulfillmentParams<'a, 'b> {
+    fn is_external(&self) -> bool {
+        true
+    }
+
+    fn get_best_bid_ask(
         &self,
         base_market_decimals: u32,
     ) -> DriftResult<(Option<u64>, Option<u64>)> {
@@ -133,7 +155,7 @@ impl<'a, 'b> SerumFulfillmentParams<'a, 'b> {
         )
     }
 
-    pub fn fulfill_order(
+    fn fulfill_order(
         &mut self,
         taker_direction: PositionDirection,
         taker_price: u64,
@@ -311,5 +333,62 @@ impl<'a, 'b> SerumFulfillmentParams<'a, 'b> {
             unsettled_referrer_rebate: serum_referrer_rebate,
             settled_referrer_rebate: settled_referred_rebate,
         })
+    }
+
+    fn get_order_action_explanation(&self) -> DriftResult<OrderActionExplanation> {
+        Ok(OrderActionExplanation::OrderFillWithSerum)
+    }
+
+    fn validate_vault_amounts(
+        &self,
+        base_market: &Ref<SpotMarket>,
+        quote_market: &Ref<SpotMarket>,
+    ) -> DriftResult {
+        validate_spot_market_vault_amount(base_market, self.base_market_vault.amount)?;
+
+        validate_spot_market_vault_amount(quote_market, self.quote_market_vault.amount)?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+pub struct TestFulfillmentParams {}
+
+#[cfg(test)]
+impl<'a, 'b> FulfillmentParams<'a, 'b> for TestFulfillmentParams {
+    fn is_external(&self) -> bool {
+        false
+    }
+
+    fn get_best_bid_ask(
+        &self,
+        _base_market_decimals: u32,
+    ) -> DriftResult<(Option<u64>, Option<u64>)> {
+        Err(ErrorCode::InvalidSpotFulfillmentParams)
+    }
+
+    fn fulfill_order(
+        &mut self,
+        _taker_direction: PositionDirection,
+        _taker_price: u64,
+        _taker_base_asset_amount: u64,
+        _taker_max_quote_asset_amount: u64,
+        _base_market_decimals: u32,
+        _now: i64,
+    ) -> DriftResult<ExternalSpotFill> {
+        Err(ErrorCode::InvalidSpotFulfillmentParams)
+    }
+
+    fn get_order_action_explanation(&self) -> DriftResult<OrderActionExplanation> {
+        Err(ErrorCode::InvalidSpotFulfillmentParams)
+    }
+
+    fn validate_vault_amounts(
+        &self,
+        base_market: &Ref<SpotMarket>,
+        quote_market: &Ref<SpotMarket>,
+    ) -> DriftResult<()> {
+        Err(ErrorCode::InvalidSpotFulfillmentParams)
     }
 }

@@ -2879,7 +2879,7 @@ pub fn fill_spot_order(
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u32>,
     clock: &Clock,
-    fulfillment_params: &mut FulfillmentParams,
+    fulfillment_params: &mut dyn FulfillmentParams,
 ) -> DriftResult<u64> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -3286,14 +3286,14 @@ fn fulfill_spot_order(
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
-    fulfillment_params: &mut FulfillmentParams,
+    fulfillment_params: &mut dyn FulfillmentParams,
 ) -> DriftResult<(u64, bool)> {
     let base_market_index = user.orders[user_order_index].market_index;
 
     let fulfillment_methods = determine_spot_fulfillment_methods(
         &user.orders[user_order_index],
         maker.is_some(),
-        fulfillment_params.is_some(),
+        fulfillment_params.is_external(),
     )?;
 
     let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
@@ -3770,7 +3770,7 @@ pub fn fulfill_spot_order_with_external_market(
     slot: u64,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-    fulfillment_params: &mut FulfillmentParams,
+    fulfillment_params: &mut dyn FulfillmentParams,
 ) -> DriftResult<u64> {
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
     let taker_price = taker.orders[taker_order_index].get_limit_price(
@@ -4014,7 +4014,7 @@ pub fn fulfill_spot_order_with_external_market(
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::OrderFillWithSerum,
+        fulfillment_params.get_order_action_explanation()?,
         taker.orders[taker_order_index].market_index,
         Some(*filler_key),
         Some(fill_record_id),

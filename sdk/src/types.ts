@@ -162,6 +162,7 @@ export class OrderTriggerCondition {
 
 export class SpotFulfillmentType {
 	static readonly SERUM_v3 = { serumV3: {} };
+	static readonly match = { match: {} };
 }
 
 export class SpotFulfillmentStatus {

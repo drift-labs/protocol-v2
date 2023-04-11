@@ -4,7 +4,7 @@ use crate::load;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::{MarketSet, PerpMarketMap};
-use crate::state::spot_fulfillment_params::{FulfillmentParams, SerumFulfillmentParams};
+use crate::state::spot_fulfillment_params::{MatchFulfillmentParams, SerumFulfillmentParams};
 use crate::state::spot_market::{
     SerumV3FulfillmentConfig, SpotFulfillmentConfigStatus, SpotMarket,
 };
@@ -152,12 +152,12 @@ pub fn get_referrer_and_referrer_stats<'a>(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
+pub fn get_serum_fulfillment_params<'a, 'b, 'c>(
     account_info_iter: &'a mut std::iter::Peekable<std::slice::Iter<'b, AccountInfo<'c>>>,
     state: &State,
     base_market: &SpotMarket,
     quote_market: &SpotMarket,
-) -> DriftResult<FulfillmentParams<'a, 'c>> {
+) -> DriftResult<SerumFulfillmentParams<'a, 'c>> {
     let account_info_vec = account_info_iter.collect::<Vec<_>>();
     let account_infos = array_ref![account_info_vec, 0, 16];
     let [serum_fulfillment_config, serum_program_id, serum_market, serum_request_queue, serum_event_queue, serum_bids, serum_asks, serum_base_vault, serum_quote_vault, serum_open_orders, serum_signer, drift_signer, token_program, base_market_vault, quote_market_vault, srm_vault] =
@@ -234,7 +234,7 @@ pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
         ErrorCode::InvalidSerumFulfillmentConfig
     )?;
 
-    let serum_fulfillment_accounts = SerumFulfillmentParams {
+    Ok(SerumFulfillmentParams {
         drift_signer,
         serum_program_id,
         serum_market,
@@ -251,22 +251,15 @@ pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
         serum_signer,
         srm_vault,
         signer_nonce: state.signer_nonce,
-    };
-
-    Ok(FulfillmentParams::SerumFulfillmentParams(
-        serum_fulfillment_accounts,
-    ))
+    })
 }
 
 #[allow(clippy::type_complexity)]
-pub fn get_spot_market_vaults<'a, 'b, 'c>(
+pub fn get_match_fulfillment_params<'a, 'b, 'c>(
     account_info_iter: &'a mut std::iter::Peekable<std::slice::Iter<'b, AccountInfo<'c>>>,
     base_market: &SpotMarket,
     quote_market: &SpotMarket,
-) -> DriftResult<(
-    Box<Account<'c, TokenAccount>>,
-    Box<Account<'c, TokenAccount>>,
-)> {
+) -> DriftResult<MatchFulfillmentParams<'c>> {
     let account_info_vec = account_info_iter.collect::<Vec<_>>();
     let account_infos = array_ref![account_info_vec, 0, 2];
     let [base_market_vault, quote_market_vault] = account_infos;
@@ -292,7 +285,10 @@ pub fn get_spot_market_vaults<'a, 'b, 'c>(
             ErrorCode::InvalidSerumFulfillmentConfig
         })?);
 
-    Ok((base_market_vault, quote_market_vault))
+    Ok(MatchFulfillmentParams {
+        base_market_vault,
+        quote_market_vault,
+    })
 }
 
 pub fn get_whitelist_token<'a>(
