@@ -2363,7 +2363,10 @@ pub mod fulfill_order_with_maker_order {
 pub mod fulfill_order {
     use std::str::FromStr;
 
-    use crate::controller::orders::{fulfill_perp_order, validate_perp_market_within_price_band};
+    use crate::controller::orders::{
+        fulfill_perp_order, validate_perp_market_within_price_band,
+        validate_spot_market_within_price_band,
+    };
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
@@ -2494,6 +2497,61 @@ pub mod fulfill_order {
             None
         )
         .is_err());
+    }
+
+    #[test]
+    fn validate_spot_market_within_price_band_tests() {
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+
+        let price = 20 * PRICE_PRECISION as i64;
+        let mut sol_spot_market = SpotMarket {
+            market_index: 1,
+            oracle_source: OracleSource::Pyth,
+            oracle: oracle_price_key,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 10,
+            initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
+            // deposit_balance: SPOT_BALANCE_PRECISION,
+            // borrow_balance: SPOT_BALANCE_PRECISION,
+            // liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            // insurance_fund: InsuranceFund {
+            //     revenue_settle_period: 1,
+            //     ..InsuranceFund::default()
+            // },
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (price * 98 / 100),
+                last_oracle_price_twap_5min: (price * 99 / 100),
+                last_oracle_price: price,
+
+                ..HistoricalOracleData::default()
+            },
+            status: MarketStatus::Active,
+            ..SpotMarket::default()
+        };
+
+        let mut state = State {
+            oracle_guard_rails: OracleGuardRails {
+                price_divergence: PriceDivergenceGuardRails {
+                    mark_oracle_divergence_numerator: 1,
+                    mark_oracle_divergence_denominator: 10,
+                },
+                validity: ValidityGuardRails {
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
+                    confidence_interval_max_size: 1000,
+                    too_volatile_ratio: 5,
+                },
+            },
+            ..State::default()
+        };
+
+        // valid initial state
+        assert!(validate_spot_market_within_price_band(&sol_spot_market, &state, None).unwrap());
     }
 
     #[test]
