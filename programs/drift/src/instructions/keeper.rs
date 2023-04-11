@@ -4,8 +4,7 @@ use anchor_spl::token::{Token, TokenAccount};
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_match_fulfillment_params, get_referrer_and_referrer_stats,
-    get_serum_fulfillment_params, load_maps, AccountMaps,
+    get_maker_and_maker_stats, get_referrer_and_referrer_stats, load_maps, AccountMaps,
 };
 use crate::load_mut;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
@@ -18,7 +17,9 @@ use crate::state::perp_market_map::{
     get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
     MarketSet, PerpMarketMap,
 };
-use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
+use crate::state::spot_fulfillment_params::{
+    MatchFulfillmentParams, SerumFulfillmentParams, SpotFulfillmentParams,
+};
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
@@ -209,7 +210,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
         SpotFulfillmentType::SerumV3 => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
-            Box::new(get_serum_fulfillment_params(
+            Box::new(SerumFulfillmentParams::new(
                 remaining_accounts_iter,
                 &ctx.accounts.state,
                 &base_market,
@@ -219,7 +220,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
         SpotFulfillmentType::Match => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
-            Box::new(get_match_fulfillment_params(
+            Box::new(MatchFulfillmentParams::new(
                 remaining_accounts_iter,
                 &base_market,
                 &quote_market,

@@ -7,8 +7,8 @@ use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_match_fulfillment_params, get_referrer_and_referrer_stats,
-    get_serum_fulfillment_params, get_whitelist_token, load_maps, AccountMaps,
+    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
+    AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
 use crate::load;
@@ -31,7 +31,9 @@ use crate::state::events::{
 };
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
-use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
+use crate::state::spot_fulfillment_params::{
+    MatchFulfillmentParams, SerumFulfillmentParams, SpotFulfillmentParams,
+};
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::State;
@@ -1162,7 +1164,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         SpotFulfillmentType::SerumV3 => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
-            Box::new(get_serum_fulfillment_params(
+            Box::new(SerumFulfillmentParams::new(
                 remaining_accounts_iter,
                 &ctx.accounts.state,
                 &base_market,
@@ -1172,7 +1174,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         SpotFulfillmentType::Match => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
-            Box::new(get_match_fulfillment_params(
+            Box::new(MatchFulfillmentParams::new(
                 remaining_accounts_iter,
                 &base_market,
                 &quote_market,
@@ -1274,7 +1276,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         SpotFulfillmentType::SerumV3 => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
-            Box::new(get_serum_fulfillment_params(
+            Box::new(SerumFulfillmentParams::new(
                 remaining_accounts_iter,
                 &ctx.accounts.state,
                 &base_market,
@@ -1284,7 +1286,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         SpotFulfillmentType::Match => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
-            Box::new(get_match_fulfillment_params(
+            Box::new(MatchFulfillmentParams::new(
                 remaining_accounts_iter,
                 &base_market,
                 &quote_market,

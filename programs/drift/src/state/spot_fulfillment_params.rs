@@ -9,11 +9,14 @@ use crate::math::serum::{
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::events::OrderActionExplanation;
 use crate::state::serum::{get_best_bid_and_ask, load_open_orders, load_serum_market};
-use crate::state::spot_market::{SpotBalanceType, SpotMarket};
-use crate::PositionDirection;
+use crate::state::spot_market::{SerumV3FulfillmentConfig, SpotBalanceType, SpotMarket};
+use crate::state::state::State;
+use crate::{load, validate, PositionDirection, SpotFulfillmentConfigStatus};
+use anchor_lang::accounts::account_loader::AccountLoader;
 use anchor_lang::prelude::{Account, Program};
 use anchor_lang::ToAccountInfo;
 use anchor_spl::token::{Token, TokenAccount};
+use arrayref::array_ref;
 use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
 use serum_dex::matching::Side;
 use solana_program::account_info::AccountInfo;
@@ -61,6 +64,44 @@ pub trait SpotFulfillmentParams {
 pub struct MatchFulfillmentParams<'a> {
     pub base_market_vault: Box<Account<'a, TokenAccount>>,
     pub quote_market_vault: Box<Account<'a, TokenAccount>>,
+}
+
+impl<'a> MatchFulfillmentParams<'a> {
+    pub fn new<'b, 'c>(
+        account_info_iter: &'b mut std::iter::Peekable<std::slice::Iter<'c, AccountInfo<'a>>>,
+        base_market: &SpotMarket,
+        quote_market: &SpotMarket,
+    ) -> DriftResult<MatchFulfillmentParams<'a>> {
+        let account_info_vec = account_info_iter.collect::<Vec<_>>();
+        let account_infos = array_ref![account_info_vec, 0, 2];
+        let [base_market_vault, quote_market_vault] = account_infos;
+
+        validate!(
+            &base_market.vault == base_market_vault.key,
+            ErrorCode::InvalidSerumFulfillmentConfig
+        )?;
+
+        validate!(
+            &quote_market.vault == quote_market_vault.key,
+            ErrorCode::InvalidSerumFulfillmentConfig
+        )?;
+
+        let base_market_vault: Box<Account<TokenAccount>> =
+            Box::new(Account::try_from(base_market_vault).map_err(|e| {
+                msg!("{:?}", e);
+                ErrorCode::InvalidSerumFulfillmentConfig
+            })?);
+        let quote_market_vault: Box<Account<TokenAccount>> =
+            Box::new(Account::try_from(quote_market_vault).map_err(|e| {
+                msg!("{:?}", e);
+                ErrorCode::InvalidSerumFulfillmentConfig
+            })?);
+
+        Ok(MatchFulfillmentParams {
+            base_market_vault,
+            quote_market_vault,
+        })
+    }
 }
 
 impl<'a> SpotFulfillmentParams for MatchFulfillmentParams<'a> {
@@ -142,6 +183,112 @@ pub struct SerumFulfillmentParams<'a, 'b> {
     pub serum_signer: &'a AccountInfo<'b>,
     pub signer_nonce: u8,
     pub base_mint_decimals: u32,
+}
+
+impl<'a, 'b> SerumFulfillmentParams<'a, 'b> {
+    #[allow(clippy::type_complexity)]
+    pub fn new<'c>(
+        account_info_iter: &'a mut std::iter::Peekable<std::slice::Iter<'c, AccountInfo<'b>>>,
+        state: &State,
+        base_market: &SpotMarket,
+        quote_market: &SpotMarket,
+    ) -> DriftResult<Self> {
+        let account_info_vec = account_info_iter.collect::<Vec<_>>();
+        let account_infos = array_ref![account_info_vec, 0, 16];
+        let [serum_fulfillment_config, serum_program_id, serum_market, serum_request_queue, serum_event_queue, serum_bids, serum_asks, serum_base_vault, serum_quote_vault, serum_open_orders, serum_signer, drift_signer, token_program, base_market_vault, quote_market_vault, srm_vault] =
+            account_infos;
+
+        let serum_fulfillment_config_loader: AccountLoader<SerumV3FulfillmentConfig> =
+            AccountLoader::try_from(serum_fulfillment_config).map_err(|e| {
+                msg!("{:?}", e);
+                ErrorCode::InvalidSerumFulfillmentConfig
+            })?;
+        let serum_fulfillment_config = load!(serum_fulfillment_config_loader)?;
+
+        validate!(
+            serum_fulfillment_config.status == SpotFulfillmentConfigStatus::Enabled,
+            ErrorCode::SpotFulfillmentConfigDisabled
+        )?;
+
+        validate!(
+            &state.signer == drift_signer.key,
+            ErrorCode::InvalidSerumFulfillmentConfig
+        )?;
+
+        validate!(
+            serum_fulfillment_config.market_index == base_market.market_index,
+            ErrorCode::InvalidSerumFulfillmentConfig,
+            "config market index {} does not equal base asset index {}",
+            serum_fulfillment_config.market_index,
+            base_market.market_index
+        )?;
+
+        validate!(
+            &base_market.vault == base_market_vault.key,
+            ErrorCode::InvalidSerumFulfillmentConfig
+        )?;
+
+        validate!(
+            &quote_market.vault == quote_market_vault.key,
+            ErrorCode::InvalidSerumFulfillmentConfig
+        )?;
+
+        validate!(
+            &serum_fulfillment_config.serum_program_id == serum_program_id.key,
+            ErrorCode::InvalidSerumFulfillmentConfig
+        )?;
+
+        validate!(
+            &serum_fulfillment_config.serum_market == serum_market.key,
+            ErrorCode::InvalidSerumFulfillmentConfig
+        )?;
+
+        validate!(
+            &serum_fulfillment_config.serum_open_orders == serum_open_orders.key,
+            ErrorCode::InvalidSerumFulfillmentConfig
+        )?;
+
+        let base_market_vault: Box<Account<TokenAccount>> =
+            Box::new(Account::try_from(base_market_vault).map_err(|e| {
+                msg!("{:?}", e);
+                ErrorCode::InvalidSerumFulfillmentConfig
+            })?);
+        let quote_market_vault: Box<Account<TokenAccount>> =
+            Box::new(Account::try_from(quote_market_vault).map_err(|e| {
+                msg!("{:?}", e);
+                ErrorCode::InvalidSerumFulfillmentConfig
+            })?);
+
+        let token_program: Program<Token> = Program::try_from(token_program).map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::InvalidSerumFulfillmentConfig
+        })?;
+
+        validate!(
+            &state.srm_vault == srm_vault.key,
+            ErrorCode::InvalidSerumFulfillmentConfig
+        )?;
+
+        Ok(SerumFulfillmentParams {
+            drift_signer,
+            serum_program_id,
+            serum_market,
+            serum_request_queue,
+            serum_event_queue,
+            serum_bids,
+            serum_asks,
+            serum_base_vault,
+            serum_quote_vault,
+            serum_open_orders,
+            token_program,
+            base_market_vault,
+            quote_market_vault,
+            serum_signer,
+            srm_vault,
+            signer_nonce: state.signer_nonce,
+            base_mint_decimals: base_market.decimals,
+        })
+    }
 }
 
 impl<'a, 'b> SpotFulfillmentParams for SerumFulfillmentParams<'a, 'b> {
