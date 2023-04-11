@@ -2552,6 +2552,27 @@ pub mod fulfill_order {
 
         // valid initial state
         assert!(validate_spot_market_within_price_band(&sol_spot_market, &state, None).unwrap());
+        sol_spot_market.historical_oracle_data.last_oracle_price = (40 * PRICE_PRECISION) as i64;
+
+        // ~2x oracle price
+        assert!(!validate_spot_market_within_price_band(
+            &sol_spot_market,
+            &state,
+            Some((35 * PRICE_PRECISION) as u64)
+        )
+        .unwrap());
+
+        // ~2x oracle price
+        state
+            .oracle_guard_rails
+            .price_divergence
+            .mark_oracle_divergence_denominator = 1;
+        assert!(validate_spot_market_within_price_band(
+            &sol_spot_market,
+            &state,
+            Some((35 * PRICE_PRECISION) as u64)
+        )
+        .unwrap());
     }
 
     #[test]
