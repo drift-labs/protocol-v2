@@ -135,7 +135,12 @@ pub mod drift {
         fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u32>,
     ) -> Result<()> {
-        handle_place_and_take_spot_order(ctx, params, fulfillment_type, maker_order_id)
+        handle_place_and_take_spot_order(
+            ctx,
+            params,
+            fulfillment_type.unwrap_or(SpotFulfillmentType::Match),
+            maker_order_id,
+        )
     }
 
     pub fn place_and_make_spot_order(
@@ -144,7 +149,12 @@ pub mod drift {
         taker_order_id: u32,
         fulfillment_type: Option<SpotFulfillmentType>,
     ) -> Result<()> {
-        handle_place_and_make_spot_order(ctx, params, taker_order_id, fulfillment_type)
+        handle_place_and_make_spot_order(
+            ctx,
+            params,
+            taker_order_id,
+            fulfillment_type.unwrap_or(SpotFulfillmentType::Match),
+        )
     }
 
     pub fn add_perp_lp_shares(

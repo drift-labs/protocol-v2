@@ -6025,22 +6025,6 @@
       }
     },
     {
-      "name": "FulfillmentParams",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "SerumFulfillmentParams",
-            "fields": [
-              {
-                "defined": "SerumFulfillmentParams<'a,'b>"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
       "name": "SpotFulfillmentType",
       "type": {
         "kind": "enum",
@@ -6049,7 +6033,7 @@
             "name": "SerumV3"
           },
           {
-            "name": "None"
+            "name": "Match"
           }
         ]
       }
@@ -6410,7 +6394,7 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "SerumV3"
+            "name": "ExternalMarket"
           },
           {
             "name": "Match"
@@ -8861,6 +8845,11 @@
       "code": 6240,
       "name": "InvalidMarketAccountforDeletion",
       "msg": "Invalid MarketAccount for Deletion"
+    },
+    {
+      "code": 6241,
+      "name": "InvalidSpotFulfillmentParams",
+      "msg": "Invalid Spot Fulfillment Params"
     }
   ]
 }
