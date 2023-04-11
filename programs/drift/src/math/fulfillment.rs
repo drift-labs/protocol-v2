@@ -91,7 +91,7 @@ pub fn determine_perp_fulfillment_methods(
 pub fn determine_spot_fulfillment_methods(
     taker_order: &Order,
     maker_available: bool,
-    fulfillment_params_available: bool,
+    external_fulfillment_params_available: bool,
 ) -> DriftResult<Vec<SpotFulfillmentMethod>> {
     let mut fulfillment_methods = vec![];
 
@@ -99,7 +99,7 @@ pub fn determine_spot_fulfillment_methods(
         fulfillment_methods.push(SpotFulfillmentMethod::Match)
     }
 
-    if !taker_order.post_only && fulfillment_params_available {
+    if !taker_order.post_only && external_fulfillment_params_available {
         fulfillment_methods.push(SpotFulfillmentMethod::ExternalMarket)
     }
 
