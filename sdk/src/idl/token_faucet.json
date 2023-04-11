@@ -36,7 +36,46 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "maxAmountMint",
+          "type": "u64"
+        },
+        {
+          "name": "maxAmountPerUser",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "update",
+      "accounts": [
+        {
+          "name": "faucetConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxAmountMint",
+          "type": "u64"
+        },
+        {
+          "name": "maxAmountPerUser",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "mintToUser",
@@ -126,6 +165,18 @@
           },
           {
             "name": "mintAuthorityNonce",
+            "type": "u8"
+          },
+          {
+            "name": "maxAmountMint",
+            "type": "u64"
+          },
+          {
+            "name": "maxAmountPerUser",
+            "type": "u64"
+          },
+          {
+            "name": "nonce",
             "type": "u8"
           }
         ]

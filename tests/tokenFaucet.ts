@@ -27,6 +27,8 @@ describe('token faucet', () => {
 	let driftClient: TestClient;
 
 	const amount = new BN(10 * 10 ** 6);
+	const maxAmountMint: BN = new BN(10 * 10 ** 6);
+	const maxAmountPerUser: BN = new BN(15 * 10 ** 6);
 
 	before(async () => {
 		driftClient = new TestClient({
@@ -57,8 +59,8 @@ describe('token faucet', () => {
 		await driftClient.unsubscribe();
 	});
 
-	it('Initialize State', async () => {
-		await tokenFaucet.initialize();
+	it('initialize state', async () => {
+		await tokenFaucet.initialize(maxAmountMint, maxAmountPerUser);
 		const state: any = await tokenFaucet.fetchState();
 
 		assert.ok(state.admin.equals(provider.wallet.publicKey));
@@ -74,9 +76,20 @@ describe('token faucet', () => {
 
 		assert.ok(state.mintAuthority.equals(mintAuthority));
 		assert.ok(mintAuthorityNonce === state.mintAuthorityNonce);
+		assert.ok(state.maxAmountMint.eq(maxAmountMint));
+		assert.ok(state.maxAmountPerUser.eq(maxAmountPerUser));
 
 		const mintInfo = await token.getMintInfo();
 		assert.ok(state.mintAuthority.equals(mintInfo.mintAuthority));
+
+		const [_, faucetConfigNonce] = await PublicKey.findProgramAddress(
+			[
+				Buffer.from(anchor.utils.bytes.utf8.encode('faucet_config')),
+				state.mint.toBuffer(),
+			],
+			tokenFaucet.program.programId
+		);
+		assert.ok(faucetConfigNonce === state.nonce);
 	});
 
 	it('mint to user', async () => {
@@ -89,6 +102,42 @@ describe('token faucet', () => {
 		} catch (e) {
 			console.error(e);
 		}
+		userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
+			keyPair.publicKey
+		);
+		assert.ok(userTokenAccountInfo.amount.eq(amount));
+	});
+
+	it('cannot mint above maxAmountMint to user', async () => {
+		const keyPair = new Keypair();
+		let userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
+			keyPair.publicKey
+		);
+		try {
+			await tokenFaucet.mintToUser(
+				userTokenAccountInfo.address,
+				amount.add(new BN(1))
+			);
+		} catch (e) {}
+		userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
+			keyPair.publicKey
+		);
+		assert.ok(userTokenAccountInfo.amount.eq(new BN(0)));
+	});
+
+	it('user cannot mint if they have more than maxAmountPerUser', async () => {
+		const keyPair = new Keypair();
+		let userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
+			keyPair.publicKey
+		);
+		try {
+			await tokenFaucet.mintToUser(userTokenAccountInfo.address, amount);
+		} catch (e) {
+			console.error(e);
+		}
+		try {
+			await tokenFaucet.mintToUser(userTokenAccountInfo.address, amount);
+		} catch (e) {}
 		userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
 			keyPair.publicKey
 		);
@@ -116,5 +165,14 @@ describe('token faucet', () => {
 		await tokenFaucet.transferMintAuthority();
 		const mintInfo = await token.getMintInfo();
 		assert.ok(provider.wallet.publicKey.equals(mintInfo.mintAuthority));
+	});
+
+	it('update state', async () => {
+		const newMaxAmountMint = new BN(100 * 10 ** 6);
+		const newMaxAmountPerUser = new BN(150 * 10 ** 6);
+		await tokenFaucet.update(newMaxAmountMint, newMaxAmountPerUser);
+		const state: any = await tokenFaucet.fetchState();
+		assert.ok(state.maxAmountMint.eq(newMaxAmountMint));
+		assert.ok(state.maxAmountPerUser.eq(newMaxAmountPerUser));
 	});
 });
