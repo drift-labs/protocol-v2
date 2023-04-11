@@ -255,7 +255,7 @@ impl<'a> UserStatsMap<'a> {
         }
 
         let authority_slice = array_ref![data, 8, 32];
-        let authority = Pubkey::new(authority_slice);
+        let authority = Pubkey::from(*authority_slice);
 
         let is_writable = account_info.is_writable;
         if !is_writable {
