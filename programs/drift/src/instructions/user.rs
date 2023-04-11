@@ -1341,22 +1341,6 @@ pub fn handle_place_and_make_spot_order<'info>(
     let quote_market = spot_market_map.get_quote_spot_market()?;
     fulfillment_params.validate_vault_amounts(&base_market, &quote_market)?;
 
-    // match fulfillment_params {
-    //     Some(serum_fulfillment_params) => {
-    //         let base_market = spot_market_map.get_ref(&market_index)?;
-    //         let quote_market = spot_market_map.get_quote_spot_market()?;
-    //         serum_fulfillment_params.validate_vault_amounts(&base_market, &quote_market)?;
-    //     }
-    //     None => {
-    //         let base_market = spot_market_map.get_ref(&market_index)?;
-    //         let quote_market = spot_market_map.get_quote_spot_market()?;
-    //         let (base_market_vault, quote_market_vault) =
-    //             get_spot_market_vaults(remaining_accounts_iter, &base_market, &quote_market)?;
-    //         validate_spot_market_vault_amount(&base_market, base_market_vault.amount)?;
-    //         validate_spot_market_vault_amount(&quote_market, quote_market_vault.amount)?;
-    //     }
-    // }
-
     Ok(())
 }
 
