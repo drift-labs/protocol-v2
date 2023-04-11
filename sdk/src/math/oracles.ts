@@ -43,7 +43,7 @@ export function isOracleValid(
 
 	const isConfidenceTooLarge = BN.max(ONE, oraclePriceData.confidence)
 		.mul(BID_ASK_SPREAD_PRECISION)
-		.div(new BN(oraclePriceData.price))
+		.div(oraclePriceData.price)
 		.gt(oracleGuardRails.validity.confidenceIntervalMaxSize);
 
 	const oracleIsStale = oraclePriceData.slot
