@@ -117,7 +117,7 @@ export class DriftClient {
 	public program: Program;
 	provider: AnchorProvider;
 	opts?: ConfirmOptions;
-	users = new Map<number, User>();
+	users = new Map<string, User>();
 	userStats?: UserStats;
 	activeSubAccountId: number;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
@@ -165,7 +165,7 @@ export class DriftClient {
 				: {
 						type: 'websocket',
 				  };
-		this.createUsers(subAccountIds, this.userAccountSubscriptionConfig);
+		this.createUsers(subAccountIds, this.userAccountSubscriptionConfig, this.authority);
 		if (config.userStats) {
 			this.userStats = new UserStats({
 				driftClient: this,
@@ -227,23 +227,30 @@ export class DriftClient {
 		);
 	}
 
+	public getUserMapKey(subAccountId: number, authority: PublicKey): string {
+		return `${subAccountId}_${authority.toString()}`
+	}
+
 	createUsers(
 		subAccountIds: number[],
-		accountSubscriptionConfig: UserSubscriptionConfig
+		accountSubscriptionConfig: UserSubscriptionConfig,
+		authority?: PublicKey
 	): void {
 		for (const subAccountId of subAccountIds) {
-			const user = this.createUser(subAccountId, accountSubscriptionConfig);
-			this.users.set(subAccountId, user);
+			const user = this.createUser(subAccountId, accountSubscriptionConfig, authority ?? this.authority);
+			const userKey = this.getUserMapKey(subAccountId, authority ?? this.authority);
+			this.users.set(userKey, user);
 		}
 	}
 
 	createUser(
 		subAccountId: number,
-		accountSubscriptionConfig: UserSubscriptionConfig
+		accountSubscriptionConfig: UserSubscriptionConfig,
+		authority?: PublicKey
 	): User {
 		const userAccountPublicKey = getUserAccountPublicKeySync(
 			this.program.programId,
-			this.authority,
+			authority ?? this.authority,
 			subAccountId
 		);
 
@@ -469,7 +476,7 @@ export class DriftClient {
 			}
 		}
 		this.users.clear();
-		this.createUsers(subAccountIds, this.userAccountSubscriptionConfig);
+		this.createUsers(subAccountIds, this.userAccountSubscriptionConfig, this.authority);
 		if (this.isSubscribed) {
 			await Promise.all(this.subscribeUsers());
 
@@ -482,27 +489,37 @@ export class DriftClient {
 		this.userStatsAccountPublicKey = undefined;
 	}
 
-	public switchActiveUser(subAccountId: number) {
+	public switchActiveUser(subAccountId: number, authority?: PublicKey) {
 		this.activeSubAccountId = subAccountId;
+		this.authority = authority ?? this.authority;
 	}
 
-	public async addUser(subAccountId: number): Promise<void> {
-		if (this.users.has(subAccountId)) {
+	public async addUser(subAccountId: number, authority?: PublicKey): Promise<void> {
+		authority = authority ?? this.authority;
+		const userKey = this.getUserMapKey(subAccountId, authority);
+
+		if (this.users.has(userKey)) {
 			return;
 		}
 
 		const user = this.createUser(
 			subAccountId,
-			this.userAccountSubscriptionConfig
+			this.userAccountSubscriptionConfig,
+			authority
 		);
 		await user.subscribe();
-		this.users.set(subAccountId, user);
+		this.users.set(userKey, user);
 	}
 
 	public async addAllUsers(): Promise<void> {
 		const userAccounts = await this.getUserAccountsForAuthority(this.authority);
 		for (const userAccount of userAccounts) {
-			await this.addUser(userAccount.subAccountId);
+			await this.addUser(userAccount.subAccountId, this.authority);
+		}
+
+		const delegatedAccounts = await this.getUserAccountsForDelegate(this.authority);
+		for (const delegatedAccount of delegatedAccounts) {
+			await this.addUser(delegatedAccount.subAccountId, delegatedAccount.authority);
 		}
 	}
 
@@ -689,7 +706,7 @@ export class DriftClient {
 			subAccountId
 		);
 
-		await this.addUser(subAccountId);
+		await this.addUser(subAccountId, this.wallet.publicKey);
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
 		});
@@ -863,18 +880,22 @@ export class DriftClient {
 			this.opts
 		);
 
-		await this.users.get(subAccountId)?.unsubscribe();
-		this.users.delete(subAccountId);
+		const userMapKey = this.getUserMapKey(subAccountId, this.wallet.publicKey);
+		await this.users.get(userMapKey)?.unsubscribe();
+		this.users.delete(userMapKey);
 
 		return txSig;
 	}
 
-	public getUser(subAccountId?: number): User {
+	public getUser(subAccountId?: number, authority?: PublicKey): User {
 		subAccountId = subAccountId ?? this.activeSubAccountId;
-		if (!this.users.has(subAccountId)) {
+		authority = authority ?? this.authority;
+		const userMapKey = this.getUserMapKey(subAccountId, authority);
+
+		if (!this.users.has(userMapKey)) {
 			throw new Error(`Clearing House has no user for user id ${subAccountId}`);
 		}
-		return this.users.get(subAccountId);
+		return this.users.get(userMapKey);
 	}
 
 	public getUsers(): User[] {
@@ -915,8 +936,8 @@ export class DriftClient {
 		return this.getUser().userAccountPublicKey;
 	}
 
-	public getUserAccount(subAccountId?: number): UserAccount | undefined {
-		return this.getUser(subAccountId).getUserAccount();
+	public getUserAccount(subAccountId?: number, authority?: PublicKey): UserAccount | undefined {
+		return this.getUser(subAccountId, authority).getUserAccount();
 	}
 
 	/**
@@ -1777,9 +1798,11 @@ export class DriftClient {
 		);
 
 		let remainingAccounts;
-		if (this.users.has(fromSubAccountId)) {
+
+		const userMapKey = this.getUserMapKey(fromSubAccountId, this.wallet.publicKey);
+		if (this.users.has(userMapKey)) {
 			remainingAccounts = this.getRemainingAccounts({
-				userAccounts: [this.users.get(fromSubAccountId).getUserAccount()],
+				userAccounts: [this.users.get(userMapKey).getUserAccount()],
 				useMarketLastSlotCache: true,
 				writableSpotMarketIndexes: [marketIndex],
 			});
