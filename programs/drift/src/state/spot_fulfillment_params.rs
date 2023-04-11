@@ -21,7 +21,7 @@ use solana_program::msg;
 use std::cell::Ref;
 use std::num::NonZeroU64;
 
-pub trait SpotFulfillmentParams<'a, 'b> {
+pub trait SpotFulfillmentParams {
     fn is_external(&self) -> bool;
 
     fn get_best_bid_ask(
@@ -53,7 +53,7 @@ pub struct MatchFulfillmentParams<'a> {
     pub quote_market_vault: Box<Account<'a, TokenAccount>>,
 }
 
-impl<'a, 'b> SpotFulfillmentParams<'a, 'b> for MatchFulfillmentParams<'b> {
+impl<'a> SpotFulfillmentParams for MatchFulfillmentParams<'a> {
     fn is_external(&self) -> bool {
         false
     }
@@ -137,7 +137,7 @@ pub struct SerumFulfillmentParams<'a, 'b> {
     pub signer_nonce: u8,
 }
 
-impl<'a, 'b> SpotFulfillmentParams<'a, 'b> for SerumFulfillmentParams<'a, 'b> {
+impl<'a, 'b> SpotFulfillmentParams for SerumFulfillmentParams<'a, 'b> {
     fn is_external(&self) -> bool {
         true
     }
