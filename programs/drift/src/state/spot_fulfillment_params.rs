@@ -356,7 +356,7 @@ impl<'a, 'b> SpotFulfillmentParams for SerumFulfillmentParams<'a, 'b> {
 pub struct TestFulfillmentParams {}
 
 #[cfg(test)]
-impl<'a, 'b> SpotFulfillmentParams<'a, 'b> for TestFulfillmentParams {
+impl SpotFulfillmentParams for TestFulfillmentParams {
     fn is_external(&self) -> bool {
         false
     }
