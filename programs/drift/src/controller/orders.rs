@@ -771,9 +771,7 @@ fn merge_modify_order_params_with_existing_order(
         } else {
             PostOnlyParam::None
         });
-    let immediate_or_cancel = modify_order_params
-        .immediate_or_cancel
-        .unwrap_or(existing_order.immediate_or_cancel);
+    let immediate_or_cancel = false;
     let max_ts = modify_order_params.max_ts.or(Some(existing_order.max_ts));
     let trigger_price = modify_order_params
         .trigger_price
