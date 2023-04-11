@@ -3793,7 +3793,7 @@ pub fn fulfill_spot_order_with_external_market(
     let taker_base_asset_amount =
         taker_base_asset_amount.min(max_base_asset_amount.unwrap_or(u64::MAX));
 
-    let (best_bid, best_ask) = fulfillment_params.get_best_bid_ask(base_market.decimals)?;
+    let (best_bid, best_ask) = fulfillment_params.get_best_bid_and_ask(base_market.decimals)?;
 
     let mut mid_price = 0;
     if let Some(best_bid) = best_bid {
