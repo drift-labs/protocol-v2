@@ -251,6 +251,7 @@ pub fn get_serum_fulfillment_params<'a, 'b, 'c>(
         serum_signer,
         srm_vault,
         signer_nonce: state.signer_nonce,
+        base_mint_decimals: base_market.decimals,
     })
 }
 

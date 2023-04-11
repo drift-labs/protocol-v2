@@ -26,14 +26,7 @@ pub trait SpotFulfillmentParams {
     fn is_external(&self) -> bool;
 
     /// Returns the markets best bid and ask price, in PRICE_PRECISION
-    ///
-    /// # Arguments
-    ///
-    /// *`base_mint_decimals` - The number of decimals of the base market's token mint
-    fn get_best_bid_and_ask(
-        &self,
-        base_mint_decimals: u32,
-    ) -> DriftResult<(Option<u64>, Option<u64>)>;
+    fn get_best_bid_and_ask(&self) -> DriftResult<(Option<u64>, Option<u64>)>;
 
     /// Fulfills the taker order
     ///
@@ -43,7 +36,6 @@ pub trait SpotFulfillmentParams {
     /// *`taker_price` - The price of the taker order, in PRICE_PRECISION
     /// *`taker_base_asset_amount` - The base amount for taker order, precision is 10^base_mint_decimals
     /// *`taker_max_quote_asset_amount` - The max quote amount for taker order, precision is QUOTE_PRECISION (1e6)
-    /// *`base_mint_decimals` - The number of decimals of the base market's token mint
     /// *`now` - The current unix timestamp
     fn fulfill_order(
         &mut self,
@@ -51,7 +43,6 @@ pub trait SpotFulfillmentParams {
         taker_price: u64,
         taker_base_asset_amount: u64,
         taker_max_quote_asset_amount: u64,
-        base_mint_decimals: u32,
         now: i64,
     ) -> DriftResult<ExternalSpotFill>;
 
@@ -77,10 +68,7 @@ impl<'a> SpotFulfillmentParams for MatchFulfillmentParams<'a> {
         false
     }
 
-    fn get_best_bid_and_ask(
-        &self,
-        _base_mint_decimals: u32,
-    ) -> DriftResult<(Option<u64>, Option<u64>)> {
+    fn get_best_bid_and_ask(&self) -> DriftResult<(Option<u64>, Option<u64>)> {
         Err(ErrorCode::InvalidSpotFulfillmentParams)
     }
 
@@ -90,7 +78,6 @@ impl<'a> SpotFulfillmentParams for MatchFulfillmentParams<'a> {
         _taker_price: u64,
         _taker_base_asset_amount: u64,
         _taker_max_quote_asset_amount: u64,
-        _base_mint_decimals: u32,
         _now: i64,
     ) -> DriftResult<ExternalSpotFill> {
         Err(ErrorCode::InvalidSpotFulfillmentParams)
@@ -154,6 +141,7 @@ pub struct SerumFulfillmentParams<'a, 'b> {
     pub srm_vault: &'a AccountInfo<'b>,
     pub serum_signer: &'a AccountInfo<'b>,
     pub signer_nonce: u8,
+    pub base_mint_decimals: u32,
 }
 
 impl<'a, 'b> SpotFulfillmentParams for SerumFulfillmentParams<'a, 'b> {
@@ -161,16 +149,13 @@ impl<'a, 'b> SpotFulfillmentParams for SerumFulfillmentParams<'a, 'b> {
         true
     }
 
-    fn get_best_bid_and_ask(
-        &self,
-        base_mint_decimals: u32,
-    ) -> DriftResult<(Option<u64>, Option<u64>)> {
+    fn get_best_bid_and_ask(&self) -> DriftResult<(Option<u64>, Option<u64>)> {
         get_best_bid_and_ask(
             self.serum_market,
             self.serum_bids,
             self.serum_asks,
             self.serum_program_id.key,
-            base_mint_decimals,
+            self.base_mint_decimals,
         )
     }
 
@@ -180,7 +165,6 @@ impl<'a, 'b> SpotFulfillmentParams for SerumFulfillmentParams<'a, 'b> {
         taker_price: u64,
         taker_base_asset_amount: u64,
         taker_max_quote_asset_amount: u64,
-        base_mint_decimals: u32,
         now: i64,
     ) -> DriftResult<ExternalSpotFill> {
         let market_state_before = load_serum_market(self.serum_market, self.serum_program_id.key)?;
@@ -198,7 +182,7 @@ impl<'a, 'b> SpotFulfillmentParams for SerumFulfillmentParams<'a, 'b> {
         let serum_limit_price = calculate_serum_limit_price(
             taker_price,
             market_state_before.pc_lot_size,
-            base_mint_decimals,
+            self.base_mint_decimals,
             market_state_before.coin_lot_size,
             taker_direction,
         )?;
@@ -380,10 +364,7 @@ impl SpotFulfillmentParams for TestFulfillmentParams {
         false
     }
 
-    fn get_best_bid_and_ask(
-        &self,
-        _base_mint_decimals: u32,
-    ) -> DriftResult<(Option<u64>, Option<u64>)> {
+    fn get_best_bid_and_ask(&self) -> DriftResult<(Option<u64>, Option<u64>)> {
         Err(ErrorCode::InvalidSpotFulfillmentParams)
     }
 
@@ -393,7 +374,6 @@ impl SpotFulfillmentParams for TestFulfillmentParams {
         _taker_price: u64,
         _taker_base_asset_amount: u64,
         _taker_max_quote_asset_amount: u64,
-        _base_mint_decimals: u32,
         _now: i64,
     ) -> DriftResult<ExternalSpotFill> {
         Err(ErrorCode::InvalidSpotFulfillmentParams)
