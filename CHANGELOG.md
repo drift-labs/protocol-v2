@@ -9,8 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+
+- program: add modify_order ix ([#422](https://github.com/drift-labs/protocol-v2/pull/422))
 - sdk: more accurate calculation of insurance stake value during unstake request ([#426](https://github.com/drift-labs/protocol-v2/pull/426))
 ### Fixes
+
 - sdk: fix isOracleValid confidenceTooLarge calc ([#425](https://github.com/drift-labs/protocol-v2/pull/425))
 
 ### Breaking
