@@ -164,7 +164,7 @@ pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
         ctx,
         order_id,
         market_index,
-        fulfillment_type,
+        fulfillment_type.unwrap_or(SpotFulfillmentType::Match),
         maker_order_id,
     )
     .map_err(|e| {
@@ -179,7 +179,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
     order_id: u32,
     market_index: u16,
-    fulfillment_type: Option<SpotFulfillmentType>,
+    fulfillment_type: SpotFulfillmentType,
     maker_order_id: Option<u32>,
 ) -> Result<()> {
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -206,7 +206,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
     let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
     let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
-        Some(SpotFulfillmentType::SerumV3) => {
+        SpotFulfillmentType::SerumV3 => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             Box::new(get_serum_fulfillment_params(
@@ -216,7 +216,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
                 &quote_market,
             )?)
         }
-        Some(SpotFulfillmentType::Match) | None => {
+        SpotFulfillmentType::Match => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             Box::new(get_match_fulfillment_params(

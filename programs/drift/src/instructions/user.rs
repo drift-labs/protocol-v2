@@ -1122,7 +1122,7 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 pub fn handle_place_and_take_spot_order<'info>(
     ctx: Context<PlaceAndTake>,
     params: OrderParams,
-    fulfillment_type: Option<SpotFulfillmentType>,
+    fulfillment_type: SpotFulfillmentType,
     maker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
@@ -1159,7 +1159,7 @@ pub fn handle_place_and_take_spot_order<'info>(
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
     let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
-        Some(SpotFulfillmentType::SerumV3) => {
+        SpotFulfillmentType::SerumV3 => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             Box::new(get_serum_fulfillment_params(
@@ -1169,7 +1169,7 @@ pub fn handle_place_and_take_spot_order<'info>(
                 &quote_market,
             )?)
         }
-        Some(SpotFulfillmentType::Match) | None => {
+        SpotFulfillmentType::Match => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             Box::new(get_match_fulfillment_params(
@@ -1240,7 +1240,7 @@ pub fn handle_place_and_make_spot_order<'info>(
     ctx: Context<PlaceAndMake>,
     params: OrderParams,
     taker_order_id: u32,
-    fulfillment_type: Option<SpotFulfillmentType>,
+    fulfillment_type: SpotFulfillmentType,
 ) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
@@ -1271,7 +1271,7 @@ pub fn handle_place_and_make_spot_order<'info>(
     let market_index = params.market_index;
 
     let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
-        Some(SpotFulfillmentType::SerumV3) => {
+        SpotFulfillmentType::SerumV3 => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             Box::new(get_serum_fulfillment_params(
@@ -1281,7 +1281,7 @@ pub fn handle_place_and_make_spot_order<'info>(
                 &quote_market,
             )?)
         }
-        Some(SpotFulfillmentType::Match) | None => {
+        SpotFulfillmentType::Match => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             Box::new(get_match_fulfillment_params(
