@@ -719,7 +719,7 @@ pub fn modify_order(
     drop(user);
 
     let order_params =
-        merge_modify_order_params_with_existing_order(&existing_order, &modify_order_params);
+        merge_modify_order_params_with_existing_order(&existing_order, &modify_order_params)?;
 
     if order_params.market_type == MarketType::Perp {
         place_perp_order(
@@ -749,7 +749,7 @@ pub fn modify_order(
 fn merge_modify_order_params_with_existing_order(
     existing_order: &Order,
     modify_order_params: &ModifyOrderParams,
-) -> OrderParams {
+) -> DriftResult<OrderParams> {
     let order_type = existing_order.order_type;
     let market_type = existing_order.market_type;
     let direction = modify_order_params
@@ -758,7 +758,7 @@ fn merge_modify_order_params_with_existing_order(
     let user_order_id = existing_order.user_order_id;
     let base_asset_amount = modify_order_params
         .base_asset_amount
-        .unwrap_or(existing_order.base_asset_amount);
+        .unwrap_or(existing_order.get_base_asset_amount_unfilled(None)?);
     let price = modify_order_params.price.unwrap_or(existing_order.price);
     let market_index = existing_order.market_index;
     let reduce_only = modify_order_params
@@ -776,9 +776,17 @@ fn merge_modify_order_params_with_existing_order(
     let trigger_price = modify_order_params
         .trigger_price
         .or(Some(existing_order.trigger_price));
-    let trigger_condition = modify_order_params
-        .trigger_condition
-        .unwrap_or(existing_order.trigger_condition);
+    let trigger_condition =
+        modify_order_params
+            .trigger_condition
+            .unwrap_or(match existing_order.trigger_condition {
+                OrderTriggerCondition::TriggeredAbove | OrderTriggerCondition::Above => {
+                    OrderTriggerCondition::TriggeredAbove
+                }
+                OrderTriggerCondition::TriggeredBelow | OrderTriggerCondition::Below => {
+                    OrderTriggerCondition::TriggeredBelow
+                }
+            });
     let oracle_price_offset = modify_order_params
         .oracle_price_offset
         .or(Some(existing_order.oracle_price_offset));
@@ -792,7 +800,7 @@ fn merge_modify_order_params_with_existing_order(
         .auction_end_price
         .or(Some(existing_order.auction_end_price));
 
-    OrderParams {
+    Ok(OrderParams {
         order_type,
         market_type,
         direction,
@@ -810,7 +818,7 @@ fn merge_modify_order_params_with_existing_order(
         auction_duration,
         auction_start_price,
         auction_end_price,
-    }
+    })
 }
 
 pub fn fill_perp_order(
