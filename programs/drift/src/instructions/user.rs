@@ -1169,6 +1169,7 @@ pub fn handle_place_and_take_spot_order<'info>(
                 &ctx.accounts.state,
                 &base_market,
                 &quote_market,
+                clock.unix_timestamp,
             )?)
         }
         SpotFulfillmentType::Match => {
@@ -1188,7 +1189,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        &Clock::get()?,
+        &clock,
         params,
     )?;
 
@@ -1208,7 +1209,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         maker.as_ref(),
         maker_stats.as_ref(),
         maker_order_id,
-        &Clock::get()?,
+        &clock,
         fulfillment_params.as_mut(),
     )?;
 
@@ -1224,7 +1225,7 @@ pub fn handle_place_and_take_spot_order<'info>(
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            &Clock::get()?,
+            &clock,
         )?;
     }
 
@@ -1281,6 +1282,7 @@ pub fn handle_place_and_make_spot_order<'info>(
                 &ctx.accounts.state,
                 &base_market,
                 &quote_market,
+                clock.unix_timestamp,
             )?)
         }
         SpotFulfillmentType::Match => {

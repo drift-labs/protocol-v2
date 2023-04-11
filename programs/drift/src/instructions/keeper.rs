@@ -183,6 +183,8 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
     fulfillment_type: SpotFulfillmentType,
     maker_order_id: Option<u32>,
 ) -> Result<()> {
+    let clock = Clock::get()?;
+
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
@@ -215,6 +217,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
                 &ctx.accounts.state,
                 &base_market,
                 &quote_market,
+                clock.unix_timestamp,
             )?)
         }
         SpotFulfillmentType::Match => {
@@ -241,7 +244,7 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
         maker.as_ref(),
         maker_stats.as_ref(),
         maker_order_id,
-        &Clock::get()?,
+        &clock,
         fulfillment_params.as_mut(),
     )?;
 

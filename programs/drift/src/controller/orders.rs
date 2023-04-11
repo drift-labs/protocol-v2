@@ -3870,7 +3870,6 @@ pub fn fulfill_spot_order_with_external_market(
         taker_price,
         taker_base_asset_amount,
         max_quote_asset_amount.unwrap_or(u64::MAX),
-        now,
     )?;
 
     update_spot_balances(

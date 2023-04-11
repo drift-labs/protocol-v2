@@ -46,7 +46,6 @@ pub trait SpotFulfillmentParams {
         taker_price: u64,
         taker_base_asset_amount: u64,
         taker_max_quote_asset_amount: u64,
-        now: i64,
     ) -> DriftResult<ExternalSpotFill>;
 
     /// Gets the order action explanation to be logged in the OrderActionRecord
@@ -119,7 +118,6 @@ impl<'a> SpotFulfillmentParams for MatchFulfillmentParams<'a> {
         _taker_price: u64,
         _taker_base_asset_amount: u64,
         _taker_max_quote_asset_amount: u64,
-        _now: i64,
     ) -> DriftResult<ExternalSpotFill> {
         Err(ErrorCode::InvalidSpotFulfillmentParams)
     }
@@ -183,6 +181,7 @@ pub struct SerumFulfillmentParams<'a, 'b> {
     pub serum_signer: &'a AccountInfo<'b>,
     pub signer_nonce: u8,
     pub base_mint_decimals: u32,
+    pub now: i64,
 }
 
 impl<'a, 'b> SerumFulfillmentParams<'a, 'b> {
@@ -192,6 +191,7 @@ impl<'a, 'b> SerumFulfillmentParams<'a, 'b> {
         state: &State,
         base_market: &SpotMarket,
         quote_market: &SpotMarket,
+        now: i64,
     ) -> DriftResult<Self> {
         let account_info_vec = account_info_iter.collect::<Vec<_>>();
         let account_infos = array_ref![account_info_vec, 0, 16];
@@ -287,6 +287,7 @@ impl<'a, 'b> SerumFulfillmentParams<'a, 'b> {
             srm_vault,
             signer_nonce: state.signer_nonce,
             base_mint_decimals: base_market.decimals,
+            now,
         })
     }
 }
@@ -312,7 +313,6 @@ impl<'a, 'b> SpotFulfillmentParams for SerumFulfillmentParams<'a, 'b> {
         taker_price: u64,
         taker_base_asset_amount: u64,
         taker_max_quote_asset_amount: u64,
-        now: i64,
     ) -> DriftResult<ExternalSpotFill> {
         let market_state_before = load_serum_market(self.serum_market, self.serum_program_id.key)?;
 
@@ -355,7 +355,7 @@ impl<'a, 'b> SpotFulfillmentParams for SerumFulfillmentParams<'a, 'b> {
             order_type: serum_dex::matching::OrderType::ImmediateOrCancel,
             client_order_id: 0,
             limit: 10,
-            max_ts: now,
+            max_ts: self.now,
         };
 
         let _market_fees_accrued_before = market_state_before.pc_fees_accrued;
@@ -521,7 +521,6 @@ impl SpotFulfillmentParams for TestFulfillmentParams {
         _taker_price: u64,
         _taker_base_asset_amount: u64,
         _taker_max_quote_asset_amount: u64,
-        _now: i64,
     ) -> DriftResult<ExternalSpotFill> {
         Err(ErrorCode::InvalidSpotFulfillmentParams)
     }
