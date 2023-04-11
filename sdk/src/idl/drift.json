@@ -5157,7 +5157,7 @@
         "fields": [
           {
             "name": "revenueWithdrawSinceLastSettle",
-            "type": "u64"
+            "type": "i64"
           },
           {
             "name": "maxRevenueWithdrawPerPeriod",

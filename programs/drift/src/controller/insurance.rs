@@ -580,7 +580,7 @@ pub fn settle_revenue_to_insurance_fund(
                     .max(1),
             )?
             .cast::<u128>()?;
-        let capped_token_pct_amount = token_amount.safe_div(5)?;
+        let capped_token_pct_amount = token_amount.safe_div(10)?;
         token_amount = capped_token_pct_amount.min(capped_apr_amount);
     }
 
@@ -695,7 +695,13 @@ pub fn resolve_perp_pnl_deficit(
     let max_revenue_withdraw_per_period = market
         .insurance_claim
         .max_revenue_withdraw_per_period
-        .safe_sub(market.insurance_claim.revenue_withdraw_since_last_settle)?
+        .cast::<i128>()?
+        .safe_sub(
+            market
+                .insurance_claim
+                .revenue_withdraw_since_last_settle
+                .cast()?,
+        )?
         .cast::<i128>()?;
     validate!(
         max_revenue_withdraw_per_period > 0,
