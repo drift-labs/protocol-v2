@@ -4,7 +4,7 @@ import {
 	OracleEvents,
 	OracleAccountSubscriber,
 } from './types';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';

@@ -4,7 +4,7 @@ import {
 	Idl,
 	Program,
 	ProgramAccount,
-} from '@project-serum/anchor';
+} from '@coral-xyz/anchor';
 import bs58 from 'bs58';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -38,7 +38,7 @@ import {
 	UserStatsAccount,
 	ModifyOrderParams,
 } from './types';
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
 
 import {

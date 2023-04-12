@@ -1,4 +1,4 @@
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 import {
 	AMM_RESERVE_PRECISION,
 	PRICE_PRECISION,

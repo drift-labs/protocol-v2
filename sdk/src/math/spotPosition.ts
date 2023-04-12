@@ -1,6 +1,6 @@
 import { SpotMarketAccount, SpotPosition } from '../types';
 import { ZERO } from '../constants/numericConstants';
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 import {
 	getSignedTokenAmount,
 	getTokenAmount,

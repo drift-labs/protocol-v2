@@ -1,4 +1,4 @@
-import { Provider } from '@project-serum/anchor';
+import { Provider } from '@coral-xyz/anchor';
 import {
 	AddressLookupTableAccount,
 	ConfirmOptions,

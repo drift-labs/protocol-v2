@@ -6,7 +6,7 @@ import {
 	BID_ASK_SPREAD_PRECISION,
 	AMM_RESERVE_PRECISION,
 } from '../constants/numericConstants';
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { PerpMarketAccount, PerpPosition } from '..';
 import { isVariant } from '../types';

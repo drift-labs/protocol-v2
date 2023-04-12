@@ -33,7 +33,7 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@project-serum/anchor": "0.25.0-beta.1",
+		"@coral-xyz/anchor": "0.26.0",
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "2.5.3",
 		"@solana/spl-token": "^0.1.6",

@@ -8,7 +8,7 @@ import {
 	PositionDirection,
 } from '../types';
 import { ZERO, TWO } from '../constants/numericConstants';
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { getAuctionPrice, isAuctionComplete } from './auction';
 import {

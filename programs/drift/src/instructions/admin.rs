@@ -1,4 +1,4 @@
-use std::convert::identity;
+use std::convert::{identity, TryFrom};
 use std::mem::size_of;
 
 use anchor_lang::prelude::*;
@@ -27,6 +27,7 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::safe_math::SafeMath;
+use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn, oracle};
 use crate::math_error;
@@ -310,22 +311,24 @@ pub fn handle_initialize_serum_fulfillment_config(
     let serum_market = serum_market_key;
 
     let market_state_event_queue = market_state.event_q;
-    let serum_event_queue = Pubkey::new(cast_slice(&market_state_event_queue));
+    let serum_event_queue =
+        Pubkey::try_from(cast_slice(&market_state_event_queue)).safe_unwrap()?;
 
     let market_state_request_queue = market_state.req_q;
-    let serum_request_queue = Pubkey::new(cast_slice(&market_state_request_queue));
+    let serum_request_queue =
+        Pubkey::try_from(cast_slice(&market_state_request_queue)).safe_unwrap()?;
 
     let market_state_bids = market_state.bids;
-    let serum_bids = Pubkey::new(cast_slice(&market_state_bids));
+    let serum_bids = Pubkey::try_from(cast_slice(&market_state_bids)).safe_unwrap()?;
 
     let market_state_asks = market_state.asks;
-    let serum_asks = Pubkey::new(cast_slice(&market_state_asks));
+    let serum_asks = Pubkey::try_from(cast_slice(&market_state_asks)).safe_unwrap()?;
 
     let market_state_coin_vault = market_state.coin_vault;
-    let serum_base_vault = Pubkey::new(cast_slice(&market_state_coin_vault));
+    let serum_base_vault = Pubkey::try_from(cast_slice(&market_state_coin_vault)).safe_unwrap()?;
 
     let market_state_pc_vault = market_state.pc_vault;
-    let serum_quote_vault = Pubkey::new(cast_slice(&market_state_pc_vault));
+    let serum_quote_vault = Pubkey::try_from(cast_slice(&market_state_pc_vault)).safe_unwrap()?;
     let serum_signer_nonce = market_state.vault_signer_nonce;
 
     let market_step_size = market_state.coin_lot_size;

@@ -10,8 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: update to anchor 0.26.0 ([#428](https://github.com/drift-labs/protocol-v2/pull/428))
 - program: add modify_order ix ([#422](https://github.com/drift-labs/protocol-v2/pull/422))
 - sdk: more accurate calculation of insurance stake value during unstake request ([#426](https://github.com/drift-labs/protocol-v2/pull/426))
+- 
 ### Fixes
 
 - sdk: fix isOracleValid confidenceTooLarge calc ([#425](https://github.com/drift-labs/protocol-v2/pull/425))

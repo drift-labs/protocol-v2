@@ -14,7 +14,7 @@ import {
 	TransactionInstruction,
 	AddressLookupTableAccount,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@project-serum/anchor';
+import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
 

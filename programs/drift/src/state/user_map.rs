@@ -11,6 +11,7 @@ use solana_program::msg;
 use solana_program::pubkey::Pubkey;
 use std::cell::{Ref, RefMut};
 use std::collections::BTreeMap;
+use std::convert::TryFrom;
 use std::iter::Peekable;
 use std::panic::Location;
 use std::slice::Iter;
@@ -254,7 +255,7 @@ impl<'a> UserStatsMap<'a> {
         }
 
         let authority_slice = array_ref![data, 8, 32];
-        let authority = Pubkey::new(authority_slice);
+        let authority = Pubkey::from(*authority_slice);
 
         let is_writable = account_info.is_writable;
         if !is_writable {
@@ -331,7 +332,7 @@ pub fn load_user_maps<'a>(
         }
 
         let authority_slice = array_ref![data, 8, 32];
-        let authority = Pubkey::new(authority_slice);
+        let authority = Pubkey::try_from(*authority_slice).safe_unwrap()?;
 
         let user_stats_account_info = account_info_iter.next().safe_unwrap()?;
 

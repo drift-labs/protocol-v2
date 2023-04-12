@@ -1,4 +1,4 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import {
 	BASE_PRECISION,
@@ -10,7 +10,7 @@ import {
 	BulkAccountLoader,
 } from '../sdk';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import { getTokenAccount } from '@project-serum/common';
 
 import { PublicKey, TransactionSignature } from '@solana/web3.js';
