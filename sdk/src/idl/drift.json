@@ -4003,6 +4003,83 @@
   ],
   "accounts": [
     {
+      "name": "SerumV3FulfillmentConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumProgramId",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumMarket",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumRequestQueue",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumEventQueue",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumBids",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumAsks",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumBaseVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumQuoteVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumOpenOrders",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumSignerNonce",
+            "type": "u64"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "fulfillmentType",
+            "type": {
+              "defined": "SpotFulfillmentType"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "SpotFulfillmentConfigStatus"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "InsuranceFundStake",
       "type": {
         "kind": "struct",
@@ -4417,83 +4494,6 @@
               "array": [
                 "u8",
                 86
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "SerumV3FulfillmentConfig",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pubkey",
-            "type": "publicKey"
-          },
-          {
-            "name": "serumProgramId",
-            "type": "publicKey"
-          },
-          {
-            "name": "serumMarket",
-            "type": "publicKey"
-          },
-          {
-            "name": "serumRequestQueue",
-            "type": "publicKey"
-          },
-          {
-            "name": "serumEventQueue",
-            "type": "publicKey"
-          },
-          {
-            "name": "serumBids",
-            "type": "publicKey"
-          },
-          {
-            "name": "serumAsks",
-            "type": "publicKey"
-          },
-          {
-            "name": "serumBaseVault",
-            "type": "publicKey"
-          },
-          {
-            "name": "serumQuoteVault",
-            "type": "publicKey"
-          },
-          {
-            "name": "serumOpenOrders",
-            "type": "publicKey"
-          },
-          {
-            "name": "serumSignerNonce",
-            "type": "u64"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "fulfillmentType",
-            "type": {
-              "defined": "SpotFulfillmentType"
-            }
-          },
-          {
-            "name": "status",
-            "type": {
-              "defined": "SpotFulfillmentConfigStatus"
-            }
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                4
               ]
             }
           }
@@ -8531,13 +8531,13 @@
     },
     {
       "code": 6142,
-      "name": "FailedToFillOnSerum",
-      "msg": "FailedToFillOnSerum"
+      "name": "FailedToFillOnExternalMarket",
+      "msg": "FailedToFillOnExternalMarket"
     },
     {
       "code": 6143,
-      "name": "InvalidSerumFulfillmentConfig",
-      "msg": "InvalidSerumFulfillmentConfig"
+      "name": "InvalidFulfillmentConfig",
+      "msg": "InvalidFulfillmentConfig"
     },
     {
       "code": 6144,
