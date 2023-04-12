@@ -4404,7 +4404,11 @@ export class DriftClient {
 
 	public async removeInsuranceFundStake(
 		marketIndex: number,
-		collateralAccountPublicKey: PublicKey
+		collateralAccountPublicKey: PublicKey,
+		/**
+		 * If unstaking SOL, it's required to pass in the amount
+		 */
+		amount?: BN
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -4413,26 +4417,26 @@ export class DriftClient {
 			this.wallet.publicKey,
 			marketIndex
 		);
-		const tokenAccount = collateralAccountPublicKey;
 
-		// Todo wsol remove iF stake... how do we determine the amount?
-		// const amount = // get balance here...?
+		const additionalSigners: Array<Signer> = [];
+		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
+		const createWSOLTokenAccount =
+			isSolMarket && collateralAccountPublicKey.equals(this.wallet.publicKey);
 
-		// const additionalSigners: Array<Signer> = [];
-		// const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
-		// const createWSOLTokenAccount =
-		// 	isSolMarket && collateralAccountPublicKey.equals(this.wallet.publicKey);
+		let tokenAccount;
 
-		// if (createWSOLTokenAccount) {
-		// 	const { ixs, signers, pubkey } =
-		// 		await this.getWrappedSolAccountCreationIxs(amount, true);
-		// 	tokenAccount = pubkey;
-		// 	ixs.forEach((ix) => {
-		// 		tx.add(ix);
-		// 	});
+		if (createWSOLTokenAccount) {
+			const { ixs, signers, pubkey } =
+				await this.getWrappedSolAccountCreationIxs(amount, true);
+			tokenAccount = pubkey;
+			ixs.forEach((ix) => {
+				tx.add(ix);
+			});
 
-		// 	signers.forEach((signer) => additionalSigners.push(signer));
-		// }
+			signers.forEach((signer) => additionalSigners.push(signer));
+		} else {
+			tokenAccount = collateralAccountPublicKey;
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount()],
@@ -4457,6 +4461,19 @@ export class DriftClient {
 			});
 
 		tx.add(removeStakeIx);
+
+		// Close the wrapped sol account at the end of the transaction
+		if (createWSOLTokenAccount) {
+			tx.add(
+				Token.createCloseAccountInstruction(
+					TOKEN_PROGRAM_ID,
+					tokenAccount,
+					this.wallet.publicKey,
+					this.wallet.publicKey,
+					[]
+				)
+			);
+		}
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
