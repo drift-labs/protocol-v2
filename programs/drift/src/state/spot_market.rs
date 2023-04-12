@@ -5,7 +5,6 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::DriftResult;
-use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
 #[cfg(test)]
@@ -303,8 +302,9 @@ impl SpotMarket {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Default)]
 pub enum SpotBalanceType {
+    #[default]
     Deposit,
     Borrow,
 }
@@ -315,12 +315,6 @@ impl Display for SpotBalanceType {
             SpotBalanceType::Deposit => write!(f, "SpotBalanceType::Deposit"),
             SpotBalanceType::Borrow => write!(f, "SpotBalanceType::Borrow"),
         }
-    }
-}
-
-impl Default for SpotBalanceType {
-    fn default() -> Self {
-        SpotBalanceType::Deposit
     }
 }
 
@@ -338,56 +332,23 @@ pub trait SpotBalance {
     fn update_balance_type(&mut self, balance_type: SpotBalanceType) -> DriftResult;
 }
 
-#[account(zero_copy)]
-#[derive(Default, PartialEq, Eq, Debug)]
-#[repr(C)]
-pub struct SerumV3FulfillmentConfig {
-    pub pubkey: Pubkey,
-    pub serum_program_id: Pubkey,
-    pub serum_market: Pubkey,
-    pub serum_request_queue: Pubkey,
-    pub serum_event_queue: Pubkey,
-    pub serum_bids: Pubkey,
-    pub serum_asks: Pubkey,
-    pub serum_base_vault: Pubkey,
-    pub serum_quote_vault: Pubkey,
-    pub serum_open_orders: Pubkey,
-    pub serum_signer_nonce: u64,
-    pub market_index: u16,
-    pub fulfillment_type: SpotFulfillmentType,
-    pub status: SpotFulfillmentConfigStatus,
-    pub padding: [u8; 4],
-}
-
-impl Size for SerumV3FulfillmentConfig {
-    const SIZE: usize = 344;
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum SpotFulfillmentConfigStatus {
+    #[default]
     Enabled,
     Disabled,
 }
 
-impl Default for SpotFulfillmentConfigStatus {
-    fn default() -> Self {
-        SpotFulfillmentConfigStatus::Enabled
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord, Default,
+)]
 pub enum AssetTier {
     Collateral, // full priviledge
     Protected,  // collateral, but no borrow
     Cross,      // not collateral, allow multi-borrow
     Isolated,   // not collateral, only single borrow
-    Unlisted,   // no priviledge
-}
-
-impl Default for AssetTier {
-    fn default() -> Self {
-        AssetTier::Unlisted
-    }
+    #[default]
+    Unlisted, // no priviledge
 }
 
 #[zero_copy]

@@ -4081,7 +4081,7 @@ pub fn fulfill_spot_order_with_external_market(
     validate!(
         base_update_direction
             == taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
-        ErrorCode::FailedToFillOnSerum,
+        ErrorCode::FailedToFillOnExternalMarket,
         "Fill on external spot market lead to unexpected to update direction"
     )?;
 
@@ -4097,7 +4097,7 @@ pub fn fulfill_spot_order_with_external_market(
     validate!(
         quote_update_direction
             == taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
-        ErrorCode::FailedToFillOnSerum,
+        ErrorCode::FailedToFillOnExternalMarket,
         "Fill on external market lead to unexpected to update direction"
     )?;
 

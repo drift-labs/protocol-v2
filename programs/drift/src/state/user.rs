@@ -27,17 +27,12 @@ use std::panic::Location;
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum UserStatus {
+    #[default]
     Active,
     BeingLiquidated,
     Bankrupt,
-}
-
-impl Default for UserStatus {
-    fn default() -> Self {
-        UserStatus::Active
-    }
 }
 
 // implement SIZE const for User
@@ -804,45 +799,30 @@ pub enum OrderStatus {
     Canceled,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum OrderType {
     Market,
+    #[default]
     Limit,
     TriggerMarket,
     TriggerLimit,
     Oracle,
 }
 
-impl Default for OrderType {
-    fn default() -> Self {
-        OrderType::Limit
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum OrderTriggerCondition {
+    #[default]
     Above,
     Below,
     TriggeredAbove, // above condition has been triggered
     TriggeredBelow, // below condition has been triggered
 }
 
-impl Default for OrderTriggerCondition {
-    fn default() -> Self {
-        OrderTriggerCondition::Above
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum MarketType {
+    #[default]
     Spot,
     Perp,
-}
-
-impl Default for MarketType {
-    fn default() -> Self {
-        MarketType::Spot
-    }
 }
 
 #[account(zero_copy)]

@@ -127,16 +127,11 @@ pub fn handle_revert_fill<'info>(ctx: Context<RevertFill>) -> Result<()> {
     Ok(())
 }
 
-#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum SpotFulfillmentType {
+    #[default]
     SerumV3,
     Match,
-}
-
-impl Default for SpotFulfillmentType {
-    fn default() -> Self {
-        SpotFulfillmentType::SerumV3
-    }
 }
 
 #[access_control(
@@ -176,8 +171,8 @@ pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
     Ok(())
 }
 
-fn fill_spot_order<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
+fn fill_spot_order<'info>(
+    ctx: Context<'_, '_, '_, 'info, FillOrder<'info>>,
     order_id: u32,
     market_index: u16,
     fulfillment_type: SpotFulfillmentType,

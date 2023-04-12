@@ -34,23 +34,23 @@ impl<'a> MatchFulfillmentParams<'a> {
 
         validate!(
             &base_market.vault == base_market_vault.key,
-            ErrorCode::InvalidSerumFulfillmentConfig
+            ErrorCode::InvalidFulfillmentConfig
         )?;
 
         validate!(
             &quote_market.vault == quote_market_vault.key,
-            ErrorCode::InvalidSerumFulfillmentConfig
+            ErrorCode::InvalidFulfillmentConfig
         )?;
 
         let base_market_vault: Box<Account<TokenAccount>> =
             Box::new(Account::try_from(base_market_vault).map_err(|e| {
                 msg!("{:?}", e);
-                ErrorCode::InvalidSerumFulfillmentConfig
+                ErrorCode::InvalidFulfillmentConfig
             })?);
         let quote_market_vault: Box<Account<TokenAccount>> =
             Box::new(Account::try_from(quote_market_vault).map_err(|e| {
                 msg!("{:?}", e);
-                ErrorCode::InvalidSerumFulfillmentConfig
+                ErrorCode::InvalidFulfillmentConfig
             })?);
 
         Ok(MatchFulfillmentParams {

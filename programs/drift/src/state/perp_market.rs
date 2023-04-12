@@ -27,9 +27,10 @@ use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum MarketStatus {
-    Initialized,    // warm up period for initialization, fills are paused
+    #[default]
+    Initialized, // warm up period for initialization, fills are paused
     Active,         // all operations allowed
     FundingPaused,  // perp: pause funding rate updates | spot: pause interest updates
     AmmPaused,      // amm fills are prevented/blocked
@@ -40,38 +41,26 @@ pub enum MarketStatus {
     Delisted,   // market has no remaining participants
 }
 
-impl Default for MarketStatus {
-    fn default() -> Self {
-        MarketStatus::Initialized
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum ContractType {
+    #[default]
     Perpetual,
     Future,
 }
 
-impl Default for ContractType {
-    fn default() -> Self {
-        ContractType::Perpetual
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord, Default,
+)]
 pub enum ContractTier {
-    A,           // max insurance capped at A level
-    B,           // max insurance capped at B level
-    C,           // max insurance capped at C level
+    A, // max insurance capped at A level
+    B, // max insurance capped at B level
+    C, // max insurance capped at C level
+    #[default]
     Speculative, // no insurance
-    Isolated,    // no insurance, only single position allowed
+    Isolated, // no insurance, only single position allowed
 }
 
 impl ContractTier {
-    pub fn default() -> Self {
-        ContractTier::Speculative
-    }
-
     pub fn is_as_safe_as(&self, best_contract: &ContractTier, best_asset: &AssetTier) -> bool {
         self.is_as_safe_as_contract(best_contract) && self.is_as_safe_as_asset(best_asset)
     }

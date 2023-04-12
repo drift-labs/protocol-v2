@@ -1,3 +1,4 @@
+#![allow(clippy::result_large_err)]
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 

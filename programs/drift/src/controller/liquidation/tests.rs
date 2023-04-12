@@ -573,7 +573,7 @@ pub mod liquidate_perp {
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
         let state = State {
-            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION / 50,
             initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
             liquidation_duration: 150,
             ..Default::default()
@@ -724,7 +724,7 @@ pub mod liquidate_perp {
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
         let state = State {
-            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION / 50,
             initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
             liquidation_duration: 150,
             ..Default::default()
@@ -1504,7 +1504,7 @@ pub mod liquidate_perp {
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
         let state = State {
-            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION / 50,
             initial_pct_to_liquidate: (LIQUIDATION_PCT_PRECISION / 10) as u16,
             liquidation_duration: 150,
             ..Default::default()
@@ -1765,7 +1765,7 @@ pub mod liquidate_perp {
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
         let state = State {
-            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION / 50,
             initial_pct_to_liquidate: (LIQUIDATION_PCT_PRECISION / 10) as u16,
             liquidation_duration: 150,
             ..Default::default()
@@ -2217,7 +2217,7 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let liquidation_buffer = MARGIN_PRECISION / 50;
 
         liquidate_spot(
             0,
@@ -2665,7 +2665,7 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let liquidation_buffer = MARGIN_PRECISION / 50;
 
         liquidate_spot(
             0,
@@ -2792,7 +2792,7 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let liquidation_buffer = MARGIN_PRECISION / 50;
 
         liquidate_spot(
             0,
@@ -3220,7 +3220,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let liquidation_buffer = MARGIN_PRECISION / 50;
         liquidate_borrow_for_perp_pnl(
             0,
             1,
@@ -3860,7 +3860,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let liquidation_buffer = MARGIN_PRECISION / 50;
         liquidate_borrow_for_perp_pnl(
             0,
             1,
@@ -4016,7 +4016,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let liquidation_buffer = MARGIN_PRECISION / 50;
         liquidate_borrow_for_perp_pnl(
             0,
             1,
@@ -4453,7 +4453,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &mut oracle_map,
             now,
             slot,
-            MARGIN_PRECISION as u32 / 50,
+            MARGIN_PRECISION / 50,
             PERCENTAGE_PRECISION,
             150,
         )
@@ -5057,7 +5057,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &mut oracle_map,
             now,
             slot,
-            MARGIN_PRECISION as u32 / 50,
+            MARGIN_PRECISION / 50,
             PERCENTAGE_PRECISION,
             150,
         )
@@ -5198,7 +5198,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let liquidation_buffer = MARGIN_PRECISION / 50;
         liquidate_perp_pnl_for_deposit(
             0,
             1,

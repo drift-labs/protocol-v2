@@ -1,6 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::comparison_chain)]
+#![allow(clippy::result_large_err)]
 
 use anchor_lang::prelude::*;
 
@@ -132,8 +133,8 @@ pub mod drift {
         handle_place_and_take_perp_order(ctx, params, maker_order_id)
     }
 
-    pub fn place_and_make_perp_order<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, PlaceAndMake<'info>>,
+    pub fn place_and_make_perp_order<'info>(
+        ctx: Context<'_, '_, '_, 'info, PlaceAndMake<'info>>,
         params: OrderParams,
         taker_order_id: u32,
     ) -> Result<()> {
@@ -246,8 +247,8 @@ pub mod drift {
         handle_revert_fill(ctx)
     }
 
-    pub fn fill_spot_order<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
+    pub fn fill_spot_order<'info>(
+        ctx: Context<'_, '_, '_, 'info, FillOrder<'info>>,
         order_id: Option<u32>,
         fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u32>,
