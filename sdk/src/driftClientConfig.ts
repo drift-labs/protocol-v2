@@ -20,6 +20,7 @@ export type DriftClientConfig = {
 	env?: DriftEnv;
 	userStats?: boolean;
 	authority?: PublicKey; // explicitly pass an authority if signer is delegate
+	includeDelegates?: boolean; // flag for whether to load delegate accounts as well
 };
 
 export type DriftClientSubscriptionConfig =
