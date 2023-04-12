@@ -512,7 +512,8 @@ export class DriftClient {
 		setFirstActive?: boolean,
 		includeDelegates?: boolean
 	): Promise<void> {
-		let userAccounts = await this.getUserAccountsForAuthority(this.authority);
+		let userAccounts =
+			(await this.getUserAccountsForAuthority(this.authority)) ?? [];
 		if (subAccountIds) {
 			userAccounts = userAccounts.filter((userAccount) =>
 				subAccountIds.includes(userAccount.subAccountId)
@@ -534,8 +535,8 @@ export class DriftClient {
 		if (setFirstActive) {
 			const firstUser = userAccounts[0] ?? delegatedAccounts[0];
 			this.switchActiveUser(
-				firstUser[0]?.subAccountId,
-				firstUser[0]?.authority
+				firstUser?.subAccountId ?? 0,
+				firstUser?.authority ?? this.authority
 			);
 		}
 	}
@@ -949,8 +950,11 @@ export class DriftClient {
 		return this.userStatsAccountPublicKey;
 	}
 
-	public async getUserAccountPublicKey(): Promise<PublicKey> {
-		return this.getUser().userAccountPublicKey;
+	public async getUserAccountPublicKey(
+		subAccountId?: number,
+		authority?: PublicKey
+	): Promise<PublicKey> {
+		return this.getUser(subAccountId, authority).userAccountPublicKey;
 	}
 
 	public getUserAccount(
