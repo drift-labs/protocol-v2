@@ -167,7 +167,7 @@ export class DriftClient {
 						type: 'websocket',
 				  };
 
-		// load all or some users and add them to the clearing house
+		// load all or some users and add them to the driftClient
 		this.addAllUsers(
 			config.subAccountIds,
 			!this.activeSubAccountId,
