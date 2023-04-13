@@ -88,15 +88,21 @@ impl HistoricalIndexData {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub enum OracleSource {
-    #[default]
     Pyth,
     Switchboard,
     QuoteAsset,
     Pyth1K,
     Pyth1M,
     PythStableCoin,
+}
+
+impl Default for OracleSource {
+    // UpOnly
+    fn default() -> Self {
+        OracleSource::Pyth
+    }
 }
 
 #[derive(Default, Clone, Copy, Debug)]

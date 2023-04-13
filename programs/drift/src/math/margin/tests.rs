@@ -959,7 +959,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 ..PerpPosition::default()
             }),
             spot_positions,
-            max_margin_ratio: 2 * MARGIN_PRECISION, // .5x leverage
+            max_margin_ratio: 2 * MARGIN_PRECISION as u32, // .5x leverage
             ..User::default()
         };
 
@@ -976,7 +976,7 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(margin_requirement, 40000000000); // 100 * $100 * 2 + 100 * $100 * 2
 
         let user = User {
-            max_margin_ratio: MARGIN_PRECISION, // 1x leverage
+            max_margin_ratio: MARGIN_PRECISION as u32, // 1x leverage
             ..user
         };
 
@@ -993,7 +993,7 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(margin_requirement, 22000000000); // 100 * 100 * 1 + 100 * $100 * 1.2
 
         let user = User {
-            max_margin_ratio: MARGIN_PRECISION / 2, // 2x leverage
+            max_margin_ratio: MARGIN_PRECISION as u32 / 2, // 2x leverage
             ..user
         };
 
@@ -1010,7 +1010,7 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(margin_requirement, 17000000000); // 100 * 100 * .5 + 100 * $100 * 1.2
 
         let user = User {
-            max_margin_ratio: 10 * MARGIN_PRECISION, // .1x leverage
+            max_margin_ratio: 10 * MARGIN_PRECISION as u32, // .1x leverage
             ..user
         };
 
@@ -1113,7 +1113,7 @@ mod calculate_margin_requirement_and_total_collateral {
         let user = User {
             orders: [Order::default(); 32],
             spot_positions,
-            max_margin_ratio: 2 * MARGIN_PRECISION, // .5x leverage
+            max_margin_ratio: 2 * MARGIN_PRECISION as u32, // .5x leverage
             ..User::default()
         };
 
@@ -1231,7 +1231,7 @@ mod calculate_margin_requirement_and_total_collateral {
         let user = User {
             orders: [Order::default(); 32],
             spot_positions,
-            max_margin_ratio: 2 * MARGIN_PRECISION, // .5x leverage
+            max_margin_ratio: 2 * MARGIN_PRECISION as u32, // .5x leverage
             ..User::default()
         };
 

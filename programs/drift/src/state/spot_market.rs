@@ -302,11 +302,16 @@ impl SpotMarket {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
 pub enum SpotBalanceType {
-    #[default]
     Deposit,
     Borrow,
+}
+
+impl Default for SpotBalanceType {
+    fn default() -> Self {
+        SpotBalanceType::Deposit
+    }
 }
 
 impl Display for SpotBalanceType {
@@ -332,23 +337,31 @@ pub trait SpotBalance {
     fn update_balance_type(&mut self, balance_type: SpotBalanceType) -> DriftResult;
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum SpotFulfillmentConfigStatus {
-    #[default]
     Enabled,
     Disabled,
 }
 
-#[derive(
-    Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord, Default,
-)]
+impl Default for SpotFulfillmentConfigStatus {
+    fn default() -> Self {
+        SpotFulfillmentConfigStatus::Enabled
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub enum AssetTier {
     Collateral, // full priviledge
     Protected,  // collateral, but no borrow
     Cross,      // not collateral, allow multi-borrow
     Isolated,   // not collateral, only single borrow
-    #[default]
-    Unlisted, // no priviledge
+    Unlisted,   // no priviledge
+}
+
+impl Default for AssetTier {
+    fn default() -> Self {
+        AssetTier::Unlisted
+    }
 }
 
 #[zero_copy]

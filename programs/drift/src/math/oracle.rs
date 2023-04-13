@@ -17,7 +17,7 @@ use crate::state::state::{OracleGuardRails, ValidityGuardRails};
 mod tests;
 
 // ordered by "severity"
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OracleValidity {
     Invalid,
     TooVolatile,
@@ -25,8 +25,13 @@ pub enum OracleValidity {
     StaleForMargin,
     InsufficientDataPoints,
     StaleForAMM,
-    #[default]
     Valid,
+}
+
+impl Default for OracleValidity {
+    fn default() -> Self {
+        OracleValidity::Valid
+    }
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
@@ -129,9 +134,9 @@ pub struct OracleStatus {
     pub oracle_validity: OracleValidity,
 }
 
-pub fn get_oracle_status(
+pub fn get_oracle_status<'a>(
     amm: &AMM,
-    oracle_price_data: &OraclePriceData,
+    oracle_price_data: &'a OraclePriceData,
     guard_rails: &OracleGuardRails,
     precomputed_reserve_price: Option<u64>,
 ) -> DriftResult<OracleStatus> {

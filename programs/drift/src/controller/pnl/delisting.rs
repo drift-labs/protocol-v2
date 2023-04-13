@@ -682,7 +682,7 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                scaled_balance: (1000 * SPOT_BALANCE_PRECISION),
+                scaled_balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -900,7 +900,7 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                scaled_balance: (1000 * SPOT_BALANCE_PRECISION),
+                scaled_balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -1121,7 +1121,7 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                scaled_balance: (1000 * SPOT_BALANCE_PRECISION),
+                scaled_balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -1326,7 +1326,7 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                scaled_balance: (1000 * SPOT_BALANCE_PRECISION),
+                scaled_balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -1370,7 +1370,7 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100) as i64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1749,7 +1749,7 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                scaled_balance: (1000 * SPOT_BALANCE_PRECISION),
+                scaled_balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -1794,7 +1794,7 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100) as i64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2129,7 +2129,7 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                scaled_balance: (1000 * SPOT_BALANCE_PRECISION),
+                scaled_balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -2174,7 +2174,7 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100) as i64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()

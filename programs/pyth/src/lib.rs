@@ -1,4 +1,3 @@
-#![allow(clippy::result_large_err)]
 use anchor_lang::prelude::*;
 pub mod pc;
 use pc::Price;
@@ -42,7 +41,7 @@ pub mod pyth {
             .unwrap()
             .checked_div(2)
             .unwrap(); //todo
-        price_oracle.agg.price = price;
+        price_oracle.agg.price = price as i64;
         Ok(())
     }
 
@@ -56,7 +55,7 @@ pub mod pyth {
             .unwrap()
             .checked_div(2)
             .unwrap(); //todo
-        price_oracle.agg.price = price;
+        price_oracle.agg.price = price as i64;
         price_oracle.agg.conf = conf;
         price_oracle.valid_slot = slot;
 

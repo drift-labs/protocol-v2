@@ -376,7 +376,7 @@ pub fn update_oracle_price_twap(
         amm.last_oracle_conf_pct = oracle_price_data
             .confidence
             .safe_mul(BID_ASK_SPREAD_PRECISION)?
-            .safe_div(reserve_price)?;
+            .safe_div(reserve_price)? as u64;
         amm.historical_oracle_data.last_oracle_delay = oracle_price_data.delay;
         amm.last_oracle_reserve_price_spread_pct =
             calculate_oracle_reserve_price_spread_pct(amm, oracle_price_data, Some(reserve_price))?;

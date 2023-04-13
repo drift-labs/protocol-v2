@@ -148,9 +148,10 @@ pub fn update_amm_test() {
     assert!(bid < reserve_price);
     assert!(bid < ask);
     assert!(reserve_price <= ask);
-    assert_eq!(market.amm.long_spread + market.amm.short_spread, {
-        market.margin_ratio_initial * 100
-    });
+    assert_eq!(
+        market.amm.long_spread + market.amm.short_spread,
+        (market.margin_ratio_initial * 100) as u32
+    );
 
     assert_eq!(bid, 12055425452);
     assert!(bid < (oracle_price_data.price as u64));

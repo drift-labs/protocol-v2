@@ -740,12 +740,17 @@ pub struct OrderParams {
     pub auction_end_price: Option<i64>,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum PostOnlyParam {
-    #[default]
     None,
     MustPostOnly, // Tx fails if order can't be post only
     TryPostOnly,  // Tx succeeds and order not placed if can't be post only
+}
+
+impl Default for PostOnlyParam {
+    fn default() -> Self {
+        PostOnlyParam::None
+    }
 }
 
 #[access_control(
