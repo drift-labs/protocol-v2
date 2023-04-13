@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::comparison_chain)]
-#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
 
 use anchor_lang::prelude::*;
 
