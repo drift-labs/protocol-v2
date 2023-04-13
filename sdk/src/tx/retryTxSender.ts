@@ -120,24 +120,13 @@ export class RetryTxSender implements TxSender {
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions
 	): Promise<TxSigAndSlot> {
-		if (additionalSigners === undefined) {
-			additionalSigners = [];
-		}
-		if (opts === undefined) {
-			opts = this.provider.opts;
-		}
+		const tx = await this.getVersionedTransaction(
+			ixs,
+			lookupTableAccounts,
+			additionalSigners,
+			opts
+		);
 
-		const message = new TransactionMessage({
-			payerKey: this.provider.wallet.publicKey,
-			recentBlockhash: (
-				await this.provider.connection.getRecentBlockhash(
-					opts.preflightCommitment
-				)
-			).blockhash,
-			instructions: ixs,
-		}).compileToV0Message(lookupTableAccounts);
-
-		const tx = new VersionedTransaction(message);
 		// @ts-ignore
 		tx.sign(additionalSigners.concat(this.provider.wallet.payer));
 
