@@ -260,13 +260,6 @@ pub enum OrderAction {
     Expire,
 }
 
-impl Default for OrderAction {
-    // UpOnly
-    fn default() -> Self {
-        OrderAction::Place
-    }
-}
-
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum OrderActionExplanation {
     None,
@@ -284,6 +277,13 @@ pub enum OrderActionExplanation {
     ReduceOnlyOrderIncreasedPosition,
     OrderFillWithSerum,
     NoBorrowLiquidity,
+}
+
+impl Default for OrderAction {
+    // UpOnly
+    fn default() -> Self {
+        OrderAction::Place
+    }
 }
 
 #[event]
