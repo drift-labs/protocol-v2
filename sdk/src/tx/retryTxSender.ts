@@ -86,6 +86,34 @@ export class RetryTxSender implements TxSender {
 		return signedTx;
 	}
 
+	async getVersionedTransaction(
+		ixs: TransactionInstruction[],
+		lookupTableAccounts: AddressLookupTableAccount[],
+		additionalSigners?: Array<Signer>,
+		opts?: ConfirmOptions
+	): Promise<VersionedTransaction> {
+		if (additionalSigners === undefined) {
+			additionalSigners = [];
+		}
+		if (opts === undefined) {
+			opts = this.provider.opts;
+		}
+
+		let message = new TransactionMessage({
+			payerKey: this.provider.wallet.publicKey,
+			recentBlockhash: (
+				await this.provider.connection.getRecentBlockhash(
+					opts.preflightCommitment
+				)
+			).blockhash,
+			instructions: ixs,
+		}).compileToV0Message(lookupTableAccounts);
+
+		let tx = new VersionedTransaction(message);
+
+		return tx;
+	}
+
 	async sendVersionedTransaction(
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
@@ -99,7 +127,7 @@ export class RetryTxSender implements TxSender {
 			opts = this.provider.opts;
 		}
 
-		const message = new TransactionMessage({
+		let message = new TransactionMessage({
 			payerKey: this.provider.wallet.publicKey,
 			recentBlockhash: (
 				await this.provider.connection.getRecentBlockhash(
@@ -109,8 +137,9 @@ export class RetryTxSender implements TxSender {
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
 
-		const tx = new VersionedTransaction(message);
-		// @ts-ignore
+		let tx = new VersionedTransaction(message);
+
+		//@ts-ignore
 		tx.sign(additionalSigners.concat(this.provider.wallet.payer));
 
 		return this.sendRawTransaction(tx.serialize(), opts);
