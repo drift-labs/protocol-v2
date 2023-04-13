@@ -9,8 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+
+### Fixes
+
+### Breaking
+
+## [Unreleased]
+
+### Features
     
 ### Fixes
+
+- program: handle 0 base filled for fulfill_spot_order_with_external_market
 
 ### Breaking
 
