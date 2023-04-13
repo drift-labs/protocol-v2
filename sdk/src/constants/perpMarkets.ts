@@ -187,6 +187,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1680808053000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Binance Coin',
+		category: ['Exchange'],
+		symbol: 'BNB-PERP',
+		baseAssetSymbol: 'BNB',
+		marketIndex: 8,
+		oracle: new PublicKey('4CkQJBxhU8EZ2UjhigbtdaPbpTe6mqf811fipYBFbSYN'),
+		launchTs: 1680808053000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
