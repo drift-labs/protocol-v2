@@ -2084,7 +2084,7 @@ export class DriftClient {
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
-		let bracketOrderIxs = [];
+		const bracketOrderIxs = [];
 
 		const placePerpOrderIx = await this.getPlacePerpOrderIx(orderParams);
 
