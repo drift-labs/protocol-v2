@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - sdk: fix isOracleValid confidenceTooLarge calc ([#425](https://github.com/drift-labs/protocol-v2/pull/425))
 
+- sdk: Remove redundant fetchAccounts in userMap.ts
+
 ### Breaking
 
 ## [2.24.0] - 2023-04-03
