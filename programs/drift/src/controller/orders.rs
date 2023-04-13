@@ -4025,6 +4025,10 @@ pub fn fulfill_spot_order_with_external_market(
         max_quote_asset_amount.unwrap_or(u64::MAX),
     )?;
 
+    if base_asset_amount_filled == 0 {
+        return Ok(0);
+    }
+
     update_spot_balances(
         settled_referrer_rebate as u128,
         &SpotBalanceType::Deposit,
