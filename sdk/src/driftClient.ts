@@ -458,13 +458,6 @@ export class DriftClient {
 		this.activeSubAccountId = activeSubAccountId;
 		this.userStatsAccountPublicKey = undefined;
 
-		this.users.clear();
-		await this.addAllUsers(
-			subAccountIds,
-			!this.activeSubAccountId,
-			includeDelegates
-		);
-
 		if (this.isSubscribed) {
 			await Promise.all(this.unsubscribeUsers());
 
@@ -480,6 +473,14 @@ export class DriftClient {
 				await this.userStats.subscribe();
 			}
 		}
+
+		this.users.clear();
+
+		await this.addAllUsers(
+			subAccountIds,
+			!this.activeSubAccountId,
+			includeDelegates
+		);
 	}
 
 	public switchActiveUser(subAccountId: number, authority?: PublicKey) {

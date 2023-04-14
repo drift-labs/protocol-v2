@@ -56,7 +56,7 @@ export class RetryTxSender implements TxSender {
 			opts = this.provider.opts;
 		}
 
-		const signedTx = preSigned && tx.feePayer
+		const signedTx = preSigned
 			? tx
 			: await this.prepareTx(tx, additionalSigners, opts);
 
