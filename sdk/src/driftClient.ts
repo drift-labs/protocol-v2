@@ -202,8 +202,6 @@ export class DriftClient {
 			);
 		}
 
-		this.fetchMarketLookupTableAccount();
-
 		if (config.accountSubscription?.type === 'polling') {
 			this.accountSubscriber = new PollingDriftClientAccountSubscriber(
 				this.program,
@@ -2106,18 +2104,20 @@ export class DriftClient {
 			referrerInfo
 		);
 
+		const lookupTableAccount = this.lookupTableAccount ?? await this.fetchMarketLookupTableAccount();
+
 		// use versioned transactions if there is a lookup table account
-		if (this.lookupTableAccount) {
+		if (lookupTableAccount) {
 			const versionedMarketOrderTx =
 				await this.txSender.getVersionedTransaction(
 					[placePerpOrderIx].concat(bracketOrderIxs),
-					[this.lookupTableAccount],
+					[lookupTableAccount],
 					[],
 					this.opts
 				);
 			const versionedFillTx = await this.txSender.getVersionedTransaction(
 				[fillPerpOrderIx],
-				[this.lookupTableAccount],
+				[lookupTableAccount],
 				[],
 				this.opts
 			);
