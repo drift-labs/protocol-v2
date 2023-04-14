@@ -99,7 +99,7 @@ export class RetryTxSender implements TxSender {
 			opts = this.provider.opts;
 		}
 
-		let message = new TransactionMessage({
+		const message = new TransactionMessage({
 			payerKey: this.provider.wallet.publicKey,
 			recentBlockhash: (
 				await this.provider.connection.getRecentBlockhash(
@@ -109,7 +109,7 @@ export class RetryTxSender implements TxSender {
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
 
-		let tx = new VersionedTransaction(message);
+		const tx = new VersionedTransaction(message);
 
 		return tx;
 	}
