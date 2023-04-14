@@ -130,6 +130,8 @@ export class DriftClient {
 	spotMarketLastSlotCache = new Map<number, number>();
 	authority: PublicKey;
 	marketLookupTable: PublicKey;
+	subAccountIds?: number[];
+	includeDelegates?: boolean;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -155,7 +157,9 @@ export class DriftClient {
 		);
 
 		this.authority = config.authority ?? this.wallet.publicKey;
-		this.activeSubAccountId = config.activeSubAccountId;
+		this.activeSubAccountId = config.activeSubAccountId ?? 0;
+		this.subAccountIds = config.subAccountIds ?? undefined;
+		this.includeDelegates = config.includeDelegates ?? false;
 		this.activeAuthority = this.authority;
 		this.userAccountSubscriptionConfig =
 			config.accountSubscription?.type === 'polling'
@@ -166,13 +170,6 @@ export class DriftClient {
 				: {
 						type: 'websocket',
 				  };
-
-		// load all or some users and add them to the driftClient
-		this.addAllUsers(
-			config.subAccountIds,
-			!this.activeSubAccountId,
-			config.includeDelegates
-		);
 
 		if (config.userStats) {
 			this.userStats = new UserStats({
@@ -258,15 +255,21 @@ export class DriftClient {
 	}
 
 	public async subscribe(): Promise<boolean> {
-		let subscribePromises = this.subscribeUsers().concat(
-			this.accountSubscriber.subscribe()
-		);
+		let subscribePromises = [
+			this.addAndSubscribeToUsers(
+				this.subAccountIds,
+				!this.activeSubAccountId,
+				this.includeDelegates
+			),
+		].concat(this.accountSubscriber.subscribe());
+
 		if (this.userStats !== undefined) {
 			subscribePromises = subscribePromises.concat(this.userStats.subscribe());
 		}
 		this.isSubscribed = (await Promise.all(subscribePromises)).reduce(
 			(success, prevSuccess) => success && prevSuccess
 		);
+
 		return this.isSubscribed;
 	}
 
@@ -457,6 +460,8 @@ export class DriftClient {
 		this.authority = newWallet.publicKey;
 		this.activeSubAccountId = activeSubAccountId;
 		this.userStatsAccountPublicKey = undefined;
+		this.includeDelegates = includeDelegates ?? false;
+		this.subAccountIds = subAccountIds ?? undefined;
 
 		if (this.isSubscribed) {
 			await Promise.all(this.unsubscribeUsers());
@@ -476,10 +481,10 @@ export class DriftClient {
 
 		this.users.clear();
 
-		await this.addAllUsers(
-			subAccountIds,
+		await this.addAndSubscribeToUsers(
+			this.subAccountIds,
 			!this.activeSubAccountId,
-			includeDelegates
+			this.includeDelegates
 		);
 	}
 
@@ -491,7 +496,7 @@ export class DriftClient {
 	public async addUser(
 		subAccountId: number,
 		authority?: PublicKey
-	): Promise<void> {
+	): Promise<boolean> {
 		authority = authority ?? this.authority;
 		const userKey = this.getUserMapKey(subAccountId, authority);
 
@@ -504,15 +509,24 @@ export class DriftClient {
 			this.userAccountSubscriptionConfig,
 			authority
 		);
-		await user.subscribe();
-		this.users.set(userKey, user);
+
+		const result = await user.subscribe();
+
+		if (result) {
+			this.users.set(userKey, user);
+			return true;
+		} else {
+			return false;
+		}
 	}
 
-	public async addAllUsers(
+	public async addAndSubscribeToUsers(
 		subAccountIds?: number[],
 		setFirstActive?: boolean,
 		includeDelegates?: boolean
-	): Promise<void> {
+	): Promise<boolean> {
+		let result = true;
+
 		let userAccounts =
 			(await this.getUserAccountsForAuthority(this.authority)) ?? [];
 		if (subAccountIds) {
@@ -522,14 +536,21 @@ export class DriftClient {
 		}
 
 		for (const userAccount of userAccounts) {
-			this.addUser(userAccount.subAccountId, this.authority);
+			result =
+				result &&
+				(await this.addUser(userAccount.subAccountId, this.authority));
 		}
 
 		let delegatedAccounts = [];
 		if (includeDelegates) {
 			delegatedAccounts = await this.getUserAccountsForDelegate(this.authority);
 			for (const delegatedAccount of delegatedAccounts) {
-				this.addUser(delegatedAccount.subAccountId, delegatedAccount.authority);
+				result =
+					result &&
+					(await this.addUser(
+						delegatedAccount.subAccountId,
+						delegatedAccount.authority
+					));
 			}
 		}
 
@@ -540,6 +561,8 @@ export class DriftClient {
 				firstUser?.authority ?? this.authority
 			);
 		}
+
+		return result;
 	}
 
 	public async initializeUserAccount(
