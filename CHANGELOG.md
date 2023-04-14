@@ -14,7 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [Unreleased]
+## [2.25.2] - 2023-04-13
+
+### Features
+
+- program: increase max users to 5000
+
+### Fixes
+
+### Breaking
+
+## [2.25.1] - 2023-04-13
 
 ### Features
     
