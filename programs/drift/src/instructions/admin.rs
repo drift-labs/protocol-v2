@@ -1,16 +1,14 @@
-use std::convert::{identity, TryFrom};
+use std::convert::identity;
 use std::mem::size_of;
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use bytemuck::cast_slice;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::instructions::constraints::*;
-use crate::instructions::keeper::SpotFulfillmentType;
 use crate::load;
 use crate::load_mut;
 use crate::math::casting::Cast;
@@ -27,11 +25,12 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::safe_math::SafeMath;
-use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn, oracle};
 use crate::math_error;
 use crate::state::events::CurveRecord;
+use crate::state::fulfillment_params::serum::SerumContext;
+use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::oracle::{
     get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
     OracleSource,
@@ -39,10 +38,8 @@ use crate::state::oracle::{
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
-use crate::state::serum::{load_open_orders, load_serum_market};
 use crate::state::spot_market::{
-    AssetTier, InsuranceFund, SerumV3FulfillmentConfig, SpotBalanceType,
-    SpotFulfillmentConfigStatus, SpotMarket,
+    AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
@@ -293,7 +290,14 @@ pub fn handle_initialize_serum_fulfillment_config(
     )?;
 
     let serum_market_key = ctx.accounts.serum_market.key();
-    let market_state = load_serum_market(&ctx.accounts.serum_market, &serum_program_id)?;
+
+    let serum_context = SerumContext {
+        serum_program: &ctx.accounts.serum_program,
+        serum_market: &ctx.accounts.serum_market,
+        serum_open_orders: &ctx.accounts.serum_open_orders,
+    };
+
+    let market_state = serum_context.load_serum_market()?;
 
     validate!(
         identity(market_state.coin_mint) == base_spot_market.mint.to_aligned_bytes(),
@@ -306,30 +310,6 @@ pub fn handle_initialize_serum_fulfillment_config(
         ErrorCode::InvalidSerumMarket,
         "Invalid quote mint"
     )?;
-
-    let serum_program_id = serum_program_id;
-    let serum_market = serum_market_key;
-
-    let market_state_event_queue = market_state.event_q;
-    let serum_event_queue =
-        Pubkey::try_from(cast_slice(&market_state_event_queue)).safe_unwrap()?;
-
-    let market_state_request_queue = market_state.req_q;
-    let serum_request_queue =
-        Pubkey::try_from(cast_slice(&market_state_request_queue)).safe_unwrap()?;
-
-    let market_state_bids = market_state.bids;
-    let serum_bids = Pubkey::try_from(cast_slice(&market_state_bids)).safe_unwrap()?;
-
-    let market_state_asks = market_state.asks;
-    let serum_asks = Pubkey::try_from(cast_slice(&market_state_asks)).safe_unwrap()?;
-
-    let market_state_coin_vault = market_state.coin_vault;
-    let serum_base_vault = Pubkey::try_from(cast_slice(&market_state_coin_vault)).safe_unwrap()?;
-
-    let market_state_pc_vault = market_state.pc_vault;
-    let serum_quote_vault = Pubkey::try_from(cast_slice(&market_state_pc_vault)).safe_unwrap()?;
-    let serum_signer_nonce = market_state.vault_signer_nonce;
 
     let market_step_size = market_state.coin_lot_size;
     let valid_step_size = base_spot_market.order_step_size >= market_step_size
@@ -375,7 +355,7 @@ pub fn handle_initialize_serum_fulfillment_config(
         open_orders_seeds,
     )?;
 
-    let open_orders = load_open_orders(&ctx.accounts.serum_open_orders)?;
+    let open_orders = serum_context.load_open_orders()?;
     validate!(
         open_orders.account_flags == 0,
         ErrorCode::InvalidSerumOpenOrders,
@@ -383,34 +363,16 @@ pub fn handle_initialize_serum_fulfillment_config(
     )?;
     drop(open_orders);
 
-    controller::serum::invoke_init_open_orders(
-        &ctx.accounts.serum_program,
-        &ctx.accounts.serum_open_orders,
+    serum_context.invoke_init_open_orders(
         &ctx.accounts.drift_signer,
-        &ctx.accounts.serum_market,
         &ctx.accounts.rent,
         ctx.accounts.state.signer_nonce,
     )?;
 
     let serum_fulfillment_config_key = ctx.accounts.serum_fulfillment_config.key();
     let mut serum_fulfillment_config = ctx.accounts.serum_fulfillment_config.load_init()?;
-    *serum_fulfillment_config = SerumV3FulfillmentConfig {
-        fulfillment_type: SpotFulfillmentType::SerumV3,
-        status: SpotFulfillmentConfigStatus::Enabled,
-        pubkey: serum_fulfillment_config_key,
-        market_index,
-        serum_program_id,
-        serum_market,
-        serum_request_queue,
-        serum_event_queue,
-        serum_bids,
-        serum_asks,
-        serum_base_vault,
-        serum_quote_vault,
-        serum_open_orders: ctx.accounts.serum_open_orders.key(),
-        serum_signer_nonce,
-        padding: [0; 4],
-    };
+    *serum_fulfillment_config = serum_context
+        .to_serum_v3_fulfillment_config(&serum_fulfillment_config_key, market_index)?;
 
     Ok(())
 }
@@ -535,7 +497,7 @@ pub fn handle_initialize_perp_market(
         }
     };
 
-    let max_spread = ((margin_ratio_initial - margin_ratio_maintenance) * (100 - 5)) as u32;
+    let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
 
     // todo? should ensure peg within 1 cent of current oracle?
     // validate!(

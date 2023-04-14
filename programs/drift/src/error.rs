@@ -289,10 +289,10 @@ pub enum ErrorCode {
     InvalidSerumOpenOrders,
     #[msg("FailedSerumCPI")]
     FailedSerumCPI,
-    #[msg("FailedToFillOnSerum")]
-    FailedToFillOnSerum,
-    #[msg("InvalidSerumFulfillmentConfig")]
-    InvalidSerumFulfillmentConfig,
+    #[msg("FailedToFillOnExternalMarket")]
+    FailedToFillOnExternalMarket,
+    #[msg("InvalidFulfillmentConfig")]
+    InvalidFulfillmentConfig,
     #[msg("InvalidFeeStructure")]
     InvalidFeeStructure,
     #[msg("Insufficient IF shares")]
