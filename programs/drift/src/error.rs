@@ -489,6 +489,18 @@ pub enum ErrorCode {
     InvalidMarketAccountforDeletion,
     #[msg("Invalid Spot Fulfillment Params")]
     InvalidSpotFulfillmentParams,
+    #[msg("Failed to Get Mint")]
+    FailedToGetMint,
+    #[msg("FailedPhoenixCPI")]
+    FailedPhoenixCPI,
+    #[msg("FailedToDeserializePhoenixMarket")]
+    FailedToDeserializePhoenixMarket,
+    #[msg("InvalidPricePrecision")]
+    InvalidPricePrecision,
+    #[msg("InvalidPhoenixProgram")]
+    InvalidPhoenixProgram,
+    #[msg("InvalidPhoenixMarket")]
+    InvalidPhoenixMarket,
 }
 
 #[macro_export]
