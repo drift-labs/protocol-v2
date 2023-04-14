@@ -8,10 +8,7 @@ use phoenix::{
         create_new_order_instruction_with_custom_token_accounts, load_with_dispatch, MarketHeader,
     },
     quantities::{BaseAtoms, BaseAtomsPerBaseLot, BaseLots, QuoteLots, Ticks, WrapperU64},
-    state::{
-        markets::{FIFOOrderId, FIFORestingOrder, Market},
-        OrderPacket, Side,
-    },
+    state::{OrderPacket, Side},
 };
 use solana_program::{msg, program::invoke_signed_unchecked};
 
@@ -259,18 +256,6 @@ impl<'a, 'b> PhoenixFulfillmentParams<'a, 'b> {
     }
 }
 
-pub fn calculate_phoenix_limit_price(
-    header: &MarketHeader,
-    market: &dyn Market<Pubkey, FIFOOrderId, FIFORestingOrder, OrderPacket>,
-    price: u64,
-) -> Option<Ticks> {
-    Some(
-        price * header.raw_base_units_per_base_unit as u64
-            / (header.get_quote_lot_size().as_u64() * market.get_tick_size().as_u64()),
-    )
-    .map(Ticks::new)
-}
-
 impl<'a, 'b> PhoenixFulfillmentParams<'a, 'b> {
     pub fn invoke_new_order(&self, order_packet: OrderPacket) -> DriftResult {
         let base_mint = self.load_base_mint()?;
@@ -362,7 +347,10 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
             PositionDirection::Short => phoenix::state::Side::Ask,
         };
 
-        let price_in_ticks = calculate_phoenix_limit_price(header, market, taker_price);
+        let price_in_ticks = Some(Ticks::new(
+            taker_price * header.raw_base_units_per_base_unit as u64
+                / (header.get_quote_lot_size().as_u64() * market.get_tick_size().as_u64()),
+        ));
         let num_base_lots = BaseAtoms::new(taker_base_asset_amount)
             .unchecked_div::<BaseAtomsPerBaseLot, BaseLots>(header.get_base_lot_size());
 
