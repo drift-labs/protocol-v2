@@ -1,7 +1,7 @@
 use std::{cell::Ref, convert::TryInto, mem::size_of, ops::Deref};
 
 use anchor_lang::{prelude::*, ToAccountInfo};
-use anchor_spl::token::{accessor, Token, TokenAccount};
+use anchor_spl::token::{Token, TokenAccount};
 use arrayref::array_ref;
 use phoenix::{
     program::{
@@ -240,26 +240,12 @@ impl<'a, 'b> PhoenixFulfillmentParams<'a, 'b> {
             self.token_program.to_account_info(),
         ]
     }
-
-    fn load_base_mint(&self) -> DriftResult<Pubkey> {
-        accessor::mint(self.phoenix_base_vault).map_err(|_| {
-            msg!("Failed to get base mint from trader base token account");
-            ErrorCode::FailedToGetMint
-        })
-    }
-
-    fn load_quote_mint(&self) -> DriftResult<Pubkey> {
-        accessor::mint(self.phoenix_quote_vault).map_err(|_| {
-            msg!("Failed to get quote mint from trader base token account");
-            ErrorCode::FailedToGetMint
-        })
-    }
 }
 
 impl<'a, 'b> PhoenixFulfillmentParams<'a, 'b> {
     pub fn invoke_new_order(&self, order_packet: OrderPacket) -> DriftResult {
-        let base_mint = self.load_base_mint()?;
-        let quote_mint = self.load_quote_mint()?;
+        let base_mint = self.phoenix_market.header.base_params.mint_key;
+        let quote_mint = self.phoenix_market.header.quote_params.mint_key;
 
         let new_order_instruction = create_new_order_instruction_with_custom_token_accounts(
             self.phoenix_market.key,

@@ -28,7 +28,6 @@ use serum_dex::state::Market;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::Instruction;
 use solana_program::msg;
-use solana_program::pubkey::Pubkey;
 use std::cell::Ref;
 use std::num::NonZeroU64;
 use std::ops::{Deref, DerefMut};
