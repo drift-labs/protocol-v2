@@ -359,7 +359,7 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
 
         let side = match taker_direction {
             PositionDirection::Long => phoenix::state::Side::Bid,
-            PositionDirection::Short => phoenix::state::Side::Bid,
+            PositionDirection::Short => phoenix::state::Side::Ask,
         };
 
         let price_in_ticks = calculate_phoenix_limit_price(header, market, taker_price);
