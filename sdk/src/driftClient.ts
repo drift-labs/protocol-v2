@@ -415,7 +415,7 @@ export class DriftClient {
 
 	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
 		if (this.lookupTableAccount) return this.lookupTableAccount;
-		
+
 		if (!this.marketLookupTable) {
 			console.log('Market lookup table address not set');
 			return;
@@ -2080,8 +2080,7 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
-		referrerInfo?: ReferrerInfo,
-		useLookupTable?: boolean
+		referrerInfo?: ReferrerInfo
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
@@ -2109,8 +2108,12 @@ export class DriftClient {
 
 		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
 
-		// use versioned transactions if there is a lookup table account and ui setting is true
-		if (useLookupTable && lookupTableAccount) {
+		const walletSupportsVersionedTxns =
+			//@ts-ignore
+			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
+
+		// use versioned transactions if there is a lookup table account and wallet is compatible
+		if (walletSupportsVersionedTxns && lookupTableAccount) {
 			const versionedMarketOrderTx =
 				await this.txSender.getVersionedTransaction(
 					[placePerpOrderIx].concat(bracketOrderIxs),
