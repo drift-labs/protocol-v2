@@ -25,8 +25,8 @@ pub struct AccountMaps<'a> {
     pub oracle_map: OracleMap<'a>,
 }
 
-pub fn load_maps<'a, 'b, 'c>(
-    account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
+pub fn load_maps<'a, 'b>(
+    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
     writable_perp_markets: &'b MarketSet,
     writable_spot_markets: &'b MarketSet,
     slot: u64,
