@@ -1257,28 +1257,37 @@ pub fn handle_place_and_take_spot_order<'info>(
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
-    let base_market = spot_market_map.get_ref(&market_index)?;
-    let quote_market = spot_market_map.get_quote_spot_market()?;
-
     let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
-        SpotFulfillmentType::SerumV3 => Box::new(SerumFulfillmentParams::new(
-            remaining_accounts_iter,
-            &ctx.accounts.state,
-            &base_market,
-            &quote_market,
-            clock.unix_timestamp,
-        )?),
-        SpotFulfillmentType::PhoenixV1 => Box::new(PhoenixFulfillmentParams::new(
-            remaining_accounts_iter,
-            &ctx.accounts.state,
-            &base_market,
-            &quote_market,
-        )?),
-        SpotFulfillmentType::Match => Box::new(MatchFulfillmentParams::new(
-            remaining_accounts_iter,
-            &base_market,
-            &quote_market,
-        )?),
+        SpotFulfillmentType::SerumV3 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(SerumFulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+                clock.unix_timestamp,
+            )?)
+        }
+        SpotFulfillmentType::PhoenixV1 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(PhoenixFulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+            )?)
+        }
+        SpotFulfillmentType::Match => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(MatchFulfillmentParams::new(
+                remaining_accounts_iter,
+                &base_market,
+                &quote_market,
+            )?)
+        }
     };
 
     controller::orders::place_spot_order(
@@ -1327,6 +1336,8 @@ pub fn handle_place_and_take_spot_order<'info>(
         )?;
     }
 
+    let base_market = spot_market_map.get_ref(&market_index)?;
+    let quote_market = spot_market_map.get_quote_spot_market()?;
     fulfillment_params.validate_vault_amounts(&base_market, &quote_market)?;
 
     Ok(())
@@ -1369,28 +1380,37 @@ pub fn handle_place_and_make_spot_order<'info>(
 
     let market_index = params.market_index;
 
-    let base_market = spot_market_map.get_ref(&market_index)?;
-    let quote_market = spot_market_map.get_quote_spot_market()?;
-
     let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
-        SpotFulfillmentType::SerumV3 => Box::new(SerumFulfillmentParams::new(
-            remaining_accounts_iter,
-            &ctx.accounts.state,
-            &base_market,
-            &quote_market,
-            clock.unix_timestamp,
-        )?),
-        SpotFulfillmentType::PhoenixV1 => Box::new(PhoenixFulfillmentParams::new(
-            remaining_accounts_iter,
-            &ctx.accounts.state,
-            &base_market,
-            &quote_market,
-        )?),
-        SpotFulfillmentType::Match => Box::new(MatchFulfillmentParams::new(
-            remaining_accounts_iter,
-            &base_market,
-            &quote_market,
-        )?),
+        SpotFulfillmentType::SerumV3 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(SerumFulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+                clock.unix_timestamp,
+            )?)
+        }
+        SpotFulfillmentType::PhoenixV1 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(PhoenixFulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+            )?)
+        }
+        SpotFulfillmentType::Match => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(MatchFulfillmentParams::new(
+                remaining_accounts_iter,
+                &base_market,
+                &quote_market,
+            )?)
+        }
     };
 
     controller::orders::place_spot_order(
@@ -1438,6 +1458,8 @@ pub fn handle_place_and_make_spot_order<'info>(
         )?;
     }
 
+    let base_market = spot_market_map.get_ref(&market_index)?;
+    let quote_market = spot_market_map.get_quote_spot_market()?;
     fulfillment_params.validate_vault_amounts(&base_market, &quote_market)?;
 
     Ok(())
