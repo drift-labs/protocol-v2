@@ -568,9 +568,7 @@ describe('serum spot market', () => {
 			}
 		);
 
-		await provider.sendAndConfirm(transaction, signers, {
-			skipPreflight: true,
-		});
+		await provider.sendAndConfirm(transaction, signers);
 		const baseAssetAmount = castNumberToSpotPrecision(
 			1,
 			makerDriftClient.getSpotMarketAccount(solSpotMarketIndex)
