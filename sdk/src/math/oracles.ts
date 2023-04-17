@@ -8,10 +8,79 @@ import {
 	ZERO,
 	FIVE_MINUTE,
 } from '../constants/numericConstants';
-import { BN, HistoricalOracleData, PerpMarketAccount } from '../index';
+import {
+	BN,
+	HistoricalOracleData,
+	PerpMarketAccount,
+	SpotMarketAccount,
+} from '../index';
 import { assert } from '../assert/assert';
 
-export function oraclePriceBands(
+export function perpOraclePriceBandsForFill(
+	perpMarket: PerpMarketAccount,
+	oracleGuardRails: OracleGuardRails
+): [BN, BN] {
+	const defaultOracleGuardRailDivergence: BN =
+		oracleGuardRails.priceDivergence.markOracleDivergenceNumerator
+			.mul(new BN(BID_ASK_SPREAD_PRECISION))
+			.div(oracleGuardRails.priceDivergence.markOracleDivergenceDenominator);
+
+	const perpMarginRatioInPP = new BN(perpMarket.marginRatioInitial).mul(
+		BID_ASK_SPREAD_PRECISION.div(MARGIN_PRECISION)
+	);
+
+	const maxDivergence = BN.max(
+		defaultOracleGuardRailDivergence,
+		perpMarginRatioInPP
+	);
+
+	const oracleTwap =
+		perpMarket.amm.historicalOracleData.lastOraclePriceTwap5Min;
+
+	const limitUp = oracleTwap.add(
+		maxDivergence.mul(oracleTwap).div(BID_ASK_SPREAD_PRECISION)
+	);
+
+	const limitDown = oracleTwap.sub(
+		maxDivergence.mul(oracleTwap).div(BID_ASK_SPREAD_PRECISION)
+	);
+
+	return [limitDown, limitUp];
+}
+
+export function spotOraclePriceBandsForFill(
+	spotMarket: SpotMarketAccount,
+	oracleGuardRails: OracleGuardRails
+): [BN, BN] {
+	const defaultOracleGuardRailDivergence: BN =
+		oracleGuardRails.priceDivergence.markOracleDivergenceNumerator
+			.mul(new BN(BID_ASK_SPREAD_PRECISION))
+			.div(oracleGuardRails.priceDivergence.markOracleDivergenceDenominator);
+
+	const spotMarginRatioInPP = new BN(
+		spotMarket.initialLiabilityWeight - MARGIN_PRECISION.toNumber()
+	).mul(BID_ASK_SPREAD_PRECISION.div(MARGIN_PRECISION));
+
+	const maxDivergence = BN.max(
+		defaultOracleGuardRailDivergence,
+		spotMarginRatioInPP
+	);
+
+	const oracleTwap = spotMarket.historicalOracleData.lastOraclePriceTwap5Min;
+
+	const limitUp = oracleTwap.add(
+		maxDivergence.mul(oracleTwap).div(BID_ASK_SPREAD_PRECISION)
+	);
+
+	const limitDown = oracleTwap.sub(
+		maxDivergence.mul(oracleTwap).div(BID_ASK_SPREAD_PRECISION)
+	);
+
+	return [limitDown, limitUp];
+}
+
+// whether a perp maker (post only) order will get cancelled
+export function perpOraclePriceBandsForMaker(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): [BN, BN] {
