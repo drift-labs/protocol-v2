@@ -507,8 +507,8 @@ export class DriftClient {
 		authority = authority ?? this.authority;
 		const userKey = this.getUserMapKey(subAccountId, authority);
 
-		if (this.users.has(userKey)) {
-			return;
+		if (this.users.has(userKey) && this.users.get(userKey).isSubscribed) {
+			return true;
 		}
 
 		const user = this.createUser(
@@ -948,7 +948,14 @@ export class DriftClient {
 	}
 
 	public getUsers(): User[] {
-		return [...this.users.values()];
+		// delegate users get added to the end
+		return [...this.users.values()]
+			.filter((acct) => acct.getUserAccount().authority.equals(this.authority))
+			.concat(
+				[...this.users.values()].filter(
+					(acct) => !acct.getUserAccount().authority.equals(this.authority)
+				)
+			);
 	}
 
 	public getUserStats(): UserStats {
