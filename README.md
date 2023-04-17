@@ -24,12 +24,20 @@ Example bots (makers, liquidators, fillers, etc) can be found [here](https://git
 
 # Building Locally
 
+Note: If you are running the build on an Apple computer with an M1 chip, please set the default rust toolchain to `stable-x86_64-apple-darwin`
+
+```bash
+rustup default stable-x86_64-apple-darwin
+```
+
+## Compiling Programs
+
 ```bash
 # build v2
-anchor build 
+anchor build
 # install packages
 yarn
-# build sdk 
+# build sdk
 cd sdk/ && yarn && yarn build && cd ..
 ```
 

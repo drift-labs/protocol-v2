@@ -33,3 +33,32 @@ export function unstakeSharesToAmount(
 
 	return amount;
 }
+
+export function unstakeSharesToAmountWithOpenRequest(
+	nShares: BN,
+	withdrawRequestShares: BN,
+	withdrawRequestAmount: BN,
+	totalIfShares: BN,
+	insuranceFundVaultBalance: BN
+): BN {
+	let stakedAmount: BN;
+	if (totalIfShares.gt(ZERO)) {
+		stakedAmount = BN.max(
+			ZERO,
+			nShares
+				.sub(withdrawRequestShares)
+				.mul(insuranceFundVaultBalance)
+				.div(totalIfShares)
+		);
+	} else {
+		stakedAmount = ZERO;
+	}
+
+	const withdrawAmount = BN.min(
+		withdrawRequestAmount,
+		withdrawRequestShares.mul(insuranceFundVaultBalance).div(totalIfShares)
+	);
+	const amount = withdrawAmount.add(stakedAmount);
+
+	return amount;
+}

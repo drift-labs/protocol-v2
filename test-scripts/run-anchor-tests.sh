@@ -53,6 +53,7 @@ test_files=(
   cappedSymFunding.ts
   maxDeposit.ts
   cancelAllOrders.ts
+  modifyOrder.ts
 )
 
 for test_file in ${test_files[@]}; do

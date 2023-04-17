@@ -113,7 +113,6 @@ export class UserMap implements UserMapInterface {
 			await this.addPubkey(new PublicKey(key));
 		}
 		const user = this.userMap.get(key);
-		await user.fetchAccounts();
 		return user;
 	}
 

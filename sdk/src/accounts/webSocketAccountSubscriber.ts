@@ -1,5 +1,5 @@
 import { DataAndSlot, BufferAndSlot, AccountSubscriber } from './types';
-import { AnchorProvider, Program } from '@project-serum/anchor';
+import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { AccountInfo, Context, PublicKey } from '@solana/web3.js';
 import { capitalize } from './utils';
 import * as Buffer from 'buffer';

@@ -4,7 +4,7 @@ import { OracleClient } from '../oracles/types';
 import { PythClient } from '../oracles/pythClient';
 // import { SwitchboardClient } from '../oracles/switchboardClient';
 import { QuoteAssetOracleClient } from '../oracles/quoteAssetOracleClient';
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 
 export function getOracleClient(
 	oracleSource: OracleSource,

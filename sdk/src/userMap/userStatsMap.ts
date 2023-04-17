@@ -16,7 +16,7 @@ import {
 	LPRecord,
 	InsuranceFundStakeRecord,
 } from '..';
-import { ProgramAccount } from '@project-serum/anchor';
+import { ProgramAccount } from '@coral-xyz/anchor';
 import { AccountInfo, PublicKey } from '@solana/web3.js';
 
 import { UserMap } from './userMap';

@@ -2,8 +2,6 @@ import * as anchor from '@coral-xyz/anchor';
 import {
 	BASE_PRECISION,
 	BN,
-	getLimitOrderParams,
-	isVariant,
 	OracleSource,
 	TestClient,
 	EventSubscriber,
@@ -19,11 +17,10 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	initializeQuoteSpotMarket,
-	printTxLogs,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import { BulkAccountLoader, OrderType, TWO } from '../sdk';
 
-describe('cancel all orders', () => {
+describe('modify orders', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -109,24 +106,46 @@ describe('cancel all orders', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('cancel all orders', async () => {
-		for (let i = 0; i < 32; i++) {
-			await driftClient.placePerpOrder(
-				getLimitOrderParams({
-					baseAssetAmount: BASE_PRECISION,
-					marketIndex: 0,
-					direction: PositionDirection.LONG,
-					price: PRICE_PRECISION,
-				})
-			);
-		}
+	it('modify order by order id', async () => {
+		await driftClient.placePerpOrder({
+			marketIndex: 0,
+			baseAssetAmount: BASE_PRECISION,
+			direction: PositionDirection.LONG,
+			orderType: OrderType.MARKET,
+		});
 
-		const txSig = await driftClient.cancelOrders(null, null, null);
+		await driftClient.modifyOrder({
+			orderId: 1,
+			newBaseAmount: BASE_PRECISION.mul(TWO),
+		});
 
-		await printTxLogs(connection, txSig);
+		assert(
+			driftClient
+				.getUser()
+				.getUserAccount()
+				.orders[0].baseAssetAmount.eq(BASE_PRECISION.mul(TWO))
+		);
+	});
 
-		for (let i = 0; i < 32; i++) {
-			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
-		}
+	it('modify order by user order id', async () => {
+		await driftClient.placePerpOrder({
+			userOrderId: 1,
+			marketIndex: 0,
+			baseAssetAmount: BASE_PRECISION,
+			direction: PositionDirection.LONG,
+			orderType: OrderType.MARKET,
+		});
+
+		await driftClient.modifyOrderByUserOrderId({
+			userOrderId: 1,
+			newBaseAmount: BASE_PRECISION.mul(TWO),
+		});
+
+		assert(
+			driftClient
+				.getUser()
+				.getUserAccount()
+				.orders[1].baseAssetAmount.eq(BASE_PRECISION.mul(TWO))
+		);
 	});
 });

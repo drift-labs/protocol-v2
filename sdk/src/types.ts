@@ -161,7 +161,8 @@ export class OrderTriggerCondition {
 }
 
 export class SpotFulfillmentType {
-	static readonly SERUM_v3 = { serumV3: {} };
+	static readonly EXTERNAL = { external: {} };
+	static readonly MATCH = { match: {} };
 }
 
 export class SpotFulfillmentStatus {
@@ -879,6 +880,10 @@ export type NecessaryOrderParams = {
 export type OptionalOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property];
 } & NecessaryOrderParams;
+
+export type ModifyOrderParams = {
+	[Property in keyof OrderParams]?: OrderParams[Property] | null;
+};
 
 export const DefaultOrderParams: OrderParams = {
 	orderType: OrderType.MARKET,

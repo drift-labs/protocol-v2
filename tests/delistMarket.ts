@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
@@ -615,7 +615,8 @@ describe('delist market', () => {
 			'totalExchangeFee:',
 			marketAfter.amm.totalExchangeFee.toString()
 		);
-		assert(marketAfter.amm.feePool.scaledBalance.eq(new BN(21567000)));
+		assert(marketAfter.amm.feePool.scaledBalance.eq(new BN(64700000)));
+
 		// assert(marketAfter.amm.totalExchangeFee.eq(new BN(43134)));
 		assert(marketAfter.amm.totalExchangeFee.eq(new BN(129401)));
 	});

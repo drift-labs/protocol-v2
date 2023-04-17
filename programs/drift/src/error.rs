@@ -289,10 +289,10 @@ pub enum ErrorCode {
     InvalidSerumOpenOrders,
     #[msg("FailedSerumCPI")]
     FailedSerumCPI,
-    #[msg("FailedToFillOnSerum")]
-    FailedToFillOnSerum,
-    #[msg("InvalidSerumFulfillmentConfig")]
-    InvalidSerumFulfillmentConfig,
+    #[msg("FailedToFillOnExternalMarket")]
+    FailedToFillOnExternalMarket,
+    #[msg("InvalidFulfillmentConfig")]
+    InvalidFulfillmentConfig,
     #[msg("InvalidFeeStructure")]
     InvalidFeeStructure,
     #[msg("Insufficient IF shares")]
@@ -487,6 +487,8 @@ pub enum ErrorCode {
     RevertFill,
     #[msg("Invalid MarketAccount for Deletion")]
     InvalidMarketAccountforDeletion,
+    #[msg("Invalid Spot Fulfillment Params")]
+    InvalidSpotFulfillmentParams,
 }
 
 #[macro_export]
