@@ -1337,18 +1337,25 @@ export class DriftClient {
 		userInitialized = true,
 		recipientAuthority?: PublicKey
 	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = subAccountId !== undefined
-			? await getUserAccountPublicKey(
-				this.program.programId,
-				recipientAuthority ?? this.authority,
-				subAccountId
-				)
-			: await this.getUserAccountPublicKey();
+		const userAccountPublicKey =
+			subAccountId !== undefined
+				? await getUserAccountPublicKey(
+						this.program.programId,
+						recipientAuthority ?? this.authority,
+						subAccountId
+				  )
+				: await this.getUserAccountPublicKey();
 
 		let remainingAccounts = [];
 		if (userInitialized) {
+			const userAccount = recipientAuthority
+				? ((await this.program.account.user.fetch(
+						userAccountPublicKey
+				  )) as UserAccount)
+				: await this.forceGetUserAccount();
+
 			remainingAccounts = this.getRemainingAccounts({
-				userAccounts: [await this.forceGetUserAccount()],
+				userAccounts: [userAccount],
 				useMarketLastSlotCache: true,
 				writableSpotMarketIndexes: [marketIndex],
 			});
@@ -1371,7 +1378,12 @@ export class DriftClient {
 					spotMarket: spotMarketAccount.pubkey,
 					spotMarketVault: spotMarketAccount.vault,
 					user: userAccountPublicKey,
-					userStats: this.getUserStatsAccountPublicKey(),
+					userStats: recipientAuthority
+						? getUserStatsAccountPublicKey(
+								this.program.programId,
+								recipientAuthority
+						  )
+						: this.getUserStatsAccountPublicKey(),
 					userTokenAccount: userTokenAccount,
 					authority: this.wallet.publicKey,
 					tokenProgram: TOKEN_PROGRAM_ID,
