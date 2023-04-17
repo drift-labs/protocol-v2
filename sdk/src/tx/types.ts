@@ -6,6 +6,7 @@ import {
 	Transaction,
 	TransactionInstruction,
 	TransactionSignature,
+	VersionedTransaction,
 } from '@solana/web3.js';
 
 export type TxSigAndSlot = {
@@ -28,5 +29,17 @@ export interface TxSender {
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions
+	): Promise<TxSigAndSlot>;
+
+	getVersionedTransaction(
+		ixs: TransactionInstruction[],
+		lookupTableAccounts: AddressLookupTableAccount[],
+		additionalSigners?: Array<Signer>,
+		opts?: ConfirmOptions
+	): Promise<VersionedTransaction>;
+
+	sendRawTransaction(
+		rawTransaction: Buffer | Uint8Array,
+		opts: ConfirmOptions
 	): Promise<TxSigAndSlot>;
 }

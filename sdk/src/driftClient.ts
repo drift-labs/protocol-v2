@@ -128,6 +128,7 @@ export class DriftClient {
 	spotMarketLastSlotCache = new Map<number, number>();
 	authority: PublicKey;
 	marketLookupTable: PublicKey;
+	lookupTableAccount: AddressLookupTableAccount;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -413,12 +414,19 @@ export class DriftClient {
 	}
 
 	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
+		if (this.lookupTableAccount) return this.lookupTableAccount;
+
 		if (!this.marketLookupTable) {
-			throw Error('Market lookup table address not set');
+			console.log('Market lookup table address not set');
+			return;
 		}
 
-		return (await this.connection.getAddressLookupTable(this.marketLookupTable))
-			.value;
+		const lookupTableAccount = (
+			await this.connection.getAddressLookupTable(this.marketLookupTable)
+		).value;
+		this.lookupTableAccount = lookupTableAccount;
+
+		return lookupTableAccount;
 	}
 
 	/**
@@ -2076,54 +2084,102 @@ export class DriftClient {
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
+		const bracketOrderIxs = [];
 
-		const marketOrderTx = wrapInTx(
-			await this.getPlacePerpOrderIx(orderParams),
-			txParams?.computeUnits,
-			txParams?.computeUnitsPrice
-		);
+		const placePerpOrderIx = await this.getPlacePerpOrderIx(orderParams);
+
 		for (const bracketOrderParams of bracketOrdersParams) {
-			marketOrderTx.add(await this.getPlacePerpOrderIx(bracketOrderParams));
+			const placeBracketOrderIx = await this.getPlacePerpOrderIx(
+				bracketOrderParams
+			);
+			bracketOrderIxs.push(placeBracketOrderIx);
 		}
 
-		const fillTx = wrapInTx(
-			await this.getFillPerpOrderIx(
-				userAccountPublicKey,
-				userAccount,
-				{
-					orderId,
-					marketIndex,
-				},
-				makerInfo,
-				referrerInfo
-			),
-			txParams?.computeUnits,
-			txParams?.computeUnitsPrice
+		const fillPerpOrderIx = await this.getFillPerpOrderIx(
+			userAccountPublicKey,
+			userAccount,
+			{
+				orderId,
+				marketIndex,
+			},
+			makerInfo,
+			referrerInfo
 		);
 
-		// Apply the latest blockhash to the txs so that we can sign before sending them
-		const currentBlockHash = (
-			await this.connection.getLatestBlockhash('finalized')
-		).blockhash;
-		marketOrderTx.recentBlockhash = currentBlockHash;
-		fillTx.recentBlockhash = currentBlockHash;
+		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
 
-		marketOrderTx.feePayer = userAccount.authority;
-		fillTx.feePayer = userAccount.authority;
+		const walletSupportsVersionedTxns =
+			//@ts-ignore
+			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
 
-		const [signedMarketOrderTx, signedFillTx] =
-			await this.provider.wallet.signAllTransactions([marketOrderTx, fillTx]);
+		// use versioned transactions if there is a lookup table account and wallet is compatible
+		if (walletSupportsVersionedTxns && lookupTableAccount) {
+			const versionedMarketOrderTx =
+				await this.txSender.getVersionedTransaction(
+					[placePerpOrderIx].concat(bracketOrderIxs),
+					[lookupTableAccount],
+					[],
+					this.opts
+				);
+			const versionedFillTx = await this.txSender.getVersionedTransaction(
+				[fillPerpOrderIx],
+				[lookupTableAccount],
+				[],
+				this.opts
+			);
+			const [signedVersionedMarketOrderTx, signedVersionedFillTx] =
+				await this.provider.wallet.signAllTransactions([
+					//@ts-ignore
+					versionedMarketOrderTx,
+					//@ts-ignore
+					versionedFillTx,
+				]);
+			const { txSig, slot } = await this.txSender.sendRawTransaction(
+				signedVersionedMarketOrderTx.serialize(),
+				this.opts
+			);
+			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
-		const { txSig, slot } = await this.sendTransaction(
-			signedMarketOrderTx,
-			[],
-			this.opts,
-			true
-		);
+			return { txSig, signedFillTx: signedVersionedFillTx };
+		} else {
+			const marketOrderTx = wrapInTx(
+				placePerpOrderIx,
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			);
 
-		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
+			if (bracketOrderIxs.length > 0) {
+				marketOrderTx.add(...bracketOrderIxs);
+			}
 
-		return { txSig, signedFillTx };
+			const fillTx = wrapInTx(
+				fillPerpOrderIx,
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			);
+
+			// Apply the latest blockhash to the txs so that we can sign before sending them
+			const currentBlockHash = (
+				await this.connection.getLatestBlockhash('finalized')
+			).blockhash;
+			marketOrderTx.recentBlockhash = currentBlockHash;
+			fillTx.recentBlockhash = currentBlockHash;
+
+			marketOrderTx.feePayer = userAccount.authority;
+			fillTx.feePayer = userAccount.authority;
+
+			const [signedMarketOrderTx, signedFillTx] =
+				await this.provider.wallet.signAllTransactions([marketOrderTx, fillTx]);
+			const { txSig, slot } = await this.sendTransaction(
+				signedMarketOrderTx,
+				[],
+				this.opts,
+				true
+			);
+			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
+
+			return { txSig, signedFillTx };
+		}
 	}
 
 	public async placePerpOrder(
