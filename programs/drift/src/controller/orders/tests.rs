@@ -7203,6 +7203,7 @@ pub mod fulfill_spot_order {
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::spot_fulfillment_params::TestFulfillmentParams;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
@@ -7634,7 +7635,7 @@ pub mod fulfill_spot_order {
             Some(&maker_stats_account_loader),
             Some(1),
             &clock,
-            &mut None,
+            &mut TestFulfillmentParams {},
         )
         .unwrap();
 
@@ -7667,6 +7668,7 @@ pub mod fill_spot_order {
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::spot_fulfillment_params::TestFulfillmentParams;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
@@ -7821,7 +7823,7 @@ pub mod fill_spot_order {
             Some(&maker_stats_account_loader),
             Some(1),
             &clock,
-            &mut None,
+            &mut TestFulfillmentParams {},
         )
         .unwrap();
 

@@ -4,7 +4,7 @@ import {
 	getUserAccountPublicKey,
 	getUserStatsAccountPublicKey,
 } from '../addresses/pda';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 export async function fetchUserAccounts(
 	connection: Connection,
