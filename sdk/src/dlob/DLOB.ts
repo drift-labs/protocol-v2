@@ -1691,13 +1691,12 @@ export class DLOB {
 	}
 
 	public getSpreadInfo(
-		marketIndex: number, 
+		marketIndex: number,
 		marketType: MarketType,
 		driftClient: DriftClient,
-		slot: number): {rawSpread: BN; spreadPct: number; } {
-
-		const oraclePriceData =
-				driftClient.getOracleDataForPerpMarket(marketIndex);
+		slot: number
+	): { rawSpread: BN; spreadPct: number } {
+		const oraclePriceData = driftClient.getOracleDataForPerpMarket(marketIndex);
 
 		let bestBid;
 		let bestAsk;
@@ -1722,7 +1721,6 @@ export class DLOB {
 				marketType,
 				oraclePriceData
 			);
-
 		} else if (isVariant(marketType, 'spot')) {
 			bestAsk = this.getBestAsk(
 				marketIndex,
@@ -1738,13 +1736,13 @@ export class DLOB {
 				marketType,
 				oraclePriceData
 			);
-
 		}
 
 		if (bestBid && bestAsk) {
 			const rawSpread = bestBid.sub(bestAsk);
-			const spreadPct = (rawSpread.toNumber() / oraclePriceData.price.toNumber()) * 100;
-	
+			const spreadPct =
+				(rawSpread.toNumber() / oraclePriceData.price.toNumber()) * 100;
+
 			return { rawSpread, spreadPct };
 		} else {
 			console.log('Spread info could not be retrieved');
