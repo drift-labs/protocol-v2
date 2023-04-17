@@ -129,12 +129,9 @@ export class DriftClient {
 	spotMarketLastSlotCache = new Map<number, number>();
 	authority: PublicKey;
 	marketLookupTable: PublicKey;
-<<<<<<< HEAD
 	subAccountIds?: number[];
 	includeDelegates?: boolean;
-=======
 	lookupTableAccount: AddressLookupTableAccount;
->>>>>>> master
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
