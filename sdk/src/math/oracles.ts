@@ -18,6 +18,8 @@ import { assert } from '../assert/assert';
 
 export function perpOraclePriceBandsForFill(
 	perpMarket: PerpMarketAccount,
+	oraclePriceData: OraclePriceData,
+	now: BN,
 	oracleGuardRails: OracleGuardRails
 ): [BN, BN] {
 	const defaultOracleGuardRailDivergence: BN =
@@ -34,8 +36,12 @@ export function perpOraclePriceBandsForFill(
 		perpMarginRatioInPP
 	);
 
-	const oracleTwap =
-		perpMarket.amm.historicalOracleData.lastOraclePriceTwap5Min;
+	const oracleTwap = calculateLiveOracleTwap(
+		perpMarket.amm.historicalOracleData,
+		oraclePriceData,
+		now,
+		FIVE_MINUTE
+	);
 
 	const limitUp = oracleTwap.add(
 		maxDivergence.mul(oracleTwap).div(BID_ASK_SPREAD_PRECISION)
@@ -50,6 +56,8 @@ export function perpOraclePriceBandsForFill(
 
 export function spotOraclePriceBandsForFill(
 	spotMarket: SpotMarketAccount,
+	oraclePriceData: OraclePriceData,
+	now: BN,
 	oracleGuardRails: OracleGuardRails
 ): [BN, BN] {
 	const defaultOracleGuardRailDivergence: BN =
@@ -66,7 +74,12 @@ export function spotOraclePriceBandsForFill(
 		spotMarginRatioInPP
 	);
 
-	const oracleTwap = spotMarket.historicalOracleData.lastOraclePriceTwap5Min;
+	const oracleTwap = calculateLiveOracleTwap(
+		spotMarket.historicalOracleData,
+		oraclePriceData,
+		now,
+		FIVE_MINUTE
+	);
 
 	const limitUp = oracleTwap.add(
 		maxDivergence.mul(oracleTwap).div(BID_ASK_SPREAD_PRECISION)

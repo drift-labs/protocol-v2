@@ -7,11 +7,14 @@ import {
 	calculateSpreadBN,
 	ZERO,
 	ONE,
+	OracleGuardRails,
 	calculateLiveOracleStd,
 	calculateLiveOracleTwap,
 	calculateInventoryScale,
+	perpOraclePriceBandsForFill,
+	spotOraclePriceBandsForFill,
 } from '../../src';
-import { mockPerpMarkets } from '../dlob/helpers';
+import { mockPerpMarkets, mockSpotMarkets } from '../dlob/helpers';
 
 import { assert } from '../../src/assert/assert';
 
@@ -385,5 +388,118 @@ describe('AMM Tests', () => {
 		const liveOracleStd = calculateLiveOracleStd(mockAmm, oraclePriceData, now);
 		console.log('liveOracleStd:', liveOracleStd.toNumber());
 		assert(liveOracleStd.eq(new BN(192962)));
+	});
+
+	it('perp oracle price bands', () => {
+		const mockPerpMarket = mockPerpMarkets[0];
+		const mockAmm = mockPerpMarket.amm;
+		const now = new BN(new Date().getTime() / 1000); //todo
+
+		const oraclePriceData = {
+			price: new BN(34.553 * PRICE_PRECISION.toNumber()),
+			slot: new BN(68 + 1),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+		mockAmm.oracleStd = new BN(0.18 * PRICE_PRECISION.toNumber());
+		mockAmm.fundingPeriod = new BN(3600);
+		mockAmm.historicalOracleData.lastOraclePriceTwap = new BN(
+			24.553 * PRICE_PRECISION.toNumber()
+		);
+		mockAmm.historicalOracleData.lastOraclePriceTwap5Min = new BN(
+			24.753 * PRICE_PRECISION.toNumber()
+		);
+		mockAmm.historicalOracleData.lastOraclePriceTwapTs = now.sub(new BN(11));
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(10),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(10),
+				slotsBeforeStaleForMargin: new BN(120),
+				confidenceIntervalMaxSize: new BN(20000),
+				tooVolatileRatio: new BN(5),
+			},
+		};
+
+		const [limitDown, limitUp] = perpOraclePriceBandsForFill(
+			mockPerpMarket,
+			oraclePriceData,
+			now,
+			oracleGuardRails
+		);
+		// console.log('limits:', limitUp.toString(), limitDown.toString());
+		assert(limitDown.eq(new BN('22549983')));
+		assert(limitUp.eq(new BN('27561089')));
+
+		mockPerpMarket.marginRatioInitial = 2000; // 5x
+
+		const [limitDown2, limitUp2] = perpOraclePriceBandsForFill(
+			mockPerpMarket,
+			oraclePriceData,
+			now,
+			oracleGuardRails
+		);
+		// console.log('limits:', limitUp2.toString(), limitDown2.toString());
+		assert(limitDown2.eq(new BN('20044429')));
+		assert(limitUp2.eq(new BN('30066643')));
+	});
+
+	it('spot oracle price bands', () => {
+		const mockSpotMarket = mockSpotMarkets[0];
+		const now = new BN(new Date().getTime() / 1000); //todo
+
+		const oraclePriceData = {
+			price: new BN(34.553 * PRICE_PRECISION.toNumber()),
+			slot: new BN(68 + 1),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+		mockSpotMarket.historicalOracleData.lastOraclePriceTwap = new BN(
+			24.553 * PRICE_PRECISION.toNumber()
+		);
+		mockSpotMarket.historicalOracleData.lastOraclePriceTwap5Min = new BN(
+			24.753 * PRICE_PRECISION.toNumber()
+		);
+		mockSpotMarket.historicalOracleData.lastOraclePriceTwapTs = now.sub(
+			new BN(11)
+		);
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(10),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(10),
+				slotsBeforeStaleForMargin: new BN(120),
+				confidenceIntervalMaxSize: new BN(20000),
+				tooVolatileRatio: new BN(5),
+			},
+		};
+
+		const [limitDown, limitUp] = spotOraclePriceBandsForFill(
+			mockSpotMarket,
+			oraclePriceData,
+			now,
+			oracleGuardRails
+		);
+		// console.log('limits:', limitUp.toString(), limitDown.toString());
+		assert(limitDown.eq(new BN('22549983')));
+		assert(limitUp.eq(new BN('27561089')));
+
+		mockSpotMarket.initialLiabilityWeight = 12000; // 5x
+
+		const [limitDown2, limitUp2] = spotOraclePriceBandsForFill(
+			mockSpotMarket,
+			oraclePriceData,
+			now,
+			oracleGuardRails
+		);
+		// console.log('limits:', limitUp2.toString(), limitDown2.toString());
+		assert(limitDown2.eq(new BN('20044429')));
+		assert(limitUp2.eq(new BN('30066643')));
 	});
 });
