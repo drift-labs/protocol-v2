@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.25.3] - 2023-04-17
+
+### Features
+
+### Fixes
+
 - program: fix modify order trigger condition
 
 ### Breaking
