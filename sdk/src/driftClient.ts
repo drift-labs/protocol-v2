@@ -1260,7 +1260,8 @@ export class DriftClient {
 		marketIndex: number,
 		collateralAccountPublicKey: PublicKey,
 		subAccountId?: number,
-		reduceOnly = false
+		reduceOnly = false,
+		recipientAuthority?: PublicKey
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
 		tx.add(
@@ -1299,7 +1300,8 @@ export class DriftClient {
 			collateralAccountPublicKey,
 			subAccountId,
 			reduceOnly,
-			true
+			true,
+			recipientAuthority
 		);
 
 		tx.add(depositCollateralIx);
@@ -1332,14 +1334,15 @@ export class DriftClient {
 		userTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false,
-		userInitialized = true
+		userInitialized = true,
+		recipientAuthority?: PublicKey
 	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = subAccountId
+		const userAccountPublicKey = subAccountId !== undefined
 			? await getUserAccountPublicKey(
-					this.program.programId,
-					this.authority,
-					subAccountId
-			  )
+				this.program.programId,
+				recipientAuthority ?? this.authority,
+				subAccountId
+				)
 			: await this.getUserAccountPublicKey();
 
 		let remainingAccounts = [];
