@@ -416,7 +416,7 @@ pub fn handle_initialize_phoenix_fulfillment_config(
     validate!(
         market_index != QUOTE_SPOT_MARKET_INDEX,
         ErrorCode::InvalidSpotMarketAccount,
-        "Cant add phoenix market to quote asset"
+        "Cannot add phoenix market to quote asset"
     )?;
 
     let base_spot_market = load!(&ctx.accounts.base_spot_market)?;
@@ -440,7 +440,7 @@ pub fn handle_initialize_phoenix_fulfillment_config(
     validate!(
         phoenix_market_context.header.quote_params.mint_key == quote_spot_market.mint,
         ErrorCode::InvalidPhoenixMarket,
-        "Invalid base mint"
+        "Invalid quote mint"
     )?;
 
     let market_step_size = phoenix_market_context.header.get_base_lot_size().as_u64();
@@ -453,7 +453,7 @@ pub fn handle_initialize_phoenix_fulfillment_config(
     validate!(
         valid_step_size,
         ErrorCode::InvalidSerumMarket,
-        "base market step size ({}) not a multiple of serum step size ({})",
+        "base market step size ({}) not a multiple of Phoenix base lot size ({})",
         base_spot_market.order_step_size,
         market_step_size
     )?;
