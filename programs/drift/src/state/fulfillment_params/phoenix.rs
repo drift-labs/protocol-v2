@@ -37,7 +37,10 @@ pub const PHOENIX_MARKET_DISCRIMINANT: u64 = 8167313896524341111;
 pub struct PhoenixV1FulfillmentConfig {
     pub pubkey: Pubkey,
     pub phoenix_program_id: Pubkey,
+    pub phoenix_log_authority: Pubkey,
     pub phoenix_market: Pubkey,
+    pub phoenix_base_vault: Pubkey,
+    pub phoenix_quote_vault: Pubkey,
     pub market_index: u16,
     pub fulfillment_type: SpotFulfillmentType,
     pub status: SpotFulfillmentConfigStatus,
@@ -45,7 +48,7 @@ pub struct PhoenixV1FulfillmentConfig {
 }
 
 impl Size for PhoenixV1FulfillmentConfig {
-    const SIZE: usize = 112;
+    const SIZE: usize = 208;
 }
 
 #[derive(Clone)]
@@ -86,7 +89,10 @@ impl<'a, 'b> PhoenixMarketContext<'a, 'b> {
         PhoenixV1FulfillmentConfig {
             pubkey: *config_key,
             phoenix_program_id: phoenix::id(),
+            phoenix_log_authority: phoenix::phoenix_log_authority::id(),
             phoenix_market: *self.phoenix_market.key,
+            phoenix_base_vault: self.header.base_params.vault_key,
+            phoenix_quote_vault: self.header.quote_params.vault_key,
             market_index,
             fulfillment_type: SpotFulfillmentType::PhoenixV1,
             status: SpotFulfillmentConfigStatus::Enabled,
@@ -108,9 +114,9 @@ pub struct PhoenixFulfillmentParams<'a, 'b> {
     pub phoenix_program: &'a AccountInfo<'b>,
     pub phoenix_log_authority: &'a AccountInfo<'b>,
     pub phoenix_market: PhoenixMarketContext<'a, 'b>,
+    pub drift_signer: &'a AccountInfo<'b>,
     pub phoenix_base_vault: &'a AccountInfo<'b>,
     pub phoenix_quote_vault: &'a AccountInfo<'b>,
-    pub drift_signer: &'a AccountInfo<'b>,
     pub base_market_vault: Box<Account<'b, TokenAccount>>,
     pub quote_market_vault: Box<Account<'b, TokenAccount>>,
     pub token_program: Program<'b, Token>,
@@ -179,13 +185,13 @@ impl<'a, 'b> PhoenixFulfillmentParams<'a, 'b> {
         let phoenix_market_context = PhoenixMarketContext::new(phoenix_market)?;
 
         validate!(
-            &phoenix_market_context.header.base_params.vault_key == phoenix_base_vault.key,
+            &phoenix_fulfillment_config.phoenix_base_vault == phoenix_base_vault.key,
             ErrorCode::InvalidFulfillmentConfig,
             "Phoenix base vault key does not match market header"
         )?;
 
         validate!(
-            &phoenix_market_context.header.quote_params.vault_key == phoenix_quote_vault.key,
+            &phoenix_fulfillment_config.phoenix_quote_vault == phoenix_quote_vault.key,
             ErrorCode::InvalidFulfillmentConfig,
             "Phoenix quote vault key does not match market header"
         )?;

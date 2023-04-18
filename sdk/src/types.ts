@@ -1009,6 +1009,18 @@ export type SerumV3FulfillmentConfigAccount = {
 	serumSignerNonce: BN;
 };
 
+export type PhoenixV1FulfillmentConfigAccount = {
+	pubkey: PublicKey;
+	phoenixProgramId: PublicKey;
+	phoenixLogAuthority: PublicKey;
+	phoenixMarket: PublicKey;
+	phoenixBaseVault: PublicKey;
+	phoenixQuoteVault: PublicKey;
+	marketIndex: number;
+	fulfillmentType: SpotFulfillmentType;
+	status: SpotFulfillmentStatus;
+};
+
 export type ReferrerNameAccount = {
 	name: number[];
 	user: PublicKey;
