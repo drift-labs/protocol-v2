@@ -7,7 +7,7 @@ use phoenix::{
     program::{
         create_new_order_instruction_with_custom_token_accounts, load_with_dispatch, MarketHeader,
     },
-    quantities::{BaseAtoms, BaseAtomsPerBaseLot, BaseLots, QuoteLots, Ticks, WrapperU64},
+    quantities::{BaseLots, QuoteLots, Ticks, WrapperU64},
     state::{OrderPacket, Side},
 };
 use solana_program::{msg, program::invoke_signed_unchecked};
@@ -303,15 +303,25 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
             })?
             .inner;
 
-        let best_bid = market.get_book(Side::Bid).iter().next().map(|(o, _)| {
-            (o.price_in_ticks * market.get_tick_size()).as_u64()
-                * header.get_quote_lot_size().as_u64()
-                / header.raw_base_units_per_base_unit as u64
+        let best_bid = market.get_book(Side::Bid).iter().next().and_then(|(o, _)| {
+            o.price_in_ticks
+                .as_u64()
+                .safe_mul(market.get_tick_size().as_u64())
+                .ok()?
+                .safe_mul(header.get_quote_lot_size().as_u64())
+                .ok()?
+                .safe_div(header.raw_base_units_per_base_unit as u64)
+                .ok()
         });
-        let best_ask = market.get_book(Side::Ask).iter().next().map(|(o, _)| {
-            (o.price_in_ticks * market.get_tick_size()).as_u64()
-                * header.get_quote_lot_size().as_u64()
-                / header.raw_base_units_per_base_unit as u64
+        let best_ask = market.get_book(Side::Ask).iter().next().and_then(|(o, _)| {
+            o.price_in_ticks
+                .as_u64()
+                .safe_mul(market.get_tick_size().as_u64())
+                .ok()?
+                .safe_mul(header.get_quote_lot_size().as_u64())
+                .ok()?
+                .safe_div(header.raw_base_units_per_base_unit as u64)
+                .ok()
         });
         Ok((best_bid, best_ask))
     }
@@ -339,12 +349,20 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
             PositionDirection::Short => phoenix::state::Side::Ask,
         };
 
-        let price_in_ticks = Some(Ticks::new(
-            taker_price * header.raw_base_units_per_base_unit as u64
-                / (header.get_quote_lot_size().as_u64() * market.get_tick_size().as_u64()),
-        ));
-        let num_base_lots = BaseAtoms::new(taker_base_asset_amount)
-            .unchecked_div::<BaseAtomsPerBaseLot, BaseLots>(header.get_base_lot_size());
+        let price_in_ticks = taker_price
+            .safe_mul(header.raw_base_units_per_base_unit as u64)?
+            .safe_div(
+                (header
+                    .get_quote_lot_size()
+                    .as_u64()
+                    .safe_mul(market.get_tick_size().as_u64()))?,
+            )
+            .map(Ticks::new)
+            .ok();
+
+        let num_base_lots = taker_base_asset_amount
+            .safe_div(header.get_base_lot_size().as_u64())
+            .map(BaseLots::new)?;
 
         if num_base_lots == 0 {
             msg!("No base lots to fill");
