@@ -420,6 +420,8 @@ describe('phoenix spot market', () => {
 
 		await printTxLogs(connection, placeTxId);
 
+		await phoenixClient.refreshAllMarkets();
+
 		const phoenixFulfillmentConfigAccount =
 			await makerDriftClient.getPhoenixV1FulfillmentConfig(solMarketAddress);
 		const txSig = await makerDriftClient.fillSpotOrder(
@@ -485,6 +487,27 @@ describe('phoenix spot market', () => {
 						orderActionRecord.spotFulfillmentMethodFee
 				)
 			)
+		);
+
+		const phoenixMarketStart = phoenixClient.markets.get(
+			solMarketAddress.toString()
+		).data;
+		await phoenixClient.refreshAllMarkets();
+		const phoenixMarketEnd = phoenixClient.markets.get(
+			solMarketAddress.toString()
+		).data;
+
+		// Verify that there are no orders on the book after the fill
+		assert(phoenixMarketStart.asks.length > 0);
+		assert(phoenixMarketEnd.asks.length === 0);
+
+		// Verify that the recorded fee from Drift is the same as Phoenix
+		assert(
+			phoenixClient.quoteLotsToQuoteAtoms(
+				phoenixMarketEnd.unclaimedQuoteLotFees -
+					phoenixMarketStart.unclaimedQuoteLotFees,
+				solMarketAddress.toBase58()
+			) === orderActionRecord.spotFulfillmentMethodFee.toNumber()
 		);
 	});
 
@@ -558,8 +581,9 @@ describe('phoenix spot market', () => {
 			[god],
 			{ skipPreflight: true, commitment: 'confirmed' }
 		);
-
 		await printTxLogs(connection, placeTxId);
+
+		await phoenixClient.refreshAllMarkets();
 
 		const phoenixFulfillmentConfigAccount =
 			await makerDriftClient.getPhoenixV1FulfillmentConfig(solMarketAddress);
@@ -628,6 +652,28 @@ describe('phoenix spot market', () => {
 					)
 				)
 			)
+		);
+
+		const phoenixMarketStart = phoenixClient.markets.get(
+			solMarketAddress.toString()
+		).data;
+
+		await phoenixClient.refreshAllMarkets();
+		const phoenixMarketEnd = phoenixClient.markets.get(
+			solMarketAddress.toString()
+		).data;
+
+		// Verify that there are no orders on the book after the fill
+		assert(phoenixMarketStart.bids.length > 0);
+		assert(phoenixMarketEnd.bids.length === 0);
+
+		// Verify that the recorded fee from Drift is the same as Phoenix
+		assert(
+			phoenixClient.quoteLotsToQuoteAtoms(
+				phoenixMarketEnd.unclaimedQuoteLotFees -
+					phoenixMarketStart.unclaimedQuoteLotFees,
+				solMarketAddress.toBase58()
+			) === orderActionRecord.spotFulfillmentMethodFee.toNumber()
 		);
 	});
 });
