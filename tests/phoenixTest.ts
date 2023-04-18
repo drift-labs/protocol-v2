@@ -49,7 +49,7 @@ import * as Phoenix from '@ellipsis-labs/phoenix-sdk';
 import { assert } from 'chai';
 
 // DO NOT USE THIS PRIVATE KEY IN PRODUCTION
-// This key is the market authority as well as the market market
+// This key is the market authority as well as the market maker
 const god = Keypair.fromSeed(
 	new Uint8Array([
 		65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
