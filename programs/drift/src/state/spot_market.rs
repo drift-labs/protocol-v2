@@ -232,6 +232,10 @@ impl SpotMarket {
         liability_weight.safe_sub(MARGIN_PRECISION)
     }
 
+    pub fn get_deposits(&self) -> DriftResult<u128> {
+        get_token_amount(self.deposit_balance, self, &SpotBalanceType::Deposit)
+    }
+
     pub fn get_available_deposits(&self) -> DriftResult<u128> {
         let deposit_token_amount =
             get_token_amount(self.deposit_balance, self, &SpotBalanceType::Deposit)?;
