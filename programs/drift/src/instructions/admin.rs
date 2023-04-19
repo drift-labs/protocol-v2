@@ -452,7 +452,7 @@ pub fn handle_initialize_phoenix_fulfillment_config(
 
     validate!(
         valid_step_size,
-        ErrorCode::InvalidSerumMarket,
+        ErrorCode::InvalidPhoenixMarket,
         "base market step size ({}) not a multiple of Phoenix base lot size ({})",
         base_spot_market.order_step_size,
         market_step_size

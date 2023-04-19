@@ -17,7 +17,7 @@ use crate::{
     error::{DriftResult, ErrorCode},
     instructions::SpotFulfillmentType,
     load,
-    math::{safe_math::SafeMath, spot_withdraw::validate_spot_market_vault_amount},
+    math::{casting::Cast, safe_math::SafeMath, spot_withdraw::validate_spot_market_vault_amount},
     signer::get_signer_seeds,
     state::{
         events::OrderActionExplanation,
@@ -286,8 +286,6 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
     }
 
     fn get_best_bid_and_ask(&self) -> DriftResult<(Option<u64>, Option<u64>)> {
-        // Conversion: price_in_ticks (T) * tick_size (QL/BU * T) * quote_lot_size (QA/QL) / raw_base_units_per_base_unit (rBU/BU)
-        // Yields: price (QA/rBU)
         let market_data = self.phoenix_market.data.borrow();
         let (_, market_bytes) = market_data.split_at(size_of::<MarketHeader>());
         let header = &self.phoenix_market.header;
@@ -303,6 +301,8 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
             })?
             .inner;
 
+        // Conversion: price_in_ticks (T) * tick_size (QL/(BU * T)) * quote_lot_size (QA/QL) / raw_base_units_per_base_unit (rBU/BU)
+        // Yields: price (QA/rBU)
         let best_bid = market.get_book(Side::Bid).iter().next().and_then(|(o, _)| {
             o.price_in_ticks
                 .as_u64()
@@ -331,7 +331,7 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
         taker_direction: PositionDirection,
         taker_price: u64,
         taker_base_asset_amount: u64,
-        _taker_max_quote_asset_amount: u64,
+        taker_max_quote_asset_amount: u64,
     ) -> DriftResult<ExternalSpotFill> {
         let market_data = self.phoenix_market.data.borrow();
         let (_, market_bytes) = market_data.split_at(size_of::<MarketHeader>());
@@ -344,25 +344,60 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
             })?
             .inner;
 
-        let side = match taker_direction {
-            PositionDirection::Long => phoenix::state::Side::Bid,
-            PositionDirection::Short => phoenix::state::Side::Ask,
+        // The price in ticks is rounded down for longs and rounded up for shorts
+        let (side, price_in_ticks) = match taker_direction {
+            PositionDirection::Long => (
+                phoenix::state::Side::Bid,
+                taker_price
+                    .safe_mul(header.raw_base_units_per_base_unit as u64)?
+                    .safe_div(
+                        (header
+                            .get_quote_lot_size()
+                            .as_u64()
+                            .safe_mul(market.get_tick_size().as_u64()))?,
+                    )
+                    .map(Ticks::new)?,
+            ),
+            PositionDirection::Short => (
+                phoenix::state::Side::Ask,
+                taker_price
+                    .safe_mul(header.raw_base_units_per_base_unit as u64)?
+                    .safe_div_ceil(
+                        (header
+                            .get_quote_lot_size()
+                            .as_u64()
+                            .safe_mul(market.get_tick_size().as_u64()))?,
+                    )
+                    .map(Ticks::new)?,
+            ),
         };
 
-        let price_in_ticks = taker_price
-            .safe_mul(header.raw_base_units_per_base_unit as u64)?
-            .safe_div(
-                (header
-                    .get_quote_lot_size()
-                    .as_u64()
-                    .safe_mul(market.get_tick_size().as_u64()))?,
-            )
-            .map(Ticks::new)
-            .ok();
+        if price_in_ticks == Ticks::ZERO {
+            msg!("Price is too low");
+            return Ok(ExternalSpotFill::empty());
+        }
 
+        // This takes the minimum of
+        // 1. The number of base lots equivalent to the given base asset amount.
+        // 2. The number of base lots that can be bought with the max quote asset amount at the given taker price.
         let num_base_lots = taker_base_asset_amount
             .safe_div(header.get_base_lot_size().as_u64())
-            .map(BaseLots::new)?;
+            .map(BaseLots::new)?
+            .min(
+                // Conversion:
+                //     taker_max_quote_asset_amount (QA) * base_atoms_per_raw_base_unit (BA/rBU) / taker_price (QA/rBU) / base_lot_size (BA/BL)
+                // Yields: num_base_lots (BL)
+                taker_max_quote_asset_amount
+                    .cast::<u128>()?
+                    .safe_mul(10_u128.pow(header.base_params.decimals))?
+                    .safe_div(
+                        taker_price
+                            .cast::<u128>()?
+                            .safe_mul(header.get_base_lot_size().as_u128())?,
+                    )?
+                    .cast::<u64>()
+                    .map(BaseLots::new)?,
+            );
 
         if num_base_lots == 0 {
             msg!("No base lots to fill");
@@ -371,7 +406,7 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
 
         let phoenix_order = OrderPacket::ImmediateOrCancel {
             side,
-            price_in_ticks,
+            price_in_ticks: Some(price_in_ticks),
             num_base_lots,
             num_quote_lots: QuoteLots::ZERO,
             min_base_lots_to_fill: BaseLots::ZERO,
