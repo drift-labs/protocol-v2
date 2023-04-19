@@ -67,6 +67,10 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 					return;
 				}
 
+				if (this.user && this.user.slot >= slot) {
+					return;
+				}
+
 				const account = this.program.account.user.coder.accounts.decode(
 					'User',
 					buffer
@@ -134,5 +138,13 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
 		this.assertIsSubscribed();
 		return this.user;
+	}
+
+	public updateData(userAccount: UserAccount, slot: number): void {
+		if (!this.user || this.user.slot < slot) {
+			this.user = { data: userAccount, slot };
+			this.eventEmitter.emit('userAccountUpdate', userAccount);
+			this.eventEmitter.emit('update');
+		}
 	}
 }

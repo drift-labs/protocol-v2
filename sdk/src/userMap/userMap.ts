@@ -15,7 +15,7 @@ import {
 	StateAccount,
 } from '..';
 
-import { AccountInfo, PublicKey } from '@solana/web3.js';
+import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import bs58 from 'bs58';
 
@@ -181,43 +181,72 @@ export class UserMap implements UserMapInterface {
 			];
 		}
 
-		const programAccounts =
-			await this.driftClient.connection.getProgramAccounts(
-				this.driftClient.program.programId,
-				{
-					commitment: this.driftClient.connection.commitment,
-					filters: [
-						{
-							memcmp: this.driftClient.program.coder.accounts.memcmp('User'),
-						},
-						...(Array.isArray(filters) ? filters : []),
-					],
-				}
-			);
+		const rpcRequestArgs = [
+			this.driftClient.program.programId.toBase58(),
+			{
+				commitment: this.driftClient.connection.commitment,
+				filters: [
+					{
+						memcmp: this.driftClient.program.coder.accounts.memcmp('User'),
+					},
+					...(Array.isArray(filters) ? filters : []),
+				],
+				encoding: 'base64',
+				withContext: true,
+			},
+		];
 
-		const programAccountMap = new Map<string, AccountInfo<Buffer>>();
-		for (const programAccount of programAccounts) {
-			programAccountMap.set(
+		// @ts-ignore
+		const rpcJSONResponse: any = await this.driftClient.connection._rpcRequest(
+			'getProgramAccounts',
+			rpcRequestArgs
+		);
+
+		const rpcResponseAndContext: RpcResponseAndContext<
+			Array<{
+				pubkey: PublicKey;
+				account: {
+					data: [string, string];
+				};
+			}>
+		> = rpcJSONResponse.result;
+
+		const slot = rpcResponseAndContext.context.slot;
+
+		const programAccountBufferMap = new Map<string, Buffer>();
+		for (const programAccount of rpcResponseAndContext.value) {
+			programAccountBufferMap.set(
 				programAccount.pubkey.toString(),
-				programAccount.account
+				// @ts-ignore
+				Buffer.from(
+					programAccount.account.data[0],
+					programAccount.account.data[1]
+				)
 			);
 		}
 
-		for (const [key, account] of programAccountMap.entries()) {
+		for (const [key, buffer] of programAccountBufferMap.entries()) {
 			if (!this.has(key)) {
 				const userAccount =
 					this.driftClient.program.account.user.coder.accounts.decode(
 						'User',
-						account.data
+						buffer
 					);
 				await this.addPubkey(new PublicKey(key), userAccount);
 			}
 		}
 
 		for (const [key, user] of this.userMap.entries()) {
-			if (!programAccountMap.has(key)) {
+			if (!programAccountBufferMap.has(key)) {
 				await user.unsubscribe();
 				this.userMap.delete(key);
+			} else {
+				const userAccount =
+					this.driftClient.program.account.user.coder.accounts.decode(
+						'User',
+						programAccountBufferMap.get(key)
+					);
+				user.accountSubscriber.updateData(userAccount, slot);
 			}
 		}
 	}
