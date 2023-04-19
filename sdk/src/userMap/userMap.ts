@@ -2,7 +2,6 @@ import {
 	User,
 	DriftClient,
 	UserAccount,
-	bulkPollingUserSubscribe,
 	OrderRecord,
 	UserSubscriptionConfig,
 	WrappedEvent,
@@ -20,7 +19,7 @@ import { Buffer } from 'buffer';
 import bs58 from 'bs58';
 
 export interface UserMapInterface {
-	fetchAllUsers(): Promise<void>;
+	subscribe(): Promise<void>;
 	addPubkey(userAccountPublicKey: PublicKey): Promise<void>;
 	has(key: string): boolean;
 	get(key: string): User | undefined;
@@ -34,59 +33,36 @@ export class UserMap implements UserMapInterface {
 	private userMap = new Map<string, User>();
 	private driftClient: DriftClient;
 	private accountSubscription: UserSubscriptionConfig;
+	private includeIdle: boolean;
 
 	constructor(
 		driftClient: DriftClient,
-		accountSubscription: UserSubscriptionConfig
+		accountSubscription: UserSubscriptionConfig,
+		includeIdle = true
 	) {
 		this.driftClient = driftClient;
 		this.accountSubscription = accountSubscription;
+		this.includeIdle = includeIdle;
 	}
 
-	public async fetchAllUsers(includeIdle = true) {
-		const userArray: User[] = [];
-		const userAccountArray: UserAccount[] = [];
-
-		const programUserAccounts = await this.driftClient.fetchAllUserAccounts(
-			includeIdle
-		);
-		for (const programUserAccount of programUserAccounts) {
-			if (this.userMap.has(programUserAccount.publicKey.toString())) {
-				continue;
-			}
-
-			const user = new User({
-				driftClient: this.driftClient,
-				userAccountPublicKey: programUserAccount.publicKey,
-				accountSubscription: this.accountSubscription,
-			});
-			userArray.push(user);
-			userAccountArray.push(programUserAccount.account);
+	public async subscribe() {
+		if (this.size() > 0) {
+			return;
 		}
 
-		if (this.accountSubscription.type === 'polling') {
-			await bulkPollingUserSubscribe(
-				userArray,
-				this.accountSubscription.accountLoader
-			);
-		} else {
-			await Promise.all(
-				userArray.map((user, i) => user.subscribe(userAccountArray[i]))
-			);
-		}
-
-		for (const user of userArray) {
-			this.userMap.set(user.getUserAccountPublicKey().toString(), user);
-		}
+		await this.sync();
 	}
 
-	public async addPubkey(userAccountPublicKey: PublicKey) {
+	public async addPubkey(
+		userAccountPublicKey: PublicKey,
+		userAccount?: UserAccount
+	) {
 		const user = new User({
 			driftClient: this.driftClient,
 			userAccountPublicKey,
 			accountSubscription: this.accountSubscription,
 		});
-		await user.subscribe();
+		await user.subscribe(userAccount);
 		this.userMap.set(userAccountPublicKey.toString(), user);
 	}
 
@@ -179,9 +155,9 @@ export class UserMap implements UserMapInterface {
 		return this.userMap.size;
 	}
 
-	public async sync(includeIdle = true) {
+	public async sync() {
 		let filters = undefined;
-		if (!includeIdle) {
+		if (!this.includeIdle) {
 			filters = [
 				{
 					memcmp: {
@@ -214,9 +190,14 @@ export class UserMap implements UserMapInterface {
 			);
 		}
 
-		for (const key of programAccountMap.keys()) {
+		for (const [key, account] of programAccountMap.entries()) {
 			if (!this.has(key)) {
-				await this.addPubkey(new PublicKey(key));
+				const userAccount =
+					this.driftClient.program.account.user.coder.accounts.decode(
+						'User',
+						account.data
+					);
+				await this.addPubkey(new PublicKey(key), userAccount);
 			}
 		}
 
@@ -225,6 +206,13 @@ export class UserMap implements UserMapInterface {
 				await user.unsubscribe();
 				this.userMap.delete(key);
 			}
+		}
+	}
+
+	public async unsubscribe() {
+		for (const [key, user] of this.userMap.entries()) {
+			await user.unsubscribe();
+			this.userMap.delete(key);
 		}
 	}
 }

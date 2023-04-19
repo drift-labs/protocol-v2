@@ -570,7 +570,7 @@ export class MockUserMap implements UserMapInterface {
 		});
 	}
 
-	public async fetchAllUsers(): Promise<void> {}
+	public async subscribe(): Promise<void> {}
 
 	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
 		const user = new User({
