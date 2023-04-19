@@ -4311,6 +4311,7 @@ export class DriftClient {
 		amount,
 		collateralAccountPublicKey,
 		initializeStakeAccount,
+		fromSubaccount,
 	}: {
 		/**
 		 * Spot market index
@@ -4325,6 +4326,10 @@ export class DriftClient {
 		 * Add instructions to initialize the staking account -- required if its the first time the currrent authority has staked in this market
 		 */
 		initializeStakeAccount?: boolean;
+		/**
+		 * Optional -- withdraw from current subaccount to fund stake amount, instead of wallet balance
+		 */
+		fromSubaccount?: boolean;
 	}): Promise<TransactionSignature> {
 		const tx = new Transaction();
 
@@ -4347,6 +4352,15 @@ export class DriftClient {
 			signers.forEach((signer) => additionalSigners.push(signer));
 		} else {
 			tokenAccount = collateralAccountPublicKey;
+		}
+
+		if (fromSubaccount) {
+			const withdrawIx = await this.getWithdrawIx(
+				amount,
+				marketIndex,
+				tokenAccount
+			);
+			tx.add(withdrawIx);
 		}
 
 		if (initializeStakeAccount) {
