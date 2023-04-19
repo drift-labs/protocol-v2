@@ -983,7 +983,7 @@ export class DriftClient {
 
 		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
-			this.authority
+			this.activeAuthority
 		);
 		return this.userStatsAccountPublicKey;
 	}
