@@ -35,6 +35,7 @@ export class DLOBSubscriber {
 		}
 
 		await this.slotSubscriber.subscribe();
+		await this.userMap.subscribe();
 
 		await this.updateDLOB();
 

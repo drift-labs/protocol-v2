@@ -12,6 +12,7 @@ import {
 	SettlePnlRecord,
 	NewUserRecord,
 	LPRecord,
+	StateAccount,
 } from '..';
 
 import { AccountInfo, PublicKey } from '@solana/web3.js';
@@ -34,6 +35,13 @@ export class UserMap implements UserMapInterface {
 	private driftClient: DriftClient;
 	private accountSubscription: UserSubscriptionConfig;
 	private includeIdle: boolean;
+	private lastNumberOfSubAccounts;
+	private syncCallback = async (state: StateAccount) => {
+		if (state.numberOfSubAccounts !== this.lastNumberOfSubAccounts) {
+			await this.sync();
+			this.lastNumberOfSubAccounts = state.numberOfSubAccounts;
+		}
+	};
 
 	constructor(
 		driftClient: DriftClient,
@@ -49,6 +57,11 @@ export class UserMap implements UserMapInterface {
 		if (this.size() > 0) {
 			return;
 		}
+
+		await this.driftClient.subscribe();
+		this.lastNumberOfSubAccounts =
+			this.driftClient.getStateAccount().numberOfSubAccounts;
+		this.driftClient.eventEmitter.on('stateAccountUpdate', this.syncCallback);
 
 		await this.sync();
 	}
@@ -213,6 +226,14 @@ export class UserMap implements UserMapInterface {
 		for (const [key, user] of this.userMap.entries()) {
 			await user.unsubscribe();
 			this.userMap.delete(key);
+		}
+
+		if (this.lastNumberOfSubAccounts) {
+			this.driftClient.eventEmitter.removeListener(
+				'stateAccountUpdate',
+				this.syncCallback
+			);
+			this.lastNumberOfSubAccounts = undefined;
 		}
 	}
 }
