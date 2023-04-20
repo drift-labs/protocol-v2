@@ -13,6 +13,7 @@ import {
 	NewUserRecord,
 	LPRecord,
 	StateAccount,
+	DLOB,
 } from '..';
 
 import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
@@ -117,6 +118,12 @@ export class UserMap implements UserMapInterface {
 			return undefined;
 		}
 		return chUser.getUserAccount().authority;
+	}
+
+	public async getDLOB(slot: number): Promise<DLOB> {
+		const dlob = new DLOB();
+		await dlob.initFromUserMap(this, slot);
+		return dlob;
 	}
 
 	public async updateWithOrderRecord(record: OrderRecord) {

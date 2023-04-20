@@ -1,30 +1,24 @@
-import { UserMap } from '../userMap/userMap';
 import { DLOB } from './DLOB';
-import { SlotSubscriber } from '../slot/SlotSubscriber';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
-
-type DLOBSubscriptionConfig = {
-	userMap: UserMap;
-	slotSubscriber: SlotSubscriber;
-	updateFrequency: number;
-};
-
-export interface DLOBSubscriberEvents {
-	update: (dlob: DLOB) => void;
-}
+import {
+	DLOBSource,
+	DLOBSubscriberEvents,
+	DLOBSubscriptionConfig,
+	SlotSource,
+} from './types';
 
 export class DLOBSubscriber {
-	userMap: UserMap;
-	slotSubscriber: SlotSubscriber;
+	dlobSource: DLOBSource;
+	slotSource: SlotSource;
 	updateFrequency: number;
 	intervalId?: NodeJS.Timeout;
 	dlob = new DLOB();
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
 
 	constructor(config: DLOBSubscriptionConfig) {
-		this.userMap = config.userMap;
-		this.slotSubscriber = config.slotSubscriber;
+		this.dlobSource = config.dlobSource;
+		this.slotSource = config.slotSource;
 		this.updateFrequency = config.updateFrequency;
 		this.eventEmitter = new EventEmitter();
 	}
@@ -33,9 +27,6 @@ export class DLOBSubscriber {
 		if (this.intervalId) {
 			return;
 		}
-
-		await this.slotSubscriber.subscribe();
-		await this.userMap.subscribe();
 
 		await this.updateDLOB();
 
@@ -46,9 +37,7 @@ export class DLOBSubscriber {
 	}
 
 	async updateDLOB(): Promise<void> {
-		const dlob = new DLOB();
-		await dlob.initFromUserMap(this.userMap, this.slotSubscriber.getSlot());
-		this.dlob = dlob;
+		this.dlob = await this.dlobSource.getDLOB(this.slotSource.getSlot());
 	}
 
 	public getDLOB(): DLOB {
