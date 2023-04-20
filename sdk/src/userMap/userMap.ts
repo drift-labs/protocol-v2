@@ -21,6 +21,7 @@ import bs58 from 'bs58';
 
 export interface UserMapInterface {
 	subscribe(): Promise<void>;
+	unsubscribe(): Promise<void>;
 	addPubkey(userAccountPublicKey: PublicKey): Promise<void>;
 	has(key: string): boolean;
 	get(key: string): User | undefined;
