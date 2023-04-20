@@ -37,6 +37,7 @@ import {
 	PerpMarketExtendedInfo,
 	UserStatsAccount,
 	ModifyOrderParams,
+	PhoenixV1FulfillmentConfigAccount,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -65,6 +66,7 @@ import {
 	getDriftStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getPerpMarketPublicKey,
+	getPhoenixFulfillmentConfigPublicKey,
 	getReferrerNamePublicKeySync,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
@@ -411,6 +413,18 @@ export class DriftClient {
 		return (await this.program.account.serumV3FulfillmentConfig.fetch(
 			address
 		)) as SerumV3FulfillmentConfigAccount;
+	}
+
+	public async getPhoenixV1FulfillmentConfig(
+		phoenixMarket: PublicKey
+	): Promise<PhoenixV1FulfillmentConfigAccount> {
+		const address = await getPhoenixFulfillmentConfigPublicKey(
+			this.program.programId,
+			phoenixMarket
+		);
+		return (await this.program.account.phoenixV1FulfillmentConfig.fetch(
+			address
+		)) as PhoenixV1FulfillmentConfigAccount;
 	}
 
 	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
@@ -2669,7 +2683,9 @@ export class DriftClient {
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
 		order?: Order,
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams
@@ -2697,7 +2713,9 @@ export class DriftClient {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		order?: Order,
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
@@ -2780,14 +2798,26 @@ export class DriftClient {
 	addSpotFulfillmentAccounts(
 		marketIndex: number,
 		remainingAccounts: AccountMeta[],
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount
-	) {
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount
+	): void {
 		if (fulfillmentConfig) {
-			this.addSerumRemainingAccounts(
-				marketIndex,
-				remainingAccounts,
-				fulfillmentConfig
-			);
+			if ('serumProgramId' in fulfillmentConfig) {
+				this.addSerumRemainingAccounts(
+					marketIndex,
+					remainingAccounts,
+					fulfillmentConfig
+				);
+			} else if ('phoenixProgramId' in fulfillmentConfig) {
+				this.addPhoenixRemainingAccounts(
+					marketIndex,
+					remainingAccounts,
+					fulfillmentConfig
+				);
+			} else {
+				throw Error('Invalid fulfillment config type');
+			}
 		} else {
 			remainingAccounts.push({
 				pubkey: this.getSpotMarketAccount(marketIndex).vault,
@@ -2806,7 +2836,7 @@ export class DriftClient {
 		marketIndex: number,
 		remainingAccounts: AccountMeta[],
 		fulfillmentConfig: SerumV3FulfillmentConfigAccount
-	) {
+	): void {
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.pubkey,
 			isWritable: false,
@@ -2888,6 +2918,63 @@ export class DriftClient {
 		});
 		remainingAccounts.push({
 			pubkey: this.getStateAccount().srmVault,
+			isWritable: false,
+			isSigner: false,
+		});
+	}
+
+	addPhoenixRemainingAccounts(
+		marketIndex: number,
+		remainingAccounts: AccountMeta[],
+		fulfillmentConfig: PhoenixV1FulfillmentConfigAccount
+	): void {
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.pubkey,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixProgramId,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixLogAuthority,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixMarket,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSignerPublicKey(),
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixBaseVault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixQuoteVault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSpotMarketAccount(marketIndex).vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getQuoteSpotMarketAccount().vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: TOKEN_PROGRAM_ID,
 			isWritable: false,
 			isSigner: false,
 		});
