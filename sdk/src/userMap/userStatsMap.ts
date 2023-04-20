@@ -14,6 +14,7 @@ import {
 	NewUserRecord,
 	LPRecord,
 	InsuranceFundStakeRecord,
+	StateAccount,
 } from '..';
 import { AccountInfo, PublicKey } from '@solana/web3.js';
 
@@ -27,6 +28,13 @@ export class UserStatsMap {
 	private userStatsMap = new Map<string, UserStats>();
 	private driftClient: DriftClient;
 	private accountSubscription: UserStatsSubscriptionConfig;
+	private lastNumberOfAuthorities;
+	private syncCallback = async (state: StateAccount) => {
+		if (state.numberOfAuthorities !== this.lastNumberOfAuthorities) {
+			await this.sync();
+			this.lastNumberOfAuthorities = state.numberOfAuthorities;
+		}
+	};
 
 	constructor(
 		driftClient: DriftClient,
@@ -40,6 +48,11 @@ export class UserStatsMap {
 		if (this.size() > 0) {
 			return;
 		}
+
+		await this.driftClient.subscribe();
+		this.lastNumberOfAuthorities =
+			this.driftClient.getStateAccount().numberOfAuthorities;
+		this.driftClient.eventEmitter.on('stateAccountUpdate', this.syncCallback);
 
 		await this.sync();
 	}
@@ -197,6 +210,14 @@ export class UserStatsMap {
 		for (const [key, userStats] of this.userStatsMap.entries()) {
 			await userStats.unsubscribe();
 			this.userStatsMap.delete(key);
+		}
+
+		if (this.lastNumberOfAuthorities) {
+			this.driftClient.eventEmitter.removeListener(
+				'stateAccountUpdate',
+				this.syncCallback
+			);
+			this.lastNumberOfAuthorities = undefined;
 		}
 	}
 }
