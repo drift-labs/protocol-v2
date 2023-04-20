@@ -1,6 +1,5 @@
 import {
 	DataAndSlot,
-	AccountToPoll,
 	NotSubscribedError,
 	UserStatsAccountSubscriber,
 	UserStatsAccountEvents,
@@ -22,7 +21,6 @@ export class PollingUserStatsAccountSubscriber
 
 	accountLoader: BulkAccountLoader;
 	callbackId?: string;
-	accountsToPoll = new Map<string, AccountToPoll>();
 	errorCallbackId?: string;
 
 	userStats?: DataAndSlot<UserStatsAccount>;
@@ -39,9 +37,13 @@ export class PollingUserStatsAccountSubscriber
 		this.userStatsAccountPublicKey = userStatsAccountPublicKey;
 	}
 
-	async subscribe(): Promise<boolean> {
+	async subscribe(userStatsAccount?: UserStatsAccount): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
+		}
+
+		if (userStatsAccount) {
+			this.userStats = { data: userStatsAccount, slot: undefined };
 		}
 
 		await this.addToAccountLoader();
@@ -57,7 +59,7 @@ export class PollingUserStatsAccountSubscriber
 	}
 
 	async addToAccountLoader(): Promise<void> {
-		if (this.accountsToPoll.size > 0) {
+		if (this.callbackId !== undefined) {
 			return;
 		}
 

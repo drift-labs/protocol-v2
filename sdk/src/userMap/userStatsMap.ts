@@ -5,7 +5,6 @@ import {
 	UserStatsAccount,
 	UserStats,
 	UserStatsSubscriptionConfig,
-	bulkPollingUserStatsSubscribe,
 	WrappedEvent,
 	DepositRecord,
 	FundingPaymentRecord,
@@ -16,7 +15,6 @@ import {
 	LPRecord,
 	InsuranceFundStakeRecord,
 } from '..';
-import { ProgramAccount } from '@coral-xyz/anchor';
 import { AccountInfo, PublicKey } from '@solana/web3.js';
 
 import { UserMap } from './userMap';
@@ -38,50 +36,18 @@ export class UserStatsMap {
 		this.accountSubscription = accountSubscription;
 	}
 
-	public async fetchAllUserStats() {
-		const userStatArray: UserStats[] = [];
-		const userStatsAccountArray: UserStatsAccount[] = [];
-
-		const programUserAccounts =
-			(await this.driftClient.program.account.userStats.all()) as ProgramAccount<UserStatsAccount>[];
-
-		for (const programUserAccount of programUserAccounts) {
-			const userStat: UserStatsAccount = programUserAccount.account;
-			if (this.userStatsMap.has(userStat.authority.toString())) {
-				continue;
-			}
-
-			const chUserStat = new UserStats({
-				driftClient: this.driftClient,
-				userStatsAccountPublicKey: programUserAccount.publicKey,
-				accountSubscription: this.accountSubscription,
-			});
-			userStatArray.push(chUserStat);
-			userStatsAccountArray.push(userStat);
+	public async subscribe() {
+		if (this.size() > 0) {
+			return;
 		}
 
-		if (this.accountSubscription.type === 'polling') {
-			await bulkPollingUserStatsSubscribe(
-				userStatArray,
-				this.accountSubscription.accountLoader
-			);
-		} else {
-			await Promise.all(
-				userStatArray.map((userStat, i) =>
-					userStat.subscribe(userStatsAccountArray[i])
-				)
-			);
-		}
-
-		for (const userStat of userStatArray) {
-			this.userStatsMap.set(
-				userStat.getAccount().authority.toString(),
-				userStat
-			);
-		}
+		await this.sync();
 	}
 
-	public async addUserStat(authority: PublicKey) {
+	public async addUserStat(
+		authority: PublicKey,
+		userStatsAccount?: UserStatsAccount
+	) {
 		const userStat = new UserStats({
 			driftClient: this.driftClient,
 			userStatsAccountPublicKey: getUserStatsAccountPublicKey(
@@ -90,7 +56,7 @@ export class UserStatsMap {
 			),
 			accountSubscription: this.accountSubscription,
 		});
-		await userStat.subscribe();
+		await userStat.subscribe(userStatsAccount);
 
 		this.userStatsMap.set(authority.toString(), userStat);
 	}
@@ -98,7 +64,7 @@ export class UserStatsMap {
 	public async updateWithOrderRecord(record: OrderRecord, userMap: UserMap) {
 		const user = await userMap.mustGet(record.user.toString());
 		if (!this.has(user.getUserAccount().authority.toString())) {
-			this.addUserStat(user.getUserAccount().authority);
+			await this.addUserStat(user.getUserAccount().authority);
 		}
 	}
 
@@ -217,8 +183,20 @@ export class UserStatsMap {
 
 		for (const key of programAccountMap.keys()) {
 			if (!this.has(key)) {
-				await this.addUserStat(new PublicKey(key));
+				const userStatsAccount =
+					this.driftClient.program.account.userStats.coder.accounts.decode(
+						'UserStats',
+						programAccountMap.get(key).data
+					);
+				await this.addUserStat(new PublicKey(key), userStatsAccount);
 			}
+		}
+	}
+
+	public async unsubscribe() {
+		for (const [key, userStats] of this.userStatsMap.entries()) {
+			await userStats.unsubscribe();
+			this.userStatsMap.delete(key);
 		}
 	}
 }
