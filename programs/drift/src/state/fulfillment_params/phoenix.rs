@@ -1,5 +1,3 @@
-use std::{cell::Ref, convert::TryInto, mem::size_of, ops::Deref};
-
 use anchor_lang::{prelude::*, ToAccountInfo};
 use anchor_spl::token::{Token, TokenAccount};
 use arrayref::array_ref;
@@ -11,6 +9,7 @@ use phoenix::{
     state::{OrderPacket, Side},
 };
 use solana_program::{msg, program::invoke_signed_unchecked};
+use std::{cell::Ref, convert::TryInto, mem::size_of, ops::Deref};
 
 use crate::{
     controller::position::PositionDirection,
@@ -30,6 +29,65 @@ use crate::{
 };
 
 pub const PHOENIX_MARKET_DISCRIMINANT: u64 = 8167313896524341111;
+
+pub fn taker_price_to_phoenix_price_in_ticks_rounded_down(
+    taker_price: u64,
+    tick_size: u64,
+    header: &MarketHeader,
+) -> DriftResult<Ticks> {
+    taker_price
+        .safe_mul(header.raw_base_units_per_base_unit as u64)?
+        .safe_div((header.get_quote_lot_size().as_u64().safe_mul(tick_size))?)
+        .map(Ticks::new)
+}
+
+pub fn taker_price_to_phoenix_price_in_ticks_rounded_up(
+    taker_price: u64,
+    tick_size: u64,
+    header: &MarketHeader,
+) -> DriftResult<Ticks> {
+    taker_price
+        .safe_mul(header.raw_base_units_per_base_unit as u64)?
+        .safe_div_ceil((header.get_quote_lot_size().as_u64().safe_mul(tick_size))?)
+        .map(Ticks::new)
+}
+
+pub fn phoenix_price_in_ticks_to_taker_price(
+    price_in_ticks: u64,
+    tick_size: u64,
+    header: &MarketHeader,
+) -> DriftResult<u64> {
+    price_in_ticks
+        .safe_mul(tick_size)?
+        .safe_mul(header.get_quote_lot_size().as_u64())?
+        .safe_div(header.raw_base_units_per_base_unit as u64)
+}
+
+pub fn compute_base_lot_size(
+    taker_base_asset_amount: u64,
+    taker_max_quote_asset_amount: u64,
+    taker_price: u64,
+    header: &MarketHeader,
+) -> DriftResult<BaseLots> {
+    Ok(taker_base_asset_amount
+        .safe_div(header.get_base_lot_size().as_u64())
+        .map(BaseLots::new)?
+        .min(
+            // Conversion:
+            //     taker_max_quote_asset_amount (QA) * base_atoms_per_raw_base_unit (BA/rBU) / taker_price (QA/rBU) / base_lot_size (BA/BL)
+            // Yields: num_base_lots (BL)
+            taker_max_quote_asset_amount
+                .cast::<u128>()?
+                .safe_mul(10_u128.pow(header.base_params.decimals))?
+                .safe_div(
+                    taker_price
+                        .cast::<u128>()?
+                        .safe_mul(header.get_base_lot_size().as_u128())?,
+                )?
+                .cast::<u64>()
+                .map(BaseLots::new)?,
+        ))
+}
 
 #[account(zero_copy)]
 #[derive(Default, PartialEq, Eq, Debug)]
@@ -304,24 +362,20 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
         // Conversion: price_in_ticks (T) * tick_size (QL/(BU * T)) * quote_lot_size (QA/QL) / raw_base_units_per_base_unit (rBU/BU)
         // Yields: price (QA/rBU)
         let best_bid = market.get_book(Side::Bid).iter().next().and_then(|(o, _)| {
-            o.price_in_ticks
-                .as_u64()
-                .safe_mul(market.get_tick_size().as_u64())
-                .ok()?
-                .safe_mul(header.get_quote_lot_size().as_u64())
-                .ok()?
-                .safe_div(header.raw_base_units_per_base_unit as u64)
-                .ok()
+            phoenix_price_in_ticks_to_taker_price(
+                o.price_in_ticks.as_u64(),
+                market.get_tick_size().as_u64(),
+                header,
+            )
+            .ok()
         });
         let best_ask = market.get_book(Side::Ask).iter().next().and_then(|(o, _)| {
-            o.price_in_ticks
-                .as_u64()
-                .safe_mul(market.get_tick_size().as_u64())
-                .ok()?
-                .safe_mul(header.get_quote_lot_size().as_u64())
-                .ok()?
-                .safe_div(header.raw_base_units_per_base_unit as u64)
-                .ok()
+            phoenix_price_in_ticks_to_taker_price(
+                o.price_in_ticks.as_u64(),
+                market.get_tick_size().as_u64(),
+                header,
+            )
+            .ok()
         });
         Ok((best_bid, best_ask))
     }
@@ -348,27 +402,19 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
         let (side, price_in_ticks) = match taker_direction {
             PositionDirection::Long => (
                 phoenix::state::Side::Bid,
-                taker_price
-                    .safe_mul(header.raw_base_units_per_base_unit as u64)?
-                    .safe_div(
-                        (header
-                            .get_quote_lot_size()
-                            .as_u64()
-                            .safe_mul(market.get_tick_size().as_u64()))?,
-                    )
-                    .map(Ticks::new)?,
+                taker_price_to_phoenix_price_in_ticks_rounded_down(
+                    taker_price,
+                    market.get_tick_size().as_u64(),
+                    header,
+                )?,
             ),
             PositionDirection::Short => (
                 phoenix::state::Side::Ask,
-                taker_price
-                    .safe_mul(header.raw_base_units_per_base_unit as u64)?
-                    .safe_div_ceil(
-                        (header
-                            .get_quote_lot_size()
-                            .as_u64()
-                            .safe_mul(market.get_tick_size().as_u64()))?,
-                    )
-                    .map(Ticks::new)?,
+                taker_price_to_phoenix_price_in_ticks_rounded_up(
+                    taker_price,
+                    market.get_tick_size().as_u64(),
+                    header,
+                )?,
             ),
         };
 
@@ -380,24 +426,12 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
         // This takes the minimum of
         // 1. The number of base lots equivalent to the given base asset amount.
         // 2. The number of base lots that can be bought with the max quote asset amount at the given taker price.
-        let num_base_lots = taker_base_asset_amount
-            .safe_div(header.get_base_lot_size().as_u64())
-            .map(BaseLots::new)?
-            .min(
-                // Conversion:
-                //     taker_max_quote_asset_amount (QA) * base_atoms_per_raw_base_unit (BA/rBU) / taker_price (QA/rBU) / base_lot_size (BA/BL)
-                // Yields: num_base_lots (BL)
-                taker_max_quote_asset_amount
-                    .cast::<u128>()?
-                    .safe_mul(10_u128.pow(header.base_params.decimals))?
-                    .safe_div(
-                        taker_price
-                            .cast::<u128>()?
-                            .safe_mul(header.get_base_lot_size().as_u128())?,
-                    )?
-                    .cast::<u64>()
-                    .map(BaseLots::new)?,
-            );
+        let num_base_lots = compute_base_lot_size(
+            taker_base_asset_amount,
+            taker_max_quote_asset_amount,
+            taker_price,
+            header,
+        )?;
 
         if num_base_lots == 0 {
             msg!("No base lots to fill");
@@ -510,5 +544,162 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
         validate_spot_market_vault_amount(base_market, self.base_market_vault.amount)?;
         validate_spot_market_vault_amount(quote_market, self.quote_market_vault.amount)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use anchor_lang::prelude::Pubkey;
+    use phoenix::{
+        program::{MarketHeader, MarketSizeParams, TokenParams},
+        quantities::{
+            BaseAtomsPerBaseLot, QuoteAtomsPerBaseUnitPerTick, QuoteAtomsPerQuoteLot, Ticks,
+            WrapperU64,
+        },
+    };
+
+    use crate::state::fulfillment_params::phoenix::{
+        compute_base_lot_size, phoenix_price_in_ticks_to_taker_price,
+        taker_price_to_phoenix_price_in_ticks_rounded_down,
+        taker_price_to_phoenix_price_in_ticks_rounded_up,
+    };
+
+    fn setup() -> MarketHeader {
+        // Creates a market header with a similar configuration to the SOL/USDC mainnet-beta Phoenix market
+        MarketHeader::new(
+            MarketSizeParams {
+                bids_size: 2048,
+                asks_size: 2048,
+                num_seats: 4097,
+            },
+            TokenParams {
+                decimals: 9,
+                vault_bump: 255,
+                mint_key: Pubkey::new_unique(),
+                vault_key: Pubkey::new_unique(),
+            },
+            BaseAtomsPerBaseLot::new(1_000_000),
+            TokenParams {
+                decimals: 6,
+                vault_bump: 255,
+                mint_key: Pubkey::new_unique(),
+                vault_key: Pubkey::new_unique(),
+            },
+            QuoteAtomsPerQuoteLot::new(1),
+            QuoteAtomsPerBaseUnitPerTick::new(1000),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            1,
+        )
+    }
+
+    #[test]
+    fn test_tick_price_to_quote_atoms_per_raw_base_unit() {
+        let header = setup();
+        let tick_size = header.get_tick_size_in_quote_atoms_per_base_unit().as_u64()
+            / header.get_quote_lot_size().as_u64();
+
+        // Tick is 0.001 USDC/SOL
+        assert_eq!(tick_size, 1000);
+        assert_eq!(
+            tick_size as f64 * 10.0_f64.powf(-(header.quote_params.decimals as f64)),
+            0.001
+        );
+
+        let target_price = 23.128;
+        let target_price_in_quote_atoms_per_raw_base_unit =
+            (target_price * 10.0_f64.powf(header.quote_params.decimals as f64)) as u64;
+
+        assert_eq!(target_price_in_quote_atoms_per_raw_base_unit, 23128000);
+
+        let target_price_in_ticks = target_price_in_quote_atoms_per_raw_base_unit / tick_size;
+
+        let converted_price =
+            phoenix_price_in_ticks_to_taker_price(target_price_in_ticks, tick_size, &header)
+                .unwrap();
+
+        assert_eq!(
+            converted_price,
+            target_price_in_quote_atoms_per_raw_base_unit
+        );
+    }
+
+    #[test]
+    fn test_price_in_quote_atoms_per_raw_base_unit_to_ticks() {
+        let header = setup();
+        let tick_size = header.get_tick_size_in_quote_atoms_per_base_unit().as_u64()
+            / header.get_quote_lot_size().as_u64();
+
+        let taker_price = 23809812;
+
+        let sell_limit_price_in_ticks =
+            taker_price_to_phoenix_price_in_ticks_rounded_up(taker_price, tick_size, &header)
+                .unwrap();
+
+        let buy_limit_price_in_ticks =
+            taker_price_to_phoenix_price_in_ticks_rounded_down(taker_price, tick_size, &header)
+                .unwrap();
+
+        assert_eq!(
+            sell_limit_price_in_ticks,
+            buy_limit_price_in_ticks + Ticks::new(1)
+        );
+        assert_eq!(buy_limit_price_in_ticks, 23809);
+
+        // If the price is a multiple of the tick size, the buy and sell limit prices should be the same
+        let taker_price = 24123000;
+        let sell_limit_price_in_ticks =
+            taker_price_to_phoenix_price_in_ticks_rounded_up(taker_price, tick_size, &header)
+                .unwrap();
+
+        let buy_limit_price_in_ticks =
+            taker_price_to_phoenix_price_in_ticks_rounded_down(taker_price, tick_size, &header)
+                .unwrap();
+
+        assert_eq!(sell_limit_price_in_ticks, buy_limit_price_in_ticks);
+        assert_eq!(buy_limit_price_in_ticks, 24123);
+    }
+
+    #[test]
+    fn test_compute_base_lots() {
+        let header = setup();
+        let taker_price = 23809000;
+
+        // 55 SOL
+        let taker_base_asset_amount = 55 * 1_000_000_000;
+        let taker_max_quote_asset_amount = u64::MAX;
+
+        let num_base_lots = compute_base_lot_size(
+            taker_base_asset_amount,
+            taker_max_quote_asset_amount,
+            taker_price,
+            &header,
+        )
+        .unwrap();
+        assert_eq!(num_base_lots, 55000);
+        assert_eq!(
+            55000,
+            55 * 10_u64.pow(header.base_params.decimals) / header.get_base_lot_size().as_u64(),
+        );
+
+        let taker_base_asset_amount = u64::MAX;
+
+        // 2357.091 USDC
+        let taker_max_quote_asset_amount = 2357091000_u64;
+
+        let num_base_lots = compute_base_lot_size(
+            taker_base_asset_amount,
+            taker_max_quote_asset_amount,
+            taker_price,
+            &header,
+        )
+        .unwrap();
+
+        assert_eq!(num_base_lots, 99000);
+        assert_eq!(
+            99000,
+            99 * 10_u64.pow(header.base_params.decimals) / header.get_base_lot_size().as_u64(),
+        );
     }
 }
