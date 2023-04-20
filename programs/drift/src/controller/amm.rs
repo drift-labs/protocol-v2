@@ -496,6 +496,7 @@ pub fn update_pool_balances(
                 )?;
 
                 let revenue_pool_transfer: u128 = terminal_state_surplus
+                    .safe_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?)?
                     .unsigned_abs()
                     .min(spot_market_revenue_pool_amount)
                     .min(max_revenue_withdraw_allowed);

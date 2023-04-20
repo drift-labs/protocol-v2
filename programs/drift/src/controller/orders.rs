@@ -773,10 +773,10 @@ fn merge_modify_order_params_with_existing_order(
             .trigger_condition
             .unwrap_or(match existing_order.trigger_condition {
                 OrderTriggerCondition::TriggeredAbove | OrderTriggerCondition::Above => {
-                    OrderTriggerCondition::TriggeredAbove
+                    OrderTriggerCondition::Above
                 }
                 OrderTriggerCondition::TriggeredBelow | OrderTriggerCondition::Below => {
-                    OrderTriggerCondition::TriggeredBelow
+                    OrderTriggerCondition::Below
                 }
             });
     let oracle_price_offset = modify_order_params
