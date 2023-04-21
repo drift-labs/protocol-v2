@@ -33,7 +33,7 @@ export class DLOBSubscriber {
 		this.intervalId = setInterval(async () => {
 			await this.updateDLOB();
 			this.eventEmitter.emit('update', this.dlob);
-		});
+		}, this.updateFrequency);
 	}
 
 	async updateDLOB(): Promise<void> {
