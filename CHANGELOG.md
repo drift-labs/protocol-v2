@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: force_cancel_orders only skips position reducing orders
+
 ### Breaking
 
 ## [2.25.3] - 2023-04-17
