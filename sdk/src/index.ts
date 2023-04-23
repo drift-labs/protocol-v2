@@ -55,6 +55,8 @@ export * from './config';
 export * from './constants/numericConstants';
 export * from './serum/serumSubscriber';
 export * from './serum/serumFulfillmentConfigMap';
+export * from './phoenix/phoenixSubscriber';
+export * from './phoenix/phoenixFulfillmentConfigMap';
 export * from './tx/retryTxSender';
 export * from './util/computeUnits';
 export * from './util/tps';
