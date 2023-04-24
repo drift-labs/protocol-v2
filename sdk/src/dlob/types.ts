@@ -8,6 +8,7 @@ export type DLOBSubscriptionConfig = {
 
 export interface DLOBSubscriberEvents {
 	update: (dlob: DLOB) => void;
+	error: (e: Error) => void;
 }
 
 export interface DLOBSource {
