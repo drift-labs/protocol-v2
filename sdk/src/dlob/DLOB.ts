@@ -67,6 +67,28 @@ export type NodeToTrigger = {
 	node: TriggerOrderNode;
 };
 
+export type L2OrderBookSide = {
+	price: BN;
+	size: BN;
+}[];
+
+export type L2OrderBook = {
+	asks: L2OrderBookSide;
+	bids: L2OrderBookSide;
+};
+
+export type L3OrderBookSide = {
+	price: BN;
+	size: BN;
+	maker: PublicKey;
+	orderId: number;
+}[];
+
+export type L3OrderBook = {
+	asks: L3OrderBookSide;
+	bids: L3OrderBookSide;
+};
+
 const SUPPORTED_ORDER_TYPES = [
 	'market',
 	'limit',
@@ -1688,5 +1710,114 @@ export class DLOB {
 			yield nodeLists.trigger.above;
 			yield nodeLists.trigger.below;
 		}
+	}
+
+	public getL2OrderBook(params: {
+		marketIndex: number;
+		marketType: MarketType;
+		slot: number;
+		oraclePriceData: OraclePriceData;
+		depth: number;
+	}): L2OrderBook {
+		const bids: L2OrderBookSide = [];
+		const asks: L2OrderBookSide = [];
+
+		const restingAsks = this.getRestingLimitAsks(
+			params.marketIndex,
+			params.slot,
+			params.marketType,
+			params.oraclePriceData
+		);
+
+		for (const ask of restingAsks) {
+			const price = ask.getPrice(params.oraclePriceData, params.slot);
+			const size = ask.order.baseAssetAmount.sub(
+				ask.order.baseAssetAmountFilled
+			);
+			if (asks.length > 0 && asks[asks.length - 1].price.eq(price)) {
+				asks[asks.length - 1].size.add(size);
+			} else if (asks.length === params.depth) {
+				break;
+			} else {
+				asks.push({ price, size });
+			}
+		}
+
+		const restingBids = this.getRestingLimitBids(
+			params.marketIndex,
+			params.slot,
+			params.marketType,
+			params.oraclePriceData
+		);
+
+		for (const bid of restingBids) {
+			const price = bid.getPrice(params.oraclePriceData, params.slot);
+			const size = bid.order.baseAssetAmount.sub(
+				bid.order.baseAssetAmountFilled
+			);
+			if (bids.length > 0 && bids[bids.length - 1].price.eq(price)) {
+				bids[bids.length - 1].size.add(size);
+			} else if (bids.length === params.depth) {
+				break;
+			} else {
+				bids.push({ price, size });
+			}
+		}
+
+		return {
+			bids,
+			asks,
+		};
+	}
+
+	/**
+	 * Gets L3 order book containing orders posted on drift. Does not exclude fallback liquidity e.g. vAMM, Openbook, etc.
+	 * @param params
+	 */
+	public getL3OrderBook(params: {
+		marketIndex: number;
+		marketType: MarketType;
+		slot: number;
+		oraclePriceData: OraclePriceData;
+	}): L3OrderBook {
+		const bids: L3OrderBookSide = [];
+		const asks: L3OrderBookSide = [];
+
+		const restingAsks = this.getRestingLimitAsks(
+			params.marketIndex,
+			params.slot,
+			params.marketType,
+			params.oraclePriceData
+		);
+
+		for (const ask of restingAsks) {
+			asks.push({
+				price: ask.getPrice(params.oraclePriceData, params.slot),
+				size: ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled),
+				maker: ask.userAccount,
+				orderId: ask.order.orderId,
+			});
+		}
+
+		const restingBids = this.getRestingLimitBids(
+			params.marketIndex,
+			params.slot,
+			params.marketType,
+			params.oraclePriceData
+		);
+
+		for (const bid of restingBids) {
+			bids.push({
+				price: bid.getPrice(params.oraclePriceData, params.slot),
+				size: bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled),
+				maker: bid.userAccount,
+				orderId: bid.order.orderId,
+			});
+		}
+
+		return {
+			bids,
+			asks,
+		};
 	}
 }
