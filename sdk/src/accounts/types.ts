@@ -18,7 +18,7 @@ export interface AccountSubscriber<T> {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	setData(userAccount: T): void;
+	setData(userAccount: T, slot?: number): void;
 }
 
 export class NotSubscribedError extends Error {
@@ -73,6 +73,7 @@ export interface UserAccountSubscriber {
 
 	subscribe(userAccount?: UserAccount): Promise<boolean>;
 	fetch(): Promise<void>;
+	updateData(userAccount: UserAccount, slot: number): void;
 	unsubscribe(): Promise<void>;
 
 	getUserAccountAndSlot(): DataAndSlot<UserAccount>;

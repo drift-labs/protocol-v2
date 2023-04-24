@@ -66,6 +66,8 @@ export * from './dlob/DLOB';
 export * from './dlob/DLOBNode';
 export * from './dlob/DLOBOrders';
 export * from './dlob/NodeList';
+export * from './dlob/DLOBSubscriber';
+export * from './dlob/types';
 export * from './userMap/userMap';
 export * from './userMap/userStatsMap';
 export * from './math/bankruptcy';

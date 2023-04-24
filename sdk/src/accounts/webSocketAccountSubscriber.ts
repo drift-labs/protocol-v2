@@ -45,14 +45,15 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		);
 	}
 
-	setData(data: T): void {
-		if (this.dataAndSlot) {
+	setData(data: T, slot?: number): void {
+		const newSlot = slot || 0;
+		if (this.dataAndSlot && this.dataAndSlot.slot > newSlot) {
 			return;
 		}
 
 		this.dataAndSlot = {
 			data,
-			slot: undefined,
+			slot,
 		};
 	}
 

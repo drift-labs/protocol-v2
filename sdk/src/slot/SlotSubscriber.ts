@@ -22,6 +22,10 @@ export class SlotSubscriber {
 	}
 
 	public async subscribe(): Promise<void> {
+		if (this.subscriptionId) {
+			return;
+		}
+
 		this.currentSlot = await this.connection.getSlot('confirmed');
 
 		this.subscriptionId = this.connection.onSlotChange((slotInfo) => {
