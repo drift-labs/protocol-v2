@@ -2294,6 +2294,95 @@
       ]
     },
     {
+      "name": "initializePhoenixFulfillmentConfig",
+      "accounts": [
+        {
+          "name": "baseSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "quoteSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "phoenixProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "phoenixMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "phoenixFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "phoenixFulfillmentConfigStatus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "phoenixFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "SpotFulfillmentConfigStatus"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateSerumVault",
       "accounts": [
         {
@@ -4002,6 +4091,63 @@
     }
   ],
   "accounts": [
+    {
+      "name": "PhoenixV1FulfillmentConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "phoenixProgramId",
+            "type": "publicKey"
+          },
+          {
+            "name": "phoenixLogAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "phoenixMarket",
+            "type": "publicKey"
+          },
+          {
+            "name": "phoenixBaseVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "phoenixQuoteVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "fulfillmentType",
+            "type": {
+              "defined": "SpotFulfillmentType"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "SpotFulfillmentConfigStatus"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "SerumV3FulfillmentConfig",
       "type": {
@@ -6212,6 +6358,9 @@
           },
           {
             "name": "Match"
+          },
+          {
+            "name": "PhoenixV1"
           }
         ]
       }
@@ -6462,6 +6611,9 @@
           },
           {
             "name": "NoBorrowLiquidity"
+          },
+          {
+            "name": "OrderFillWithPhoenix"
           }
         ]
       }
@@ -9028,6 +9180,36 @@
       "code": 6241,
       "name": "InvalidSpotFulfillmentParams",
       "msg": "Invalid Spot Fulfillment Params"
+    },
+    {
+      "code": 6242,
+      "name": "FailedToGetMint",
+      "msg": "Failed to Get Mint"
+    },
+    {
+      "code": 6243,
+      "name": "FailedPhoenixCPI",
+      "msg": "FailedPhoenixCPI"
+    },
+    {
+      "code": 6244,
+      "name": "FailedToDeserializePhoenixMarket",
+      "msg": "FailedToDeserializePhoenixMarket"
+    },
+    {
+      "code": 6245,
+      "name": "InvalidPricePrecision",
+      "msg": "InvalidPricePrecision"
+    },
+    {
+      "code": 6246,
+      "name": "InvalidPhoenixProgram",
+      "msg": "InvalidPhoenixProgram"
+    },
+    {
+      "code": 6247,
+      "name": "InvalidPhoenixMarket",
+      "msg": "InvalidPhoenixMarket"
     }
   ]
 }

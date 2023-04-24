@@ -12,9 +12,9 @@ defaults:
     working-directory: .
 
 env:
-  CARGO_TERM_COLOR: always 
+  CARGO_TERM_COLOR: always
   RUST_TOOLCHAIN: 1.60.0
-  SOLANA_VERSION: "1.13.7"
+  SOLANA_VERSION: '1.13.7'
 
 jobs:
   fmt-clippy:
@@ -49,7 +49,7 @@ jobs:
       - name: Cache build artefacts
         uses: Swatinem/rust-cache@v1
       - name: Run package checks
-        run: cargo check      # run package checks
+        run: cargo check # run package checks
       - name: Run unit tests
         run: cargo test --lib # run unit tests
   cargo-audit:
@@ -73,7 +73,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: '14.x'
+          node-version: '16.x'
           registry-url: 'https://registry.npmjs.org'
       - name: Install yarn
         run: yarn
@@ -86,7 +86,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: '14.x'
+          node-version: '16.x'
           registry-url: 'https://registry.npmjs.org'
       - name: Install yarn
         run: yarn
@@ -107,7 +107,7 @@ jobs:
       - name: Cache build artefacts
         uses: Swatinem/rust-cache@v1
         with:
-          cache-on-failure: "true"
+          cache-on-failure: 'true'
 
       - uses: ./.github/actions/setup-solana/
 
@@ -117,7 +117,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: '14.x'
+          node-version: '16.x'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Setup yarn

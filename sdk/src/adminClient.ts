@@ -24,6 +24,7 @@ import {
 	getInsuranceFundVaultPublicKey,
 	getSerumOpenOrdersPublicKey,
 	getSerumFulfillmentConfigPublicKey,
+	getPhoenixFulfillmentConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -31,6 +32,7 @@ import { DriftClient } from './driftClient';
 import { PEG_PRECISION } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
+import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 
 export class AdminClient extends DriftClient {
 	public async initialize(
@@ -176,6 +178,38 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async initializePhoenixFulfillmentConfig(
+		marketIndex: number,
+		phoenixMarket: PublicKey
+	): Promise<TransactionSignature> {
+		const phoenixFulfillmentConfig = getPhoenixFulfillmentConfigPublicKey(
+			this.program.programId,
+			phoenixMarket
+		);
+
+		const tx =
+			await this.program.transaction.initializePhoenixFulfillmentConfig(
+				marketIndex,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
+						quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
+						driftSigner: this.getSignerPublicKey(),
+						phoenixMarket: phoenixMarket,
+						phoenixProgram: PHOENIX_PROGRAM_ID,
+						rent: SYSVAR_RENT_PUBKEY,
+						systemProgram: anchor.web3.SystemProgram.programId,
+						phoenixFulfillmentConfig,
+					},
+				}
+			);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;

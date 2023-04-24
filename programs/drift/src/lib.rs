@@ -493,6 +493,20 @@ pub mod drift {
         handle_update_serum_fulfillment_config_status(ctx, status)
     }
 
+    pub fn initialize_phoenix_fulfillment_config(
+        ctx: Context<InitializePhoenixFulfillmentConfig>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_initialize_phoenix_fulfillment_config(ctx, market_index)
+    }
+
+    pub fn phoenix_fulfillment_config_status(
+        ctx: Context<UpdatePhoenixFulfillmentConfig>,
+        status: SpotFulfillmentConfigStatus,
+    ) -> Result<()> {
+        handle_update_phoenix_fulfillment_config_status(ctx, status)
+    }
+
     pub fn update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
         handle_update_serum_vault(ctx)
     }
