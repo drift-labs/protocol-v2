@@ -120,6 +120,11 @@ export class UserMap implements UserMapInterface {
 		return chUser.getUserAccount().authority;
 	}
 
+	/**
+	 * implements the {@link DLOBSource} interface
+	 * create a DLOB from all the subscribed users
+	 * @param slot
+	 */
 	public async getDLOB(slot: number): Promise<DLOB> {
 		const dlob = new DLOB();
 		await dlob.initFromUserMap(this, slot);
