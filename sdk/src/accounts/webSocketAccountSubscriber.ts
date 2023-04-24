@@ -47,7 +47,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 
 	setData(data: T, slot?: number): void {
 		const newSlot = slot || 0;
-		if (this.dataAndSlot && this.dataAndSlot.slot >= newSlot) {
+		if (this.dataAndSlot && this.dataAndSlot.slot > newSlot) {
 			return;
 		}
 

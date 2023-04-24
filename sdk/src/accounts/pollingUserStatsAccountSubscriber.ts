@@ -70,7 +70,7 @@ export class PollingUserStatsAccountSubscriber
 					return;
 				}
 
-				if (this.userStats && this.userStats.slot >= slot) {
+				if (this.userStats && this.userStats.slot > slot) {
 					return;
 				}
 
@@ -100,7 +100,8 @@ export class PollingUserStatsAccountSubscriber
 		const { buffer, slot } = this.accountLoader.getBufferAndSlot(
 			this.userStatsAccountPublicKey
 		);
-		if (buffer) {
+		const currentSlot = this.userStats?.slot ?? 0;
+		if (buffer && slot > currentSlot) {
 			const account = this.program.account.userStats.coder.accounts.decode(
 				'UserStats',
 				buffer

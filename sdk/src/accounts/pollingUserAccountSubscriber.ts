@@ -67,7 +67,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 					return;
 				}
 
-				if (this.user && this.user.slot >= slot) {
+				if (this.user && this.user.slot > slot) {
 					return;
 				}
 
@@ -97,7 +97,8 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		const { buffer, slot } = this.accountLoader.getBufferAndSlot(
 			this.userAccountPublicKey
 		);
-		if (buffer) {
+		const currentSlot = this.user?.slot ?? 0;
+		if (buffer && slot > currentSlot) {
 			const account = this.program.account.user.coder.accounts.decode(
 				'User',
 				buffer
