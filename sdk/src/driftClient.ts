@@ -168,6 +168,12 @@ export class DriftClient {
 			);
 		}
 
+		if (config.authoritySubaccountMap && config.includeDelegates) {
+			throw new Error(
+				'Can only pass one of authoritySubaccountMap or includeDelegates'
+			);
+		}
+
 		this.includeDelegates = config.includeDelegates ?? false;
 		this.activeAuthority = this.authority;
 		this.userAccountSubscriptionConfig =
@@ -478,6 +484,12 @@ export class DriftClient {
 		if (authoritySubaccountMap && subAccountIds) {
 			throw new Error(
 				'Can only pass one of authoritySubaccountMap or subAccountIds'
+			);
+		}
+
+		if (authoritySubaccountMap && includeDelegates) {
+			throw new Error(
+				'Can only pass one of authoritySubaccountMap or includeDelegates'
 			);
 		}
 
