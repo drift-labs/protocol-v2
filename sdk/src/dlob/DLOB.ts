@@ -1714,7 +1714,14 @@ export class DLOB {
 		}
 	}
 
-	public getL2OrderBook(params: {
+	public getL2({
+		marketIndex,
+		marketType,
+		slot,
+		oraclePriceData,
+		depth,
+		fallbackOrders,
+	}: {
 		marketIndex: number;
 		marketType: MarketType;
 		slot: number;
@@ -1726,10 +1733,10 @@ export class DLOB {
 		const asks: L2OrderBookSide = [];
 
 		const initialAskGenerator = this.getRestingLimitAsks(
-			params.marketIndex,
-			params.slot,
-			params.marketType,
-			params.oraclePriceData
+			marketIndex,
+			slot,
+			marketType,
+			oraclePriceData
 		);
 		const restingAskGenerator = (function* () {
 			for (const ask of initialAskGenerator) {
@@ -1737,17 +1744,15 @@ export class DLOB {
 					size: ask.order.baseAssetAmount.sub(
 						ask.order.baseAssetAmountFilled
 					) as BN,
-					price: ask.getPrice(params.oraclePriceData, params.slot),
+					price: ask.getPrice(oraclePriceData, slot),
 					source: 'dlob',
 				};
 			}
 		})();
 
-		const fallbackAskGenerators = params.fallbackOrders.map(
-			(fallbackOrders) => {
-				return fallbackOrders.getAsks();
-			}
-		);
+		const fallbackAskGenerators = fallbackOrders.map((fallbackOrders) => {
+			return fallbackOrders.getAsks();
+		});
 
 		const askGenerator = (function* () {
 			const generators = [restingAskGenerator, ...fallbackAskGenerators].map(
@@ -1796,7 +1801,7 @@ export class DLOB {
 				} else {
 					level.sources[source] = size;
 				}
-			} else if (asks.length === params.depth) {
+			} else if (asks.length === depth) {
 				break;
 			} else {
 				const level = { price, size, sources: {} };
@@ -1806,10 +1811,10 @@ export class DLOB {
 		}
 
 		const initialBidGenerator = this.getRestingLimitBids(
-			params.marketIndex,
-			params.slot,
-			params.marketType,
-			params.oraclePriceData
+			marketIndex,
+			slot,
+			marketType,
+			oraclePriceData
 		);
 
 		const restingBidGenerator = (function* () {
@@ -1818,17 +1823,15 @@ export class DLOB {
 					size: bid.order.baseAssetAmount.sub(
 						bid.order.baseAssetAmountFilled
 					) as BN,
-					price: bid.getPrice(params.oraclePriceData, params.slot),
+					price: bid.getPrice(oraclePriceData, slot),
 					source: 'dlob',
 				};
 			}
 		})();
 
-		const fallbackBidGenerators = params.fallbackOrders.map(
-			(fallbackOrders) => {
-				return fallbackOrders.getBids();
-			}
-		);
+		const fallbackBidGenerators = fallbackOrders.map((fallbackOrders) => {
+			return fallbackOrders.getBids();
+		});
 
 		const bidGenerator = (function* () {
 			const generators = [restingBidGenerator, ...fallbackBidGenerators].map(
@@ -1877,7 +1880,7 @@ export class DLOB {
 				} else {
 					level.sources[source] = size;
 				}
-			} else if (bids.length === params.depth) {
+			} else if (bids.length === depth) {
 				break;
 			} else {
 				const level = { price, size, sources: {} };
@@ -1896,7 +1899,12 @@ export class DLOB {
 	 * Gets L3 order book containing orders posted on drift. Does not exclude fallback liquidity e.g. vAMM, Openbook, etc.
 	 * @param params
 	 */
-	public getL3OrderBook(params: {
+	public getL3({
+		marketIndex,
+		marketType,
+		slot,
+		oraclePriceData,
+	}: {
 		marketIndex: number;
 		marketType: MarketType;
 		slot: number;
@@ -1906,15 +1914,15 @@ export class DLOB {
 		const asks: L3OrderBookSide = [];
 
 		const restingAsks = this.getRestingLimitAsks(
-			params.marketIndex,
-			params.slot,
-			params.marketType,
-			params.oraclePriceData
+			marketIndex,
+			slot,
+			marketType,
+			oraclePriceData
 		);
 
 		for (const ask of restingAsks) {
 			asks.push({
-				price: ask.getPrice(params.oraclePriceData, params.slot),
+				price: ask.getPrice(oraclePriceData, slot),
 				size: ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled),
 				maker: ask.userAccount,
 				orderId: ask.order.orderId,
@@ -1922,15 +1930,15 @@ export class DLOB {
 		}
 
 		const restingBids = this.getRestingLimitBids(
-			params.marketIndex,
-			params.slot,
-			params.marketType,
-			params.oraclePriceData
+			marketIndex,
+			slot,
+			marketType,
+			oraclePriceData
 		);
 
 		for (const bid of restingBids) {
 			bids.push({
-				price: bid.getPrice(params.oraclePriceData, params.slot),
+				price: bid.getPrice(oraclePriceData, slot),
 				size: bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled),
 				maker: bid.userAccount,
 				orderId: bid.order.orderId,
