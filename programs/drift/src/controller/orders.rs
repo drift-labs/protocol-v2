@@ -2618,21 +2618,30 @@ pub fn force_cancel_orders(
         let fee = match market_type {
             MarketType::Spot => {
                 let spot_market = spot_market_map.get_ref(&market_index)?;
-                let is_risk_decreasing = determine_if_user_spot_order_is_risk_decreasing(
-                    user,
-                    &spot_market,
-                    order_index,
+                let token_amount = user
+                    .get_spot_position(market_index)?
+                    .get_signed_token_amount(&spot_market)?
+                    .cast::<i64>()?;
+                let is_position_reducing = is_order_position_reducing(
+                    &user.orders[order_index].direction,
+                    user.orders[order_index].get_base_asset_amount_unfilled(Some(token_amount))?,
+                    token_amount,
                 )?;
-                if is_risk_decreasing {
+                if is_position_reducing {
                     continue;
                 }
 
                 state.spot_fee_structure.flat_filler_fee
             }
             MarketType::Perp => {
-                let is_risk_decreasing =
-                    determine_if_user_order_is_risk_decreasing(user, market_index, order_index)?;
-                if is_risk_decreasing {
+                let base_asset_amount = user.get_perp_position(market_index)?.base_asset_amount;
+                let is_position_reducing = is_order_position_reducing(
+                    &user.orders[order_index].direction,
+                    user.orders[order_index]
+                        .get_base_asset_amount_unfilled(Some(base_asset_amount))?,
+                    base_asset_amount,
+                )?;
+                if is_position_reducing {
                     continue;
                 }
 
@@ -3565,20 +3574,6 @@ fn fulfill_spot_order(
     }
 
     Ok((base_asset_amount, base_asset_amount != 0))
-}
-
-fn determine_if_user_spot_order_is_risk_decreasing(
-    user: &User,
-    spot_market: &SpotMarket,
-    order_index: usize,
-) -> DriftResult<bool> {
-    let position_index = user.get_spot_position_index(spot_market.market_index)?;
-    let token_amount = user.spot_positions[position_index].get_token_amount(spot_market)?;
-    is_spot_order_risk_decreasing(
-        &user.orders[order_index],
-        &user.spot_positions[position_index].balance_type,
-        token_amount,
-    )
 }
 
 pub fn fulfill_spot_order_with_match(

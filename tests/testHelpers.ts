@@ -31,7 +31,6 @@ import {
 	SPOT_MARKET_WEIGHT_PRECISION,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
-	TestClient,
 	User,
 	OracleSource,
 } from '../sdk/src';
