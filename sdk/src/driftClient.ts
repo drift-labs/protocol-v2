@@ -577,7 +577,7 @@ export class DriftClient {
 				result && (await this.addUser(account.subAccountId, account.authority));
 		}
 
-		if (!this.activeSubAccountId) {
+		if (this.activeSubAccountId == undefined) {
 			const firstUser = userAccounts[0] ?? delegatedAccounts[0];
 			this.switchActiveUser(
 				firstUser?.subAccountId ?? 0,
