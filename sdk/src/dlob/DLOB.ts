@@ -1720,14 +1720,14 @@ export class DLOB {
 		slot,
 		oraclePriceData,
 		depth,
-		fallbackOrders,
+		fallbackOrders = [],
 	}: {
 		marketIndex: number;
 		marketType: MarketType;
 		slot: number;
 		oraclePriceData: OraclePriceData;
 		depth: number;
-		fallbackOrders: FallbackOrders[];
+		fallbackOrders?: FallbackOrders[];
 	}): L2OrderBook {
 		const bids: L2OrderBookSide = [];
 		const asks: L2OrderBookSide = [];

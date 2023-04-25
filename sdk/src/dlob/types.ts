@@ -1,6 +1,8 @@
 import { DLOB } from './DLOB';
+import { DriftClient } from '../driftClient';
 
 export type DLOBSubscriptionConfig = {
+	driftClient: DriftClient;
 	dlobSource: DLOBSource;
 	slotSource: SlotSource;
 	updateFrequency: number;
