@@ -1,4 +1,4 @@
-import { BN } from '@coral-xyz/anchor';
+import { BN } from '..';
 import { PerpMarketAccount, SwapDirection } from '../types';
 import {
 	calculateAmmReservesAfterSwap,
@@ -11,11 +11,11 @@ import { OraclePriceData } from '../oracles/types';
 import { BASE_PRECISION } from '../constants/numericConstants';
 
 export interface FallbackOrders {
-	getBids(): Generator<{ price: BN; size: BN }>;
-	getAsks(): Generator<{ price: BN; size: BN }>;
+	getBids(): Generator<{ price: BN; size: BN; source: string }>;
+	getAsks(): Generator<{ price: BN; size: BN; source: string }>;
 }
 
-export function vammFallbackOrders({
+export function getVammOrders({
 	marketAccount,
 	oraclePriceData,
 	numOrders,
@@ -74,6 +74,7 @@ export function vammFallbackOrders({
 			yield {
 				price,
 				size: baseSize,
+				source: 'vAMM',
 			};
 
 			numBids++;
@@ -112,6 +113,7 @@ export function vammFallbackOrders({
 			yield {
 				price,
 				size: askSize,
+				source: 'vAMM',
 			};
 
 			numAsks++;

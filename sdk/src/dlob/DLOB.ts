@@ -32,6 +32,7 @@ import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
 import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
 import { DLOBOrders } from './DLOBOrders';
+import { FallbackOrders } from './fallbackOrders';
 
 export type MarketNodeLists = {
 	restingLimit: {
@@ -70,6 +71,7 @@ export type NodeToTrigger = {
 export type L2OrderBookSide = {
 	price: BN;
 	size: BN;
+	sources: { [source: string]: BN };
 }[];
 
 export type L2OrderBook = {
@@ -1718,49 +1720,169 @@ export class DLOB {
 		slot: number;
 		oraclePriceData: OraclePriceData;
 		depth: number;
+		fallbackOrders: FallbackOrders[];
 	}): L2OrderBook {
 		const bids: L2OrderBookSide = [];
 		const asks: L2OrderBookSide = [];
 
-		const restingAsks = this.getRestingLimitAsks(
+		const initialAskGenerator = this.getRestingLimitAsks(
 			params.marketIndex,
 			params.slot,
 			params.marketType,
 			params.oraclePriceData
 		);
+		const restingAskGenerator = (function* () {
+			for (const ask of initialAskGenerator) {
+				yield {
+					size: ask.order.baseAssetAmount.sub(
+						ask.order.baseAssetAmountFilled
+					) as BN,
+					price: ask.getPrice(params.oraclePriceData, params.slot),
+					source: 'dlob',
+				};
+			}
+		})();
 
-		for (const ask of restingAsks) {
-			const price = ask.getPrice(params.oraclePriceData, params.slot);
-			const size = ask.order.baseAssetAmount.sub(
-				ask.order.baseAssetAmountFilled
+		const fallbackAskGenerators = params.fallbackOrders.map(
+			(fallbackOrders) => {
+				return fallbackOrders.getAsks();
+			}
+		);
+
+		const askGenerator = (function* () {
+			const generators = [restingAskGenerator, ...fallbackAskGenerators].map(
+				(generator) => {
+					return {
+						generator,
+						next: generator.next(),
+					};
+				}
 			);
+
+			let next;
+			do {
+				next = generators.reduce((best, next) => {
+					if (next.next.done) {
+						return best;
+					}
+
+					if (!best) {
+						return next;
+					}
+
+					if (next.next.value.price.lt(best.next.value.price)) {
+						return next;
+					} else {
+						return best;
+					}
+				}, undefined);
+
+				if (next) {
+					yield next.next.value;
+					next.next = next.generator.next();
+				}
+			} while (next !== undefined);
+		})();
+
+		for (const ask of askGenerator) {
+			const price = ask.price;
+			const size = ask.size;
+			const source = ask.source;
 			if (asks.length > 0 && asks[asks.length - 1].price.eq(price)) {
-				asks[asks.length - 1].size.add(size);
+				const level = asks[asks.length - 1];
+				level.size.add(size);
+				if (level.sources[source]) {
+					level.sources[source].add(size);
+				} else {
+					level.sources[source] = size;
+				}
 			} else if (asks.length === params.depth) {
 				break;
 			} else {
-				asks.push({ price, size });
+				const level = { price, size, sources: {} };
+				level.sources[source] = size;
+				asks.push(level);
 			}
 		}
 
-		const restingBids = this.getRestingLimitBids(
+		const initialBidGenerator = this.getRestingLimitBids(
 			params.marketIndex,
 			params.slot,
 			params.marketType,
 			params.oraclePriceData
 		);
 
-		for (const bid of restingBids) {
-			const price = bid.getPrice(params.oraclePriceData, params.slot);
-			const size = bid.order.baseAssetAmount.sub(
-				bid.order.baseAssetAmountFilled
+		const restingBidGenerator = (function* () {
+			for (const bid of initialBidGenerator) {
+				yield {
+					size: bid.order.baseAssetAmount.sub(
+						bid.order.baseAssetAmountFilled
+					) as BN,
+					price: bid.getPrice(params.oraclePriceData, params.slot),
+					source: 'dlob',
+				};
+			}
+		})();
+
+		const fallbackBidGenerators = params.fallbackOrders.map(
+			(fallbackOrders) => {
+				return fallbackOrders.getBids();
+			}
+		);
+
+		const bidGenerator = (function* () {
+			const generators = [restingBidGenerator, ...fallbackBidGenerators].map(
+				(generator) => {
+					return {
+						generator,
+						next: generator.next(),
+					};
+				}
 			);
+
+			let next;
+			do {
+				next = generators.reduce((best, next) => {
+					if (next.next.done) {
+						return best;
+					}
+
+					if (!best) {
+						return next;
+					}
+
+					if (next.next.value.price.gt(best.next.value.price)) {
+						return next;
+					} else {
+						return best;
+					}
+				}, undefined);
+
+				if (next) {
+					yield next.next.value;
+					next.next = next.generator.next();
+				}
+			} while (next !== undefined);
+		})();
+
+		for (const bid of bidGenerator) {
+			const price = bid.price;
+			const size = bid.size;
+			const source = bid.source;
 			if (bids.length > 0 && bids[bids.length - 1].price.eq(price)) {
-				bids[bids.length - 1].size.add(size);
+				const level = bids[bids.length - 1];
+				level.size.add(size);
+				if (level.sources[source]) {
+					level.sources[source].add(size);
+				} else {
+					level.sources[source] = size;
+				}
 			} else if (bids.length === params.depth) {
 				break;
 			} else {
-				bids.push({ price, size });
+				const level = { price, size, sources: {} };
+				level.sources[source] = size;
+				bids.push(level);
 			}
 		}
 
