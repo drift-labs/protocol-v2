@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     
 ### Fixes
 
+- program: check max_token_deposits at the end of fill_spot_order ([#441](https://github.com/drift-labs/protocol-v2/pull/441))
 - program: force_cancel_orders only skips position reducing orders
 - program: allow amm to pull up to FEE_POOL_TO_REVENUE_POOL_THRESHOLD into fee pool ([#436](https://github.com/drift-labs/protocol-v2/pull/436))
 - program: fix modify order trigger condition

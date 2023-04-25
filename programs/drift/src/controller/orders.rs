@@ -3267,6 +3267,20 @@ pub fn fill_spot_order(
         )?
     }
 
+    {
+        let spot_market = spot_market_map.get_ref(&order_market_index)?;
+        let token_deposits: u64 = spot_market.get_deposits()?.cast()?;
+        let max_token_deposits = spot_market.max_token_deposits;
+
+        validate!(
+            max_token_deposits == 0 || max_token_deposits > token_deposits,
+            ErrorCode::MaxDeposit,
+            "after fill, token_deposits ({}) > max_token_deposits ({})",
+            token_deposits,
+            max_token_deposits
+        )?;
+    }
+
     user.update_last_active_slot(slot);
 
     Ok(base_asset_amount)
