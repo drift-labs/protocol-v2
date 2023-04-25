@@ -114,7 +114,7 @@ export class PhoenixSubscriber {
 			this.lastUnixTimestamp,
 			1
 		);
-		return new BN(Math.floor(ladder.bids[0][0] * PRICE_PRECISION));
+		return new BN(Math.floor(ladder.bids[0][0] * PRICE_PRECISION.toNumber()));
 	}
 
 	public getBestAsk(): BN {
@@ -124,7 +124,7 @@ export class PhoenixSubscriber {
 			this.lastUnixTimestamp,
 			1
 		);
-		return new BN(Math.floor(ladder.asks[0][0] * PRICE_PRECISION));
+		return new BN(Math.floor(ladder.asks[0][0] * PRICE_PRECISION.toNumber()));
 	}
 
 	public async unsubscribe(): Promise<void> {
