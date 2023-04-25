@@ -1,4 +1,4 @@
-import { DLOB, L2OrderBook, L3OrderBook } from './DLOB';
+import { DLOB } from './DLOB';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
@@ -9,7 +9,12 @@ import {
 } from './types';
 import { DriftClient } from '../driftClient';
 import { isVariant, MarketType } from '../types';
-import { FallbackOrders, getVammOrders } from './fallbackOrders';
+import {
+	getVammL2Generator,
+	L2OrderBook,
+	L2OrderBookGenerator,
+	L3OrderBook,
+} from './orderBookLevels';
 
 export class DLOBSubscriber {
 	driftClient: DriftClient;
@@ -59,14 +64,14 @@ export class DLOBSubscriber {
 		marketType,
 		depth = 10,
 		includeVamm = false,
-		fallbackOrders = [],
+		fallbackL2Generators = [],
 	}: {
 		marketName?: string;
 		marketIndex?: number;
 		marketType?: MarketType;
 		depth?: number;
 		includeVamm?: boolean;
-		fallbackOrders?: FallbackOrders[];
+		fallbackL2Generators?: L2OrderBookGenerator[];
 	}): L2OrderBook {
 		if (marketName) {
 			const derivedMarketInfo =
@@ -95,8 +100,8 @@ export class DLOBSubscriber {
 		}
 
 		if (isPerp && includeVamm) {
-			fallbackOrders = [
-				getVammOrders({
+			fallbackL2Generators = [
+				getVammL2Generator({
 					marketAccount: this.driftClient.getPerpMarketAccount(marketIndex),
 					oraclePriceData,
 					numOrders: depth,
@@ -110,7 +115,7 @@ export class DLOBSubscriber {
 			depth,
 			oraclePriceData,
 			slot: this.slotSource.getSlot(),
-			fallbackOrders,
+			fallbackL2Generators: fallbackL2Generators,
 		});
 	}
 

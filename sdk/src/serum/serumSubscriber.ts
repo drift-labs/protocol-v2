@@ -4,8 +4,9 @@ import { Market, Orderbook } from '@project-serum/serum';
 import { SerumMarketSubscriberConfig } from './types';
 import { BN } from '@coral-xyz/anchor';
 import { PRICE_PRECISION } from '../constants/numericConstants';
+import { L2Level, L2OrderBookGenerator } from '../dlob/orderBookLevels';
 
-export class SerumSubscriber {
+export class SerumSubscriber implements L2OrderBookGenerator {
 	connection: Connection;
 	programId: PublicKey;
 	marketAddress: PublicKey;
@@ -110,6 +111,31 @@ export class SerumSubscriber {
 		}
 
 		return new BN(bestAsk[0] * PRICE_PRECISION.toNumber());
+	}
+
+	public getL2Bids(): Generator<L2Level> {
+		return this.getL2Levels('bids');
+	}
+
+	public getL2Asks(): Generator<L2Level> {
+		return this.getL2Levels('asks');
+	}
+
+	*getL2Levels(side: 'bids' | 'asks'): Generator<L2Level> {
+		// @ts-ignore
+		const basePrecision = Math.pow(10, this.market._baseSplTokenDecimals);
+		const pricePrecision = PRICE_PRECISION.toNumber();
+		for (let { price, size } of this[side].items(side === 'bids')) {
+			price = new BN(price * pricePrecision);
+			size = new BN(size * basePrecision);
+			yield {
+				price,
+				size,
+				sources: {
+					serum: size,
+				},
+			};
+		}
 	}
 
 	public async unsubscribe(): Promise<void> {

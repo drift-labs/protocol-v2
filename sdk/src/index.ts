@@ -73,3 +73,7 @@ export * from './userMap/userStatsMap';
 export * from './math/bankruptcy';
 
 export { BN, PublicKey, pyth };
+export { L2Level } from './dlob/orderBookLevels';
+export { L3OrderBook } from './dlob/orderBookLevels';
+export { L3Level } from './dlob/orderBookLevels';
+export { L2OrderBook } from './dlob/orderBookLevels';
