@@ -68,27 +68,27 @@ export type NodeToTrigger = {
 	node: TriggerOrderNode;
 };
 
-export type L2OrderBookSide = {
+export type L2Level = {
 	price: BN;
 	size: BN;
 	sources: { [source: string]: BN };
-}[];
-
-export type L2OrderBook = {
-	asks: L2OrderBookSide;
-	bids: L2OrderBookSide;
 };
 
-export type L3OrderBookSide = {
+export type L2OrderBook = {
+	asks: L2Level[];
+	bids: L2Level[];
+};
+
+export type L3Level = {
 	price: BN;
 	size: BN;
 	maker: PublicKey;
 	orderId: number;
-}[];
+};
 
 export type L3OrderBook = {
-	asks: L3OrderBookSide;
-	bids: L3OrderBookSide;
+	asks: L3Level[];
+	bids: L3Level[];
 };
 
 const SUPPORTED_ORDER_TYPES = [
@@ -1729,8 +1729,8 @@ export class DLOB {
 		depth: number;
 		fallbackOrders?: FallbackOrders[];
 	}): L2OrderBook {
-		const bids: L2OrderBookSide = [];
-		const asks: L2OrderBookSide = [];
+		const bids: L2Level[] = [];
+		const asks: L2Level[] = [];
 
 		const initialAskGenerator = this.getRestingLimitAsks(
 			marketIndex,
@@ -1910,8 +1910,8 @@ export class DLOB {
 		slot: number;
 		oraclePriceData: OraclePriceData;
 	}): L3OrderBook {
-		const bids: L3OrderBookSide = [];
-		const asks: L3OrderBookSide = [];
+		const bids: L3Level[] = [];
+		const asks: L3Level[] = [];
 
 		const restingAsks = this.getRestingLimitAsks(
 			marketIndex,
