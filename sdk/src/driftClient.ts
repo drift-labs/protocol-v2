@@ -130,9 +130,8 @@ export class DriftClient {
 	authority: PublicKey;
 	marketLookupTable: PublicKey;
 	lookupTableAccount: AddressLookupTableAccount;
-	subAccountIds?: number[];
 	includeDelegates?: boolean;
-	authoritySubaccountMap?: [string, number][];
+	authoritySubaccountMap?: [PublicKey, number][];
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -160,7 +159,6 @@ export class DriftClient {
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
 		this.authoritySubaccountMap = config.authoritySubaccountMap ?? undefined;
-		this.subAccountIds = config.subAccountIds ?? undefined;
 
 		if (config.authoritySubaccountMap && config.subAccountIds) {
 			throw new Error(
@@ -174,6 +172,11 @@ export class DriftClient {
 			);
 		}
 
+		this.authoritySubaccountMap = config.authoritySubaccountMap
+			? config.authoritySubaccountMap
+			: config.subAccountIds
+			? config.subAccountIds.map((acctId) => [this.authority, acctId])
+			: undefined;
 		this.includeDelegates = config.includeDelegates ?? false;
 		this.activeAuthority = this.authority;
 		this.userAccountSubscriptionConfig =
@@ -458,7 +461,7 @@ export class DriftClient {
 		subAccountIds?: number[],
 		activeSubAccountId?: number,
 		includeDelegates?: boolean,
-		authoritySubaccountMap?: [string, number][]
+		authoritySubaccountMap?: [PublicKey, number][]
 	): Promise<void> {
 		const newProvider = new AnchorProvider(
 			this.connection,
@@ -493,8 +496,11 @@ export class DriftClient {
 			);
 		}
 
-		this.authoritySubaccountMap = authoritySubaccountMap ?? undefined;
-		this.subAccountIds = subAccountIds ?? undefined;
+		this.authoritySubaccountMap = authoritySubaccountMap
+			? authoritySubaccountMap
+			: subAccountIds
+			? subAccountIds.map((acctId) => [this.authority, acctId])
+			: undefined;
 
 		if (this.isSubscribed) {
 			await Promise.all(this.unsubscribeUsers());
@@ -510,11 +516,11 @@ export class DriftClient {
 
 				await this.userStats.subscribe();
 			}
+
+			this.users.clear();
+
+			await this.addAndSubscribeToUsers();
 		}
-
-		this.users.clear();
-
-		await this.addAndSubscribeToUsers();
 	}
 
 	public switchActiveUser(subAccountId: number, authority?: PublicKey) {
@@ -552,49 +558,39 @@ export class DriftClient {
 	public async addAndSubscribeToUsers(): Promise<boolean> {
 		let result = true;
 
-		let userAccounts =
-			(await this.getUserAccountsForAuthority(this.authority)) ?? [];
-		let delegatedAccounts = [];
+		if (this.authoritySubaccountMap) {
+			for (const tuple of this.authoritySubaccountMap) {
+				result = result && (await this.addUser(tuple[1], tuple[0]));
+			}
 
-		if (this.subAccountIds) {
-			userAccounts = userAccounts.filter((userAccount) =>
-				this.subAccountIds.includes(userAccount.subAccountId)
-			);
-		} else if (this.authoritySubaccountMap) {
-			userAccounts = userAccounts.filter((userAccount) =>
-				this.authoritySubaccountMap
-					.map((tuple) => this.getUserMapKey(tuple[1], new PublicKey(tuple[0])))
-					.includes(
-						this.getUserMapKey(userAccount.subAccountId, this.authority)
-					)
-			);
-		}
+			if (this.activeSubAccountId == undefined) {
+				this.switchActiveUser(
+					this.authoritySubaccountMap[0][1],
+					this.authoritySubaccountMap[0][0]
+				);
+			}
+		} else {
+			const userAccounts =
+				(await this.getUserAccountsForAuthority(this.authority)) ?? [];
+			let delegatedAccounts = [];
 
-		if (this.includeDelegates) {
-			delegatedAccounts = await this.getUserAccountsForDelegate(this.authority);
-		} else if (this.authoritySubaccountMap) {
-			delegatedAccounts = (
-				await this.getUserAccountsForDelegate(this.authority)
-			).filter((userAccount) =>
-				this.authoritySubaccountMap
-					.map((tuple) => this.getUserMapKey(tuple[1], new PublicKey(tuple[0])))
-					.includes(
-						this.getUserMapKey(userAccount.subAccountId, userAccount.authority)
-					)
-			);
-		}
+			if (this.includeDelegates) {
+				delegatedAccounts =
+					(await this.getUserAccountsForDelegate(this.authority)) ?? [];
+			}
 
-		for (const account of userAccounts.concat(delegatedAccounts)) {
-			result =
-				result && (await this.addUser(account.subAccountId, account.authority));
-		}
+			for (const account of userAccounts.concat(delegatedAccounts)) {
+				result =
+					result &&
+					(await this.addUser(account.subAccountId, account.authority));
+			}
 
-		if (this.activeSubAccountId == undefined) {
-			const firstUser = userAccounts[0] ?? delegatedAccounts[0];
-			this.switchActiveUser(
-				firstUser?.subAccountId ?? 0,
-				firstUser?.authority ?? this.authority
-			);
+			if (this.activeSubAccountId == undefined) {
+				this.switchActiveUser(
+					userAccounts[0]?.subAccountId ?? 0,
+					userAccounts[0]?.authority ?? this.authority
+				);
+			}
 		}
 
 		return result;
