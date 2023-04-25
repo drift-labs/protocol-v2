@@ -8,6 +8,8 @@ import {
 	toNum,
 	getMarketUiLadder,
 } from '@ellipsis-labs/phoenix-sdk';
+import { PRICE_PRECISION } from '../constants/numericConstants';
+import { BN } from '@coral-xyz/anchor';
 
 export type PhoenixMarketSubscriberConfig = {
 	connection: Connection;
@@ -88,14 +90,14 @@ export class PhoenixSubscriber {
 			this.marketCallbackId = await this.accountLoader.addAccount(
 				this.marketAddress,
 				(buffer, slot) => {
-					this.marketCallbackId = slot;
+					this.lastSlot = slot;
 					this.market = deserializeMarketData(buffer);
 				}
 			);
 			this.clockCallbackId = await this.accountLoader.addAccount(
 				SYSVAR_CLOCK_PUBKEY,
 				(buffer, slot) => {
-					this.clockCallbackId = slot;
+					this.lastSlot = slot;
 					const clock = deserializeClockData(buffer);
 					this.lastUnixTimestamp = toNum(clock.unixTimestamp);
 				}
@@ -105,24 +107,24 @@ export class PhoenixSubscriber {
 		this.subscribed = true;
 	}
 
-	public getBestBid(): number {
+	public getBestBid(): BN {
 		const ladder = getMarketUiLadder(
 			this.market,
 			this.lastSlot,
 			this.lastUnixTimestamp,
 			1
 		);
-		return ladder.bids[0][0];
+		return new BN(Math.floor(ladder.bids[0][0] * PRICE_PRECISION));
 	}
 
-	public getBestAsk(): number {
+	public getBestAsk(): BN {
 		const ladder = getMarketUiLadder(
 			this.market,
 			this.lastSlot,
 			this.lastUnixTimestamp,
 			1
 		);
-		return ladder.asks[0][0];
+		return new BN(Math.floor(ladder.asks[0][0] * PRICE_PRECISION));
 	}
 
 	public async unsubscribe(): Promise<void> {

@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { PhoenixSubscriber } from '../src';
+import { PRICE_PRECISION, PhoenixSubscriber } from '../src';
 import { PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 
 export async function listenToBook(): Promise<void> {
@@ -19,8 +19,8 @@ export async function listenToBook(): Promise<void> {
 	await phoenixSubscriber.subscribe();
 
 	for (let i = 0; i < 10; i++) {
-		const bid = phoenixSubscriber.getBestBid();
-		const ask = phoenixSubscriber.getBestAsk();
+		const bid = phoenixSubscriber.getBestBid().toNumber() / PRICE_PRECISION;
+		const ask = phoenixSubscriber.getBestAsk().toNumber() / PRICE_PRECISION;
 		console.log(`iter ${i}:`, bid.toFixed(3), '@', ask.toFixed(3));
 		await new Promise((r) => setTimeout(r, 2000));
 	}
