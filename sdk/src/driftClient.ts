@@ -37,6 +37,7 @@ import {
 	PerpMarketExtendedInfo,
 	UserStatsAccount,
 	ModifyOrderParams,
+	PhoenixV1FulfillmentConfigAccount,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -65,6 +66,7 @@ import {
 	getDriftStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getPerpMarketPublicKey,
+	getPhoenixFulfillmentConfigPublicKey,
 	getReferrerNamePublicKeySync,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
@@ -437,6 +439,18 @@ export class DriftClient {
 		return (await this.program.account.serumV3FulfillmentConfig.fetch(
 			address
 		)) as SerumV3FulfillmentConfigAccount;
+	}
+
+	public async getPhoenixV1FulfillmentConfig(
+		phoenixMarket: PublicKey
+	): Promise<PhoenixV1FulfillmentConfigAccount> {
+		const address = await getPhoenixFulfillmentConfigPublicKey(
+			this.program.programId,
+			phoenixMarket
+		);
+		return (await this.program.account.phoenixV1FulfillmentConfig.fetch(
+			address
+		)) as PhoenixV1FulfillmentConfigAccount;
 	}
 
 	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
@@ -1515,7 +1529,7 @@ export class DriftClient {
 
 	private async getWrappedSolAccountCreationIxs(
 		amount: BN,
-		isDeposit?: boolean
+		includeRent?: boolean
 	): Promise<{
 		ixs: anchor.web3.TransactionInstruction[];
 		signers: Signer[];
@@ -1531,7 +1545,7 @@ export class DriftClient {
 
 		const rentSpaceLamports = new BN(LAMPORTS_PER_SOL / 100);
 
-		const lamports = isDeposit
+		const lamports = includeRent
 			? amount.add(rentSpaceLamports)
 			: rentSpaceLamports;
 
@@ -2799,7 +2813,9 @@ export class DriftClient {
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
 		order?: Order,
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams
@@ -2827,7 +2843,9 @@ export class DriftClient {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		order?: Order,
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
@@ -2910,14 +2928,26 @@ export class DriftClient {
 	addSpotFulfillmentAccounts(
 		marketIndex: number,
 		remainingAccounts: AccountMeta[],
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount
-	) {
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount
+	): void {
 		if (fulfillmentConfig) {
-			this.addSerumRemainingAccounts(
-				marketIndex,
-				remainingAccounts,
-				fulfillmentConfig
-			);
+			if ('serumProgramId' in fulfillmentConfig) {
+				this.addSerumRemainingAccounts(
+					marketIndex,
+					remainingAccounts,
+					fulfillmentConfig
+				);
+			} else if ('phoenixProgramId' in fulfillmentConfig) {
+				this.addPhoenixRemainingAccounts(
+					marketIndex,
+					remainingAccounts,
+					fulfillmentConfig
+				);
+			} else {
+				throw Error('Invalid fulfillment config type');
+			}
 		} else {
 			remainingAccounts.push({
 				pubkey: this.getSpotMarketAccount(marketIndex).vault,
@@ -2936,7 +2966,7 @@ export class DriftClient {
 		marketIndex: number,
 		remainingAccounts: AccountMeta[],
 		fulfillmentConfig: SerumV3FulfillmentConfigAccount
-	) {
+	): void {
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.pubkey,
 			isWritable: false,
@@ -3018,6 +3048,63 @@ export class DriftClient {
 		});
 		remainingAccounts.push({
 			pubkey: this.getStateAccount().srmVault,
+			isWritable: false,
+			isSigner: false,
+		});
+	}
+
+	addPhoenixRemainingAccounts(
+		marketIndex: number,
+		remainingAccounts: AccountMeta[],
+		fulfillmentConfig: PhoenixV1FulfillmentConfigAccount
+	): void {
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.pubkey,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixProgramId,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixLogAuthority,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixMarket,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSignerPublicKey(),
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixBaseVault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixQuoteVault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSpotMarketAccount(marketIndex).vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getQuoteSpotMarketAccount().vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: TOKEN_PROGRAM_ID,
 			isWritable: false,
 			isSigner: false,
 		});
@@ -4441,6 +4528,7 @@ export class DriftClient {
 		amount,
 		collateralAccountPublicKey,
 		initializeStakeAccount,
+		fromSubaccount,
 	}: {
 		/**
 		 * Spot market index
@@ -4455,6 +4543,10 @@ export class DriftClient {
 		 * Add instructions to initialize the staking account -- required if its the first time the currrent authority has staked in this market
 		 */
 		initializeStakeAccount?: boolean;
+		/**
+		 * Optional -- withdraw from current subaccount to fund stake amount, instead of wallet balance
+		 */
+		fromSubaccount?: boolean;
 	}): Promise<TransactionSignature> {
 		const tx = new Transaction();
 
@@ -4477,6 +4569,15 @@ export class DriftClient {
 			signers.forEach((signer) => additionalSigners.push(signer));
 		} else {
 			tokenAccount = collateralAccountPublicKey;
+		}
+
+		if (fromSubaccount) {
+			const withdrawIx = await this.getWithdrawIx(
+				amount,
+				marketIndex,
+				tokenAccount
+			);
+			tx.add(withdrawIx);
 		}
 
 		if (initializeStakeAccount) {
@@ -4590,11 +4691,7 @@ export class DriftClient {
 
 	public async removeInsuranceFundStake(
 		marketIndex: number,
-		collateralAccountPublicKey: PublicKey,
-		/**
-		 * If unstaking SOL, it's required to pass in the amount
-		 */
-		amount?: BN
+		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -4613,7 +4710,7 @@ export class DriftClient {
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(amount, true);
+				await this.getWrappedSolAccountCreationIxs(ZERO, true);
 			tokenAccount = pubkey;
 			ixs.forEach((ix) => {
 				tx.add(ix);
@@ -4661,7 +4758,11 @@ export class DriftClient {
 			);
 		}
 
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		const { txSig } = await this.sendTransaction(
+			tx,
+			additionalSigners,
+			this.opts
+		);
 		return txSig;
 	}
 
