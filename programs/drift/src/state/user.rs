@@ -7,7 +7,7 @@ use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT,
     PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
-use crate::math::orders::standardize_price;
+use crate::math::orders::{standardize_base_asset_amount, standardize_price};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
@@ -714,6 +714,19 @@ impl Order {
                 }
             }
         }
+    }
+
+    /// Stardardizes the base asset amount unfilled to the nearest step size
+    /// Particularly important for spot positions where existing position can be dust
+    pub fn get_standardized_base_asset_amount_unfilled(
+        &self,
+        existing_position: Option<i64>,
+        step_size: u64,
+    ) -> DriftResult<u64> {
+        standardize_base_asset_amount(
+            self.get_base_asset_amount_unfilled(existing_position)?,
+            step_size,
+        )
     }
 
     pub fn must_be_triggered(&self) -> bool {
