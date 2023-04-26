@@ -215,6 +215,7 @@ pub fn large_num_seeded_stake_if_test() {
         number_of_sub_accounts: 0,
         ..UserStats::default()
     };
+
     let amount = 199_000_001; // ~200M + 1
 
     // all funds in revenue pool
