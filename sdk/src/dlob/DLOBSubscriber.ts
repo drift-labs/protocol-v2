@@ -58,6 +58,16 @@ export class DLOBSubscriber {
 		return this.dlob;
 	}
 
+	/**
+	 * Get the L2 order book for a given market.
+	 *
+	 * @param marketName e.g. "SOL-PERP" or "SOL". If not provided, marketIndex and marketType must be provided.
+	 * @param marketIndex
+	 * @param marketType
+	 * @param depth Number of orders to include in the order book. Defaults to 10.
+	 * @param includeVamm Whether to include the VAMM orders in the order book. Defaults to false. If true, creates vAMM generator {@link getVammL2Generator} and adds it to fallbackL2Generators.
+	 * @param fallbackL2Generators L2 generators for fallback liquidity e.g. vAMM {@link getVammL2Generator}, openbook {@link SerumSubscriber}
+	 */
 	public getL2({
 		marketName,
 		marketIndex,
@@ -119,6 +129,13 @@ export class DLOBSubscriber {
 		});
 	}
 
+	/**
+	 * Get the L3 order book for a given market.
+	 *
+	 * @param marketName e.g. "SOL-PERP" or "SOL". If not provided, marketIndex and marketType must be provided.
+	 * @param marketIndex
+	 * @param marketType
+	 */
 	public getL3({
 		marketName,
 		marketIndex,

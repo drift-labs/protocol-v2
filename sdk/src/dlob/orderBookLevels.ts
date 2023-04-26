@@ -43,6 +43,12 @@ export type L3OrderBook = {
 	bids: L3Level[];
 };
 
+/**
+ * Get an {@link Generator<L2Level>} generator from a {@link Generator<DLOBNode>}
+ * @param dlobNodes e.g. {@link DLOB#getRestingLimitAsks} or {@link DLOB#getRestingLimitBids}
+ * @param oraclePriceData
+ * @param slot
+ */
 export function* getL2GeneratorFromDLOBNodes(
 	dlobNodes: Generator<DLOBNode>,
 	oraclePriceData: OraclePriceData,

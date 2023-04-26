@@ -4738,6 +4738,12 @@ export class DriftClient {
 		return extendedInfo;
 	}
 
+	/**
+	 * Returns the market index and type for a given market name
+	 * E.g. "SOL-PERP" -> { marketIndex: 0, marketType: MarketType.PERP }
+	 *
+	 * @param name
+	 */
 	getMarketIndexAndType(
 		name: string
 	): { marketIndex: number; marketType: MarketType } | undefined {

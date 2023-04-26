@@ -1701,6 +1701,16 @@ export class DLOB {
 		}
 	}
 
+	/**
+	 * Get an L2 view of the order book for a given market.
+	 *
+	 * @param marketIndex
+	 * @param marketType
+	 * @param slot
+	 * @param oraclePriceData
+	 * @param depth how many levels of the order book to return
+	 * @param fallbackL2Generators L2 generators for fallback liquidity e.g. vAMM {@link getVammL2Generator}, openbook {@link SerumSubscriber}
+	 */
 	public getL2({
 		marketIndex,
 		marketType,
@@ -1763,8 +1773,12 @@ export class DLOB {
 	}
 
 	/**
-	 * Gets L3 order book containing orders posted on drift. Does not exclude fallback liquidity e.g. vAMM, Openbook, etc.
-	 * @param params
+	 * Get an L3 view of the order book for a given market. Does not include fallback liquidity sources
+	 *
+	 * @param marketIndex
+	 * @param marketType
+	 * @param slot
+	 * @param oraclePriceData
 	 */
 	public getL3({
 		marketIndex,
