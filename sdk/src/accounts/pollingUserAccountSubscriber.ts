@@ -1,6 +1,5 @@
 import {
 	DataAndSlot,
-	AccountToPoll,
 	NotSubscribedError,
 	UserAccountEvents,
 	UserAccountSubscriber,
@@ -11,7 +10,6 @@ import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { UserAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
-import { capitalize } from './utils';
 
 export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
@@ -20,7 +18,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	userAccountPublicKey: PublicKey;
 
 	accountLoader: BulkAccountLoader;
-	accountsToPoll = new Map<string, AccountToPoll>();
+	callbackId?: string;
 	errorCallbackId?: string;
 
 	user?: DataAndSlot<UserAccount>;
@@ -37,15 +35,19 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		this.userAccountPublicKey = userAccountPublicKey;
 	}
 
-	async subscribe(): Promise<boolean> {
+	async subscribe(userAccount?: UserAccount): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
+		}
+
+		if (userAccount) {
+			this.user = { data: userAccount, slot: undefined };
 		}
 
 		await this.addToAccountLoader();
 
 		await this.fetchIfUnloaded();
-		if (this.doAccountsExist()) {
+		if (this.doesAccountExist()) {
 			this.eventEmitter.emit('update');
 		}
 
@@ -54,34 +56,30 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	}
 
 	async addToAccountLoader(): Promise<void> {
-		if (this.accountsToPoll.size > 0) {
+		if (this.callbackId) {
 			return;
 		}
 
-		this.accountsToPoll.set(this.userAccountPublicKey.toString(), {
-			key: 'user',
-			publicKey: this.userAccountPublicKey,
-			eventType: 'userAccountUpdate',
-		});
-
-		for (const [_, accountToPoll] of this.accountsToPoll) {
-			accountToPoll.callbackId = await this.accountLoader.addAccount(
-				accountToPoll.publicKey,
-				(buffer, slot) => {
-					if (!buffer) {
-						return;
-					}
-
-					const account = this.program.account[
-						accountToPoll.key
-					].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-					this[accountToPoll.key] = { data: account, slot };
-					// @ts-ignore
-					this.eventEmitter.emit(accountToPoll.eventType, account);
-					this.eventEmitter.emit('update');
+		this.callbackId = await this.accountLoader.addAccount(
+			this.userAccountPublicKey,
+			(buffer, slot: number) => {
+				if (!buffer) {
+					return;
 				}
-			);
-		}
+
+				if (this.user && this.user.slot > slot) {
+					return;
+				}
+
+				const account = this.program.account.user.coder.accounts.decode(
+					'User',
+					buffer
+				);
+				this.user = { data: account, slot };
+				this.eventEmitter.emit('userAccountUpdate', account);
+				this.eventEmitter.emit('update');
+			}
+		);
 
 		this.errorCallbackId = this.accountLoader.addErrorCallbacks((error) => {
 			this.eventEmitter.emit('error', error);
@@ -89,43 +87,28 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	}
 
 	async fetchIfUnloaded(): Promise<void> {
-		let shouldFetch = false;
-		for (const [_, accountToPoll] of this.accountsToPoll) {
-			if (this[accountToPoll.key] === undefined) {
-				shouldFetch = true;
-				break;
-			}
-		}
-
-		if (shouldFetch) {
+		if (this.user === undefined) {
 			await this.fetch();
 		}
 	}
 
 	async fetch(): Promise<void> {
 		await this.accountLoader.load();
-		for (const [_, accountToPoll] of this.accountsToPoll) {
-			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
-				accountToPoll.publicKey
+		const { buffer, slot } = this.accountLoader.getBufferAndSlot(
+			this.userAccountPublicKey
+		);
+		const currentSlot = this.user?.slot ?? 0;
+		if (buffer && slot > currentSlot) {
+			const account = this.program.account.user.coder.accounts.decode(
+				'User',
+				buffer
 			);
-			if (buffer) {
-				const account = this.program.account[
-					accountToPoll.key
-				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-				this[accountToPoll.key] = { data: account, slot };
-			}
+			this.user = { data: account, slot };
 		}
 	}
 
-	doAccountsExist(): boolean {
-		let success = true;
-		for (const [_, accountToPoll] of this.accountsToPoll) {
-			if (!this[accountToPoll.key]) {
-				success = false;
-				break;
-			}
-		}
-		return success;
+	doesAccountExist(): boolean {
+		return this.user !== undefined;
 	}
 
 	async unsubscribe(): Promise<void> {
@@ -133,17 +116,14 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 			return;
 		}
 
-		for (const [_, accountToPoll] of this.accountsToPoll) {
-			this.accountLoader.removeAccount(
-				accountToPoll.publicKey,
-				accountToPoll.callbackId
-			);
-		}
+		this.accountLoader.removeAccount(
+			this.userAccountPublicKey,
+			this.callbackId
+		);
+		this.callbackId = undefined;
 
 		this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
 		this.errorCallbackId = undefined;
-
-		this.accountsToPoll.clear();
 
 		this.isSubscribed = false;
 	}
@@ -159,5 +139,13 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
 		this.assertIsSubscribed();
 		return this.user;
+	}
+
+	public updateData(userAccount: UserAccount, slot: number): void {
+		if (!this.user || this.user.slot < slot) {
+			this.user = { data: userAccount, slot };
+			this.eventEmitter.emit('userAccountUpdate', userAccount);
+			this.eventEmitter.emit('update');
+		}
 	}
 }

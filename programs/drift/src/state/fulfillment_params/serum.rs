@@ -29,7 +29,6 @@ use solana_program::account_info::AccountInfo;
 use solana_program::instruction::Instruction;
 use solana_program::msg;
 use std::cell::Ref;
-use std::convert::TryFrom;
 use std::num::NonZeroU64;
 use std::ops::{Deref, DerefMut};
 
@@ -134,29 +133,32 @@ impl<'a, 'b> SerumContext<'a, 'b> {
     ) -> DriftResult<SerumV3FulfillmentConfig> {
         let market_state = self.load_serum_market()?;
         let market_state_event_queue = market_state.event_q;
-        let serum_event_queue = Pubkey::try_from(cast_slice::<u64, u8>(&market_state_event_queue))
-            .map_err(|_| ErrorCode::InvalidSerumMarket)?;
+        let serum_event_queue =
+            Pubkey::try_from_slice(cast_slice::<u64, u8>(&market_state_event_queue))
+                .map_err(|_| ErrorCode::InvalidSerumMarket)?;
 
         let market_state_request_queue = market_state.req_q;
         let serum_request_queue =
-            Pubkey::try_from(cast_slice::<u64, u8>(&market_state_request_queue))
+            Pubkey::try_from_slice(cast_slice::<u64, u8>(&market_state_request_queue))
                 .map_err(|_| ErrorCode::InvalidSerumMarket)?;
 
         let market_state_bids = market_state.bids;
-        let serum_bids = Pubkey::try_from(cast_slice::<u64, u8>(&market_state_bids))
+        let serum_bids = Pubkey::try_from_slice(cast_slice::<u64, u8>(&market_state_bids))
             .map_err(|_| ErrorCode::InvalidSerumMarket)?;
 
         let market_state_asks = market_state.asks;
-        let serum_asks = Pubkey::try_from(cast_slice::<u64, u8>(&market_state_asks))
+        let serum_asks = Pubkey::try_from_slice(cast_slice::<u64, u8>(&market_state_asks))
             .map_err(|_| ErrorCode::InvalidSerumMarket)?;
 
         let market_state_coin_vault = market_state.coin_vault;
-        let serum_base_vault = Pubkey::try_from(cast_slice::<u64, u8>(&market_state_coin_vault))
-            .map_err(|_| ErrorCode::InvalidSerumMarket)?;
+        let serum_base_vault =
+            Pubkey::try_from_slice(cast_slice::<u64, u8>(&market_state_coin_vault))
+                .map_err(|_| ErrorCode::InvalidSerumMarket)?;
 
         let market_state_pc_vault = market_state.pc_vault;
-        let serum_quote_vault = Pubkey::try_from(cast_slice::<u64, u8>(&market_state_pc_vault))
-            .map_err(|_| ErrorCode::InvalidSerumMarket)?;
+        let serum_quote_vault =
+            Pubkey::try_from_slice(cast_slice::<u64, u8>(&market_state_pc_vault))
+                .map_err(|_| ErrorCode::InvalidSerumMarket)?;
         let serum_signer_nonce = market_state.vault_signer_nonce;
 
         Ok(SerumV3FulfillmentConfig {
@@ -686,9 +688,7 @@ impl<'a, 'b> SpotFulfillmentParams for SerumFulfillmentParams<'a, 'b> {
         quote_market: &Ref<SpotMarket>,
     ) -> DriftResult {
         validate_spot_market_vault_amount(base_market, self.base_market_vault.amount)?;
-
         validate_spot_market_vault_amount(quote_market, self.quote_market_vault.amount)?;
-
         Ok(())
     }
 }
