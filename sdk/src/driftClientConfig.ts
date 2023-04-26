@@ -21,7 +21,7 @@ export type DriftClientConfig = {
 	userStats?: boolean;
 	authority?: PublicKey; // explicitly pass an authority if signer is delegate
 	includeDelegates?: boolean; // flag for whether to load delegate accounts as well
-	authoritySubaccountMap?: [PublicKey, number][]; // if passed this will override subAccountIds and includeDelegates
+	authoritySubaccountMap?: Map<string, number[]>; // if passed this will override subAccountIds and includeDelegates
 };
 
 export type DriftClientSubscriptionConfig =

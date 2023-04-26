@@ -131,7 +131,7 @@ export class DriftClient {
 	marketLookupTable: PublicKey;
 	lookupTableAccount: AddressLookupTableAccount;
 	includeDelegates?: boolean;
-	authoritySubaccountMap?: [PublicKey, number][];
+	authoritySubaccountMap?: Map<string, number[]>;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -158,7 +158,12 @@ export class DriftClient {
 
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
-		this.authoritySubaccountMap = config.authoritySubaccountMap ?? undefined;
+
+		if (config.includeDelegates && config.subAccountIds) {
+			throw new Error(
+				'Can only pass one of includeDelegates or subAccountIds. If you want to specify subaccount ids for multiple authorities, pass authoritySubaccountMap instead'
+			);
+		}
 
 		if (config.authoritySubaccountMap && config.subAccountIds) {
 			throw new Error(
@@ -175,8 +180,9 @@ export class DriftClient {
 		this.authoritySubaccountMap = config.authoritySubaccountMap
 			? config.authoritySubaccountMap
 			: config.subAccountIds
-			? config.subAccountIds.map((acctId) => [this.authority, acctId])
-			: undefined;
+			? new Map([[this.authority.toString(), config.subAccountIds]])
+			: new Map<string, number[]>();
+
 		this.includeDelegates = config.includeDelegates ?? false;
 		this.activeAuthority = this.authority;
 		this.userAccountSubscriptionConfig =
@@ -461,8 +467,8 @@ export class DriftClient {
 		subAccountIds?: number[],
 		activeSubAccountId?: number,
 		includeDelegates?: boolean,
-		authoritySubaccountMap?: [PublicKey, number][]
-	): Promise<void> {
+		authoritySubaccountMap?: Map<string, number[]>
+	): Promise<boolean> {
 		const newProvider = new AnchorProvider(
 			this.connection,
 			newWallet,
@@ -484,6 +490,12 @@ export class DriftClient {
 		this.userStatsAccountPublicKey = undefined;
 		this.includeDelegates = includeDelegates ?? false;
 
+		if (includeDelegates && subAccountIds) {
+			throw new Error(
+				'Can only pass one of includeDelegates or subAccountIds. If you want to specify subaccount ids for multiple authorities, pass authoritySubaccountMap instead'
+			);
+		}
+
 		if (authoritySubaccountMap && subAccountIds) {
 			throw new Error(
 				'Can only pass one of authoritySubaccountMap or subAccountIds'
@@ -499,8 +511,10 @@ export class DriftClient {
 		this.authoritySubaccountMap = authoritySubaccountMap
 			? authoritySubaccountMap
 			: subAccountIds
-			? subAccountIds.map((acctId) => [this.authority, acctId])
-			: undefined;
+			? new Map([[this.authority.toString(), subAccountIds]])
+			: new Map<string, number[]>();
+
+		let success = true;
 
 		if (this.isSubscribed) {
 			await Promise.all(this.unsubscribeUsers());
@@ -518,9 +532,10 @@ export class DriftClient {
 			}
 
 			this.users.clear();
-
-			await this.addAndSubscribeToUsers();
+			success = await this.addAndSubscribeToUsers();
 		}
+
+		return success;
 	}
 
 	public switchActiveUser(subAccountId: number, authority?: PublicKey) {
@@ -555,18 +570,27 @@ export class DriftClient {
 		}
 	}
 
+	/**
+	 * Adds and subscribes to users based on params set by the constructor or by updateWallet.
+	 */
 	public async addAndSubscribeToUsers(): Promise<boolean> {
 		let result = true;
 
-		if (this.authoritySubaccountMap) {
-			for (const tuple of this.authoritySubaccountMap) {
-				result = result && (await this.addUser(tuple[1], tuple[0]));
-			}
+		if (this.authoritySubaccountMap && this.authoritySubaccountMap.size > 0) {
+			this.authoritySubaccountMap.forEach(async (value, key) => {
+				for (const subAccountId of value) {
+					result =
+						result && (await this.addUser(subAccountId, new PublicKey(key)));
+				}
+			});
 
 			if (this.activeSubAccountId == undefined) {
 				this.switchActiveUser(
-					this.authoritySubaccountMap[0][1],
-					this.authoritySubaccountMap[0][0]
+					[...this.authoritySubaccountMap.values()][0][0] ?? 0,
+					new PublicKey(
+						[...this.authoritySubaccountMap.keys()][0] ??
+							this.authority.toString()
+					)
 				);
 			}
 		} else {
