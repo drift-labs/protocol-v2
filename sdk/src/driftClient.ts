@@ -587,8 +587,8 @@ export class DriftClient {
 
 			if (this.activeSubAccountId == undefined) {
 				this.switchActiveUser(
-					userAccounts[0]?.subAccountId ?? 0,
-					userAccounts[0]?.authority ?? this.authority
+					userAccounts.concat(delegatedAccounts)[0]?.subAccountId ?? 0,
+					userAccounts.concat(delegatedAccounts)[0]?.authority ?? this.authority
 				);
 			}
 		}
