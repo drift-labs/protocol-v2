@@ -7192,6 +7192,7 @@ pub mod fulfill_spot_order_with_match {
 pub mod fulfill_spot_order {
     use std::str::FromStr;
 
+    use crate::controller::spot_balance::*;
     use anchor_lang::prelude::{AccountLoader, Clock};
 
     use crate::controller::orders::fill_spot_order;
@@ -7620,6 +7621,16 @@ pub mod fulfill_spot_order {
         };
         expected_maker.cumulative_spot_fees = 20000;
         expected_maker.last_active_slot = clock.slot;
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&1).unwrap();
+            let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle).unwrap();
+            update_spot_market_cumulative_interest(
+                spot_market,
+                Some(oracle_price_data),
+                clock.unix_timestamp,
+            )
+            .unwrap();
+        }
 
         let base_asset_amount = fill_spot_order(
             1,

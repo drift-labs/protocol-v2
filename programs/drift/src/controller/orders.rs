@@ -1222,6 +1222,8 @@ pub fn validate_spot_market_within_price_band(
             .cast()?
     };
 
+    validate!(ref_price_after != 0, ErrorCode::InvalidOracle)?;
+
     let default_oracle_guard_rail_divergence: u64 = state
         .oracle_guard_rails
         .price_divergence
@@ -3348,6 +3350,16 @@ pub fn fill_spot_order(
             token_deposits,
             max_token_deposits
         )?;
+        crate::dlog!(spot_market.historical_oracle_data.last_oracle_price);
+        crate::dlog!(spot_market.historical_oracle_data.last_oracle_price_twap);
+        crate::dlog!(
+            spot_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min
+        );
+        crate::dlog!(spot_market.historical_oracle_data.last_oracle_price_twap_ts);
+
+        validate_spot_market_within_price_band(&spot_market, state, None)?;
     }
 
     user.update_last_active_slot(slot);

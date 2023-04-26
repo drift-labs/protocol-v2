@@ -280,6 +280,11 @@ impl SpotMarket {
             decimals: 9,
             order_step_size: 1,
             order_tick_size: 1,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: 100 * PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: 100 * PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             status: MarketStatus::Active,
             ..SpotMarket::default()
         }
