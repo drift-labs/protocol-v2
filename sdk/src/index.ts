@@ -1,4 +1,4 @@
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import pyth from '@pythnetwork/client';
 
@@ -55,6 +55,8 @@ export * from './config';
 export * from './constants/numericConstants';
 export * from './serum/serumSubscriber';
 export * from './serum/serumFulfillmentConfigMap';
+export * from './phoenix/phoenixSubscriber';
+export * from './phoenix/phoenixFulfillmentConfigMap';
 export * from './tx/retryTxSender';
 export * from './util/computeUnits';
 export * from './util/tps';
@@ -66,6 +68,8 @@ export * from './dlob/DLOB';
 export * from './dlob/DLOBNode';
 export * from './dlob/DLOBOrders';
 export * from './dlob/NodeList';
+export * from './dlob/DLOBSubscriber';
+export * from './dlob/types';
 export * from './userMap/userMap';
 export * from './userMap/userStatsMap';
 export * from './math/bankruptcy';

@@ -1,5 +1,5 @@
 import { Connection, TransactionSignature } from '@solana/web3.js';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import {
 	DefaultEventSubscriptionOptions,
 	EventSubscriptionOptions,
@@ -164,7 +164,11 @@ export class EventSubscriber {
 	): WrappedEvents {
 		const records = [];
 		// @ts-ignore
-		this.program._events._eventParser.parseLogs(logs, (event) => {
+		const eventGenerator = this.program._events._eventParser.parseLogs(
+			logs,
+			false
+		);
+		for (const event of eventGenerator) {
 			const expectRecordType = this.eventListMap.has(event.name);
 			if (expectRecordType) {
 				event.data.txSig = txSig;
@@ -172,7 +176,7 @@ export class EventSubscriber {
 				event.data.eventType = event.name;
 				records.push(event.data);
 			}
-		});
+		}
 		return records;
 	}
 

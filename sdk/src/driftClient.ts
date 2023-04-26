@@ -4,7 +4,7 @@ import {
 	Idl,
 	Program,
 	ProgramAccount,
-} from '@project-serum/anchor';
+} from '@coral-xyz/anchor';
 import bs58 from 'bs58';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -33,13 +33,13 @@ import {
 	isVariant,
 	ReferrerNameAccount,
 	OrderTriggerCondition,
-	isOneOfVariant,
-	PostOnlyParams,
 	SpotBalanceType,
 	PerpMarketExtendedInfo,
 	UserStatsAccount,
+	ModifyOrderParams,
+	PhoenixV1FulfillmentConfigAccount,
 } from './types';
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
 
 import {
@@ -66,6 +66,7 @@ import {
 	getDriftStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getPerpMarketPublicKey,
+	getPhoenixFulfillmentConfigPublicKey,
 	getReferrerNamePublicKeySync,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
@@ -129,6 +130,7 @@ export class DriftClient {
 	spotMarketLastSlotCache = new Map<number, number>();
 	authority: PublicKey;
 	marketLookupTable: PublicKey;
+	lookupTableAccount: AddressLookupTableAccount;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -413,13 +415,32 @@ export class DriftClient {
 		)) as SerumV3FulfillmentConfigAccount;
 	}
 
+	public async getPhoenixV1FulfillmentConfig(
+		phoenixMarket: PublicKey
+	): Promise<PhoenixV1FulfillmentConfigAccount> {
+		const address = await getPhoenixFulfillmentConfigPublicKey(
+			this.program.programId,
+			phoenixMarket
+		);
+		return (await this.program.account.phoenixV1FulfillmentConfig.fetch(
+			address
+		)) as PhoenixV1FulfillmentConfigAccount;
+	}
+
 	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
+		if (this.lookupTableAccount) return this.lookupTableAccount;
+
 		if (!this.marketLookupTable) {
-			throw Error('Market lookup table address not set');
+			console.log('Market lookup table address not set');
+			return;
 		}
 
-		return (await this.connection.getAddressLookupTable(this.marketLookupTable))
-			.value;
+		const lookupTableAccount = (
+			await this.connection.getAddressLookupTable(this.marketLookupTable)
+		).value;
+		this.lookupTableAccount = lookupTableAccount;
+
+		return lookupTableAccount;
 	}
 
 	/**
@@ -1383,7 +1404,7 @@ export class DriftClient {
 
 	private async getWrappedSolAccountCreationIxs(
 		amount: BN,
-		isDeposit?: boolean
+		includeRent?: boolean
 	): Promise<{
 		ixs: anchor.web3.TransactionInstruction[];
 		signers: Signer[];
@@ -1399,7 +1420,7 @@ export class DriftClient {
 
 		const rentSpaceLamports = new BN(LAMPORTS_PER_SOL / 100);
 
-		const lamports = isDeposit
+		const lamports = includeRent
 			? amount.add(rentSpaceLamports)
 			: rentSpaceLamports;
 
@@ -2077,54 +2098,102 @@ export class DriftClient {
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
+		const bracketOrderIxs = [];
 
-		const marketOrderTx = wrapInTx(
-			await this.getPlacePerpOrderIx(orderParams),
-			txParams?.computeUnits,
-			txParams?.computeUnitsPrice
-		);
+		const placePerpOrderIx = await this.getPlacePerpOrderIx(orderParams);
+
 		for (const bracketOrderParams of bracketOrdersParams) {
-			marketOrderTx.add(await this.getPlacePerpOrderIx(bracketOrderParams));
+			const placeBracketOrderIx = await this.getPlacePerpOrderIx(
+				bracketOrderParams
+			);
+			bracketOrderIxs.push(placeBracketOrderIx);
 		}
 
-		const fillTx = wrapInTx(
-			await this.getFillPerpOrderIx(
-				userAccountPublicKey,
-				userAccount,
-				{
-					orderId,
-					marketIndex,
-				},
-				makerInfo,
-				referrerInfo
-			),
-			txParams?.computeUnits,
-			txParams?.computeUnitsPrice
+		const fillPerpOrderIx = await this.getFillPerpOrderIx(
+			userAccountPublicKey,
+			userAccount,
+			{
+				orderId,
+				marketIndex,
+			},
+			makerInfo,
+			referrerInfo
 		);
 
-		// Apply the latest blockhash to the txs so that we can sign before sending them
-		const currentBlockHash = (
-			await this.connection.getLatestBlockhash('finalized')
-		).blockhash;
-		marketOrderTx.recentBlockhash = currentBlockHash;
-		fillTx.recentBlockhash = currentBlockHash;
+		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
 
-		marketOrderTx.feePayer = userAccount.authority;
-		fillTx.feePayer = userAccount.authority;
+		const walletSupportsVersionedTxns =
+			//@ts-ignore
+			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
 
-		const [signedMarketOrderTx, signedFillTx] =
-			await this.provider.wallet.signAllTransactions([marketOrderTx, fillTx]);
+		// use versioned transactions if there is a lookup table account and wallet is compatible
+		if (walletSupportsVersionedTxns && lookupTableAccount) {
+			const versionedMarketOrderTx =
+				await this.txSender.getVersionedTransaction(
+					[placePerpOrderIx].concat(bracketOrderIxs),
+					[lookupTableAccount],
+					[],
+					this.opts
+				);
+			const versionedFillTx = await this.txSender.getVersionedTransaction(
+				[fillPerpOrderIx],
+				[lookupTableAccount],
+				[],
+				this.opts
+			);
+			const [signedVersionedMarketOrderTx, signedVersionedFillTx] =
+				await this.provider.wallet.signAllTransactions([
+					//@ts-ignore
+					versionedMarketOrderTx,
+					//@ts-ignore
+					versionedFillTx,
+				]);
+			const { txSig, slot } = await this.txSender.sendRawTransaction(
+				signedVersionedMarketOrderTx.serialize(),
+				this.opts
+			);
+			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
-		const { txSig, slot } = await this.sendTransaction(
-			signedMarketOrderTx,
-			[],
-			this.opts,
-			true
-		);
+			return { txSig, signedFillTx: signedVersionedFillTx };
+		} else {
+			const marketOrderTx = wrapInTx(
+				placePerpOrderIx,
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			);
 
-		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
+			if (bracketOrderIxs.length > 0) {
+				marketOrderTx.add(...bracketOrderIxs);
+			}
 
-		return { txSig, signedFillTx };
+			const fillTx = wrapInTx(
+				fillPerpOrderIx,
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			);
+
+			// Apply the latest blockhash to the txs so that we can sign before sending them
+			const currentBlockHash = (
+				await this.connection.getLatestBlockhash('finalized')
+			).blockhash;
+			marketOrderTx.recentBlockhash = currentBlockHash;
+			fillTx.recentBlockhash = currentBlockHash;
+
+			marketOrderTx.feePayer = userAccount.authority;
+			fillTx.feePayer = userAccount.authority;
+
+			const [signedMarketOrderTx, signedFillTx] =
+				await this.provider.wallet.signAllTransactions([marketOrderTx, fillTx]);
+			const { txSig, slot } = await this.sendTransaction(
+				signedMarketOrderTx,
+				[],
+				this.opts,
+				true
+			);
+			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
+
+			return { txSig, signedFillTx };
+		}
 	}
 
 	public async placePerpOrder(
@@ -2614,7 +2683,9 @@ export class DriftClient {
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
 		order?: Order,
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams
@@ -2642,7 +2713,9 @@ export class DriftClient {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		order?: Order,
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
@@ -2725,14 +2798,26 @@ export class DriftClient {
 	addSpotFulfillmentAccounts(
 		marketIndex: number,
 		remainingAccounts: AccountMeta[],
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount
-	) {
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount
+	): void {
 		if (fulfillmentConfig) {
-			this.addSerumRemainingAccounts(
-				marketIndex,
-				remainingAccounts,
-				fulfillmentConfig
-			);
+			if ('serumProgramId' in fulfillmentConfig) {
+				this.addSerumRemainingAccounts(
+					marketIndex,
+					remainingAccounts,
+					fulfillmentConfig
+				);
+			} else if ('phoenixProgramId' in fulfillmentConfig) {
+				this.addPhoenixRemainingAccounts(
+					marketIndex,
+					remainingAccounts,
+					fulfillmentConfig
+				);
+			} else {
+				throw Error('Invalid fulfillment config type');
+			}
 		} else {
 			remainingAccounts.push({
 				pubkey: this.getSpotMarketAccount(marketIndex).vault,
@@ -2751,7 +2836,7 @@ export class DriftClient {
 		marketIndex: number,
 		remainingAccounts: AccountMeta[],
 		fulfillmentConfig: SerumV3FulfillmentConfigAccount
-	) {
+	): void {
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.pubkey,
 			isWritable: false,
@@ -2833,6 +2918,63 @@ export class DriftClient {
 		});
 		remainingAccounts.push({
 			pubkey: this.getStateAccount().srmVault,
+			isWritable: false,
+			isSigner: false,
+		});
+	}
+
+	addPhoenixRemainingAccounts(
+		marketIndex: number,
+		remainingAccounts: AccountMeta[],
+		fulfillmentConfig: PhoenixV1FulfillmentConfigAccount
+	): void {
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.pubkey,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixProgramId,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixLogAuthority,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixMarket,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSignerPublicKey(),
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixBaseVault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.phoenixQuoteVault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSpotMarketAccount(marketIndex).vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getQuoteSpotMarketAccount().vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: TOKEN_PROGRAM_ID,
 			isWritable: false,
 			isSigner: false,
 		});
@@ -3390,221 +3532,205 @@ export class DriftClient {
 	/**
 	 * Modifies an open order (spot or perp) by closing it and replacing it with a new order.
 	 * @param orderId: The open order to modify
-	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newOraclePriceOffset: The new oracle price offset for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newOrderType: Optional - New order type for the order.
+	 * @param newDirection: The new direction for the order
+	 * @param newBaseAmount: The new base amount for the order
+	 * @param newLimitPice: The new limit price for the order
+	 * @param newOraclePriceOffset: The new oracle price offset for the order
 	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
-	 * @param isSpot: Optional - Set to true if the order is a spot order
-	 * @param auctionDuration: Only required if order type changed to market from something else
-	 * @param auctionStartPrice: Only required if order type changed to market from something else
-	 * @param auctionEndPrice: Only required if order type changed to market from something else
+	 * @param auctionDuration:
+	 * @param auctionStartPrice:
+	 * @param auctionEndPrice:
+	 * @param reduceOnly:
+	 * @param postOnly:
+	 * @param immediateOrCancel:
+	 * @param maxTs:
 	 * @returns
 	 */
 	public async modifyOrder({
 		orderId,
+		newDirection,
 		newBaseAmount,
 		newLimitPrice,
 		newOraclePriceOffset,
-		newOrderType,
 		newTriggerPrice,
 		newTriggerCondition,
-		isSpot,
 		auctionDuration,
 		auctionStartPrice,
 		auctionEndPrice,
+		reduceOnly,
+		postOnly,
+		immediateOrCancel,
+		maxTs,
+		txParams,
 	}: {
 		orderId: number;
+		newDirection?: PositionDirection;
 		newBaseAmount?: BN;
 		newLimitPrice?: BN;
 		newOraclePriceOffset?: number;
-		newOrderType?: OrderType;
 		newTriggerPrice?: BN;
 		newTriggerCondition?: OrderTriggerCondition;
-		isSpot?: boolean;
 		auctionDuration?: number;
 		auctionStartPrice?: BN;
 		auctionEndPrice?: BN;
+		reduceOnly?: boolean;
+		postOnly?: boolean;
+		immediateOrCancel?: boolean;
+		maxTs?: BN;
+		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
-		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
-			throw new Error(
-				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
-			);
-		}
-
-		const openOrder = this.getUser().getOrder(orderId);
-		if (!openOrder) {
-			throw new Error(`No open order with id ${orderId.toString()}`);
-		}
-		const cancelOrderIx = await this.getCancelOrderIx(orderId);
-
-		const orderTypeHasTrigger = newOrderType
-			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
-			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
-		const orderTypeHasLimitPrice = newOrderType
-			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
-			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
-
-		const newOrderParams: OptionalOrderParams = {
-			orderType: newOrderType || openOrder.orderType,
-			marketType: openOrder.marketType,
-			direction: openOrder.direction,
-			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: orderTypeHasLimitPrice
-				? newLimitPrice || openOrder.price
-				: undefined,
-			marketIndex: openOrder.marketIndex,
-			reduceOnly: openOrder.reduceOnly,
-			postOnly: openOrder.postOnly
-				? PostOnlyParams.MUST_POST_ONLY
-				: PostOnlyParams.NONE,
-			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: orderTypeHasTrigger
-				? newTriggerPrice || openOrder.triggerPrice
-				: undefined,
-			triggerCondition: orderTypeHasTrigger
-				? newTriggerCondition || openOrder.triggerCondition
-				: undefined,
-			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: auctionDuration ?? openOrder.auctionDuration,
-			maxTs: openOrder.maxTs,
-			auctionStartPrice: auctionStartPrice || openOrder.auctionStartPrice,
-			auctionEndPrice: auctionEndPrice || openOrder.auctionEndPrice,
-			userOrderId: openOrder.userOrderId,
+		const orderParams: ModifyOrderParams = {
+			baseAssetAmount: newBaseAmount || null,
+			direction: newDirection || null,
+			price: newLimitPrice || null,
+			oraclePriceOffset: newOraclePriceOffset || null,
+			triggerPrice: newTriggerPrice || null,
+			triggerCondition: newTriggerCondition || null,
+			auctionDuration: auctionDuration || null,
+			auctionStartPrice: auctionStartPrice || null,
+			auctionEndPrice: auctionEndPrice || null,
+			reduceOnly: reduceOnly || null,
+			postOnly: postOnly || null,
+			immediateOrCancel: immediateOrCancel || null,
+			maxTs: maxTs || null,
 		};
-		const placeOrderIx = isSpot
-			? await this.getPlaceSpotOrderIx(newOrderParams)
-			: await this.getPlacePerpOrderIx(newOrderParams);
 
-		const tx = new Transaction();
-		tx.add(
-			ComputeBudgetProgram.setComputeUnitLimit({
-				units: 1_000_000,
-			})
+		const { txSig } = await this.sendTransaction(
+			wrapInTx(
+				await this.getModifyOrderIx(orderId, orderParams),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
+			[],
+			this.opts
 		);
-		tx.add(cancelOrderIx);
-		tx.add(placeOrderIx);
-		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
-
-		if (isSpot) {
-			this.spotMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
-			this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
-		} else {
-			this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
-		}
-
 		return txSig;
+	}
+
+	public async getModifyOrderIx(
+		orderId: number,
+		orderParams: ModifyOrderParams
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			useMarketLastSlotCache: true,
+		});
+
+		return await this.program.instruction.modifyOrder(orderId, orderParams, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
 	}
 
 	/**
 	 * Modifies an open order by closing it and replacing it with a new order.
 	 * @param userOrderId: The open order to modify
-	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newOraclePriceOffset: The new oracle price offset for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
-	 * @param newOrderType: Optional - New order type for the order.
+	 * @param newDirection: The new direction for the order
+	 * @param newBaseAmount: The new base amount for the order
+	 * @param newLimitPice: The new limit price for the order
+	 * @param newOraclePriceOffset: The new oracle price offset for the order
 	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
-	 * @param isSpot: Set to true if the order is a spot order
 	 * @param auctionDuration: Only required if order type changed to market from something else
 	 * @param auctionStartPrice: Only required if order type changed to market from something else
 	 * @param auctionEndPrice: Only required if order type changed to market from something else
+	 * @param reduceOnly:
+	 * @param postOnly:
+	 * @param immediateOrCancel:
+	 * @param maxTs:
 	 * @returns
 	 */
 	public async modifyOrderByUserOrderId({
 		userOrderId,
+		newDirection,
 		newBaseAmount,
 		newLimitPrice,
 		newOraclePriceOffset,
-		newOrderType,
 		newTriggerPrice,
 		newTriggerCondition,
-		isSpot,
 		auctionDuration,
 		auctionStartPrice,
 		auctionEndPrice,
+		reduceOnly,
+		postOnly,
+		immediateOrCancel,
+		maxTs,
+		txParams,
 	}: {
 		userOrderId: number;
+		newDirection?: PositionDirection;
 		newBaseAmount?: BN;
 		newLimitPrice?: BN;
 		newOraclePriceOffset?: number;
-		newOrderType?: OrderType;
 		newTriggerPrice?: BN;
 		newTriggerCondition?: OrderTriggerCondition;
-		isSpot?: boolean;
 		auctionDuration?: number;
 		auctionStartPrice?: BN;
 		auctionEndPrice?: BN;
+		reduceOnly?: boolean;
+		postOnly?: boolean;
+		immediateOrCancel?: boolean;
+		maxTs?: BN;
+		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
-		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
-			throw new Error(
-				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
-			);
-		}
-
-		const openOrder = this.getUser().getOrderByUserOrderId(userOrderId);
-		if (!openOrder) {
-			throw new Error(
-				`No open order with user order id ${userOrderId.toString()}`
-			);
-		}
-		const cancelOrderIx = await this.getCancelOrderByUserIdIx(userOrderId);
-
-		const orderTypeHasTrigger = newOrderType
-			? isOneOfVariant(newOrderType, ['triggerlimit', 'triggerMarket'])
-			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'triggerMarket']);
-		const orderTypeHasLimitPrice = newOrderType
-			? isOneOfVariant(newOrderType, ['triggerLimit', 'limit'])
-			: isOneOfVariant(openOrder.orderType, ['triggerLimit', 'limit']);
-
-		const newOrderParams: OptionalOrderParams = {
-			orderType: newOrderType || openOrder.orderType,
-			marketType: openOrder.marketType,
-			direction: openOrder.direction,
-			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
-			price: orderTypeHasLimitPrice
-				? newLimitPrice || openOrder.price
-				: undefined,
-			marketIndex: openOrder.marketIndex,
-			reduceOnly: openOrder.reduceOnly,
-			postOnly: openOrder.postOnly
-				? PostOnlyParams.MUST_POST_ONLY
-				: PostOnlyParams.NONE,
-			immediateOrCancel: openOrder.immediateOrCancel,
-			triggerPrice: orderTypeHasTrigger
-				? newTriggerPrice || openOrder.triggerPrice
-				: undefined,
-			triggerCondition: orderTypeHasTrigger
-				? newTriggerCondition || openOrder.triggerCondition
-				: undefined,
-			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
-			auctionDuration: auctionDuration || openOrder.auctionDuration,
-			maxTs: openOrder.maxTs,
-			auctionStartPrice: auctionStartPrice || openOrder.auctionStartPrice,
-			auctionEndPrice: auctionEndPrice || openOrder.auctionEndPrice,
-			userOrderId: openOrder.userOrderId,
+		const orderParams: ModifyOrderParams = {
+			baseAssetAmount: newBaseAmount || null,
+			direction: newDirection || null,
+			price: newLimitPrice || null,
+			oraclePriceOffset: newOraclePriceOffset || null,
+			triggerPrice: newTriggerPrice || null,
+			triggerCondition: newTriggerCondition || null,
+			auctionDuration: auctionDuration || null,
+			auctionStartPrice: auctionStartPrice || null,
+			auctionEndPrice: auctionEndPrice || null,
+			reduceOnly: reduceOnly || null,
+			postOnly: postOnly || null,
+			immediateOrCancel: immediateOrCancel || null,
+			maxTs: maxTs || null,
 		};
-		const placeOrderIx = isSpot
-			? await this.getPlaceSpotOrderIx(newOrderParams)
-			: await this.getPlacePerpOrderIx(newOrderParams);
 
-		const tx = new Transaction();
-		tx.add(
-			ComputeBudgetProgram.setComputeUnitLimit({
-				units: 1_000_000,
-			})
+		const { txSig } = await this.sendTransaction(
+			wrapInTx(
+				await this.getModifyOrderByUserIdIx(userOrderId, orderParams),
+				txParams?.computeUnits,
+				txParams?.computeUnitsPrice
+			),
+			[],
+			this.opts
 		);
-		tx.add(cancelOrderIx);
-		tx.add(placeOrderIx);
-		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
-
-		if (isSpot) {
-			this.spotMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
-			this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
-		} else {
-			this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
-		}
-
 		return txSig;
+	}
+
+	public async getModifyOrderByUserIdIx(
+		userOrderId: number,
+		orderParams: ModifyOrderParams
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			useMarketLastSlotCache: true,
+		});
+
+		return await this.program.instruction.modifyOrderByUserId(
+			userOrderId,
+			orderParams,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
 	}
 
 	public async settlePNLs(
@@ -4272,6 +4398,7 @@ export class DriftClient {
 		amount,
 		collateralAccountPublicKey,
 		initializeStakeAccount,
+		fromSubaccount,
 	}: {
 		/**
 		 * Spot market index
@@ -4286,6 +4413,10 @@ export class DriftClient {
 		 * Add instructions to initialize the staking account -- required if its the first time the currrent authority has staked in this market
 		 */
 		initializeStakeAccount?: boolean;
+		/**
+		 * Optional -- withdraw from current subaccount to fund stake amount, instead of wallet balance
+		 */
+		fromSubaccount?: boolean;
 	}): Promise<TransactionSignature> {
 		const tx = new Transaction();
 
@@ -4308,6 +4439,15 @@ export class DriftClient {
 			signers.forEach((signer) => additionalSigners.push(signer));
 		} else {
 			tokenAccount = collateralAccountPublicKey;
+		}
+
+		if (fromSubaccount) {
+			const withdrawIx = await this.getWithdrawIx(
+				amount,
+				marketIndex,
+				tokenAccount
+			);
+			tx.add(withdrawIx);
 		}
 
 		if (initializeStakeAccount) {
@@ -4430,26 +4570,26 @@ export class DriftClient {
 			this.wallet.publicKey,
 			marketIndex
 		);
-		const tokenAccount = collateralAccountPublicKey;
 
-		// Todo wsol remove iF stake... how do we determine the amount?
-		// const amount = // get balance here...?
+		const additionalSigners: Array<Signer> = [];
+		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
+		const createWSOLTokenAccount =
+			isSolMarket && collateralAccountPublicKey.equals(this.wallet.publicKey);
 
-		// const additionalSigners: Array<Signer> = [];
-		// const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
-		// const createWSOLTokenAccount =
-		// 	isSolMarket && collateralAccountPublicKey.equals(this.wallet.publicKey);
+		let tokenAccount;
 
-		// if (createWSOLTokenAccount) {
-		// 	const { ixs, signers, pubkey } =
-		// 		await this.getWrappedSolAccountCreationIxs(amount, true);
-		// 	tokenAccount = pubkey;
-		// 	ixs.forEach((ix) => {
-		// 		tx.add(ix);
-		// 	});
+		if (createWSOLTokenAccount) {
+			const { ixs, signers, pubkey } =
+				await this.getWrappedSolAccountCreationIxs(ZERO, true);
+			tokenAccount = pubkey;
+			ixs.forEach((ix) => {
+				tx.add(ix);
+			});
 
-		// 	signers.forEach((signer) => additionalSigners.push(signer));
-		// }
+			signers.forEach((signer) => additionalSigners.push(signer));
+		} else {
+			tokenAccount = collateralAccountPublicKey;
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount()],
@@ -4475,7 +4615,24 @@ export class DriftClient {
 
 		tx.add(removeStakeIx);
 
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		// Close the wrapped sol account at the end of the transaction
+		if (createWSOLTokenAccount) {
+			tx.add(
+				Token.createCloseAccountInstruction(
+					TOKEN_PROGRAM_ID,
+					tokenAccount,
+					this.wallet.publicKey,
+					this.wallet.publicKey,
+					[]
+				)
+			);
+		}
+
+		const { txSig } = await this.sendTransaction(
+			tx,
+			additionalSigners,
+			this.opts
+		);
 		return txSig;
 	}
 

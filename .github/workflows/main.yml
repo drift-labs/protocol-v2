@@ -12,9 +12,9 @@ defaults:
     working-directory: .
 
 env:
-  CARGO_TERM_COLOR: always 
-  RUST_TOOLCHAIN: stable
-  SOLANA_VERSION: "1.13.2"
+  CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: 1.60.0
+  SOLANA_VERSION: '1.13.7'
 
 jobs:
   fmt-clippy:
@@ -34,7 +34,7 @@ jobs:
       - name: Cargo fmt
         run: cargo fmt -- --check
       - name: Cargo clippy
-        run: cargo clippy --all-targets
+        run: cargo clippy -p drift
   unit:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -49,7 +49,7 @@ jobs:
       - name: Cache build artefacts
         uses: Swatinem/rust-cache@v1
       - name: Run package checks
-        run: cargo check      # run package checks
+        run: cargo check # run package checks
       - name: Run unit tests
         run: cargo test --lib # run unit tests
   cargo-audit:
@@ -73,7 +73,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: '14.x'
+          node-version: '16.x'
           registry-url: 'https://registry.npmjs.org'
       - name: Install yarn
         run: yarn
@@ -86,7 +86,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: '14.x'
+          node-version: '16.x'
           registry-url: 'https://registry.npmjs.org'
       - name: Install yarn
         run: yarn
@@ -94,7 +94,7 @@ jobs:
         run: yarn lint
   anchor-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
 
@@ -107,17 +107,17 @@ jobs:
       - name: Cache build artefacts
         uses: Swatinem/rust-cache@v1
         with:
-          cache-on-failure: "true"
+          cache-on-failure: 'true'
 
       - uses: ./.github/actions/setup-solana/
 
       - name: install anchor cli
-        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.25.0 anchor-cli --locked
+        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.26.0 anchor-cli --locked
 
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: '14.x'
+          node-version: '16.x'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Setup yarn

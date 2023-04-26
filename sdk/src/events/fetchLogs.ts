@@ -1,4 +1,4 @@
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import {
 	Connection,
 	Finality,
@@ -120,12 +120,16 @@ export class LogParser {
 	public parseEventsFromLogs(event: Log): WrappedEvents {
 		const records: WrappedEvents = [];
 		// @ts-ignore
-		this.program._events._eventParser.parseLogs(event.logs, (eventLog) => {
+		const eventGenerator = this.program._events._eventParser.parseLogs(
+			event.logs,
+			false
+		);
+		for (const eventLog of eventGenerator) {
 			eventLog.data.txSig = event.txSig;
 			eventLog.data.slot = event.slot;
 			eventLog.data.eventType = eventLog.name;
 			records.push(eventLog.data);
-		});
+		}
 		return records;
 	}
 }

@@ -2,7 +2,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
 import { Market, Orderbook } from '@project-serum/serum';
 import { SerumMarketSubscriberConfig } from './types';
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 import { PRICE_PRECISION } from '../constants/numericConstants';
 
 export class SerumSubscriber {

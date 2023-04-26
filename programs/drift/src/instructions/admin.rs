@@ -3,14 +3,13 @@ use std::mem::size_of;
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use bytemuck::cast_slice;
+use phoenix::quantities::WrapperU64;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::instructions::constraints::*;
-use crate::instructions::keeper::SpotFulfillmentType;
 use crate::load;
 use crate::load_mut;
 use crate::math::casting::Cast;
@@ -31,6 +30,10 @@ use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn, oracle};
 use crate::math_error;
 use crate::state::events::CurveRecord;
+use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
+use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
+use crate::state::fulfillment_params::serum::SerumContext;
+use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::oracle::{
     get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
     OracleSource,
@@ -38,10 +41,8 @@ use crate::state::oracle::{
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
-use crate::state::serum::{load_open_orders, load_serum_market};
 use crate::state::spot_market::{
-    AssetTier, InsuranceFund, SerumV3FulfillmentConfig, SpotBalanceType,
-    SpotFulfillmentConfigStatus, SpotMarket,
+    AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
@@ -292,7 +293,14 @@ pub fn handle_initialize_serum_fulfillment_config(
     )?;
 
     let serum_market_key = ctx.accounts.serum_market.key();
-    let market_state = load_serum_market(&ctx.accounts.serum_market, &serum_program_id)?;
+
+    let serum_context = SerumContext {
+        serum_program: &ctx.accounts.serum_program,
+        serum_market: &ctx.accounts.serum_market,
+        serum_open_orders: &ctx.accounts.serum_open_orders,
+    };
+
+    let market_state = serum_context.load_serum_market()?;
 
     validate!(
         identity(market_state.coin_mint) == base_spot_market.mint.to_aligned_bytes(),
@@ -305,28 +313,6 @@ pub fn handle_initialize_serum_fulfillment_config(
         ErrorCode::InvalidSerumMarket,
         "Invalid quote mint"
     )?;
-
-    let serum_program_id = serum_program_id;
-    let serum_market = serum_market_key;
-
-    let market_state_event_queue = market_state.event_q;
-    let serum_event_queue = Pubkey::new(cast_slice(&market_state_event_queue));
-
-    let market_state_request_queue = market_state.req_q;
-    let serum_request_queue = Pubkey::new(cast_slice(&market_state_request_queue));
-
-    let market_state_bids = market_state.bids;
-    let serum_bids = Pubkey::new(cast_slice(&market_state_bids));
-
-    let market_state_asks = market_state.asks;
-    let serum_asks = Pubkey::new(cast_slice(&market_state_asks));
-
-    let market_state_coin_vault = market_state.coin_vault;
-    let serum_base_vault = Pubkey::new(cast_slice(&market_state_coin_vault));
-
-    let market_state_pc_vault = market_state.pc_vault;
-    let serum_quote_vault = Pubkey::new(cast_slice(&market_state_pc_vault));
-    let serum_signer_nonce = market_state.vault_signer_nonce;
 
     let market_step_size = market_state.coin_lot_size;
     let valid_step_size = base_spot_market.order_step_size >= market_step_size
@@ -372,7 +358,7 @@ pub fn handle_initialize_serum_fulfillment_config(
         open_orders_seeds,
     )?;
 
-    let open_orders = load_open_orders(&ctx.accounts.serum_open_orders)?;
+    let open_orders = serum_context.load_open_orders()?;
     validate!(
         open_orders.account_flags == 0,
         ErrorCode::InvalidSerumOpenOrders,
@@ -380,34 +366,16 @@ pub fn handle_initialize_serum_fulfillment_config(
     )?;
     drop(open_orders);
 
-    controller::serum::invoke_init_open_orders(
-        &ctx.accounts.serum_program,
-        &ctx.accounts.serum_open_orders,
+    serum_context.invoke_init_open_orders(
         &ctx.accounts.drift_signer,
-        &ctx.accounts.serum_market,
         &ctx.accounts.rent,
         ctx.accounts.state.signer_nonce,
     )?;
 
     let serum_fulfillment_config_key = ctx.accounts.serum_fulfillment_config.key();
     let mut serum_fulfillment_config = ctx.accounts.serum_fulfillment_config.load_init()?;
-    *serum_fulfillment_config = SerumV3FulfillmentConfig {
-        fulfillment_type: SpotFulfillmentType::SerumV3,
-        status: SpotFulfillmentConfigStatus::Enabled,
-        pubkey: serum_fulfillment_config_key,
-        market_index,
-        serum_program_id,
-        serum_market,
-        serum_request_queue,
-        serum_event_queue,
-        serum_bids,
-        serum_asks,
-        serum_base_vault,
-        serum_quote_vault,
-        serum_open_orders: ctx.accounts.serum_open_orders.key(),
-        serum_signer_nonce,
-        padding: [0; 4],
-    };
+    *serum_fulfillment_config = serum_context
+        .to_serum_v3_fulfillment_config(&serum_fulfillment_config_key, market_index)?;
 
     Ok(())
 }
@@ -438,6 +406,72 @@ pub fn handle_update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
     let state = &mut ctx.accounts.state;
     state.srm_vault = vault.key();
 
+    Ok(())
+}
+
+pub fn handle_initialize_phoenix_fulfillment_config(
+    ctx: Context<InitializePhoenixFulfillmentConfig>,
+    market_index: u16,
+) -> Result<()> {
+    validate!(
+        market_index != QUOTE_SPOT_MARKET_INDEX,
+        ErrorCode::InvalidSpotMarketAccount,
+        "Cannot add phoenix market to quote asset"
+    )?;
+
+    let base_spot_market = load!(&ctx.accounts.base_spot_market)?;
+    let quote_spot_market = load!(&ctx.accounts.quote_spot_market)?;
+
+    let phoenix_program_id = phoenix::id();
+
+    validate!(
+        ctx.accounts.phoenix_program.key() == phoenix_program_id,
+        ErrorCode::InvalidPhoenixProgram
+    )?;
+
+    let phoenix_market_context = PhoenixMarketContext::new(&ctx.accounts.phoenix_market)?;
+
+    validate!(
+        phoenix_market_context.header.base_params.mint_key == base_spot_market.mint,
+        ErrorCode::InvalidPhoenixMarket,
+        "Invalid base mint"
+    )?;
+
+    validate!(
+        phoenix_market_context.header.quote_params.mint_key == quote_spot_market.mint,
+        ErrorCode::InvalidPhoenixMarket,
+        "Invalid quote mint"
+    )?;
+
+    let market_step_size = phoenix_market_context.header.get_base_lot_size().as_u64();
+    let valid_step_size = base_spot_market.order_step_size >= market_step_size
+        && base_spot_market
+            .order_step_size
+            .rem_euclid(market_step_size)
+            == 0;
+
+    validate!(
+        valid_step_size,
+        ErrorCode::InvalidPhoenixMarket,
+        "base market step size ({}) not a multiple of Phoenix base lot size ({})",
+        base_spot_market.order_step_size,
+        market_step_size
+    )?;
+
+    let phoenix_fulfillment_config_key = ctx.accounts.phoenix_fulfillment_config.key();
+    let mut phoenix_fulfillment_config = ctx.accounts.phoenix_fulfillment_config.load_init()?;
+    *phoenix_fulfillment_config = phoenix_market_context
+        .to_phoenix_v1_fulfillment_config(&phoenix_fulfillment_config_key, market_index);
+
+    Ok(())
+}
+
+pub fn handle_update_phoenix_fulfillment_config_status(
+    ctx: Context<UpdatePhoenixFulfillmentConfig>,
+    status: SpotFulfillmentConfigStatus,
+) -> Result<()> {
+    let mut config = load_mut!(ctx.accounts.phoenix_fulfillment_config)?;
+    config.status = status;
     Ok(())
 }
 
@@ -532,7 +566,7 @@ pub fn handle_initialize_perp_market(
         }
     };
 
-    let max_spread = ((margin_ratio_initial - margin_ratio_maintenance) * (100 - 5)) as u32;
+    let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
 
     // todo? should ensure peg within 1 cent of current oracle?
     // validate!(
@@ -2256,6 +2290,59 @@ pub struct UpdateSerumFulfillmentConfig<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub serum_fulfillment_config: AccountLoader<'info, SerumV3FulfillmentConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16)]
+pub struct InitializePhoenixFulfillmentConfig<'info> {
+    #[account(
+        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub base_spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub quote_spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    /// CHECK: checked in ix
+    pub phoenix_program: AccountInfo<'info>,
+    /// CHECK: checked in ix
+    pub phoenix_market: AccountInfo<'info>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
+    #[account(
+        init,
+        seeds = [b"phoenix_fulfillment_config".as_ref(), phoenix_market.key.as_ref()],
+        space = PhoenixV1FulfillmentConfig::SIZE,
+        bump,
+        payer = admin,
+    )]
+    pub phoenix_fulfillment_config: AccountLoader<'info, PhoenixV1FulfillmentConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePhoenixFulfillmentConfig<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub phoenix_fulfillment_config: AccountLoader<'info, PhoenixV1FulfillmentConfig>,
     #[account(mut)]
     pub admin: Signer<'info>,
 }

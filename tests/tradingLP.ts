@@ -1,8 +1,8 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import { BN, User, OracleSource, Wallet, BulkAccountLoader } from '../sdk';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import * as web3 from '@solana/web3.js';
 

@@ -5,7 +5,6 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::DriftResult;
-use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
 #[cfg(test)]
@@ -233,6 +232,10 @@ impl SpotMarket {
         liability_weight.safe_sub(MARGIN_PRECISION)
     }
 
+    pub fn get_deposits(&self) -> DriftResult<u128> {
+        get_token_amount(self.deposit_balance, self, &SpotBalanceType::Deposit)
+    }
+
     pub fn get_available_deposits(&self) -> DriftResult<u128> {
         let deposit_token_amount =
             get_token_amount(self.deposit_balance, self, &SpotBalanceType::Deposit)?;
@@ -336,31 +339,6 @@ pub trait SpotBalance {
     fn decrease_balance(&mut self, delta: u128) -> DriftResult;
 
     fn update_balance_type(&mut self, balance_type: SpotBalanceType) -> DriftResult;
-}
-
-#[account(zero_copy)]
-#[derive(Default, PartialEq, Eq, Debug)]
-#[repr(C)]
-pub struct SerumV3FulfillmentConfig {
-    pub pubkey: Pubkey,
-    pub serum_program_id: Pubkey,
-    pub serum_market: Pubkey,
-    pub serum_request_queue: Pubkey,
-    pub serum_event_queue: Pubkey,
-    pub serum_bids: Pubkey,
-    pub serum_asks: Pubkey,
-    pub serum_base_vault: Pubkey,
-    pub serum_quote_vault: Pubkey,
-    pub serum_open_orders: Pubkey,
-    pub serum_signer_nonce: u64,
-    pub market_index: u16,
-    pub fulfillment_type: SpotFulfillmentType,
-    pub status: SpotFulfillmentConfigStatus,
-    pub padding: [u8; 4],
-}
-
-impl Size for SerumV3FulfillmentConfig {
-    const SIZE: usize = 344;
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

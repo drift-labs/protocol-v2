@@ -94,6 +94,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1680808053000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Binance Coin',
+		category: ['Exchange'],
+		symbol: 'BNB-PERP',
+		baseAssetSymbol: 'BNB',
+		marketIndex: 8,
+		oracle: new PublicKey('GwzBgrXb4PG59zjce24SF2b9JXbLEjJJTBkmytuEZj1b'),
+		launchTs: 1680808053000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -174,6 +184,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		baseAssetSymbol: 'DOGE',
 		marketIndex: 7,
 		oracle: new PublicKey('FsSM3s38PX9K7Dn6eGzuE29S2Dsk1Sss1baytTQdCaQj'),
+		launchTs: 1680808053000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Binance Coin',
+		category: ['Exchange'],
+		symbol: 'BNB-PERP',
+		baseAssetSymbol: 'BNB',
+		marketIndex: 8,
+		oracle: new PublicKey('4CkQJBxhU8EZ2UjhigbtdaPbpTe6mqf811fipYBFbSYN'),
 		launchTs: 1680808053000,
 		oracleSource: OracleSource.PYTH,
 	},

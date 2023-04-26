@@ -41,11 +41,10 @@ export function isOracleValid(
 			.div(BN.max(ONE, oraclePriceData.price))
 			.gt(oracleGuardRails.validity.tooVolatileRatio);
 
-	const isConfidenceTooLarge = new BN(amm.baseSpread)
-		.add(BN.max(ONE, oraclePriceData.confidence))
+	const isConfidenceTooLarge = BN.max(ONE, oraclePriceData.confidence)
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(oraclePriceData.price)
-		.gt(new BN(amm.maxSpread));
+		.gt(oracleGuardRails.validity.confidenceIntervalMaxSize);
 
 	const oracleIsStale = oraclePriceData.slot
 		.sub(new BN(slot))

@@ -5,7 +5,7 @@ import {
 	UserAccountEvents,
 	UserAccountSubscriber,
 } from './types';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
@@ -77,5 +77,15 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
 		this.assertIsSubscribed();
 		return this.userDataAccountSubscriber.dataAndSlot;
+	}
+
+	public updateData(userAccount: UserAccount, slot: number) {
+		const currentDataSlot =
+			this.userDataAccountSubscriber.dataAndSlot?.slot || 0;
+		if (currentDataSlot < slot) {
+			this.userDataAccountSubscriber.setData(userAccount, slot);
+			this.eventEmitter.emit('userAccountUpdate', userAccount);
+			this.eventEmitter.emit('update');
+		}
 	}
 }

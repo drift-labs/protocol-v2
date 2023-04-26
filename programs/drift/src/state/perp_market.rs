@@ -315,7 +315,7 @@ impl PerpMarket {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct InsuranceClaim {
-    pub revenue_withdraw_since_last_settle: u64,
+    pub revenue_withdraw_since_last_settle: i64,
     pub max_revenue_withdraw_per_period: u64,
     pub quote_max_insurance: u64,
     pub quote_settled_insurance: u64,

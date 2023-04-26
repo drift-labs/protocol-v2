@@ -1,8 +1,9 @@
 mod size {
     use crate::state::events::OrderActionRecord;
+    use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
     use crate::state::perp_market::PerpMarket;
-    use crate::state::spot_market::{SerumV3FulfillmentConfig, SpotMarket};
+    use crate::state::spot_market::SpotMarket;
     use crate::state::state::State;
     use crate::state::traits::Size;
     use crate::state::user::{User, UserStats};

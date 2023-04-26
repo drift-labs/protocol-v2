@@ -1,5 +1,5 @@
-import * as anchor from '@project-serum/anchor';
-import { AnchorProvider, Idl, Program } from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
+import { AnchorProvider, Idl, Program } from '@coral-xyz/anchor';
 import {
 	AccountInfo,
 	ASSOCIATED_TOKEN_PROGRAM_ID,

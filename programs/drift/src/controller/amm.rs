@@ -466,7 +466,7 @@ pub fn update_pool_balances(
             .total_fee_minus_distributions
             .safe_sub(market.amm.total_fee_withdrawn.cast()?)?;
 
-        if terminal_state_surplus < 0 {
+        if terminal_state_surplus < FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()? {
             // market can perform withdraw from revenue pool
             if spot_market.insurance_fund.last_revenue_settle_ts
                 > market.insurance_claim.last_revenue_withdraw_ts
@@ -484,6 +484,7 @@ pub fn update_pool_balances(
             let max_revenue_withdraw_allowed = market
                 .insurance_claim
                 .max_revenue_withdraw_per_period
+                .cast::<i64>()?
                 .safe_sub(market.insurance_claim.revenue_withdraw_since_last_settle)?
                 .cast::<u128>()?;
 
@@ -494,7 +495,8 @@ pub fn update_pool_balances(
                     &SpotBalanceType::Deposit,
                 )?;
 
-                let revenue_pool_transfer = terminal_state_surplus
+                let revenue_pool_transfer: u128 = terminal_state_surplus
+                    .safe_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?)?
                     .unsigned_abs()
                     .min(spot_market_revenue_pool_amount)
                     .min(max_revenue_withdraw_allowed);
@@ -518,28 +520,67 @@ pub fn update_pool_balances(
                 market.insurance_claim.last_revenue_withdraw_ts = now;
             }
         } else {
-            let revenue_pool_transfer = get_total_fee_lower_bound(market)?
-                .cast::<i128>()?
-                .safe_add(market.amm.total_liquidation_fee.cast()?)?
-                .safe_sub(market.amm.total_fee_withdrawn.cast()?)?
+            let fee_pool_threshold = amm_fee_pool_token_amount_after
+                .saturating_sub(
+                    FEE_POOL_TO_REVENUE_POOL_THRESHOLD.safe_add(market.amm.total_social_loss)?,
+                )
+                .cast()?;
+
+            let total_liq_fees_for_revenue_pool: i128 = market
+                .amm
+                .total_liquidation_fee
                 .min(
-                    amm_fee_pool_token_amount_after
-                        .saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD)
+                    market
+                        .insurance_claim
+                        .quote_settled_insurance
+                        .safe_add(market.insurance_claim.quote_max_insurance)?
                         .cast()?,
                 )
+                .cast()?;
+
+            let max_revenue_to_settle = market
+                .insurance_claim
+                .revenue_withdraw_since_last_settle
+                .safe_add(
+                    market
+                        .insurance_claim
+                        .max_revenue_withdraw_per_period
+                        .cast()?,
+                )?
+                .min(market.amm.net_revenue_since_last_funding)
+                .max(0);
+
+            let total_fee_for_if = get_total_fee_lower_bound(market)?.cast::<i128>()?;
+
+            let revenue_pool_transfer = total_fee_for_if
+                .safe_add(total_liq_fees_for_revenue_pool)?
+                .safe_sub(market.amm.total_fee_withdrawn.cast()?)?
                 .max(0)
-                .unsigned_abs();
+                .min(fee_pool_threshold)
+                .min(max_revenue_to_settle.cast()?);
+
+            validate!(
+                revenue_pool_transfer >= 0,
+                ErrorCode::InsufficientPerpPnlPool,
+                "revenue_pool_transfer negative ({})",
+                revenue_pool_transfer,
+            )?;
 
             transfer_spot_balance_to_revenue_pool(
-                revenue_pool_transfer,
+                revenue_pool_transfer.unsigned_abs(),
                 spot_market,
                 &mut market.amm.fee_pool,
             )?;
 
+            market.insurance_claim.revenue_withdraw_since_last_settle = market
+                .insurance_claim
+                .revenue_withdraw_since_last_settle
+                .safe_sub(revenue_pool_transfer.cast()?)?;
+
             market.amm.total_fee_withdrawn = market
                 .amm
                 .total_fee_withdrawn
-                .safe_add(revenue_pool_transfer)?;
+                .safe_add(revenue_pool_transfer.unsigned_abs())?;
         }
     }
 

@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.24.0",
+	"version": "2.26.0-beta.1",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -33,7 +33,8 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@project-serum/anchor": "0.25.0-beta.1",
+		"@coral-xyz/anchor": "0.26.0",
+		"@ellipsis-labs/phoenix-sdk": "^1.3.2",
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "2.5.3",
 		"@solana/spl-token": "^0.1.6",

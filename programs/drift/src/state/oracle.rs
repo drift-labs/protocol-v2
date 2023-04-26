@@ -6,7 +6,6 @@ use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISI
 use crate::math::safe_math::SafeMath;
 
 use crate::math::safe_unwrap::SafeUnwrap;
-use switchboard_v2::decimal::SwitchboardDecimal;
 
 #[cfg(test)]
 mod tests;
@@ -260,20 +259,3 @@ pub fn get_pyth_stable_coin_price(
 //         has_sufficient_number_of_data_points,
 //     })
 // }
-
-#[allow(dead_code)]
-/// Given a decimal number represented as a mantissa (the digits) plus an
-/// original_precision (10.pow(some number of decimals)), scale the
-/// mantissa/digits to make sense with a new_precision.
-fn convert_switchboard_decimal(switchboard_decimal: &SwitchboardDecimal) -> DriftResult<i128> {
-    let switchboard_precision = 10_u128.pow(switchboard_decimal.scale);
-    if switchboard_precision > PRICE_PRECISION {
-        switchboard_decimal
-            .mantissa
-            .safe_div((switchboard_precision / PRICE_PRECISION) as i128)
-    } else {
-        switchboard_decimal
-            .mantissa
-            .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
-    }
-}

@@ -4,7 +4,7 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64, QUOTE_PRECISION,
     QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
 };
-use crate::state::perp_market::PoolBalance;
+use crate::state::perp_market::{InsuranceClaim, PoolBalance};
 
 #[test]
 fn concentration_coef_tests() {
@@ -556,7 +556,7 @@ fn update_pool_balances_fee_to_revenue_test() {
             total_mm_fee: 990 * QUOTE_PRECISION as i128,
             total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
             total_liquidation_fee: QUOTE_PRECISION,
-
+            net_revenue_since_last_funding: 10000 * QUOTE_PRECISION as i64,
             curve_update_intensity: 100,
 
             fee_pool: PoolBalance {
@@ -570,6 +570,11 @@ fn update_pool_balances_fee_to_revenue_test() {
             scaled_balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
+        },
+        insurance_claim: InsuranceClaim {
+            quote_max_insurance: 0, // no liq fees for revenue pool
+            max_revenue_withdraw_per_period: 1000 * QUOTE_PRECISION as u64,
+            ..InsuranceClaim::default()
         },
         ..PerpMarket::default()
     };
@@ -627,14 +632,139 @@ fn update_pool_balances_fee_to_revenue_test() {
     market.amm.fee_pool.scaled_balance = prev_fee_pool_2;
     update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
 
-    assert_eq!(market.amm.fee_pool.scaled_balance, 294000000000000000); // > FEE_POOL_TO_REVENUE_POOL_THRESHOLD
     assert_eq!(market.pnl_pool.scaled_balance, 50000000000000000);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 6000000000000000);
-    assert_eq!(market.amm.total_fee_withdrawn, 6000000);
+    assert_eq!(market.amm.total_fee_withdrawn, 5000000);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 5000000000000000);
+    assert_eq!(market.amm.fee_pool.scaled_balance, 295000000000000000); // > FEE_POOL_TO_REVENUE_POOL_THRESHOLD
 
     assert!(market.amm.fee_pool.scaled_balance < prev_fee_pool_2);
     assert_eq!(market.pnl_pool.scaled_balance, prev_pnl_pool);
     assert!(spot_market.revenue_pool.scaled_balance > prev_rev_pool);
+
+    market.insurance_claim.quote_max_insurance = 1; // add min insurance
+    update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
+    assert_eq!(market.amm.total_fee_withdrawn, 5000001);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 5000001000000000);
+
+    market.insurance_claim.quote_max_insurance = 100000000; // add lots of insurance
+    update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
+    assert_eq!(market.amm.total_fee_withdrawn, 6000000);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 6000000000000000);
+}
+
+#[test]
+fn update_pool_balances_fee_to_revenue_low_amm_revenue_test() {
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 5122950819670000,
+            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+            sqrt_k: 500 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 50000,
+            base_asset_amount_with_amm: -122950819670000,
+
+            total_exchange_fee: 10 * QUOTE_PRECISION,
+            total_fee: 10 * QUOTE_PRECISION as i128,
+            total_mm_fee: 990 * QUOTE_PRECISION as i128,
+            total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+            total_liquidation_fee: QUOTE_PRECISION,
+            net_revenue_since_last_funding: QUOTE_PRECISION as i64,
+            curve_update_intensity: 100,
+
+            fee_pool: PoolBalance {
+                scaled_balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
+            },
+            ..AMM::default()
+        },
+        pnl_pool: PoolBalance {
+            scaled_balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
+        },
+        insurance_claim: InsuranceClaim {
+            quote_max_insurance: 0, // no liq fees for revenue pool
+            max_revenue_withdraw_per_period: 1000 * QUOTE_PRECISION as u64,
+            ..InsuranceClaim::default()
+        },
+        ..PerpMarket::default()
+    };
+    let now = 33928058;
+
+    let mut spot_market = SpotMarket {
+        deposit_balance: 100 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        revenue_pool: PoolBalance::default(),
+        ..SpotMarket::default()
+    };
+
+    let prev_fee_pool = market.amm.fee_pool.scaled_balance;
+    let prev_pnl_pool = market.amm.fee_pool.scaled_balance;
+    let prev_rev_pool = spot_market.revenue_pool.scaled_balance;
+
+    assert_eq!(market.amm.total_fee_withdrawn, 0);
+
+    assert_eq!(
+        get_token_amount(
+            market.amm.fee_pool.balance(),
+            &spot_market,
+            &SpotBalanceType::Deposit
+        )
+        .unwrap(),
+        50 * QUOTE_PRECISION
+    );
+
+    assert_eq!(
+        get_token_amount(
+            spot_market.deposit_balance,
+            &spot_market,
+            &SpotBalanceType::Deposit
+        )
+        .unwrap(),
+        100 * QUOTE_PRECISION
+    );
+
+    let spot_position = SpotPosition::default();
+    update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
+
+    assert_eq!(market.amm.fee_pool.scaled_balance, 50000000000000000); // under FEE_POOL_TO_REVENUE_POOL_THRESHOLD
+    assert_eq!(market.pnl_pool.scaled_balance, 50000000000000000);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
+    assert_eq!(market.amm.total_fee_withdrawn, 0);
+
+    assert!(market.amm.fee_pool.scaled_balance == prev_fee_pool);
+    assert_eq!(market.pnl_pool.scaled_balance, prev_pnl_pool);
+    assert!(spot_market.revenue_pool.scaled_balance == prev_rev_pool);
+
+    // add FEE_POOL_TO_REVENUE_POOL_THRESHOLD
+    let prev_fee_pool_2 =
+        (FEE_POOL_TO_REVENUE_POOL_THRESHOLD + 50 * QUOTE_PRECISION) * SPOT_BALANCE_PRECISION;
+    market.amm.fee_pool.scaled_balance = prev_fee_pool_2;
+    update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
+
+    assert_eq!(market.pnl_pool.scaled_balance, 50000000000000000);
+    assert_eq!(market.amm.total_fee_withdrawn, 1000000);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 1000000000000000);
+    assert_eq!(market.amm.fee_pool.scaled_balance, 299000000000000000); // > FEE_POOL_TO_REVENUE_POOL_THRESHOLD
+
+    assert!(market.amm.fee_pool.scaled_balance < prev_fee_pool_2);
+    assert_eq!(market.pnl_pool.scaled_balance, prev_pnl_pool);
+    assert!(spot_market.revenue_pool.scaled_balance > prev_rev_pool);
+
+    market.insurance_claim.quote_max_insurance = 1; // add min insurance
+    market.amm.net_revenue_since_last_funding = 1;
+
+    update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
+    assert_eq!(market.amm.total_fee_withdrawn, 1000001);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 1000001000000000);
+
+    market.insurance_claim.quote_max_insurance = 100000000; // add lots of insurance
+    market.amm.net_revenue_since_last_funding = 100000000;
+
+    update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
+    assert_eq!(market.amm.total_fee_withdrawn, 6000000);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 6000000000000000);
 }
 
 #[test]
@@ -817,7 +947,7 @@ fn update_pool_balances_revenue_to_fee_test() {
     assert_eq!(market.amm.total_fee_withdrawn, 0);
     assert_eq!(
         market.insurance_claim.revenue_withdraw_since_last_settle,
-        market.insurance_claim.max_revenue_withdraw_per_period
+        market.insurance_claim.max_revenue_withdraw_per_period as i64
     );
     assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
 
@@ -830,7 +960,7 @@ fn update_pool_balances_revenue_to_fee_test() {
     assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
     assert_eq!(
         market.insurance_claim.revenue_withdraw_since_last_settle,
-        market.insurance_claim.max_revenue_withdraw_per_period
+        market.insurance_claim.max_revenue_withdraw_per_period as i64
     );
     assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
 
@@ -843,7 +973,7 @@ fn update_pool_balances_revenue_to_fee_test() {
     assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
     assert_eq!(
         market.insurance_claim.revenue_withdraw_since_last_settle,
-        market.insurance_claim.max_revenue_withdraw_per_period
+        market.insurance_claim.max_revenue_withdraw_per_period as i64
     );
     assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
 
@@ -909,6 +1039,185 @@ fn update_pool_balances_revenue_to_fee_test() {
     assert_eq!(spot_market.revenue_pool.scaled_balance, 9600000001000);
     assert_eq!(
         market.insurance_claim.revenue_withdraw_since_last_settle,
-        market.insurance_claim.max_revenue_withdraw_per_period
+        market.insurance_claim.max_revenue_withdraw_per_period as i64
     );
+}
+
+#[test]
+fn update_pool_balances_revenue_to_fee_devnet_state_test() {
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 916769960813655,
+            quote_asset_reserve: 932609131198775,
+            sqrt_k: 924655631391254,
+            peg_multiplier: 20242531,
+            base_asset_amount_with_amm: 7563264495267,
+
+            quote_asset_amount: -90559143969,
+
+            total_exchange_fee: 18223810834,
+            total_fee: 130757047337,
+            total_mm_fee: 112696236155,
+            total_fee_minus_distributions: 338762376993,
+            total_fee_withdrawn: 161959731500,
+            total_liquidation_fee: 152847899222,
+            total_social_loss: 74768391959,
+            curve_update_intensity: 100,
+
+            net_revenue_since_last_funding: 229827181,
+            fee_pool: PoolBalance {
+                scaled_balance: 1821 * SPOT_BALANCE_PRECISION,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
+            },
+
+            ..AMM::default()
+        },
+        pnl_pool: PoolBalance {
+            scaled_balance: 381047 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
+        },
+        insurance_claim: InsuranceClaim {
+            quote_max_insurance: 300000 * QUOTE_PRECISION as u64, // no liq fees for revenue pool
+            max_revenue_withdraw_per_period: 1000 * QUOTE_PRECISION as u64,
+            ..InsuranceClaim::default()
+        },
+        ..PerpMarket::default()
+    };
+    let now = 33928058;
+
+    let mut spot_market = SpotMarket {
+        deposit_balance: 200 * SPOT_BALANCE_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        revenue_pool: PoolBalance {
+            market_index: 0,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION,
+            ..PoolBalance::default()
+        },
+        decimals: 6,
+        ..SpotMarket::default()
+    };
+    let spot_position = SpotPosition::default();
+
+    let prev_fee_pool = market.amm.fee_pool.scaled_balance;
+    let prev_pnl_pool = market.amm.fee_pool.scaled_balance;
+    let prev_rev_pool = spot_market.revenue_pool.scaled_balance;
+    let prev_tfmd = market.amm.total_fee_minus_distributions;
+
+    update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
+
+    assert_eq!(market.amm.fee_pool.scaled_balance, 1821000000000);
+    assert_eq!(market.pnl_pool.scaled_balance, 381047000000000);
+    assert_eq!(
+        spot_market.revenue_pool.scaled_balance,
+        100 * SPOT_BALANCE_PRECISION
+    );
+    assert_eq!(market.amm.total_fee_withdrawn, 161959731500);
+    assert_eq!(market.amm.total_fee_minus_distributions, prev_tfmd);
+
+    assert_eq!(market.amm.fee_pool.scaled_balance, prev_fee_pool);
+    assert_eq!(market.pnl_pool.scaled_balance > prev_pnl_pool, true);
+    assert_eq!(
+        spot_market.revenue_pool.scaled_balance == prev_rev_pool,
+        true
+    );
+    assert_eq!(market.insurance_claim.revenue_withdraw_since_last_settle, 0);
+    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 0);
+
+    market.insurance_claim.max_revenue_withdraw_per_period = 100000000 * 2;
+    assert_eq!(spot_market.deposit_balance, 200 * SPOT_BALANCE_PRECISION);
+    assert_eq!(
+        spot_market.revenue_pool.scaled_balance,
+        100 * SPOT_BALANCE_PRECISION
+    );
+}
+
+#[test]
+fn update_pool_balances_revenue_to_fee_new_market() {
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 6165301473685,
+            quote_asset_reserve: 6165301473685,
+            sqrt_k: 6165301473685,
+            peg_multiplier: 324000000,
+            base_asset_amount_with_amm: 0,
+
+            quote_asset_amount: 0,
+
+            total_exchange_fee: 26000,
+            total_fee: 26000,
+            total_mm_fee: 0,
+            total_fee_minus_distributions: 26000,
+            total_fee_withdrawn: 0,
+            total_liquidation_fee: 0,
+            total_social_loss: 0,
+            curve_update_intensity: 100,
+
+            net_revenue_since_last_funding: 0,
+            fee_pool: PoolBalance {
+                scaled_balance: 0,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
+            },
+
+            ..AMM::default()
+        },
+        pnl_pool: PoolBalance {
+            scaled_balance: 0,
+            market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
+        },
+        insurance_claim: InsuranceClaim {
+            quote_max_insurance: 5000 * QUOTE_PRECISION as u64, // no liq fees for revenue pool
+            max_revenue_withdraw_per_period: 50 * QUOTE_PRECISION as u64,
+            ..InsuranceClaim::default()
+        },
+        ..PerpMarket::default()
+    };
+    let now = 33928058;
+
+    let mut spot_market = SpotMarket {
+        deposit_balance: 200 * SPOT_BALANCE_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        revenue_pool: PoolBalance {
+            market_index: 0,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION,
+            ..PoolBalance::default()
+        },
+        decimals: 6,
+        ..SpotMarket::default()
+    };
+    let spot_position = SpotPosition::default();
+
+    // let prev_fee_pool = market.amm.fee_pool.scaled_balance;
+    let prev_pnl_pool = market.amm.fee_pool.scaled_balance;
+    let prev_rev_pool = spot_market.revenue_pool.scaled_balance;
+    // let prev_tfmd = market.amm.total_fee_minus_distributions;
+
+    update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
+
+    assert_eq!(market.amm.fee_pool.scaled_balance, 50000000000); // $50
+
+    assert_eq!(market.pnl_pool.scaled_balance, 0);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 50000000000);
+    assert_eq!(market.amm.total_fee_withdrawn, 0);
+    assert_eq!(market.amm.total_fee_minus_distributions, 50026000);
+
+    assert_eq!(market.pnl_pool.scaled_balance, prev_pnl_pool);
+    assert_eq!(
+        spot_market.revenue_pool.scaled_balance < prev_rev_pool,
+        true
+    );
+    assert_eq!(
+        market.insurance_claim.revenue_withdraw_since_last_settle,
+        50000000
+    );
+    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
+
+    market.insurance_claim.max_revenue_withdraw_per_period = 100000000 * 2;
+    assert_eq!(spot_market.deposit_balance, 200 * SPOT_BALANCE_PRECISION);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 50000000000);
 }
