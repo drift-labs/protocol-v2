@@ -82,7 +82,7 @@ export class DLOBSubscriber {
 			marketIndex = derivedMarketInfo.marketIndex;
 			marketType = derivedMarketInfo.marketType;
 		} else {
-			if (!marketIndex || !marketType) {
+			if (marketIndex === undefined || marketType === undefined) {
 				throw new Error(
 					'Either marketName or marketIndex and marketType must be provided'
 				);
@@ -137,7 +137,7 @@ export class DLOBSubscriber {
 			marketIndex = derivedMarketInfo.marketIndex;
 			marketType = derivedMarketInfo.marketType;
 		} else {
-			if (!marketIndex || !marketType) {
+			if (marketIndex === undefined || marketType === undefined) {
 				throw new Error(
 					'Either marketName or marketIndex and marketType must be provided'
 				);
