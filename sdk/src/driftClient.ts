@@ -624,7 +624,10 @@ export class DriftClient {
 			}
 
 			// sometimes delegate accounts load first, switch to first useraccount if it happens
-			if (this.activeSubAccountId == undefined || !this.activeAuthority.equals(this.authority)) {
+			if (
+				this.activeSubAccountId == undefined ||
+				!this.activeAuthority.equals(this.authority)
+			) {
 				this.switchActiveUser(
 					userAccounts.concat(delegatedAccounts)[0]?.subAccountId ?? 0,
 					userAccounts.concat(delegatedAccounts)[0]?.authority ?? this.authority
