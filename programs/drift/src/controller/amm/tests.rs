@@ -874,6 +874,8 @@ fn update_pool_balances_revenue_to_fee_test() {
         spot_market.revenue_pool.scaled_balance,
         100 * SPOT_BALANCE_PRECISION
     );
+    assert_eq!(market.amm.total_fee_minus_distributions, -10000000000);
+
     update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
 
     assert_eq!(
