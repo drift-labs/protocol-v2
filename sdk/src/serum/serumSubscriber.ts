@@ -125,9 +125,11 @@ export class SerumSubscriber implements L2OrderBookGenerator {
 		// @ts-ignore
 		const basePrecision = Math.pow(10, this.market._baseSplTokenDecimals);
 		const pricePrecision = PRICE_PRECISION.toNumber();
-		for (let { price, size } of this[side].items(side === 'bids')) {
-			price = new BN(price * pricePrecision);
-			size = new BN(size * basePrecision);
+		for (const { price: priceNum, size: sizeNum } of this[side].items(
+			side === 'bids'
+		)) {
+			const price = new BN(priceNum * pricePrecision);
+			const size = new BN(sizeNum * basePrecision);
 			yield {
 				price,
 				size,
