@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: add support for phoenix spot markets ([#437](https://github.com/drift-labs/protocol-v2/pull/437))
 - sdk: ability to add stake from subaccount
 - ts-sdk: Add phoenix subscriber ([#444](https://github.com/drift-labs/protocol-v2/pull/444))
-    
+- sdk: driftClient allows subscription to delegate accounts; pass includeDelegates or authoritySubaccountMap to constructor/updateWallet ([#432](https://github.com/drift-labs/protocol-v2/pull/432))
+
 ### Fixes
 
 - program: check max_token_deposits at the end of fill_spot_order ([#441](https://github.com/drift-labs/protocol-v2/pull/441))
