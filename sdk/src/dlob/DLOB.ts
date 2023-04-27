@@ -1709,6 +1709,8 @@ export class DLOB {
 	 * @param slot
 	 * @param oraclePriceData
 	 * @param depth how many levels of the order book to return
+	 * @param fallbackAsk best ask for fallback liquidity, only relevant for perps
+	 * @param fallbackBid best bid for fallback liquidity, only relevant for perps
 	 * @param fallbackL2Generators L2 generators for fallback liquidity e.g. vAMM {@link getVammL2Generator}, openbook {@link SerumSubscriber}
 	 */
 	public getL2({
@@ -1717,6 +1719,8 @@ export class DLOB {
 		slot,
 		oraclePriceData,
 		depth,
+		fallbackAsk,
+		fallbackBid,
 		fallbackL2Generators = [],
 	}: {
 		marketIndex: number;
@@ -1724,10 +1728,18 @@ export class DLOB {
 		slot: number;
 		oraclePriceData: OraclePriceData;
 		depth: number;
+		fallbackAsk?: BN;
+		fallbackBid?: BN;
 		fallbackL2Generators?: L2OrderBookGenerator[];
 	}): L2OrderBook {
-		const restingAskL2LevelGenerator = getL2GeneratorFromDLOBNodes(
-			this.getRestingLimitAsks(marketIndex, slot, marketType, oraclePriceData),
+		const makerAskL2LevelGenerator = getL2GeneratorFromDLOBNodes(
+			this.getMakerLimitAsks(
+				marketIndex,
+				slot,
+				marketType,
+				oraclePriceData,
+				fallbackBid
+			),
 			oraclePriceData,
 			slot
 		);
@@ -1739,7 +1751,7 @@ export class DLOB {
 		);
 
 		const askL2LevelGenerator = mergeL2LevelGenerators(
-			[restingAskL2LevelGenerator, ...fallbackAskGenerators],
+			[makerAskL2LevelGenerator, ...fallbackAskGenerators],
 			(a, b) => {
 				return a.price.lt(b.price);
 			}
@@ -1747,8 +1759,14 @@ export class DLOB {
 
 		const asks = createL2Levels(askL2LevelGenerator, depth);
 
-		const restingBidGenerator = getL2GeneratorFromDLOBNodes(
-			this.getRestingLimitBids(marketIndex, slot, marketType, oraclePriceData),
+		const makerBidGenerator = getL2GeneratorFromDLOBNodes(
+			this.getMakerLimitBids(
+				marketIndex,
+				slot,
+				marketType,
+				oraclePriceData,
+				fallbackAsk
+			),
 			oraclePriceData,
 			slot
 		);
@@ -1758,7 +1776,7 @@ export class DLOB {
 		});
 
 		const bidL2LevelGenerator = mergeL2LevelGenerators(
-			[restingBidGenerator, ...fallbackBidGenerators],
+			[makerBidGenerator, ...fallbackBidGenerators],
 			(a, b) => {
 				return a.price.gt(b.price);
 			}

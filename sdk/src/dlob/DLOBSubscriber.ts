@@ -15,6 +15,7 @@ import {
 	L2OrderBookGenerator,
 	L3OrderBook,
 } from './orderBookLevels';
+import { calculateAskPrice, calculateBidPrice } from '../math/market';
 
 export class DLOBSubscriber {
 	driftClient: DriftClient;
@@ -100,10 +101,17 @@ export class DLOBSubscriber {
 		}
 
 		let oraclePriceData;
+		let fallbackBid;
+		let fallbackAsk;
 		const isPerp = isVariant(marketType, 'perp');
 		if (isPerp) {
-			oraclePriceData =
-				this.driftClient.getOracleDataForPerpMarket(marketIndex);
+			const perpMarketAccount =
+				this.driftClient.getPerpMarketAccount(marketIndex);
+			oraclePriceData = this.driftClient.getOraclePriceDataAndSlot(
+				perpMarketAccount.amm.oracle
+			);
+			fallbackBid = calculateBidPrice(perpMarketAccount, oraclePriceData);
+			fallbackAsk = calculateAskPrice(perpMarketAccount, oraclePriceData);
 		} else {
 			oraclePriceData =
 				this.driftClient.getOracleDataForSpotMarket(marketIndex);
@@ -125,6 +133,8 @@ export class DLOBSubscriber {
 			depth,
 			oraclePriceData,
 			slot: this.slotSource.getSlot(),
+			fallbackBid,
+			fallbackAsk,
 			fallbackL2Generators: fallbackL2Generators,
 		});
 	}
