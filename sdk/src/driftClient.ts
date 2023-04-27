@@ -134,6 +134,7 @@ export class DriftClient {
 	lookupTableAccount: AddressLookupTableAccount;
 	includeDelegates?: boolean;
 	authoritySubaccountMap?: Map<string, number[]>;
+	skipLoadUsers?: boolean;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -160,6 +161,7 @@ export class DriftClient {
 
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
+		this.skipLoadUsers = config.skipLoadUsers ?? false;
 
 		if (config.includeDelegates && config.subAccountIds) {
 			throw new Error(
@@ -494,6 +496,7 @@ export class DriftClient {
 			newProvider
 		);
 
+		this.skipLoadUsers = false;
 		// Update provider for txSender with new wallet details
 		this.txSender.provider = newProvider;
 		this.wallet = newWallet;
@@ -588,6 +591,9 @@ export class DriftClient {
 	 * Adds and subscribes to users based on params set by the constructor or by updateWallet.
 	 */
 	public async addAndSubscribeToUsers(): Promise<boolean> {
+		// save the rpc calls if driftclient is initialized without a real wallet
+		if (this.skipLoadUsers) return true;
+
 		let result = true;
 
 		if (this.authoritySubaccountMap && this.authoritySubaccountMap.size > 0) {
@@ -623,11 +629,7 @@ export class DriftClient {
 					(await this.addUser(account.subAccountId, account.authority));
 			}
 
-			// sometimes delegate accounts load first, switch to first useraccount if it happens
-			if (
-				this.activeSubAccountId == undefined ||
-				!this.activeAuthority.equals(this.authority)
-			) {
+			if (this.activeSubAccountId == undefined) {
 				this.switchActiveUser(
 					userAccounts.concat(delegatedAccounts)[0]?.subAccountId ?? 0,
 					userAccounts.concat(delegatedAccounts)[0]?.authority ?? this.authority

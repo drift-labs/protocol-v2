@@ -22,6 +22,7 @@ export type DriftClientConfig = {
 	authority?: PublicKey; // explicitly pass an authority if signer is delegate
 	includeDelegates?: boolean; // flag for whether to load delegate accounts as well
 	authoritySubaccountMap?: Map<string, number[]>; // if passed this will override subAccountIds and includeDelegates
+	skipLoadUsers?: boolean; // if passed to constructor, no user accounts will be loaded. they will load if updateWallet is called afterwards.
 };
 
 export type DriftClientSubscriptionConfig =
