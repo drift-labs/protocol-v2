@@ -85,7 +85,7 @@ import { wrapInTx } from './tx/utils';
 import { QUOTE_SPOT_MARKET_INDEX, ZERO } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getTokenAmount } from './math/spotBalance';
-import { DEFAULT_USER_NAME, encodeName } from './userName';
+import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
@@ -4736,6 +4736,36 @@ export class DriftClient {
 		};
 
 		return extendedInfo;
+	}
+
+	/**
+	 * Returns the market index and type for a given market name
+	 * E.g. "SOL-PERP" -> { marketIndex: 0, marketType: MarketType.PERP }
+	 *
+	 * @param name
+	 */
+	getMarketIndexAndType(
+		name: string
+	): { marketIndex: number; marketType: MarketType } | undefined {
+		for (const perpMarketAccount of this.getPerpMarketAccounts()) {
+			if (decodeName(perpMarketAccount.name) === name) {
+				return {
+					marketIndex: perpMarketAccount.marketIndex,
+					marketType: MarketType.PERP,
+				};
+			}
+		}
+
+		for (const spotMarketAccount of this.getSpotMarketAccounts()) {
+			if (decodeName(spotMarketAccount.name) === name) {
+				return {
+					marketIndex: spotMarketAccount.marketIndex,
+					marketType: MarketType.SPOT,
+				};
+			}
+		}
+
+		return undefined;
 	}
 
 	sendTransaction(
