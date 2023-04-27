@@ -382,48 +382,38 @@ pub fn get_fee_pool_tokens(
     )?
     .cast()
 }
-
 fn calculate_revenue_pool_transfer(
     market: &PerpMarket,
     spot_market: &SpotMarket,
     amm_fee_pool_token_amount_after: u128,
     terminal_state_surplus: i128,
 ) -> DriftResult<i128> {
+    validate!(market
+        .insurance_claim
+        .max_revenue_withdraw_per_period >= market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs(),
+        ErrorCode::InvalidAmmDetected,
+        "market
+        .insurance_claim
+        .max_revenue_withdraw_per_period={} < |market.insurance_claim.revenue_withdraw_since_last_settle|={}",
+        market
+        .insurance_claim
+        .max_revenue_withdraw_per_period,
+        market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs()
+    )?;
+
     let amm_budget_surplus =
-        terminal_state_surplus.safe_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?)?;
+        terminal_state_surplus.saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?);
 
-    if amm_budget_surplus < 0 {
-        let max_revenue_withdraw_allowed = market
-            .insurance_claim
-            .max_revenue_withdraw_per_period
-            .cast::<i64>()?
-            .safe_sub(market.insurance_claim.revenue_withdraw_since_last_settle)?
-            .cast::<u128>()?;
-
-        if max_revenue_withdraw_allowed > 0 {
-            let spot_market_revenue_pool_amount = get_token_amount(
-                spot_market.revenue_pool.scaled_balance,
-                spot_market,
-                &SpotBalanceType::Deposit,
-            )?;
-
-            let revenue_pool_transfer: i128 = -(amm_budget_surplus
-                .abs()
-                .min(spot_market_revenue_pool_amount.cast()?)
-                .min(max_revenue_withdraw_allowed.cast()?));
-
-            Ok(revenue_pool_transfer)
-        } else {
-            Ok(0)
-        }
-    } else {
+    if amm_budget_surplus > 0 {
         let fee_pool_threshold = amm_fee_pool_token_amount_after
             .saturating_sub(
-                FEE_POOL_TO_REVENUE_POOL_THRESHOLD.safe_add(market.amm.total_social_loss)?,
+                FEE_POOL_TO_REVENUE_POOL_THRESHOLD
+                    .safe_add(market.amm.total_social_loss)?
+                    .cast()?,
             )
             .cast()?;
 
-        let total_liq_fees_for_revenue_pool: i128 = market
+        let total_liq_fees_for_revenue_pool = market
             .amm
             .total_liquidation_fee
             .min(
@@ -433,7 +423,7 @@ fn calculate_revenue_pool_transfer(
                     .safe_add(market.insurance_claim.quote_max_insurance)?
                     .cast()?,
             )
-            .cast()?;
+            .cast::<i128>()?;
 
         let max_revenue_to_settle = market
             .insurance_claim
@@ -451,7 +441,7 @@ fn calculate_revenue_pool_transfer(
 
         let revenue_pool_transfer = total_fee_for_if
             .safe_add(total_liq_fees_for_revenue_pool)?
-            .safe_sub(market.amm.total_fee_withdrawn.cast()?)?
+            .saturating_sub(market.amm.total_fee_withdrawn.cast()?)
             .max(0)
             .min(fee_pool_threshold)
             .min(max_revenue_to_settle.cast()?);
@@ -464,6 +454,38 @@ fn calculate_revenue_pool_transfer(
         )?;
 
         Ok(revenue_pool_transfer)
+    } else if amm_budget_surplus < 0 {
+        let max_revenue_withdraw_allowed = market
+            .insurance_claim
+            .max_revenue_withdraw_per_period
+            .cast::<i64>()?
+            .saturating_sub(market.insurance_claim.revenue_withdraw_since_last_settle)
+            .cast::<u128>()?
+            .min(
+                get_token_amount(
+                    spot_market.revenue_pool.scaled_balance,
+                    spot_market,
+                    &SpotBalanceType::Deposit,
+                )?
+                .cast()?,
+            )
+            .min(
+                market
+                    .insurance_claim
+                    .max_revenue_withdraw_per_period
+                    .cast()?,
+            );
+
+        if max_revenue_withdraw_allowed > 0 {
+            let revenue_pool_transfer = -(amm_budget_surplus
+                .abs()
+                .min(max_revenue_withdraw_allowed.cast()?));
+            Ok(revenue_pool_transfer)
+        } else {
+            Ok(0)
+        }
+    } else {
+        Ok(0)
     }
 }
 
