@@ -623,18 +623,10 @@ export class DriftClient {
 					(await this.getUserAccountsForDelegate(this.authority)) ?? [];
 			}
 
-			const allUserAccounts = userAccounts.concat(delegatedAccounts);
-			if (allUserAccounts.length === 0) {
-				// if no users exist yet, add active subaccount in case drift client initializes a new account
+			for (const account of userAccounts.concat(delegatedAccounts)) {
 				result =
 					result &&
-					(await this.addUser(this.activeSubAccountId, this.authority));
-			} else {
-				for (const account of userAccounts.concat(delegatedAccounts)) {
-					result =
-						result &&
-						(await this.addUser(account.subAccountId, account.authority));
-				}
+					(await this.addUser(account.subAccountId, account.authority));
 			}
 
 			if (this.activeSubAccountId == undefined) {
@@ -670,6 +662,9 @@ export class DriftClient {
 		}
 		tx.add(initializeUserAccountIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		await this.addUser(subAccountId);
+
 		return [txSig, userAccountPublicKey];
 	}
 
@@ -1486,13 +1481,11 @@ export class DriftClient {
 		reduceOnly = false,
 		userInitialized = true
 	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = subAccountId
-			? await getUserAccountPublicKey(
-					this.program.programId,
-					this.authority,
-					subAccountId
-			  )
-			: await this.getUserAccountPublicKey();
+		const userAccountPublicKey = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority,
+			subAccountId ?? this.activeSubAccountId
+		);
 
 		let remainingAccounts = [];
 		if (userInitialized) {
@@ -1721,6 +1714,8 @@ export class DriftClient {
 		);
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
 
+		await this.addUser(subAccountId);
+
 		return [txSig, userAccountPublicKey];
 	}
 
@@ -1766,6 +1761,8 @@ export class DriftClient {
 		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 
 		const txSig = await this.program.provider.sendAndConfirm(tx, []);
+
+		await this.addUser(subAccountId);
 
 		return [txSig, userAccountPublicKey];
 	}
