@@ -445,6 +445,14 @@ fn calculate_revenue_pool_transfer(
             .max(0)
             .min(fee_pool_threshold)
             .min(max_revenue_to_settle.cast()?);
+        crate::dlog!(
+            total_fee_for_if,
+            total_liq_fees_for_revenue_pool,
+            market.amm.total_fee_withdrawn,
+            fee_pool_threshold,
+            max_revenue_to_settle,
+            revenue_pool_transfer
+        );
 
         validate!(
             revenue_pool_transfer >= 0,
@@ -592,6 +600,8 @@ pub fn update_pool_balances(
             amm_fee_pool_token_amount_after,
             terminal_state_surplus,
         )?;
+
+        crate::dlog!(revenue_pool_transfer);
 
         match revenue_pool_transfer.cmp(&0) {
             Ordering::Greater => {
