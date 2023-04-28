@@ -293,6 +293,14 @@ pub fn transfer_spot_balances(
         return Ok(());
     }
 
+    validate!(
+        spot_market.deposit_balance >= from_spot_balance.balance(),
+        ErrorCode::InvalidSpotMarketState,
+        "spot_market.deposit_balance={} lower than individual spot balance={}",
+        spot_market.deposit_balance,
+        from_spot_balance.balance()
+    )?;
+
     update_spot_balances(
         token_amount.unsigned_abs(),
         if token_amount < 0 {

@@ -176,6 +176,19 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         )?;
     }
 
+    validate!(market
+        .insurance_claim
+        .max_revenue_withdraw_per_period >= market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs(),
+        ErrorCode::InvalidAmmDetected,
+        "market
+        .insurance_claim
+        .max_revenue_withdraw_per_period={} < |market.insurance_claim.revenue_withdraw_since_last_settle|={}",
+        market
+        .insurance_claim
+        .max_revenue_withdraw_per_period,
+        market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs()
+    )?;
+
     Ok(())
 }
 
