@@ -562,7 +562,8 @@ export class DriftClient {
 
 	public async addUser(
 		subAccountId: number,
-		authority?: PublicKey
+		authority?: PublicKey,
+		userAccount?: UserAccount
 	): Promise<boolean> {
 		authority = authority ?? this.authority;
 		const userKey = this.getUserMapKey(subAccountId, authority);
@@ -577,7 +578,7 @@ export class DriftClient {
 			authority
 		);
 
-		const result = await user.subscribe();
+		const result = await user.subscribe(userAccount);
 
 		if (result) {
 			this.users.set(userKey, user);
@@ -626,7 +627,11 @@ export class DriftClient {
 			for (const account of userAccounts.concat(delegatedAccounts)) {
 				result =
 					result &&
-					(await this.addUser(account.subAccountId, account.authority));
+					(await this.addUser(
+						account.subAccountId,
+						account.authority,
+						account
+					));
 			}
 
 			if (this.activeSubAccountId == undefined) {
