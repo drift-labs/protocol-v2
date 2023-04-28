@@ -438,7 +438,8 @@ pub struct AMM {
     pub amm_jit_intensity: u8,
     pub oracle_source: OracleSource,
     pub last_oracle_valid: bool,
-    pub padding: [u8; 48],
+    pub target_base_asset_amount_per_lp: i32,
+    pub padding: [u8; 48 - 4],
 }
 
 impl Default for AMM {
@@ -519,7 +520,8 @@ impl Default for AMM {
             amm_jit_intensity: 0,
             oracle_source: OracleSource::default(),
             last_oracle_valid: false,
-            padding: [0; 48],
+            target_base_asset_amount_per_lp: 0,
+            padding: [0; 48 - 4],
         }
     }
 }

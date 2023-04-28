@@ -712,7 +712,8 @@ pub fn handle_initialize_perp_market(
             amm_jit_intensity: 0, // turn it off at the start
 
             last_oracle_valid: false,
-            padding: [0; 48],
+            target_base_asset_amount_per_lp: 0,
+            padding: [0; 48 - 4],
         },
     };
 
@@ -1819,6 +1820,18 @@ pub fn handle_update_perp_market_curve_update_intensity(
     )?;
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.amm.curve_update_intensity = curve_update_intensity;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_target_base_asset_amount_per_lp(
+    ctx: Context<AdminUpdatePerpMarket>,
+    target_base_asset_amount_per_lp: i32,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    perp_market.amm.target_base_asset_amount_per_lp = target_base_asset_amount_per_lp;
     Ok(())
 }
 
