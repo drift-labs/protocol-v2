@@ -10,6 +10,7 @@ import {
 } from '@ellipsis-labs/phoenix-sdk';
 import { PRICE_PRECISION } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
+import { L2Level, L2OrderBookGenerator } from '../dlob/orderBookLevels';
 
 export type PhoenixMarketSubscriberConfig = {
 	connection: Connection;
@@ -26,7 +27,7 @@ export type PhoenixMarketSubscriberConfig = {
 		  };
 };
 
-export class PhoenixSubscriber {
+export class PhoenixSubscriber implements L2OrderBookGenerator {
 	connection: Connection;
 	client: Client;
 	programId: PublicKey;
@@ -125,6 +126,39 @@ export class PhoenixSubscriber {
 			1
 		);
 		return new BN(Math.floor(ladder.asks[0][0] * PRICE_PRECISION.toNumber()));
+	}
+
+	public getL2Bids(): Generator<L2Level> {
+		return this.getL2Levels('bids');
+	}
+
+	public getL2Asks(): Generator<L2Level> {
+		return this.getL2Levels('asks');
+	}
+
+	*getL2Levels(side: 'bids' | 'asks'): Generator<L2Level> {
+		// @ts-ignore
+		const basePrecision = Math.pow(10, this.market.header.baseParams.decimals);
+		const pricePrecision = PRICE_PRECISION.toNumber();
+
+		const ladder = getMarketUiLadder(
+			this.market,
+			this.lastSlot,
+			this.lastUnixTimestamp,
+			20
+		);
+
+		for (let i = 0; i < ladder[side].length; i++) {
+			const [priceNum, sizeNum] = ladder[side][i];
+			const size = new BN(Math.floor(sizeNum * basePrecision));
+			yield {
+				price: new BN(Math.floor(priceNum * pricePrecision)),
+				size,
+				sources: {
+					phoenix: size,
+				},
+			};
+		}
 	}
 
 	public async unsubscribe(): Promise<void> {

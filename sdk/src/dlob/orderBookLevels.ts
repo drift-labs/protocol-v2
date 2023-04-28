@@ -13,7 +13,7 @@ import {
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 
-type liquiditySource = 'serum' | 'vamm' | 'dlob';
+type liquiditySource = 'serum' | 'vamm' | 'dlob' | 'phoenix';
 
 export type L2Level = {
 	price: BN;
