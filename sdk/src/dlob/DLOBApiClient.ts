@@ -19,7 +19,9 @@ export class DLOBApiClient {
 	public async getDLOB(slot: number): Promise<DLOB> {
 		const r = await fetch(this.url);
 		if (!r.ok) {
-			throw new Error(`Failed to fetch DLOB from ${this.url}`);
+			throw new Error(
+				`Failed to fetch DLOB from ${this.url}. Status: ${r.status}, ${r.statusText}`
+			);
 		}
 
 		const resp = await r.json();

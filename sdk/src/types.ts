@@ -585,6 +585,7 @@ export type HistoricalIndexData = {
 export type SpotMarketAccount = {
 	status: MarketStatus;
 	assetTier: AssetTier;
+	name: number[];
 
 	marketIndex: number;
 	pubkey: PublicKey;
