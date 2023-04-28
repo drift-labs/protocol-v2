@@ -1550,11 +1550,10 @@ pub mod amm_jit {
 
         crate::validation::perp_market::validate_perp_market(&market).unwrap();
         crate::validation::perp_market::validate_perp_market(&market_after).unwrap();
-        assert_eq!(1, 0);
     }
 
     #[test]
-    fn fulfill_with_amm_jit_taker_short_with_no_split_lps() {
+    fn fulfill_with_amm_jit_taker_short_unavailable_amm() {
         let now = 0_i64;
         let slot = 0_u64;
 
@@ -1758,30 +1757,6 @@ pub mod amm_jit {
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
 
         assert_eq!(quote_asset_amount_surplus, 0);
-        // assert!(
-        //     market_after.amm.base_asset_amount_with_amm.abs()
-        //         < market.amm.base_asset_amount_with_amm.abs()
-        // );
-
-        // assert!(quote_asset_amount_surplus > 0);
-        // assert_eq!(market_after.amm.base_asset_amount_with_amm, 100000000);
-        // assert_eq!(market_after.amm.base_asset_amount_long, 1000000000);
-        // assert_eq!(market_after.amm.base_asset_amount_short, -1000000000);
-
-        // assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 0);
-        // assert_eq!(
-        //     market_after.amm.base_asset_amount_with_unsettled_lp,
-        //     -100000000
-        // );
-
-        // assert_eq!(market.amm.quote_asset_amount_per_lp, 0);
-        // assert_eq!(market_after.amm.quote_asset_amount_per_lp, -497271);
-
-        // assert_eq!(market.amm.base_asset_amount_per_lp, 0);
-        // assert_eq!(market_after.amm.base_asset_amount_per_lp, 5000000);
-
-        // assert_eq!(market_after.amm.total_exchange_fee, 32373);
-        // assert_eq!(market_after.amm.total_fee_minus_distributions, 36039);
 
         crate::validation::perp_market::validate_perp_market(&market).unwrap();
         crate::validation::perp_market::validate_perp_market(&market_after).unwrap();
