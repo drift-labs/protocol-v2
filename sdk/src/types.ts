@@ -714,6 +714,7 @@ export type AMM = {
 
 	baseAssetAmountPerLp: BN;
 	quoteAssetAmountPerLp: BN;
+	targetBaseAssetAmountPerLp: number;
 
 	ammJitIntensity: number;
 	maxOpenInterest: BN;
