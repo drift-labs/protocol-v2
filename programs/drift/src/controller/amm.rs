@@ -445,14 +445,6 @@ fn calculate_revenue_pool_transfer(
             .max(0)
             .min(fee_pool_threshold)
             .min(max_revenue_to_settle.cast()?);
-        crate::dlog!(
-            total_fee_for_if,
-            total_liq_fees_for_revenue_pool,
-            market.amm.total_fee_withdrawn,
-            fee_pool_threshold,
-            max_revenue_to_settle,
-            revenue_pool_transfer
-        );
 
         validate!(
             revenue_pool_transfer >= 0,
@@ -519,16 +511,11 @@ pub fn update_pool_balances(
         .total_fee_minus_distributions
         .safe_add(market.amm.total_liquidation_fee.cast()?)?
         .safe_sub(market.amm.total_fee_withdrawn.cast()?)?;
-    crate::dlog!(
-        amm_target_max_fee_pool_token_amount,
-        amm_fee_pool_token_amount
-    );
 
     if amm_target_max_fee_pool_token_amount <= amm_fee_pool_token_amount {
         // owe the market pnl pool before settling user
         let pnl_pool_addition =
             max(0, amm_target_max_fee_pool_token_amount).safe_sub(amm_fee_pool_token_amount)?;
-        crate::dlog!(pnl_pool_addition);
 
         if pnl_pool_addition < 0 {
             transfer_spot_balances(
@@ -538,7 +525,6 @@ pub fn update_pool_balances(
                 &mut market.pnl_pool,
             )?;
         }
-        crate::dlog!(pnl_pool_addition);
 
         fraction_for_amm = 0;
     }
@@ -606,8 +592,6 @@ pub fn update_pool_balances(
             amm_fee_pool_token_amount_after,
             terminal_state_surplus,
         )?;
-
-        crate::dlog!(revenue_pool_transfer);
 
         match revenue_pool_transfer.cmp(&0) {
             Ordering::Greater => {
