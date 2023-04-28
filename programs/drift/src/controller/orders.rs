@@ -1805,12 +1805,14 @@ pub fn fulfill_perp_order_with_amm(
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
+    crate::dlog!("split_with_lps={:?}", split_with_lps);
     if split_with_lps {
         update_lp_market_position(market, &user_position_delta, fee_to_market_for_lp.cast()?)?;
+    } else {
+        msg!("HIHIHI {:?} {:?}", fee_to_market, fee_to_market_for_lp);
+        fee_to_market = fee_to_market.safe_add(fee_to_market_for_lp)?;
+        msg!("HIHIHI {:?} {:?}", fee_to_market, fee_to_market_for_lp);
     }
-    // else {
-    //     fee_to_market = fee_to_market.safe_add(fee_to_market_for_lp)?;
-    // }
 
     if market.amm.user_lp_shares > 0 {
         let (new_terminal_quote_reserve, new_terminal_base_reserve) =
