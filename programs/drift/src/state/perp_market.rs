@@ -531,6 +531,10 @@ impl AMM {
         self.amm_jit_intensity > 0
     }
 
+    pub fn amm_lp_jit_is_active(&self) -> bool {
+        self.amm_jit_intensity > 100
+    }
+
     pub fn reserve_price(&self) -> DriftResult<u64> {
         amm::calculate_price(
             self.quote_asset_reserve,

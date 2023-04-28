@@ -28,8 +28,8 @@ use crate::load_mut;
 use crate::math::auction::calculate_auction_prices;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
-    QUOTE_SPOT_MARKET_INDEX,
+    BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR,
+    PERCENTAGE_PRECISION_I128, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
 };
 use crate::math::fees::{ExternalFillFees, FillFees};
 use crate::math::fulfillment::{
@@ -50,6 +50,7 @@ use crate::{controller, PostOnlyParam};
 use crate::{get_struct_values, ModifyOrderParams};
 
 use crate::math::amm::calculate_amm_available_liquidity;
+use crate::math::amm_spread::calculate_inventory_liquidity_ratio;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
@@ -79,6 +80,7 @@ mod tests;
 
 #[cfg(test)]
 mod amm_jit_tests;
+// mod amm_lp_jit_tests;
 
 pub fn place_perp_order(
     state: &State,
@@ -1781,7 +1783,7 @@ pub fn fulfill_perp_order_with_amm(
 
     let FillFees {
         user_fee,
-        fee_to_market,
+        mut fee_to_market,
         filler_reward,
         referee_discount,
         referrer_reward,
@@ -1806,6 +1808,9 @@ pub fn fulfill_perp_order_with_amm(
     if split_with_lps {
         update_lp_market_position(market, &user_position_delta, fee_to_market_for_lp.cast()?)?;
     }
+    // else {
+    //     fee_to_market = fee_to_market.safe_add(fee_to_market_for_lp)?;
+    // }
 
     if market.amm.user_lp_shares > 0 {
         let (new_terminal_quote_reserve, new_terminal_base_reserve) =
@@ -2058,6 +2063,29 @@ pub fn fulfill_perp_order_with_match(
         )?;
 
         if jit_base_asset_amount > 0 {
+            let amm_lp_wants_to_make = match taker_direction {
+                PositionDirection::Long => {
+                    market.amm.base_asset_amount_per_lp
+                        < market.amm.target_base_asset_amount_per_lp.cast()?
+                }
+                PositionDirection::Short => {
+                    market.amm.base_asset_amount_per_lp
+                        > market.amm.target_base_asset_amount_per_lp.cast()?
+                }
+            } && market.amm.amm_lp_jit_is_active();
+
+            let amm_lps_allowed_to_make = if amm_lp_wants_to_make {
+                let amm_inventory_pct = calculate_inventory_liquidity_ratio(
+                    market.amm.base_asset_amount_with_amm,
+                    market.amm.base_asset_reserve,
+                    market.amm.min_base_asset_reserve,
+                    market.amm.max_base_asset_reserve,
+                )?;
+                amm_inventory_pct.abs() < PERCENTAGE_PRECISION_I128 / 10
+            } else {
+                false
+            };
+
             let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
                 taker,
                 taker_stats,
@@ -2077,7 +2105,7 @@ pub fn fulfill_perp_order_with_match(
                 fee_structure,
                 Some(jit_base_asset_amount),
                 Some(maker_price), // match the makers price
-                false,             // dont split with the lps
+                amm_lp_wants_to_make && amm_lps_allowed_to_make, // dont split with the lps
             )?;
             total_quote_asset_amount = quote_asset_amount_filled_by_amm;
         };
