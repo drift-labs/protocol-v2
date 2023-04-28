@@ -519,11 +519,16 @@ pub fn update_pool_balances(
         .total_fee_minus_distributions
         .safe_add(market.amm.total_liquidation_fee.cast()?)?
         .safe_sub(market.amm.total_fee_withdrawn.cast()?)?;
+    crate::dlog!(
+        amm_target_max_fee_pool_token_amount,
+        amm_fee_pool_token_amount
+    );
 
     if amm_target_max_fee_pool_token_amount <= amm_fee_pool_token_amount {
         // owe the market pnl pool before settling user
         let pnl_pool_addition =
             max(0, amm_target_max_fee_pool_token_amount).safe_sub(amm_fee_pool_token_amount)?;
+        crate::dlog!(pnl_pool_addition);
 
         if pnl_pool_addition < 0 {
             transfer_spot_balances(
@@ -533,6 +538,7 @@ pub fn update_pool_balances(
                 &mut market.pnl_pool,
             )?;
         }
+        crate::dlog!(pnl_pool_addition);
 
         fraction_for_amm = 0;
     }

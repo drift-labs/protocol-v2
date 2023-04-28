@@ -1494,7 +1494,7 @@ mod revenue_pool_transfer_tests {
     }
 
     #[test]
-    fn test_update_last_revenue_settle_ts() {
+    fn test_update_postive_last_revenue_withdraw_ts() {
         // Set up input parameters
         let mut market = PerpMarket {
             amm: AMM {
@@ -1607,5 +1607,103 @@ mod revenue_pool_transfer_tests {
         assert_eq!(to_settle_with_user, -100);
         assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 10000);
         assert_eq!(spot_market.revenue_pool.scaled_balance, 10065000169000);
+    }
+
+    #[test]
+    fn test_update_negative_last_revenue_withdraw_ts() {
+        // Set up input parameters
+        let mut market = PerpMarket {
+            amm: AMM {
+                total_social_loss: 0,
+                total_liquidation_fee: 0,
+                total_fee_withdrawn: 0,
+                net_revenue_since_last_funding: 169 * QUOTE_PRECISION_I64,
+                total_fee_minus_distributions: -6969696969,
+                total_exchange_fee: 420420420420,
+                fee_pool: PoolBalance {
+                    scaled_balance: 81000 * SPOT_BALANCE_PRECISION,
+                    ..PoolBalance::default()
+                },
+                ..AMM::default()
+            },
+            pnl_pool: PoolBalance {
+                scaled_balance: 10000 * SPOT_BALANCE_PRECISION,
+                ..PoolBalance::default()
+            },
+            insurance_claim: InsuranceClaim {
+                max_revenue_withdraw_per_period: 65000000,
+                revenue_withdraw_since_last_settle: 0,
+                quote_settled_insurance: 0,
+                quote_max_insurance: 1000,
+                ..InsuranceClaim::default()
+            },
+            ..PerpMarket::default()
+        };
+        let mut spot_market = SpotMarket {
+            deposit_balance: 20020000 * SPOT_BALANCE_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            revenue_pool: PoolBalance {
+                market_index: 0,
+                scaled_balance: 10000 * SPOT_BALANCE_PRECISION,
+                ..PoolBalance::default()
+            },
+            insurance_fund: InsuranceFund {
+                revenue_settle_period: 3600,
+                ..InsuranceFund::default()
+            },
+            decimals: 6,
+            ..SpotMarket::default()
+        };
+
+        // would lead to a borrow
+        let spot_position = SpotPosition::default();
+        let unsettled_pnl = -100;
+        let now = 100;
+        let to_settle_with_user = update_pool_balances(
+            &mut market,
+            &mut spot_market,
+            &spot_position,
+            unsettled_pnl,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(to_settle_with_user, -100);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 100);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 9935000000000);
+
+        // revenue pool not yet settled
+        let now = 10000;
+        let to_settle_with_user = update_pool_balances(
+            &mut market,
+            &mut spot_market,
+            &spot_position,
+            unsettled_pnl,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(to_settle_with_user, -100);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 100);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 9935000000000);
+
+        // revenue pool settled and negative/positive revenue for hour irrelevant for withdraw
+        spot_market.insurance_fund.last_revenue_settle_ts = 3600 + 100;
+        market.amm.net_revenue_since_last_funding = -169;
+
+        let now = 10000;
+        let to_settle_with_user = update_pool_balances(
+            &mut market,
+            &mut spot_market,
+            &spot_position,
+            unsettled_pnl,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(to_settle_with_user, -100);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 10000);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 9870000000000);
     }
 }
