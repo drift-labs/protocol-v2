@@ -388,18 +388,9 @@ fn calculate_revenue_pool_transfer(
     amm_fee_pool_token_amount_after: u128,
     terminal_state_surplus: i128,
 ) -> DriftResult<i128> {
-    validate!(market
-        .insurance_claim
-        .max_revenue_withdraw_per_period >= market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs(),
-        ErrorCode::InvalidAmmDetected,
-        "market
-        .insurance_claim
-        .max_revenue_withdraw_per_period={} < |market.insurance_claim.revenue_withdraw_since_last_settle|={}",
-        market
-        .insurance_claim
-        .max_revenue_withdraw_per_period,
-        market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs()
-    )?;
+    // Calculates the revenue pool transfer amount for a given market state (positive = send to revenue pool, negative = pull from revenue pool)
+    // If the AMM budget is above `FEE_POOL_TO_REVENUE_POOL_THRESHOLD` (in surplus), settle fees collected to the revenue pool depending on the health of the AMM state
+    // Otherwise, spull from the revenue pool (up to a constraint amount)
 
     let amm_budget_surplus =
         terminal_state_surplus.saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?);

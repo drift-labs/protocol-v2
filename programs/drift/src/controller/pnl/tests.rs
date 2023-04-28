@@ -73,6 +73,7 @@ pub fn user_no_position() {
             order_step_size: 10000000,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,
@@ -186,6 +187,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
             order_step_size: 10000000,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,
@@ -304,6 +306,7 @@ pub fn user_unsettled_negative_pnl() {
             order_step_size: 10000000,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,
@@ -436,6 +439,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
             order_step_size: 10000000,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,
@@ -566,6 +570,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
             order_step_size: 10000000,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,
@@ -698,6 +703,7 @@ pub fn market_fee_pool_receives_portion() {
             order_step_size: 10000000,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
             historical_oracle_data: HistoricalOracleData {
@@ -832,6 +838,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             order_step_size: 10000000,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
             fee_pool: PoolBalance {
@@ -971,6 +978,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
             order_step_size: 10000000,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,
@@ -1104,6 +1112,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
             order_step_size: 10000000,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,
@@ -1234,6 +1243,7 @@ pub fn user_long_negative_unrealized_pnl() {
             order_step_size: 10000000,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,
@@ -1367,6 +1377,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
             order_step_size: 10000000,
             quote_asset_amount: 150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,
@@ -1500,6 +1511,7 @@ pub fn user_short_negative_unrealized_pnl() {
             order_step_size: 10000000,
             quote_asset_amount: 150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,

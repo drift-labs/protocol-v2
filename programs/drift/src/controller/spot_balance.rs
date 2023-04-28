@@ -294,7 +294,7 @@ pub fn transfer_spot_balances(
     }
 
     validate!(
-        spot_market.deposit_balance > from_spot_balance.balance(),
+        spot_market.deposit_balance >= from_spot_balance.balance(),
         ErrorCode::InvalidSpotMarketState,
         "spot_market.deposit_balance={} lower than individual spot balance={}",
         spot_market.deposit_balance,
