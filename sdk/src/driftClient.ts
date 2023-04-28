@@ -623,10 +623,18 @@ export class DriftClient {
 					(await this.getUserAccountsForDelegate(this.authority)) ?? [];
 			}
 
-			for (const account of userAccounts.concat(delegatedAccounts)) {
+			const allUserAccounts = userAccounts.concat(delegatedAccounts);
+			if (allUserAccounts.length === 0) {
+				// if no users exist yet, add active subaccount in case drift client initializes a new account
 				result =
 					result &&
-					(await this.addUser(account.subAccountId, account.authority));
+					(await this.addUser(this.activeSubAccountId, this.authority));
+			} else {
+				for (const account of userAccounts.concat(delegatedAccounts)) {
+					result =
+						result &&
+						(await this.addUser(account.subAccountId, account.authority));
+				}
 			}
 
 			if (this.activeSubAccountId == undefined) {
@@ -1010,7 +1018,7 @@ export class DriftClient {
 		const userMapKey = this.getUserMapKey(subAccountId, authority);
 
 		if (!this.users.has(userMapKey)) {
-			throw new Error(`Clearing House has no user for user id ${subAccountId}`);
+			throw new Error(`Clearing House has no user for user id ${userMapKey}`);
 		}
 		return this.users.get(userMapKey);
 	}
