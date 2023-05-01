@@ -556,6 +556,10 @@ export class DriftClient {
 	public switchActiveUser(subAccountId: number, authority?: PublicKey) {
 		this.activeSubAccountId = subAccountId;
 		this.authority = authority ?? this.authority;
+		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			this.authority
+		);
 	}
 
 	public async addUser(
@@ -1054,6 +1058,10 @@ export class DriftClient {
 
 	userStatsAccountPublicKey: PublicKey;
 	public getUserStatsAccountPublicKey(): PublicKey {
+		if (this.userStatsAccountPublicKey) {
+			return this.userStatsAccountPublicKey;
+		}
+
 		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
 			this.authority
