@@ -118,6 +118,7 @@ pub mod amm_jit {
             PRICE_PRECISION_U64,
             Some(PRICE_PRECISION_I64),
             PositionDirection::Long,
+            false,
         )
         .unwrap();
     }
