@@ -98,6 +98,7 @@ import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
 import { calculateMarketMaxAvailableInsurance } from './math/market';
+import { fetchUserStatsAccount } from './accounts/fetch';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -740,6 +741,21 @@ export class DriftClient {
 				state: await this.getStatePublicKey(),
 			},
 		});
+	}
+
+	async getNextSubAccountId(): Promise<number> {
+		const userStats = this.getUserStats();
+		let userStatsAccount: UserStatsAccount;
+		if (!userStats) {
+			userStatsAccount = await fetchUserStatsAccount(
+				this.connection,
+				this.program,
+				this.wallet.publicKey
+			);
+		} else {
+			userStatsAccount = userStats.getAccount();
+		}
+		return userStatsAccount.numberOfSubAccountsCreated;
 	}
 
 	public async initializeReferrerName(
