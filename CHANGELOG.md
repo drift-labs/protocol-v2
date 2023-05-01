@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: use forked version of anchor 0.26.0 that supports large idls ([#451](https://github.com/drift-labs/protocol-v2/pull/451))
 - program: add security.txt ([#450](https://github.com/drift-labs/protocol-v2/pull/450))
 - program: add L2 and L3 view of DLOB ([#445](https://github.com/drift-labs/protocol-v2/pull/445))
 - ts-sdk: new DLOBSubscriber class to keep updated DLOB ([#439](https://github.com/drift-labs/protocol-v2/pull/439))
