@@ -838,6 +838,7 @@ dependencies = [
  "pyth-client",
  "serum_dex",
  "solana-program",
+ "solana-security-txt",
  "thiserror",
  "uint",
 ]
