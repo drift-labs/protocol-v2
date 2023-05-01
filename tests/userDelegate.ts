@@ -151,6 +151,7 @@ describe('user delegate', () => {
 				},
 			],
 			authority: provider.wallet.publicKey,
+			includeDelegates: true,
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
