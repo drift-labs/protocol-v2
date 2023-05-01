@@ -16,9 +16,10 @@ mainnet-beta=[]
 default=["mainnet-beta"]
 
 [dependencies]
-anchor-lang = "0.26.0"
+# forked version of anchor 0.26.0 with support for large idl
+anchor-lang = { git = "https://github.com/drift-labs/anchor.git", rev = "ed950fe", version = "0.26.0" }
 solana-program = "1.13.7"
-anchor-spl = "0.26.0"
+anchor-spl = { git = "https://github.com/drift-labs/anchor.git", rev = "ed950fe", version = "0.26.0" }
 pyth-client = "0.2.2"
 bytemuck = { version = "1.4.0" }
 borsh = "0.9.1"
