@@ -121,7 +121,6 @@ export class DriftClient {
 	users = new Map<string, User>();
 	userStats?: UserStats;
 	activeSubAccountId: number;
-	activeAuthority: PublicKey;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
@@ -188,7 +187,6 @@ export class DriftClient {
 			: new Map<string, number[]>();
 
 		this.includeDelegates = config.includeDelegates ?? false;
-		this.activeAuthority = this.authority;
 		this.userAccountSubscriptionConfig =
 			config.accountSubscription?.type === 'polling'
 				? {
@@ -557,7 +555,7 @@ export class DriftClient {
 
 	public switchActiveUser(subAccountId: number, authority?: PublicKey) {
 		this.activeSubAccountId = subAccountId;
-		this.activeAuthority = authority ?? this.authority;
+		this.authority = authority ?? this.authority;
 	}
 
 	public async addUser(
@@ -616,12 +614,12 @@ export class DriftClient {
 			}
 		} else {
 			const userAccounts =
-				(await this.getUserAccountsForAuthority(this.authority)) ?? [];
+				(await this.getUserAccountsForAuthority(this.wallet.publicKey)) ?? [];
 			let delegatedAccounts = [];
 
 			if (this.includeDelegates) {
 				delegatedAccounts =
-					(await this.getUserAccountsForDelegate(this.authority)) ?? [];
+					(await this.getUserAccountsForDelegate(this.wallet.publicKey)) ?? [];
 			}
 
 			for (const account of userAccounts.concat(delegatedAccounts)) {
@@ -1014,7 +1012,7 @@ export class DriftClient {
 
 	public getUser(subAccountId?: number, authority?: PublicKey): User {
 		subAccountId = subAccountId ?? this.activeSubAccountId;
-		authority = authority ?? this.activeAuthority;
+		authority = authority ?? this.authority;
 		const userMapKey = this.getUserMapKey(subAccountId, authority);
 
 		if (!this.users.has(userMapKey)) {
@@ -1026,10 +1024,13 @@ export class DriftClient {
 	public getUsers(): User[] {
 		// delegate users get added to the end
 		return [...this.users.values()]
-			.filter((acct) => acct.getUserAccount().authority.equals(this.authority))
+			.filter((acct) =>
+				acct.getUserAccount().authority.equals(this.wallet.publicKey)
+			)
 			.concat(
 				[...this.users.values()].filter(
-					(acct) => !acct.getUserAccount().authority.equals(this.authority)
+					(acct) =>
+						!acct.getUserAccount().authority.equals(this.wallet.publicKey)
 				)
 			);
 	}
@@ -1059,7 +1060,7 @@ export class DriftClient {
 
 		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
-			this.activeAuthority
+			this.authority
 		);
 		return this.userStatsAccountPublicKey;
 	}
@@ -1427,10 +1428,11 @@ export class DriftClient {
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
-		const authority = this.authority;
+		// review
+		const signerAuthority = this.wallet.publicKey;
 
 		const createWSOLTokenAccount =
-			isSolMarket && collateralAccountPublicKey.equals(authority);
+			isSolMarket && collateralAccountPublicKey.equals(signerAuthority);
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
@@ -1462,8 +1464,8 @@ export class DriftClient {
 				Token.createCloseAccountInstruction(
 					TOKEN_PROGRAM_ID,
 					collateralAccountPublicKey,
-					authority,
-					authority,
+					signerAuthority,
+					signerAuthority,
 					[]
 				)
 			);
