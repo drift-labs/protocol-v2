@@ -84,7 +84,7 @@ import { TxSender, TxSigAndSlot } from './tx/types';
 import { wrapInTx } from './tx/utils';
 import { QUOTE_SPOT_MARKET_INDEX, ZERO } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
-import { getTokenAmount } from './math/spotBalance';
+import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
@@ -1129,15 +1129,23 @@ export class DriftClient {
 		);
 	}
 
+	/**
+	 * Returns the token amount for a given market. The spot market precision is based on the token mint decimals.
+	 * Positive if it is a deposit, negative if it is a borrow.
+	 * @param marketIndex
+	 */
 	public getTokenAmount(marketIndex: number): BN {
 		const spotPosition = this.getSpotPosition(marketIndex);
 		if (spotPosition === undefined) {
 			return ZERO;
 		}
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
-		return getTokenAmount(
-			spotPosition.scaledBalance,
-			spotMarket,
+		return getSignedTokenAmount(
+			getTokenAmount(
+				spotPosition.scaledBalance,
+				spotMarket,
+				spotPosition.balanceType
+			),
 			spotPosition.balanceType
 		);
 	}
