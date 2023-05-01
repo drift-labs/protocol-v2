@@ -132,7 +132,7 @@ export class DriftClient {
 	marketLookupTable: PublicKey;
 	lookupTableAccount: AddressLookupTableAccount;
 	includeDelegates?: boolean;
-	authoritySubaccountMap?: Map<string, number[]>;
+	authoritySubAccountMap?: Map<string, number[]>;
 	skipLoadUsers?: boolean;
 
 	public get isSubscribed() {
@@ -168,20 +168,20 @@ export class DriftClient {
 			);
 		}
 
-		if (config.authoritySubaccountMap && config.subAccountIds) {
+		if (config.authoritySubAccountMap && config.subAccountIds) {
 			throw new Error(
 				'Can only pass one of authoritySubaccountMap or subAccountIds'
 			);
 		}
 
-		if (config.authoritySubaccountMap && config.includeDelegates) {
+		if (config.authoritySubAccountMap && config.includeDelegates) {
 			throw new Error(
 				'Can only pass one of authoritySubaccountMap or includeDelegates'
 			);
 		}
 
-		this.authoritySubaccountMap = config.authoritySubaccountMap
-			? config.authoritySubaccountMap
+		this.authoritySubAccountMap = config.authoritySubAccountMap
+			? config.authoritySubAccountMap
 			: config.subAccountIds
 			? new Map([[this.authority.toString(), config.subAccountIds]])
 			: new Map<string, number[]>();
@@ -523,7 +523,7 @@ export class DriftClient {
 			);
 		}
 
-		this.authoritySubaccountMap = authoritySubaccountMap
+		this.authoritySubAccountMap = authoritySubaccountMap
 			? authoritySubaccountMap
 			: subAccountIds
 			? new Map([[this.authority.toString(), subAccountIds]])
@@ -595,8 +595,8 @@ export class DriftClient {
 
 		let result = true;
 
-		if (this.authoritySubaccountMap && this.authoritySubaccountMap.size > 0) {
-			this.authoritySubaccountMap.forEach(async (value, key) => {
+		if (this.authoritySubAccountMap && this.authoritySubAccountMap.size > 0) {
+			this.authoritySubAccountMap.forEach(async (value, key) => {
 				for (const subAccountId of value) {
 					result =
 						result && (await this.addUser(subAccountId, new PublicKey(key)));
@@ -605,9 +605,9 @@ export class DriftClient {
 
 			if (this.activeSubAccountId == undefined) {
 				this.switchActiveUser(
-					[...this.authoritySubaccountMap.values()][0][0] ?? 0,
+					[...this.authoritySubAccountMap.values()][0][0] ?? 0,
 					new PublicKey(
-						[...this.authoritySubaccountMap.keys()][0] ??
+						[...this.authoritySubAccountMap.keys()][0] ??
 							this.authority.toString()
 					)
 				);
@@ -1054,10 +1054,6 @@ export class DriftClient {
 
 	userStatsAccountPublicKey: PublicKey;
 	public getUserStatsAccountPublicKey(): PublicKey {
-		if (this.userStatsAccountPublicKey) {
-			return this.userStatsAccountPublicKey;
-		}
-
 		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
 			this.authority
@@ -1428,7 +1424,6 @@ export class DriftClient {
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
-		// review
 		const signerAuthority = this.wallet.publicKey;
 
 		const createWSOLTokenAccount =
