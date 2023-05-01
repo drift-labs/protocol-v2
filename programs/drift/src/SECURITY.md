@@ -26,6 +26,9 @@ The following are out of scope for the bug bounty:
 6. Third party, off-chain bot errors (for instance bugs with an arbitrage bot running on the smart contracts).
 7. Best practice critiques.
 8. Sybil attacks.
+9. Attempted phishing or other social engineering attacks involving Drift contributors or users
+10. Denial of service, or automated testing of services that generate significant traffic.
+11. Any submission violating [Immunefi's rules](https://immunefi.com/rules/) 
 
 
 
