@@ -93,12 +93,17 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import { configs, getMarketsAndOraclesForSubscription } from './config';
+import {
+	configs,
+	DRIFT_PROGRAM_ID,
+	getMarketsAndOraclesForSubscription,
+} from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
 import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
+import { castNumberToSpotPrecision } from './math/spotMarket';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -155,7 +160,7 @@ export class DriftClient {
 		);
 		this.program = new Program(
 			driftIDL as Idl,
-			config.programID,
+			config.programID ?? new PublicKey(DRIFT_PROGRAM_ID),
 			this.provider
 		);
 
@@ -1137,6 +1142,16 @@ export class DriftClient {
 		);
 	}
 
+	/**
+	 * Converts a token amount to the spot precision for a given market. The spot market precision is based on the token mint decimals.
+	 * @param marketIndex
+	 * @param amount
+	 */
+	public convertToSpotPrecision(marketIndex: number, amount: BN | number): BN {
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		return castNumberToSpotPrecision(amount, spotMarket);
+	}
+
 	getRemainingAccounts(params: RemainingAccountParams): AccountMeta[] {
 		const { oracleAccountMap, spotMarketAccountMap, perpMarketAccountMap } =
 			this.getRemainingAccountMapsForUsers(params.userAccounts);
@@ -1420,10 +1435,41 @@ export class DriftClient {
 		);
 	}
 
+	/**
+	 * Get the associated token address for the given spot market
+	 * @param marketIndex
+	 * @param useNative
+	 */
+	public async getAssociatedTokenAccount(
+		marketIndex: number,
+		useNative = true
+	): Promise<PublicKey> {
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		if (useNative && spotMarket.mint.equals(WRAPPED_SOL_MINT)) {
+			return this.wallet.publicKey;
+		}
+		const mint = spotMarket.mint;
+		return await Token.getAssociatedTokenAddress(
+			ASSOCIATED_TOKEN_PROGRAM_ID,
+			TOKEN_PROGRAM_ID,
+			mint,
+			this.wallet.publicKey
+		);
+	}
+
+	/**
+	 * Deposit funds into the given spot market
+	 *
+	 * @param amount
+	 * @param marketIndex
+	 * @param associatedTokenAccount can be the wallet public key if using native sol
+	 * @param subAccountId
+	 * @param reduceOnly
+	 */
 	public async deposit(
 		amount: BN,
 		marketIndex: number,
-		collateralAccountPublicKey: PublicKey,
+		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
@@ -1443,13 +1489,13 @@ export class DriftClient {
 		const signerAuthority = this.wallet.publicKey;
 
 		const createWSOLTokenAccount =
-			isSolMarket && collateralAccountPublicKey.equals(signerAuthority);
+			isSolMarket && associatedTokenAccount.equals(signerAuthority);
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
 				await this.getWrappedSolAccountCreationIxs(amount, true);
 
-			collateralAccountPublicKey = pubkey;
+			associatedTokenAccount = pubkey;
 
 			ixs.forEach((ix) => {
 				tx.add(ix);
@@ -1461,7 +1507,7 @@ export class DriftClient {
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
 			marketIndex,
-			collateralAccountPublicKey,
+			associatedTokenAccount,
 			subAccountId,
 			reduceOnly,
 			true
@@ -1474,7 +1520,7 @@ export class DriftClient {
 			tx.add(
 				Token.createCloseAccountInstruction(
 					TOKEN_PROGRAM_ID,
-					collateralAccountPublicKey,
+					associatedTokenAccount,
 					signerAuthority,
 					signerAuthority,
 					[]
@@ -1785,10 +1831,17 @@ export class DriftClient {
 		return [txSig, userAccountPublicKey];
 	}
 
+	/**
+	 * Withdraws from a user account. If deposit doesn't already exist, creates a borrow
+	 * @param amount
+	 * @param marketIndex
+	 * @param associatedTokenAddress - the token account to withdraw to. can be the wallet public key if using native sol
+	 * @param reduceOnly
+	 */
 	public async withdraw(
 		amount: BN,
 		marketIndex: number,
-		userTokenAccount: PublicKey,
+		associatedTokenAddress: PublicKey,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
@@ -1807,13 +1860,13 @@ export class DriftClient {
 		const authority = this.wallet.publicKey;
 
 		const createWSOLTokenAccount =
-			isSolMarket && userTokenAccount.equals(authority);
+			isSolMarket && associatedTokenAddress.equals(authority);
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
 				await this.getWrappedSolAccountCreationIxs(amount, false);
 
-			userTokenAccount = pubkey;
+			associatedTokenAddress = pubkey;
 
 			ixs.forEach((ix) => {
 				tx.add(ix);
@@ -1821,13 +1874,15 @@ export class DriftClient {
 
 			signers.forEach((signer) => additionalSigners.push(signer));
 		} else {
-			const accountExists = await this.checkIfAccountExists(userTokenAccount);
+			const accountExists = await this.checkIfAccountExists(
+				associatedTokenAddress
+			);
 
 			if (!accountExists) {
 				const createAssociatedTokenAccountIx =
 					this.getAssociatedTokenAccountCreationIx(
 						spotMarketAccount.mint,
-						userTokenAccount
+						associatedTokenAddress
 					);
 
 				tx.add(createAssociatedTokenAccountIx);
@@ -1837,7 +1892,7 @@ export class DriftClient {
 		const withdrawCollateral = await this.getWithdrawIx(
 			amount,
 			spotMarketAccount.marketIndex,
-			userTokenAccount,
+			associatedTokenAddress,
 			reduceOnly
 		);
 
@@ -1848,7 +1903,7 @@ export class DriftClient {
 			tx.add(
 				Token.createCloseAccountInstruction(
 					TOKEN_PROGRAM_ID,
-					userTokenAccount,
+					associatedTokenAddress,
 					authority,
 					authority,
 					[]

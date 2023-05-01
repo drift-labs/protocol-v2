@@ -7,7 +7,8 @@ import { DriftEnv } from './config';
 export type DriftClientConfig = {
 	connection: Connection;
 	wallet: IWallet;
-	programID: PublicKey;
+	env?: DriftEnv;
+	programID?: PublicKey;
 	accountSubscription?: DriftClientSubscriptionConfig;
 	opts?: ConfirmOptions;
 	txSenderConfig?: TxSenderConfig;
@@ -17,7 +18,6 @@ export type DriftClientConfig = {
 	spotMarketIndexes?: number[];
 	marketLookupTable?: PublicKey;
 	oracleInfos?: OracleInfo[];
-	env?: DriftEnv;
 	userStats?: boolean;
 	authority?: PublicKey; // explicitly pass an authority if signer is delegate
 	includeDelegates?: boolean; // flag for whether to load delegate accounts as well
