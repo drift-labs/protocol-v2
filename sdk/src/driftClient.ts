@@ -269,7 +269,7 @@ export class DriftClient {
 	): User {
 		const userAccountPublicKey = getUserAccountPublicKeySync(
 			this.program.programId,
-			authority ?? this.wallet.publicKey,
+			authority ?? this.authority,
 			subAccountId
 		);
 
@@ -555,7 +555,7 @@ export class DriftClient {
 
 	public switchActiveUser(subAccountId: number, authority?: PublicKey) {
 		this.activeSubAccountId = subAccountId;
-		this.authority = authority ?? this.wallet.publicKey;
+		this.authority = authority ?? this.authority;
 	}
 
 	public async addUser(
@@ -563,7 +563,7 @@ export class DriftClient {
 		authority?: PublicKey,
 		userAccount?: UserAccount
 	): Promise<boolean> {
-		authority = authority ?? this.wallet.publicKey;
+		authority = authority ?? this.authority;
 		const userKey = this.getUserMapKey(subAccountId, authority);
 
 		if (this.users.has(userKey) && this.users.get(userKey).isSubscribed) {
@@ -636,7 +636,7 @@ export class DriftClient {
 				this.switchActiveUser(
 					userAccounts.concat(delegatedAccounts)[0]?.subAccountId ?? 0,
 					userAccounts.concat(delegatedAccounts)[0]?.authority ??
-						this.wallet.publicKey
+						this.authority
 				);
 			}
 		}
@@ -1429,10 +1429,11 @@ export class DriftClient {
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
-		const authority = this.wallet.publicKey;
+		// review
+		const signerAuthority = this.wallet.publicKey;
 
 		const createWSOLTokenAccount =
-			isSolMarket && collateralAccountPublicKey.equals(authority);
+			isSolMarket && collateralAccountPublicKey.equals(signerAuthority);
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
@@ -1464,8 +1465,8 @@ export class DriftClient {
 				Token.createCloseAccountInstruction(
 					TOKEN_PROGRAM_ID,
 					collateralAccountPublicKey,
-					authority,
-					authority,
+					signerAuthority,
+					signerAuthority,
 					[]
 				)
 			);
