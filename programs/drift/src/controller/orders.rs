@@ -25,11 +25,12 @@ use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
+use crate::math::amm_jit::calculate_amm_jit_liquidity;
 use crate::math::auction::calculate_auction_prices;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR,
-    PERCENTAGE_PRECISION_I128, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
+    BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
+    QUOTE_SPOT_MARKET_INDEX,
 };
 use crate::math::fees::{ExternalFillFees, FillFees};
 use crate::math::fulfillment::{
@@ -50,7 +51,6 @@ use crate::{controller, PostOnlyParam};
 use crate::{get_struct_values, ModifyOrderParams};
 
 use crate::math::amm::calculate_amm_available_liquidity;
-use crate::math::amm_spread::calculate_inventory_liquidity_ratio;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
@@ -2044,74 +2044,43 @@ pub fn fulfill_perp_order_with_match(
         sanitize_clamp_denominator,
     )?;
 
-    let amm_wants_to_make = match taker_direction {
-        PositionDirection::Long => market.amm.base_asset_amount_with_amm < 0,
-        PositionDirection::Short => market.amm.base_asset_amount_with_amm > 0,
-    } && market.amm.amm_jit_is_active();
-
-    // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
-    // market order will always land and fill on amm next round
-    let amm_will_fill_next_round = !taker.orders[taker_order_index].has_limit_price(slot)?
-        && maker_base_asset_amount < taker_base_asset_amount;
-
     let mut total_quote_asset_amount = 0_u64;
-    if amm_wants_to_make && !amm_will_fill_next_round {
-        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+
+    let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+        market,
+        taker_direction,
+        maker_price,
+        valid_oracle_price,
+        base_asset_amount,
+        taker_base_asset_amount,
+        maker_base_asset_amount,
+        taker.orders[taker_order_index].has_limit_price(slot)?,
+    )?;
+    if jit_base_asset_amount > 0 {
+        let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
+            taker,
+            taker_stats,
+            taker_order_index,
             market,
-            base_asset_amount,
-            maker_price,
+            oracle_map,
+            reserve_price_before,
+            now,
+            slot,
             valid_oracle_price,
-            taker_direction,
+            taker_key,
+            filler_key,
+            filler,
+            filler_stats,
+            &mut None,
+            &mut None,
+            fee_structure,
+            Some(jit_base_asset_amount),
+            Some(maker_price), // match the makers price
+            split_with_lps,
         )?;
 
-        if jit_base_asset_amount > 0 {
-            let amm_lp_wants_to_make = match taker_direction {
-                PositionDirection::Long => {
-                    market.amm.base_asset_amount_per_lp
-                        < market.amm.target_base_asset_amount_per_lp.cast()?
-                }
-                PositionDirection::Short => {
-                    market.amm.base_asset_amount_per_lp
-                        > market.amm.target_base_asset_amount_per_lp.cast()?
-                }
-            } && market.amm.amm_lp_jit_is_active();
-
-            let amm_lps_allowed_to_make = if amm_lp_wants_to_make {
-                let amm_inventory_pct = calculate_inventory_liquidity_ratio(
-                    market.amm.base_asset_amount_with_amm,
-                    market.amm.base_asset_reserve,
-                    market.amm.min_base_asset_reserve,
-                    market.amm.max_base_asset_reserve,
-                )?;
-                amm_inventory_pct.abs() < PERCENTAGE_PRECISION_I128 / 10
-            } else {
-                false
-            };
-
-            let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
-                taker,
-                taker_stats,
-                taker_order_index,
-                market,
-                oracle_map,
-                reserve_price_before,
-                now,
-                slot,
-                valid_oracle_price,
-                taker_key,
-                filler_key,
-                filler,
-                filler_stats,
-                &mut None,
-                &mut None,
-                fee_structure,
-                Some(jit_base_asset_amount),
-                Some(maker_price), // match the makers price
-                amm_lp_wants_to_make && amm_lps_allowed_to_make, // dont split with the lps
-            )?;
-            total_quote_asset_amount = quote_asset_amount_filled_by_amm;
-        };
-    };
+        total_quote_asset_amount = quote_asset_amount_filled_by_amm
+    }
 
     let taker_existing_position = taker
         .get_perp_position(market.market_index)?

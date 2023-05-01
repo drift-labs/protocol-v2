@@ -1,7 +1,8 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
+use crate::math::amm_spread::calculate_inventory_liquidity_ratio;
 use crate::math::casting::Cast;
-use crate::math::constants::AMM_RESERVE_PRECISION;
+use crate::math::constants::{AMM_RESERVE_PRECISION, PERCENTAGE_PRECISION_I128};
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::safe_math::SafeMath;
 
@@ -110,4 +111,71 @@ pub fn calculate_clamped_jit_base_asset_amount(
     let jit_base_asset_amount = jit_base_asset_amount.min(max_amm_base_asset_amount);
 
     Ok(jit_base_asset_amount)
+}
+
+pub fn calculate_amm_jit_liquidity(
+    market: &mut PerpMarket,
+    taker_direction: PositionDirection,
+    maker_price: u64,
+    valid_oracle_price: Option<i64>,
+    base_asset_amount: u64,
+    taker_base_asset_amount: u64,
+    maker_base_asset_amount: u64,
+    taker_has_limit_price: bool,
+) -> DriftResult<(u64, bool)> {
+    let amm_wants_to_make = match taker_direction {
+        PositionDirection::Long => market.amm.base_asset_amount_with_amm < 0,
+        PositionDirection::Short => market.amm.base_asset_amount_with_amm > 0,
+    } && market.amm.amm_jit_is_active();
+
+    // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
+    // market order will always land and fill on amm next round
+    let amm_will_fill_next_round =
+        !taker_has_limit_price && maker_base_asset_amount < taker_base_asset_amount;
+    let mut jit_base_asset_amount = 0;
+
+    let split_with_lps = if amm_wants_to_make && !amm_will_fill_next_round {
+        jit_base_asset_amount = calculate_jit_base_asset_amount(
+            market,
+            base_asset_amount,
+            maker_price,
+            valid_oracle_price,
+            taker_direction,
+        )?;
+
+        let split_with_lps = if jit_base_asset_amount > 0 {
+            let amm_lp_wants_to_make = match taker_direction {
+                PositionDirection::Long => {
+                    market.amm.base_asset_amount_per_lp
+                        < market.amm.target_base_asset_amount_per_lp.cast()?
+                }
+                PositionDirection::Short => {
+                    market.amm.base_asset_amount_per_lp
+                        > market.amm.target_base_asset_amount_per_lp.cast()?
+                }
+            } && market.amm.amm_lp_jit_is_active();
+
+            let amm_lps_allowed_to_make = if amm_lp_wants_to_make {
+                let amm_inventory_pct = calculate_inventory_liquidity_ratio(
+                    market.amm.base_asset_amount_with_amm,
+                    market.amm.base_asset_reserve,
+                    market.amm.min_base_asset_reserve,
+                    market.amm.max_base_asset_reserve,
+                )?;
+                amm_inventory_pct.abs() < PERCENTAGE_PRECISION_I128 / 10
+            } else {
+                false
+            };
+
+            amm_lps_allowed_to_make && amm_lp_wants_to_make
+        } else {
+            false
+        };
+
+        split_with_lps
+    } else {
+        false
+    };
+
+    Ok((jit_base_asset_amount, split_with_lps))
 }
