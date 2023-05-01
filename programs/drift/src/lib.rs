@@ -967,3 +967,15 @@ pub mod drift {
         handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
     }
 }
+
+#[cfg(not(feature = "no-entrypoint"))]
+use solana_security_txt::security_txt;
+#[cfg(not(feature = "no-entrypoint"))]
+security_txt! {
+    name: "Drift v2",
+    project_url: "https://drift.trade",
+    contacts: "link:https://docs.drift.trade/bug-bounty",
+    policy: "https://github.com/drift-labs/protocol-v2/blob/main/SECURITY.md",
+    preferred_languages: "en",
+    source_code: "https://github.com/drift-labs/protocol-v2"
+}
