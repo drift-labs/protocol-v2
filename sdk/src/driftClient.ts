@@ -1125,13 +1125,7 @@ export class DriftClient {
 	}
 
 	public getQuoteAssetTokenAmount(): BN {
-		const spotMarket = this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
-		const spotPosition = this.getSpotPosition(QUOTE_SPOT_MARKET_INDEX);
-		return getTokenAmount(
-			spotPosition.scaledBalance,
-			spotMarket,
-			spotPosition.balanceType
-		);
+		return this.getTokenAmount(QUOTE_SPOT_MARKET_INDEX);
 	}
 
 	/**
