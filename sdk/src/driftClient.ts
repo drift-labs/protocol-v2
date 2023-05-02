@@ -82,7 +82,12 @@ import {
 } from './accounts/types';
 import { TxSender, TxSigAndSlot } from './tx/types';
 import { wrapInTx } from './tx/utils';
-import { QUOTE_SPOT_MARKET_INDEX, ZERO } from './constants/numericConstants';
+import {
+	BASE_PRECISION,
+	PRICE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+	ZERO,
+} from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
@@ -1151,13 +1156,31 @@ export class DriftClient {
 	}
 
 	/**
-	 * Converts a token amount to the spot precision for a given market. The spot market precision is based on the token mint decimals.
+	 * Converts an amount to the spot precision for a given market. The spot market precision is based on the token mint decimals.
 	 * @param marketIndex
 	 * @param amount
 	 */
 	public convertToSpotPrecision(marketIndex: number, amount: BN | number): BN {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		return castNumberToSpotPrecision(amount, spotMarket);
+	}
+
+	/**
+	 * Converts an amount to the perp precision. The perp market precision is {@link BASE_PRECISION} (1e9).
+	 * @param amount
+	 */
+	public convertToPerpPrecision(amount: BN | number): BN {
+		amount = typeof amount === 'number' ? new BN(amount) : amount;
+		return amount.mul(BASE_PRECISION);
+	}
+
+	/**
+	 * Converts an amount to the price precision. The perp market precision is {@link PRICE_PRECISION} (1e6).
+	 * @param amount
+	 */
+	public convertToPricePrecision(amount: BN | number): BN {
+		amount = typeof amount === 'number' ? new BN(amount) : amount;
+		return amount.mul(PRICE_PRECISION);
 	}
 
 	getRemainingAccounts(params: RemainingAccountParams): AccountMeta[] {
@@ -1966,6 +1989,14 @@ export class DriftClient {
 		);
 	}
 
+	/**
+	 * Withdraws from the fromSubAccount and deposits into the toSubAccount
+	 * @param amount
+	 * @param marketIndex
+	 * @param fromSubAccountId
+	 * @param toSubAccountId
+	 * @param txParams
+	 */
 	public async transferDeposit(
 		amount: BN,
 		marketIndex: number,

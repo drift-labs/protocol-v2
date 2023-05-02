@@ -857,7 +857,6 @@ export type OrderParams = {
 	immediateOrCancel: boolean;
 	triggerPrice: BN | null;
 	triggerCondition: OrderTriggerCondition;
-	positionLimit: BN;
 	oraclePriceOffset: number | null;
 	auctionDuration: number | null;
 	maxTs: BN | null;
