@@ -114,6 +114,7 @@ export const mockAMM: AMM = {
 	totalSocialLoss: new BN(0),
 	baseAssetAmountPerLp: new BN(0),
 	quoteAssetAmountPerLp: new BN(0),
+	targetBaseAssetAmountPerLp: 0,
 
 	quoteBreakEvenAmountLong: new BN(0),
 	quoteBreakEvenAmountShort: new BN(0),
