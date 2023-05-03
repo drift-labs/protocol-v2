@@ -78,6 +78,9 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: LAMPORTS_PRECISION,
 		precisionExp: LAMPORTS_EXP,
 		serumMarket: new PublicKey('8BnEgHoWFysVcuFFX7QztDmzuH8r5ZFvyP3sYwn1XTh6'),
+		phoenixMarket: new PublicKey(
+			'4DoNfFBfF7UokCC2FQzriy7yHK6DY6NVdYpuekQ5pRgg'
+		),
 	},
 ];
 
