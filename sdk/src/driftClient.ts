@@ -2664,6 +2664,43 @@ export class DriftClient {
 		);
 	}
 
+	public async cancelAndPlaceOrders(
+		cancelOrderParams: {
+			marketType?: MarketType;
+			marketIndex?: number;
+			direction?: PositionDirection;
+		},
+		placeOrderParams: OrderParams[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = wrapInTx(
+			await this.getCancelOrdersIx(
+				cancelOrderParams.marketType,
+				cancelOrderParams.marketIndex,
+				cancelOrderParams.direction
+			),
+			txParams?.computeUnits,
+			txParams?.computeUnitsPrice
+		);
+
+		for (const placeOrderParam of placeOrderParams) {
+			const marketType = placeOrderParam.marketType;
+			if (!marketType) {
+				throw new Error('marketType must be set on placeOrderParams');
+			}
+			let ix;
+			if (isVariant(marketType, 'perp')) {
+				ix = this.getPlacePerpOrderIx(placeOrderParam);
+			} else {
+				ix = this.getPlaceSpotOrderIx(placeOrderParam);
+			}
+			tx.add(ix);
+		}
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async fillPerpOrder(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
