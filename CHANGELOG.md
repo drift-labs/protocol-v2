@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.27.0] - 2023-05-02
+
+### Features
+
 - ts-sdk: add SUI perp market ([#453](https://github.com/drift-labs/protocol-v2/pull/453))
 
 ### Fixes
