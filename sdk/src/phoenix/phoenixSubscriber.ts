@@ -108,24 +108,33 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 		this.subscribed = true;
 	}
 
-	public getBestBid(): BN {
+	public getBestBid(): BN | undefined {
 		const ladder = getMarketUiLadder(
 			this.market,
 			this.lastSlot,
 			this.lastUnixTimestamp,
 			1
 		);
-		return new BN(Math.floor(ladder.bids[0][0] * PRICE_PRECISION.toNumber()));
+		const bestBid = ladder.bids[0];
+		if (!bestBid) {
+			return undefined;
+		}
+		return new BN(Math.floor(bestBid[0] * PRICE_PRECISION.toNumber()));
 	}
 
-	public getBestAsk(): BN {
+	public getBestAsk(): BN | undefined {
 		const ladder = getMarketUiLadder(
 			this.market,
 			this.lastSlot,
 			this.lastUnixTimestamp,
 			1
 		);
-		return new BN(Math.floor(ladder.asks[0][0] * PRICE_PRECISION.toNumber()));
+
+		const bestAsk = ladder.asks[0];
+		if (!bestAsk) {
+			return undefined;
+		}
+		return new BN(Math.floor(bestAsk[0] * PRICE_PRECISION.toNumber()));
 	}
 
 	public getL2Bids(): Generator<L2Level> {
