@@ -29,15 +29,24 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
-    Initialized,    // warm up period for initialization, fills are paused
-    Active,         // all operations allowed
-    FundingPaused,  // perp: pause funding rate updates | spot: pause interest updates
-    AmmPaused,      // amm fills are prevented/blocked
-    FillPaused,     // fills are blocked
-    WithdrawPaused, // perp: pause settling positive pnl | spot: pause withdrawing asset
-    ReduceOnly,     // fills only able to reduce liability
-    Settlement, // market has determined settlement price and positions are expired must be settled
-    Delisted,   // market has no remaining participants
+    /// warm up period for initialization, fills are paused
+    Initialized,
+    /// all operations allowed
+    Active,
+    /// funding rate updates are paused
+    FundingPaused,
+    /// amm fills are prevented/blocked
+    AmmPaused,
+    /// fills are blocked
+    FillPaused,
+    /// perp: pause settling negative pnl | spot: pause depositing asset
+    WithdrawPaused,
+    /// fills only able to reduce liability
+    ReduceOnly,
+    /// market has determined settlement price and positions are expired must be settled
+    Settlement,
+    /// market has no remaining participants
+    Delisted,
 }
 
 impl Default for MarketStatus {
@@ -60,11 +69,16 @@ impl Default for ContractType {
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub enum ContractTier {
-    A,           // max insurance capped at A level
-    B,           // max insurance capped at B level
-    C,           // max insurance capped at C level
-    Speculative, // no insurance
-    Isolated,    // no insurance, only single position allowed
+    /// max insurance capped at A level
+    A,
+    /// max insurance capped at B level
+    B,
+    /// max insurance capped at C level
+    C,
+    /// no insurance
+    Speculative,
+    /// no insurance, only single position allowed
+    Isolated,
 }
 
 impl ContractTier {
@@ -94,32 +108,75 @@ impl ContractTier {
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct PerpMarket {
+    /// The perp market's address. It is a pda of the market index
     pub pubkey: Pubkey,
+    /// The automated market maker
     pub amm: AMM,
+    /// The market's pnl pool. When users settle negative pnl, the balance increases.
+    /// When users settle positive pnl, the balance decreases. Can not go negative.
     pub pnl_pool: PoolBalance,
-    pub name: [u8; 32], // 256 bits
+    /// Encoded display name for the perp market e.g. SOL-PERP
+    pub name: [u8; 32],
+    /// The perp market's claim on the insurance fund
     pub insurance_claim: InsuranceClaim,
+    /// The max pnl imbalance before positive pnl asset weight is discounted
+    /// pnl imbalance is the difference between long and short pnl. When it's greater than 0,
+    /// the amm has negative pnl and the initial asset weight for positive pnl is discounted
+    /// precision = QUOTE_PRECISION
     pub unrealized_pnl_max_imbalance: u64,
-    pub expiry_ts: i64,    // iff market in reduce only mode
-    pub expiry_price: i64, // iff market has expired, price users can settle position
+    /// The ts when the market will be expired. Only set if market is in reduce only mode
+    pub expiry_ts: i64,
+    /// The price at which positions will be settled. Only set if market is expired
+    /// precision = PRICE_PRECISION
+    pub expiry_price: i64,
+    /// Every trade has a fill record id. This is the next id to be used
     pub next_fill_record_id: u64,
+    /// Every funding rate update has a record id. This is the next id to be used
     pub next_funding_rate_record_id: u64,
+    /// Every amm k updated has a record id. This is the next id to be used
     pub next_curve_record_id: u64,
+    /// The initial margin fraction factor. Used to increase margin ratio for large positions
+    /// precision: MARGIN_PRECISION
     pub imf_factor: u32,
+    /// The imf factor for unrealized pnl. Used to discount asset weight for large positive pnl
+    /// precision: MARGIN_PRECISION
     pub unrealized_pnl_imf_factor: u32,
+    /// The fee the liquidator is paid for taking over perp position
+    /// precision: LIQUIDATOR_FEE_PRECISION
     pub liquidator_fee: u32,
+    /// The fee the insurance fund receives from liquidation
+    /// precision: LIQUIDATOR_FEE_PRECISION
     pub if_liquidation_fee: u32,
+    /// The margin ratio which determines how much collateral is required to open a position
+    /// e.g. margin ratio of .1 means a user must have $100 of total collateral to open a $1000 position
+    /// precision: MARGIN_PRECISION
     pub margin_ratio_initial: u32,
+    /// The margin ratio which determines when a user will be liquidated
+    /// e.g. margin ratio of .05 means a user must have $50 of total collateral to maintain a $1000 position
+    /// else they will be liquidated
+    /// precision: MARGIN_PRECISION
     pub margin_ratio_maintenance: u32,
+    /// The initial asset weight for positive pnl. Negative pnl always has an asset weight of 1
+    /// precision: SPOT_WEIGHT_PRECISION
     pub unrealized_pnl_initial_asset_weight: u32,
+    /// The maintenance asset weight for positive pnl. Negative pnl always has an asset weight of 1
+    /// precision: SPOT_WEIGHT_PRECISION
     pub unrealized_pnl_maintenance_asset_weight: u32,
-    pub number_of_users_with_base: u32, // number of users in a position
-    pub number_of_users: u32,           // number of users in a position (base) or pnl (quote)
+    /// number of users in a position (base)
+    pub number_of_users_with_base: u32,
+    /// number of users in a position (pnl) or pnl (quote)
+    pub number_of_users: u32,
     pub market_index: u16,
+    /// Whether a market is active, reduce only, expired, etc
+    /// Affects whether users can open/close positions
     pub status: MarketStatus,
+    /// Currently only Perpetual markets are supported
     pub contract_type: ContractType,
+    /// The contract tier determines how much insurance a market can receive, with more speculative markets receiving less insurance
+    /// It also influences the order perp markets can be liquidated, with less speculative markets being liquidated first
     pub contract_tier: ContractTier,
     pub padding1: bool,
+    /// The spot market that pnl is settled in
     pub quote_spot_market_index: u16,
     pub padding: [u8; 48],
 }
@@ -315,10 +372,21 @@ impl PerpMarket {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct InsuranceClaim {
+    /// The amount of revenue last settled
+    /// Positive if funds left the perp market,
+    /// negative if funds were pulled into the perp market
+    /// precision: QUOTE_PRECISION  
     pub revenue_withdraw_since_last_settle: i64,
+    /// The max amount of revenue that can be withdrawn per period
+    /// precision: QUOTE_PRECISION  
     pub max_revenue_withdraw_per_period: u64,
+    /// The max amount of insurance that perp market can use to resolve bankruptcy and pnl deficits
+    /// precision: QUOTE_PRECISION  
     pub quote_max_insurance: u64,
+    /// The amount of insurance that has been used to resolve bankruptcy and pnl deficits
+    /// precision: QUOTE_PRECISION  
     pub quote_settled_insurance: u64,
+    /// The last time revenue was settled in/out of market
     pub last_revenue_withdraw_ts: i64,
 }
 
@@ -326,7 +394,11 @@ pub struct InsuranceClaim {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct PoolBalance {
+    /// To get the pool's token amount, you must multiply the scaled balance by the market's cumulative
+    /// deposit interest
+    /// precision: SPOT_BALANCE_PRECISION
     pub scaled_balance: u128,
+    /// The spot market the pool is for
     pub market_index: u16,
     pub padding: [u8; 6],
 }
