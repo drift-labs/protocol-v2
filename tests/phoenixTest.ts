@@ -401,15 +401,11 @@ describe('phoenix spot market', () => {
 			lastValidUnixTimestampInSeconds: null,
 		};
 
-		const placeAskInstruction =
-			Phoenix.createPlaceLimitOrderInstructionWithClient(
-				phoenixClient,
-				{
-					orderPacket: askOrderPacket,
-				},
-				solMarketAddress.toString(),
-				god.publicKey
-			);
+		const placeAskInstruction = phoenixClient.createPlaceLimitOrderInstruction(
+			askOrderPacket,
+			solMarketAddress.toString(),
+			god.publicKey
+		);
 
 		const placeTxId = await sendAndConfirmTransaction(
 			connection,
@@ -565,15 +561,11 @@ describe('phoenix spot market', () => {
 			lastValidUnixTimestampInSeconds: null,
 		};
 
-		const placeAskInstruction =
-			Phoenix.createPlaceLimitOrderInstructionWithClient(
-				phoenixClient,
-				{
-					orderPacket: askOrderPacket,
-				},
-				solMarketAddress.toString(),
-				god.publicKey
-			);
+		const placeAskInstruction = phoenixClient.createPlaceLimitOrderInstruction(
+			askOrderPacket,
+			solMarketAddress.toString(),
+			god.publicKey
+		);
 
 		const placeTxId = await sendAndConfirmTransaction(
 			connection,

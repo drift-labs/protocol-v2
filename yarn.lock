@@ -59,10 +59,10 @@
     bn.js "^5.1.2"
     buffer-layout "^1.2.0"
 
-"@ellipsis-labs/phoenix-sdk@^1.3.1":
-  version "1.3.1"
-  resolved "https://registry.yarnpkg.com/@ellipsis-labs/phoenix-sdk/-/phoenix-sdk-1.3.1.tgz#f2ce8036e147b38e6213ace92c968afef4c3afd2"
-  integrity sha512-w2qEVO86uPj9apdtO2a6dfZ4xKeASF22HLi41nW/00hXJHMYg8PZlm2OafQdkHkdkH8TaHzCyIij8oIJZ5KmCg==
+"@ellipsis-labs/phoenix-sdk@^1.4.2":
+  version "1.4.2"
+  resolved "https://registry.yarnpkg.com/@ellipsis-labs/phoenix-sdk/-/phoenix-sdk-1.4.2.tgz#3bfe987f00141924e629fb802ca9c1b8c932ebdb"
+  integrity sha512-7Rf2aWHZwuLX8jcrNSRUDf2aHuBnBzsDBN4GzClTdJYVGo4uQzf9ixju5J3apZ+xkQ6qvrEVYOXtogdgOhJFvw==
   dependencies:
     "@metaplex-foundation/beet" "^0.7.1"
     "@metaplex-foundation/rustbin" "^0.3.1"

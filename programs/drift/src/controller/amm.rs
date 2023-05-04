@@ -578,8 +578,8 @@ pub fn update_pool_balances(
         }
 
         let revenue_pool_transfer = calculate_revenue_pool_transfer(
-            &market,
-            &spot_market,
+            market,
+            spot_market,
             amm_fee_pool_token_amount_after,
             terminal_state_surplus,
         )?;
