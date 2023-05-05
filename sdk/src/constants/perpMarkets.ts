@@ -104,6 +104,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1680808053000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Sui',
+		category: ['L1'],
+		symbol: 'SUI-PERP',
+		baseAssetSymbol: 'SUI',
+		marketIndex: 9,
+		oracle: new PublicKey('6SK9vS8eMSSj3LUX2dPku93CrNv8xLCp9ng39F39h7A5'),
+		launchTs: 1683125906000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -195,6 +205,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 8,
 		oracle: new PublicKey('4CkQJBxhU8EZ2UjhigbtdaPbpTe6mqf811fipYBFbSYN'),
 		launchTs: 1680808053000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Sui',
+		category: ['L1'],
+		symbol: 'SUI-PERP',
+		baseAssetSymbol: 'SUI',
+		marketIndex: 9,
+		oracle: new PublicKey('3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q'),
+		launchTs: 1683125906000,
 		oracleSource: OracleSource.PYTH,
 	},
 ];
