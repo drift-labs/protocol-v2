@@ -5036,6 +5036,7 @@ export class DriftClient {
 		opts?: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
+		console.log(tx);
 		if (tx instanceof Transaction) {
 			return this.txSender.send(tx, additionalSigners, opts, preSigned);
 		} else {
