@@ -1285,7 +1285,7 @@ mod revenue_pool_transfer_tests {
             );
         assert_eq!(result.unwrap(), 0);
 
-        market.insurance_claim.max_revenue_withdraw_per_period = 1 * QUOTE_PRECISION_U64;
+        market.insurance_claim.max_revenue_withdraw_per_period = QUOTE_PRECISION_U64;
         let result: std::result::Result<i128, crate::error::ErrorCode> =
             calculate_revenue_pool_transfer(
                 &market,
