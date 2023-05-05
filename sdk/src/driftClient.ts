@@ -56,6 +56,9 @@ import {
 	SystemProgram,
 	ComputeBudgetProgram,
 	AddressLookupTableAccount,
+	TransactionVersion,
+	VersionedTransaction,
+	TransactionMessage,
 } from '@solana/web3.js';
 
 import { TokenFaucet } from './tokenFaucet';
@@ -145,6 +148,7 @@ export class DriftClient {
 	includeDelegates?: boolean;
 	authoritySubAccountMap?: Map<string, number[]>;
 	skipLoadUsers?: boolean;
+	txVersion: TransactionVersion;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -172,6 +176,7 @@ export class DriftClient {
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
 		this.skipLoadUsers = config.skipLoadUsers ?? false;
+		this.txVersion = config.txVersion ?? 'legacy';
 
 		if (config.includeDelegates && config.subAccountIds) {
 			throw new Error(
@@ -1024,7 +1029,7 @@ export class DriftClient {
 		});
 
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(ix, txParams?.computeUnits, txParams?.computeUnitsPrice),
+			await this.buildTransaction(ix, txParams),
 			[],
 			this.opts
 		);
@@ -1999,15 +2004,14 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getTransferDepositIx(
 					amount,
 					marketIndex,
 					fromSubAccountId,
 					toSubAccountId
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2085,10 +2089,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.updateSpotMarketCumulativeInterestIx(marketIndex),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2115,10 +2118,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.settleLPIx(settleeUserAccountPublicKey, marketIndex),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2154,10 +2156,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getRemovePerpLpSharesIx(marketIndex, sharesToBurn),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2172,14 +2173,13 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getRemovePerpLpSharesInExpiringMarket(
 					marketIndex,
 					userAccountPublicKey,
 					sharesToBurn
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2264,10 +2264,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getAddPerpLpSharesIx(amount, marketIndex),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2447,10 +2446,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getPlacePerpOrderIx(orderParams),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2496,10 +2494,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getUpdateAMMsIx(marketIndexes),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2546,10 +2543,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getSettleExpiredMarketIx(marketIndex),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2619,7 +2615,7 @@ export class DriftClient {
 			});
 
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(ix, txParams?.computeUnits, txParams?.computeUnitsPrice),
+			await this.buildTransaction(ix, txParams),
 			[],
 			this.opts
 		);
@@ -2632,10 +2628,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getCancelOrderIx(orderId),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2668,10 +2663,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getCancelOrderByUserIdIx(userOrderId),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2710,10 +2704,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getCancelOrdersIx(marketType, marketIndex, direction),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2769,7 +2762,7 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getFillPerpOrderIx(
 					userAccountPublicKey,
 					user,
@@ -2777,8 +2770,7 @@ export class DriftClient {
 					makerInfo,
 					referrerInfo
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2886,10 +2878,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getPlaceSpotOrderIx(orderParams),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -2937,7 +2928,7 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getFillSpotOrderIx(
 					userAccountPublicKey,
 					user,
@@ -2946,8 +2937,7 @@ export class DriftClient {
 					makerInfo,
 					referrerInfo
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -3233,10 +3223,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getTriggerOrderIx(userAccountPublicKey, user, order),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -3286,10 +3275,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getForceCancelOrdersIx(userAccountPublicKey, user),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -3325,10 +3313,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getUpdateUserIdleIx(userAccountPublicKey, user),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -3364,14 +3351,13 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getPlaceAndTakePerpOrderIx(
 					orderParams,
 					makerInfo,
 					referrerInfo
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -3459,14 +3445,13 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getPlaceAndMakePerpOrderIx(
 					orderParams,
 					takerInfo,
 					referrerInfo
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -3531,15 +3516,14 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getPlaceAndTakeSpotOrderIx(
 					orderParams,
 					fulfillmentConfig,
 					makerInfo,
 					referrerInfo
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -3630,15 +3614,14 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getPlaceAndMakeSpotOrderIx(
 					orderParams,
 					takerInfo,
 					fulfillmentConfig,
 					referrerInfo
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -3842,10 +3825,9 @@ export class DriftClient {
 		};
 
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getModifyOrderIx(orderId, orderParams),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -3942,10 +3924,9 @@ export class DriftClient {
 		};
 
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getModifyOrderByUserIdIx(userOrderId, orderParams),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -4018,14 +3999,13 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.settlePNLIx(
 					settleeUserAccountPublicKey,
 					settleeUserAccount,
 					marketIndex
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -4064,7 +4044,7 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getLiquidatePerpIx(
 					userAccountPublicKey,
 					userAccount,
@@ -4072,8 +4052,7 @@ export class DriftClient {
 					maxBaseAssetAmount,
 					limitPrice
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -4131,7 +4110,7 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getLiquidateSpotIx(
 					userAccountPublicKey,
 					userAccount,
@@ -4140,8 +4119,7 @@ export class DriftClient {
 					maxLiabilityTransfer,
 					limitPrice
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -4202,7 +4180,7 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getLiquidateBorrowForPerpPnlIx(
 					userAccountPublicKey,
 					userAccount,
@@ -4211,8 +4189,7 @@ export class DriftClient {
 					maxLiabilityTransfer,
 					limitPrice
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -4273,7 +4250,7 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getLiquidatePerpPnlForDepositIx(
 					userAccountPublicKey,
 					userAccount,
@@ -4282,8 +4259,7 @@ export class DriftClient {
 					maxPnlTransfer,
 					limitPrice
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -4341,14 +4317,13 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getResolvePerpBankruptcyIx(
 					userAccountPublicKey,
 					userAccount,
 					marketIndex
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -4405,14 +4380,13 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getResolveSpotBankruptcyIx(
 					userAccountPublicKey,
 					userAccount,
 					marketIndex
 				),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -4463,10 +4437,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getUpdateFundingRateIx(perpMarketIndex, oracle),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -4496,10 +4469,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getSettleFundingPaymentIx(userAccountPublicKey),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -4558,10 +4530,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getInitializeInsuranceFundStakeIx(marketIndex),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -4918,10 +4889,9 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			wrapInTx(
+			await this.buildTransaction(
 				await this.getResolvePerpPnlDeficitIx(spotMarketIndex, perpMarketIndex),
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
+				txParams
 			),
 			[],
 			this.opts
@@ -5015,11 +4985,65 @@ export class DriftClient {
 	}
 
 	sendTransaction(
-		tx: Transaction,
+		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
-		return this.txSender.send(tx, additionalSigners, opts, preSigned);
+		if (tx instanceof Transaction) {
+			return this.txSender.send(tx, additionalSigners, opts, preSigned);
+		} else {
+			return this.txSender.sendVersionedTransaction(
+				tx,
+				additionalSigners,
+				opts
+			);
+		}
+	}
+
+	async buildTransaction(
+		instructions: TransactionInstruction | TransactionInstruction[],
+		txParams?: TxParams
+	): Promise<Transaction | VersionedTransaction> {
+		const allIx = [];
+		const computeUnits = txParams?.computeUnits ?? 600_000;
+		if (computeUnits !== 200_000) {
+			allIx.push(
+				ComputeBudgetProgram.setComputeUnitLimit({
+					units: computeUnits,
+				})
+			);
+		}
+		const computeUnitsPrice = txParams?.computeUnitsPrice ?? 0;
+		if (computeUnitsPrice !== 0) {
+			allIx.push(
+				ComputeBudgetProgram.setComputeUnitPrice({
+					microLamports: computeUnitsPrice,
+				})
+			);
+		}
+
+		if (Array.isArray(instructions)) {
+			allIx.push(...instructions);
+		} else {
+			allIx.push(instructions);
+		}
+
+		if (this.txVersion === 'legacy') {
+			return new Transaction().add(...allIx);
+		} else {
+			const marketLookupTable = await this.fetchMarketLookupTableAccount();
+			const message = new TransactionMessage({
+				payerKey: this.provider.wallet.publicKey,
+				recentBlockhash: (
+					await this.provider.connection.getRecentBlockhash(
+						this.opts.preflightCommitment
+					)
+				).blockhash,
+				instructions: allIx,
+			}).compileToV0Message([marketLookupTable]);
+
+			return new VersionedTransaction(message);
+		}
 	}
 }

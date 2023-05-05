@@ -898,7 +898,6 @@ export const DefaultOrderParams: OrderParams = {
 	immediateOrCancel: false,
 	triggerPrice: null,
 	triggerCondition: OrderTriggerCondition.ABOVE,
-	positionLimit: ZERO,
 	oraclePriceOffset: null,
 	auctionDuration: null,
 	maxTs: null,
