@@ -2149,37 +2149,37 @@ pub fn handle_begin_swap(
             )?;
 
             validate!(
-                &ctx.accounts.user.key() == &ix.accounts[1].pubkey,
+                ctx.accounts.user.key() == ix.accounts[1].pubkey,
                 ErrorCode::InvalidSwap,
                 "the user passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                &ctx.accounts.authority.key() == &ix.accounts[3].pubkey,
+                ctx.accounts.authority.key() == ix.accounts[3].pubkey,
                 ErrorCode::InvalidSwap,
                 "the authority passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                &ctx.accounts.out_spot_market_vault.key() == &ix.accounts[4].pubkey,
+                ctx.accounts.out_spot_market_vault.key() == ix.accounts[4].pubkey,
                 ErrorCode::InvalidSwap,
                 "the out_spot_market_vault passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                &ctx.accounts.in_spot_market_vault.key() == &ix.accounts[5].pubkey,
+                ctx.accounts.in_spot_market_vault.key() == ix.accounts[5].pubkey,
                 ErrorCode::InvalidSwap,
                 "the in_spot_market_vault passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                &ctx.accounts.out_token_account.key() == &ix.accounts[6].pubkey,
+                ctx.accounts.out_token_account.key() == ix.accounts[6].pubkey,
                 ErrorCode::InvalidSwap,
                 "the out_token_account passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                &ctx.accounts.in_token_account.key() == &ix.accounts[7].pubkey,
+                ctx.accounts.in_token_account.key() == ix.accounts[7].pubkey,
                 ErrorCode::InvalidSwap,
                 "the in_token_account passed to SwapBegin and End must match"
             )?;
@@ -2227,7 +2227,7 @@ pub fn handle_end_swap(
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut user = load_mut!(&mut ctx.accounts.user)?;
+    let mut user = load_mut!(&ctx.accounts.user)?;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
     let out_vault = &mut ctx.accounts.out_spot_market_vault;
@@ -2241,8 +2241,8 @@ pub fn handle_end_swap(
 
         controller::token::receive(
             &ctx.accounts.token_program,
-            &out_token_account,
-            &out_vault,
+            out_token_account,
+            out_vault,
             &ctx.accounts.authority,
             residual,
         )?;
@@ -2277,8 +2277,8 @@ pub fn handle_end_swap(
 
         controller::token::receive(
             &ctx.accounts.token_program,
-            &in_token_account,
-            &in_vault,
+            in_token_account,
+            in_vault,
             &ctx.accounts.authority,
             amount_in,
         )?;
