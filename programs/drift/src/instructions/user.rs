@@ -2078,13 +2078,9 @@ pub fn handle_begin_swap(
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-    let slot = clock.slot;
 
     let AccountMaps {
-        perp_market_map,
-        spot_market_map,
-        mut oracle_map,
+        spot_market_map, ..
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
@@ -2149,7 +2145,7 @@ pub fn handle_begin_swap(
                 ix.data[0..8] == discriminator,
                 ErrorCode::InvalidSwap,
                 "last ix must be end of swap"
-            );
+            )?;
 
             validate!(
                 &ctx.accounts.user.key() == &ix.accounts[1].pubkey,
@@ -2161,31 +2157,31 @@ pub fn handle_begin_swap(
                 &ctx.accounts.authority.key() == &ix.accounts[3].pubkey,
                 ErrorCode::InvalidSwap,
                 "the authority passed to SwapBegin and End must match"
-            );
+            )?;
 
             validate!(
                 &ctx.accounts.out_spot_market_vault.key() == &ix.accounts[4].pubkey,
                 ErrorCode::InvalidSwap,
                 "the out_spot_market_vault passed to SwapBegin and End must match"
-            );
+            )?;
 
             validate!(
                 &ctx.accounts.in_spot_market_vault.key() == &ix.accounts[5].pubkey,
                 ErrorCode::InvalidSwap,
                 "the in_spot_market_vault passed to SwapBegin and End must match"
-            );
+            )?;
 
             validate!(
                 &ctx.accounts.out_token_account.key() == &ix.accounts[6].pubkey,
                 ErrorCode::InvalidSwap,
                 "the out_token_account passed to SwapBegin and End must match"
-            );
+            )?;
 
             validate!(
                 &ctx.accounts.in_token_account.key() == &ix.accounts[7].pubkey,
                 ErrorCode::InvalidSwap,
                 "the in_token_account passed to SwapBegin and End must match"
-            );
+            )?;
         } else {
             validate!(
                 ix.program_id == AssociatedToken::id()
@@ -2193,7 +2189,7 @@ pub fn handle_begin_swap(
                     || ix.program_id == jupiter_mainnet_4::ID,
                 ErrorCode::InvalidSwap,
                 "only allowed to pass in ixs to ATA or Jupiter v3 or v4 programs"
-            );
+            )?;
         }
 
         index += 1;
@@ -2203,7 +2199,7 @@ pub fn handle_begin_swap(
         found_end,
         ErrorCode::InvalidSwap,
         "found no SwapEnd instruction in transaction"
-    );
+    )?;
 
     Ok(())
 }
@@ -2218,13 +2214,9 @@ pub fn handle_end_swap(
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-    let slot = clock.slot;
 
     let AccountMaps {
-        perp_market_map,
-        spot_market_map,
-        mut oracle_map,
+        spot_market_map, ..
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
@@ -2233,7 +2225,6 @@ pub fn handle_end_swap(
         Some(state.oracle_guard_rails),
     )?;
 
-    let user_key = &ctx.accounts.user;
     let mut user = load_mut!(&mut ctx.accounts.user)?;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
