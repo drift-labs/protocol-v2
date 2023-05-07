@@ -1,6 +1,6 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import { PublicKey, Keypair } from '@solana/web3.js';
 import {
 	Wallet,
@@ -884,8 +884,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.lt(new BN(43454544927 + 20000))); //44k still :o
-		assert(imbalance.gt(new BN(43454544927 - 20000))); //44k still :o
+		assert(imbalance.lt(new BN(43454561797 + 20000))); //44k still :o
+		assert(imbalance.gt(new BN(43454561797 - 20000))); //44k still :o
 
 		console.log(
 			'revenueWithdrawSinceLastSettle:',

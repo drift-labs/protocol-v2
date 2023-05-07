@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
-import * as anchor from '@project-serum/anchor';
-import { BN } from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
+import { BN } from '@coral-xyz/anchor';
 
 export async function getDriftStateAccountPublicKeyAndNonce(
 	programId: PublicKey
@@ -183,6 +183,19 @@ export function getSerumFulfillmentConfigPublicKey(
 	return PublicKey.findProgramAddressSync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('serum_fulfillment_config')),
+			market.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
+export function getPhoenixFulfillmentConfigPublicKey(
+	programId: PublicKey,
+	market: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('phoenix_fulfillment_config')),
 			market.toBuffer(),
 		],
 		programId

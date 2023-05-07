@@ -17,6 +17,7 @@ export type SpotMarketConfig = {
 	precision: BN;
 	precisionExp: BN;
 	serumMarket?: PublicKey;
+	phoenixMarket?: PublicKey;
 };
 
 export const WRAPPED_SOL_MINT = new PublicKey(
@@ -42,6 +43,9 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		precision: LAMPORTS_PRECISION,
 		precisionExp: LAMPORTS_EXP,
 		serumMarket: new PublicKey('8N37SsnTu8RYxtjrV9SStjkkwVhmU8aCWhLvwduAPEKW'),
+		phoenixMarket: new PublicKey(
+			'78ehDnHgbkFxqXZwdFxa8HK7saX58GymeX2wNGdkqYLp'
+		),
 	},
 	{
 		symbol: 'BTC',
@@ -74,6 +78,9 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: LAMPORTS_PRECISION,
 		precisionExp: LAMPORTS_EXP,
 		serumMarket: new PublicKey('8BnEgHoWFysVcuFFX7QztDmzuH8r5ZFvyP3sYwn1XTh6'),
+		phoenixMarket: new PublicKey(
+			'4DoNfFBfF7UokCC2FQzriy7yHK6DY6NVdYpuekQ5pRgg'
+		),
 	},
 ];
 

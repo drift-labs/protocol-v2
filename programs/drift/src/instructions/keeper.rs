@@ -1,17 +1,18 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
 
-use crate::controller::serum::FulfillmentParams;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
-    get_spot_market_vaults, load_maps, AccountMaps,
+    get_maker_and_maker_stats, get_referrer_and_referrer_stats, load_maps, AccountMaps,
 };
 use crate::load_mut;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
+use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
+use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
+use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
@@ -19,6 +20,7 @@ use crate::state::perp_market_map::{
     get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
     MarketSet, PerpMarketMap,
 };
+use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
@@ -129,7 +131,8 @@ pub fn handle_revert_fill<'info>(ctx: Context<RevertFill>) -> Result<()> {
 #[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub enum SpotFulfillmentType {
     SerumV3,
-    None,
+    Match,
+    PhoenixV1,
 }
 
 impl Default for SpotFulfillmentType {
@@ -164,7 +167,7 @@ pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
         ctx,
         order_id,
         market_index,
-        fulfillment_type,
+        fulfillment_type.unwrap_or(SpotFulfillmentType::Match),
         maker_order_id,
     )
     .map_err(|e| {
@@ -175,13 +178,15 @@ pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
     Ok(())
 }
 
-fn fill_spot_order<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
+fn fill_spot_order<'info>(
+    ctx: Context<'_, '_, '_, 'info, FillOrder<'info>>,
     order_id: u32,
     market_index: u16,
-    fulfillment_type: Option<SpotFulfillmentType>,
+    fulfillment_type: SpotFulfillmentType,
     maker_order_id: Option<u32>,
 ) -> Result<()> {
+    let clock = Clock::get()?;
+
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
@@ -205,18 +210,37 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
 
     let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
-    let mut fulfillment_params = match fulfillment_type {
-        Some(SpotFulfillmentType::SerumV3) => {
+    let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
+        SpotFulfillmentType::SerumV3 => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
-            get_serum_fulfillment_accounts(
+            Box::new(SerumFulfillmentParams::new(
                 remaining_accounts_iter,
                 &ctx.accounts.state,
                 &base_market,
                 &quote_market,
-            )?
+                clock.unix_timestamp,
+            )?)
         }
-        _ => None,
+        SpotFulfillmentType::PhoenixV1 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(PhoenixFulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+            )?)
+        }
+        SpotFulfillmentType::Match => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(MatchFulfillmentParams::new(
+                remaining_accounts_iter,
+                &base_market,
+                &quote_market,
+            )?)
+        }
     };
 
     controller::orders::fill_spot_order(
@@ -232,32 +256,13 @@ fn fill_spot_order<'a, 'b, 'c, 'info>(
         maker.as_ref(),
         maker_stats.as_ref(),
         maker_order_id,
-        &Clock::get()?,
-        &mut fulfillment_params,
+        &clock,
+        fulfillment_params.as_mut(),
     )?;
 
-    match fulfillment_params {
-        Some(FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params)) => {
-            let base_market = spot_market_map.get_ref(&market_index)?;
-            validate_spot_market_vault_amount(
-                &base_market,
-                serum_fulfillment_params.base_market_vault.amount,
-            )?;
-            let quote_market = spot_market_map.get_quote_spot_market()?;
-            validate_spot_market_vault_amount(
-                &quote_market,
-                serum_fulfillment_params.quote_market_vault.amount,
-            )?;
-        }
-        None => {
-            let base_market = spot_market_map.get_ref(&market_index)?;
-            let quote_market = spot_market_map.get_quote_spot_market()?;
-            let (base_market_vault, quote_market_vault) =
-                get_spot_market_vaults(remaining_accounts_iter, &base_market, &quote_market)?;
-            validate_spot_market_vault_amount(&base_market, base_market_vault.amount)?;
-            validate_spot_market_vault_amount(&quote_market, quote_market_vault.amount)?;
-        }
-    }
+    let base_market = spot_market_map.get_ref(&market_index)?;
+    let quote_market = spot_market_map.get_quote_spot_market()?;
+    fulfillment_params.validate_vault_amounts(&base_market, &quote_market)?;
 
     Ok(())
 }
@@ -1201,7 +1206,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
         &ctx.accounts.insurance_fund_vault,
         &ctx.accounts.drift_signer,
         state.signer_nonce,
-        token_amount as u64,
+        token_amount,
     )?;
 
     // reload the spot market vault balance so it's up-to-date

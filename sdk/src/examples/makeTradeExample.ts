@@ -1,4 +1,4 @@
-import { AnchorProvider, BN } from '@project-serum/anchor';
+import { AnchorProvider, BN } from '@coral-xyz/anchor';
 import {
 	BASE_PRECISION,
 	calculateBidAskPrice,

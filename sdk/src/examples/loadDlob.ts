@@ -1,4 +1,4 @@
-import { AnchorProvider } from '@project-serum/anchor';
+import { AnchorProvider } from '@coral-xyz/anchor';
 import { DLOB, UserMap, Wallet } from '..';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
@@ -60,7 +60,7 @@ const main = async () => {
 	});
 
 	// fetches all users and subscribes for updates
-	await userMap.fetchAllUsers();
+	await userMap.subscribe();
 
 	console.log('Loading dlob from user map...');
 	const dlob = new DLOB();
@@ -71,9 +71,7 @@ const main = async () => {
 	dlob.clear();
 
 	console.log('Unsubscribing users...');
-	for (const user of userMap.values()) {
-		await user.unsubscribe();
-	}
+	await userMap.unsubscribe();
 
 	console.log('Unsubscribing drift client...');
 	await driftClient.unsubscribe();

@@ -2,17 +2,16 @@ use anchor_lang::Discriminator;
 use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
 use anchor_spl::token::{Token, TokenAccount};
 
-use crate::controller::orders::cancel_orders;
+use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
-use crate::controller::serum::FulfillmentParams;
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
-    get_spot_market_vaults, get_whitelist_token, load_maps, AccountMaps,
+    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
+    AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
 use crate::load;
@@ -25,7 +24,6 @@ use crate::math::margin::{
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
-use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::math_error;
 use crate::print_error;
 use crate::safe_decrement;
@@ -34,8 +32,12 @@ use crate::state::events::{
     DepositDirection, DepositExplanation, DepositRecord, LPAction, LPRecord, NewUserRecord,
     OrderActionExplanation,
 };
+use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
+use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
+use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
+use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
@@ -124,7 +126,7 @@ pub fn handle_initialize_user(
     safe_increment!(state.number_of_sub_accounts, 1);
 
     validate!(
-        state.number_of_sub_accounts <= 3000,
+        state.number_of_sub_accounts <= 5000,
         ErrorCode::MaxNumberOfUsers
     )?;
 
@@ -908,6 +910,102 @@ pub fn handle_cancel_orders(
     Ok(())
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct ModifyOrderParams {
+    pub direction: Option<PositionDirection>,
+    pub base_asset_amount: Option<u64>,
+    pub price: Option<u64>,
+    pub reduce_only: Option<bool>,
+    pub post_only: Option<PostOnlyParam>,
+    pub immediate_or_cancel: Option<bool>,
+    pub max_ts: Option<i64>,
+    pub trigger_price: Option<u64>,
+    pub trigger_condition: Option<OrderTriggerCondition>,
+    pub oracle_price_offset: Option<i32>,
+    pub auction_duration: Option<u8>,
+    pub auction_start_price: Option<i64>,
+    pub auction_end_price: Option<i64>,
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_modify_order(
+    ctx: Context<CancelOrder>,
+    order_id: Option<u32>,
+    modify_order_params: ModifyOrderParams,
+) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let order_id = match order_id {
+        Some(order_id) => order_id,
+        None => load!(ctx.accounts.user)?.get_last_order_id(),
+    };
+
+    controller::orders::modify_order(
+        ModifyOrderId::OrderId(order_id),
+        modify_order_params,
+        &ctx.accounts.user,
+        state,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_modify_order_by_user_order_id(
+    ctx: Context<CancelOrder>,
+    user_order_id: u8,
+    modify_order_params: ModifyOrderParams,
+) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::orders::modify_order(
+        ModifyOrderId::UserOrderId(user_order_id),
+        modify_order_params,
+        &ctx.accounts.user,
+        state,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock,
+    )?;
+
+    Ok(())
+}
+
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
@@ -1130,7 +1228,7 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 pub fn handle_place_and_take_spot_order<'info>(
     ctx: Context<PlaceAndTake>,
     params: OrderParams,
-    fulfillment_type: Option<SpotFulfillmentType>,
+    fulfillment_type: SpotFulfillmentType,
     maker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
@@ -1166,18 +1264,37 @@ pub fn handle_place_and_take_spot_order<'info>(
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
-    let mut fulfillment_params = match fulfillment_type {
-        Some(SpotFulfillmentType::SerumV3) => {
+    let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
+        SpotFulfillmentType::SerumV3 => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
-            get_serum_fulfillment_accounts(
+            Box::new(SerumFulfillmentParams::new(
                 remaining_accounts_iter,
                 &ctx.accounts.state,
                 &base_market,
                 &quote_market,
-            )?
+                clock.unix_timestamp,
+            )?)
         }
-        _ => None,
+        SpotFulfillmentType::PhoenixV1 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(PhoenixFulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+            )?)
+        }
+        SpotFulfillmentType::Match => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(MatchFulfillmentParams::new(
+                remaining_accounts_iter,
+                &base_market,
+                &quote_market,
+            )?)
+        }
     };
 
     controller::orders::place_spot_order(
@@ -1186,7 +1303,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        &Clock::get()?,
+        &clock,
         params,
     )?;
 
@@ -1206,8 +1323,8 @@ pub fn handle_place_and_take_spot_order<'info>(
         maker.as_ref(),
         maker_stats.as_ref(),
         maker_order_id,
-        &Clock::get()?,
-        &mut fulfillment_params,
+        &clock,
+        fulfillment_params.as_mut(),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1222,32 +1339,13 @@ pub fn handle_place_and_take_spot_order<'info>(
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            &Clock::get()?,
+            &clock,
         )?;
     }
 
-    match fulfillment_params {
-        Some(FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params)) => {
-            let base_market = spot_market_map.get_ref(&market_index)?;
-            validate_spot_market_vault_amount(
-                &base_market,
-                serum_fulfillment_params.base_market_vault.amount,
-            )?;
-            let quote_market = spot_market_map.get_quote_spot_market()?;
-            validate_spot_market_vault_amount(
-                &quote_market,
-                serum_fulfillment_params.quote_market_vault.amount,
-            )?;
-        }
-        None => {
-            let base_market = spot_market_map.get_ref(&market_index)?;
-            let quote_market = spot_market_map.get_quote_spot_market()?;
-            let (base_market_vault, quote_market_vault) =
-                get_spot_market_vaults(remaining_accounts_iter, &base_market, &quote_market)?;
-            validate_spot_market_vault_amount(&base_market, base_market_vault.amount)?;
-            validate_spot_market_vault_amount(&quote_market, quote_market_vault.amount)?;
-        }
-    }
+    let base_market = spot_market_map.get_ref(&market_index)?;
+    let quote_market = spot_market_map.get_quote_spot_market()?;
+    fulfillment_params.validate_vault_amounts(&base_market, &quote_market)?;
 
     Ok(())
 }
@@ -1259,7 +1357,7 @@ pub fn handle_place_and_make_spot_order<'info>(
     ctx: Context<PlaceAndMake>,
     params: OrderParams,
     taker_order_id: u32,
-    fulfillment_type: Option<SpotFulfillmentType>,
+    fulfillment_type: SpotFulfillmentType,
 ) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
@@ -1288,18 +1386,38 @@ pub fn handle_place_and_make_spot_order<'info>(
     }
 
     let market_index = params.market_index;
-    let mut fulfillment_params = match fulfillment_type {
-        Some(SpotFulfillmentType::SerumV3) => {
+
+    let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
+        SpotFulfillmentType::SerumV3 => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
-            get_serum_fulfillment_accounts(
+            Box::new(SerumFulfillmentParams::new(
                 remaining_accounts_iter,
                 &ctx.accounts.state,
                 &base_market,
                 &quote_market,
-            )?
+                clock.unix_timestamp,
+            )?)
         }
-        _ => None,
+        SpotFulfillmentType::PhoenixV1 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(PhoenixFulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+            )?)
+        }
+        SpotFulfillmentType::Match => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(MatchFulfillmentParams::new(
+                remaining_accounts_iter,
+                &base_market,
+                &quote_market,
+            )?)
+        }
     };
 
     controller::orders::place_spot_order(
@@ -1328,7 +1446,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         Some(&ctx.accounts.user_stats),
         Some(order_id),
         clock,
-        &mut fulfillment_params,
+        fulfillment_params.as_mut(),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1347,28 +1465,9 @@ pub fn handle_place_and_make_spot_order<'info>(
         )?;
     }
 
-    match fulfillment_params {
-        Some(FulfillmentParams::SerumFulfillmentParams(serum_fulfillment_params)) => {
-            let base_market = spot_market_map.get_ref(&market_index)?;
-            validate_spot_market_vault_amount(
-                &base_market,
-                serum_fulfillment_params.base_market_vault.amount,
-            )?;
-            let quote_market = spot_market_map.get_quote_spot_market()?;
-            validate_spot_market_vault_amount(
-                &quote_market,
-                serum_fulfillment_params.quote_market_vault.amount,
-            )?;
-        }
-        None => {
-            let base_market = spot_market_map.get_ref(&market_index)?;
-            let quote_market = spot_market_map.get_quote_spot_market()?;
-            let (base_market_vault, quote_market_vault) =
-                get_spot_market_vaults(remaining_accounts_iter, &base_market, &quote_market)?;
-            validate_spot_market_vault_amount(&base_market, base_market_vault.amount)?;
-            validate_spot_market_vault_amount(&quote_market, quote_market_vault.amount)?;
-        }
-    }
+    let base_market = spot_market_map.get_ref(&market_index)?;
+    let quote_market = spot_market_map.get_quote_spot_market()?;
+    fulfillment_params.validate_vault_amounts(&base_market, &quote_market)?;
 
     Ok(())
 }

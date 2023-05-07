@@ -14,7 +14,7 @@ import {
 	TransactionInstruction,
 	AddressLookupTableAccount,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@project-serum/anchor';
+import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
 
@@ -86,12 +86,12 @@ export class RetryTxSender implements TxSender {
 		return signedTx;
 	}
 
-	async sendVersionedTransaction(
+	async getVersionedTransaction(
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions
-	): Promise<TxSigAndSlot> {
+	): Promise<VersionedTransaction> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
 		}
@@ -110,6 +110,23 @@ export class RetryTxSender implements TxSender {
 		}).compileToV0Message(lookupTableAccounts);
 
 		const tx = new VersionedTransaction(message);
+
+		return tx;
+	}
+
+	async sendVersionedTransaction(
+		ixs: TransactionInstruction[],
+		lookupTableAccounts: AddressLookupTableAccount[],
+		additionalSigners?: Array<Signer>,
+		opts?: ConfirmOptions
+	): Promise<TxSigAndSlot> {
+		const tx = await this.getVersionedTransaction(
+			ixs,
+			lookupTableAccounts,
+			additionalSigners,
+			opts
+		);
+
 		// @ts-ignore
 		tx.sign(additionalSigners.concat(this.provider.wallet.payer));
 

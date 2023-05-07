@@ -8,6 +8,6 @@ pub enum PerpFulfillmentMethod {
 
 #[derive(Debug)]
 pub enum SpotFulfillmentMethod {
-    SerumV3,
+    ExternalMarket,
     Match,
 }

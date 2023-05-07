@@ -3,7 +3,6 @@
 #![allow(clippy::comparison_chain)]
 
 use anchor_lang::prelude::*;
-use borsh::BorshSerialize;
 
 use instructions::*;
 #[cfg(test)]
@@ -109,6 +108,22 @@ pub mod drift {
         handle_cancel_orders(ctx, market_type, market_index, direction)
     }
 
+    pub fn modify_order(
+        ctx: Context<CancelOrder>,
+        order_id: Option<u32>,
+        modify_order_params: ModifyOrderParams,
+    ) -> Result<()> {
+        handle_modify_order(ctx, order_id, modify_order_params)
+    }
+
+    pub fn modify_order_by_user_id(
+        ctx: Context<CancelOrder>,
+        user_order_id: u8,
+        modify_order_params: ModifyOrderParams,
+    ) -> Result<()> {
+        handle_modify_order_by_user_order_id(ctx, user_order_id, modify_order_params)
+    }
+
     pub fn place_and_take_perp_order(
         ctx: Context<PlaceAndTake>,
         params: OrderParams,
@@ -117,8 +132,8 @@ pub mod drift {
         handle_place_and_take_perp_order(ctx, params, maker_order_id)
     }
 
-    pub fn place_and_make_perp_order<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, PlaceAndMake<'info>>,
+    pub fn place_and_make_perp_order<'info>(
+        ctx: Context<'_, '_, '_, 'info, PlaceAndMake<'info>>,
         params: OrderParams,
         taker_order_id: u32,
     ) -> Result<()> {
@@ -135,7 +150,12 @@ pub mod drift {
         fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u32>,
     ) -> Result<()> {
-        handle_place_and_take_spot_order(ctx, params, fulfillment_type, maker_order_id)
+        handle_place_and_take_spot_order(
+            ctx,
+            params,
+            fulfillment_type.unwrap_or(SpotFulfillmentType::Match),
+            maker_order_id,
+        )
     }
 
     pub fn place_and_make_spot_order(
@@ -144,7 +164,12 @@ pub mod drift {
         taker_order_id: u32,
         fulfillment_type: Option<SpotFulfillmentType>,
     ) -> Result<()> {
-        handle_place_and_make_spot_order(ctx, params, taker_order_id, fulfillment_type)
+        handle_place_and_make_spot_order(
+            ctx,
+            params,
+            taker_order_id,
+            fulfillment_type.unwrap_or(SpotFulfillmentType::Match),
+        )
     }
 
     pub fn begin_swap(
@@ -234,8 +259,8 @@ pub mod drift {
         handle_revert_fill(ctx)
     }
 
-    pub fn fill_spot_order<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
+    pub fn fill_spot_order<'info>(
+        ctx: Context<'_, '_, '_, 'info, FillOrder<'info>>,
         order_id: Option<u32>,
         fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u32>,
@@ -479,6 +504,20 @@ pub mod drift {
         status: SpotFulfillmentConfigStatus,
     ) -> Result<()> {
         handle_update_serum_fulfillment_config_status(ctx, status)
+    }
+
+    pub fn initialize_phoenix_fulfillment_config(
+        ctx: Context<InitializePhoenixFulfillmentConfig>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_initialize_phoenix_fulfillment_config(ctx, market_index)
+    }
+
+    pub fn phoenix_fulfillment_config_status(
+        ctx: Context<UpdatePhoenixFulfillmentConfig>,
+        status: SpotFulfillmentConfigStatus,
+    ) -> Result<()> {
+        handle_update_phoenix_fulfillment_config_status(ctx, status)
     }
 
     pub fn update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
@@ -940,4 +979,16 @@ pub mod drift {
     ) -> Result<()> {
         handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
     }
+}
+
+#[cfg(not(feature = "no-entrypoint"))]
+use solana_security_txt::security_txt;
+#[cfg(not(feature = "no-entrypoint"))]
+security_txt! {
+    name: "Drift v2",
+    project_url: "https://drift.trade",
+    contacts: "link:https://docs.drift.trade/bug-bounty",
+    policy: "https://github.com/drift-labs/protocol-v2/blob/main/SECURITY.md",
+    preferred_languages: "en",
+    source_code: "https://github.com/drift-labs/protocol-v2"
 }

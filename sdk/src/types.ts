@@ -161,7 +161,8 @@ export class OrderTriggerCondition {
 }
 
 export class SpotFulfillmentType {
-	static readonly SERUM_v3 = { serumV3: {} };
+	static readonly EXTERNAL = { external: {} };
+	static readonly MATCH = { match: {} };
 }
 
 export class SpotFulfillmentStatus {
@@ -584,6 +585,7 @@ export type HistoricalIndexData = {
 export type SpotMarketAccount = {
 	status: MarketStatus;
 	assetTier: AssetTier;
+	name: number[];
 
 	marketIndex: number;
 	pubkey: PublicKey;
@@ -880,6 +882,10 @@ export type OptionalOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property];
 } & NecessaryOrderParams;
 
+export type ModifyOrderParams = {
+	[Property in keyof OrderParams]?: OrderParams[Property] | null;
+};
+
 export const DefaultOrderParams: OrderParams = {
 	orderType: OrderType.MARKET,
 	marketType: MarketType.PERP,
@@ -1002,6 +1008,18 @@ export type SerumV3FulfillmentConfigAccount = {
 	serumQuoteVault: PublicKey;
 	serumOpenOrders: PublicKey;
 	serumSignerNonce: BN;
+};
+
+export type PhoenixV1FulfillmentConfigAccount = {
+	pubkey: PublicKey;
+	phoenixProgramId: PublicKey;
+	phoenixLogAuthority: PublicKey;
+	phoenixMarket: PublicKey;
+	phoenixBaseVault: PublicKey;
+	phoenixQuoteVault: PublicKey;
+	marketIndex: number;
+	fulfillmentType: SpotFulfillmentType;
+	status: SpotFulfillmentStatus;
 };
 
 export type ReferrerNameAccount = {

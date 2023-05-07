@@ -76,7 +76,7 @@ convertToNumber(new BN(10500), new BN(1000)); // = 10.5
 ### Setting up an account and making a trade
 
 ```typescript
-import { AnchorProvider, BN } from '@project-serum/anchor';
+import { AnchorProvider, BN } from '@coral-xyz/anchor';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {

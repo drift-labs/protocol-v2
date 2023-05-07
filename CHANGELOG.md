@@ -1,6 +1,5 @@
 # Changelog
 
-
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -11,6 +10,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 ### Fixes
+
+### Breaking
+
+## [2.27.0] - 2023-05-02
+
+### Features
+
+- ts-sdk: add SUI perp market ([#453](https://github.com/drift-labs/protocol-v2/pull/453))
+
+### Fixes
+
+### Breaking
+
+## [2.26.0] - 2023-05-02
+
+### Features
+
+- program: use forked version of anchor 0.26.0 that supports large idls ([#451](https://github.com/drift-labs/protocol-v2/pull/451))
+- program: add security.txt ([#450](https://github.com/drift-labs/protocol-v2/pull/450))
+- program: add L2 and L3 view of DLOB ([#445](https://github.com/drift-labs/protocol-v2/pull/445))
+- ts-sdk: new DLOBSubscriber class to keep updated DLOB ([#439](https://github.com/drift-labs/protocol-v2/pull/439))
+- program: add support for phoenix spot markets ([#437](https://github.com/drift-labs/protocol-v2/pull/437))
+- sdk: ability to add stake from subaccount
+- ts-sdk: Add phoenix subscriber ([#444](https://github.com/drift-labs/protocol-v2/pull/444))
+- sdk: driftClient allows subscription to delegate accounts; pass includeDelegates or authoritySubaccountMap to constructor/updateWallet ([#432](https://github.com/drift-labs/protocol-v2/pull/432))
+
+### Fixes
+
+- program: check max_token_deposits at the end of fill_spot_order ([#441](https://github.com/drift-labs/protocol-v2/pull/441))
+- program: force_cancel_orders only skips position reducing orders
+- program: allow amm to pull up to FEE_POOL_TO_REVENUE_POOL_THRESHOLD into fee pool ([#436](https://github.com/drift-labs/protocol-v2/pull/436))
+- program: fix modify order trigger condition
+- sdk: fix removing unstaked sol
+- program: fix math error in settle_revenue_to_insurance_fund for large sizes ([#443](https://github.com/drift-labs/protocol-v2/pull/443))
+- program: fix revenue pool corner case for updating last_revenue_withdraw_ts ([#447](https://github.com/drift-labs/protocol-v2/pull/447))
+
+
+### Breaking
+
+## [2.25.0] - 2023-04-13
+
+### Features
+
+- sdk: add BNB perp market
+- program: update to anchor 0.26.0 ([#428](https://github.com/drift-labs/protocol-v2/pull/428))
+- program: add modify_order ix ([#422](https://github.com/drift-labs/protocol-v2/pull/422))
+- sdk: more accurate calculation of insurance stake value during unstake request ([#426](https://github.com/drift-labs/protocol-v2/pull/426))
+
+### Fixes
+
+- sdk: fix isOracleValid confidenceTooLarge calc ([#425](https://github.com/drift-labs/protocol-v2/pull/425))
+
+- sdk: Remove redundant fetchAccounts in userMap.ts
 
 ### Breaking
 
@@ -44,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - sdk: add isUserBankrupt ([#399](https://github.com/drift-labs/protocol-v2/pull/399))
+- program: update revenue pool fund settlement logic ([#398](https://github.com/drift-labs/protocol-v2/pull/398))
 
 ### Fixes
 
@@ -71,7 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: add referrer name account to enforce unique referrer names ([#357](https://github.com/drift-labs/protocol-v2/pull/357)) 
+- program: add referrer name account to enforce unique referrer names ([#357](https://github.com/drift-labs/protocol-v2/pull/357))
 - program: only let amm fill up to tick above/below user limit price ([#381](https://github.com/drift-labs/protocol-v2/pull/381))
 - program: allow multiple makers in fill_perp_order ([#341](https://github.com/drift-labs/protocol-v2/pull/341))
 - sdk: add getPerpMarketExtendedInfo to drift client
@@ -84,7 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: allow post only to match older taker limit orders ([#378](https://github.com/drift-labs/protocol-v2/pull/378)) 
+- program: allow post only to match older taker limit orders ([#378](https://github.com/drift-labs/protocol-v2/pull/378))
 - ts-sdk: serum subscriber supports websockets ([#365](https://github.com/drift-labs/protocol-v2/pull/365))
 - program: max number of subaccounts to 3000
 - program: amm spread logic more consistent across market by using liquidity ratio rather than base asset amount for inventory spread scaling([#374](https://github.com/drift-labs/protocol-v2/pull/374))
@@ -119,6 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: order params utilize post only enum ([#361](https://github.com/drift-labs/protocol-v2/pull/361))
 
 ### Fixes
+
 - program: twap tweaks, update only on new cluster time ([#362](https://github.com/drift-labs/protocol-v2/pull/362))
 
 ### Breaking
@@ -138,7 +192,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ts-sdk: DLOB matching logic accounts for zero-price spot market orders not matching resting limit orders
 - ts-sdk: new squareRootBN implementation using bit shifting (2x speed improvement)
 - program: fix overflow in calculate_long_short_vol_spread ([#352](https://github.com/drift-labs/protocol-v2/pull/352))
-- program: dont let users disable margin trading if they have margin orders open 
+- program: dont let users disable margin trading if they have margin orders open
 - program: tweaks to fix max leverage order param flag with imf factor ([#351](https://github.com/drift-labs/protocol-v2/pull/351))
 - program: improve bid/ask twap calculation for funding rate stability ([#345](https://github.com/drift-labs/protocol-v2/pull/345))
 - ts-sdk: fix borrow limit calc ([#356](https://github.com/drift-labs/protocol-v2/pull/356))
@@ -151,7 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - ts-sdk: add aptos
 
-### Fixes 
+### Fixes
 
 ### Breaking
 

@@ -277,6 +277,7 @@ pub enum OrderActionExplanation {
     ReduceOnlyOrderIncreasedPosition,
     OrderFillWithSerum,
     NoBorrowLiquidity,
+    OrderFillWithPhoenix,
 }
 
 impl Default for OrderAction {

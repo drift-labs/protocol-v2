@@ -274,36 +274,36 @@ pub fn calculate_fee_for_fulfillment_with_match(
     })
 }
 
-pub struct SerumFillFees {
+pub struct ExternalFillFees {
     pub user_fee: u64,
     pub fee_to_market: u64,
     pub fee_pool_delta: i64,
     pub filler_reward: u64,
 }
 
-pub fn calculate_fee_for_fulfillment_with_serum(
+pub fn calculate_fee_for_fulfillment_with_external_market(
     user_stats: &UserStats,
     quote_asset_amount: u64,
     fee_structure: &FeeStructure,
     order_slot: u64,
     clock_slot: u64,
     reward_filler: bool,
-    serum_fee: u64,
-    serum_referrer_rebate: u64,
+    external_market_fee: u64,
+    unsettled_referrer_rebate: u64,
     fee_pool_amount: u64,
-) -> DriftResult<SerumFillFees> {
+) -> DriftResult<ExternalFillFees> {
     let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot)?;
 
     let fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier)?;
 
-    let serum_fee_plus_referrer_rebate = serum_fee.safe_add(serum_referrer_rebate)?;
+    let fee_plus_referrer_rebate = external_market_fee.safe_add(unsettled_referrer_rebate)?;
 
-    let user_fee = fee.max(serum_fee_plus_referrer_rebate);
+    let user_fee = fee.max(fee_plus_referrer_rebate);
 
     let filler_reward = if reward_filler {
-        let immediately_available_fee = user_fee.safe_sub(serum_fee_plus_referrer_rebate)?;
+        let immediately_available_fee = user_fee.safe_sub(fee_plus_referrer_rebate)?;
 
-        let eventual_available_fee = user_fee.safe_sub(serum_fee)?;
+        let eventual_available_fee = user_fee.safe_sub(external_market_fee)?;
 
         // can only pay the filler immediately if
         // 1. there are fees already in the fee pool
@@ -323,13 +323,15 @@ pub fn calculate_fee_for_fulfillment_with_serum(
         0
     };
 
-    let fee_to_market = user_fee.safe_sub(serum_fee)?.safe_sub(filler_reward)?;
+    let fee_to_market = user_fee
+        .safe_sub(external_market_fee)?
+        .safe_sub(filler_reward)?;
 
     let fee_pool_delta = fee_to_market
         .cast::<i64>()?
-        .safe_sub(serum_referrer_rebate.cast()?)?;
+        .safe_sub(unsettled_referrer_rebate.cast()?)?;
 
-    Ok(SerumFillFees {
+    Ok(ExternalFillFees {
         user_fee,
         fee_to_market,
         filler_reward,

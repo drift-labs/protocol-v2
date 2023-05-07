@@ -94,17 +94,38 @@ impl ContractTier {
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct PerpMarket {
+    /// The address of the perp market
     pub pubkey: Pubkey,
+    /// Protocol's automated market maker
     pub amm: AMM,
+    /// The pnl pool that users settle pnl with
+    /// If a user settles negative pnl, the pool increases
+    /// If a user settles positive pnl, the pool decreases
+    /// The pool can not go negative, so for a user with positive pnl to settle, there must be
+    /// users with negative pnl already settled
     pub pnl_pool: PoolBalance,
-    pub name: [u8; 32], // 256 bits
+    /// Display name
+    pub name: [u8; 32],
+    /// The markets claim on the insurance fund
     pub insurance_claim: InsuranceClaim,
+    /// pnl imbalance occurs when the long's pnl does not equal the short's pnl
+    /// this happens because the amm takes on a position and has pnl
+    /// the max imbalance is the max difference between the long and short pnl
+    /// before the asset weight for positive pnl is reduced
+    /// PRECISION: QUOTE_PRECISION
     pub unrealized_pnl_max_imbalance: u64,
-    pub expiry_ts: i64,    // iff market in reduce only mode
-    pub expiry_price: i64, // iff market has expired, price users can settle position
+    /// When the market will expire, only set if market is in reduce only mode
+    pub expiry_ts: i64,
+    /// The price the market will settle at, only set if market is expired
+    pub expiry_price: i64,
+    /// Each trade has a fill record id. This is the next id to be used
     pub next_fill_record_id: u64,
+    /// Each funding rate update has a record id. This is the next id to be used
     pub next_funding_rate_record_id: u64,
+    /// Each amm k update has a record id. This is the next id to be used
     pub next_curve_record_id: u64,
+    /// The initial margin fraction factor. Used to increase the margin requirement for large positions
+    /// PRECISION: 1e6
     pub imf_factor: u32,
     pub unrealized_pnl_imf_factor: u32,
     pub liquidator_fee: u32,
@@ -315,7 +336,7 @@ impl PerpMarket {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct InsuranceClaim {
-    pub revenue_withdraw_since_last_settle: u64,
+    pub revenue_withdraw_since_last_settle: i64,
     pub max_revenue_withdraw_per_period: u64,
     pub quote_max_insurance: u64,
     pub quote_settled_insurance: u64,
