@@ -7,7 +7,7 @@ use crate::controller::position::PositionDirection;
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
-use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4};
+use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, serum_program};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
@@ -2091,14 +2091,15 @@ pub fn handle_begin_swap(
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
     let out_vault = &ctx.accounts.out_spot_market_vault;
+    let out_token_account = &ctx.accounts.out_token_account;
 
     out_spot_market.flash_loan_amount = out_amount;
-    out_spot_market.flash_loan_initial_vault_amount = out_vault.amount;
+    out_spot_market.flash_loan_initial_token_amount = out_token_account.amount;
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
-    let in_vault = &ctx.accounts.in_spot_market_vault;
+    let in_token_account = &ctx.accounts.in_token_account;
 
-    in_spot_market.flash_loan_initial_vault_amount = in_vault.amount;
+    in_spot_market.flash_loan_initial_token_amount = in_token_account.amount;
 
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
@@ -2185,10 +2186,11 @@ pub fn handle_begin_swap(
         } else {
             validate!(
                 ix.program_id == AssociatedToken::id()
+                    || ix.program_id == serum_program::id()
                     || ix.program_id == jupiter_mainnet_3::ID
                     || ix.program_id == jupiter_mainnet_4::ID,
                 ErrorCode::InvalidSwap,
-                "only allowed to pass in ixs to ATA or Jupiter v3 or v4 programs"
+                "only allowed to pass in ixs to ATA or openbook or Jupiter v3 or v4 programs"
             )?;
         }
 
@@ -2229,21 +2231,22 @@ pub fn handle_end_swap(
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
     let out_vault = &mut ctx.accounts.out_spot_market_vault;
+    let out_token_account = &mut ctx.accounts.out_token_account;
 
     let mut amount_out = out_spot_market.flash_loan_amount;
-    if out_vault.amount > out_spot_market.flash_loan_initial_vault_amount {
-        let residual = out_vault
+    if out_token_account.amount > out_spot_market.flash_loan_initial_token_amount {
+        let residual = out_token_account
             .amount
-            .safe_sub(out_spot_market.flash_loan_initial_vault_amount)?;
+            .safe_sub(out_spot_market.flash_loan_initial_token_amount)?;
 
         controller::token::receive(
             &ctx.accounts.token_program,
-            &ctx.accounts.out_token_account,
+            &out_token_account,
             &out_vault,
             &ctx.accounts.authority,
             residual,
         )?;
-        out_vault.reload()?;
+        out_token_account.reload()?;
 
         amount_out = amount_out.safe_sub(residual)?;
     }
@@ -2257,30 +2260,29 @@ pub fn handle_end_swap(
         None,
     )?;
 
-    out_spot_market.flash_loan_initial_vault_amount = 0;
+    out_spot_market.flash_loan_initial_token_amount = 0;
     out_spot_market.flash_loan_amount = 0;
 
     drop(out_spot_market);
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
     let in_vault = &mut ctx.accounts.in_spot_market_vault;
+    let in_token_account = &mut ctx.accounts.in_token_account;
 
-    let mut amount_in = in_spot_market.flash_loan_amount;
-    if in_vault.amount > in_spot_market.flash_loan_initial_vault_amount {
-        let residual = in_vault
+    let mut amount_in = 0_u64;
+    if in_token_account.amount > in_spot_market.flash_loan_initial_token_amount {
+        amount_in = in_token_account
             .amount
-            .safe_sub(in_spot_market.flash_loan_initial_vault_amount)?;
+            .safe_sub(in_spot_market.flash_loan_initial_token_amount)?;
 
         controller::token::receive(
             &ctx.accounts.token_program,
-            &ctx.accounts.in_token_account,
+            &in_token_account,
             &in_vault,
             &ctx.accounts.authority,
-            residual,
+            amount_in,
         )?;
         in_vault.reload()?;
-
-        amount_in = amount_in.safe_sub(residual)?;
     }
 
     update_spot_balances_and_cumulative_deposits(
@@ -2292,7 +2294,7 @@ pub fn handle_end_swap(
         None,
     )?;
 
-    in_spot_market.flash_loan_initial_vault_amount = 0;
+    in_spot_market.flash_loan_initial_token_amount = 0;
     in_spot_market.flash_loan_amount = 0;
 
     drop(in_spot_market);

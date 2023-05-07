@@ -264,7 +264,7 @@ pub fn handle_initialize_spot_market(
         orders_enabled: spot_market_index != 0,
         padding1: [0; 6],
         flash_loan_amount: 0,
-        flash_loan_initial_vault_amount: 0,
+        flash_loan_initial_token_amount: 0,
         padding: [0; 64],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,

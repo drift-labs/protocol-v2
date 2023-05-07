@@ -711,6 +711,156 @@
       ]
     },
     {
+      "name": "beginSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "outSpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inSpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outAmount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "endSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "outSpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inSpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "addPerpLpShares",
       "accounts": [
         {
@@ -4285,22 +4435,38 @@
         "fields": [
           {
             "name": "pubkey",
+            "docs": [
+              "The address of the perp market"
+            ],
             "type": "publicKey"
           },
           {
             "name": "amm",
+            "docs": [
+              "Protocol's automated market maker"
+            ],
             "type": {
               "defined": "AMM"
             }
           },
           {
             "name": "pnlPool",
+            "docs": [
+              "The pnl pool that users settle pnl with",
+              "If a user settles negative pnl, the pool increases",
+              "If a user settles positive pnl, the pool decreases",
+              "The pool can not go negative, so for a user with positive pnl to settle, there must be",
+              "users with negative pnl already settled"
+            ],
             "type": {
               "defined": "PoolBalance"
             }
           },
           {
             "name": "name",
+            "docs": [
+              "Display name"
+            ],
             "type": {
               "array": [
                 "u8",
@@ -4310,36 +4476,65 @@
           },
           {
             "name": "insuranceClaim",
+            "docs": [
+              "The markets claim on the insurance fund"
+            ],
             "type": {
               "defined": "InsuranceClaim"
             }
           },
           {
             "name": "unrealizedPnlMaxImbalance",
+            "docs": [
+              "pnl imbalance occurs when the long's pnl does not equal the short's pnl",
+              "this happens because the amm takes on a position and has pnl",
+              "the max imbalance is the max difference between the long and short pnl",
+              "before the asset weight for positive pnl is reduced",
+              "PRECISION: QUOTE_PRECISION"
+            ],
             "type": "u64"
           },
           {
             "name": "expiryTs",
+            "docs": [
+              "When the market will expire, only set if market is in reduce only mode"
+            ],
             "type": "i64"
           },
           {
             "name": "expiryPrice",
+            "docs": [
+              "The price the market will settle at, only set if market is expired"
+            ],
             "type": "i64"
           },
           {
             "name": "nextFillRecordId",
+            "docs": [
+              "Each trade has a fill record id. This is the next id to be used"
+            ],
             "type": "u64"
           },
           {
             "name": "nextFundingRateRecordId",
+            "docs": [
+              "Each funding rate update has a record id. This is the next id to be used"
+            ],
             "type": "u64"
           },
           {
             "name": "nextCurveRecordId",
+            "docs": [
+              "Each amm k update has a record id. This is the next id to be used"
+            ],
             "type": "u64"
           },
           {
             "name": "imfFactor",
+            "docs": [
+              "The initial margin fraction factor. Used to increase the margin requirement for large positions",
+              "PRECISION: 1e6"
+            ],
             "type": "u32"
           },
           {
@@ -4635,11 +4830,28 @@
             }
           },
           {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
+          },
+          {
+            "name": "flashLoanAmount",
+            "type": "u64"
+          },
+          {
+            "name": "flashLoanInitialTokenAmount",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                86
+                64
               ]
             }
           }
@@ -9210,6 +9422,11 @@
       "code": 6247,
       "name": "InvalidPhoenixMarket",
       "msg": "InvalidPhoenixMarket"
+    },
+    {
+      "code": 6248,
+      "name": "InvalidSwap",
+      "msg": "InvalidSwap"
     }
   ]
 }
