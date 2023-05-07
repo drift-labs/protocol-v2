@@ -2144,12 +2144,12 @@ pub fn handle_begin_swap(
             found_end = true;
 
             // must be the SwapEnd instruction
-            // let discriminator = crate::instruction::EndSwap::discriminator();
-            // validate!(
-            //     ix.data[0..8] == discriminator,
-            //     ErrorCode::InvalidSwap,
-            //     "last ix must be end of "
-            // );
+            let discriminator = crate::instruction::EndSwap::discriminator();
+            validate!(
+                ix.data[0..8] == discriminator,
+                ErrorCode::InvalidSwap,
+                "last ix must be end of swap"
+            );
 
             validate!(
                 &ctx.accounts.user.key() == &ix.accounts[1].pubkey,
