@@ -2068,7 +2068,7 @@ pub struct Swap<'info> {
 }
 
 #[access_control(
-    deposit_not_paused(&ctx.accounts.state)
+    fill_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_begin_swap(
     ctx: Context<Swap>,
@@ -2213,7 +2213,7 @@ pub fn handle_begin_swap(
 }
 
 #[access_control(
-    deposit_not_paused(&ctx.accounts.state)
+    fill_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_end_swap(
     ctx: Context<Swap>,
