@@ -116,14 +116,16 @@ pub mod amm_lp_jit {
         market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
 
         // shouldnt throw an error when bids/asks are zero
-        crate::math::amm_jit::calculate_jit_base_asset_amount(
+        let result = crate::math::amm_jit::calculate_jit_base_asset_amount(
             &market,
             BASE_PRECISION_U64,
             PRICE_PRECISION_U64,
             Some(PRICE_PRECISION_I64),
             PositionDirection::Long,
+            true,
         )
         .unwrap();
+        assert_eq!(result, 500000000);
     }
 
     #[test]
@@ -520,10 +522,11 @@ pub mod amm_lp_jit {
 
         // nets to zero
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
 
         // make sure lps didnt get anything
-        assert_eq!(market_after.amm.base_asset_amount_per_lp, 0);
+        assert_eq!(market_after.amm.base_asset_amount_per_lp, -505801343);
+
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
     }
 
     #[test]
@@ -709,12 +712,16 @@ pub mod amm_lp_jit {
         )
         .unwrap();
 
+        assert_eq!(market.amm.base_asset_amount_with_amm, -500000000);
+        assert_eq!(market.amm.base_asset_amount_per_lp, -505801343);
+
         let market_after = market_map.get_ref(&0).unwrap();
-        // nets to zero
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
 
         // make sure lps didnt get anything
-        assert_eq!(market_after.amm.base_asset_amount_per_lp, 0);
+        assert_eq!(market_after.amm.base_asset_amount_per_lp, -505801343);
+
+        // nets to zero
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
 
         let maker = makers_and_referrers.get_ref_mut(&maker_key).unwrap();
         let maker_position = &maker.perp_positions[0];

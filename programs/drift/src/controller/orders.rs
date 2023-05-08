@@ -80,7 +80,8 @@ mod tests;
 
 #[cfg(test)]
 mod amm_jit_tests;
-// mod amm_lp_jit_tests;
+#[cfg(test)]
+mod amm_lp_jit_tests;
 
 pub fn place_perp_order(
     state: &State,
@@ -1805,7 +1806,7 @@ pub fn fulfill_perp_order_with_amm(
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
-    crate::dlog!("split_with_lps={:?}", split_with_lps);
+    crate::dlog!(split_with_lps);
     if split_with_lps {
         update_lp_market_position(market, &user_position_delta, fee_to_market_for_lp.cast()?)?;
     } else {
@@ -2056,6 +2057,8 @@ pub fn fulfill_perp_order_with_match(
         maker_base_asset_amount,
         taker.orders[taker_order_index].has_limit_price(slot)?,
     )?;
+    crate::dlog!(jit_base_asset_amount);
+
     if jit_base_asset_amount > 0 {
         let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
             taker,

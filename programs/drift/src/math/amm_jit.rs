@@ -153,11 +153,11 @@ pub fn calculate_amm_jit_liquidity(
         let amm_lp_wants_to_make = match taker_direction {
             PositionDirection::Long => {
                 market.amm.base_asset_amount_per_lp
-                    < market.amm.target_base_asset_amount_per_lp.cast()?
+                    > market.amm.target_base_asset_amount_per_lp.cast()?
             }
             PositionDirection::Short => {
                 market.amm.base_asset_amount_per_lp
-                    > market.amm.target_base_asset_amount_per_lp.cast()?
+                    < market.amm.target_base_asset_amount_per_lp.cast()?
             }
         } && market.amm.amm_lp_jit_is_active();
 
