@@ -4,7 +4,10 @@ use anchor_spl::token::{Token, TokenAccount};
 
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
-use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
+use crate::controller::spot_position::{
+    update_spot_balances_and_cumulative_deposits,
+    update_spot_balances_and_cumulative_deposits_with_limits,
+};
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, serum_program};
@@ -358,20 +361,7 @@ pub fn handle_deposit(
     };
     emit!(deposit_record);
 
-    let deposits_token_amount = get_token_amount(
-        spot_market.deposit_balance,
-        spot_market,
-        &SpotBalanceType::Deposit,
-    )?;
-
-    validate!(
-        spot_market.max_token_deposits == 0
-            || deposits_token_amount <= spot_market.max_token_deposits.cast()?,
-        ErrorCode::MaxDeposit,
-        "max deposits: {} new deposits {}",
-        spot_market.max_token_deposits,
-        deposits_token_amount
-    )?;
+    spot_market.validate_max_token_deposits()?;
 
     Ok(())
 }
@@ -2273,13 +2263,12 @@ pub fn handle_end_swap(
         amount_out = amount_out.safe_sub(residual)?;
     }
 
-    update_spot_balances_and_cumulative_deposits(
+    // checks deposit/borrow limits
+    update_spot_balances_and_cumulative_deposits_with_limits(
         amount_out.cast()?,
         &SpotBalanceType::Borrow,
         &mut out_spot_market,
-        user.force_get_spot_position_mut(out_market_index)?,
-        false,
-        None,
+        &mut user,
     )?;
 
     out_spot_market.flash_loan_initial_token_amount = 0;
@@ -2324,6 +2313,8 @@ pub fn handle_end_swap(
 
     in_spot_market.flash_loan_initial_token_amount = 0;
     in_spot_market.flash_loan_amount = 0;
+
+    in_spot_market.validate_max_token_deposits()?;
 
     drop(in_spot_market);
 

@@ -19,6 +19,7 @@ use crate::math::spot_balance::{calculate_utilization, get_token_amount};
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
+use crate::validate;
 
 #[account(zero_copy)]
 #[derive(PartialEq, Eq, Debug)]
@@ -250,6 +251,21 @@ impl SpotMarket {
 
     pub fn get_deposits(&self) -> DriftResult<u128> {
         get_token_amount(self.deposit_balance, self, &SpotBalanceType::Deposit)
+    }
+
+    pub fn validate_max_token_deposits(&self) -> DriftResult {
+        let deposits = self.get_deposits()?;
+        let max_token_deposits = self.max_token_deposits.cast::<u128>()?;
+
+        validate!(
+            max_token_deposits == 0 || deposits <= max_token_deposits,
+            crate::error::ErrorCode::MaxDeposit,
+            "max token amount ({}) < deposits ({})",
+            max_token_deposits,
+            deposits,
+        )?;
+
+        Ok(())
     }
 
     pub fn get_available_deposits(&self) -> DriftResult<u128> {
