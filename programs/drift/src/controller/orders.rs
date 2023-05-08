@@ -3063,13 +3063,7 @@ pub fn fill_spot_order(
     {
         let spot_market = spot_market_map.get_ref(&order_market_index)?;
         validate!(
-            matches!(
-                spot_market.status,
-                MarketStatus::Active
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::ReduceOnly
-                    | MarketStatus::WithdrawPaused
-            ),
+            spot_market.fills_enabled(),
             ErrorCode::MarketFillOrderPaused,
             "Market unavailable for fills"
         )?;

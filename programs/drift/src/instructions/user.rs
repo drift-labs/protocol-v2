@@ -2096,13 +2096,29 @@ pub fn handle_begin_swap(
     )?;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    validate!(
+        out_spot_market.fills_enabled(),
+        ErrorCode::MarketFillOrderPaused,
+        "Swaps disabled for {}",
+        out_market_index
+    )?;
+
+    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    validate!(
+        in_spot_market.fills_enabled(),
+        ErrorCode::MarketFillOrderPaused,
+        "Swaps disabled for {}",
+        in_market_index
+    )?;
+
     let out_vault = &ctx.accounts.out_spot_market_vault;
     let out_token_account = &ctx.accounts.out_token_account;
 
     out_spot_market.flash_loan_amount = amount_out;
     out_spot_market.flash_loan_initial_token_amount = out_token_account.amount;
 
-    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
     let in_token_account = &ctx.accounts.in_token_account;
 
     in_spot_market.flash_loan_initial_token_amount = in_token_account.amount;

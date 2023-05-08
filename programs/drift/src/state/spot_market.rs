@@ -157,6 +157,16 @@ impl SpotMarket {
         Ok(self.status == MarketStatus::ReduceOnly)
     }
 
+    pub fn fills_enabled(&self) -> bool {
+        matches!(
+            self.status,
+            MarketStatus::Active
+                | MarketStatus::FundingPaused
+                | MarketStatus::ReduceOnly
+                | MarketStatus::WithdrawPaused
+        )
+    }
+
     pub fn get_sanitize_clamp_denominator(&self) -> DriftResult<Option<i64>> {
         Ok(match self.asset_tier {
             AssetTier::Collateral => Some(10), // 10%
