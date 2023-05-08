@@ -2069,7 +2069,9 @@ pub fn handle_begin_swap(
     let clock = Clock::get()?;
 
     let AccountMaps {
-        spot_market_map, ..
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
@@ -2078,10 +2080,16 @@ pub fn handle_begin_swap(
         Some(state.oracle_guard_rails),
     )?;
 
-    validate!(
-        amount_out != 0,
-        ErrorCode::InvalidSwap,
-        "amount_out cannot be zero"
+    let mut user = load_mut!(&ctx.accounts.user)?;
+
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+
+    math::liquidation::validate_user_not_being_liquidated(
+        &mut user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        ctx.accounts.state.liquidation_margin_buffer_ratio,
     )?;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
@@ -2100,6 +2108,12 @@ pub fn handle_begin_swap(
         ErrorCode::MarketFillOrderPaused,
         "Swaps disabled for {}",
         in_market_index
+    )?;
+
+    validate!(
+        amount_out != 0,
+        ErrorCode::InvalidSwap,
+        "amount_out cannot be zero"
     )?;
 
     let out_vault = &ctx.accounts.out_spot_market_vault;
