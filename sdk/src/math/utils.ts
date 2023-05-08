@@ -71,11 +71,10 @@ export function timeRemainingUntilUpdate(
 			}
 		}
 	}
-
 	const timeRemainingUntilUpdate = nextUpdateWait
 		.sub(timeSinceLastUpdate)
 		.isNeg()
-		? new BN(0)
+		? ZERO
 		: nextUpdateWait.sub(timeSinceLastUpdate);
 
 	return timeRemainingUntilUpdate;
