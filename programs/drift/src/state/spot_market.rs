@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::error::DriftResult;
+use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
 #[cfg(test)]
@@ -259,7 +259,7 @@ impl SpotMarket {
 
         validate!(
             max_token_deposits == 0 || deposits <= max_token_deposits,
-            crate::error::ErrorCode::MaxDeposit,
+            ErrorCode::MaxDeposit,
             "max token amount ({}) < deposits ({})",
             max_token_deposits,
             deposits,

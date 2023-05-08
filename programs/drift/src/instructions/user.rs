@@ -26,7 +26,6 @@ use crate::math::margin::{
     meets_withdraw_margin_requirement, validate_spot_margin_trading,
 };
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::print_error;
 use crate::safe_decrement;
@@ -2259,6 +2258,7 @@ pub fn handle_end_swap(
             residual,
         )?;
         out_token_account.reload()?;
+        out_vault.reload()?;
 
         amount_out = amount_out.safe_sub(residual)?;
     }
@@ -2270,6 +2270,8 @@ pub fn handle_end_swap(
         &mut out_spot_market,
         &mut user,
     )?;
+
+    math::spot_withdraw::validate_spot_market_vault_amount(&out_spot_market, out_vault.amount)?;
 
     out_spot_market.flash_loan_initial_token_amount = 0;
     out_spot_market.flash_loan_amount = 0;
@@ -2310,6 +2312,8 @@ pub fn handle_end_swap(
         false,
         None,
     )?;
+
+    math::spot_withdraw::validate_spot_market_vault_amount(&in_spot_market, in_vault.amount)?;
 
     in_spot_market.flash_loan_initial_token_amount = 0;
     in_spot_market.flash_loan_amount = 0;
