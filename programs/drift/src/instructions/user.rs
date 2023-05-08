@@ -2074,7 +2074,7 @@ pub fn handle_begin_swap(
     ctx: Context<Swap>,
     out_market_index: u16,
     in_market_index: u16,
-    out_amount: u64,
+    amount_out: u64,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
@@ -2089,11 +2089,17 @@ pub fn handle_begin_swap(
         Some(state.oracle_guard_rails),
     )?;
 
+    validate!(
+        amount_out != 0,
+        ErrorCode::InvalidSwap,
+        "amount_out cannot be zero"
+    )?;
+
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
     let out_vault = &ctx.accounts.out_spot_market_vault;
     let out_token_account = &ctx.accounts.out_token_account;
 
-    out_spot_market.flash_loan_amount = out_amount;
+    out_spot_market.flash_loan_amount = amount_out;
     out_spot_market.flash_loan_initial_token_amount = out_token_account.amount;
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
@@ -2107,7 +2113,7 @@ pub fn handle_begin_swap(
         &ctx.accounts.out_token_account,
         &ctx.accounts.drift_signer,
         state.signer_nonce,
-        out_amount,
+        amount_out,
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
@@ -2284,6 +2290,12 @@ pub fn handle_end_swap(
         )?;
         in_vault.reload()?;
     }
+
+    validate!(
+        amount_in != 0,
+        ErrorCode::InvalidSwap,
+        "amount_in must be greater than 0"
+    )?;
 
     update_spot_balances_and_cumulative_deposits(
         amount_in.cast()?,

@@ -274,7 +274,7 @@ describe('spot swap', () => {
 
 		const outAmount = new BN(100).mul(QUOTE_PRECISION);
 		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
-			outAmount,
+			amountOut: outAmount,
 			outMarketIndex: 0,
 			inMarketIndex: 1,
 			outTokenAccount: takerUSDC,
