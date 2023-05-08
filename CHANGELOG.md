@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.27.0] - 2023-05-02
+
+### Features
+
+- ts-sdk: add SUI perp market ([#453](https://github.com/drift-labs/protocol-v2/pull/453))
+
+### Fixes
+
+### Breaking
+
+## [2.26.0] - 2023-05-02
+
+### Features
+
+- program: use forked version of anchor 0.26.0 that supports large idls ([#451](https://github.com/drift-labs/protocol-v2/pull/451))
+- program: add security.txt ([#450](https://github.com/drift-labs/protocol-v2/pull/450))
 - program: add L2 and L3 view of DLOB ([#445](https://github.com/drift-labs/protocol-v2/pull/445))
 - ts-sdk: new DLOBSubscriber class to keep updated DLOB ([#439](https://github.com/drift-labs/protocol-v2/pull/439))
 - program: add support for phoenix spot markets ([#437](https://github.com/drift-labs/protocol-v2/pull/437))
@@ -24,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: fix modify order trigger condition
 - sdk: fix removing unstaked sol
 - program: fix math error in settle_revenue_to_insurance_fund for large sizes ([#443](https://github.com/drift-labs/protocol-v2/pull/443))
+- program: fix revenue pool corner case for updating last_revenue_withdraw_ts ([#447](https://github.com/drift-labs/protocol-v2/pull/447))
 
 
 ### Breaking

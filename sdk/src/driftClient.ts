@@ -121,7 +121,6 @@ export class DriftClient {
 	users = new Map<string, User>();
 	userStats?: UserStats;
 	activeSubAccountId: number;
-	activeAuthority: PublicKey;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
@@ -133,7 +132,7 @@ export class DriftClient {
 	marketLookupTable: PublicKey;
 	lookupTableAccount: AddressLookupTableAccount;
 	includeDelegates?: boolean;
-	authoritySubaccountMap?: Map<string, number[]>;
+	authoritySubAccountMap?: Map<string, number[]>;
 	skipLoadUsers?: boolean;
 
 	public get isSubscribed() {
@@ -169,26 +168,25 @@ export class DriftClient {
 			);
 		}
 
-		if (config.authoritySubaccountMap && config.subAccountIds) {
+		if (config.authoritySubAccountMap && config.subAccountIds) {
 			throw new Error(
 				'Can only pass one of authoritySubaccountMap or subAccountIds'
 			);
 		}
 
-		if (config.authoritySubaccountMap && config.includeDelegates) {
+		if (config.authoritySubAccountMap && config.includeDelegates) {
 			throw new Error(
 				'Can only pass one of authoritySubaccountMap or includeDelegates'
 			);
 		}
 
-		this.authoritySubaccountMap = config.authoritySubaccountMap
-			? config.authoritySubaccountMap
+		this.authoritySubAccountMap = config.authoritySubAccountMap
+			? config.authoritySubAccountMap
 			: config.subAccountIds
 			? new Map([[this.authority.toString(), config.subAccountIds]])
 			: new Map<string, number[]>();
 
 		this.includeDelegates = config.includeDelegates ?? false;
-		this.activeAuthority = this.authority;
 		this.userAccountSubscriptionConfig =
 			config.accountSubscription?.type === 'polling'
 				? {
@@ -525,7 +523,7 @@ export class DriftClient {
 			);
 		}
 
-		this.authoritySubaccountMap = authoritySubaccountMap
+		this.authoritySubAccountMap = authoritySubaccountMap
 			? authoritySubaccountMap
 			: subAccountIds
 			? new Map([[this.authority.toString(), subAccountIds]])
@@ -557,12 +555,17 @@ export class DriftClient {
 
 	public switchActiveUser(subAccountId: number, authority?: PublicKey) {
 		this.activeSubAccountId = subAccountId;
-		this.activeAuthority = authority ?? this.authority;
+		this.authority = authority ?? this.authority;
+		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			this.authority
+		);
 	}
 
 	public async addUser(
 		subAccountId: number,
-		authority?: PublicKey
+		authority?: PublicKey,
+		userAccount?: UserAccount
 	): Promise<boolean> {
 		authority = authority ?? this.authority;
 		const userKey = this.getUserMapKey(subAccountId, authority);
@@ -577,7 +580,7 @@ export class DriftClient {
 			authority
 		);
 
-		const result = await user.subscribe();
+		const result = await user.subscribe(userAccount);
 
 		if (result) {
 			this.users.set(userKey, user);
@@ -596,8 +599,8 @@ export class DriftClient {
 
 		let result = true;
 
-		if (this.authoritySubaccountMap && this.authoritySubaccountMap.size > 0) {
-			this.authoritySubaccountMap.forEach(async (value, key) => {
+		if (this.authoritySubAccountMap && this.authoritySubAccountMap.size > 0) {
+			this.authoritySubAccountMap.forEach(async (value, key) => {
 				for (const subAccountId of value) {
 					result =
 						result && (await this.addUser(subAccountId, new PublicKey(key)));
@@ -606,27 +609,31 @@ export class DriftClient {
 
 			if (this.activeSubAccountId == undefined) {
 				this.switchActiveUser(
-					[...this.authoritySubaccountMap.values()][0][0] ?? 0,
+					[...this.authoritySubAccountMap.values()][0][0] ?? 0,
 					new PublicKey(
-						[...this.authoritySubaccountMap.keys()][0] ??
+						[...this.authoritySubAccountMap.keys()][0] ??
 							this.authority.toString()
 					)
 				);
 			}
 		} else {
 			const userAccounts =
-				(await this.getUserAccountsForAuthority(this.authority)) ?? [];
+				(await this.getUserAccountsForAuthority(this.wallet.publicKey)) ?? [];
 			let delegatedAccounts = [];
 
 			if (this.includeDelegates) {
 				delegatedAccounts =
-					(await this.getUserAccountsForDelegate(this.authority)) ?? [];
+					(await this.getUserAccountsForDelegate(this.wallet.publicKey)) ?? [];
 			}
 
 			for (const account of userAccounts.concat(delegatedAccounts)) {
 				result =
 					result &&
-					(await this.addUser(account.subAccountId, account.authority));
+					(await this.addUser(
+						account.subAccountId,
+						account.authority,
+						account
+					));
 			}
 
 			if (this.activeSubAccountId == undefined) {
@@ -662,6 +669,9 @@ export class DriftClient {
 		}
 		tx.add(initializeUserAccountIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		await this.addUser(subAccountId);
+
 		return [txSig, userAccountPublicKey];
 	}
 
@@ -1006,11 +1016,11 @@ export class DriftClient {
 
 	public getUser(subAccountId?: number, authority?: PublicKey): User {
 		subAccountId = subAccountId ?? this.activeSubAccountId;
-		authority = authority ?? this.activeAuthority;
+		authority = authority ?? this.authority;
 		const userMapKey = this.getUserMapKey(subAccountId, authority);
 
 		if (!this.users.has(userMapKey)) {
-			throw new Error(`Clearing House has no user for user id ${subAccountId}`);
+			throw new Error(`Clearing House has no user for user id ${userMapKey}`);
 		}
 		return this.users.get(userMapKey);
 	}
@@ -1018,10 +1028,13 @@ export class DriftClient {
 	public getUsers(): User[] {
 		// delegate users get added to the end
 		return [...this.users.values()]
-			.filter((acct) => acct.getUserAccount().authority.equals(this.authority))
+			.filter((acct) =>
+				acct.getUserAccount().authority.equals(this.wallet.publicKey)
+			)
 			.concat(
 				[...this.users.values()].filter(
-					(acct) => !acct.getUserAccount().authority.equals(this.authority)
+					(acct) =>
+						!acct.getUserAccount().authority.equals(this.wallet.publicKey)
 				)
 			);
 	}
@@ -1051,7 +1064,7 @@ export class DriftClient {
 
 		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
-			this.activeAuthority
+			this.authority
 		);
 		return this.userStatsAccountPublicKey;
 	}
@@ -1419,10 +1432,10 @@ export class DriftClient {
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
-		const authority = this.authority;
+		const signerAuthority = this.wallet.publicKey;
 
 		const createWSOLTokenAccount =
-			isSolMarket && collateralAccountPublicKey.equals(authority);
+			isSolMarket && collateralAccountPublicKey.equals(signerAuthority);
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
@@ -1454,8 +1467,8 @@ export class DriftClient {
 				Token.createCloseAccountInstruction(
 					TOKEN_PROGRAM_ID,
 					collateralAccountPublicKey,
-					authority,
-					authority,
+					signerAuthority,
+					signerAuthority,
 					[]
 				)
 			);
@@ -1478,13 +1491,11 @@ export class DriftClient {
 		reduceOnly = false,
 		userInitialized = true
 	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = subAccountId
-			? await getUserAccountPublicKey(
-					this.program.programId,
-					this.authority,
-					subAccountId
-			  )
-			: await this.getUserAccountPublicKey();
+		const userAccountPublicKey = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority,
+			subAccountId ?? this.activeSubAccountId
+		);
 
 		let remainingAccounts = [];
 		if (userInitialized) {
@@ -1713,6 +1724,8 @@ export class DriftClient {
 		);
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
 
+		await this.addUser(subAccountId);
+
 		return [txSig, userAccountPublicKey];
 	}
 
@@ -1758,6 +1771,8 @@ export class DriftClient {
 		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 
 		const txSig = await this.program.provider.sendAndConfirm(tx, []);
+
+		await this.addUser(subAccountId);
 
 		return [txSig, userAccountPublicKey];
 	}
@@ -2647,6 +2662,43 @@ export class DriftClient {
 				remainingAccounts,
 			}
 		);
+	}
+
+	public async cancelAndPlaceOrders(
+		cancelOrderParams: {
+			marketType?: MarketType;
+			marketIndex?: number;
+			direction?: PositionDirection;
+		},
+		placeOrderParams: OrderParams[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = wrapInTx(
+			await this.getCancelOrdersIx(
+				cancelOrderParams.marketType,
+				cancelOrderParams.marketIndex,
+				cancelOrderParams.direction
+			),
+			txParams?.computeUnits,
+			txParams?.computeUnitsPrice
+		);
+
+		for (const placeOrderParam of placeOrderParams) {
+			const marketType = placeOrderParam.marketType;
+			if (!marketType) {
+				throw new Error('marketType must be set on placeOrderParams');
+			}
+			let ix;
+			if (isVariant(marketType, 'perp')) {
+				ix = this.getPlacePerpOrderIx(placeOrderParam);
+			} else {
+				ix = this.getPlaceSpotOrderIx(placeOrderParam);
+			}
+			tx.add(ix);
+		}
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async fillPerpOrder(

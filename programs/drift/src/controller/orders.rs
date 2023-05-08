@@ -3619,7 +3619,10 @@ pub fn fulfill_spot_order_with_match(
     let taker_token_amount =
         taker.spot_positions[taker_spot_position_index].get_signed_token_amount(base_market)?;
     let taker_base_asset_amount = taker.orders[taker_order_index]
-        .get_base_asset_amount_unfilled(Some(taker_token_amount.cast()?))?;
+        .get_standardized_base_asset_amount_unfilled(
+            Some(taker_token_amount.cast()?),
+            base_market.order_step_size,
+        )?;
     let taker_order_slot = taker.orders[taker_order_index].slot;
     let taker_direction = taker.orders[taker_order_index].direction;
 
@@ -3634,7 +3637,10 @@ pub fn fulfill_spot_order_with_match(
     let maker_token_amount =
         maker.spot_positions[maker_spot_position_index].get_signed_token_amount(base_market)?;
     let maker_base_asset_amount = maker.orders[maker_order_index]
-        .get_base_asset_amount_unfilled(Some(maker_token_amount.cast()?))?;
+        .get_standardized_base_asset_amount_unfilled(
+            Some(maker_token_amount.cast()?),
+            base_market.order_step_size,
+        )?;
 
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
@@ -3944,7 +3950,10 @@ pub fn fulfill_spot_order_with_external_market(
         .force_get_spot_position_mut(base_market.market_index)?
         .get_signed_token_amount(base_market)?;
     let taker_base_asset_amount = taker.orders[taker_order_index]
-        .get_base_asset_amount_unfilled(Some(taker_token_amount.cast()?))?;
+        .get_standardized_base_asset_amount_unfilled(
+            Some(taker_token_amount.cast()?),
+            base_market.order_step_size,
+        )?;
     let order_direction = taker.orders[taker_order_index].direction;
     let taker_order_slot = taker.orders[taker_order_index].slot;
 
