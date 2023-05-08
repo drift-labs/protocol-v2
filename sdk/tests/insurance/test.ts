@@ -18,24 +18,24 @@ describe('Insurance Tests', () => {
         let tr;
         // console.log(now.sub(lastUpdate).toString());
 
-        tr = timeRemainingUntilUpdate(now, lastUpdate, period)
+        tr = timeRemainingUntilUpdate(now, lastUpdate, period);
         // console.log(tr.toString());
         assert(tr.eq(new BN('2748')));
 
-        tr = timeRemainingUntilUpdate(now, lastUpdate.sub(period), period)
+        tr = timeRemainingUntilUpdate(now, lastUpdate.sub(period), period);
         // console.log(tr.toString());
         assert(tr.eq(ZERO));
 
-        const tooLateUpdate = lastUpdate.sub(period.div(new BN(3)).add(ONE))
-        tr = timeRemainingUntilUpdate(tooLateUpdate.add(ONE), tooLateUpdate, period)
+        const tooLateUpdate = lastUpdate.sub(period.div(new BN(3)).add(ONE));
+        tr = timeRemainingUntilUpdate(tooLateUpdate.add(ONE), tooLateUpdate, period);
         // console.log(tr.toString());
         assert(tr.eq(new BN('4800')));
 
-        tr = timeRemainingUntilUpdate(now, lastUpdate.add(ONE), period)
+        tr = timeRemainingUntilUpdate(now, lastUpdate.add(ONE), period);
         // console.log(tr.toString());
         assert(tr.eq(new BN('2748')));
 
-        tr = timeRemainingUntilUpdate(now, lastUpdate.sub(ONE), period)
+        tr = timeRemainingUntilUpdate(now, lastUpdate.sub(ONE), period);
         // console.log(tr.toString());
         assert(tr.eq(new BN('2748')));
 
