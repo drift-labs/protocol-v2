@@ -41,6 +41,7 @@ pub mod amm_lp_jit {
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
+    use crate::math::amm_jit::{calculate_amm_jit_liquidity};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -57,7 +58,6 @@ pub mod amm_lp_jit {
     fn zero_asks_with_amm_lp_jit_taker_long() {
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        // assert_eq(1,0);
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -65,7 +65,7 @@ pub mod amm_lp_jit {
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 base_asset_amount_per_lp: -505801343,
                 quote_asset_amount_per_lp: 10715933,
-                target_base_asset_amount_per_lp: -500000000,
+                target_base_asset_amount_per_lp: -1000000000,
                 base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
                 base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -116,16 +116,33 @@ pub mod amm_lp_jit {
         market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
 
         // shouldnt throw an error when bids/asks are zero
-        let result = crate::math::amm_jit::calculate_jit_base_asset_amount(
+        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
             &market,
             BASE_PRECISION_U64,
-            PRICE_PRECISION_U64,
-            Some(PRICE_PRECISION_I64),
+            100 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Long,
             true,
         )
         .unwrap();
-        assert_eq!(result, 500000000);
+        assert_eq!(jit_base_asset_amount, 500000000);
+
+
+        // todo
+        let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+            &mut market,
+            PositionDirection::Short,
+            100 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
+            BASE_PRECISION_U64,
+            BASE_PRECISION_U64,
+            BASE_PRECISION_U64,
+            false,
+        ).unwrap();
+        assert_eq!(split_with_lps, false);
+        assert_eq!(jit_base_asset_amount, 500000000);
+
+
     }
 
     #[test]
