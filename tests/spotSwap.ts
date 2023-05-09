@@ -3,7 +3,12 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Account, PublicKey, Transaction } from '@solana/web3.js';
+import {
+	Account,
+	LAMPORTS_PER_SOL,
+	PublicKey,
+	Transaction,
+} from '@solana/web3.js';
 const serumHelper = require('./serumHelper');
 
 import {
@@ -272,7 +277,7 @@ describe('spot swap', () => {
 
 		await provider.sendAndConfirm(transaction, signers);
 
-		const outAmount = new BN(100).mul(QUOTE_PRECISION);
+		const outAmount = new BN(101).mul(QUOTE_PRECISION);
 		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
 			amountOut: outAmount,
 			outMarketIndex: 0,
@@ -289,8 +294,8 @@ describe('spot swap', () => {
 			side: 'buy',
 			price: 100,
 			size: 1,
-			orderType: 'limit',
-			clientId: undefined, // todo?
+			orderType: 'ioc',
+			clientId: new BN(1), // todo?
 			openOrdersAddressKey: takerOpenOrders,
 			feeDiscountPubkey: null,
 			selfTradeBehavior: 'abortTransaction',
@@ -330,379 +335,118 @@ describe('spot swap', () => {
 		const takerSOLAmount = await takerDriftClient.getTokenAmount(1);
 		assert(takerSOLAmount.eq(new BN(900000000)));
 		const takerUSDCAmount = await takerDriftClient.getTokenAmount(0);
-		assert(takerUSDCAmount.eq(new BN(109964000)));
+		console.log(takerUSDCAmount.toString());
+		assert(takerUSDCAmount.eq(new BN(109963999)));
 
-		//
-		// await provider.sendAndConfirm(transaction, signers);
-		//
-		// const serumFulfillmentConfigAccount =
-		// 	await makerDriftClient.getSerumV3FulfillmentConfig(serumMarketPublicKey);
-		// const txSig = await makerDriftClient.fillSpotOrder(
-		// 	await takerDriftClient.getUserAccountPublicKey(),
-		// 	takerDriftClient.getUserAccount(),
-		// 	takerDriftClient.getOrderByUserId(1),
-		// 	serumFulfillmentConfigAccount
-		// );
-		//
-		// await eventSubscriber.awaitTx(txSig);
-		//
-		// await printTxLogs(connection, txSig);
-		//
-		// await takerDriftClient.fetchAccounts();
-		//
-		// const takerQuoteSpotBalance = takerDriftClient.getSpotPosition(0);
-		// const takerBaseSpotBalance = takerDriftClient.getSpotPosition(1);
-		//
-		// const quoteTokenAmount = getTokenAmount(
-		// 	takerQuoteSpotBalance.scaledBalance,
-		// 	takerDriftClient.getQuoteSpotMarketAccount(),
-		// 	takerQuoteSpotBalance.balanceType
-		// );
-		// console.log(quoteTokenAmount.toString());
-		// assert(quoteTokenAmount.eq(new BN(99900000)));
-		//
-		// const baseTokenAmount = getTokenAmount(
-		// 	takerBaseSpotBalance.scaledBalance,
-		// 	takerDriftClient.getSpotMarketAccount(1),
-		// 	takerBaseSpotBalance.balanceType
-		// );
-		// assert(baseTokenAmount.eq(new BN(1000000000)));
-		//
-		// const takerOrder = takerDriftClient.getUserAccount().orders[0];
-		// assert(isVariant(takerOrder.status, 'init'));
-		//
-		// const orderActionRecord =
-		// 	eventSubscriber.getEventsArray('OrderActionRecord')[0];
-		// assert(isVariant(orderActionRecord.action, 'fill'));
-		// assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
-		// assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
-		// assert(orderActionRecord.takerFee.eq(new BN(100000)));
-		//
-		// await makerDriftClient.fetchAccounts();
-		// assert(makerDriftClient.getQuoteAssetTokenAmount().eq(new BN(11800)));
-		//
-		// const solSpotMarket =
-		// 	takerDriftClient.getSpotMarketAccount(solSpotMarketIndex);
-		// const spotFeePoolAmount = getTokenAmount(
-		// 	solSpotMarket.spotFeePool.scaledBalance,
-		// 	takerDriftClient.getQuoteSpotMarketAccount(),
-		// 	SpotBalanceType.DEPOSIT
-		// );
-		// assert(spotFeePoolAmount.eq(new BN(48200)));
-		//
-		// await crankMarkets();
+		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
+		assert(swapRecord.amountIn.eq(new BN(900000000)));
+		assert(swapRecord.inMarketIndex === 1);
+		assert(swapRecord.amountOut.eq(new BN(90036000)));
+		assert(swapRecord.outMarketIndex === 0);
+
+		await crankMarkets();
 	});
 
-	// it('Fill ask', async () => {
-	// 	const baseAssetAmount = castNumberToSpotPrecision(
-	// 		1,
-	// 		makerDriftClient.getSpotMarketAccount(solSpotMarketIndex)
-	// 	);
-	//
-	// 	await takerDriftClient.placeSpotOrder(
-	// 		getLimitOrderParams({
-	// 			marketIndex: solSpotMarketIndex,
-	// 			direction: PositionDirection.SHORT,
-	// 			baseAssetAmount,
-	// 			userOrderId: 1,
-	// 			price: new BN(100).mul(PRICE_PRECISION),
-	// 		})
-	// 	);
-	// 	await takerDriftClient.fetchAccounts();
-	//
-	// 	const spotOrder = takerDriftClient.getOrderByUserId(1);
-	//
-	// 	assert(isVariant(spotOrder.marketType, 'spot'));
-	// 	assert(spotOrder.baseAssetAmount.eq(baseAssetAmount));
-	//
-	// 	const market = await Market.load(
-	// 		provider.connection,
-	// 		serumMarketPublicKey,
-	// 		{ commitment: 'recent' },
-	// 		serumHelper.DEX_PID
-	// 	);
-	//
-	// 	// @ts-ignore
-	// 	const { transaction, signers } = await market.makePlaceOrderTransaction(
-	// 		provider.connection,
-	// 		{
-	// 			// @ts-ignore
-	// 			owner: provider.wallet,
-	// 			payer: makerUSDC.publicKey,
-	// 			side: 'buy',
-	// 			price: 100,
-	// 			size: 1,
-	// 			orderType: 'postOnly',
-	// 			clientId: undefined, // todo?
-	// 			openOrdersAddressKey: undefined,
-	// 			openOrdersAccount: undefined,
-	// 			feeDiscountPubkey: null,
-	// 			selfTradeBehavior: 'abortTransaction',
-	// 		}
-	// 	);
-	//
-	// 	await provider.sendAndConfirm(transaction, signers);
-	//
-	// 	const serumFulfillmentConfigAccount =
-	// 		await makerDriftClient.getSerumV3FulfillmentConfig(serumMarketPublicKey);
-	// 	const txSig = await makerDriftClient.fillSpotOrder(
-	// 		await takerDriftClient.getUserAccountPublicKey(),
-	// 		takerDriftClient.getUserAccount(),
-	// 		takerDriftClient.getOrderByUserId(1),
-	// 		serumFulfillmentConfigAccount
-	// 	);
-	//
-	// 	await eventSubscriber.awaitTx(txSig);
-	//
-	// 	await printTxLogs(connection, txSig);
-	//
-	// 	await takerDriftClient.fetchAccounts();
-	//
-	// 	const takerQuoteSpotBalance = takerDriftClient.getSpotPosition(0);
-	// 	const takerBaseSpotBalance = takerDriftClient.getSpotPosition(1);
-	//
-	// 	const quoteTokenAmount = getTokenAmount(
-	// 		takerQuoteSpotBalance.scaledBalance,
-	// 		takerDriftClient.getQuoteSpotMarketAccount(),
-	// 		takerQuoteSpotBalance.balanceType
-	// 	);
-	// 	console.log(quoteTokenAmount.toString());
-	// 	assert(quoteTokenAmount.eq(new BN(199800000)));
-	//
-	// 	const baseTokenAmount = getTokenAmount(
-	// 		takerBaseSpotBalance.scaledBalance,
-	// 		takerDriftClient.getSpotMarketAccount(1),
-	// 		takerBaseSpotBalance.balanceType
-	// 	);
-	// 	assert(baseTokenAmount.eq(new BN(0)));
-	//
-	// 	const takerOrder = takerDriftClient.getUserAccount().orders[0];
-	// 	assert(isVariant(takerOrder.status, 'init'));
-	//
-	// 	const orderActionRecord =
-	// 		eventSubscriber.getEventsArray('OrderActionRecord')[0];
-	// 	assert(isVariant(orderActionRecord.action, 'fill'));
-	// 	assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
-	// 	assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
-	// 	assert(orderActionRecord.takerFee.eq(new BN(100000)));
-	//
-	// 	assert(makerDriftClient.getQuoteAssetTokenAmount().eq(new BN(23600)));
-	//
-	// 	const solSpotMarket =
-	// 		takerDriftClient.getSpotMarketAccount(solSpotMarketIndex);
-	// 	assert(solSpotMarket.totalSpotFee.eq(new BN(136400)));
-	// 	const spotFeePoolAmount = getTokenAmount(
-	// 		solSpotMarket.spotFeePool.scaledBalance,
-	// 		takerDriftClient.getQuoteSpotMarketAccount(),
-	// 		SpotBalanceType.DEPOSIT
-	// 	);
-	// 	console.log(spotFeePoolAmount.toString());
-	// 	assert(spotFeePoolAmount.eq(new BN(116400)));
-	//
-	// 	await crankMarkets();
-	// });
-	//
-	// // check that moving referrer rebates works properly
-	// it('Fill bid second time', async () => {
-	// 	const baseAssetAmount = castNumberToSpotPrecision(
-	// 		1,
-	// 		makerDriftClient.getSpotMarketAccount(solSpotMarketIndex)
-	// 	);
-	//
-	// 	await takerDriftClient.placeSpotOrder(
-	// 		getLimitOrderParams({
-	// 			marketIndex: solSpotMarketIndex,
-	// 			direction: PositionDirection.LONG,
-	// 			baseAssetAmount,
-	// 			userOrderId: 1,
-	// 			price: new BN(100).mul(PRICE_PRECISION),
-	// 		})
-	// 	);
-	// 	await takerDriftClient.fetchAccounts();
-	//
-	// 	const spotOrder = takerDriftClient.getOrderByUserId(1);
-	//
-	// 	assert(isVariant(spotOrder.marketType, 'spot'));
-	// 	assert(spotOrder.baseAssetAmount.eq(baseAssetAmount));
-	//
-	// 	const market = await Market.load(
-	// 		provider.connection,
-	// 		serumMarketPublicKey,
-	// 		{ commitment: 'recent' },
-	// 		serumHelper.DEX_PID
-	// 	);
-	//
-	// 	// @ts-ignore
-	// 	const { transaction, signers } = await market.makePlaceOrderTransaction(
-	// 		provider.connection,
-	// 		{
-	// 			// @ts-ignore
-	// 			owner: provider.wallet,
-	// 			payer: makerWSOL,
-	// 			side: 'sell',
-	// 			price: 100,
-	// 			size: 1,
-	// 			orderType: 'postOnly',
-	// 			clientId: undefined, // todo?
-	// 			openOrdersAddressKey: undefined,
-	// 			openOrdersAccount: undefined,
-	// 			feeDiscountPubkey: null,
-	// 			selfTradeBehavior: 'abortTransaction',
-	// 		}
-	// 	);
-	//
-	// 	await provider.sendAndConfirm(transaction, signers);
-	//
-	// 	const serumFulfillmentConfigAccount =
-	// 		await makerDriftClient.getSerumV3FulfillmentConfig(serumMarketPublicKey);
-	//
-	// 	const txSig = await makerDriftClient.fillSpotOrder(
-	// 		await takerDriftClient.getUserAccountPublicKey(),
-	// 		takerDriftClient.getUserAccount(),
-	// 		takerDriftClient.getOrderByUserId(1),
-	// 		serumFulfillmentConfigAccount
-	// 	);
-	//
-	// 	await printTxLogs(connection, txSig);
-	//
-	// 	await eventSubscriber.awaitTx(txSig);
-	//
-	// 	await takerDriftClient.fetchAccounts();
-	//
-	// 	const takerQuoteSpotBalance = takerDriftClient.getSpotPosition(0);
-	// 	const takerBaseSpotBalance = takerDriftClient.getSpotPosition(1);
-	//
-	// 	const quoteTokenAmount = getTokenAmount(
-	// 		takerQuoteSpotBalance.scaledBalance,
-	// 		takerDriftClient.getQuoteSpotMarketAccount(),
-	// 		takerQuoteSpotBalance.balanceType
-	// 	);
-	// 	console.log(quoteTokenAmount.toString());
-	// 	assert(quoteTokenAmount.eq(new BN(99700000))); // paid ~$.30
-	//
-	// 	const baseTokenAmount = getTokenAmount(
-	// 		takerBaseSpotBalance.scaledBalance,
-	// 		takerDriftClient.getSpotMarketAccount(1),
-	// 		takerBaseSpotBalance.balanceType
-	// 	);
-	// 	assert(baseTokenAmount.eq(new BN(1000000000)));
-	//
-	// 	const takerOrder = takerDriftClient.getUserAccount().orders[0];
-	// 	assert(isVariant(takerOrder.status, 'init'));
-	//
-	// 	const orderActionRecord =
-	// 		eventSubscriber.getEventsArray('OrderActionRecord')[0];
-	// 	assert(isVariant(orderActionRecord.action, 'fill'));
-	// 	assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
-	// 	assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
-	// 	assert(orderActionRecord.takerFee.eq(new BN(100000)));
-	//
-	// 	const solSpotMarket =
-	// 		takerDriftClient.getSpotMarketAccount(solSpotMarketIndex);
-	// 	assert(solSpotMarket.totalSpotFee.eq(new BN(204600)));
-	// 	const spotFeePoolAmount = getTokenAmount(
-	// 		solSpotMarket.spotFeePool.scaledBalance,
-	// 		takerDriftClient.getQuoteSpotMarketAccount(),
-	// 		SpotBalanceType.DEPOSIT
-	// 	);
-	// 	assert(spotFeePoolAmount.eq(new BN(184600)));
-	//
-	// 	await crankMarkets();
-	// });
-	//
-	// // check that moving referrer rebates works properly
-	// it('Place and take', async () => {
-	// 	const market = await Market.load(
-	// 		provider.connection,
-	// 		serumMarketPublicKey,
-	// 		{ commitment: 'recent' },
-	// 		serumHelper.DEX_PID
-	// 	);
-	//
-	// 	// @ts-ignore
-	// 	const { transaction, signers } = await market.makePlaceOrderTransaction(
-	// 		provider.connection,
-	// 		{
-	// 			// @ts-ignore
-	// 			owner: provider.wallet,
-	// 			payer: makerUSDC.publicKey,
-	// 			side: 'buy',
-	// 			price: 100,
-	// 			size: 1,
-	// 			orderType: 'postOnly',
-	// 			clientId: undefined, // todo?
-	// 			openOrdersAddressKey: undefined,
-	// 			openOrdersAccount: undefined,
-	// 			feeDiscountPubkey: null,
-	// 			selfTradeBehavior: 'abortTransaction',
-	// 		}
-	// 	);
-	//
-	// 	await provider.sendAndConfirm(transaction, signers);
-	// 	const baseAssetAmount = castNumberToSpotPrecision(
-	// 		1,
-	// 		makerDriftClient.getSpotMarketAccount(solSpotMarketIndex)
-	// 	);
-	//
-	// 	const serumFulfillmentConfigAccount =
-	// 		await makerDriftClient.getSerumV3FulfillmentConfig(serumMarketPublicKey);
-	//
-	// 	const txSig = await takerDriftClient.placeAndTakeSpotOrder(
-	// 		getMarketOrderParams({
-	// 			marketIndex: solSpotMarketIndex,
-	// 			direction: PositionDirection.SHORT,
-	// 			baseAssetAmount,
-	// 			userOrderId: 1,
-	// 		}),
-	// 		serumFulfillmentConfigAccount
-	// 	);
-	//
-	// 	await printTxLogs(connection, txSig);
-	//
-	// 	await eventSubscriber.awaitTx(txSig);
-	//
-	// 	await takerDriftClient.fetchAccounts();
-	//
-	// 	const takerQuoteSpotBalance = takerDriftClient.getSpotPosition(0);
-	// 	const takerBaseSpotBalance = takerDriftClient.getSpotPosition(1);
-	//
-	// 	const quoteTokenAmount = getTokenAmount(
-	// 		takerQuoteSpotBalance.scaledBalance,
-	// 		takerDriftClient.getQuoteSpotMarketAccount(),
-	// 		takerQuoteSpotBalance.balanceType
-	// 	);
-	// 	console.log(quoteTokenAmount.toString());
-	// 	assert(quoteTokenAmount.eq(new BN(199600000))); // paid ~$.40
-	//
-	// 	const baseTokenAmount = getTokenAmount(
-	// 		takerBaseSpotBalance.scaledBalance,
-	// 		takerDriftClient.getSpotMarketAccount(1),
-	// 		takerBaseSpotBalance.balanceType
-	// 	);
-	// 	assert(baseTokenAmount.eq(ZERO));
-	//
-	// 	const takerOrder = takerDriftClient.getUserAccount().orders[0];
-	// 	assert(isVariant(takerOrder.status, 'init'));
-	//
-	// 	const orderActionRecord =
-	// 		eventSubscriber.getEventsArray('OrderActionRecord')[0];
-	// 	assert(isVariant(orderActionRecord.action, 'fill'));
-	// 	assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
-	// 	assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
-	// 	assert(orderActionRecord.takerFee.eq(new BN(100000)));
-	//
-	// 	const solSpotMarket =
-	// 		takerDriftClient.getSpotMarketAccount(solSpotMarketIndex);
-	// 	console.log(solSpotMarket.totalSpotFee.toString());
-	// 	assert(solSpotMarket.totalSpotFee.eq(new BN(284600)));
-	// 	const spotFeePoolAmount = getTokenAmount(
-	// 		solSpotMarket.spotFeePool.scaledBalance,
-	// 		takerDriftClient.getQuoteSpotMarketAccount(),
-	// 		SpotBalanceType.DEPOSIT
-	// 	);
-	// 	console.log(spotFeePoolAmount.toString());
-	// 	assert(spotFeePoolAmount.eq(new BN(264600)));
-	//
-	// 	await crankMarkets();
-	// });
+	it('swap usdc for sol', async () => {
+		const market = await Market.load(
+			provider.connection,
+			serumMarketPublicKey,
+			{ commitment: 'recent' },
+			serumHelper.DEX_PID
+		);
+
+		// place ask to sell 1 sol for 100 usdc
+		// @ts-ignore
+		const { transaction, signers } = await market.makePlaceOrderTransaction(
+			provider.connection,
+			{
+				// @ts-ignore
+				owner: provider.wallet,
+				payer: makerUSDC.publicKey,
+				side: 'buy',
+				price: 100,
+				size: 1,
+				orderType: 'postOnly',
+				clientId: undefined, // todo?
+				openOrdersAddressKey: undefined,
+				openOrdersAccount: undefined,
+				feeDiscountPubkey: null,
+				selfTradeBehavior: 'abortTransaction',
+			}
+		);
+
+		await provider.sendAndConfirm(transaction, signers);
+
+		const bids = await market.loadBids(connection);
+		console.log(bids.getL2(2));
+
+		const outAmount = new BN(1).mul(new BN(LAMPORTS_PER_SOL)).div(new BN(10)); // .9 SOL
+		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
+			amountOut: outAmount,
+			outMarketIndex: 1,
+			inMarketIndex: 0,
+			outTokenAccount: takerWSOL,
+			inTokenAccount: takerUSDC,
+		});
+
+		// @ts-ignore
+		const serumAskIx = await market.makePlaceOrderInstruction(connection, {
+			// @ts-ignore
+			owner: takerDriftClient.wallet,
+			payer: takerWSOL,
+			side: 'sell',
+			price: 100,
+			size: 0.9,
+			orderType: 'limit',
+			clientId: undefined, // todo?
+			openOrdersAddressKey: takerOpenOrders,
+			feeDiscountPubkey: null,
+			selfTradeBehavior: 'abortTransaction',
+		});
+
+		const serumConfig = await takerDriftClient.getSerumV3FulfillmentConfig(
+			market.publicKey
+		);
+		const settleFundsIx = DexInstructions.settleFunds({
+			market: market.publicKey,
+			openOrders: takerOpenOrders,
+			owner: takerDriftClient.wallet.publicKey,
+			// @ts-ignore
+			baseVault: serumConfig.serumBaseVault,
+			// @ts-ignore
+			quoteVault: serumConfig.serumQuoteVault,
+			baseWallet: takerWSOL,
+			quoteWallet: takerUSDC,
+			vaultSigner: getSerumSignerPublicKey(
+				market.programId,
+				market.publicKey,
+				serumConfig.serumSignerNonce
+			),
+			programId: market.programId,
+		});
+
+		const tx = new Transaction()
+			.add(beginSwapIx)
+			.add(serumAskIx)
+			.add(settleFundsIx)
+			.add(endSwapIx);
+
+		const { txSig } = await takerDriftClient.sendTransaction(tx);
+
+		await printTxLogs(connection, txSig);
+
+		const takerSOLAmount = await takerDriftClient.getTokenAmount(1);
+		assert(takerSOLAmount.eq(new BN(900000000)));
+		const takerUSDCAmount = await takerDriftClient.getTokenAmount(0);
+		console.log(takerUSDCAmount.toString());
+		assert(takerUSDCAmount.eq(new BN(109963999)));
+
+		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
+		assert(swapRecord.amountIn.eq(new BN(900000000)));
+		assert(swapRecord.inMarketIndex === 1);
+		assert(swapRecord.amountOut.eq(new BN(90036000)));
+		assert(swapRecord.outMarketIndex === 0);
+
+		await crankMarkets();
+	});
 });

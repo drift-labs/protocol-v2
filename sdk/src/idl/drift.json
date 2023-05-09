@@ -8180,6 +8180,41 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "SwapRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amountOut",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amountIn",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "inMarketIndex",
+          "type": "u16",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [

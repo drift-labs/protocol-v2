@@ -44,6 +44,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'SpotInterestRecord',
 		'InsuranceFundStakeRecord',
 		'CurveRecord',
+		'SwapRecord',
 	],
 	maxEventsPerType: 4096,
 	orderBy: 'blockchain',
