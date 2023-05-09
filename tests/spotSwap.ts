@@ -35,6 +35,7 @@ import { NATIVE_MINT } from '@solana/spl-token';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
 import {
 	BulkAccountLoader,
+	fetchUserStatsAccount,
 	getSerumSignerPublicKey,
 	QUOTE_PRECISION,
 } from '../sdk';
@@ -90,7 +91,7 @@ describe('spot swap', () => {
 			solAmount
 		);
 
-		solOracle = await mockOracle(30);
+		solOracle = await mockOracle(100);
 
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1];
@@ -330,6 +331,17 @@ describe('spot swap', () => {
 		const takerUSDCAmount = await takerDriftClient.getTokenAmount(0);
 		assert(takerUSDCAmount.eq(new BN(99959999)));
 
+		const cumulativeSpotFees =
+			takerDriftClient.getUserAccount().cumulativeSpotFees;
+		assert(cumulativeSpotFees.eq(new BN(-50000)));
+
+		const userStatsAccount = await fetchUserStatsAccount(
+			connection,
+			takerDriftClient.program,
+			takerDriftClient.wallet.publicKey
+		);
+		assert(userStatsAccount.fees.totalFeePaid.eq(new BN(50000)));
+
 		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
 		assert(swapRecord.amountIn.eq(new BN(1000000000)));
 		assert(swapRecord.inMarketIndex === 1);
@@ -442,6 +454,17 @@ describe('spot swap', () => {
 		console.log(takerUSDCAmount.toString());
 		assert(takerUSDCAmount.eq(new BN(199870019)));
 
+		const cumulativeSpotFees =
+			takerDriftClient.getUserAccount().cumulativeSpotFees;
+		assert(cumulativeSpotFees.eq(new BN(-99980)));
+
+		const userStatsAccount = await fetchUserStatsAccount(
+			connection,
+			takerDriftClient.program,
+			takerDriftClient.wallet.publicKey
+		);
+		assert(userStatsAccount.fees.totalFeePaid.eq(new BN(99980)));
+
 		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
 		assert(swapRecord.amountIn.eq(new BN(99960000)));
 		assert(swapRecord.inMarketIndex === 0);
@@ -450,12 +473,12 @@ describe('spot swap', () => {
 		assert(swapRecord.fee.eq(new BN(49980)));
 
 		const usdcSpotMarket = takerDriftClient.getSpotMarketAccount(0);
-		const solRevPool = getTokenAmount(
+		const usdcRevPool = getTokenAmount(
 			usdcSpotMarket.revenuePool.scaledBalance,
 			usdcSpotMarket,
 			SpotBalanceType.DEPOSIT
 		);
-		assert(solRevPool.eq(new BN(49980)));
+		assert(usdcRevPool.eq(new BN(49980)));
 
 		await crankMarkets();
 	});

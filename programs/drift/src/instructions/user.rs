@@ -27,6 +27,7 @@ use crate::math::margin::{
     meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
+use crate::math::spot_balance::get_token_value;
 use crate::math_error;
 use crate::print_error;
 use crate::safe_decrement;
@@ -2263,21 +2264,23 @@ pub fn handle_end_swap(
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(&ctx.accounts.user)?;
 
+    let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
+
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
 
-    let out_oracle_info = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut out_spot_market,
-        Some(out_oracle_info),
+        Some(out_oracle_data),
         now,
     )?;
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
-    let in_oracle_info = oracle_map.get_price_data(&in_spot_market.oracle)?;
+    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle)?;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut in_spot_market,
-        Some(in_oracle_info),
+        Some(in_oracle_data),
         now,
     )?;
 
@@ -2354,6 +2357,12 @@ pub fn handle_end_swap(
 
     let fee = amount_in / 2000; // 0.05% fee
     let amount_in_after_fee = amount_in.safe_sub(fee)?;
+
+    let fee_value = get_token_value(fee.cast()?, in_spot_market.decimals, in_oracle_data.price)?;
+
+    user.update_cumulative_spot_fees(-fee_value.cast()?)?;
+
+    user_stats.increment_total_fees(fee_value.cast()?)?;
 
     validate!(
         amount_in != 0,

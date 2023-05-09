@@ -811,6 +811,7 @@ export type UserAccount = {
 	totalWithdraws: BN;
 	totalSocialLoss: BN;
 	cumulativePerpFunding: BN;
+	cumulativeSpotFees: BN;
 	liquidationMarginFreed: BN;
 	lastActiveSlot: BN;
 	isMarginTradingEnabled: boolean;
