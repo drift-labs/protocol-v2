@@ -503,6 +503,8 @@ pub enum ErrorCode {
     InvalidPhoenixMarket,
     #[msg("InvalidSwap")]
     InvalidSwap,
+    #[msg("SpotMarketReduceOnly")]
+    SpotMarketReduceOnly,
 }
 
 #[macro_export]

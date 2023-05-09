@@ -2823,7 +2823,7 @@ pub fn place_spot_order(
 
     let market_index = params.market_index;
     let spot_market = &spot_market_map.get_ref(&market_index)?;
-    let force_reduce_only = spot_market.is_reduce_only()?;
+    let force_reduce_only = spot_market.is_reduce_only();
     let step_size = spot_market.order_step_size;
 
     validate!(

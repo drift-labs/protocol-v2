@@ -248,7 +248,7 @@ pub fn handle_deposit(
 
     let position_index = user.force_get_spot_position_index(spot_market.market_index)?;
 
-    let force_reduce_only = spot_market.is_reduce_only()?;
+    let force_reduce_only = spot_market.is_reduce_only();
 
     // if reduce only, have to compare ix amount to current borrow amount
     let amount = if (force_reduce_only || reduce_only)
@@ -405,7 +405,7 @@ pub fn handle_withdraw(
             now,
         )?;
 
-        spot_market.is_reduce_only()?
+        spot_market.is_reduce_only()
     };
 
     let amount = {
@@ -2278,6 +2278,10 @@ pub fn handle_end_swap(
         amount_out = amount_out.safe_sub(residual)?;
     }
 
+    let out_token_amount_before = user
+        .force_get_spot_position_mut(out_market_index)?
+        .get_signed_token_amount(&out_spot_market)?;
+
     // checks deposit/borrow limits
     update_spot_balances_and_cumulative_deposits_with_limits(
         amount_out.cast()?,
@@ -2285,6 +2289,19 @@ pub fn handle_end_swap(
         &mut out_spot_market,
         &mut user,
     )?;
+
+    let out_position_is_reducing = out_token_amount_before > 0
+        && out_token_amount_before.unsigned_abs() >= amount_out.cast()?;
+
+    if !out_position_is_reducing {
+        validate!(
+            !out_spot_market.is_reduce_only(),
+            ErrorCode::SpotMarketReduceOnly,
+            "out spot market is reduce only but token amount before ({}) < amount out ({})",
+            out_token_amount_before,
+            amount_out
+        )?;
+    }
 
     math::spot_withdraw::validate_spot_market_vault_amount(&out_spot_market, out_vault.amount)?;
 
@@ -2319,6 +2336,10 @@ pub fn handle_end_swap(
         "amount_in must be greater than 0"
     )?;
 
+    let in_token_amount_before = user
+        .force_get_spot_position_mut(in_market_index)?
+        .get_signed_token_amount(&in_spot_market)?;
+
     update_spot_balances_and_cumulative_deposits(
         amount_in.cast()?,
         &SpotBalanceType::Deposit,
@@ -2327,6 +2348,19 @@ pub fn handle_end_swap(
         false,
         None,
     )?;
+
+    let in_position_is_reducing =
+        in_token_amount_before < 0 && in_token_amount_before.unsigned_abs() >= amount_in.cast()?;
+
+    if !in_position_is_reducing {
+        validate!(
+            !in_spot_market.is_reduce_only(),
+            ErrorCode::SpotMarketReduceOnly,
+            "in spot market is reduce only but token amount before ({}) < amount in ({})",
+            in_token_amount_before,
+            amount_in
+        )?;
+    }
 
     math::spot_withdraw::validate_spot_market_vault_amount(&in_spot_market, in_vault.amount)?;
 

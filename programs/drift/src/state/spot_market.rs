@@ -154,8 +154,8 @@ impl SpotMarket {
         Ok(status_ok && not_expired)
     }
 
-    pub fn is_reduce_only(&self) -> DriftResult<bool> {
-        Ok(self.status == MarketStatus::ReduceOnly)
+    pub fn is_reduce_only(&self) -> bool {
+        self.status == MarketStatus::ReduceOnly
     }
 
     pub fn fills_enabled(&self) -> bool {

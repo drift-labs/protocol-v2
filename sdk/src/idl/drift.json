@@ -9427,6 +9427,11 @@
       "code": 6248,
       "name": "InvalidSwap",
       "msg": "InvalidSwap"
+    },
+    {
+      "code": 6249,
+      "name": "SpotMarketReduceOnly",
+      "msg": "SpotMarketReduceOnly"
     }
   ]
 }
