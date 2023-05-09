@@ -13,6 +13,7 @@ import {
 	SpotInterestRecord,
 	InsuranceFundStakeRecord,
 	CurveRecord,
+	SwapRecord,
 } from '../index';
 
 export type EventSubscriptionOptions = {
@@ -83,6 +84,7 @@ export type EventMap = {
 	SpotInterestRecord: Event<SpotInterestRecord>;
 	InsuranceFundStakeRecord: Event<InsuranceFundStakeRecord>;
 	CurveRecord: Event<CurveRecord>;
+	SwapRecord: Event<SwapRecord>;
 };
 
 export type EventType = keyof EventMap;
@@ -100,7 +102,8 @@ export type DriftEvent =
 	| Event<InsuranceFundRecord>
 	| Event<SpotInterestRecord>
 	| Event<InsuranceFundStakeRecord>
-	| Event<CurveRecord>;
+	| Event<CurveRecord>
+	| Event<SwapRecord>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;

@@ -32,7 +32,7 @@ use crate::safe_decrement;
 use crate::safe_increment;
 use crate::state::events::{
     DepositDirection, DepositExplanation, DepositRecord, LPAction, LPRecord, NewUserRecord,
-    OrderActionExplanation,
+    OrderActionExplanation, SwapRecord,
 };
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
@@ -2245,6 +2245,7 @@ pub fn handle_end_swap(
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
     let slot = clock.slot;
+    let now = clock.unix_timestamp;
 
     let AccountMaps {
         perp_market_map,
@@ -2258,6 +2259,7 @@ pub fn handle_end_swap(
         Some(state.oracle_guard_rails),
     )?;
 
+    let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(&ctx.accounts.user)?;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
@@ -2394,6 +2396,16 @@ pub fn handle_end_swap(
     )?;
 
     user.update_last_active_slot(slot);
+
+    let swap_record = SwapRecord {
+        ts: now,
+        amount_in,
+        amount_out,
+        in_market_index,
+        out_market_index,
+        user: user_key,
+    };
+    emit!(swap_record);
 
     Ok(())
 }

@@ -505,6 +505,15 @@ export type OrderActionRecord = {
 	oraclePrice: BN;
 };
 
+export type SwapRecord = {
+	ts: number;
+	user: PublicKey;
+	amountOut: BN;
+	amountIn: BN;
+	outMarketIndex: number;
+	inMarketIndex: number;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
