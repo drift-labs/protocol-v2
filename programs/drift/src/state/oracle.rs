@@ -12,10 +12,14 @@ mod tests;
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct HistoricalOracleData {
+    /// precision: PRICE_PRECISION
     pub last_oracle_price: i64,
+    /// precision: PRICE_PRECISION
     pub last_oracle_conf: u64,
     pub last_oracle_delay: i64,
+    /// precision: PRICE_PRECISION
     pub last_oracle_price_twap: i64,
+    /// precision: PRICE_PRECISION
     pub last_oracle_price_twap_5min: i64,
     pub last_oracle_price_twap_ts: i64,
 }
@@ -58,9 +62,13 @@ impl HistoricalOracleData {
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct HistoricalIndexData {
+    /// precision: PRICE_PRECISION
     pub last_index_bid_price: u64,
+    /// precision: PRICE_PRECISION
     pub last_index_ask_price: u64,
+    /// precision: PRICE_PRECISION
     pub last_index_price_twap: u64,
+    /// precision: PRICE_PRECISION
     pub last_index_price_twap_5min: u64,
     pub last_index_price_twap_ts: i64,
 }

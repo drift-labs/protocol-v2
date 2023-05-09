@@ -162,6 +162,28 @@ export class User {
 		);
 	}
 
+	/**
+	 * Returns the token amount for a given market. The spot market precision is based on the token mint decimals.
+	 * Positive if it is a deposit, negative if it is a borrow.
+	 *
+	 * @param marketIndex
+	 */
+	public getTokenAmount(marketIndex: number): BN {
+		const spotPosition = this.getSpotPosition(marketIndex);
+		if (spotPosition === undefined) {
+			return ZERO;
+		}
+		const spotMarket = this.driftClient.getSpotMarketAccount(marketIndex);
+		return getSignedTokenAmount(
+			getTokenAmount(
+				spotPosition.scaledBalance,
+				spotMarket,
+				spotPosition.balanceType
+			),
+			spotPosition.balanceType
+		);
+	}
+
 	public getEmptyPosition(marketIndex: number): PerpPosition {
 		return {
 			baseAssetAmount: ZERO,
@@ -203,6 +225,12 @@ export class User {
 	public getOrderByUserOrderId(userOrderId: number): Order | undefined {
 		return this.getUserAccount().orders.find(
 			(order) => order.userOrderId === userOrderId
+		);
+	}
+
+	public getOpenOrders(): Order[] {
+		return this.getUserAccount()?.orders.filter((order) =>
+			isVariant(order.status, 'open')
 		);
 	}
 
