@@ -23,7 +23,7 @@ use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_initial_margin_requirement,
-    meets_withdraw_margin_requirement, validate_spot_margin_trading,
+    meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math_error;
@@ -459,7 +459,13 @@ pub fn handle_withdraw(
         amount
     };
 
-    meets_withdraw_margin_requirement(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+    meets_withdraw_margin_requirement(
+        user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        MarginRequirementType::Initial,
+    )?;
 
     validate_spot_margin_trading(user, &spot_market_map, &mut oracle_map)?;
 
@@ -607,15 +613,12 @@ pub fn handle_transfer_deposit(
         )?;
     }
 
-    validate!(
-        meets_withdraw_margin_requirement(
-            from_user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-        )?,
-        ErrorCode::InsufficientCollateral,
-        "From user does not meet initial margin requirement"
+    meets_withdraw_margin_requirement(
+        from_user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        MarginRequirementType::Initial,
     )?;
 
     validate_spot_margin_trading(from_user, &spot_market_map, &mut oracle_map)?;
@@ -2244,7 +2247,9 @@ pub fn handle_end_swap(
     let slot = clock.slot;
 
     let AccountMaps {
-        spot_market_map, ..
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
@@ -2256,6 +2261,8 @@ pub fn handle_end_swap(
     let mut user = load_mut!(&ctx.accounts.user)?;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
     let out_vault = &mut ctx.accounts.out_spot_market_vault;
     let out_token_account = &mut ctx.accounts.out_token_account;
 
@@ -2290,10 +2297,10 @@ pub fn handle_end_swap(
         &mut user,
     )?;
 
-    let out_position_is_reducing = out_token_amount_before > 0
+    let out_position_is_reduced = out_token_amount_before > 0
         && out_token_amount_before.unsigned_abs() >= amount_out.cast()?;
 
-    if !out_position_is_reducing {
+    if !out_position_is_reduced {
         validate!(
             !out_spot_market.is_reduce_only(),
             ErrorCode::SpotMarketReduceOnly,
@@ -2308,9 +2315,6 @@ pub fn handle_end_swap(
     out_spot_market.flash_loan_initial_token_amount = 0;
     out_spot_market.flash_loan_amount = 0;
 
-    drop(out_spot_market);
-
-    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
     let in_vault = &mut ctx.accounts.in_spot_market_vault;
     let in_token_account = &mut ctx.accounts.in_token_account;
 
@@ -2349,10 +2353,10 @@ pub fn handle_end_swap(
         None,
     )?;
 
-    let in_position_is_reducing =
+    let in_position_is_reduced =
         in_token_amount_before < 0 && in_token_amount_before.unsigned_abs() >= amount_in.cast()?;
 
-    if !in_position_is_reducing {
+    if !in_position_is_reduced {
         validate!(
             !in_spot_market.is_reduce_only(),
             ErrorCode::SpotMarketReduceOnly,
@@ -2369,7 +2373,25 @@ pub fn handle_end_swap(
 
     in_spot_market.validate_max_token_deposits()?;
 
+    let in_safer_than_out =
+        in_spot_market.maintenance_asset_weight > out_spot_market.maintenance_asset_weight;
+
     drop(in_spot_market);
+    drop(out_spot_market);
+
+    let margin_type = if out_position_is_reduced && in_safer_than_out {
+        MarginRequirementType::Maintenance
+    } else {
+        MarginRequirementType::Initial
+    };
+
+    meets_withdraw_margin_requirement(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        margin_type,
+    )?;
 
     user.update_last_active_slot(slot);
 
