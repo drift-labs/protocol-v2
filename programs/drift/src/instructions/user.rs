@@ -2263,7 +2263,22 @@ pub fn handle_end_swap(
     let mut user = load_mut!(&ctx.accounts.user)?;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    let out_oracle_info = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut out_spot_market,
+        Some(out_oracle_info),
+        now,
+    )?;
+
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    let in_oracle_info = oracle_map.get_price_data(&in_spot_market.oracle)?;
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut in_spot_market,
+        Some(in_oracle_info),
+        now,
+    )?;
 
     let out_vault = &mut ctx.accounts.out_spot_market_vault;
     let out_token_account = &mut ctx.accounts.out_token_account;
