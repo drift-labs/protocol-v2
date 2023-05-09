@@ -17,13 +17,6 @@ import {
 	EventSubscriber,
 	OracleSource,
 	OracleInfo,
-	PositionDirection,
-	castNumberToSpotPrecision,
-	getLimitOrderParams,
-	getTokenAmount,
-	isVariant,
-	PRICE_PRECISION,
-	SpotBalanceType,
 } from '../sdk/src';
 
 import {
@@ -40,10 +33,8 @@ import { NATIVE_MINT } from '@solana/spl-token';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
 import {
 	BulkAccountLoader,
-	getMarketOrderParams,
 	getSerumSignerPublicKey,
 	QUOTE_PRECISION,
-	ZERO,
 } from '../sdk';
 
 describe('spot swap', () => {
@@ -277,7 +268,7 @@ describe('spot swap', () => {
 
 		await provider.sendAndConfirm(transaction, signers);
 
-		const outAmount = new BN(101).mul(QUOTE_PRECISION);
+		const outAmount = new BN(200).mul(QUOTE_PRECISION);
 		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
 			amountOut: outAmount,
 			outMarketIndex: 0,
@@ -293,7 +284,7 @@ describe('spot swap', () => {
 			payer: takerUSDC,
 			side: 'buy',
 			price: 100,
-			size: 1,
+			size: 2, // larger than maker orders so that entire maker order is taken
 			orderType: 'ioc',
 			clientId: new BN(1), // todo?
 			openOrdersAddressKey: takerOpenOrders,
@@ -333,15 +324,14 @@ describe('spot swap', () => {
 		await printTxLogs(connection, txSig);
 
 		const takerSOLAmount = await takerDriftClient.getTokenAmount(1);
-		assert(takerSOLAmount.eq(new BN(900000000)));
+		assert(takerSOLAmount.eq(new BN(1000000000)));
 		const takerUSDCAmount = await takerDriftClient.getTokenAmount(0);
-		console.log(takerUSDCAmount.toString());
-		assert(takerUSDCAmount.eq(new BN(109963999)));
+		assert(takerUSDCAmount.eq(new BN(99959999)));
 
 		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
-		assert(swapRecord.amountIn.eq(new BN(900000000)));
+		assert(swapRecord.amountIn.eq(new BN(1000000000)));
 		assert(swapRecord.inMarketIndex === 1);
-		assert(swapRecord.amountOut.eq(new BN(90036000)));
+		assert(swapRecord.amountOut.eq(new BN(100040000)));
 		assert(swapRecord.outMarketIndex === 0);
 
 		await crankMarkets();
@@ -377,10 +367,7 @@ describe('spot swap', () => {
 
 		await provider.sendAndConfirm(transaction, signers);
 
-		const bids = await market.loadBids(connection);
-		console.log(bids.getL2(2));
-
-		const outAmount = new BN(1).mul(new BN(LAMPORTS_PER_SOL)).div(new BN(10)); // .9 SOL
+		const outAmount = new BN(1).mul(new BN(LAMPORTS_PER_SOL)); // 1 SOL
 		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
 			amountOut: outAmount,
 			outMarketIndex: 1,
@@ -396,7 +383,7 @@ describe('spot swap', () => {
 			payer: takerWSOL,
 			side: 'sell',
 			price: 100,
-			size: 0.9,
+			size: 1,
 			orderType: 'limit',
 			clientId: undefined, // todo?
 			openOrdersAddressKey: takerOpenOrders,
@@ -436,16 +423,15 @@ describe('spot swap', () => {
 		await printTxLogs(connection, txSig);
 
 		const takerSOLAmount = await takerDriftClient.getTokenAmount(1);
-		assert(takerSOLAmount.eq(new BN(900000000)));
+		assert(takerSOLAmount.eq(new BN(0)));
 		const takerUSDCAmount = await takerDriftClient.getTokenAmount(0);
-		console.log(takerUSDCAmount.toString());
-		assert(takerUSDCAmount.eq(new BN(109963999)));
+		assert(takerUSDCAmount.eq(new BN(199919999)));
 
 		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
-		assert(swapRecord.amountIn.eq(new BN(900000000)));
-		assert(swapRecord.inMarketIndex === 1);
-		assert(swapRecord.amountOut.eq(new BN(90036000)));
-		assert(swapRecord.outMarketIndex === 0);
+		assert(swapRecord.amountIn.eq(new BN(99960000)));
+		assert(swapRecord.inMarketIndex === 0);
+		assert(swapRecord.amountOut.eq(new BN(1000000000)));
+		assert(swapRecord.outMarketIndex === 1);
 
 		await crankMarkets();
 	});
