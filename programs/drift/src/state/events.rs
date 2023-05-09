@@ -497,6 +497,7 @@ pub struct SwapRecord {
     pub amount_in: u64,
     pub out_market_index: u16,
     pub in_market_index: u16,
+    pub fee: u64,
 }
 
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> DriftResult {

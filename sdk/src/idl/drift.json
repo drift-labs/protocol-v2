@@ -9023,6 +9023,11 @@
           "name": "inMarketIndex",
           "type": "u16",
           "index": false
+        },
+        {
+          "name": "fee",
+          "type": "u64",
+          "index": false
         }
       ]
     }

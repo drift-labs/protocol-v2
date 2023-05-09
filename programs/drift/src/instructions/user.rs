@@ -4,6 +4,7 @@ use anchor_spl::token::{Token, TokenAccount};
 
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
+use crate::controller::spot_balance::update_revenue_pool_balances;
 use crate::controller::spot_position::{
     update_spot_balances_and_cumulative_deposits,
     update_spot_balances_and_cumulative_deposits_with_limits,
@@ -2351,6 +2352,9 @@ pub fn handle_end_swap(
         in_vault.reload()?;
     }
 
+    let fee = amount_in / 2000; // 0.05% fee
+    let amount_in_after_fee = amount_in.safe_sub(fee)?;
+
     validate!(
         amount_in != 0,
         ErrorCode::InvalidSwap,
@@ -2362,13 +2366,16 @@ pub fn handle_end_swap(
         .get_signed_token_amount(&in_spot_market)?;
 
     update_spot_balances_and_cumulative_deposits(
-        amount_in.cast()?,
+        amount_in_after_fee.cast()?,
         &SpotBalanceType::Deposit,
         &mut in_spot_market,
         user.force_get_spot_position_mut(in_market_index)?,
         false,
-        None,
+        Some(amount_in.cast()?),
     )?;
+
+    // update fees
+    update_revenue_pool_balances(fee.cast()?, &SpotBalanceType::Deposit, &mut in_spot_market)?;
 
     let in_position_is_reduced =
         in_token_amount_before < 0 && in_token_amount_before.unsigned_abs() >= amount_in.cast()?;
@@ -2419,6 +2426,7 @@ pub fn handle_end_swap(
         in_market_index,
         out_market_index,
         user: user_key,
+        fee,
     };
     emit!(swap_record);
 

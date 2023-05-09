@@ -512,6 +512,7 @@ export type SwapRecord = {
 	amountIn: BN;
 	outMarketIndex: number;
 	inMarketIndex: number;
+	fee: BN;
 };
 
 export type StateAccount = {
