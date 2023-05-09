@@ -95,7 +95,7 @@ async function createNewUser(
 			commitment: 'confirmed',
 		},
 		activeSubAccountId: 0,
-		perpMarketIndexes: [0, 1],
+		perpMarketIndexes: [0, 1, 2],
 		spotMarketIndexes: [0],
 		oracleInfos,
 		accountSubscription: bulkAccountLoader
@@ -197,10 +197,12 @@ describe('liquidity providing', () => {
 
 	let solusdc;
 	let solusdc2;
+	let solusdc3;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
+        solusdc3 = await mockOracle(1, -7); // make invalid
 		solusdc2 = await mockOracle(1, -7); // make invalid
 		solusdc = await mockOracle(1, -7); // make invalid
 		const oracleInfos = [
@@ -260,7 +262,7 @@ describe('liquidity providing', () => {
         // third market
         await driftClient.initializePerpMarket(
 			2,
-			solusdc2,
+			solusdc3,
 			stableAmmInitialBaseAssetReserve,
 			stableAmmInitialQuoteAssetReserve,
 			new BN(0)
@@ -644,24 +646,24 @@ describe('liquidity providing', () => {
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-4545454')));
 
 		// some user goes long (lp should get a short + pnl for closing long on settle)
-		try {
-			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-			const _txsig = await traderDriftClient.openPosition(
-				PositionDirection.LONG,
-				tradeSize,
-				market.marketIndex
-				// new BN(100 * BASE_PRECISION.toNumber())
-			);
-			await _viewLogs(_txsig);
-		} catch (e) {
-			console.log(e);
-		}
+		// try {
+        await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+        const _txsig = await traderDriftClient.openPosition(
+            PositionDirection.LONG,
+            tradeSize,
+            market.marketIndex
+            // new BN(100 * BASE_PRECISION.toNumber())
+        );
+        await _viewLogs(_txsig);
+		// } catch (e) {
+		// 	console.log(e);
+		// }
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log('market.amm.baseAssetAmountPerLp:', market.amm.baseAssetAmountPerLp.toString());
-		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-4545454')));
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-9090908')));
 		console.log('market.amm.baseAssetAmountWithAmm:', market.amm.baseAssetAmountWithAmm.toString());
-		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('4545454600')));
+		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('9090909200')));
 		
 		// add jit maker going other way
 		const takerOrderParams = getLimitOrderParams({
@@ -677,7 +679,10 @@ describe('liquidity providing', () => {
 		});
 		await traderDriftClient.placePerpOrder(takerOrderParams);
 		await traderDriftClient.fetchAccounts();
+        console.log(takerOrderParams);
 		const order = traderDriftClientUser.getOrderByUserOrderId(1);
+        console.log(order);
+
 		assert(!order.postOnly);
 
 		const makerOrderParams = getLimitOrderParams({
@@ -689,6 +694,7 @@ describe('liquidity providing', () => {
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 		});
+        console.log('maker:', makerOrderParams);
 
 		const txSig = await poorDriftClient.placeAndMakePerpOrder(
 			makerOrderParams,
@@ -703,12 +709,12 @@ describe('liquidity providing', () => {
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log('market.amm.baseAssetAmountPerLp:', market.amm.baseAssetAmountPerLp.toString());
-		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-12500000')));
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-5455090')));
 		console.log('market.amm.baseAssetAmountWithAmm:', market.amm.baseAssetAmountWithAmm.toString());
-		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('3750000000')));
+		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('5455091000')));
 		console.log('market.amm.baseAssetAmountWithUnsettledLp:', market.amm.baseAssetAmountWithUnsettledLp.toString());
 
-		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('-12500000')));
+		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('545509000')));
 
 		const trader = await traderDriftClient.getUserAccount();
 		console.log(
