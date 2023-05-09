@@ -2241,6 +2241,7 @@ pub fn handle_end_swap(
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
+    let slot = clock.slot;
 
     let AccountMaps {
         spot_market_map, ..
@@ -2335,6 +2336,8 @@ pub fn handle_end_swap(
     in_spot_market.validate_max_token_deposits()?;
 
     drop(in_spot_market);
+
+    user.update_last_active_slot(slot);
 
     Ok(())
 }
