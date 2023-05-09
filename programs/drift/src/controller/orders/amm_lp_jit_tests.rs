@@ -33,15 +33,18 @@ pub mod amm_lp_jit {
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
-    use crate::math::constants::{PRICE_PRECISION_I64, QUOTE_PRECISION_I64};
+    use crate::math::constants::{
+        PERCENTAGE_PRECISION_I128, PRICE_PRECISION_I64, QUOTE_PRECISION_I64,
+    };
 
+    use crate::math::amm_jit::calculate_amm_jit_liquidity;
+    use crate::math::amm_spread::calculate_inventory_liquidity_ratio;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         PEG_PRECISION, PRICE_PRECISION, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
-    use crate::math::amm_jit::{calculate_amm_jit_liquidity};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -86,7 +89,8 @@ pub mod amm_lp_jit {
 
                     ..HistoricalOracleData::default()
                 },
-
+                user_lp_shares: 10 * AMM_RESERVE_PRECISION, // some lps exist
+                concentration_coef: CONCENTRATION_PRECISION + 1,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -115,7 +119,17 @@ pub mod amm_lp_jit {
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
         market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
 
-        // shouldnt throw an error when bids/asks are zero
+        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+            &market,
+            BASE_PRECISION_U64,
+            100 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
+            PositionDirection::Short,
+            true,
+        )
+        .unwrap();
+        assert_eq!(jit_base_asset_amount, 500000000);
+
         let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
             &market,
             BASE_PRECISION_U64,
@@ -127,8 +141,6 @@ pub mod amm_lp_jit {
         .unwrap();
         assert_eq!(jit_base_asset_amount, 500000000);
 
-
-        // todo
         let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
             &mut market,
             PositionDirection::Short,
@@ -138,11 +150,141 @@ pub mod amm_lp_jit {
             BASE_PRECISION_U64,
             BASE_PRECISION_U64,
             false,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(split_with_lps, false);
         assert_eq!(jit_base_asset_amount, 500000000);
+    }
 
+    #[test]
+    fn amm_lp_jit_amm_lp_same_side_imbalanced() {
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
 
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                base_asset_amount_per_lp: -505801343, // lps are long vs target, wants shorts
+                quote_asset_amount_per_lp: 10715933,
+                target_base_asset_amount_per_lp: -1000000000,
+                base_asset_amount_with_amm: -((AMM_RESERVE_PRECISION / 2) as i128), // amm is too long vs target, wants shorts
+                base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 1000,
+                order_tick_size: 1,
+                oracle: oracle_price_key,
+                amm_jit_intensity: 200,
+                base_spread: 20000,
+                long_spread: 20000,
+                short_spread: 20000,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+                user_lp_shares: 10 * AMM_RESERVE_PRECISION, // some lps exist
+                concentration_coef: CONCENTRATION_PRECISION + 1,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
+        };
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
+        market.amm.min_base_asset_reserve = 0;
+
+        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Long,
+            )
+            .unwrap();
+        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Short,
+            )
+            .unwrap();
+        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
+        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
+        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
+        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+
+        let amm_inventory_pct = calculate_inventory_liquidity_ratio(
+            market.amm.base_asset_amount_with_amm,
+            market.amm.base_asset_reserve,
+            market.amm.min_base_asset_reserve,
+            market.amm.max_base_asset_reserve,
+        )
+        .unwrap();
+        assert_eq!(amm_inventory_pct, PERCENTAGE_PRECISION_I128 / 200); // .5% of amm inventory is in position
+
+        // maker order satisfies taker, vAMM doing match
+        let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+            &mut market,
+            PositionDirection::Long,
+            100 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
+            BASE_PRECISION_U64,
+            BASE_PRECISION_U64,
+            BASE_PRECISION_U64,
+            false,
+        )
+        .unwrap();
+        assert_eq!(split_with_lps, true);
+        assert_eq!(jit_base_asset_amount, 500000000);
+
+        // taker order is heading to vAMM
+        let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+            &mut market,
+            PositionDirection::Long,
+            100 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
+            BASE_PRECISION_U64,
+            BASE_PRECISION_U64 * 2,
+            BASE_PRECISION_U64,
+            false,
+        )
+        .unwrap();
+        assert_eq!(split_with_lps, false);
+        assert_eq!(jit_base_asset_amount, 0); // its coming anyways
+
+        // no jit for additional long (more shorts for amm)
+        let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+            &mut market,
+            PositionDirection::Long,
+            100 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
+            BASE_PRECISION_U64,
+            BASE_PRECISION_U64 * 100,
+            BASE_PRECISION_U64 * 100,
+            false,
+        )
+        .unwrap();
+        assert_eq!(split_with_lps, true);
+        assert_eq!(jit_base_asset_amount, 500000000);
+
+        // wrong direction (increases lp and vamm inventory)
+        let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+            &mut market,
+            PositionDirection::Short,
+            100 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
+            BASE_PRECISION_U64,
+            BASE_PRECISION_U64,
+            BASE_PRECISION_U64,
+            false,
+        )
+        .unwrap();
+        assert_eq!(split_with_lps, false);
+        assert_eq!(jit_base_asset_amount, 0);
     }
 
     #[test]
@@ -150,7 +292,7 @@ pub mod amm_lp_jit {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 6);
+        let mut oracle_price = get_pyth_price(21, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -184,18 +326,19 @@ pub mod amm_lp_jit {
                 long_spread: 20000,
                 short_spread: 20000,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price: (21 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (21 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (21 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
-
+                user_lp_shares: 10 * AMM_RESERVE_PRECISION, // some lps exist
+                concentration_coef: CONCENTRATION_PRECISION + 1,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
+            status: MarketStatus::Active,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u64::MAX as u128;
@@ -344,6 +487,16 @@ pub mod amm_lp_jit {
             market_after.amm.base_asset_amount_with_amm,
             market.amm.base_asset_amount_with_amm
         );
+        assert_eq!(
+            market_after.amm.base_asset_amount_per_lp,
+            market.amm.base_asset_amount_per_lp
+        );
+        assert_eq!(
+            market_after.amm.quote_asset_amount_per_lp,
+            market.amm.quote_asset_amount_per_lp
+        );
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 7500);
+        assert_eq!(market_after.amm.total_exchange_fee, 7500);
     }
 
     #[test]
@@ -370,7 +523,7 @@ pub mod amm_lp_jit {
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 base_asset_amount_per_lp: -505801343,
                 quote_asset_amount_per_lp: 10715933,
-                target_base_asset_amount_per_lp: -500000000,
+                target_base_asset_amount_per_lp: -1000000000,
                 bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
@@ -540,10 +693,18 @@ pub mod amm_lp_jit {
         // nets to zero
         let market_after = market_map.get_ref(&0).unwrap();
 
-        // make sure lps didnt get anything
-        assert_eq!(market_after.amm.base_asset_amount_per_lp, -505801343);
+        // make sure lps got more
+        assert_eq!(market_after.amm.base_asset_amount_per_lp, -510801343);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, -50000000);
+        assert_eq!(
+            market_after.amm.base_asset_amount_with_unsettled_lp,
+            50000000
+        );
 
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
+        assert!(market_after.amm.base_asset_amount_per_lp != market.amm.base_asset_amount_per_lp);
+        assert!(market_after.amm.quote_asset_amount_per_lp != market.amm.quote_asset_amount_per_lp);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 2488712); //2510987 would-be w/o LP
+        assert_eq!(market_after.amm.total_exchange_fee, 47025);
     }
 
     #[test]
@@ -570,7 +731,7 @@ pub mod amm_lp_jit {
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 base_asset_amount_per_lp: -505801343,
                 quote_asset_amount_per_lp: 10715933,
-                target_base_asset_amount_per_lp: -500000000,
+                target_base_asset_amount_per_lp: -1000000000,
                 bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
@@ -735,10 +896,14 @@ pub mod amm_lp_jit {
         let market_after = market_map.get_ref(&0).unwrap();
 
         // make sure lps didnt get anything
-        assert_eq!(market_after.amm.base_asset_amount_per_lp, -505801343);
+        assert_eq!(market_after.amm.base_asset_amount_per_lp, -510801343);
 
         // nets to zero
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, -50000000);
+        assert_eq!(
+            market_after.amm.base_asset_amount_with_unsettled_lp,
+            50000000
+        );
 
         let maker = makers_and_referrers.get_ref_mut(&maker_key).unwrap();
         let maker_position = &maker.perp_positions[0];

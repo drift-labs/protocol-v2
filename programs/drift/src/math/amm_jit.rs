@@ -5,8 +5,8 @@ use crate::math::casting::Cast;
 use crate::math::constants::{AMM_RESERVE_PRECISION, PERCENTAGE_PRECISION_I128};
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::safe_math::SafeMath;
-
 use crate::state::perp_market::PerpMarket;
+use solana_program::msg;
 
 #[cfg(test)]
 mod tests;
@@ -148,7 +148,7 @@ pub fn calculate_amm_jit_liquidity(
     // market order will always land and fill on amm next round
     let amm_will_fill_next_round: bool =
         !taker_has_limit_price && maker_base_asset_amount < taker_base_asset_amount;
-
+    crate::dlog!(amm_wants_to_make, amm_will_fill_next_round);
     if amm_wants_to_make && !amm_will_fill_next_round {
         let amm_lp_wants_to_make = match taker_direction {
             PositionDirection::Long => {
@@ -168,10 +168,13 @@ pub fn calculate_amm_jit_liquidity(
                 market.amm.min_base_asset_reserve,
                 market.amm.max_base_asset_reserve,
             )?;
+            crate::dlog!(amm_inventory_pct);
             amm_inventory_pct.abs() < PERCENTAGE_PRECISION_I128 / 10
         } else {
             false
         };
+        crate::dlog!(amm_lps_allowed_to_make, amm_lp_wants_to_make);
+
         split_with_lps = amm_lps_allowed_to_make && amm_lp_wants_to_make;
 
         jit_base_asset_amount = calculate_jit_base_asset_amount(
