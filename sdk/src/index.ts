@@ -69,6 +69,7 @@ export * from './dlob/DLOBNode';
 export * from './dlob/DLOBOrders';
 export * from './dlob/NodeList';
 export * from './dlob/DLOBSubscriber';
+export * from './dlob/DLOBApiClient';
 export * from './dlob/types';
 export * from './dlob/orderBookLevels';
 export * from './userMap/userMap';
