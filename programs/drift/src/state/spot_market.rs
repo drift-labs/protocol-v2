@@ -98,7 +98,7 @@ pub struct SpotMarket {
     /// precision: token mint precision
     pub order_step_size: u64,
     /// Spot orders must be a multiple of the tick size
-    /// precision: QUOTE_PRECISION
+    /// precision: PRICE_PRECISION
     pub order_tick_size: u64,
     /// The minimum order size
     /// precision: token mint precision
