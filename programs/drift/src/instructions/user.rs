@@ -2360,9 +2360,17 @@ pub fn handle_end_swap(
 
     let fee_value = get_token_value(fee.cast()?, in_spot_market.decimals, in_oracle_data.price)?;
 
+    // update fees
     user.update_cumulative_spot_fees(-fee_value.cast()?)?;
-
     user_stats.increment_total_fees(fee_value.cast()?)?;
+
+    // update taker volume
+    let amount_in_value = get_token_value(
+        amount_in.cast()?,
+        in_spot_market.decimals,
+        in_oracle_data.price,
+    )?;
+    user_stats.update_taker_volume_30d(amount_in_value.cast()?, now)?;
 
     validate!(
         amount_in != 0,

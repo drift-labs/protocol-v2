@@ -341,6 +341,7 @@ describe('spot swap', () => {
 			takerDriftClient.wallet.publicKey
 		);
 		assert(userStatsAccount.fees.totalFeePaid.eq(new BN(50000)));
+		assert(userStatsAccount.takerVolume30D.eq(new BN(100000000)));
 
 		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
 		assert(swapRecord.amountIn.eq(new BN(1000000000)));
@@ -464,6 +465,7 @@ describe('spot swap', () => {
 			takerDriftClient.wallet.publicKey
 		);
 		assert(userStatsAccount.fees.totalFeePaid.eq(new BN(99980)));
+		assert(userStatsAccount.takerVolume30D.eq(new BN(199959922)));
 
 		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
 		assert(swapRecord.amountIn.eq(new BN(99960000)));
