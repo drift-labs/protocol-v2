@@ -490,4 +490,76 @@ describe('spot swap', () => {
 
 		await crankMarkets();
 	});
+
+	it('invalid swaps', async () => {
+		const outAmount = new BN(100).mul(QUOTE_PRECISION);
+		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
+			amountOut: outAmount,
+			outMarketIndex: 0,
+			inMarketIndex: 1,
+			inTokenAccount: takerWSOL,
+			outTokenAccount: takerUSDC,
+		});
+
+		let tx = new Transaction().add(beginSwapIx);
+
+		let failed = false;
+		try {
+			await takerDriftClient.sendTransaction(tx);
+		} catch (e) {
+			// check if the e.logs contains the substring test
+			e.logs.forEach((log: any) => {
+				if (log.includes('found no SwapEnd instruction in transaction')) {
+					failed = true;
+				}
+			});
+		}
+		assert(failed);
+
+		tx = new Transaction()
+			.add(beginSwapIx)
+			.add(beginSwapIx)
+			.add(endSwapIx)
+			.add(endSwapIx);
+
+		failed = false;
+		try {
+			await takerDriftClient.sendTransaction(tx);
+		} catch (e) {
+			// check if the e.logs contains the substring test
+			e.logs.forEach((log: any) => {
+				if (log.includes('last drift ix must be end of swap')) {
+					failed = true;
+				}
+			});
+		}
+		assert(failed);
+
+		// Try making end swap be signed from different user
+		const { endSwapIx: invalidEndSwapIx } = await makerDriftClient.getSwapIx({
+			amountOut: outAmount,
+			outMarketIndex: 0,
+			inMarketIndex: 1,
+			inTokenAccount: takerWSOL,
+			outTokenAccount: takerUSDC,
+		});
+
+		tx = new Transaction().add(beginSwapIx).add(invalidEndSwapIx);
+
+		failed = false;
+		try {
+			await takerDriftClient.sendTransaction(tx, [
+				// @ts-ignore
+				makerDriftClient.wallet.payer,
+			]);
+		} catch (e) {
+			// check if the e.logs contains the substring test
+			e.logs.forEach((log: any) => {
+				if (log.includes('the user passed to SwapBegin and End must match')) {
+					failed = true;
+				}
+			});
+		}
+		assert(failed);
+	});
 });

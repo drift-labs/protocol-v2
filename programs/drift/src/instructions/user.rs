@@ -2176,7 +2176,7 @@ pub fn handle_begin_swap(
             validate!(
                 ix.data[0..8] == discriminator,
                 ErrorCode::InvalidSwap,
-                "last ix must be end of swap"
+                "last drift ix must be end of swap"
             )?;
 
             validate!(
