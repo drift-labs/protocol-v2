@@ -22,7 +22,7 @@ import {
 	getLimitOrderParams,
 	OracleGuardRails,
 	PostOnlyParams,
-	BulkAccountLoader
+	BulkAccountLoader,
 } from '../sdk/src';
 
 import {
