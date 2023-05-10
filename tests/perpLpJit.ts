@@ -1,14 +1,11 @@
-import * as anchor from '@coral-xyz/anchor';
-import { assert } from 'chai';
-
-import { Program } from '@coral-xyz/anchor';
-
 import * as web3 from '@solana/web3.js';
+import * as anchor from '@coral-xyz/anchor';
+import { Program } from '@coral-xyz/anchor';
+import { assert } from 'chai';
 
 import {
 	TestClient,
 	QUOTE_PRECISION,
-	AMM_RESERVE_PRECISION,
 	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
@@ -20,12 +17,12 @@ import {
 	OracleSource,
 	SwapDirection,
 	Wallet,
-	isVariant,
 	LPRecord,
 	BASE_PRECISION,
 	getLimitOrderParams,
 	OracleGuardRails,
 	PostOnlyParams,
+	BulkAccountLoader
 } from '../sdk/src';
 
 import {
@@ -34,9 +31,8 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
-	sleep,
+	// sleep,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
 
 async function adjustOraclePostSwap(baa, swapDirection, market) {
 	const price = calculatePrice(
@@ -128,23 +124,6 @@ async function createNewUser(
 	driftClientUser.subscribe();
 
 	return [driftClient, driftClientUser];
-}
-
-async function fullClosePosition(driftClient, userPosition) {
-	console.log('=> closing:', userPosition.baseAssetAmount.toString());
-	let position = (await driftClient.getUserAccount()).perpPositions[0];
-	let sig;
-	let flag = true;
-	while (flag) {
-		sig = await driftClient.closePosition(0);
-		await driftClient.fetchAccounts();
-		position = (await driftClient.getUserAccount()).perpPositions[0];
-		if (position.baseAssetAmount.eq(ZERO)) {
-			flag = false;
-		}
-	}
-
-	return sig;
 }
 
 describe('liquidity providing', () => {
@@ -818,12 +797,10 @@ describe('liquidity providing', () => {
 				);
 			}
 		}
-        market = driftClient.getPerpMarketAccount(marketIndex);
-        assert(market.amm.baseAssetAmountPerLp.eq(new BN('-93')));
-        assert(market.amm.baseAssetAmountWithAmm.eq(new BN('90700')));
-        assert(
-            market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('9300'))
-        );
+		market = driftClient.getPerpMarketAccount(marketIndex);
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-93')));
+		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('90700')));
+		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('9300')));
 
 		const trader = await traderDriftClient.getUserAccount();
 		console.log(

@@ -1909,7 +1909,11 @@ pub fn fulfill_perp_order_with_amm(
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
     let order_action_explanation =
         if override_base_asset_amount.is_some() && override_fill_price.is_some() {
-            OrderActionExplanation::OrderFilledWithAMMJit
+            if split_with_lps {
+                OrderActionExplanation::OrderFilledWithAMMJitLPSplit
+            } else {
+                OrderActionExplanation::OrderFilledWithAMMJit
+            }
         } else {
             OrderActionExplanation::OrderFilledWithAMM
         };
