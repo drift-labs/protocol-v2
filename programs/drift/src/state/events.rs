@@ -497,6 +497,8 @@ pub struct SwapRecord {
     pub amount_in: u64,
     pub out_market_index: u16,
     pub in_market_index: u16,
+    pub out_oracle_price: i64,
+    pub in_oracle_price: i64,
     pub fee: u64,
 }
 

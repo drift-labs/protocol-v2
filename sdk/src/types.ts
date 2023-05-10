@@ -512,6 +512,8 @@ export type SwapRecord = {
 	amountIn: BN;
 	outMarketIndex: number;
 	inMarketIndex: number;
+	outOraclePrice: BN;
+	inOraclePrice: BN;
 	fee: BN;
 };
 

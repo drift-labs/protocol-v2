@@ -2444,6 +2444,8 @@ pub fn handle_end_swap(
         amount_out,
         in_market_index,
         out_market_index,
+        out_oracle_price: out_oracle_data.price,
+        in_oracle_price: in_oracle_data.price,
         user: user_key,
         fee,
     };
