@@ -114,6 +114,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1683125906000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Pepe',
+		category: ['Meme'],
+		symbol: '1MPEPE-PERP',
+		baseAssetSymbol: '1MPEPE',
+		marketIndex: 10,
+		oracle: new PublicKey('Gz9RfgDeAFSsH7BHDGyNTgCik74rjNwsodJpsCizzmkj'),
+		launchTs: 1683125906000,
+		oracleSource: OracleSource.PYTH_1M,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -216,6 +226,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q'),
 		launchTs: 1683125906000,
 		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Pepe',
+		category: ['Meme'],
+		symbol: '1MPEPE-PERP',
+		baseAssetSymbol: '1MPEPE',
+		marketIndex: 10,
+		oracle: new PublicKey('FSfxunDmjjbDV2QxpyxFCAPKmYJHSLnLuvQXDLkMzLBm'),
+		launchTs: 1683125906000,
+		oracleSource: OracleSource.PYTH_1M,
 	},
 ];
 
