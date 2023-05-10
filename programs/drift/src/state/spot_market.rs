@@ -157,8 +157,15 @@ pub struct SpotMarket {
     /// The asset tier affects how a deposit can be used as collateral and the priority for a borrow being liquidated
     pub asset_tier: AssetTier,
     pub padding1: [u8; 6],
+    /// For swaps, the amount of token loaned out in the begin_swap ix
+    /// precision: token mint precision
     pub flash_loan_amount: u64,
+    /// For swaps, the amount in the users token account in the begin_swap ix
+    /// Used to calculate how much of the token left the system in end_swap ix
+    /// precision: token mint precision
     pub flash_loan_initial_token_amount: u64,
+    /// The total fees received from swaps
+    /// precision: token mint precision
     pub total_swap_fee: u64,
     pub padding: [u8; 56],
 }

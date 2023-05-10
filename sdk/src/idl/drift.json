@@ -5056,14 +5056,27 @@
           },
           {
             "name": "flashLoanAmount",
+            "docs": [
+              "For swaps, the amount of token loaned out in the begin_swap ix",
+              "precision: token mint precision"
+            ],
             "type": "u64"
           },
           {
             "name": "flashLoanInitialTokenAmount",
+            "docs": [
+              "For swaps, the amount in the users token account in the begin_swap ix",
+              "Used to calculate how much of the token left the system in end_swap ix",
+              "precision: token mint precision"
+            ],
             "type": "u64"
           },
           {
             "name": "totalSwapFee",
+            "docs": [
+              "The total fees received from swaps",
+              "precision: token mint precision"
+            ],
             "type": "u64"
           },
           {
