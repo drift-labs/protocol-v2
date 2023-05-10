@@ -265,7 +265,8 @@ pub fn handle_initialize_spot_market(
         padding1: [0; 6],
         flash_loan_amount: 0,
         flash_loan_initial_token_amount: 0,
-        padding: [0; 64],
+        total_swap_fee: 0,
+        padding: [0; 56],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,

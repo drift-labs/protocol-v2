@@ -5063,11 +5063,15 @@
             "type": "u64"
           },
           {
+            "name": "totalSwapFee",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                64
+                56
               ]
             }
           }

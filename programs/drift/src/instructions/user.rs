@@ -2358,6 +2358,8 @@ pub fn handle_end_swap(
     let fee = amount_in / 2000; // 0.05% fee
     let amount_in_after_fee = amount_in.safe_sub(fee)?;
 
+    in_spot_market.total_swap_fee = in_spot_market.total_swap_fee.saturating_add(fee);
+
     let fee_value = get_token_value(fee.cast()?, in_spot_market.decimals, in_oracle_data.price)?;
 
     // update fees

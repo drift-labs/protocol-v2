@@ -159,7 +159,8 @@ pub struct SpotMarket {
     pub padding1: [u8; 6],
     pub flash_loan_amount: u64,
     pub flash_loan_initial_token_amount: u64,
-    pub padding: [u8; 64],
+    pub total_swap_fee: u64,
+    pub padding: [u8; 56],
 }
 
 impl Default for SpotMarket {
@@ -215,7 +216,8 @@ impl Default for SpotMarket {
             padding1: [0; 6],
             flash_loan_amount: 0,
             flash_loan_initial_token_amount: 0,
-            padding: [0; 64],
+            total_swap_fee: 0,
+            padding: [0; 56],
         }
     }
 }

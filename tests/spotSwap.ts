@@ -351,6 +351,9 @@ describe('spot swap', () => {
 		assert(swapRecord.fee.eq(new BN(500000)));
 
 		const solSpotMarket = takerDriftClient.getSpotMarketAccount(1);
+
+		assert(solSpotMarket.totalSwapFee.eq(new BN(500000)));
+
 		const solRevPool = getTokenAmount(
 			solSpotMarket.revenuePool.scaledBalance,
 			solSpotMarket,
@@ -475,6 +478,9 @@ describe('spot swap', () => {
 		assert(swapRecord.fee.eq(new BN(49980)));
 
 		const usdcSpotMarket = takerDriftClient.getSpotMarketAccount(0);
+
+		assert(usdcSpotMarket.totalSwapFee.eq(new BN(49980)));
+
 		const usdcRevPool = getTokenAmount(
 			usdcSpotMarket.revenuePool.scaledBalance,
 			usdcSpotMarket,
