@@ -138,6 +138,8 @@ pub fn calculate_amm_jit_liquidity(
 ) -> DriftResult<(u64, bool)> {
     let mut jit_base_asset_amount: u64 = 0;
     let mut split_with_lps: bool = false;
+    crate::dlog!(market.amm.base_asset_amount_with_amm, market.amm.amm_jit_intensity);
+    // crate::dlog!(taker_direction);
 
     let amm_wants_to_make = match taker_direction {
         PositionDirection::Long => market.amm.base_asset_amount_with_amm < 0,

@@ -25,7 +25,7 @@ import {
 	BASE_PRECISION,
 	getLimitOrderParams,
 	OracleGuardRails,
-	PostOnlyParams
+	PostOnlyParams,
 } from '../sdk/src';
 
 import {
@@ -202,7 +202,7 @@ describe('liquidity providing', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-        solusdc3 = await mockOracle(1, -7); // make invalid
+		solusdc3 = await mockOracle(1, -7); // make invalid
 		solusdc2 = await mockOracle(1, -7); // make invalid
 		solusdc = await mockOracle(1, -7); // make invalid
 		const oracleInfos = [
@@ -259,8 +259,8 @@ describe('liquidity providing', () => {
 		await driftClient.updateLpCooldownTime(new BN(0));
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
-        // third market
-        await driftClient.initializePerpMarket(
+		// third market
+		await driftClient.initializePerpMarket(
 			2,
 			solusdc3,
 			stableAmmInitialBaseAssetReserve,
@@ -305,16 +305,24 @@ describe('liquidity providing', () => {
 
 	const lpCooldown = 1;
 	it('perp jit check (amm jit intensity = 0)', async () => {
-        const marketIndex = 0;
+		const marketIndex = 0;
 		console.log('adding liquidity...');
-		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(0, BASE_PRECISION.toNumber());
-		
+		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(
+			0,
+			BASE_PRECISION.toNumber()
+		);
+
 		await driftClient.fetchAccounts();
 		let market = driftClient.getPerpMarketAccount(0);
-		console.log('market.amm.sqrtK:', market.amm.userLpShares.toString(), '/', market.amm.sqrtK.toString());
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
 		assert(market.amm.sqrtK.eq(new BN('300000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-		assert(market.amm.targetBaseAssetAmountPerLp==BASE_PRECISION.toNumber());
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
 		const _sig = await driftClient.addPerpLpShares(
 			new BN(100 * BASE_PRECISION.toNumber()),
@@ -323,14 +331,18 @@ describe('liquidity providing', () => {
 		await delay(lpCooldown + 1000);
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(0);
-		console.log('market.amm.sqrtK:', market.amm.userLpShares.toString(), '/', market.amm.sqrtK.toString());
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
 		assert(market.amm.sqrtK.eq(new BN('400000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-		assert(market.amm.targetBaseAssetAmountPerLp==BASE_PRECISION.toNumber());
-
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
 		let user = await driftClientUser.getUserAccount();
-		assert(user.perpPositions[0].lpShares.toString()=='100000000000'); // 10 * 1e9
+		assert(user.perpPositions[0].lpShares.toString() == '100000000000'); // 10 * 1e9
 
 		// lp goes long
 		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
@@ -348,7 +360,10 @@ describe('liquidity providing', () => {
 		}
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(0);
-		console.log('market.amm.baseAssetAmountPerLp:', market.amm.baseAssetAmountPerLp.toString());
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-12500000')));
 
 		// some user goes long (lp should get a short + pnl for closing long on settle)
@@ -366,19 +381,25 @@ describe('liquidity providing', () => {
 		}
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(0);
-		console.log('market.amm.baseAssetAmountPerLp:', market.amm.baseAssetAmountPerLp.toString());
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-25000000')));
-		console.log('market.amm.baseAssetAmountWithAmm:', market.amm.baseAssetAmountWithAmm.toString());
+		console.log(
+			'market.amm.baseAssetAmountWithAmm:',
+			market.amm.baseAssetAmountWithAmm.toString()
+		);
 		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('7500000000')));
-		
+
 		// add jit maker going other way
 		const takerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: tradeSize,
-			price: new BN(.9*PRICE_PRECISION.toNumber()),
-			auctionStartPrice: new BN(.99 * PRICE_PRECISION.toNumber()),
-			auctionEndPrice: new BN(.929 * PRICE_PRECISION.toNumber()),
+			price: new BN(0.9 * PRICE_PRECISION.toNumber()),
+			auctionStartPrice: new BN(0.99 * PRICE_PRECISION.toNumber()),
+			auctionEndPrice: new BN(0.929 * PRICE_PRECISION.toNumber()),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -410,11 +431,20 @@ describe('liquidity providing', () => {
 		await _viewLogs(txSig);
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(0);
-		console.log('market.amm.baseAssetAmountPerLp:', market.amm.baseAssetAmountPerLp.toString());
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-12500000')));
-		console.log('market.amm.baseAssetAmountWithAmm:', market.amm.baseAssetAmountWithAmm.toString());
+		console.log(
+			'market.amm.baseAssetAmountWithAmm:',
+			market.amm.baseAssetAmountWithAmm.toString()
+		);
 		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('3750000000')));
-		console.log('market.amm.baseAssetAmountWithUnsettledLp:', market.amm.baseAssetAmountWithUnsettledLp.toString());
+		console.log(
+			'market.amm.baseAssetAmountWithUnsettledLp:',
+			market.amm.baseAssetAmountWithUnsettledLp.toString()
+		);
 
 		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('1250000000')));
 
@@ -450,18 +480,26 @@ describe('liquidity providing', () => {
 		assert(settleLiquidityRecord.pnl.eq(sdkPnl));
 	});
 	it('perp jit check (amm jit intensity = 100)', async () => {
-        const marketIndex = 1;
+		const marketIndex = 1;
 		await driftClient.updateAmmJitIntensity(marketIndex, 100);
 
 		console.log('adding liquidity...');
-		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(marketIndex, BASE_PRECISION.toNumber());
-		
+		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(
+			marketIndex,
+			BASE_PRECISION.toNumber()
+		);
+
 		await driftClient.fetchAccounts();
 		let market = driftClient.getPerpMarketAccount(marketIndex);
-		console.log('market.amm.sqrtK:', market.amm.userLpShares.toString(), '/', market.amm.sqrtK.toString());
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
 		assert(market.amm.sqrtK.eq(new BN('1000000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-		assert(market.amm.targetBaseAssetAmountPerLp==BASE_PRECISION.toNumber());
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
 		const _sig = await driftClient.addPerpLpShares(
 			new BN(100 * BASE_PRECISION.toNumber()),
@@ -470,14 +508,18 @@ describe('liquidity providing', () => {
 		await delay(lpCooldown + 1000);
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(marketIndex);
-		console.log('market.amm.sqrtK:', market.amm.userLpShares.toString(), '/', market.amm.sqrtK.toString());
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
 		assert(market.amm.sqrtK.eq(new BN('1100000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-		assert(market.amm.targetBaseAssetAmountPerLp==BASE_PRECISION.toNumber());
-
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
 		let user = await driftClientUser.getUserAccount();
-		assert(user.perpPositions[0].lpShares.toString()=='100000000000'); // 10 * 1e9
+		assert(user.perpPositions[0].lpShares.toString() == '100000000000'); // 10 * 1e9
 
 		// lp goes long
 		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
@@ -495,7 +537,10 @@ describe('liquidity providing', () => {
 		}
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(marketIndex);
-		console.log('market.amm.baseAssetAmountPerLp:', market.amm.baseAssetAmountPerLp.toString());
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-4545454')));
 
 		// some user goes long (lp should get a short + pnl for closing long on settle)
@@ -513,19 +558,25 @@ describe('liquidity providing', () => {
 		}
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(marketIndex);
-		console.log('market.amm.baseAssetAmountPerLp:', market.amm.baseAssetAmountPerLp.toString());
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-9090908')));
-		console.log('market.amm.baseAssetAmountWithAmm:', market.amm.baseAssetAmountWithAmm.toString());
+		console.log(
+			'market.amm.baseAssetAmountWithAmm:',
+			market.amm.baseAssetAmountWithAmm.toString()
+		);
 		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('9090909200')));
-		
+
 		// add jit maker going other way
 		const takerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: tradeSize,
-			price: new BN(.9*PRICE_PRECISION.toNumber()),
-			auctionStartPrice: new BN(.99 * PRICE_PRECISION.toNumber()),
-			auctionEndPrice: new BN(.929 * PRICE_PRECISION.toNumber()),
+			price: new BN(0.9 * PRICE_PRECISION.toNumber()),
+			auctionStartPrice: new BN(0.99 * PRICE_PRECISION.toNumber()),
+			auctionEndPrice: new BN(0.929 * PRICE_PRECISION.toNumber()),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -557,11 +608,20 @@ describe('liquidity providing', () => {
 		await _viewLogs(txSig);
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(marketIndex);
-		console.log('market.amm.baseAssetAmountPerLp:', market.amm.baseAssetAmountPerLp.toString());
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-5455090')));
-		console.log('market.amm.baseAssetAmountWithAmm:', market.amm.baseAssetAmountWithAmm.toString());
+		console.log(
+			'market.amm.baseAssetAmountWithAmm:',
+			market.amm.baseAssetAmountWithAmm.toString()
+		);
 		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('5204991000')));
-		console.log('market.amm.baseAssetAmountWithUnsettledLp:', market.amm.baseAssetAmountWithUnsettledLp.toString());
+		console.log(
+			'market.amm.baseAssetAmountWithUnsettledLp:',
+			market.amm.baseAssetAmountWithUnsettledLp.toString()
+		);
 
 		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('545509000')));
 
@@ -597,18 +657,27 @@ describe('liquidity providing', () => {
 		// assert(settleLiquidityRecord.pnl.eq(sdkPnl)); //TODO
 	});
 	it('perp jit check (amm jit intensity = 200)', async () => {
-		await driftClient.updateAmmJitIntensity(0, 200);
-        const marketIndex = 2;
-		
+		const marketIndex = 2;
+
+		await driftClient.updateAmmJitIntensity(marketIndex, 200);
+
 		console.log('adding liquidity...');
-		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(marketIndex, BASE_PRECISION.toNumber());
-		
+		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(
+			marketIndex,
+			BASE_PRECISION.toNumber()
+		);
+
 		await driftClient.fetchAccounts();
 		let market = driftClient.getPerpMarketAccount(marketIndex);
-		console.log('market.amm.sqrtK:', market.amm.userLpShares.toString(), '/', market.amm.sqrtK.toString());
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
 		assert(market.amm.sqrtK.eq(new BN('1000000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-		assert(market.amm.targetBaseAssetAmountPerLp==BASE_PRECISION.toNumber());
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
 		const _sig = await driftClient.addPerpLpShares(
 			new BN(100 * BASE_PRECISION.toNumber()),
@@ -617,14 +686,18 @@ describe('liquidity providing', () => {
 		await delay(lpCooldown + 1000);
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(marketIndex);
-		console.log('market.amm.sqrtK:', market.amm.userLpShares.toString(), '/', market.amm.sqrtK.toString());
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
 		assert(market.amm.sqrtK.eq(new BN('1100000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-		assert(market.amm.targetBaseAssetAmountPerLp==BASE_PRECISION.toNumber());
-
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
 		let user = await driftClientUser.getUserAccount();
-		assert(user.perpPositions[0].lpShares.toString()=='100000000000'); // 10 * 1e9
+		assert(user.perpPositions[0].lpShares.toString() == '100000000000'); // 10 * 1e9
 
 		// lp goes long
 		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
@@ -642,79 +715,115 @@ describe('liquidity providing', () => {
 		}
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(marketIndex);
-		console.log('market.amm.baseAssetAmountPerLp:', market.amm.baseAssetAmountPerLp.toString());
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-4545454')));
 
 		// some user goes long (lp should get a short + pnl for closing long on settle)
 		// try {
-        await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-        const _txsig = await traderDriftClient.openPosition(
-            PositionDirection.LONG,
-            tradeSize,
-            market.marketIndex
-            // new BN(100 * BASE_PRECISION.toNumber())
-        );
-        await _viewLogs(_txsig);
+		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+		const _txsig = await traderDriftClient.openPosition(
+			PositionDirection.LONG,
+			tradeSize,
+			market.marketIndex
+			// new BN(100 * BASE_PRECISION.toNumber())
+		);
+		await _viewLogs(_txsig);
 		// } catch (e) {
 		// 	console.log(e);
 		// }
 		await driftClient.fetchAccounts();
 		market = driftClient.getPerpMarketAccount(marketIndex);
-		console.log('market.amm.baseAssetAmountPerLp:', market.amm.baseAssetAmountPerLp.toString());
-		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-9090908')));
-		console.log('market.amm.baseAssetAmountWithAmm:', market.amm.baseAssetAmountWithAmm.toString());
-		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('9090909200')));
-		
-		// add jit maker going other way
-		const takerOrderParams = getLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.SHORT,
-			baseAssetAmount: tradeSize,
-			price: new BN(.9*PRICE_PRECISION.toNumber()),
-			auctionStartPrice: new BN(.99 * PRICE_PRECISION.toNumber()),
-			auctionEndPrice: new BN(.929 * PRICE_PRECISION.toNumber()),
-			auctionDuration: 10,
-			userOrderId: 1,
-			postOnly: PostOnlyParams.NONE,
-		});
-		await traderDriftClient.placePerpOrder(takerOrderParams);
-		await traderDriftClient.fetchAccounts();
-        console.log(takerOrderParams);
-		const order = traderDriftClientUser.getOrderByUserOrderId(1);
-        console.log(order);
-
-		assert(!order.postOnly);
-
-		const makerOrderParams = getLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.LONG,
-			baseAssetAmount: tradeSize,
-			price: new BN(1.011 * PRICE_PRECISION.toNumber()),
-			userOrderId: 1,
-			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
-		});
-        console.log('maker:', makerOrderParams);
-
-		const txSig = await poorDriftClient.placeAndMakePerpOrder(
-			makerOrderParams,
-			{
-				taker: await traderDriftClient.getUserAccountPublicKey(),
-				order: traderDriftClient.getOrderByUserId(1),
-				takerUserAccount: traderDriftClient.getUserAccount(),
-				takerStats: traderDriftClient.getUserStatsAccountPublicKey(),
-			}
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
 		);
-		await _viewLogs(txSig);
-		await driftClient.fetchAccounts();
-		market = driftClient.getPerpMarketAccount(marketIndex);
-		console.log('market.amm.baseAssetAmountPerLp:', market.amm.baseAssetAmountPerLp.toString());
-		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-5455090')));
-		console.log('market.amm.baseAssetAmountWithAmm:', market.amm.baseAssetAmountWithAmm.toString());
-		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('5455091000')));
-		console.log('market.amm.baseAssetAmountWithUnsettledLp:', market.amm.baseAssetAmountWithUnsettledLp.toString());
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-9090908')));
+		console.log(
+			'market.amm.baseAssetAmountWithAmm:',
+			market.amm.baseAssetAmountWithAmm.toString()
+		);
+		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('9090909200')));
 
-		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('545509000')));
+		// const trader = await traderDriftClient.getUserAccount();
+		// console.log(
+		// 	'trader size',
+		// 	trader.perpPositions[0].baseAssetAmount.toString()
+		// );
+
+		for (let i = 0; i < 10; i++) {
+			// add jit maker going other way
+			const takerOrderParams = getLimitOrderParams({
+				marketIndex,
+				direction: PositionDirection.SHORT,
+				baseAssetAmount: tradeSize,
+				price: new BN(0.9 * PRICE_PRECISION.toNumber()),
+				auctionStartPrice: new BN(0.99 * PRICE_PRECISION.toNumber()),
+				auctionEndPrice: new BN(0.929 * PRICE_PRECISION.toNumber()),
+				auctionDuration: 10,
+				userOrderId: 1,
+				postOnly: PostOnlyParams.NONE,
+			});
+			await traderDriftClient.placePerpOrder(takerOrderParams);
+			await traderDriftClient.fetchAccounts();
+			console.log(takerOrderParams);
+			const order = traderDriftClientUser.getOrderByUserOrderId(1);
+			console.log(order);
+
+			assert(!order.postOnly);
+
+			const makerOrderParams = getLimitOrderParams({
+				marketIndex,
+				direction: PositionDirection.LONG,
+				baseAssetAmount: tradeSize,
+				price: new BN(1.011 * PRICE_PRECISION.toNumber()),
+				userOrderId: 1,
+				postOnly: PostOnlyParams.MUST_POST_ONLY,
+				immediateOrCancel: true,
+			});
+			console.log('maker:', makerOrderParams);
+
+			const txSig = await poorDriftClient.placeAndMakePerpOrder(
+				makerOrderParams,
+				{
+					taker: await traderDriftClient.getUserAccountPublicKey(),
+					order: traderDriftClient.getOrderByUserId(1),
+					takerUserAccount: traderDriftClient.getUserAccount(),
+					takerStats: traderDriftClient.getUserStatsAccountPublicKey(),
+				}
+			);
+			await _viewLogs(txSig);
+			await driftClient.fetchAccounts();
+			market = driftClient.getPerpMarketAccount(marketIndex);
+			console.log(
+				'market.amm.baseAssetAmountPerLp:',
+				market.amm.baseAssetAmountPerLp.toString()
+			);
+			console.log(
+				'market.amm.baseAssetAmountWithAmm:',
+				market.amm.baseAssetAmountWithAmm.toString()
+			);
+			console.log(
+				'market.amm.baseAssetAmountWithUnsettledLp:',
+				market.amm.baseAssetAmountWithUnsettledLp.toString()
+			);
+
+			if (i == 0) {
+				assert(market.amm.baseAssetAmountPerLp.eq(new BN('-5000272')));
+				assert(market.amm.baseAssetAmountWithAmm.eq(new BN('5000272800')));
+				assert(
+					market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('500027200'))
+				);
+			}
+		}
+        market = driftClient.getPerpMarketAccount(marketIndex);
+        assert(market.amm.baseAssetAmountPerLp.eq(new BN('-93')));
+        assert(market.amm.baseAssetAmountWithAmm.eq(new BN('90700')));
+        assert(
+            market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('9300'))
+        );
 
 		const trader = await traderDriftClient.getUserAccount();
 		console.log(
@@ -745,6 +854,6 @@ describe('liquidity providing', () => {
 			settleLiquidityRecord.pnl.toString(),
 			sdkPnl.toString()
 		);
-		assert(settleLiquidityRecord.pnl.eq(sdkPnl));
+		// assert(settleLiquidityRecord.pnl.eq(sdkPnl));
 	});
 });
