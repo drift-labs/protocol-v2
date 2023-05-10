@@ -181,8 +181,13 @@ pub mod drift {
         handle_begin_swap(ctx, out_market_index, in_market_index, out_amount)
     }
 
-    pub fn end_swap(ctx: Context<Swap>, out_market_index: u16, in_market_index: u16) -> Result<()> {
-        handle_end_swap(ctx, out_market_index, in_market_index)
+    pub fn end_swap(
+        ctx: Context<Swap>,
+        out_market_index: u16,
+        in_market_index: u16,
+        limit_price: Option<u64>,
+    ) -> Result<()> {
+        handle_end_swap(ctx, out_market_index, in_market_index, limit_price)
     }
 
     pub fn add_perp_lp_shares(

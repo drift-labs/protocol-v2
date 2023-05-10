@@ -857,6 +857,12 @@
         {
           "name": "inMarketIndex",
           "type": "u16"
+        },
+        {
+          "name": "limitPrice",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -9042,6 +9048,16 @@
           "index": false
         },
         {
+          "name": "outOraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inOraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
           "name": "fee",
           "type": "u64",
           "index": false
@@ -10297,11 +10313,13 @@
     },
     {
       "code": 6249,
+      "name": "SwapLimitPriceBreached",
+      "msg": "SwapLimitPriceBreached"
+    },
+    {
+      "code": 6250,
       "name": "SpotMarketReduceOnly",
       "msg": "SpotMarketReduceOnly"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }

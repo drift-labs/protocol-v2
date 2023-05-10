@@ -28,6 +28,7 @@ use crate::math::margin::{
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
+use crate::math::spot_swap::calculate_swap_price;
 use crate::math_error;
 use crate::print_error;
 use crate::safe_decrement;
@@ -2243,6 +2244,7 @@ pub fn handle_end_swap(
     ctx: Context<Swap>,
     out_market_index: u16,
     in_market_index: u16,
+    limit_price: Option<u64>,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
@@ -2269,6 +2271,7 @@ pub fn handle_end_swap(
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
 
     let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    let out_oracle_price = out_oracle_data.price;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut out_spot_market,
         Some(out_oracle_data),
@@ -2278,6 +2281,7 @@ pub fn handle_end_swap(
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
     let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle)?;
+    let in_oracle_price = in_oracle_data.price;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut in_spot_market,
         Some(in_oracle_data),
@@ -2353,6 +2357,23 @@ pub fn handle_end_swap(
             amount_in,
         )?;
         in_vault.reload()?;
+    }
+
+    if let Some(limit_price) = limit_price {
+        let swap_price = calculate_swap_price(
+            amount_in.cast()?,
+            amount_out.cast()?,
+            in_spot_market.decimals,
+            out_spot_market.decimals,
+        )?;
+
+        validate!(
+            swap_price >= limit_price.cast()?,
+            ErrorCode::SwapLimitPriceBreached,
+            "swap_price ({}) < limit price ({})",
+            swap_price,
+            limit_price
+        )?;
     }
 
     let fee = amount_in / 2000; // 0.05% fee
@@ -2444,8 +2465,8 @@ pub fn handle_end_swap(
         amount_out,
         in_market_index,
         out_market_index,
-        out_oracle_price: out_oracle_data.price,
-        in_oracle_price: in_oracle_data.price,
+        out_oracle_price,
+        in_oracle_price,
         user: user_key,
         fee,
     };

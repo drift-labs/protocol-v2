@@ -3270,12 +3270,14 @@ export class DriftClient {
 		amountOut,
 		inTokenAccount,
 		outTokenAccount,
+		limitPrice,
 	}: {
 		outMarketIndex: number;
 		inMarketIndex: number;
 		amountOut: BN;
 		inTokenAccount: PublicKey;
 		outTokenAccount: PublicKey;
+		limitPrice?: BN;
 	}): Promise<{
 		beginSwapIx: TransactionInstruction;
 		endSwapIx: TransactionInstruction;
@@ -3315,6 +3317,7 @@ export class DriftClient {
 		const endSwapIx = await this.program.instruction.endSwap(
 			outMarketIndex,
 			inMarketIndex,
+			limitPrice ?? null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),

@@ -503,6 +503,8 @@ pub enum ErrorCode {
     InvalidPhoenixMarket,
     #[msg("InvalidSwap")]
     InvalidSwap,
+    #[msg("SwapLimitPriceBreached")]
+    SwapLimitPriceBreached,
     #[msg("SpotMarketReduceOnly")]
     SpotMarketReduceOnly,
 }
