@@ -14,6 +14,14 @@ pub mod bonk_oracle {
     declare_id!("6bquU99ktV1VRiHDr8gMhDFt3kMfhCQo5nfNrg2Urvsn");
 }
 
+pub mod pepe_oracle {
+    use solana_program::declare_id;
+    #[cfg(feature = "mainnet-beta")]
+    declare_id!("FSfxunDmjjbDV2QxpyxFCAPKmYJHSLnLuvQXDLkMzLBm");
+    #[cfg(not(feature = "mainnet-beta"))]
+    declare_id!("Gz9RfgDeAFSsH7BHDGyNTgCik74rjNwsodJpsCizzmkj");
+}
+
 pub mod usdc_oracle {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]
