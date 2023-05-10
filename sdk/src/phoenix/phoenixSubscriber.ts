@@ -163,8 +163,10 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 	}
 
 	*getL2Levels(side: 'bids' | 'asks'): Generator<L2Level> {
-		// @ts-ignore
-		const basePrecision = Math.pow(10, this.market.header.baseParams.decimals);
+		const basePrecision = Math.pow(
+			10,
+			this.market.data.header.baseParams.decimals
+		);
 		const pricePrecision = PRICE_PRECISION.toNumber();
 
 		const ladder = getMarketUiLadder(

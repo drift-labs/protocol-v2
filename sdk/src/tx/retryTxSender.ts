@@ -115,18 +115,10 @@ export class RetryTxSender implements TxSender {
 	}
 
 	async sendVersionedTransaction(
-		ixs: TransactionInstruction[],
-		lookupTableAccounts: AddressLookupTableAccount[],
+		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions
 	): Promise<TxSigAndSlot> {
-		const tx = await this.getVersionedTransaction(
-			ixs,
-			lookupTableAccounts,
-			additionalSigners,
-			opts
-		);
-
 		// @ts-ignore
 		tx.sign(additionalSigners.concat(this.provider.wallet.payer));
 

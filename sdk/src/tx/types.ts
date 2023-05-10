@@ -25,8 +25,7 @@ export interface TxSender {
 	): Promise<TxSigAndSlot>;
 
 	sendVersionedTransaction(
-		ixs: TransactionInstruction[],
-		lookupTableAccounts: AddressLookupTableAccount[],
+		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions
 	): Promise<TxSigAndSlot>;

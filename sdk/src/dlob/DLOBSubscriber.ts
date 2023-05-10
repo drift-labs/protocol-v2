@@ -107,8 +107,8 @@ export class DLOBSubscriber {
 		if (isPerp) {
 			const perpMarketAccount =
 				this.driftClient.getPerpMarketAccount(marketIndex);
-			oraclePriceData = this.driftClient.getOraclePriceDataAndSlot(
-				perpMarketAccount.amm.oracle
+			oraclePriceData = this.driftClient.getOracleDataForPerpMarket(
+				perpMarketAccount.marketIndex
 			);
 			fallbackBid = calculateBidPrice(perpMarketAccount, oraclePriceData);
 			fallbackAsk = calculateAskPrice(perpMarketAccount, oraclePriceData);

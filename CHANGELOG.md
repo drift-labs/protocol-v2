@@ -9,9 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add precision docs to the state accounts ([#452](https://github.com/drift-labs/protocol-v2/pull/452))
+
 ### Fixes
 
 ### Breaking
+
+- ts-sdk: driftClient.getTokenAmount now returns negative for borrows ([#452](https://github.com/drift-labs/protocol-v2/pull/452))
+- ts-sdk: txSender.sendVersionedTransaction now expects VersionedTransaction ([#452](https://github.com/drift-labs/protocol-v2/pull/452))
 
 ## [2.27.0] - 2023-05-02
 
