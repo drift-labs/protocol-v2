@@ -516,11 +516,45 @@ describe('spot swap', () => {
 		}
 		assert(failed);
 
+		tx = new Transaction().add(endSwapIx);
+
+		failed = false;
+		try {
+			const txO = await takerDriftClient.sendTransaction(tx);
+			const txL = await connection.getTransaction(txO.txSig, {
+				commitment: 'confirmed',
+			});
+			console.log('tx logs', txL.meta.logMessages);
+		} catch (e) {
+			// check if the e.logs contains the substring test
+			e.logs.forEach((log: any) => {
+				if (log.includes('last drift ix must be end of swap')) {
+					failed = true;
+				}
+			});
+		}
+		assert(failed);
+
 		tx = new Transaction()
 			.add(beginSwapIx)
 			.add(beginSwapIx)
 			.add(endSwapIx)
 			.add(endSwapIx);
+
+		failed = false;
+		try {
+			await takerDriftClient.sendTransaction(tx);
+		} catch (e) {
+			// check if the e.logs contains the substring test
+			e.logs.forEach((log: any) => {
+				if (log.includes('last drift ix must be end of swap')) {
+					failed = true;
+				}
+			});
+		}
+		assert(failed);
+
+		tx = new Transaction().add(beginSwapIx).add(beginSwapIx).add(endSwapIx);
 
 		failed = false;
 		try {
