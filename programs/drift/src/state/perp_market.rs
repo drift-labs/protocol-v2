@@ -583,11 +583,14 @@ pub struct AMM {
     /// the update intensity of AMM formulaic updates (adjusting k). 0-100
     pub curve_update_intensity: u8,
     /// the jit intensity of AMM. larger intensity means larger participation in jit. 0 means no jit participation.
+    /// (0, 100] is intensity for protocol-owned AMM. (100, 200] is intensity for user LP-owned AMM.  
     pub amm_jit_intensity: u8,
     /// the oracle provider information. used to decode/scale the oracle public key
     pub oracle_source: OracleSource,
     /// tracks whether the oracle was considered valid at the last AMM update
     pub last_oracle_valid: bool,
+    /// the target value for `base_asset_amount_per_lp`, used during AMM JIT with LP split
+    /// Precision: BASE_PRECISION
     pub target_base_asset_amount_per_lp: i32,
     pub padding: [u8; 44],
 }

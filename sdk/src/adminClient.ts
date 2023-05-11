@@ -548,9 +548,6 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		targetBaseAssetAmountPerLP: number
 	): Promise<TransactionSignature> {
-		// assert(curveUpdateIntensity >= 0 && curveUpdateIntensity <= 100);
-		// assert(Number.isInteger(curveUpdateIntensity));
-
 		return await this.program.rpc.updatePerpMarketTargetBaseAssetAmountPerLp(
 			targetBaseAssetAmountPerLP,
 			{
