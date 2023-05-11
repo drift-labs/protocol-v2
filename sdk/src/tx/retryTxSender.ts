@@ -120,7 +120,7 @@ export class RetryTxSender implements TxSender {
 		opts?: ConfirmOptions
 	): Promise<TxSigAndSlot> {
 		// @ts-ignore
-		tx.sign(additionalSigners.concat(this.provider.wallet.payer));
+		tx.sign((additionalSigners ?? []).concat(this.provider.wallet.payer));
 
 		return this.sendRawTransaction(tx.serialize(), opts);
 	}
