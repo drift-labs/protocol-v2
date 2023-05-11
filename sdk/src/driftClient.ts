@@ -2350,7 +2350,8 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		useVersionedTx = true
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
@@ -2383,7 +2384,7 @@ export class DriftClient {
 			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
 
 		// use versioned transactions if there is a lookup table account and wallet is compatible
-		if (walletSupportsVersionedTxns && lookupTableAccount) {
+		if (walletSupportsVersionedTxns && lookupTableAccount && useVersionedTx) {
 			const versionedMarketOrderTx =
 				await this.txSender.getVersionedTransaction(
 					[placePerpOrderIx].concat(bracketOrderIxs),
