@@ -22,7 +22,6 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
 use crate::math::auction::calculate_auction_prices;
@@ -48,6 +47,7 @@ use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::{controller, PostOnlyParam};
 use crate::{get_struct_values, ModifyOrderParams};
+use crate::{get_then_update_id, ModifyOrderPolicy};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -677,18 +677,34 @@ pub fn modify_order(
 ) -> DriftResult {
     let user_key = user_loader.key();
     let mut user = load_mut!(user_loader)?;
+
     let order_index = match order_id {
-        ModifyOrderId::UserOrderId(user_order_id) => user
-            .get_order_index_by_user_order_id(user_order_id)
-            .map_err(|e| {
-                msg!("User order id {} not found", user_order_id);
-                e
-            })?,
-        ModifyOrderId::OrderId(order_id) => user.get_order_index(order_id).map_err(|e| {
-            msg!("Order id {} not found", order_id);
-            e
-        })?,
+        ModifyOrderId::UserOrderId(user_order_id) => {
+            match user.get_order_index_by_user_order_id(user_order_id) {
+                Ok(order_index) => order_index,
+                Err(e) => {
+                    msg!("User order id {} not found", user_order_id);
+                    if modify_order_params.policy == ModifyOrderPolicy::MustModify {
+                        return Err(e);
+                    } else {
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        ModifyOrderId::OrderId(order_id) => match user.get_order_index(order_id) {
+            Ok(order_index) => order_index,
+            Err(e) => {
+                msg!("Order id {} not found", order_id);
+                if modify_order_params.policy == ModifyOrderPolicy::MustModify {
+                    return Err(e);
+                } else {
+                    return Ok(());
+                }
+            }
+        },
     };
+
     let existing_order = user.orders[order_index];
 
     cancel_order(
