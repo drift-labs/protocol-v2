@@ -2114,6 +2114,13 @@ pub fn handle_begin_swap(
         "begin_swap ended in invalid state"
     )?;
 
+    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut out_spot_market,
+        Some(out_oracle_data),
+        now,
+    )?;
+
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
     validate!(
@@ -2128,6 +2135,13 @@ pub fn handle_begin_swap(
             && in_spot_market.flash_loan_amount == 0,
         ErrorCode::InvalidSwap,
         "begin_swap ended in invalid state"
+    )?;
+
+    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle)?;
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut in_spot_market,
+        Some(in_oracle_data),
+        now,
     )?;
 
     validate!(
@@ -2292,21 +2306,11 @@ pub fn handle_end_swap(
 
     let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
     let out_oracle_price = out_oracle_data.price;
-    controller::spot_balance::update_spot_market_cumulative_interest(
-        &mut out_spot_market,
-        Some(out_oracle_data),
-        now,
-    )?;
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
     let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle)?;
     let in_oracle_price = in_oracle_data.price;
-    controller::spot_balance::update_spot_market_cumulative_interest(
-        &mut in_spot_market,
-        Some(in_oracle_data),
-        now,
-    )?;
 
     let out_vault = &mut ctx.accounts.out_spot_market_vault;
     let out_token_account = &mut ctx.accounts.out_token_account;
