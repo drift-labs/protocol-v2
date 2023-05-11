@@ -3893,6 +3893,14 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
+		for (const key in orderParams) {
+			if (orderParams.hasOwnProperty(key)) {
+				if (orderParams[key] === undefined) {
+					orderParams[key] = null;
+				}
+			}
+		}
+
 		return await this.program.instruction.modifyOrder(orderId, orderParams, {
 			accounts: {
 				state: await this.getStatePublicKey(),
