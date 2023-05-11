@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- sdk: expose method in account subscriber to change polling frequency
+
 ### Fixes
 
 ### Breaking

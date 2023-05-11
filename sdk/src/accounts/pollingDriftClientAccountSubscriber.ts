@@ -435,4 +435,8 @@ export class PollingDriftClientAccountSubscriber
 
 		return this.oracles.get(oraclePublicKey.toString());
 	}
+
+	public updateAccountLoaderPollingFrequency(pollingFrequency: number): void {
+		this.accountLoader.updatePollingFrequency(pollingFrequency);
+	}
 }
