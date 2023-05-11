@@ -1784,7 +1784,7 @@ pub fn fulfill_perp_order_with_amm(
 
     let FillFees {
         user_fee,
-        mut fee_to_market,
+        fee_to_market,
         filler_reward,
         referee_discount,
         referrer_reward,
@@ -1808,8 +1808,6 @@ pub fn fulfill_perp_order_with_amm(
 
     if split_with_lps {
         update_lp_market_position(market, &user_position_delta, fee_to_market_for_lp.cast()?)?;
-    } else {
-        fee_to_market = fee_to_market.safe_add(fee_to_market_for_lp)?;
     }
 
     if market.amm.user_lp_shares > 0 {
