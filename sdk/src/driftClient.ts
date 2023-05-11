@@ -2351,7 +2351,7 @@ export class DriftClient {
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
 		referrerInfo?: ReferrerInfo,
-		useVersionedTx = true,
+		useVersionedTx = true
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
