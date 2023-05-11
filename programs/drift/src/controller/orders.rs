@@ -494,7 +494,7 @@ pub fn cancel_order_by_order_id(
         Ok(order_index) => order_index,
         Err(_) => {
             msg!("could not find order id {}", order_id);
-            return Err(ErrorCode::InvalidOrder);
+            return Ok(());
         }
     };
 
@@ -536,7 +536,7 @@ pub fn cancel_order_by_user_order_id(
         Some(order_index) => order_index,
         None => {
             msg!("could not find user order id {}", user_order_id);
-            return Err(ErrorCode::InvalidOrder);
+            return Ok(());
         }
     };
 
