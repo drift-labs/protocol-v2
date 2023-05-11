@@ -1,7 +1,7 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
-use crate::math::constants::{AMM_RESERVE_PRECISION};
+use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::safe_math::SafeMath;
 use crate::state::perp_market::PerpMarket;
@@ -145,7 +145,9 @@ pub fn calculate_amm_jit_liquidity(
 
     if amm_wants_to_make && !amm_will_fill_next_round {
         let amm_lp_wants_to_make = market.amm.amm_lp_wants_to_jit_make(taker_direction);
-        let amm_lp_allowed_to_jit_make = market.amm.amm_lp_allowed_to_jit_make(amm_lp_wants_to_make)?;
+        let amm_lp_allowed_to_jit_make = market
+            .amm
+            .amm_lp_allowed_to_jit_make(amm_lp_wants_to_make)?;
 
         split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_make;
 
