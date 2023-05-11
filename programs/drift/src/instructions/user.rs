@@ -918,7 +918,7 @@ pub struct ModifyOrderParams {
     pub auction_duration: Option<u8>,
     pub auction_start_price: Option<i64>,
     pub auction_end_price: Option<i64>,
-    pub policy: ModifyOrderPolicy,
+    pub policy: Option<ModifyOrderPolicy>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq)]

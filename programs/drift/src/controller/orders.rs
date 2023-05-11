@@ -684,7 +684,7 @@ pub fn modify_order(
                 Ok(order_index) => order_index,
                 Err(e) => {
                     msg!("User order id {} not found", user_order_id);
-                    if modify_order_params.policy == ModifyOrderPolicy::MustModify {
+                    if modify_order_params.policy == Some(ModifyOrderPolicy::MustModify) {
                         return Err(e);
                     } else {
                         return Ok(());
@@ -696,7 +696,7 @@ pub fn modify_order(
             Ok(order_index) => order_index,
             Err(e) => {
                 msg!("Order id {} not found", order_id);
-                if modify_order_params.policy == ModifyOrderPolicy::MustModify {
+                if modify_order_params.policy == Some(ModifyOrderPolicy::MustModify) {
                     return Err(e);
                 } else {
                     return Ok(());
