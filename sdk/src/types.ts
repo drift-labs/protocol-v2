@@ -391,8 +391,8 @@ export class LiquidationType {
 	static readonly PERP_BANKRUPTCY = {
 		perpBankruptcy: {},
 	};
-	static readonly BORROW_BANKRUPTCY = {
-		borrowBankruptcy: {},
+	static readonly SPOT_BANKRUPTCY = {
+		spotBankruptcy: {},
 	};
 	static readonly LIQUIDATE_SPOT = {
 		liquidateSpot: {},
