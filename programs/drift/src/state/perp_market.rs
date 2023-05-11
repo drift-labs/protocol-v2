@@ -700,6 +700,24 @@ impl AMM {
         amm_lp_wants_to_jit_make && self.amm_lp_jit_is_active()
     }
 
+    pub fn amm_lp_allowed_to_jit_make(&self, amm_lp_wants_to_jit_make: bool) -> DriftResult<bool> {
+        // only allow lps to make when the amm inventory is below a certain level of available liquidity
+        // i.e. 10%
+        if amm_lp_wants_to_jit_make {
+            // inventory scale
+            let (max_bids, max_asks) = amm::_calculate_market_open_bids_asks(
+                self.base_asset_reserve,
+                self.min_base_asset_reserve,
+                self.max_base_asset_reserve,
+            )?;
+
+            let min_side_liquidity = max_bids.min(max_asks.abs());
+            Ok(self.base_asset_amount_with_amm < min_side_liquidity.safe_div(10)?)
+        } else {
+            Ok(false)
+        }
+    }
+
     pub fn amm_jit_is_active(&self) -> bool {
         self.amm_jit_intensity > 0
     }

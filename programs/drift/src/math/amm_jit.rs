@@ -1,12 +1,10 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
-use crate::math::amm_spread::calculate_inventory_liquidity_ratio;
 use crate::math::casting::Cast;
-use crate::math::constants::{AMM_RESERVE_PRECISION, PERCENTAGE_PRECISION_I128};
+use crate::math::constants::{AMM_RESERVE_PRECISION};
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::safe_math::SafeMath;
 use crate::state::perp_market::PerpMarket;
-use solana_program::msg;
 
 #[cfg(test)]
 mod tests;
@@ -147,22 +145,9 @@ pub fn calculate_amm_jit_liquidity(
 
     if amm_wants_to_make && !amm_will_fill_next_round {
         let amm_lp_wants_to_make = market.amm.amm_lp_wants_to_jit_make(taker_direction);
+        let amm_lp_allowed_to_jit_make = market.amm.amm_lp_allowed_to_jit_make(amm_lp_wants_to_make)?;
 
-        // only allow lps to make when the amm inventory is below a certain level of available liquidity
-        // i.e. 10%
-        let amm_lps_allowed_to_make = if amm_lp_wants_to_make {
-            let amm_inventory_pct = calculate_inventory_liquidity_ratio(
-                market.amm.base_asset_amount_with_amm,
-                market.amm.base_asset_reserve,
-                market.amm.min_base_asset_reserve,
-                market.amm.max_base_asset_reserve,
-            )?;
-            amm_inventory_pct.abs() < PERCENTAGE_PRECISION_I128 / 10
-        } else {
-            false
-        };
-
-        split_with_lps = amm_lps_allowed_to_make && amm_lp_wants_to_make;
+        split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_make;
 
         jit_base_asset_amount = calculate_jit_base_asset_amount(
             market,
