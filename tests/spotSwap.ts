@@ -528,7 +528,9 @@ describe('spot swap', () => {
 		} catch (e) {
 			// check if the e.logs contains the substring test
 			e.logs.forEach((log: any) => {
-				if (log.includes('last drift ix must be end of swap')) {
+				if (
+					log.includes('the out_spot_market must have a flash loan amount set')
+				) {
 					failed = true;
 				}
 			});

@@ -2270,6 +2270,12 @@ pub fn handle_end_swap(
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
 
+    validate!(
+        out_spot_market.flash_loan_amount != 0,
+        ErrorCode::InvalidSwap,
+        "the out_spot_market must have a flash loan amount set"
+    )?;
+
     let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
     let out_oracle_price = out_oracle_data.price;
     controller::spot_balance::update_spot_market_cumulative_interest(
