@@ -142,12 +142,7 @@ pub fn calculate_amm_jit_liquidity(
         market.amm.base_asset_amount_with_amm,
         market.amm.amm_jit_intensity
     );
-    // crate::dlog!(taker_direction);
-
-    let amm_wants_to_make = match taker_direction {
-        PositionDirection::Long => market.amm.base_asset_amount_with_amm < 0,
-        PositionDirection::Short => market.amm.base_asset_amount_with_amm > 0,
-    } && market.amm.amm_jit_is_active();
+    let amm_wants_to_make = market.amm.amm_wants_to_jit_make(taker_direction);
 
     // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
     // market order will always land and fill on amm next round
@@ -155,16 +150,7 @@ pub fn calculate_amm_jit_liquidity(
         !taker_has_limit_price && maker_base_asset_amount < taker_base_asset_amount;
     crate::dlog!(amm_wants_to_make, amm_will_fill_next_round);
     if amm_wants_to_make && !amm_will_fill_next_round {
-        let amm_lp_wants_to_make = match taker_direction {
-            PositionDirection::Long => {
-                market.amm.base_asset_amount_per_lp
-                    > market.amm.target_base_asset_amount_per_lp.cast()?
-            }
-            PositionDirection::Short => {
-                market.amm.base_asset_amount_per_lp
-                    < market.amm.target_base_asset_amount_per_lp.cast()?
-            }
-        } && market.amm.amm_lp_jit_is_active();
+        let amm_lp_wants_to_make = market.amm.amm_lp_wants_to_jit_make(taker_direction);
 
         let amm_lps_allowed_to_make = if amm_lp_wants_to_make {
             let amm_inventory_pct = calculate_inventory_liquidity_ratio(

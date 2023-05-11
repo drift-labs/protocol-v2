@@ -680,6 +680,26 @@ impl Default for AMM {
 }
 
 impl AMM {
+    pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> bool {
+        let amm_wants_to_jit_make = match taker_direction {
+            PositionDirection::Long => self.base_asset_amount_with_amm < 0,
+            PositionDirection::Short => self.base_asset_amount_with_amm > 0,
+        };
+        amm_wants_to_jit_make && self.amm_jit_is_active()
+    }
+
+    pub fn amm_lp_wants_to_jit_make(&self, taker_direction: PositionDirection) -> bool {
+        let amm_lp_wants_to_jit_make = match taker_direction {
+            PositionDirection::Long => {
+                self.base_asset_amount_per_lp > self.target_base_asset_amount_per_lp.cast().unwrap()
+            }
+            PositionDirection::Short => {
+                self.base_asset_amount_per_lp < self.target_base_asset_amount_per_lp.cast().unwrap()
+            }
+        };
+        amm_lp_wants_to_jit_make && self.amm_lp_jit_is_active()
+    }
+
     pub fn amm_jit_is_active(&self) -> bool {
         self.amm_jit_intensity > 0
     }
