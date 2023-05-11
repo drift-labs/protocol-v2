@@ -138,20 +138,18 @@ pub fn calculate_amm_jit_liquidity(
 ) -> DriftResult<(u64, bool)> {
     let mut jit_base_asset_amount: u64 = 0;
     let mut split_with_lps: bool = false;
-    crate::dlog!(
-        market.amm.base_asset_amount_with_amm,
-        market.amm.amm_jit_intensity
-    );
     let amm_wants_to_make = market.amm.amm_wants_to_jit_make(taker_direction);
 
     // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
     // market order will always land and fill on amm next round
     let amm_will_fill_next_round: bool =
         !taker_has_limit_price && maker_base_asset_amount < taker_base_asset_amount;
-    crate::dlog!(amm_wants_to_make, amm_will_fill_next_round);
+
     if amm_wants_to_make && !amm_will_fill_next_round {
         let amm_lp_wants_to_make = market.amm.amm_lp_wants_to_jit_make(taker_direction);
 
+        // only allow lps to make when the amm inventory is below a certain level of available liquidity
+        // i.e. 10%
         let amm_lps_allowed_to_make = if amm_lp_wants_to_make {
             let amm_inventory_pct = calculate_inventory_liquidity_ratio(
                 market.amm.base_asset_amount_with_amm,
@@ -159,12 +157,10 @@ pub fn calculate_amm_jit_liquidity(
                 market.amm.min_base_asset_reserve,
                 market.amm.max_base_asset_reserve,
             )?;
-            crate::dlog!(amm_inventory_pct);
             amm_inventory_pct.abs() < PERCENTAGE_PRECISION_I128 / 10
         } else {
             false
         };
-        crate::dlog!(amm_lps_allowed_to_make, amm_lp_wants_to_make);
 
         split_with_lps = amm_lps_allowed_to_make && amm_lp_wants_to_make;
 
