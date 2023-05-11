@@ -2107,6 +2107,13 @@ pub fn handle_begin_swap(
         out_market_index
     )?;
 
+    validate!(
+        out_spot_market.flash_loan_initial_token_amount == 0
+            && out_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "begin_swap ended in invalid state"
+    )?;
+
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
     validate!(
@@ -2114,6 +2121,13 @@ pub fn handle_begin_swap(
         ErrorCode::MarketFillOrderPaused,
         "Swaps disabled for {}",
         in_market_index
+    )?;
+
+    validate!(
+        in_spot_market.flash_loan_initial_token_amount == 0
+            && in_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "begin_swap ended in invalid state"
     )?;
 
     validate!(
@@ -2477,6 +2491,24 @@ pub fn handle_end_swap(
         fee,
     };
     emit!(swap_record);
+
+    let in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    validate!(
+        in_spot_market.flash_loan_initial_token_amount == 0
+            && in_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "end_swap ended in invalid state"
+    )?;
+
+    let out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    validate!(
+        out_spot_market.flash_loan_initial_token_amount == 0
+            && out_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "end_swap ended in invalid state"
+    )?;
 
     Ok(())
 }
