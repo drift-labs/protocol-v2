@@ -6488,7 +6488,8 @@
           {
             "name": "ammJitIntensity",
             "docs": [
-              "the jit intensity of AMM. larger intensity means larger participation in jit. 0 means no jit participation."
+              "the jit intensity of AMM. larger intensity means larger participation in jit. 0 means no jit participation.",
+              "(0, 100] is intensity for protocol-owned AMM. (100, 200] is intensity for user LP-owned AMM."
             ],
             "type": "u8"
           },
@@ -6510,6 +6511,10 @@
           },
           {
             "name": "targetBaseAssetAmountPerLp",
+            "docs": [
+              "the target value for `base_asset_amount_per_lp`, used during AMM JIT with LP split",
+              "Precision: BASE_PRECISION"
+            ],
             "type": "i32"
           },
           {
@@ -7499,6 +7504,12 @@
           },
           {
             "name": "OrderFillWithPhoenix"
+          },
+          {
+            "name": "OrderFilledWithAMMJitLPSplit"
+          },
+          {
+            "name": "OrderFilledWithLPJit"
           }
         ]
       }
@@ -7711,6 +7722,23 @@
           },
           {
             "name": "Isolated"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AMMLiquiditySplit",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "ProtocolOwned"
+          },
+          {
+            "name": "LPOwned"
+          },
+          {
+            "name": "Shared"
           }
         ]
       }

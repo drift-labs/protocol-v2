@@ -13,6 +13,7 @@ use crate::math::constants::{
 use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION_U128, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
+use crate::math::helpers::get_proportion_i128;
 
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
@@ -719,7 +720,13 @@ impl AMM {
             )?;
 
             let min_side_liquidity = max_bids.min(max_asks.abs());
-            Ok(self.base_asset_amount_with_amm < min_side_liquidity.safe_div(10)?)
+            let protocol_owned_min_side_liquidity = get_proportion_i128(
+                min_side_liquidity,
+                self.sqrt_k.safe_sub(self.user_lp_shares)?,
+                self.sqrt_k,
+            )?;
+
+            Ok(self.base_asset_amount_with_amm < protocol_owned_min_side_liquidity.safe_div(10)?)
         } else {
             Ok(false)
         }
