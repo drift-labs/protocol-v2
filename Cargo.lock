@@ -820,7 +820,7 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.29.0-beta.0"
+version = "2.29.0"
 dependencies = [
  "anchor-lang 0.26.0 (git+https://github.com/drift-labs/anchor.git?rev=ed950fe)",
  "anchor-spl 0.26.0 (git+https://github.com/drift-labs/anchor.git?rev=ed950fe)",
