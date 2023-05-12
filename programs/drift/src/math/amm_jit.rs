@@ -4,7 +4,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::safe_math::SafeMath;
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket};
 
 #[cfg(test)]
 mod tests;
@@ -17,22 +17,9 @@ pub fn calculate_jit_base_asset_amount(
     auction_price: u64,
     valid_oracle_price: Option<i64>,
     taker_direction: PositionDirection,
-    split_with_lps: bool,
 ) -> DriftResult<u64> {
-    let user_lp_ratio = market
-        .amm
-        .user_lp_shares
-        .safe_div(market.amm.sqrt_k.safe_div(100)?)?
-        .cast::<u64>()?;
-
-    // protocol-owend lp only take up to 50% of what the maker is making
-    let mut max_jit_amount = if split_with_lps && user_lp_ratio > 0 {
-        maker_base_asset_amount
-            .safe_mul(user_lp_ratio.safe_add(50)?)?
-            .safe_div(100)?
-    } else {
-        maker_base_asset_amount.safe_div(2)?
-    };
+    // AMM can only take up to 50% of size the maker is offering
+    let mut max_jit_amount = maker_base_asset_amount.safe_div(2)?;
 
     // check for wash trade
     if let Some(oracle_price) = valid_oracle_price {
@@ -133,9 +120,9 @@ pub fn calculate_amm_jit_liquidity(
     taker_base_asset_amount: u64,
     maker_base_asset_amount: u64,
     taker_has_limit_price: bool,
-) -> DriftResult<(u64, bool)> {
+) -> DriftResult<(u64, AMMLiquiditySplit)> {
     let mut jit_base_asset_amount: u64 = 0;
-    let mut split_with_lps: bool = false;
+    let mut liquidity_split: AMMLiquiditySplit = AMMLiquiditySplit::ProtocolOwned;
     let amm_wants_to_make = market.amm.amm_wants_to_jit_make(taker_direction);
 
     // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
@@ -149,7 +136,12 @@ pub fn calculate_amm_jit_liquidity(
             .amm
             .amm_lp_allowed_to_jit_make(amm_lp_wants_to_make)?;
 
-        split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_make;
+        let split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_make;
+        liquidity_split = if split_with_lps {
+            AMMLiquiditySplit::Shared
+        } else {
+            AMMLiquiditySplit::ProtocolOwned
+        };
 
         jit_base_asset_amount = calculate_jit_base_asset_amount(
             market,
@@ -157,9 +149,8 @@ pub fn calculate_amm_jit_liquidity(
             maker_price,
             valid_oracle_price,
             taker_direction,
-            split_with_lps,
         )?;
     }
 
-    Ok((jit_base_asset_amount, split_with_lps))
+    Ok((jit_base_asset_amount, liquidity_split))
 }

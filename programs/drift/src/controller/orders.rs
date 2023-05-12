@@ -58,7 +58,7 @@ use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::{MarketStatus, PerpMarket};
+use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -1492,7 +1492,7 @@ fn fulfill_perp_order(
                         fee_structure,
                         None,
                         *maker_price,
-                        true,
+                        AMMLiquiditySplit::Shared,
                     )?;
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1690,7 +1690,7 @@ pub fn fulfill_perp_order_with_amm(
     fee_structure: &FeeStructure,
     override_base_asset_amount: Option<u64>,
     override_fill_price: Option<u64>,
-    split_with_lps: bool,
+    liquidity_split: AMMLiquiditySplit,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
 
@@ -1806,7 +1806,7 @@ pub fn fulfill_perp_order_with_amm(
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
-    if split_with_lps {
+    if liquidity_split != AMMLiquiditySplit::ProtocolOwned {
         update_lp_market_position(market, &user_position_delta, fee_to_market_for_lp.cast()?)?;
     }
 
@@ -1904,10 +1904,12 @@ pub fn fulfill_perp_order_with_amm(
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
     let order_action_explanation =
         if override_base_asset_amount.is_some() && override_fill_price.is_some() {
-            if split_with_lps {
-                OrderActionExplanation::OrderFilledWithAMMJitLPSplit
-            } else {
+            if liquidity_split == AMMLiquiditySplit::ProtocolOwned {
                 OrderActionExplanation::OrderFilledWithAMMJit
+            } else if liquidity_split == AMMLiquiditySplit::LPOwned {
+                OrderActionExplanation::OrderFilledWithLPJit
+            } else {
+                OrderActionExplanation::OrderFilledWithAMMJitLPSplit
             }
         } else {
             OrderActionExplanation::OrderFilledWithAMM
@@ -2046,7 +2048,7 @@ pub fn fulfill_perp_order_with_match(
 
     let mut total_quote_asset_amount = 0_u64;
 
-    let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+    let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
         market,
         taker_direction,
         maker_price,
@@ -2077,7 +2079,7 @@ pub fn fulfill_perp_order_with_match(
             fee_structure,
             Some(jit_base_asset_amount),
             Some(maker_price), // match the makers price
-            split_with_lps,
+            amm_liquidity_split,
         )?;
 
         total_quote_asset_amount = quote_asset_amount_filled_by_amm

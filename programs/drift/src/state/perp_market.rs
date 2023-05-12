@@ -104,6 +104,13 @@ impl ContractTier {
     }
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+pub enum AMMLiquiditySplit {
+    ProtocolOwned,
+    LPOwned,
+    Shared,
+}
+
 #[account(zero_copy)]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]

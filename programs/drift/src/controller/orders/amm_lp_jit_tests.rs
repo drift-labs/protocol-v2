@@ -46,7 +46,7 @@ pub mod amm_lp_jit {
     };
     use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
-    use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
+    use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -125,7 +125,6 @@ pub mod amm_lp_jit {
             100 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Short,
-            true,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 500000000);
@@ -136,12 +135,11 @@ pub mod amm_lp_jit {
             100 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Long,
-            true,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 500000000);
 
-        let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+        let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
             &mut market,
             PositionDirection::Short,
             100 * PRICE_PRECISION_U64,
@@ -152,7 +150,7 @@ pub mod amm_lp_jit {
             false,
         )
         .unwrap();
-        assert_eq!(split_with_lps, false);
+        assert_eq!(amm_liquidity_split, AMMLiquiditySplit::ProtocolOwned);
         assert_eq!(jit_base_asset_amount, 500000000);
     }
 
@@ -227,7 +225,7 @@ pub mod amm_lp_jit {
         assert_eq!(amm_inventory_pct, PERCENTAGE_PRECISION_I128 / 200); // .5% of amm inventory is in position
 
         // maker order satisfies taker, vAMM doing match
-        let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+        let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
             &mut market,
             PositionDirection::Long,
             100 * PRICE_PRECISION_U64,
@@ -238,11 +236,11 @@ pub mod amm_lp_jit {
             false,
         )
         .unwrap();
-        assert_eq!(split_with_lps, true);
+        assert_eq!(amm_liquidity_split, AMMLiquiditySplit::Shared);
         assert_eq!(jit_base_asset_amount, 500000000);
 
         // taker order is heading to vAMM
-        let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+        let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
             &mut market,
             PositionDirection::Long,
             100 * PRICE_PRECISION_U64,
@@ -253,11 +251,11 @@ pub mod amm_lp_jit {
             false,
         )
         .unwrap();
-        assert_eq!(split_with_lps, false);
+        assert_eq!(amm_liquidity_split, AMMLiquiditySplit::ProtocolOwned);
         assert_eq!(jit_base_asset_amount, 0); // its coming anyways
 
         // no jit for additional long (more shorts for amm)
-        let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+        let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
             &mut market,
             PositionDirection::Long,
             100 * PRICE_PRECISION_U64,
@@ -268,11 +266,11 @@ pub mod amm_lp_jit {
             false,
         )
         .unwrap();
-        assert_eq!(split_with_lps, true);
+        assert_eq!(amm_liquidity_split, AMMLiquiditySplit::Shared);
         assert_eq!(jit_base_asset_amount, 500000000);
 
         // wrong direction (increases lp and vamm inventory)
-        let (jit_base_asset_amount, split_with_lps) = calculate_amm_jit_liquidity(
+        let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
             &mut market,
             PositionDirection::Short,
             100 * PRICE_PRECISION_U64,
@@ -283,7 +281,7 @@ pub mod amm_lp_jit {
             false,
         )
         .unwrap();
-        assert_eq!(split_with_lps, false);
+        assert_eq!(amm_liquidity_split, AMMLiquiditySplit::ProtocolOwned);
         assert_eq!(jit_base_asset_amount, 0);
     }
 
