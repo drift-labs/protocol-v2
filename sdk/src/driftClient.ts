@@ -3807,22 +3807,54 @@ export class DriftClient {
 
 	/**
 	 * Modifies an open order (spot or perp) by closing it and replacing it with a new order.
-	 * @param orderId: The open order to modify
-	 * @param newDirection: The new direction for the order
-	 * @param newBaseAmount: The new base amount for the order
-	 * @param newLimitPice: The new limit price for the order
-	 * @param newOraclePriceOffset: The new oracle price offset for the order
-	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
-	 * @param auctionDuration:
-	 * @param auctionStartPrice:
-	 * @param auctionEndPrice:
-	 * @param reduceOnly:
-	 * @param postOnly:
-	 * @param immediateOrCancel:
-	 * @param maxTs:
+	 * @param orderParams.orderId: The open order to modify
+	 * @param orderParams.newDirection: The new direction for the order
+	 * @param orderParams.newBaseAmount: The new base amount for the order
+	 * @param orderParams.newLimitPice: The new limit price for the order
+	 * @param orderParams.newOraclePriceOffset: The new oracle price offset for the order
+	 * @param orderParams.newTriggerPrice: Optional - Thew new trigger price for the order.
+	 * @param orderParams.auctionDuration:
+	 * @param orderParams.auctionStartPrice:
+	 * @param orderParams.auctionEndPrice:
+	 * @param orderParams.reduceOnly:
+	 * @param orderParams.postOnly:
+	 * @param orderParams.immediateOrCancel:
+	 * @param orderParams.policy:
+	 * @param orderParams.maxTs:
 	 * @returns
 	 */
-	public async modifyOrder({
+	public async modifyOrder(
+		orderParams: {
+			orderId: number;
+			newDirection?: PositionDirection;
+			newBaseAmount?: BN;
+			newLimitPrice?: BN;
+			newOraclePriceOffset?: number;
+			newTriggerPrice?: BN;
+			newTriggerCondition?: OrderTriggerCondition;
+			auctionDuration?: number;
+			auctionStartPrice?: BN;
+			auctionEndPrice?: BN;
+			reduceOnly?: boolean;
+			postOnly?: boolean;
+			immediateOrCancel?: boolean;
+			maxTs?: BN;
+			policy?: ModifyOrderParams;
+		},
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getModifyOrderIx(orderParams),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getModifyOrderIx({
 		orderId,
 		newDirection,
 		newBaseAmount,
@@ -3837,7 +3869,7 @@ export class DriftClient {
 		postOnly,
 		immediateOrCancel,
 		maxTs,
-		txParams,
+		policy,
 	}: {
 		orderId: number;
 		newDirection?: PositionDirection;
@@ -3853,8 +3885,15 @@ export class DriftClient {
 		postOnly?: boolean;
 		immediateOrCancel?: boolean;
 		maxTs?: BN;
-		txParams?: TxParams;
-	}): Promise<TransactionSignature> {
+		policy?: ModifyOrderParams;
+	}): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			useMarketLastSlotCache: true,
+		});
+
 		const orderParams: ModifyOrderParams = {
 			baseAssetAmount: newBaseAmount || null,
 			direction: newDirection || null,
@@ -3868,30 +3907,9 @@ export class DriftClient {
 			reduceOnly: reduceOnly || null,
 			postOnly: postOnly || null,
 			immediateOrCancel: immediateOrCancel || null,
+			policy: policy || null,
 			maxTs: maxTs || null,
 		};
-
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getModifyOrderIx(orderId, orderParams),
-				txParams
-			),
-			[],
-			this.opts
-		);
-		return txSig;
-	}
-
-	public async getModifyOrderIx(
-		orderId: number,
-		orderParams: ModifyOrderParams
-	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
-
-		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
-		});
 
 		return await this.program.instruction.modifyOrder(orderId, orderParams, {
 			accounts: {
@@ -3906,22 +3924,54 @@ export class DriftClient {
 
 	/**
 	 * Modifies an open order by closing it and replacing it with a new order.
-	 * @param userOrderId: The open order to modify
-	 * @param newDirection: The new direction for the order
-	 * @param newBaseAmount: The new base amount for the order
-	 * @param newLimitPice: The new limit price for the order
-	 * @param newOraclePriceOffset: The new oracle price offset for the order
-	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
-	 * @param auctionDuration: Only required if order type changed to market from something else
-	 * @param auctionStartPrice: Only required if order type changed to market from something else
-	 * @param auctionEndPrice: Only required if order type changed to market from something else
-	 * @param reduceOnly:
-	 * @param postOnly:
-	 * @param immediateOrCancel:
-	 * @param maxTs:
+	 * @param orderParams.userOrderId: The open order to modify
+	 * @param orderParams.newDirection: The new direction for the order
+	 * @param orderParams.newBaseAmount: The new base amount for the order
+	 * @param orderParams.newLimitPice: The new limit price for the order
+	 * @param orderParams.newOraclePriceOffset: The new oracle price offset for the order
+	 * @param orderParams.newTriggerPrice: Optional - Thew new trigger price for the order.
+	 * @param orderParams.auctionDuration: Only required if order type changed to market from something else
+	 * @param orderParams.auctionStartPrice: Only required if order type changed to market from something else
+	 * @param orderParams.auctionEndPrice: Only required if order type changed to market from something else
+	 * @param orderParams.reduceOnly:
+	 * @param orderParams.postOnly:
+	 * @param orderParams.immediateOrCancel:
+	 * @param orderParams.policy:
+	 * @param orderParams.maxTs:
 	 * @returns
 	 */
-	public async modifyOrderByUserOrderId({
+	public async modifyOrderByUserOrderId(
+		orderParams: {
+			userOrderId: number;
+			newDirection?: PositionDirection;
+			newBaseAmount?: BN;
+			newLimitPrice?: BN;
+			newOraclePriceOffset?: number;
+			newTriggerPrice?: BN;
+			newTriggerCondition?: OrderTriggerCondition;
+			auctionDuration?: number;
+			auctionStartPrice?: BN;
+			auctionEndPrice?: BN;
+			reduceOnly?: boolean;
+			postOnly?: boolean;
+			immediateOrCancel?: boolean;
+			policy?: ModifyOrderParams;
+			maxTs?: BN;
+		},
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getModifyOrderByUserIdIx(orderParams),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getModifyOrderByUserIdIx({
 		userOrderId,
 		newDirection,
 		newBaseAmount,
@@ -3936,7 +3986,7 @@ export class DriftClient {
 		postOnly,
 		immediateOrCancel,
 		maxTs,
-		txParams,
+		policy,
 	}: {
 		userOrderId: number;
 		newDirection?: PositionDirection;
@@ -3951,9 +4001,17 @@ export class DriftClient {
 		reduceOnly?: boolean;
 		postOnly?: boolean;
 		immediateOrCancel?: boolean;
+		policy?: ModifyOrderParams;
 		maxTs?: BN;
 		txParams?: TxParams;
-	}): Promise<TransactionSignature> {
+	}): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			useMarketLastSlotCache: true,
+		});
+
 		const orderParams: ModifyOrderParams = {
 			baseAssetAmount: newBaseAmount || null,
 			direction: newDirection || null,
@@ -3967,30 +4025,9 @@ export class DriftClient {
 			reduceOnly: reduceOnly || null,
 			postOnly: postOnly || null,
 			immediateOrCancel: immediateOrCancel || null,
+			policy: policy || null,
 			maxTs: maxTs || null,
 		};
-
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getModifyOrderByUserIdIx(userOrderId, orderParams),
-				txParams
-			),
-			[],
-			this.opts
-		);
-		return txSig;
-	}
-
-	public async getModifyOrderByUserIdIx(
-		userOrderId: number,
-		orderParams: ModifyOrderParams
-	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
-
-		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
-		});
 
 		return await this.program.instruction.modifyOrderByUserId(
 			userOrderId,

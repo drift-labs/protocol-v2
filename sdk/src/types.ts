@@ -883,7 +883,12 @@ export type OptionalOrderParams = {
 
 export type ModifyOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property] | null;
-};
+} & { policy?: ModifyOrderPolicy };
+
+export class ModifyOrderPolicy {
+	static readonly MUST_MODIFY = { mustModify: {} };
+	static readonly TRY_MODIFY = { tryModify: {} };
+}
 
 export const DefaultOrderParams: OrderParams = {
 	orderType: OrderType.MARKET,

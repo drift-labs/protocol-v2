@@ -918,6 +918,19 @@ pub struct ModifyOrderParams {
     pub auction_duration: Option<u8>,
     pub auction_start_price: Option<i64>,
     pub auction_end_price: Option<i64>,
+    pub policy: Option<ModifyOrderPolicy>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq)]
+pub enum ModifyOrderPolicy {
+    TryModify,
+    MustModify,
+}
+
+impl Default for ModifyOrderPolicy {
+    fn default() -> Self {
+        Self::TryModify
+    }
 }
 
 #[access_control(
