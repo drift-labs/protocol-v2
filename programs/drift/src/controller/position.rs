@@ -19,7 +19,7 @@ use crate::math::position::{get_position_update_type, PositionUpdateType};
 use crate::math::safe_math::SafeMath;
 use crate::math_error;
 use crate::safe_increment;
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{PerpMarket, AMMLiquiditySplit};
 use crate::state::user::{PerpPosition, PerpPositions, User};
 use crate::validate;
 
@@ -382,8 +382,14 @@ pub fn update_lp_market_position(
     market: &mut PerpMarket,
     delta: &PositionDelta,
     fee_to_market: i128,
+    liquidity_split: AMMLiquiditySplit
 ) -> DriftResult<(i128, i128, i128)> {
-    let total_lp_shares = market.amm.sqrt_k;
+    let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
+        market.amm.user_lp_shares
+    } else {
+        market.amm.sqrt_k
+    };
+
     let user_lp_shares = market.amm.user_lp_shares;
 
     if user_lp_shares == 0 {

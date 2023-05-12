@@ -17,6 +17,7 @@ pub fn calculate_jit_base_asset_amount(
     auction_price: u64,
     valid_oracle_price: Option<i64>,
     taker_direction: PositionDirection,
+    liquidity_split: AMMLiquiditySplit,
 ) -> DriftResult<u64> {
     // AMM can only take up to 50% of size the maker is offering
     let mut max_jit_amount = maker_base_asset_amount.safe_div(2)?;
@@ -75,7 +76,8 @@ pub fn calculate_jit_base_asset_amount(
         return Ok(0);
     }
 
-    jit_base_asset_amount = calculate_clamped_jit_base_asset_amount(market, jit_base_asset_amount)?;
+    jit_base_asset_amount =
+        calculate_clamped_jit_base_asset_amount(market, liquidity_split, jit_base_asset_amount)?;
 
     jit_base_asset_amount = jit_base_asset_amount.min(max_jit_amount);
 
@@ -90,6 +92,7 @@ pub fn calculate_jit_base_asset_amount(
 // note: we split it into two (calc and clamp) bc its easier to maintain tests
 pub fn calculate_clamped_jit_base_asset_amount(
     market: &PerpMarket,
+    liquidity_split: AMMLiquiditySplit,
     jit_base_asset_amount: u64,
 ) -> DriftResult<u64> {
     // apply intensity
@@ -101,11 +104,20 @@ pub fn calculate_clamped_jit_base_asset_amount(
         .cast::<u64>()?;
 
     // bound it; dont flip the net_baa
-    let max_amm_base_asset_amount = market
-        .amm
-        .base_asset_amount_with_amm
-        .unsigned_abs()
-        .cast::<u64>()?;
+    let max_amm_base_asset_amount = if liquidity_split != AMMLiquiditySplit::LPOwned {
+        market
+            .amm
+            .base_asset_amount_with_amm
+            .unsigned_abs()
+            .cast::<u64>()?
+    } else {
+        market
+            .amm
+            .imbalanced_base_asset_amount_with_lp()?
+            .unsigned_abs()
+            .cast::<u64>()?
+    };
+
     let jit_base_asset_amount = jit_base_asset_amount.min(max_amm_base_asset_amount);
 
     Ok(jit_base_asset_amount)
@@ -130,13 +142,18 @@ pub fn calculate_amm_jit_liquidity(
     let amm_will_fill_next_round: bool =
         !taker_has_limit_price && maker_base_asset_amount < taker_base_asset_amount;
 
-    if amm_wants_to_make && !amm_will_fill_next_round {
-        let amm_lp_wants_to_make = market.amm.amm_lp_wants_to_jit_make(taker_direction);
-        let amm_lp_allowed_to_jit_make = market
-            .amm
-            .amm_lp_allowed_to_jit_make(amm_lp_wants_to_make)?;
+    // return early
+    if amm_will_fill_next_round {
+        return  Ok((jit_base_asset_amount, liquidity_split))
+    }
 
-        let split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_make;
+    let amm_lp_wants_to_make = market.amm.amm_lp_wants_to_jit_make(taker_direction);
+    let amm_lp_allowed_to_jit_make = market
+        .amm
+        .amm_lp_allowed_to_jit_make(amm_lp_wants_to_make)?;
+    let split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_make;
+
+    if amm_wants_to_make {
         liquidity_split = if split_with_lps {
             AMMLiquiditySplit::Shared
         } else {
@@ -149,6 +166,18 @@ pub fn calculate_amm_jit_liquidity(
             maker_price,
             valid_oracle_price,
             taker_direction,
+            liquidity_split,
+        )?;
+    } else if split_with_lps {
+        liquidity_split = AMMLiquiditySplit::LPOwned;
+
+        jit_base_asset_amount = calculate_jit_base_asset_amount(
+            market,
+            base_asset_amount,
+            maker_price,
+            valid_oracle_price,
+            taker_direction,
+            liquidity_split,
         )?;
     }
 

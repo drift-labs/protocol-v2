@@ -1807,7 +1807,7 @@ pub fn fulfill_perp_order_with_amm(
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
     if liquidity_split != AMMLiquiditySplit::ProtocolOwned {
-        update_lp_market_position(market, &user_position_delta, fee_to_market_for_lp.cast()?)?;
+        update_lp_market_position(market, &user_position_delta, fee_to_market_for_lp.cast()?, liquidity_split)?;
     }
 
     if market.amm.user_lp_shares > 0 {
@@ -1902,18 +1902,14 @@ pub fn fulfill_perp_order_with_amm(
         get_taker_and_maker_for_order_record(user_key, &user.orders[order_index]);
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
-    let order_action_explanation =
-        if override_base_asset_amount.is_some() && override_fill_price.is_some() {
-            if liquidity_split == AMMLiquiditySplit::ProtocolOwned {
-                OrderActionExplanation::OrderFilledWithAMMJit
-            } else if liquidity_split == AMMLiquiditySplit::LPOwned {
-                OrderActionExplanation::OrderFilledWithLPJit
-            } else {
-                OrderActionExplanation::OrderFilledWithAMMJitLPSplit
-            }
-        } else {
-            OrderActionExplanation::OrderFilledWithAMM
-        };
+    let order_action_explanation = match (override_base_asset_amount, override_fill_price) {
+        (Some(_), Some(_)) => match liquidity_split {
+            AMMLiquiditySplit::ProtocolOwned => OrderActionExplanation::OrderFilledWithAMMJit,
+            AMMLiquiditySplit::LPOwned => OrderActionExplanation::OrderFilledWithLPJit,
+            AMMLiquiditySplit::Shared => OrderActionExplanation::OrderFilledWithAMMJitLPSplit,
+        },
+        _ => OrderActionExplanation::OrderFilledWithAMM,
+    };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,

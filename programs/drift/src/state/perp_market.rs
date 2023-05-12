@@ -11,7 +11,8 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
 };
 use crate::math::constants::{
-    BID_ASK_SPREAD_PRECISION_U128, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    BASE_PRECISION, BID_ASK_SPREAD_PRECISION_U128, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION,
+    TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -688,6 +689,14 @@ impl Default for AMM {
 }
 
 impl AMM {
+    pub fn imbalanced_base_asset_amount_with_lp(&self) -> DriftResult<i128> {
+        let tt = self
+            .base_asset_amount_per_lp
+            .safe_sub(self.target_base_asset_amount_per_lp.cast()?)?;
+
+        get_proportion_i128(tt, self.user_lp_shares, BASE_PRECISION)
+    }
+
     pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> bool {
         let amm_wants_to_jit_make = match taker_direction {
             PositionDirection::Long => self.base_asset_amount_with_amm < 0,
@@ -697,6 +706,10 @@ impl AMM {
     }
 
     pub fn amm_lp_wants_to_jit_make(&self, taker_direction: PositionDirection) -> bool {
+        if self.user_lp_shares == 0 {
+            return false;
+        }
+
         let amm_lp_wants_to_jit_make = match taker_direction {
             PositionDirection::Long => {
                 self.base_asset_amount_per_lp > self.target_base_asset_amount_per_lp.cast().unwrap()
