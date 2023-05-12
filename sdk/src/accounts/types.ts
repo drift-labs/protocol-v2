@@ -59,6 +59,8 @@ export interface DriftClientAccountSubscriber {
 	getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined;
+
+	updateAccountLoaderPollingFrequency?: (pollingFrequency: number) => void;
 }
 
 export interface UserAccountEvents {
