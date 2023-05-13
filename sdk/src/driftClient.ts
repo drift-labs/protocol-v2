@@ -3298,7 +3298,7 @@ export class DriftClient {
 	 * @param outAssociatedTokenAccount the token account to receive the token being sold on jupiter
 	 * @param inAssociatedTokenAccount the token account to
 	 * @param amount the amount of the token to sell
-	 * @param slippageBps
+	 * @param slippageBps the max slippage passed to jupiter api
 	 * @param txParams
 	 */
 	public async swap({
