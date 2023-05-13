@@ -92,7 +92,7 @@ export class JupiterClient {
 	 * @param userPublicKey the user's wallet public key
 	 * @param slippageBps the slippage tolerance in basis points
 	 */
-	public async fetchSwapTransaction({
+	public async getSwapTransaction({
 		route,
 		userPublicKey,
 		slippageBps = 50,
@@ -129,8 +129,6 @@ export class JupiterClient {
 		transaction,
 	}: {
 		transaction: VersionedTransaction;
-		inputMint: PublicKey;
-		outputMint: PublicKey;
 	}): Promise<{
 		transactionMessage: TransactionMessage;
 		lookupTables: AddressLookupTableAccount[];
