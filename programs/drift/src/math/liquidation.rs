@@ -12,6 +12,7 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
+use crate::math::spot_swap::calculate_swap_price;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -311,17 +312,18 @@ pub fn validate_transfer_satisfies_limit_price(
         None => return Ok(()),
     };
 
-    let transfer_price = asset_transfer
-        .safe_mul(PRICE_PRECISION)?
-        .safe_div(10_u128.pow(asset_decimals))?
-        .safe_mul(10_u128.pow(liability_decimals))?
-        .safe_div(liability_transfer)?;
+    let swap_price = calculate_swap_price(
+        asset_transfer,
+        liability_transfer,
+        asset_decimals,
+        liability_decimals,
+    )?;
 
     validate!(
-        transfer_price >= limit_price.cast()?,
+        swap_price >= limit_price.cast()?,
         ErrorCode::LiquidationDoesntSatisfyLimitPrice,
         "transfer price transfer_price ({}/1000000) < limit price ({}/1000000)",
-        transfer_price,
+        swap_price,
         limit_price
     )
 }

@@ -47,3 +47,12 @@ pub mod msrm_mint {
     use solana_program::declare_id;
     declare_id!("MSRMcoVyrFxnSgo5uXwone5SKcGhT1KEJMFEkMEWf9L");
 }
+
+pub mod jupiter_mainnet_4 {
+    use solana_program::declare_id;
+    declare_id!("JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB");
+}
+pub mod jupiter_mainnet_3 {
+    use solana_program::declare_id;
+    declare_id!("JUP3c2Uh3WA4Ng34tw6kPd2G4C5BB21Xo36Je1s32Ph");
+}

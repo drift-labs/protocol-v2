@@ -3265,6 +3265,81 @@ export class DriftClient {
 		});
 	}
 
+	public async getSwapIx({
+		outMarketIndex,
+		inMarketIndex,
+		amountOut,
+		inTokenAccount,
+		outTokenAccount,
+		limitPrice,
+	}: {
+		outMarketIndex: number;
+		inMarketIndex: number;
+		amountOut: BN;
+		inTokenAccount: PublicKey;
+		outTokenAccount: PublicKey;
+		limitPrice?: BN;
+	}): Promise<{
+		beginSwapIx: TransactionInstruction;
+		endSwapIx: TransactionInstruction;
+	}> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			writableSpotMarketIndexes: [outMarketIndex, inMarketIndex],
+		});
+
+		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
+		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
+
+		const beginSwapIx = await this.program.instruction.beginSwap(
+			outMarketIndex,
+			inMarketIndex,
+			amountOut,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.authority,
+					outSpotMarketVault: outSpotMarket.vault,
+					inSpotMarketVault: inSpotMarket.vault,
+					inTokenAccount,
+					outTokenAccount,
+					tokenProgram: TOKEN_PROGRAM_ID,
+					driftSigner: this.getStateAccount().signer,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		const endSwapIx = await this.program.instruction.endSwap(
+			outMarketIndex,
+			inMarketIndex,
+			limitPrice ?? null,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.authority,
+					outSpotMarketVault: outSpotMarket.vault,
+					inSpotMarketVault: inSpotMarket.vault,
+					inTokenAccount,
+					outTokenAccount,
+					tokenProgram: TOKEN_PROGRAM_ID,
+					driftSigner: this.getStateAccount().signer,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		return { beginSwapIx, endSwapIx };
+	}
+
 	public async triggerOrder(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
