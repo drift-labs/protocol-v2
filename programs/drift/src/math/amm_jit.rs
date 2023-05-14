@@ -144,7 +144,7 @@ pub fn calculate_amm_jit_liquidity(
 
     // return early
     if amm_will_fill_next_round {
-        return  Ok((jit_base_asset_amount, liquidity_split))
+        return Ok((jit_base_asset_amount, liquidity_split));
     }
 
     let amm_lp_wants_to_make = market.amm.amm_lp_wants_to_jit_make(taker_direction);

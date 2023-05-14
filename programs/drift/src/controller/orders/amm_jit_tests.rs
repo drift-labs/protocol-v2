@@ -42,7 +42,7 @@ pub mod amm_jit {
     };
     use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
-    use crate::state::perp_market::{MarketStatus, PerpMarket, AMM, AMMLiquiditySplit};
+    use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;

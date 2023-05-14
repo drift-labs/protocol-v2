@@ -200,9 +200,11 @@ pub mod amm_lp_jit {
         market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
-
         // lp needs nearly 5 base to get to target
-        assert_eq!(market.amm.imbalanced_base_asset_amount_with_lp().unwrap(), 4_941_986_570);
+        assert_eq!(
+            market.amm.imbalanced_base_asset_amount_with_lp().unwrap(),
+            4_941_986_570
+        );
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(

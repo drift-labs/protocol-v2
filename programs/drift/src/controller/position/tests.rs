@@ -4,7 +4,7 @@ use crate::controller::position::{
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64,
 };
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket, AMM};
 use crate::state::user::PerpPosition;
 
 #[test]
@@ -25,7 +25,7 @@ fn full_amm_split() {
         ..PerpMarket::default_test()
     };
 
-    update_lp_market_position(&mut market, &delta, 0).unwrap();
+    update_lp_market_position(&mut market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
 
     assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 0);
     assert_eq!(
@@ -52,7 +52,7 @@ fn full_lp_split() {
         ..PerpMarket::default_test()
     };
 
-    update_lp_market_position(&mut market, &delta, 0).unwrap();
+    update_lp_market_position(&mut market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
 
     assert_eq!(
         market.amm.base_asset_amount_per_lp as i64,
@@ -87,7 +87,7 @@ fn half_half_amm_lp_split() {
         ..PerpMarket::default_test()
     };
 
-    update_lp_market_position(&mut market, &delta, 0).unwrap();
+    update_lp_market_position(&mut market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
 
     assert_eq!(
         market.amm.base_asset_amount_with_amm,
