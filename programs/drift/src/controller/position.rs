@@ -384,8 +384,10 @@ pub fn update_lp_market_position(
     fee_to_market: i128,
     liquidity_split: AMMLiquiditySplit,
 ) -> DriftResult<(i128, i128, i128)> {
-    if liquidity_split == AMMLiquiditySplit::ProtocolOwned {
-        return Ok((0, 0, 0));
+    let user_lp_shares = market.amm.user_lp_shares;
+
+    if user_lp_shares == 0 || liquidity_split == AMMLiquiditySplit::ProtocolOwned {
+        return Ok((0, 0, 0)); // no need to split with LP
     }
 
     let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
@@ -393,12 +395,6 @@ pub fn update_lp_market_position(
     } else {
         market.amm.sqrt_k
     };
-
-    let user_lp_shares = market.amm.user_lp_shares;
-
-    if user_lp_shares == 0 {
-        return Ok((0, 0, 0));
-    }
 
     // update Market per lp position
     let per_lp_delta_base = get_proportion_i128(
