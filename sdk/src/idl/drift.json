@@ -774,15 +774,15 @@
       ],
       "args": [
         {
-          "name": "outMarketIndex",
-          "type": "u16"
-        },
-        {
           "name": "inMarketIndex",
           "type": "u16"
         },
         {
-          "name": "outAmount",
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amountIn",
           "type": "u64"
         }
       ]
@@ -851,11 +851,11 @@
       ],
       "args": [
         {
-          "name": "outMarketIndex",
+          "name": "inMarketIndex",
           "type": "u16"
         },
         {
-          "name": "inMarketIndex",
+          "name": "outMarketIndex",
           "type": "u16"
         },
         {
@@ -10321,8 +10321,5 @@
       "name": "SpotMarketReduceOnly",
       "msg": "SpotMarketReduceOnly"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }
