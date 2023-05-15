@@ -2025,7 +2025,7 @@ pub struct DeleteUser<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(out_market_index: u16, in_market_index: u16,)]
+#[instruction(in_market_index: u16, out_market_index: u16, )]
 pub struct Swap<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
@@ -2080,9 +2080,9 @@ pub struct Swap<'info> {
 )]
 pub fn handle_begin_swap(
     ctx: Context<Swap>,
-    out_market_index: u16,
     in_market_index: u16,
-    amount_out: u64,
+    out_market_index: u16,
+    amount_in: u64,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
@@ -2112,29 +2112,6 @@ pub fn handle_begin_swap(
         ctx.accounts.state.liquidation_margin_buffer_ratio,
     )?;
 
-    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
-
-    validate!(
-        out_spot_market.fills_enabled(),
-        ErrorCode::MarketFillOrderPaused,
-        "Swaps disabled for {}",
-        out_market_index
-    )?;
-
-    validate!(
-        out_spot_market.flash_loan_initial_token_amount == 0
-            && out_spot_market.flash_loan_amount == 0,
-        ErrorCode::InvalidSwap,
-        "begin_swap ended in invalid state"
-    )?;
-
-    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
-    controller::spot_balance::update_spot_market_cumulative_interest(
-        &mut out_spot_market,
-        Some(out_oracle_data),
-        now,
-    )?;
-
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
     validate!(
@@ -2158,29 +2135,52 @@ pub fn handle_begin_swap(
         now,
     )?;
 
+    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
     validate!(
-        amount_out != 0,
+        out_spot_market.fills_enabled(),
+        ErrorCode::MarketFillOrderPaused,
+        "Swaps disabled for {}",
+        out_market_index
+    )?;
+
+    validate!(
+        out_spot_market.flash_loan_initial_token_amount == 0
+            && out_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "begin_swap ended in invalid state"
+    )?;
+
+    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut out_spot_market,
+        Some(out_oracle_data),
+        now,
+    )?;
+
+    validate!(
+        amount_in != 0,
         ErrorCode::InvalidSwap,
         "amount_out cannot be zero"
     )?;
 
-    let out_vault = &ctx.accounts.out_spot_market_vault;
-    let out_token_account = &ctx.accounts.out_token_account;
-
-    out_spot_market.flash_loan_amount = amount_out;
-    out_spot_market.flash_loan_initial_token_amount = out_token_account.amount;
-
+    let in_vault = &ctx.accounts.in_spot_market_vault;
     let in_token_account = &ctx.accounts.in_token_account;
 
+    in_spot_market.flash_loan_amount = amount_in;
     in_spot_market.flash_loan_initial_token_amount = in_token_account.amount;
+
+    let out_token_account = &ctx.accounts.out_token_account;
+
+    out_spot_market.flash_loan_initial_token_amount = out_token_account.amount;
 
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
-        out_vault,
-        &ctx.accounts.out_token_account,
+        in_vault,
+        &ctx.accounts.in_token_account,
         &ctx.accounts.drift_signer,
         state.signer_nonce,
-        amount_out,
+        amount_in,
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
@@ -2284,8 +2284,8 @@ pub fn handle_begin_swap(
 )]
 pub fn handle_end_swap(
     ctx: Context<Swap>,
-    out_market_index: u16,
     in_market_index: u16,
+    out_market_index: u16,
     limit_price: Option<u64>,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
@@ -2310,28 +2310,80 @@ pub fn handle_end_swap(
 
     let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
 
-    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
     validate!(
-        out_spot_market.flash_loan_amount != 0,
+        in_spot_market.flash_loan_amount != 0,
         ErrorCode::InvalidSwap,
-        "the out_spot_market must have a flash loan amount set"
+        "the in_spot_market must have a flash loan amount set"
     )?;
-
-    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
-    let out_oracle_price = out_oracle_data.price;
-
-    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
     let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle)?;
     let in_oracle_price = in_oracle_data.price;
 
+    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    let out_oracle_price = out_oracle_data.price;
+
+    let in_vault = &mut ctx.accounts.in_spot_market_vault;
+    let in_token_account = &mut ctx.accounts.in_token_account;
+
+    let mut amount_in = in_spot_market.flash_loan_amount;
+    if in_token_account.amount > in_spot_market.flash_loan_initial_token_amount {
+        let residual = in_token_account
+            .amount
+            .safe_sub(in_spot_market.flash_loan_initial_token_amount)?;
+
+        controller::token::receive(
+            &ctx.accounts.token_program,
+            in_token_account,
+            in_vault,
+            &ctx.accounts.authority,
+            residual,
+        )?;
+        in_token_account.reload()?;
+        in_vault.reload()?;
+
+        amount_in = amount_in.safe_sub(residual)?;
+    }
+
+    let in_token_amount_before = user
+        .force_get_spot_position_mut(in_market_index)?
+        .get_signed_token_amount(&in_spot_market)?;
+
+    // checks deposit/borrow limits
+    update_spot_balances_and_cumulative_deposits_with_limits(
+        amount_in.cast()?,
+        &SpotBalanceType::Borrow,
+        &mut in_spot_market,
+        &mut user,
+    )?;
+
+    let in_position_is_reduced =
+        in_token_amount_before > 0 && in_token_amount_before.unsigned_abs() >= amount_in.cast()?;
+
+    if !in_position_is_reduced {
+        validate!(
+            !in_spot_market.is_reduce_only(),
+            ErrorCode::SpotMarketReduceOnly,
+            "in spot market is reduce only but token amount before ({}) < amount in ({})",
+            in_token_amount_before,
+            amount_in
+        )?;
+    }
+
+    math::spot_withdraw::validate_spot_market_vault_amount(&in_spot_market, in_vault.amount)?;
+
+    in_spot_market.flash_loan_initial_token_amount = 0;
+    in_spot_market.flash_loan_amount = 0;
+
     let out_vault = &mut ctx.accounts.out_spot_market_vault;
     let out_token_account = &mut ctx.accounts.out_token_account;
 
-    let mut amount_out = out_spot_market.flash_loan_amount;
+    let mut amount_out = 0_u64;
     if out_token_account.amount > out_spot_market.flash_loan_initial_token_amount {
-        let residual = out_token_account
+        amount_out = out_token_account
             .amount
             .safe_sub(out_spot_market.flash_loan_initial_token_amount)?;
 
@@ -2340,27 +2392,70 @@ pub fn handle_end_swap(
             out_token_account,
             out_vault,
             &ctx.accounts.authority,
-            residual,
+            amount_out,
         )?;
-        out_token_account.reload()?;
         out_vault.reload()?;
-
-        amount_out = amount_out.safe_sub(residual)?;
     }
+
+    if let Some(limit_price) = limit_price {
+        let swap_price = calculate_swap_price(
+            amount_out.cast()?,
+            amount_in.cast()?,
+            out_spot_market.decimals,
+            in_spot_market.decimals,
+        )?;
+
+        validate!(
+            swap_price >= limit_price.cast()?,
+            ErrorCode::SwapLimitPriceBreached,
+            "swap_price ({}) < limit price ({})",
+            swap_price,
+            limit_price
+        )?;
+    }
+
+    let fee = amount_out / 2000; // 0.05% fee
+    let amount_out_after_fee = amount_out.safe_sub(fee)?;
+
+    out_spot_market.total_swap_fee = out_spot_market.total_swap_fee.saturating_add(fee);
+
+    let fee_value = get_token_value(fee.cast()?, out_spot_market.decimals, out_oracle_data.price)?;
+
+    // update fees
+    user.update_cumulative_spot_fees(-fee_value.cast()?)?;
+    user_stats.increment_total_fees(fee_value.cast()?)?;
+
+    // update taker volume
+    let amount_out_value = get_token_value(
+        amount_out.cast()?,
+        out_spot_market.decimals,
+        out_oracle_data.price,
+    )?;
+    user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+
+    validate!(
+        amount_out != 0,
+        ErrorCode::InvalidSwap,
+        "amount_out must be greater than 0"
+    )?;
 
     let out_token_amount_before = user
         .force_get_spot_position_mut(out_market_index)?
         .get_signed_token_amount(&out_spot_market)?;
 
-    // checks deposit/borrow limits
-    update_spot_balances_and_cumulative_deposits_with_limits(
-        amount_out.cast()?,
-        &SpotBalanceType::Borrow,
+    update_spot_balances_and_cumulative_deposits(
+        amount_out_after_fee.cast()?,
+        &SpotBalanceType::Deposit,
         &mut out_spot_market,
-        &mut user,
+        user.force_get_spot_position_mut(out_market_index)?,
+        false,
+        Some(amount_out.cast()?),
     )?;
 
-    let out_position_is_reduced = out_token_amount_before > 0
+    // update fees
+    update_revenue_pool_balances(fee.cast()?, &SpotBalanceType::Deposit, &mut out_spot_market)?;
+
+    let out_position_is_reduced = out_token_amount_before < 0
         && out_token_amount_before.unsigned_abs() >= amount_out.cast()?;
 
     if !out_position_is_reduced {
@@ -2378,110 +2473,15 @@ pub fn handle_end_swap(
     out_spot_market.flash_loan_initial_token_amount = 0;
     out_spot_market.flash_loan_amount = 0;
 
-    let in_vault = &mut ctx.accounts.in_spot_market_vault;
-    let in_token_account = &mut ctx.accounts.in_token_account;
+    out_spot_market.validate_max_token_deposits()?;
 
-    let mut amount_in = 0_u64;
-    if in_token_account.amount > in_spot_market.flash_loan_initial_token_amount {
-        amount_in = in_token_account
-            .amount
-            .safe_sub(in_spot_market.flash_loan_initial_token_amount)?;
+    let out_safer_than_in =
+        out_spot_market.maintenance_asset_weight > in_spot_market.maintenance_asset_weight;
 
-        controller::token::receive(
-            &ctx.accounts.token_program,
-            in_token_account,
-            in_vault,
-            &ctx.accounts.authority,
-            amount_in,
-        )?;
-        in_vault.reload()?;
-    }
-
-    if let Some(limit_price) = limit_price {
-        let swap_price = calculate_swap_price(
-            amount_in.cast()?,
-            amount_out.cast()?,
-            in_spot_market.decimals,
-            out_spot_market.decimals,
-        )?;
-
-        validate!(
-            swap_price >= limit_price.cast()?,
-            ErrorCode::SwapLimitPriceBreached,
-            "swap_price ({}) < limit price ({})",
-            swap_price,
-            limit_price
-        )?;
-    }
-
-    let fee = amount_in / 2000; // 0.05% fee
-    let amount_in_after_fee = amount_in.safe_sub(fee)?;
-
-    in_spot_market.total_swap_fee = in_spot_market.total_swap_fee.saturating_add(fee);
-
-    let fee_value = get_token_value(fee.cast()?, in_spot_market.decimals, in_oracle_data.price)?;
-
-    // update fees
-    user.update_cumulative_spot_fees(-fee_value.cast()?)?;
-    user_stats.increment_total_fees(fee_value.cast()?)?;
-
-    // update taker volume
-    let amount_in_value = get_token_value(
-        amount_in.cast()?,
-        in_spot_market.decimals,
-        in_oracle_data.price,
-    )?;
-    user_stats.update_taker_volume_30d(amount_in_value.cast()?, now)?;
-
-    validate!(
-        amount_in != 0,
-        ErrorCode::InvalidSwap,
-        "amount_in must be greater than 0"
-    )?;
-
-    let in_token_amount_before = user
-        .force_get_spot_position_mut(in_market_index)?
-        .get_signed_token_amount(&in_spot_market)?;
-
-    update_spot_balances_and_cumulative_deposits(
-        amount_in_after_fee.cast()?,
-        &SpotBalanceType::Deposit,
-        &mut in_spot_market,
-        user.force_get_spot_position_mut(in_market_index)?,
-        false,
-        Some(amount_in.cast()?),
-    )?;
-
-    // update fees
-    update_revenue_pool_balances(fee.cast()?, &SpotBalanceType::Deposit, &mut in_spot_market)?;
-
-    let in_position_is_reduced =
-        in_token_amount_before < 0 && in_token_amount_before.unsigned_abs() >= amount_in.cast()?;
-
-    if !in_position_is_reduced {
-        validate!(
-            !in_spot_market.is_reduce_only(),
-            ErrorCode::SpotMarketReduceOnly,
-            "in spot market is reduce only but token amount before ({}) < amount in ({})",
-            in_token_amount_before,
-            amount_in
-        )?;
-    }
-
-    math::spot_withdraw::validate_spot_market_vault_amount(&in_spot_market, in_vault.amount)?;
-
-    in_spot_market.flash_loan_initial_token_amount = 0;
-    in_spot_market.flash_loan_amount = 0;
-
-    in_spot_market.validate_max_token_deposits()?;
-
-    let in_safer_than_out =
-        in_spot_market.maintenance_asset_weight > out_spot_market.maintenance_asset_weight;
-
-    drop(in_spot_market);
     drop(out_spot_market);
+    drop(in_spot_market);
 
-    let margin_type = if out_position_is_reduced && in_safer_than_out {
+    let margin_type = if in_position_is_reduced && out_safer_than_in {
         MarginRequirementType::Maintenance
     } else {
         MarginRequirementType::Initial
@@ -2501,29 +2501,29 @@ pub fn handle_end_swap(
         ts: now,
         amount_in,
         amount_out,
-        in_market_index,
         out_market_index,
-        out_oracle_price,
+        in_market_index,
         in_oracle_price,
+        out_oracle_price,
         user: user_key,
         fee,
     };
     emit!(swap_record);
-
-    let in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
-
-    validate!(
-        in_spot_market.flash_loan_initial_token_amount == 0
-            && in_spot_market.flash_loan_amount == 0,
-        ErrorCode::InvalidSwap,
-        "end_swap ended in invalid state"
-    )?;
 
     let out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
 
     validate!(
         out_spot_market.flash_loan_initial_token_amount == 0
             && out_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "end_swap ended in invalid state"
+    )?;
+
+    let in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    validate!(
+        in_spot_market.flash_loan_initial_token_amount == 0
+            && in_spot_market.flash_loan_amount == 0,
         ErrorCode::InvalidSwap,
         "end_swap ended in invalid state"
     )?;

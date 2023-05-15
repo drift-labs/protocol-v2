@@ -271,13 +271,13 @@ describe('spot swap', () => {
 
 		await provider.sendAndConfirm(transaction, signers);
 
-		const outAmount = new BN(200).mul(QUOTE_PRECISION);
+		const amountIn = new BN(200).mul(QUOTE_PRECISION);
 		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
-			amountOut: outAmount,
-			outMarketIndex: 0,
-			inMarketIndex: 1,
-			outTokenAccount: takerUSDC,
-			inTokenAccount: takerWSOL,
+			amountIn: amountIn,
+			inMarketIndex: 0,
+			outMarketIndex: 1,
+			inTokenAccount: takerUSDC,
+			outTokenAccount: takerWSOL,
 		});
 
 		// @ts-ignore
@@ -344,10 +344,10 @@ describe('spot swap', () => {
 		assert(userStatsAccount.takerVolume30D.eq(new BN(100000000)));
 
 		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
-		assert(swapRecord.amountIn.eq(new BN(1000000000)));
-		assert(swapRecord.inMarketIndex === 1);
-		assert(swapRecord.amountOut.eq(new BN(100040000)));
-		assert(swapRecord.outMarketIndex === 0);
+		assert(swapRecord.amountOut.eq(new BN(1000000000)));
+		assert(swapRecord.outMarketIndex === 1);
+		assert(swapRecord.amountIn.eq(new BN(100040000)));
+		assert(swapRecord.inMarketIndex === 0);
 		assert(swapRecord.fee.eq(new BN(500000)));
 
 		const solSpotMarket = takerDriftClient.getSpotMarketAccount(1);
@@ -394,16 +394,16 @@ describe('spot swap', () => {
 
 		await provider.sendAndConfirm(transaction, signers);
 
-		const outAmount = new BN(1)
+		const amountIn = new BN(1)
 			.mul(new BN(LAMPORTS_PER_SOL))
 			.mul(new BN(1999))
 			.div(new BN(2000)); // .9995 SOL
 		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
-			amountOut: outAmount,
-			outMarketIndex: 1,
-			inMarketIndex: 0,
-			outTokenAccount: takerWSOL,
-			inTokenAccount: takerUSDC,
+			amountIn: amountIn,
+			inMarketIndex: 1,
+			outMarketIndex: 0,
+			inTokenAccount: takerWSOL,
+			outTokenAccount: takerUSDC,
 		});
 
 		// @ts-ignore
@@ -471,10 +471,10 @@ describe('spot swap', () => {
 		assert(userStatsAccount.takerVolume30D.eq(new BN(199959922)));
 
 		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
-		assert(swapRecord.amountIn.eq(new BN(99960000)));
-		assert(swapRecord.inMarketIndex === 0);
-		assert(swapRecord.amountOut.eq(new BN(999500000)));
-		assert(swapRecord.outMarketIndex === 1);
+		assert(swapRecord.amountOut.eq(new BN(99960000)));
+		assert(swapRecord.outMarketIndex === 0);
+		assert(swapRecord.amountIn.eq(new BN(999500000)));
+		assert(swapRecord.inMarketIndex === 1);
 		assert(swapRecord.fee.eq(new BN(49980)));
 
 		const usdcSpotMarket = takerDriftClient.getSpotMarketAccount(0);
@@ -492,13 +492,13 @@ describe('spot swap', () => {
 	});
 
 	it('invalid swaps', async () => {
-		const outAmount = new BN(100).mul(QUOTE_PRECISION);
+		const amountIn = new BN(100).mul(QUOTE_PRECISION);
 		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
-			amountOut: outAmount,
-			outMarketIndex: 0,
-			inMarketIndex: 1,
-			inTokenAccount: takerWSOL,
-			outTokenAccount: takerUSDC,
+			amountIn,
+			inMarketIndex: 0,
+			outMarketIndex: 1,
+			outTokenAccount: takerWSOL,
+			inTokenAccount: takerUSDC,
 		});
 
 		let tx = new Transaction().add(beginSwapIx);
@@ -529,7 +529,7 @@ describe('spot swap', () => {
 			// check if the e.logs contains the substring test
 			e.logs.forEach((log: any) => {
 				if (
-					log.includes('the out_spot_market must have a flash loan amount set')
+					log.includes('the in_spot_market must have a flash loan amount set')
 				) {
 					failed = true;
 				}
@@ -573,11 +573,11 @@ describe('spot swap', () => {
 
 		// Try making end swap be signed from different user
 		const { endSwapIx: invalidEndSwapIx } = await makerDriftClient.getSwapIx({
-			amountOut: outAmount,
-			outMarketIndex: 0,
-			inMarketIndex: 1,
-			inTokenAccount: takerWSOL,
-			outTokenAccount: takerUSDC,
+			amountIn,
+			inMarketIndex: 0,
+			outMarketIndex: 1,
+			outTokenAccount: takerWSOL,
+			inTokenAccount: takerUSDC,
 		});
 
 		tx = new Transaction().add(beginSwapIx).add(invalidEndSwapIx);
