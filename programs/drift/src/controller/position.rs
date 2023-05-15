@@ -384,6 +384,10 @@ pub fn update_lp_market_position(
     fee_to_market: i128,
     liquidity_split: AMMLiquiditySplit,
 ) -> DriftResult<(i128, i128, i128)> {
+    if liquidity_split == AMMLiquiditySplit::ProtocolOwned {
+        return Ok((0, 0, 0));
+    }
+
     let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
         market.amm.user_lp_shares
     } else {
