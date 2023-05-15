@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.29.0] - 2023-05-12
+
+### Features
+
 - sdk: expose method in account subscriber to change polling frequency
 
 ### Fixes
