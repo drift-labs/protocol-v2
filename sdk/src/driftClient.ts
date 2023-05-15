@@ -3324,8 +3324,8 @@ export class DriftClient {
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
 		const routes = await jupiterClient.getRoutes({
-			inputMint: outMarket.mint,
-			outputMint: inMarket.mint,
+			inputMint: inMarket.mint,
+			outputMint: outMarket.mint,
 			amount,
 			slippageBps,
 		});
@@ -3348,8 +3348,8 @@ export class DriftClient {
 
 		const jupiterInstructions = jupiterClient.getJupiterInstructions({
 			transactionMessage,
-			inputMint: outMarket.mint,
-			outputMint: inMarket.mint,
+			inputMint: inMarket.mint,
+			outputMint: outMarket.mint,
 		});
 
 		const preInstructions = [];
@@ -3396,7 +3396,7 @@ export class DriftClient {
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
-			amountOut: amount,
+			amountIn: amount,
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 		});
