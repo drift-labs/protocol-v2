@@ -310,6 +310,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 		totalSpotFee: new BN(0),
 		totalSwapFee: new BN(0),
+		flashLoanAmount: new BN(0),
+		flashLoanInitialTokenAmount: new BN(0),
 		oracleSource: OracleSource.PYTH,
 		historicalOracleData: {
 			lastOraclePrice: new BN(0),
@@ -386,6 +388,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 		totalSpotFee: new BN(0),
 		totalSwapFee: new BN(0),
+		flashLoanAmount: new BN(0),
+		flashLoanInitialTokenAmount: new BN(0),
 		oracleSource: OracleSource.PYTH,
 		historicalOracleData: {
 			lastOraclePrice: new BN(0),
@@ -462,6 +466,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 		totalSpotFee: new BN(0),
 		totalSwapFee: new BN(0),
+		flashLoanAmount: new BN(0),
+		flashLoanInitialTokenAmount: new BN(0),
 		oracleSource: OracleSource.PYTH,
 		historicalOracleData: {
 			lastOraclePrice: new BN(0),

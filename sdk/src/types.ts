@@ -659,6 +659,9 @@ export type SpotMarketAccount = {
 	totalSpotFee: BN;
 	totalSwapFee: BN;
 
+	flashLoanAmount: BN;
+	flashLoanInitialTokenAmount: BN;
+
 	ordersEnabled: boolean;
 };
 
