@@ -3293,8 +3293,8 @@ export class DriftClient {
 	/**
 	 * Swap tokens in drift account using jupiter
 	 * @param jupiterClient jupiter client to find routes and jupiter instructions
-	 * @param outMarketIndex the market index of the token you're selling
-	 * @param inMarketIndex the market index of the token you're buying
+	 * @param outMarketIndex the market index of the token you're buying
+	 * @param inMarketIndex the market index of the token you're selling
 	 * @param outAssociatedTokenAccount the token account to receive the token being sold on jupiter
 	 * @param inAssociatedTokenAccount the token account to
 	 * @param amount the amount of the token to sell
@@ -3422,6 +3422,16 @@ export class DriftClient {
 		return txSig;
 	}
 
+	/**
+	 * Get the drift begin_swap and end_swap instructions
+	 *
+	 * @param outMarketIndex the market index of the token you're buying
+	 * @param inMarketIndex the market index of the token you're selling
+	 * @param amountIn the amount of the token to sell
+	 * @param inTokenAccount the token account to move the tokens being sold
+	 * @param outTokenAccount the token account to receive the tokens being bought
+	 * @param limitPrice the limit price of the swap
+	 */
 	public async getSwapIx({
 		outMarketIndex,
 		inMarketIndex,
