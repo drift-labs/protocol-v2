@@ -5,7 +5,12 @@ import { BASE_PRECISION, BN, BulkAccountLoader, OracleSource } from '../sdk';
 import { Program } from '@coral-xyz/anchor';
 
 import { PublicKey } from '@solana/web3.js';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+	createMint,
+	getOrCreateAssociatedTokenAccount,
+	mintTo,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 
 import { TestClient, PRICE_PRECISION } from '../sdk/src';
 
@@ -46,7 +51,7 @@ describe('whitelist', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	let whitelistMint: Token;
+	let whitelistMint: PublicKey;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -84,14 +89,13 @@ describe('whitelist', () => {
 			periodicity
 		);
 
-		whitelistMint = await Token.createMint(
+		whitelistMint = await createMint(
 			connection,
 			// @ts-ignore
 			provider.wallet.payer,
 			provider.wallet.publicKey,
 			provider.wallet.publicKey,
-			0,
-			TOKEN_PROGRAM_ID
+			0
 		);
 	});
 
@@ -105,9 +109,9 @@ describe('whitelist', () => {
 	});
 
 	it('enable whitelist mint', async () => {
-		await driftClient.updateWhitelistMint(whitelistMint.publicKey);
+		await driftClient.updateWhitelistMint(whitelistMint);
 		const state = driftClient.getStateAccount();
-		console.assert(state.whitelistMint.equals(whitelistMint.publicKey));
+		console.assert(state.whitelistMint.equals(whitelistMint));
 	});
 
 	it('block initialize user', async () => {
@@ -125,15 +129,21 @@ describe('whitelist', () => {
 	});
 
 	it('successful initialize user', async () => {
-		const associatedAccountInfo =
-			await whitelistMint.getOrCreateAssociatedAccountInfo(
-				provider.wallet.publicKey
-			);
-		await whitelistMint.mintTo(
+		const associatedAccountInfo = await getOrCreateAssociatedTokenAccount(
+			connection,
+			// @ts-ignore
+			provider.wallet.payer,
+			whitelistMint,
+			provider.wallet.publicKey
+		);
+		await mintTo(
+			connection,
+			// @ts-ignore
+			provider.wallet.payer,
+			whitelistMint,
 			associatedAccountInfo.address,
 			// @ts-ignore
 			provider.wallet.payer,
-			[],
 			1
 		);
 		[, userAccountPublicKey] =
