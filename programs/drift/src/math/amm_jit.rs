@@ -146,7 +146,7 @@ pub fn calculate_amm_jit_liquidity(
     }
     let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(taker_direction)?;
 
-    let amm_lp_wants_to_jit_make = market.amm.amm_lp_wants_to_jit_make(taker_direction);
+    let amm_lp_wants_to_jit_make = market.amm.amm_lp_wants_to_jit_make(taker_direction)?;
     let amm_lp_allowed_to_jit_make = market
         .amm
         .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;

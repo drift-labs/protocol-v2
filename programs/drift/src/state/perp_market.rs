@@ -539,35 +539,44 @@ pub struct AMM {
     /// transformed quote_asset_reserve for users going short
     pub bid_quote_asset_reserve: u128,
     /// the last seen oracle price partially shrunk toward the amm reserve price
+    /// precision: PRICE_PRECISION
     pub last_oracle_normalised_price: i64,
     /// the gap between the oracle price and the reserve price = y * peg_multiplier / x
     pub last_oracle_reserve_price_spread_pct: i64,
     /// average estimate of bid price over funding_period
+    /// precision: PRICE_PRECISION
     pub last_bid_price_twap: u64,
     /// average estimate of ask price over funding_period
+    /// precision: PRICE_PRECISION
     pub last_ask_price_twap: u64,
     /// average estimate of (bid+ask)/2 price over funding_period
+    /// precision: PRICE_PRECISION
     pub last_mark_price_twap: u64,
     /// average estimate of (bid+ask)/2 price over FIVE_MINUTES
     pub last_mark_price_twap_5min: u64,
     /// the last blockchain slot the amm was updated
     pub last_update_slot: u64,
     /// the pct size of the oracle confidence interval
-    /// PERCENTAGE_PRECISION
+    /// precision: PERCENTAGE_PRECISION
     pub last_oracle_conf_pct: u64,
     /// the total_fee_minus_distribution change since the last funding update
+    /// precision: QUOTE_PRECISION
     pub net_revenue_since_last_funding: i64,
     /// the last funding rate update unix_timestamp
     pub last_funding_rate_ts: i64,
     /// the peridocity of the funding rate updates
     pub funding_period: i64,
     /// the base step size (increment) of orders
+    /// precision: BASE_PRECISION
     pub order_step_size: u64,
     /// the price tick size of orders
+    /// precision: PRICE_PRECISION
     pub order_tick_size: u64,
     /// the minimum base size of an order
+    /// precision: BASE_PRECISION
     pub min_order_size: u64,
     /// the max base size a single user can have
+    /// precision: BASE_PRECISION
     pub max_position_size: u64,
     /// estimated total of volume in market
     /// QUOTE_PRECISION
@@ -579,8 +588,10 @@ pub struct AMM {
     /// the blockchain unix timestamp at the time of the last trade
     pub last_trade_ts: i64,
     /// estimate of standard deviation of the fill (mark) prices
+    /// precision: PRICE_PRECISION
     pub mark_std: u64,
     /// estimate of standard deviation of the oracle price at each update
+    /// precision: PRICE_PRECISION
     pub oracle_std: u64,
     /// the last unix_timestamp the mark twap was updated
     pub last_mark_price_twap_ts: i64,
@@ -610,7 +621,7 @@ pub struct AMM {
     /// tracks whether the oracle was considered valid at the last AMM update
     pub last_oracle_valid: bool,
     /// the target value for `base_asset_amount_per_lp`, used during AMM JIT with LP split
-    /// Precision: BASE_PRECISION
+    /// precision: BASE_PRECISION
     pub target_base_asset_amount_per_lp: i32,
     pub padding: [u8; 44],
 }
@@ -720,20 +731,23 @@ impl AMM {
         Ok(amm_wants_to_jit_make && self.amm_jit_is_active())
     }
 
-    pub fn amm_lp_wants_to_jit_make(&self, taker_direction: PositionDirection) -> bool {
+    pub fn amm_lp_wants_to_jit_make(
+        &self,
+        taker_direction: PositionDirection,
+    ) -> DriftResult<bool> {
         if self.user_lp_shares == 0 {
-            return false;
+            return Ok(false);
         }
 
         let amm_lp_wants_to_jit_make = match taker_direction {
             PositionDirection::Long => {
-                self.base_asset_amount_per_lp > self.target_base_asset_amount_per_lp.cast().unwrap()
+                self.base_asset_amount_per_lp > self.target_base_asset_amount_per_lp.cast()?
             }
             PositionDirection::Short => {
-                self.base_asset_amount_per_lp < self.target_base_asset_amount_per_lp.cast().unwrap()
+                self.base_asset_amount_per_lp < self.target_base_asset_amount_per_lp.cast()?
             }
         };
-        amm_lp_wants_to_jit_make && self.amm_lp_jit_is_active()
+        Ok(amm_lp_wants_to_jit_make && self.amm_lp_jit_is_active())
     }
 
     pub fn amm_lp_allowed_to_jit_make(&self, amm_wants_to_jit_make: bool) -> DriftResult<bool> {
