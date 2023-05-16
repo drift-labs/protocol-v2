@@ -38,6 +38,7 @@ import {
 	UserStatsAccount,
 	ModifyOrderParams,
 	PhoenixV1FulfillmentConfigAccount,
+	ModifyOrderPolicy,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -4081,7 +4082,7 @@ export class DriftClient {
 			postOnly?: boolean;
 			immediateOrCancel?: boolean;
 			maxTs?: BN;
-			policy?: ModifyOrderParams;
+			policy?: ModifyOrderPolicy;
 		},
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
@@ -4127,7 +4128,7 @@ export class DriftClient {
 		postOnly?: boolean;
 		immediateOrCancel?: boolean;
 		maxTs?: BN;
-		policy?: ModifyOrderParams;
+		policy?: ModifyOrderPolicy;
 	}): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -4197,7 +4198,7 @@ export class DriftClient {
 			reduceOnly?: boolean;
 			postOnly?: boolean;
 			immediateOrCancel?: boolean;
-			policy?: ModifyOrderParams;
+			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
 		},
 		txParams?: TxParams
@@ -4243,7 +4244,7 @@ export class DriftClient {
 		reduceOnly?: boolean;
 		postOnly?: boolean;
 		immediateOrCancel?: boolean;
-		policy?: ModifyOrderParams;
+		policy?: ModifyOrderPolicy;
 		maxTs?: BN;
 		txParams?: TxParams;
 	}): Promise<TransactionInstruction> {
