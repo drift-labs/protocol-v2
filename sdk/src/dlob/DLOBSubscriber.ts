@@ -16,6 +16,7 @@ import {
 	L3OrderBook,
 } from './orderBookLevels';
 import { calculateAskPrice, calculateBidPrice } from '../math/market';
+import { DataAndSlot } from '../accounts/types';
 
 export class DLOBSubscriber {
 	driftClient: DriftClient;
@@ -24,6 +25,7 @@ export class DLOBSubscriber {
 	updateFrequency: number;
 	intervalId?: NodeJS.Timeout;
 	dlob = new DLOB();
+	dlobLastSlotUpdated = 0;
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
 
 	constructor(config: DLOBSubscriptionConfig) {
@@ -44,7 +46,10 @@ export class DLOBSubscriber {
 		this.intervalId = setInterval(async () => {
 			try {
 				await this.updateDLOB();
-				this.eventEmitter.emit('update', this.dlob);
+				this.eventEmitter.emit('update', {
+					data: this.dlob,
+					slot: this.dlobLastSlotUpdated,
+				});
 			} catch (e) {
 				this.eventEmitter.emit('error', e);
 			}
@@ -52,11 +57,20 @@ export class DLOBSubscriber {
 	}
 
 	async updateDLOB(): Promise<void> {
-		this.dlob = await this.dlobSource.getDLOB(this.slotSource.getSlot());
+		const slot = this.slotSource.getSlot();
+		this.dlob = await this.dlobSource.getDLOB(slot);
+		this.dlobLastSlotUpdated = slot;
 	}
 
 	public getDLOB(): DLOB {
 		return this.dlob;
+	}
+
+	public getDLOBDataAndSlot(): DataAndSlot<DLOB> {
+		return {
+			data: this.dlob,
+			slot: this.dlobLastSlotUpdated,
+		};
 	}
 
 	/**

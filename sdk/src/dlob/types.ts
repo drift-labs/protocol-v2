@@ -1,5 +1,6 @@
 import { DLOB } from './DLOB';
 import { DriftClient } from '../driftClient';
+import { DataAndSlot } from '../accounts/types';
 
 export type DLOBSubscriptionConfig = {
 	driftClient: DriftClient;
@@ -9,7 +10,7 @@ export type DLOBSubscriptionConfig = {
 };
 
 export interface DLOBSubscriberEvents {
-	update: (dlob: DLOB) => void;
+	update: (dlob: DataAndSlot<DLOB>) => void;
 	error: (e: Error) => void;
 }
 
