@@ -9,7 +9,6 @@ import {
 	createMint,
 	getOrCreateAssociatedTokenAccount,
 	mintTo,
-	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 
 import { TestClient, PRICE_PRECISION } from '../sdk/src';
