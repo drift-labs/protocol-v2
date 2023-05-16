@@ -9,7 +9,7 @@ use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket};
 mod tests;
 
 // assumption: market.amm.amm_jit_is_active() == true
-// assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
+// assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_jit_make)
 pub fn calculate_jit_base_asset_amount(
     market: &PerpMarket,
     maker_base_asset_amount: u64,
@@ -87,7 +87,7 @@ pub fn calculate_jit_base_asset_amount(
     Ok(jit_base_asset_amount)
 }
 
-// assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
+// assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_jit_make)
 // note: we split it into two (calc and clamp) bc its easier to maintain tests
 pub fn calculate_clamped_jit_base_asset_amount(
     market: &PerpMarket,
