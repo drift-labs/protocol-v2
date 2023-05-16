@@ -97,10 +97,10 @@ pub fn calculate_clamped_jit_base_asset_amount(
 ) -> DriftResult<u64> {
     // apply intensity
     // todo more efficient method do here
-    let jit_base_asset_amount = jit_base_asset_amount
+    let jit_base_asset_amount: u64 = jit_base_asset_amount
         .cast::<u128>()?
-        .safe_mul(market.amm.amm_jit_intensity as u128)?
-        .safe_div(100)?
+        .safe_mul(market.amm.amm_jit_intensity.min(100).cast::<u128>()?)?
+        .safe_div(100_u128)?
         .cast::<u64>()?;
 
     // bound it; dont flip the net_baa
@@ -135,7 +135,6 @@ pub fn calculate_amm_jit_liquidity(
 ) -> DriftResult<(u64, AMMLiquiditySplit)> {
     let mut jit_base_asset_amount: u64 = 0;
     let mut liquidity_split: AMMLiquiditySplit = AMMLiquiditySplit::ProtocolOwned;
-    let amm_wants_to_make = market.amm.amm_wants_to_jit_make(taker_direction);
 
     // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
     // market order will always land and fill on amm next round
@@ -146,14 +145,15 @@ pub fn calculate_amm_jit_liquidity(
     if amm_will_fill_next_round {
         return Ok((jit_base_asset_amount, liquidity_split));
     }
+    let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(taker_direction);
 
-    let amm_lp_wants_to_make = market.amm.amm_lp_wants_to_jit_make(taker_direction);
+    let amm_lp_wants_to_jit_make = market.amm.amm_lp_wants_to_jit_make(taker_direction);
     let amm_lp_allowed_to_jit_make = market
         .amm
-        .amm_lp_allowed_to_jit_make(amm_lp_wants_to_make)?;
-    let split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_make;
+        .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
+    let split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_jit_make;
 
-    if amm_wants_to_make {
+    if amm_wants_to_jit_make {
         liquidity_split = if split_with_lps {
             AMMLiquiditySplit::Shared
         } else {

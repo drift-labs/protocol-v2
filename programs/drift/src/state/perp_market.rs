@@ -22,6 +22,7 @@ use crate::math::margin::{
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::stats;
+use crate::state::events::OrderActionExplanation;
 
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
@@ -111,6 +112,16 @@ pub enum AMMLiquiditySplit {
     ProtocolOwned,
     LPOwned,
     Shared,
+}
+
+impl AMMLiquiditySplit {
+    pub fn get_order_action_explanation(&self) -> OrderActionExplanation {
+        match &self {
+            AMMLiquiditySplit::ProtocolOwned => OrderActionExplanation::OrderFilledWithAMMJit,
+            AMMLiquiditySplit::LPOwned => OrderActionExplanation::OrderFilledWithLPJit,
+            AMMLiquiditySplit::Shared => OrderActionExplanation::OrderFilledWithAMMJitLPSplit,
+        }
+    }
 }
 
 #[account(zero_copy)]
@@ -690,11 +701,11 @@ impl Default for AMM {
 
 impl AMM {
     pub fn imbalanced_base_asset_amount_with_lp(&self) -> DriftResult<i128> {
-        let tt = self
+        let target_lp_gap = self
             .base_asset_amount_per_lp
             .safe_sub(self.target_base_asset_amount_per_lp.cast()?)?;
 
-        get_proportion_i128(tt, self.user_lp_shares, BASE_PRECISION)
+        get_proportion_i128(target_lp_gap, self.user_lp_shares, BASE_PRECISION)
     }
 
     pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> bool {
