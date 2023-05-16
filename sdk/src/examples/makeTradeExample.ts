@@ -5,7 +5,7 @@ import {
 	getMarketOrderParams,
 	Wallet,
 } from '..';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	DriftClient,
@@ -25,9 +25,7 @@ export const getTokenAddress = (
 	mintAddress: string,
 	userPubKey: string
 ): Promise<PublicKey> => {
-	return Token.getAssociatedTokenAddress(
-		new PublicKey(`ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL`),
-		TOKEN_PROGRAM_ID,
+	return getAssociatedTokenAddress(
 		new PublicKey(mintAddress),
 		new PublicKey(userPubKey)
 	);
