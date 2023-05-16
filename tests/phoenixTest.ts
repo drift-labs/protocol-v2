@@ -13,10 +13,10 @@ import {
 } from '@solana/web3.js';
 
 import {
-	ASSOCIATED_TOKEN_PROGRAM_ID,
+	createAssociatedTokenAccountInstruction,
+	createMintToInstruction,
+	getAssociatedTokenAddress,
 	NATIVE_MINT,
-	Token,
-	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 
 import {
@@ -98,20 +98,16 @@ const createTokenAccountInstructions = async (
 ): Promise<[PublicKey, TransactionInstruction]> => {
 	owner = owner || provider.wallet.publicKey;
 
-	const userTokenAccount = await Token.getAssociatedTokenAddress(
-		ASSOCIATED_TOKEN_PROGRAM_ID,
-		TOKEN_PROGRAM_ID,
+	const userTokenAccount = await getAssociatedTokenAddress(
 		tokenMintAddress,
 		owner
 	);
 
-	const createAta = Token.createAssociatedTokenAccountInstruction(
-		ASSOCIATED_TOKEN_PROGRAM_ID,
-		TOKEN_PROGRAM_ID,
-		tokenMintAddress,
+	const createAta = createAssociatedTokenAccountInstruction(
+		provider.wallet.publicKey,
 		userTokenAccount,
 		owner,
-		provider.wallet.publicKey
+		tokenMintAddress
 	);
 
 	return [userTokenAccount, createAta];
@@ -168,12 +164,10 @@ const createTokenAccountAndMintTokens = async (
 
 	tx.add(createAta);
 
-	const mintToUserAccountTx = await Token.createMintToInstruction(
-		TOKEN_PROGRAM_ID,
+	const mintToUserAccountTx = await createMintToInstruction(
 		tokenMintAddress,
 		userTokenAccount,
 		mintAuthority.publicKey,
-		[],
 		mintAmount.toNumber()
 	);
 	tx.add(mintToUserAccountTx);

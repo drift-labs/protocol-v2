@@ -1,7 +1,11 @@
 // TODO: Modernize all these apis. This is all quite clunky.
 
-const Token = require('@solana/spl-token').Token;
-const TOKEN_PROGRAM_ID = require('@solana/spl-token').TOKEN_PROGRAM_ID;
+import {
+	createAccount,
+	createTransferCheckedInstruction,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
+
 const TokenInstructions = require('@project-serum/serum').TokenInstructions;
 const Market = require('@project-serum/serum').Market;
 const DexInstructions = require('@project-serum/serum').DexInstructions;
@@ -119,13 +123,10 @@ async function fundAccount({ provider, mints }) {
 		const MINT_A = mint;
 		const GOD_A = god;
 		// Setup token accounts owned by the market maker.
-		const mintAClient = new Token(
+		const marketMakerTokenA = await createAccount(
 			provider.connection,
+			provider.wallet.payer,
 			MINT_A,
-			TOKEN_PROGRAM_ID,
-			provider.wallet.payer // node only
-		);
-		const marketMakerTokenA = await mintAClient.createAccount(
 			MARKET_MAKER.publicKey
 		);
 
@@ -133,13 +134,11 @@ async function fundAccount({ provider, mints }) {
 			(() => {
 				const tx = new Transaction();
 				tx.add(
-					Token.createTransferCheckedInstruction(
-						TOKEN_PROGRAM_ID,
+					createTransferCheckedInstruction(
 						GOD_A,
 						MINT_A,
 						marketMakerTokenA,
 						provider.wallet.publicKey,
-						[],
 						amount,
 						decimals
 					)
