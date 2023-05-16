@@ -397,8 +397,8 @@ export class LiquidationType {
 	static readonly PERP_BANKRUPTCY = {
 		perpBankruptcy: {},
 	};
-	static readonly BORROW_BANKRUPTCY = {
-		borrowBankruptcy: {},
+	static readonly SPOT_BANKRUPTCY = {
+		spotBankruptcy: {},
 	};
 	static readonly LIQUIDATE_SPOT = {
 		liquidateSpot: {},
@@ -509,6 +509,18 @@ export type OrderActionRecord = {
 	makerOrderCumulativeBaseAssetAmountFilled: BN | null;
 	makerOrderCumulativeQuoteAssetAmountFilled: BN | null;
 	oraclePrice: BN;
+};
+
+export type SwapRecord = {
+	ts: number;
+	user: PublicKey;
+	amountOut: BN;
+	amountIn: BN;
+	outMarketIndex: number;
+	inMarketIndex: number;
+	outOraclePrice: BN;
+	inOraclePrice: BN;
+	fee: BN;
 };
 
 export type StateAccount = {
@@ -651,6 +663,10 @@ export type SpotMarketAccount = {
 	nextFillRecordId: BN;
 	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
+	totalSwapFee: BN;
+
+	flashLoanAmount: BN;
+	flashLoanInitialTokenAmount: BN;
 
 	ordersEnabled: boolean;
 };
@@ -808,6 +824,7 @@ export type UserAccount = {
 	totalWithdraws: BN;
 	totalSocialLoss: BN;
 	cumulativePerpFunding: BN;
+	cumulativeSpotFees: BN;
 	liquidationMarginFreed: BN;
 	lastActiveSlot: BN;
 	isMarginTradingEnabled: boolean;
@@ -890,7 +907,12 @@ export type OptionalOrderParams = {
 
 export type ModifyOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property] | null;
-};
+} & { policy?: ModifyOrderPolicy };
+
+export class ModifyOrderPolicy {
+	static readonly MUST_MODIFY = { mustModify: {} };
+	static readonly TRY_MODIFY = { tryModify: {} };
+}
 
 export const DefaultOrderParams: OrderParams = {
 	orderType: OrderType.MARKET,

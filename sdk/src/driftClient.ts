@@ -38,6 +38,7 @@ import {
 	UserStatsAccount,
 	ModifyOrderParams,
 	PhoenixV1FulfillmentConfigAccount,
+	ModifyOrderPolicy,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -112,6 +113,7 @@ import { isSpotPositionAvailable } from './math/spotPosition';
 import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
+import { JupiterClient } from './jupiter/jupiterClient';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -1495,6 +1497,30 @@ export class DriftClient {
 		);
 	}
 
+	public async createAssociatedTokenAccountIdempotentInstruction(
+		account: PublicKey,
+		payer: PublicKey,
+		owner: PublicKey,
+		mint: PublicKey
+	): Promise<TransactionInstruction> {
+		return new TransactionInstruction({
+			keys: [
+				{ pubkey: payer, isSigner: true, isWritable: true },
+				{ pubkey: account, isSigner: false, isWritable: true },
+				{ pubkey: owner, isSigner: false, isWritable: false },
+				{ pubkey: mint, isSigner: false, isWritable: false },
+				{
+					pubkey: SystemProgram.programId,
+					isSigner: false,
+					isWritable: false,
+				},
+				{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+			],
+			programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+			data: Buffer.from([0x1]),
+		});
+	}
+
 	/**
 	 * Deposit funds into the given spot market
 	 *
@@ -2350,7 +2376,8 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		useVersionedTx = true
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
@@ -2383,7 +2410,7 @@ export class DriftClient {
 			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
 
 		// use versioned transactions if there is a lookup table account and wallet is compatible
-		if (walletSupportsVersionedTxns && lookupTableAccount) {
+		if (walletSupportsVersionedTxns && lookupTableAccount && useVersionedTx) {
 			const versionedMarketOrderTx =
 				await this.txSender.getVersionedTransaction(
 					[placePerpOrderIx].concat(bracketOrderIxs),
@@ -3264,6 +3291,223 @@ export class DriftClient {
 		});
 	}
 
+	/**
+	 * Swap tokens in drift account using jupiter
+	 * @param jupiterClient jupiter client to find routes and jupiter instructions
+	 * @param outMarketIndex the market index of the token you're buying
+	 * @param inMarketIndex the market index of the token you're selling
+	 * @param outAssociatedTokenAccount the token account to receive the token being sold on jupiter
+	 * @param inAssociatedTokenAccount the token account to
+	 * @param amount the amount of the token to sell
+	 * @param slippageBps the max slippage passed to jupiter api
+	 * @param txParams
+	 */
+	public async swap({
+		jupiterClient,
+		outMarketIndex,
+		inMarketIndex,
+		outAssociatedTokenAccount,
+		inAssociatedTokenAccount,
+		amount,
+		slippageBps,
+		txParams,
+	}: {
+		jupiterClient: JupiterClient;
+		outMarketIndex: number;
+		inMarketIndex: number;
+		outAssociatedTokenAccount: PublicKey;
+		inAssociatedTokenAccount: PublicKey;
+		amount: BN;
+		slippageBps: number;
+		txParams?: TxParams;
+	}): Promise<TransactionSignature> {
+		const outMarket = this.getSpotMarketAccount(outMarketIndex);
+		const inMarket = this.getSpotMarketAccount(inMarketIndex);
+
+		const routes = await jupiterClient.getRoutes({
+			inputMint: inMarket.mint,
+			outputMint: outMarket.mint,
+			amount,
+			slippageBps,
+		});
+
+		if (!routes || routes.length === 0) {
+			throw new Error('No jupiter routes found');
+		}
+
+		const route = routes[0];
+		const transaction = await jupiterClient.getSwapTransaction({
+			route,
+			userPublicKey: this.provider.wallet.publicKey,
+			slippageBps,
+		});
+
+		const { transactionMessage, lookupTables } =
+			await jupiterClient.getTransactionMessageAndLookupTables({
+				transaction,
+			});
+
+		const jupiterInstructions = jupiterClient.getJupiterInstructions({
+			transactionMessage,
+			inputMint: inMarket.mint,
+			outputMint: outMarket.mint,
+		});
+
+		const preInstructions = [];
+		if (!outAssociatedTokenAccount) {
+			outAssociatedTokenAccount = await this.getAssociatedTokenAccount(
+				outMarket.marketIndex
+			);
+
+			const accountInfo = await this.connection.getAccountInfo(
+				outAssociatedTokenAccount
+			);
+			if (!accountInfo) {
+				preInstructions.push(
+					this.createAssociatedTokenAccountIdempotentInstruction(
+						outAssociatedTokenAccount,
+						this.provider.wallet.publicKey,
+						this.provider.wallet.publicKey,
+						outMarket.mint
+					)
+				);
+			}
+		}
+
+		if (!inAssociatedTokenAccount) {
+			inAssociatedTokenAccount = await this.getAssociatedTokenAccount(
+				inMarket.marketIndex
+			);
+
+			const accountInfo = await this.connection.getAccountInfo(
+				inAssociatedTokenAccount
+			);
+			if (!accountInfo) {
+				preInstructions.push(
+					this.createAssociatedTokenAccountIdempotentInstruction(
+						inAssociatedTokenAccount,
+						this.provider.wallet.publicKey,
+						this.provider.wallet.publicKey,
+						inMarket.mint
+					)
+				);
+			}
+		}
+
+		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
+			outMarketIndex,
+			inMarketIndex,
+			amountIn: amount,
+			inTokenAccount: inAssociatedTokenAccount,
+			outTokenAccount: outAssociatedTokenAccount,
+		});
+
+		const instructions = [
+			...preInstructions,
+			beginSwapIx,
+			...jupiterInstructions,
+			endSwapIx,
+		];
+
+		const tx = await this.buildTransaction(
+			instructions,
+			txParams,
+			0,
+			lookupTables
+		);
+
+		const { txSig, slot } = await this.sendTransaction(tx);
+		this.spotMarketLastSlotCache.set(outMarketIndex, slot);
+		this.spotMarketLastSlotCache.set(inMarketIndex, slot);
+
+		return txSig;
+	}
+
+	/**
+	 * Get the drift begin_swap and end_swap instructions
+	 *
+	 * @param outMarketIndex the market index of the token you're buying
+	 * @param inMarketIndex the market index of the token you're selling
+	 * @param amountIn the amount of the token to sell
+	 * @param inTokenAccount the token account to move the tokens being sold
+	 * @param outTokenAccount the token account to receive the tokens being bought
+	 * @param limitPrice the limit price of the swap
+	 */
+	public async getSwapIx({
+		outMarketIndex,
+		inMarketIndex,
+		amountIn,
+		inTokenAccount,
+		outTokenAccount,
+		limitPrice,
+	}: {
+		outMarketIndex: number;
+		inMarketIndex: number;
+		amountIn: BN;
+		inTokenAccount: PublicKey;
+		outTokenAccount: PublicKey;
+		limitPrice?: BN;
+	}): Promise<{
+		beginSwapIx: TransactionInstruction;
+		endSwapIx: TransactionInstruction;
+	}> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			writableSpotMarketIndexes: [outMarketIndex, inMarketIndex],
+		});
+
+		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
+		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
+
+		const beginSwapIx = await this.program.instruction.beginSwap(
+			inMarketIndex,
+			outMarketIndex,
+			amountIn,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.authority,
+					outSpotMarketVault: outSpotMarket.vault,
+					inSpotMarketVault: inSpotMarket.vault,
+					inTokenAccount,
+					outTokenAccount,
+					tokenProgram: TOKEN_PROGRAM_ID,
+					driftSigner: this.getStateAccount().signer,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		const endSwapIx = await this.program.instruction.endSwap(
+			inMarketIndex,
+			outMarketIndex,
+			limitPrice ?? null,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.authority,
+					outSpotMarketVault: outSpotMarket.vault,
+					inSpotMarketVault: inSpotMarket.vault,
+					inTokenAccount,
+					outTokenAccount,
+					tokenProgram: TOKEN_PROGRAM_ID,
+					driftSigner: this.getStateAccount().signer,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		return { beginSwapIx, endSwapIx };
+	}
+
 	public async triggerOrder(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
@@ -3806,22 +4050,54 @@ export class DriftClient {
 
 	/**
 	 * Modifies an open order (spot or perp) by closing it and replacing it with a new order.
-	 * @param orderId: The open order to modify
-	 * @param newDirection: The new direction for the order
-	 * @param newBaseAmount: The new base amount for the order
-	 * @param newLimitPice: The new limit price for the order
-	 * @param newOraclePriceOffset: The new oracle price offset for the order
-	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
-	 * @param auctionDuration:
-	 * @param auctionStartPrice:
-	 * @param auctionEndPrice:
-	 * @param reduceOnly:
-	 * @param postOnly:
-	 * @param immediateOrCancel:
-	 * @param maxTs:
+	 * @param orderParams.orderId: The open order to modify
+	 * @param orderParams.newDirection: The new direction for the order
+	 * @param orderParams.newBaseAmount: The new base amount for the order
+	 * @param orderParams.newLimitPice: The new limit price for the order
+	 * @param orderParams.newOraclePriceOffset: The new oracle price offset for the order
+	 * @param orderParams.newTriggerPrice: Optional - Thew new trigger price for the order.
+	 * @param orderParams.auctionDuration:
+	 * @param orderParams.auctionStartPrice:
+	 * @param orderParams.auctionEndPrice:
+	 * @param orderParams.reduceOnly:
+	 * @param orderParams.postOnly:
+	 * @param orderParams.immediateOrCancel:
+	 * @param orderParams.policy:
+	 * @param orderParams.maxTs:
 	 * @returns
 	 */
-	public async modifyOrder({
+	public async modifyOrder(
+		orderParams: {
+			orderId: number;
+			newDirection?: PositionDirection;
+			newBaseAmount?: BN;
+			newLimitPrice?: BN;
+			newOraclePriceOffset?: number;
+			newTriggerPrice?: BN;
+			newTriggerCondition?: OrderTriggerCondition;
+			auctionDuration?: number;
+			auctionStartPrice?: BN;
+			auctionEndPrice?: BN;
+			reduceOnly?: boolean;
+			postOnly?: boolean;
+			immediateOrCancel?: boolean;
+			maxTs?: BN;
+			policy?: ModifyOrderPolicy;
+		},
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getModifyOrderIx(orderParams),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getModifyOrderIx({
 		orderId,
 		newDirection,
 		newBaseAmount,
@@ -3836,7 +4112,7 @@ export class DriftClient {
 		postOnly,
 		immediateOrCancel,
 		maxTs,
-		txParams,
+		policy,
 	}: {
 		orderId: number;
 		newDirection?: PositionDirection;
@@ -3852,8 +4128,15 @@ export class DriftClient {
 		postOnly?: boolean;
 		immediateOrCancel?: boolean;
 		maxTs?: BN;
-		txParams?: TxParams;
-	}): Promise<TransactionSignature> {
+		policy?: ModifyOrderPolicy;
+	}): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			useMarketLastSlotCache: true,
+		});
+
 		const orderParams: ModifyOrderParams = {
 			baseAssetAmount: newBaseAmount || null,
 			direction: newDirection || null,
@@ -3867,30 +4150,9 @@ export class DriftClient {
 			reduceOnly: reduceOnly || null,
 			postOnly: postOnly || null,
 			immediateOrCancel: immediateOrCancel || null,
+			policy: policy || null,
 			maxTs: maxTs || null,
 		};
-
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getModifyOrderIx(orderId, orderParams),
-				txParams
-			),
-			[],
-			this.opts
-		);
-		return txSig;
-	}
-
-	public async getModifyOrderIx(
-		orderId: number,
-		orderParams: ModifyOrderParams
-	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
-
-		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
-		});
 
 		return await this.program.instruction.modifyOrder(orderId, orderParams, {
 			accounts: {
@@ -3905,22 +4167,54 @@ export class DriftClient {
 
 	/**
 	 * Modifies an open order by closing it and replacing it with a new order.
-	 * @param userOrderId: The open order to modify
-	 * @param newDirection: The new direction for the order
-	 * @param newBaseAmount: The new base amount for the order
-	 * @param newLimitPice: The new limit price for the order
-	 * @param newOraclePriceOffset: The new oracle price offset for the order
-	 * @param newTriggerPrice: Optional - Thew new trigger price for the order.
-	 * @param auctionDuration: Only required if order type changed to market from something else
-	 * @param auctionStartPrice: Only required if order type changed to market from something else
-	 * @param auctionEndPrice: Only required if order type changed to market from something else
-	 * @param reduceOnly:
-	 * @param postOnly:
-	 * @param immediateOrCancel:
-	 * @param maxTs:
+	 * @param orderParams.userOrderId: The open order to modify
+	 * @param orderParams.newDirection: The new direction for the order
+	 * @param orderParams.newBaseAmount: The new base amount for the order
+	 * @param orderParams.newLimitPice: The new limit price for the order
+	 * @param orderParams.newOraclePriceOffset: The new oracle price offset for the order
+	 * @param orderParams.newTriggerPrice: Optional - Thew new trigger price for the order.
+	 * @param orderParams.auctionDuration: Only required if order type changed to market from something else
+	 * @param orderParams.auctionStartPrice: Only required if order type changed to market from something else
+	 * @param orderParams.auctionEndPrice: Only required if order type changed to market from something else
+	 * @param orderParams.reduceOnly:
+	 * @param orderParams.postOnly:
+	 * @param orderParams.immediateOrCancel:
+	 * @param orderParams.policy:
+	 * @param orderParams.maxTs:
 	 * @returns
 	 */
-	public async modifyOrderByUserOrderId({
+	public async modifyOrderByUserOrderId(
+		orderParams: {
+			userOrderId: number;
+			newDirection?: PositionDirection;
+			newBaseAmount?: BN;
+			newLimitPrice?: BN;
+			newOraclePriceOffset?: number;
+			newTriggerPrice?: BN;
+			newTriggerCondition?: OrderTriggerCondition;
+			auctionDuration?: number;
+			auctionStartPrice?: BN;
+			auctionEndPrice?: BN;
+			reduceOnly?: boolean;
+			postOnly?: boolean;
+			immediateOrCancel?: boolean;
+			policy?: ModifyOrderPolicy;
+			maxTs?: BN;
+		},
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getModifyOrderByUserIdIx(orderParams),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getModifyOrderByUserIdIx({
 		userOrderId,
 		newDirection,
 		newBaseAmount,
@@ -3935,7 +4229,7 @@ export class DriftClient {
 		postOnly,
 		immediateOrCancel,
 		maxTs,
-		txParams,
+		policy,
 	}: {
 		userOrderId: number;
 		newDirection?: PositionDirection;
@@ -3950,9 +4244,17 @@ export class DriftClient {
 		reduceOnly?: boolean;
 		postOnly?: boolean;
 		immediateOrCancel?: boolean;
+		policy?: ModifyOrderPolicy;
 		maxTs?: BN;
 		txParams?: TxParams;
-	}): Promise<TransactionSignature> {
+	}): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			useMarketLastSlotCache: true,
+		});
+
 		const orderParams: ModifyOrderParams = {
 			baseAssetAmount: newBaseAmount || null,
 			direction: newDirection || null,
@@ -3966,30 +4268,9 @@ export class DriftClient {
 			reduceOnly: reduceOnly || null,
 			postOnly: postOnly || null,
 			immediateOrCancel: immediateOrCancel || null,
+			policy: policy || null,
 			maxTs: maxTs || null,
 		};
-
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getModifyOrderByUserIdIx(userOrderId, orderParams),
-				txParams
-			),
-			[],
-			this.opts
-		);
-		return txSig;
-	}
-
-	public async getModifyOrderByUserIdIx(
-		userOrderId: number,
-		orderParams: ModifyOrderParams
-	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
-
-		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
-		});
 
 		return await this.program.instruction.modifyOrderByUserId(
 			userOrderId,
@@ -5055,7 +5336,9 @@ export class DriftClient {
 
 	async buildTransaction(
 		instructions: TransactionInstruction | TransactionInstruction[],
-		txParams?: TxParams
+		txParams?: TxParams,
+		txVersion?: TransactionVersion,
+		lookupTables?: AddressLookupTableAccount[]
 	): Promise<Transaction | VersionedTransaction> {
 		const allIx = [];
 		const computeUnits = txParams?.computeUnits ?? 600_000;
@@ -5085,6 +5368,9 @@ export class DriftClient {
 			return new Transaction().add(...allIx);
 		} else {
 			const marketLookupTable = await this.fetchMarketLookupTableAccount();
+			lookupTables = lookupTables
+				? [...lookupTables, marketLookupTable]
+				: [marketLookupTable];
 			const message = new TransactionMessage({
 				payerKey: this.provider.wallet.publicKey,
 				recentBlockhash: (
@@ -5093,7 +5379,7 @@ export class DriftClient {
 					)
 				).blockhash,
 				instructions: allIx,
-			}).compileToV0Message([marketLookupTable]);
+			}).compileToV0Message(lookupTables);
 
 			return new VersionedTransaction(message);
 		}

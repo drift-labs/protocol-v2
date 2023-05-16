@@ -5,6 +5,7 @@ fi
 
 test_files=(
   perpLpJit.ts
+  spotSwap.ts
   maxLeverageOrderParams.ts
   multipleMakerOrders.ts
   postOnlyAmmFulfillment.ts

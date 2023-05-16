@@ -1,5 +1,5 @@
 {
-  "version": "2.28.0-beta.4",
+  "version": "2.30.0-beta.1",
   "name": "drift",
   "instructions": [
     {
@@ -706,6 +706,162 @@
             "option": {
               "defined": "SpotFulfillmentType"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "beginSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "outSpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inSpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amountIn",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "endSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "outSpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inSpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "limitPrice",
+          "type": {
+            "option": "u64"
           }
         }
       ]
@@ -4922,11 +5078,45 @@
             }
           },
           {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
+          },
+          {
+            "name": "flashLoanAmount",
+            "docs": [
+              "For swaps, the amount of token loaned out in the begin_swap ix",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "flashLoanInitialTokenAmount",
+            "docs": [
+              "For swaps, the amount in the users token account in the begin_swap ix",
+              "Used to calculate how much of the token left the system in end_swap ix",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "totalSwapFee",
+            "docs": [
+              "The total fees received from swaps",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                86
+                56
               ]
             }
           }
@@ -5590,6 +5780,14 @@
             "name": "auctionEndPrice",
             "type": {
               "option": "i64"
+            }
+          },
+          {
+            "name": "policy",
+            "type": {
+              "option": {
+                "defined": "ModifyOrderPolicy"
+              }
             }
           }
         ]
@@ -7273,6 +7471,20 @@
       }
     },
     {
+      "name": "ModifyOrderPolicy",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "TryModify"
+          },
+          {
+            "name": "MustModify"
+          }
+        ]
+      }
+    },
+    {
       "name": "TwapPeriod",
       "type": {
         "kind": "enum",
@@ -8881,6 +9093,56 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "SwapRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amountOut",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amountIn",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "inMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "outOraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inOraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "fee",
+          "type": "u64",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
@@ -10123,6 +10385,21 @@
       "code": 6247,
       "name": "InvalidPhoenixMarket",
       "msg": "InvalidPhoenixMarket"
+    },
+    {
+      "code": 6248,
+      "name": "InvalidSwap",
+      "msg": "InvalidSwap"
+    },
+    {
+      "code": 6249,
+      "name": "SwapLimitPriceBreached",
+      "msg": "SwapLimitPriceBreached"
+    },
+    {
+      "code": 6250,
+      "name": "SpotMarketReduceOnly",
+      "msg": "SpotMarketReduceOnly"
     }
   ]
 }

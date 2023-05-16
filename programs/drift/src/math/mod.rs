@@ -28,5 +28,6 @@ pub mod safe_math;
 pub mod safe_unwrap;
 pub mod serum;
 pub mod spot_balance;
+pub mod spot_swap;
 pub mod spot_withdraw;
 pub mod stats;

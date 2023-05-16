@@ -22,7 +22,6 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
@@ -49,6 +48,7 @@ use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::{controller, PostOnlyParam};
 use crate::{get_struct_values, ModifyOrderParams};
+use crate::{get_then_update_id, ModifyOrderPolicy};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -497,7 +497,7 @@ pub fn cancel_order_by_order_id(
         Ok(order_index) => order_index,
         Err(_) => {
             msg!("could not find order id {}", order_id);
-            return Err(ErrorCode::InvalidOrder);
+            return Ok(());
         }
     };
 
@@ -539,7 +539,7 @@ pub fn cancel_order_by_user_order_id(
         Some(order_index) => order_index,
         None => {
             msg!("could not find user order id {}", user_order_id);
-            return Err(ErrorCode::InvalidOrder);
+            return Ok(());
         }
     };
 
@@ -680,18 +680,34 @@ pub fn modify_order(
 ) -> DriftResult {
     let user_key = user_loader.key();
     let mut user = load_mut!(user_loader)?;
+
     let order_index = match order_id {
-        ModifyOrderId::UserOrderId(user_order_id) => user
-            .get_order_index_by_user_order_id(user_order_id)
-            .map_err(|e| {
-                msg!("User order id {} not found", user_order_id);
-                e
-            })?,
-        ModifyOrderId::OrderId(order_id) => user.get_order_index(order_id).map_err(|e| {
-            msg!("Order id {} not found", order_id);
-            e
-        })?,
+        ModifyOrderId::UserOrderId(user_order_id) => {
+            match user.get_order_index_by_user_order_id(user_order_id) {
+                Ok(order_index) => order_index,
+                Err(e) => {
+                    msg!("User order id {} not found", user_order_id);
+                    if modify_order_params.policy == Some(ModifyOrderPolicy::MustModify) {
+                        return Err(e);
+                    } else {
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        ModifyOrderId::OrderId(order_id) => match user.get_order_index(order_id) {
+            Ok(order_index) => order_index,
+            Err(e) => {
+                msg!("Order id {} not found", order_id);
+                if modify_order_params.policy == Some(ModifyOrderPolicy::MustModify) {
+                    return Err(e);
+                } else {
+                    return Ok(());
+                }
+            }
+        },
     };
+
     let existing_order = user.orders[order_index];
 
     cancel_order(
@@ -2822,7 +2838,7 @@ pub fn place_spot_order(
 
     let market_index = params.market_index;
     let spot_market = &spot_market_map.get_ref(&market_index)?;
-    let force_reduce_only = spot_market.is_reduce_only()?;
+    let force_reduce_only = spot_market.is_reduce_only();
     let step_size = spot_market.order_step_size;
 
     validate!(
@@ -3062,13 +3078,7 @@ pub fn fill_spot_order(
     {
         let spot_market = spot_market_map.get_ref(&order_market_index)?;
         validate!(
-            matches!(
-                spot_market.status,
-                MarketStatus::Active
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::ReduceOnly
-                    | MarketStatus::WithdrawPaused
-            ),
+            spot_market.fills_enabled(),
             ErrorCode::MarketFillOrderPaused,
             "Market unavailable for fills"
         )?;
@@ -3266,19 +3276,9 @@ pub fn fill_spot_order(
         )?
     }
 
-    {
-        let spot_market = spot_market_map.get_ref(&order_market_index)?;
-        let token_deposits: u64 = spot_market.get_deposits()?.cast()?;
-        let max_token_deposits = spot_market.max_token_deposits;
-
-        validate!(
-            max_token_deposits == 0 || max_token_deposits > token_deposits,
-            ErrorCode::MaxDeposit,
-            "after fill, token_deposits ({}) > max_token_deposits ({})",
-            token_deposits,
-            max_token_deposits
-        )?;
-    }
+    spot_market_map
+        .get_ref(&order_market_index)?
+        .validate_max_token_deposits()?;
 
     user.update_last_active_slot(slot);
 

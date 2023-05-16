@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: allow up to 7500 subaccounts
+- program: allow users to swap on jupiter inside of drift account ([#462](https://github.com/drift-labs/protocol-v2/pull/462))
+
+### Fixes
+
+### Breaking
+
+## [2.29.0] - 2023-05-12
+
+### Features
+
+- sdk: expose method in account subscriber to change polling frequency
+
+### Fixes
+
+### Breaking
+
+- program: modify_order and modify_order_by_id now expect a ModifyOrderPolicy ([#461](https://github.com/drift-labs/protocol-v2/pull/461))
+- program: cancel_order does not fail if order does not exist ([#461](https://github.com/drift-labs/protocol-v2/pull/461))
+
+## [2.28.0] - 2023-05-11
+
+### Features
+
 - program: add precision docs to the state accounts ([#452](https://github.com/drift-labs/protocol-v2/pull/452))
 
 ### Fixes
