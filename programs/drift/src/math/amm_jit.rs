@@ -5,7 +5,6 @@ use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::safe_math::SafeMath;
 use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket};
-
 #[cfg(test)]
 mod tests;
 
@@ -145,7 +144,7 @@ pub fn calculate_amm_jit_liquidity(
     if amm_will_fill_next_round {
         return Ok((jit_base_asset_amount, liquidity_split));
     }
-    let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(taker_direction);
+    let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(taker_direction)?;
 
     let amm_lp_wants_to_jit_make = market.amm.amm_lp_wants_to_jit_make(taker_direction);
     let amm_lp_allowed_to_jit_make = market

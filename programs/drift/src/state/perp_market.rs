@@ -708,12 +708,16 @@ impl AMM {
         get_proportion_i128(target_lp_gap, self.user_lp_shares, BASE_PRECISION)
     }
 
-    pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> bool {
+    pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> DriftResult<bool> {
         let amm_wants_to_jit_make = match taker_direction {
-            PositionDirection::Long => self.base_asset_amount_with_amm < 0,
-            PositionDirection::Short => self.base_asset_amount_with_amm > 0,
+            PositionDirection::Long => {
+                self.base_asset_amount_with_amm < -(self.order_step_size.cast()?)
+            }
+            PositionDirection::Short => {
+                self.base_asset_amount_with_amm > (self.order_step_size.cast()?)
+            }
         };
-        amm_wants_to_jit_make && self.amm_jit_is_active()
+        Ok(amm_wants_to_jit_make && self.amm_jit_is_active())
     }
 
     pub fn amm_lp_wants_to_jit_make(&self, taker_direction: PositionDirection) -> bool {
@@ -732,10 +736,10 @@ impl AMM {
         amm_lp_wants_to_jit_make && self.amm_lp_jit_is_active()
     }
 
-    pub fn amm_lp_allowed_to_jit_make(&self, amm_lp_wants_to_jit_make: bool) -> DriftResult<bool> {
+    pub fn amm_lp_allowed_to_jit_make(&self, amm_wants_to_jit_make: bool) -> DriftResult<bool> {
         // only allow lps to make when the amm inventory is below a certain level of available liquidity
         // i.e. 10%
-        if amm_lp_wants_to_jit_make {
+        if amm_wants_to_jit_make {
             // inventory scale
             let (max_bids, max_asks) = amm::_calculate_market_open_bids_asks(
                 self.base_asset_reserve,
@@ -752,7 +756,7 @@ impl AMM {
 
             Ok(self.base_asset_amount_with_amm < protocol_owned_min_side_liquidity.safe_div(10)?)
         } else {
-            Ok(false)
+            Ok(true)
         }
     }
 
