@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::error::DriftResult;
+use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
 #[cfg(test)]
@@ -19,6 +19,7 @@ use crate::math::spot_balance::{calculate_utilization, get_token_amount};
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
+use crate::validate;
 
 #[account(zero_copy)]
 #[derive(PartialEq, Eq, Debug)]
@@ -155,7 +156,18 @@ pub struct SpotMarket {
     pub status: MarketStatus,
     /// The asset tier affects how a deposit can be used as collateral and the priority for a borrow being liquidated
     pub asset_tier: AssetTier,
-    pub padding: [u8; 86],
+    pub padding1: [u8; 6],
+    /// For swaps, the amount of token loaned out in the begin_swap ix
+    /// precision: token mint precision
+    pub flash_loan_amount: u64,
+    /// For swaps, the amount in the users token account in the begin_swap ix
+    /// Used to calculate how much of the token left the system in end_swap ix
+    /// precision: token mint precision
+    pub flash_loan_initial_token_amount: u64,
+    /// The total fees received from swaps
+    /// precision: token mint precision
+    pub total_swap_fee: u64,
+    pub padding: [u8; 56],
 }
 
 impl Default for SpotMarket {
@@ -208,7 +220,11 @@ impl Default for SpotMarket {
             oracle_source: OracleSource::default(),
             status: MarketStatus::default(),
             asset_tier: AssetTier::default(),
-            padding: [0; 86],
+            padding1: [0; 6],
+            flash_loan_amount: 0,
+            flash_loan_initial_token_amount: 0,
+            total_swap_fee: 0,
+            padding: [0; 56],
         }
     }
 }
@@ -231,8 +247,18 @@ impl SpotMarket {
         Ok(status_ok && not_expired)
     }
 
-    pub fn is_reduce_only(&self) -> DriftResult<bool> {
-        Ok(self.status == MarketStatus::ReduceOnly)
+    pub fn is_reduce_only(&self) -> bool {
+        self.status == MarketStatus::ReduceOnly
+    }
+
+    pub fn fills_enabled(&self) -> bool {
+        matches!(
+            self.status,
+            MarketStatus::Active
+                | MarketStatus::FundingPaused
+                | MarketStatus::ReduceOnly
+                | MarketStatus::WithdrawPaused
+        )
     }
 
     pub fn get_sanitize_clamp_denominator(&self) -> DriftResult<Option<i64>> {
@@ -318,6 +344,21 @@ impl SpotMarket {
 
     pub fn get_deposits(&self) -> DriftResult<u128> {
         get_token_amount(self.deposit_balance, self, &SpotBalanceType::Deposit)
+    }
+
+    pub fn validate_max_token_deposits(&self) -> DriftResult {
+        let deposits = self.get_deposits()?;
+        let max_token_deposits = self.max_token_deposits.cast::<u128>()?;
+
+        validate!(
+            max_token_deposits == 0 || deposits <= max_token_deposits,
+            ErrorCode::MaxDeposit,
+            "max token amount ({}) < deposits ({})",
+            max_token_deposits,
+            deposits,
+        )?;
+
+        Ok(())
     }
 
     pub fn get_available_deposits(&self) -> DriftResult<u128> {

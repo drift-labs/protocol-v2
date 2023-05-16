@@ -505,6 +505,18 @@ export type OrderActionRecord = {
 	oraclePrice: BN;
 };
 
+export type SwapRecord = {
+	ts: number;
+	user: PublicKey;
+	amountOut: BN;
+	amountIn: BN;
+	outMarketIndex: number;
+	inMarketIndex: number;
+	outOraclePrice: BN;
+	inOraclePrice: BN;
+	fee: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
@@ -645,6 +657,10 @@ export type SpotMarketAccount = {
 	nextFillRecordId: BN;
 	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
+	totalSwapFee: BN;
+
+	flashLoanAmount: BN;
+	flashLoanInitialTokenAmount: BN;
 
 	ordersEnabled: boolean;
 };
@@ -801,6 +817,7 @@ export type UserAccount = {
 	totalWithdraws: BN;
 	totalSocialLoss: BN;
 	cumulativePerpFunding: BN;
+	cumulativeSpotFees: BN;
 	liquidationMarginFreed: BN;
 	lastActiveSlot: BN;
 	isMarginTradingEnabled: boolean;

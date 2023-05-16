@@ -674,8 +674,9 @@ pub fn meets_withdraw_margin_requirement(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
+    margin_requirement_type: MarginRequirementType,
 ) -> DriftResult<bool> {
-    let strict = true;
+    let strict = margin_requirement_type == MarginRequirementType::Initial;
 
     let (
         initial_margin_requirement,
@@ -687,7 +688,7 @@ pub fn meets_withdraw_margin_requirement(
     ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
-        MarginRequirementType::Initial,
+        margin_requirement_type,
         spot_market_map,
         oracle_map,
         None,

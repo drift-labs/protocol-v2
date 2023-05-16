@@ -1,10 +1,17 @@
+use anchor_lang::Discriminator;
 use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
 use anchor_spl::token::{Token, TokenAccount};
 
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
+use crate::controller::spot_balance::update_revenue_pool_balances;
+use crate::controller::spot_position::{
+    update_spot_balances_and_cumulative_deposits,
+    update_spot_balances_and_cumulative_deposits_with_limits,
+};
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
+use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, serum_program};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
@@ -17,17 +24,18 @@ use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_initial_margin_requirement,
-    meets_withdraw_margin_requirement, validate_spot_margin_trading,
+    meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_balance::get_token_value;
+use crate::math::spot_swap::calculate_swap_price;
 use crate::math_error;
 use crate::print_error;
 use crate::safe_decrement;
 use crate::safe_increment;
 use crate::state::events::{
     DepositDirection, DepositExplanation, DepositRecord, LPAction, LPRecord, NewUserRecord,
-    OrderActionExplanation,
+    OrderActionExplanation, SwapRecord,
 };
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
@@ -36,7 +44,9 @@ use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
-use crate::state::spot_market_map::get_writable_spot_market_set;
+use crate::state::spot_market_map::{
+    get_writable_spot_market_set, get_writable_spot_market_set_from_many,
+};
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::{
@@ -47,6 +57,8 @@ use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
+use anchor_lang::solana_program::sysvar::instructions;
+use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 pub fn handle_initialize_user(
@@ -239,7 +251,7 @@ pub fn handle_deposit(
 
     let position_index = user.force_get_spot_position_index(spot_market.market_index)?;
 
-    let force_reduce_only = spot_market.is_reduce_only()?;
+    let force_reduce_only = spot_market.is_reduce_only();
 
     // if reduce only, have to compare ix amount to current borrow amount
     let amount = if (force_reduce_only || reduce_only)
@@ -351,20 +363,7 @@ pub fn handle_deposit(
     };
     emit!(deposit_record);
 
-    let deposits_token_amount = get_token_amount(
-        spot_market.deposit_balance,
-        spot_market,
-        &SpotBalanceType::Deposit,
-    )?;
-
-    validate!(
-        spot_market.max_token_deposits == 0
-            || deposits_token_amount <= spot_market.max_token_deposits.cast()?,
-        ErrorCode::MaxDeposit,
-        "max deposits: {} new deposits {}",
-        spot_market.max_token_deposits,
-        deposits_token_amount
-    )?;
+    spot_market.validate_max_token_deposits()?;
 
     Ok(())
 }
@@ -409,7 +408,7 @@ pub fn handle_withdraw(
             now,
         )?;
 
-        spot_market.is_reduce_only()?
+        spot_market.is_reduce_only()
     };
 
     let amount = {
@@ -463,7 +462,13 @@ pub fn handle_withdraw(
         amount
     };
 
-    meets_withdraw_margin_requirement(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+    meets_withdraw_margin_requirement(
+        user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        MarginRequirementType::Initial,
+    )?;
 
     validate_spot_margin_trading(user, &spot_market_map, &mut oracle_map)?;
 
@@ -611,15 +616,12 @@ pub fn handle_transfer_deposit(
         )?;
     }
 
-    validate!(
-        meets_withdraw_margin_requirement(
-            from_user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-        )?,
-        ErrorCode::InsufficientCollateral,
-        "From user does not meet initial margin requirement"
+    meets_withdraw_margin_requirement(
+        from_user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        MarginRequirementType::Initial,
     )?;
 
     validate_spot_margin_trading(from_user, &spot_market_map, &mut oracle_map)?;
@@ -2020,4 +2022,511 @@ pub struct DeleteUser<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(in_market_index: u16, out_market_index: u16, )]
+pub struct Swap<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub out_spot_market_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub in_spot_market_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &out_spot_market_vault.mint.eq(&out_token_account.mint),
+        token::authority = authority
+    )]
+    pub out_token_account: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &in_spot_market_vault.mint.eq(&in_token_account.mint),
+        token::authority = authority
+    )]
+    pub in_token_account: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+    /// Instructions Sysvar for instruction introspection
+    /// CHECK: fixed instructions sysvar account
+    #[account(address = instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
+}
+
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_begin_swap(
+    ctx: Context<Swap>,
+    in_market_index: u16,
+    out_market_index: u16,
+    amount_in: u64,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![in_market_index, out_market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let mut user = load_mut!(&ctx.accounts.user)?;
+
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+
+    math::liquidation::validate_user_not_being_liquidated(
+        &mut user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        ctx.accounts.state.liquidation_margin_buffer_ratio,
+    )?;
+
+    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    validate!(
+        in_spot_market.fills_enabled(),
+        ErrorCode::MarketFillOrderPaused,
+        "Swaps disabled for {}",
+        in_market_index
+    )?;
+
+    validate!(
+        in_spot_market.flash_loan_initial_token_amount == 0
+            && in_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "begin_swap ended in invalid state"
+    )?;
+
+    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle)?;
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut in_spot_market,
+        Some(in_oracle_data),
+        now,
+    )?;
+
+    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    validate!(
+        out_spot_market.fills_enabled(),
+        ErrorCode::MarketFillOrderPaused,
+        "Swaps disabled for {}",
+        out_market_index
+    )?;
+
+    validate!(
+        out_spot_market.flash_loan_initial_token_amount == 0
+            && out_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "begin_swap ended in invalid state"
+    )?;
+
+    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut out_spot_market,
+        Some(out_oracle_data),
+        now,
+    )?;
+
+    validate!(
+        amount_in != 0,
+        ErrorCode::InvalidSwap,
+        "amount_out cannot be zero"
+    )?;
+
+    let in_vault = &ctx.accounts.in_spot_market_vault;
+    let in_token_account = &ctx.accounts.in_token_account;
+
+    in_spot_market.flash_loan_amount = amount_in;
+    in_spot_market.flash_loan_initial_token_amount = in_token_account.amount;
+
+    let out_token_account = &ctx.accounts.out_token_account;
+
+    out_spot_market.flash_loan_initial_token_amount = out_token_account.amount;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        in_vault,
+        &ctx.accounts.in_token_account,
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+        amount_in,
+    )?;
+
+    let ixs = ctx.accounts.instructions.as_ref();
+    let current_index = instructions::load_current_index_checked(ixs)? as usize;
+
+    let current_ix = instructions::load_instruction_at_checked(current_index, ixs)?;
+    validate!(
+        current_ix.program_id == *ctx.program_id,
+        ErrorCode::InvalidSwap,
+        "SwapBegin must be a top-level instruction (cant be cpi)"
+    )?;
+
+    // The only other drift program allowed is SwapEnd
+    let mut index = current_index + 1;
+    let mut found_end = false;
+    loop {
+        let ix = match instructions::load_instruction_at_checked(index, ixs) {
+            Ok(ix) => ix,
+            Err(ProgramError::InvalidArgument) => break,
+            Err(e) => return Err(e.into()),
+        };
+
+        // Check that the drift program key is not used
+        if ix.program_id == crate::id() {
+            // must be the last ix -- this could possibly be relaxed
+            validate!(
+                !found_end,
+                ErrorCode::InvalidSwap,
+                "the transaction must not contain a Drift instruction after FlashLoanEnd"
+            )?;
+            found_end = true;
+
+            // must be the SwapEnd instruction
+            let discriminator = crate::instruction::EndSwap::discriminator();
+            validate!(
+                ix.data[0..8] == discriminator,
+                ErrorCode::InvalidSwap,
+                "last drift ix must be end of swap"
+            )?;
+
+            validate!(
+                ctx.accounts.user.key() == ix.accounts[1].pubkey,
+                ErrorCode::InvalidSwap,
+                "the user passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.authority.key() == ix.accounts[3].pubkey,
+                ErrorCode::InvalidSwap,
+                "the authority passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.out_spot_market_vault.key() == ix.accounts[4].pubkey,
+                ErrorCode::InvalidSwap,
+                "the out_spot_market_vault passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.in_spot_market_vault.key() == ix.accounts[5].pubkey,
+                ErrorCode::InvalidSwap,
+                "the in_spot_market_vault passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.out_token_account.key() == ix.accounts[6].pubkey,
+                ErrorCode::InvalidSwap,
+                "the out_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.in_token_account.key() == ix.accounts[7].pubkey,
+                ErrorCode::InvalidSwap,
+                "the in_token_account passed to SwapBegin and End must match"
+            )?;
+        } else {
+            validate!(
+                ix.program_id == AssociatedToken::id()
+                    || ix.program_id == serum_program::id()
+                    || ix.program_id == jupiter_mainnet_3::ID
+                    || ix.program_id == jupiter_mainnet_4::ID,
+                ErrorCode::InvalidSwap,
+                "only allowed to pass in ixs to ATA or openbook or Jupiter v3 or v4 programs"
+            )?;
+        }
+
+        index += 1;
+    }
+
+    validate!(
+        found_end,
+        ErrorCode::InvalidSwap,
+        "found no SwapEnd instruction in transaction"
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_end_swap(
+    ctx: Context<Swap>,
+    in_market_index: u16,
+    out_market_index: u16,
+    limit_price: Option<u64>,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let slot = clock.slot;
+    let now = clock.unix_timestamp;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![in_market_index, out_market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(&ctx.accounts.user)?;
+
+    let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
+
+    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    validate!(
+        in_spot_market.flash_loan_amount != 0,
+        ErrorCode::InvalidSwap,
+        "the in_spot_market must have a flash loan amount set"
+    )?;
+
+    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle)?;
+    let in_oracle_price = in_oracle_data.price;
+
+    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    let out_oracle_price = out_oracle_data.price;
+
+    let in_vault = &mut ctx.accounts.in_spot_market_vault;
+    let in_token_account = &mut ctx.accounts.in_token_account;
+
+    let mut amount_in = in_spot_market.flash_loan_amount;
+    if in_token_account.amount > in_spot_market.flash_loan_initial_token_amount {
+        let residual = in_token_account
+            .amount
+            .safe_sub(in_spot_market.flash_loan_initial_token_amount)?;
+
+        controller::token::receive(
+            &ctx.accounts.token_program,
+            in_token_account,
+            in_vault,
+            &ctx.accounts.authority,
+            residual,
+        )?;
+        in_token_account.reload()?;
+        in_vault.reload()?;
+
+        amount_in = amount_in.safe_sub(residual)?;
+    }
+
+    let in_token_amount_before = user
+        .force_get_spot_position_mut(in_market_index)?
+        .get_signed_token_amount(&in_spot_market)?;
+
+    // checks deposit/borrow limits
+    update_spot_balances_and_cumulative_deposits_with_limits(
+        amount_in.cast()?,
+        &SpotBalanceType::Borrow,
+        &mut in_spot_market,
+        &mut user,
+    )?;
+
+    let in_position_is_reduced =
+        in_token_amount_before > 0 && in_token_amount_before.unsigned_abs() >= amount_in.cast()?;
+
+    if !in_position_is_reduced {
+        validate!(
+            !in_spot_market.is_reduce_only(),
+            ErrorCode::SpotMarketReduceOnly,
+            "in spot market is reduce only but token amount before ({}) < amount in ({})",
+            in_token_amount_before,
+            amount_in
+        )?;
+    }
+
+    math::spot_withdraw::validate_spot_market_vault_amount(&in_spot_market, in_vault.amount)?;
+
+    in_spot_market.flash_loan_initial_token_amount = 0;
+    in_spot_market.flash_loan_amount = 0;
+
+    let out_vault = &mut ctx.accounts.out_spot_market_vault;
+    let out_token_account = &mut ctx.accounts.out_token_account;
+
+    let mut amount_out = 0_u64;
+    if out_token_account.amount > out_spot_market.flash_loan_initial_token_amount {
+        amount_out = out_token_account
+            .amount
+            .safe_sub(out_spot_market.flash_loan_initial_token_amount)?;
+
+        controller::token::receive(
+            &ctx.accounts.token_program,
+            out_token_account,
+            out_vault,
+            &ctx.accounts.authority,
+            amount_out,
+        )?;
+        out_vault.reload()?;
+    }
+
+    if let Some(limit_price) = limit_price {
+        let swap_price = calculate_swap_price(
+            amount_out.cast()?,
+            amount_in.cast()?,
+            out_spot_market.decimals,
+            in_spot_market.decimals,
+        )?;
+
+        validate!(
+            swap_price >= limit_price.cast()?,
+            ErrorCode::SwapLimitPriceBreached,
+            "swap_price ({}) < limit price ({})",
+            swap_price,
+            limit_price
+        )?;
+    }
+
+    let fee = amount_out / 2000; // 0.05% fee
+    let amount_out_after_fee = amount_out.safe_sub(fee)?;
+
+    out_spot_market.total_swap_fee = out_spot_market.total_swap_fee.saturating_add(fee);
+
+    let fee_value = get_token_value(fee.cast()?, out_spot_market.decimals, out_oracle_data.price)?;
+
+    // update fees
+    user.update_cumulative_spot_fees(-fee_value.cast()?)?;
+    user_stats.increment_total_fees(fee_value.cast()?)?;
+
+    // update taker volume
+    let amount_out_value = get_token_value(
+        amount_out.cast()?,
+        out_spot_market.decimals,
+        out_oracle_data.price,
+    )?;
+    user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+
+    validate!(
+        amount_out != 0,
+        ErrorCode::InvalidSwap,
+        "amount_out must be greater than 0"
+    )?;
+
+    let out_token_amount_before = user
+        .force_get_spot_position_mut(out_market_index)?
+        .get_signed_token_amount(&out_spot_market)?;
+
+    update_spot_balances_and_cumulative_deposits(
+        amount_out_after_fee.cast()?,
+        &SpotBalanceType::Deposit,
+        &mut out_spot_market,
+        user.force_get_spot_position_mut(out_market_index)?,
+        false,
+        Some(amount_out.cast()?),
+    )?;
+
+    // update fees
+    update_revenue_pool_balances(fee.cast()?, &SpotBalanceType::Deposit, &mut out_spot_market)?;
+
+    let out_position_is_reduced = out_token_amount_before < 0
+        && out_token_amount_before.unsigned_abs() >= amount_out.cast()?;
+
+    if !out_position_is_reduced {
+        validate!(
+            !out_spot_market.is_reduce_only(),
+            ErrorCode::SpotMarketReduceOnly,
+            "out spot market is reduce only but token amount before ({}) < amount out ({})",
+            out_token_amount_before,
+            amount_out
+        )?;
+    }
+
+    math::spot_withdraw::validate_spot_market_vault_amount(&out_spot_market, out_vault.amount)?;
+
+    out_spot_market.flash_loan_initial_token_amount = 0;
+    out_spot_market.flash_loan_amount = 0;
+
+    out_spot_market.validate_max_token_deposits()?;
+
+    let out_safer_than_in =
+        out_spot_market.maintenance_asset_weight > in_spot_market.maintenance_asset_weight;
+
+    drop(out_spot_market);
+    drop(in_spot_market);
+
+    let margin_type = if in_position_is_reduced && out_safer_than_in {
+        MarginRequirementType::Maintenance
+    } else {
+        MarginRequirementType::Initial
+    };
+
+    meets_withdraw_margin_requirement(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        margin_type,
+    )?;
+
+    user.update_last_active_slot(slot);
+
+    let swap_record = SwapRecord {
+        ts: now,
+        amount_in,
+        amount_out,
+        out_market_index,
+        in_market_index,
+        in_oracle_price,
+        out_oracle_price,
+        user: user_key,
+        fee,
+    };
+    emit!(swap_record);
+
+    let out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    validate!(
+        out_spot_market.flash_loan_initial_token_amount == 0
+            && out_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "end_swap ended in invalid state"
+    )?;
+
+    let in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    validate!(
+        in_spot_market.flash_loan_initial_token_amount == 0
+            && in_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "end_swap ended in invalid state"
+    )?;
+
+    Ok(())
 }
