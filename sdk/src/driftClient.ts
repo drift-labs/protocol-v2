@@ -201,19 +201,19 @@ export class DriftClient {
 		this.authoritySubAccountMap = config.authoritySubAccountMap
 			? config.authoritySubAccountMap
 			: config.subAccountIds
-				? new Map([[this.authority.toString(), config.subAccountIds]])
-				: new Map<string, number[]>();
+			? new Map([[this.authority.toString(), config.subAccountIds]])
+			: new Map<string, number[]>();
 
 		this.includeDelegates = config.includeDelegates ?? false;
 		this.userAccountSubscriptionConfig =
 			config.accountSubscription?.type === 'polling'
 				? {
-					type: 'polling',
-					accountLoader: config.accountSubscription.accountLoader,
-				}
+						type: 'polling',
+						accountLoader: config.accountSubscription.accountLoader,
+				  }
 				: {
-					type: 'websocket',
-				};
+						type: 'websocket',
+				  };
 
 		if (config.userStats) {
 			this.userStats = new UserStats({
@@ -544,8 +544,8 @@ export class DriftClient {
 		this.authoritySubAccountMap = authoritySubaccountMap
 			? authoritySubaccountMap
 			: subAccountIds
-				? new Map([[this.authority.toString(), subAccountIds]])
-				: new Map<string, number[]>();
+			? new Map([[this.authority.toString(), subAccountIds]])
+			: new Map<string, number[]>();
 
 		let success = true;
 
@@ -630,7 +630,7 @@ export class DriftClient {
 					[...this.authoritySubAccountMap.values()][0][0] ?? 0,
 					new PublicKey(
 						[...this.authoritySubAccountMap.keys()][0] ??
-						this.authority.toString()
+							this.authority.toString()
 					)
 				);
 			}
@@ -1799,19 +1799,19 @@ export class DriftClient {
 		const depositCollateralIx =
 			fromSubAccountId != null
 				? await this.getTransferDepositIx(
-					amount,
-					marketIndex,
-					fromSubAccountId,
-					subAccountId
-				)
+						amount,
+						marketIndex,
+						fromSubAccountId,
+						subAccountId
+				  )
 				: await this.getDepositInstruction(
-					amount,
-					marketIndex,
-					userTokenAccount,
-					subAccountId,
-					false,
-					false
-				);
+						amount,
+						marketIndex,
+						userTokenAccount,
+						subAccountId,
+						false,
+						false
+				  );
 
 		if (subAccountId === 0) {
 			if (
@@ -2871,14 +2871,14 @@ export class DriftClient {
 		const marketIndex = order
 			? order.marketIndex
 			: userAccount.orders.find(
-				(order) => order.orderId === userAccount.nextOrderId - 1
-			).marketIndex;
+					(order) => order.orderId === userAccount.nextOrderId - 1
+			  ).marketIndex;
 
 		makerInfo = Array.isArray(makerInfo)
 			? makerInfo
 			: makerInfo
-				? [makerInfo]
-				: [];
+			? [makerInfo]
+			: [];
 
 		const userAccounts = [userAccount];
 		for (const maker of makerInfo) {
@@ -3041,8 +3041,8 @@ export class DriftClient {
 		const marketIndex = order
 			? order.marketIndex
 			: userAccount.orders.find(
-				(order) => order.orderId === userAccount.nextOrderId - 1
-			).marketIndex;
+					(order) => order.orderId === userAccount.nextOrderId - 1
+			  ).marketIndex;
 
 		const userAccounts = [userAccount];
 		if (makerInfo !== undefined) {
@@ -3670,8 +3670,8 @@ export class DriftClient {
 		makerInfo = Array.isArray(makerInfo)
 			? makerInfo
 			: makerInfo
-				? [makerInfo]
-				: [];
+			? [makerInfo]
+			: [];
 
 		const userAccounts = [this.getUserAccount()];
 		for (const maker of makerInfo) {

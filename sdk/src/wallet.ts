@@ -1,17 +1,24 @@
-import { Keypair, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
+import {
+	Keypair,
+	PublicKey,
+	Transaction,
+	VersionedTransaction,
+} from '@solana/web3.js';
 import { IWallet, IVersionedWallet } from './types';
 import fs from 'fs';
 import bs58 from 'bs58';
 
 export class Wallet implements IWallet, IVersionedWallet {
-	constructor(readonly payer: Keypair) { }
+	constructor(readonly payer: Keypair) {}
 
 	async signTransaction(tx: Transaction): Promise<Transaction> {
 		tx.partialSign(this.payer);
 		return tx;
 	}
 
-	async signVersionedTransaction(tx: VersionedTransaction): Promise<VersionedTransaction> {
+	async signVersionedTransaction(
+		tx: VersionedTransaction
+	): Promise<VersionedTransaction> {
 		tx.sign([this.payer]);
 		return tx;
 	}
@@ -23,7 +30,9 @@ export class Wallet implements IWallet, IVersionedWallet {
 		});
 	}
 
-	async signAllVersionedTransactions(txs: VersionedTransaction[]): Promise<VersionedTransaction[]> {
+	async signAllVersionedTransactions(
+		txs: VersionedTransaction[]
+	): Promise<VersionedTransaction[]> {
 		return txs.map((t) => {
 			t.sign([this.payer]);
 			return t;

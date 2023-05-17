@@ -958,8 +958,12 @@ export interface IWallet {
 	publicKey: PublicKey;
 }
 export interface IVersionedWallet {
-	signVersionedTransaction(tx: VersionedTransaction): Promise<VersionedTransaction>;
-	signAllVersionedTransactions(txs: VersionedTransaction[]): Promise<VersionedTransaction[]>;
+	signVersionedTransaction(
+		tx: VersionedTransaction
+	): Promise<VersionedTransaction>;
+	signAllVersionedTransactions(
+		txs: VersionedTransaction[]
+	): Promise<VersionedTransaction[]>;
 	publicKey: PublicKey;
 }
 
