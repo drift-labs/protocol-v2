@@ -89,16 +89,16 @@ export class JupiterClient {
 	/**
 	 * Get a swap transaction for a route
 	 * @param route the route to perform swap
-	 * @param userPublicKey the user's wallet public key
+	 * @param signerPublicKey the signer's wallet public key
 	 * @param slippageBps the slippage tolerance in basis points
 	 */
 	public async getSwapTransaction({
 		route,
-		userPublicKey,
+		signerPublicKey: signerPublicKey,
 		slippageBps = 50,
 	}: {
 		route: Route;
-		userPublicKey: PublicKey;
+		signerPublicKey: PublicKey;
 		slippageBps?: number;
 	}): Promise<VersionedTransaction> {
 		const resp = await (
@@ -109,7 +109,7 @@ export class JupiterClient {
 				},
 				body: JSON.stringify({
 					route,
-					userPublicKey,
+					signerPublicKey,
 					slippageBps,
 				}),
 			})
