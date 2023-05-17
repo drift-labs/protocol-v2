@@ -1493,12 +1493,12 @@ export class DriftClient {
 		return await getAssociatedTokenAddress(mint, this.wallet.publicKey);
 	}
 
-	public async createAssociatedTokenAccountIdempotentInstruction(
+	public createAssociatedTokenAccountIdempotentInstruction(
 		account: PublicKey,
 		payer: PublicKey,
 		owner: PublicKey,
 		mint: PublicKey
-	): Promise<TransactionInstruction> {
+	): TransactionInstruction {
 		return new TransactionInstruction({
 			keys: [
 				{ pubkey: payer, isSigner: true, isWritable: true },
@@ -1506,7 +1506,7 @@ export class DriftClient {
 				{ pubkey: owner, isSigner: false, isWritable: false },
 				{ pubkey: mint, isSigner: false, isWritable: false },
 				{
-					pubkey: SystemProgram.programId,
+					pubkey: anchor.web3.SystemProgram.programId,
 					isSigner: false,
 					isWritable: false,
 				},
@@ -3302,10 +3302,10 @@ export class DriftClient {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
 		inMarketIndex: number;
-		outAssociatedTokenAccount: PublicKey;
-		inAssociatedTokenAccount: PublicKey;
+		outAssociatedTokenAccount?: PublicKey;
+		inAssociatedTokenAccount?: PublicKey;
 		amount: BN;
-		slippageBps: number;
+		slippageBps?: number;
 		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
@@ -3343,7 +3343,8 @@ export class DriftClient {
 		const preInstructions = [];
 		if (!outAssociatedTokenAccount) {
 			outAssociatedTokenAccount = await this.getAssociatedTokenAccount(
-				outMarket.marketIndex
+				outMarket.marketIndex,
+				false
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
@@ -3363,7 +3364,8 @@ export class DriftClient {
 
 		if (!inAssociatedTokenAccount) {
 			inAssociatedTokenAccount = await this.getAssociatedTokenAccount(
-				inMarket.marketIndex
+				inMarket.marketIndex,
+				false
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
@@ -5349,7 +5351,8 @@ export class DriftClient {
 			allIx.push(instructions);
 		}
 
-		if (this.txVersion === 'legacy') {
+		txVersion = txVersion ?? this.txVersion;
+		if (txVersion === 'legacy') {
 			return new Transaction().add(...allIx);
 		} else {
 			const marketLookupTable = await this.fetchMarketLookupTableAccount();

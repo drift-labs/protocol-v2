@@ -122,6 +122,10 @@ export class RetryTxSender implements TxSender {
 		// @ts-ignore
 		tx.sign((additionalSigners ?? []).concat(this.provider.wallet.payer));
 
+		if (opts === undefined) {
+			opts = this.provider.opts;
+		}
+
 		return this.sendRawTransaction(tx.serialize(), opts);
 	}
 
