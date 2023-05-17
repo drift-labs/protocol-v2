@@ -1,5 +1,6 @@
 import { getOrderSignature, getVammNodeGenerator, NodeList } from './NodeList';
 import {
+	BASE_PRECISION,
 	BN,
 	calculateAskPrice,
 	calculateBidPrice,
@@ -26,6 +27,7 @@ import {
 	PerpMarketAccount,
 	PositionDirection,
 	PRICE_PRECISION,
+	QUOTE_PRECISION,
 	SlotSubscriber,
 	SpotMarketAccount,
 	StateAccount,
@@ -1876,7 +1878,9 @@ export class DLOB {
 			}
 		}
 
-		return runningSumQuote;
+		return runningSumQuote
+			.mul(QUOTE_PRECISION)
+			.div(BASE_PRECISION.mul(PRICE_PRECISION));
 	}
 
 	/**
@@ -1887,7 +1891,7 @@ export class DLOB {
 	 * @param param.orderDirection the direction of the trade
 	 * @param param.slot current slot for estimating dlob node price
 	 * @param param.oraclePriceData the oracle price data
-	 * @returns the estimated quote amount filled: PRICE_PRECISION*BASE_PRECISION
+	 * @returns the estimated quote amount filled: QUOTE_PRECISION
 	 */
 	public estimateFillWithExactBaseAmount({
 		marketIndex,
