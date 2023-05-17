@@ -143,7 +143,9 @@ export class JupiterClient {
 			)
 		).filter((lookup) => lookup);
 
-		const transactionMessage = TransactionMessage.decompile(message);
+		const transactionMessage = TransactionMessage.decompile(message, {
+			addressLookupTableAccounts: lookupTables,
+		});
 		return {
 			transactionMessage,
 			lookupTables,
@@ -186,6 +188,12 @@ export class JupiterClient {
 			if (
 				instruction.programId.toString() ===
 				'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+			) {
+				return false;
+			}
+
+			if (
+				instruction.programId.toString() === '11111111111111111111111111111111'
 			) {
 				return false;
 			}
