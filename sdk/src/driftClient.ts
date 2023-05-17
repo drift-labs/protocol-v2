@@ -116,7 +116,7 @@ import { isSpotPositionAvailable } from './math/spotPosition';
 import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
-import { JupiterClient } from './jupiter/jupiterClient';
+import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -3287,6 +3287,7 @@ export class DriftClient {
 	 * @param inAssociatedTokenAccount the token account to
 	 * @param amount the amount of the token to sell
 	 * @param slippageBps the max slippage passed to jupiter api
+	 * @param route the jupiter route to use for the swap
 	 * @param txParams
 	 */
 	public async swap({
@@ -3297,6 +3298,8 @@ export class DriftClient {
 		inAssociatedTokenAccount,
 		amount,
 		slippageBps,
+		swapMode,
+		route,
 		txParams,
 	}: {
 		jupiterClient: JupiterClient;
@@ -3306,23 +3309,29 @@ export class DriftClient {
 		inAssociatedTokenAccount?: PublicKey;
 		amount: BN;
 		slippageBps?: number;
+		swapMode?: SwapMode;
+		route?: Route;
 		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
-		const routes = await jupiterClient.getRoutes({
-			inputMint: inMarket.mint,
-			outputMint: outMarket.mint,
-			amount,
-			slippageBps,
-		});
+		if (!route) {
+			const routes = await jupiterClient.getRoutes({
+				inputMint: inMarket.mint,
+				outputMint: outMarket.mint,
+				amount,
+				slippageBps,
+				swapMode,
+			});
 
-		if (!routes || routes.length === 0) {
-			throw new Error('No jupiter routes found');
+			if (!routes || routes.length === 0) {
+				throw new Error('No jupiter routes found');
+			}
+
+			route = routes[0];
 		}
 
-		const route = routes[0];
 		const transaction = await jupiterClient.getSwapTransaction({
 			route,
 			userPublicKey: this.provider.wallet.publicKey,
