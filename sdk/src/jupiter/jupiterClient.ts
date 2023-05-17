@@ -94,11 +94,11 @@ export class JupiterClient {
 	 */
 	public async getSwapTransaction({
 		route,
-		signerPublicKey: signerPublicKey,
+		userPublicKey,
 		slippageBps = 50,
 	}: {
 		route: Route;
-		signerPublicKey: PublicKey;
+		userPublicKey: PublicKey;
 		slippageBps?: number;
 	}): Promise<VersionedTransaction> {
 		const resp = await (
@@ -109,7 +109,7 @@ export class JupiterClient {
 				},
 				body: JSON.stringify({
 					route,
-					signerPublicKey,
+					userPublicKey,
 					slippageBps,
 				}),
 			})
@@ -143,7 +143,9 @@ export class JupiterClient {
 			)
 		).filter((lookup) => lookup);
 
-		const transactionMessage = TransactionMessage.decompile(message);
+		const transactionMessage = TransactionMessage.decompile(message, {
+			addressLookupTableAccounts: lookupTables,
+		});
 		return {
 			transactionMessage,
 			lookupTables,

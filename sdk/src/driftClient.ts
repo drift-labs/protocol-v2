@@ -3338,7 +3338,7 @@ export class DriftClient {
 		const route = routes[0];
 		const transaction = await jupiterClient.getSwapTransaction({
 			route,
-			signerPublicKey: this.provider.wallet.publicKey,
+			userPublicKey: this.provider.wallet.publicKey,
 			slippageBps,
 		});
 
