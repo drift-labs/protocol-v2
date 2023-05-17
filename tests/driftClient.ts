@@ -11,7 +11,6 @@ import {
 } from '../sdk';
 
 import { Program } from '@coral-xyz/anchor';
-import { getTokenAccount } from '@project-serum/common';
 
 import { PublicKey, TransactionSignature } from '@solana/web3.js';
 
@@ -34,6 +33,7 @@ import {
 	mintUSDCToUser,
 	printTxLogs,
 } from './testHelpers';
+import { getAccount } from '@solana/spl-token';
 
 describe('drift client', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -188,11 +188,11 @@ describe('drift client', () => {
 		);
 
 		// Check that drift collateral account has proper collateral
-		const quoteSpotVault = await getTokenAccount(
-			provider,
+		const quoteSpotVault = await getAccount(
+			connection,
 			driftClient.getQuoteSpotMarketAccount().vault
 		);
-		assert.ok(quoteSpotVault.amount.eq(usdcAmount));
+		assert.ok(new BN(quoteSpotVault.amount).eq(usdcAmount));
 
 		assert.ok(user.perpPositions.length == 8);
 		assert.ok(user.perpPositions[0].baseAssetAmount.toNumber() === 0);

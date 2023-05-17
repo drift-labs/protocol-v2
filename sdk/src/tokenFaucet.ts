@@ -1,10 +1,11 @@
 import * as anchor from '@coral-xyz/anchor';
 import { AnchorProvider, Idl, Program } from '@coral-xyz/anchor';
 import {
-	AccountInfo,
-	ASSOCIATED_TOKEN_PROGRAM_ID,
-	Token,
 	TOKEN_PROGRAM_ID,
+	getAccount,
+	Account,
+	createAssociatedTokenAccountInstruction,
+	getAssociatedTokenAddress,
 } from '@solana/spl-token';
 import {
 	ConfirmOptions,
@@ -174,15 +175,12 @@ export class TokenFaucet {
 			{ userPubKey: userPublicKey }
 		);
 
-		const createAssociatedAccountIx =
-			Token.createAssociatedTokenAccountInstruction(
-				ASSOCIATED_TOKEN_PROGRAM_ID,
-				TOKEN_PROGRAM_ID,
-				state.mint,
-				associateTokenPublicKey,
-				userPublicKey,
-				this.wallet.publicKey
-			);
+		const createAssociatedAccountIx = createAssociatedTokenAccountInstruction(
+			this.wallet.publicKey,
+			associateTokenPublicKey,
+			userPublicKey,
+			state.mint
+		);
 
 		const mintToIx = await this.mintToUserIx(associateTokenPublicKey, amount);
 
@@ -194,36 +192,19 @@ export class TokenFaucet {
 	}): Promise<anchor.web3.PublicKey> {
 		const state: any = await this.fetchState();
 
-		return Token.getAssociatedTokenAddress(
-			ASSOCIATED_TOKEN_PROGRAM_ID,
-			TOKEN_PROGRAM_ID,
-			state.mint,
-			props.userPubKey
-		);
+		return getAssociatedTokenAddress(state.mint, props.userPubKey);
 	}
 
 	public async getTokenAccountInfo(props: {
 		userPubKey: PublicKey;
-	}): Promise<AccountInfo> {
-		const assosciatedKey = await this.getAssosciatedMockUSDMintAddress(props);
-
-		const state: any = await this.fetchState();
-
-		const token = new Token(
-			this.connection,
-			state.mint,
-			TOKEN_PROGRAM_ID,
-			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-			// @ts-ignore
-			this.provider.payer
-		);
-
-		return await token.getAccountInfo(assosciatedKey);
+	}): Promise<Account> {
+		const associatedKey = await this.getAssosciatedMockUSDMintAddress(props);
+		return await getAccount(this.connection, associatedKey);
 	}
 
 	public async subscribeToTokenAccount(props: {
 		userPubKey: PublicKey;
-		callback: (accountInfo: AccountInfo) => void;
+		callback: (accountInfo: Account) => void;
 	}): Promise<boolean> {
 		try {
 			const tokenAccountKey = await this.getAssosciatedMockUSDMintAddress(
