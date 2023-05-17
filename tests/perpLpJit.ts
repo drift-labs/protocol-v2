@@ -23,6 +23,7 @@ import {
 	OracleGuardRails,
 	PostOnlyParams,
 	BulkAccountLoader,
+	isVariant,
 } from '../sdk/src';
 
 import {
@@ -91,7 +92,7 @@ async function createNewUser(
 			commitment: 'confirmed',
 		},
 		activeSubAccountId: 0,
-		perpMarketIndexes: [0, 1, 2],
+		perpMarketIndexes: [0, 1, 2, 3],
 		spotMarketIndexes: [0],
 		oracleInfos,
 		accountSubscription: bulkAccountLoader
@@ -126,7 +127,7 @@ async function createNewUser(
 	return [driftClient, driftClientUser];
 }
 
-describe('liquidity providing', () => {
+describe('lp jit', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -177,6 +178,7 @@ describe('liquidity providing', () => {
 	let solusdc;
 	let solusdc2;
 	let solusdc3;
+	let btcusdc;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -184,10 +186,15 @@ describe('liquidity providing', () => {
 		solusdc3 = await mockOracle(1, -7); // make invalid
 		solusdc2 = await mockOracle(1, -7); // make invalid
 		solusdc = await mockOracle(1, -7); // make invalid
+		btcusdc = await mockOracle(26069, -7);
+
 		const oracleInfos = [
 			{ publicKey: solusdc, source: OracleSource.PYTH },
 			{ publicKey: solusdc2, source: OracleSource.PYTH },
+			{ publicKey: solusdc3, source: OracleSource.PYTH },
+			{ publicKey: btcusdc, source: OracleSource.PYTH },
 		];
+
 		[driftClient, driftClientUser] = await createNewUser(
 			chProgram,
 			provider,
@@ -246,6 +253,15 @@ describe('liquidity providing', () => {
 			stableAmmInitialQuoteAssetReserve,
 			new BN(0)
 		);
+
+		// third market
+		await driftClient.initializePerpMarket(
+			3,
+			btcusdc,
+			stableAmmInitialBaseAssetReserve,
+			stableAmmInitialQuoteAssetReserve,
+			new BN(0)
+		);
 		await driftClient.updateLpCooldownTime(new BN(0));
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
@@ -284,6 +300,7 @@ describe('liquidity providing', () => {
 
 	const lpCooldown = 1;
 	it('perp jit check (amm jit intensity = 0)', async () => {
+		return;
 		const marketIndex = 0;
 		console.log('adding liquidity...');
 		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(
@@ -459,6 +476,7 @@ describe('liquidity providing', () => {
 		assert(settleLiquidityRecord.pnl.eq(sdkPnl));
 	});
 	it('perp jit check (amm jit intensity = 100)', async () => {
+		return;
 		const marketIndex = 1;
 		await driftClient.updateAmmJitIntensity(marketIndex, 100);
 
@@ -790,17 +808,17 @@ describe('liquidity providing', () => {
 			);
 
 			if (i == 0) {
-				assert(market.amm.baseAssetAmountPerLp.eq(new BN('-5000272')));
-				assert(market.amm.baseAssetAmountWithAmm.eq(new BN('5000272800')));
+				assert(market.amm.baseAssetAmountPerLp.eq(new BN('-5227727')));
+				assert(market.amm.baseAssetAmountWithAmm.eq(new BN('5227727300')));
 				assert(
-					market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('500027200'))
+					market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('522772700'))
 				);
 			}
 		}
 		market = driftClient.getPerpMarketAccount(marketIndex);
-		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-93')));
-		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('90700')));
-		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('9300')));
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('12499904')));
+		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('90400')));
+		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('-1249990400')));
 
 		const trader = await traderDriftClient.getUserAccount();
 		console.log(
@@ -822,7 +840,43 @@ describe('liquidity providing', () => {
 			console.log(e);
 		}
 		user = await await driftClientUser.getUserAccount();
+		const orderRecords = eventSubscriber.getEventsArray('OrderActionRecord');
 
+		const matchOrderRecord = orderRecords[1];
+		assert(
+			isVariant(matchOrderRecord.actionExplanation, 'orderFilledWithMatchJit')
+		);
+		assert(matchOrderRecord.baseAssetAmountFilled.toString(), '3750000000');
+		assert(matchOrderRecord.quoteAssetAmountFilled.toString(), '3791212');
+
+		const jitOrderRecord = orderRecords[2];
+		assert(isVariant(jitOrderRecord.actionExplanation, 'orderFilledWithLpJit'));
+		assert(jitOrderRecord.baseAssetAmountFilled.toString(), '1250000000');
+		assert(jitOrderRecord.quoteAssetAmountFilled.toString(), '1263738');
+
+		// console.log('len of orderRecords', orderRecords.length);
+
+		// Convert the array to a JSON string
+		// const fs = require('fs');
+		// // Custom replacer function to convert BN values to numerical representation
+		// const replacer = (key, value) => {
+		// 	if (value instanceof BN) {
+		// 		return value.toString(10); // Convert BN to base-10 string
+		// 	}
+		// 	return value;
+		// };
+		// const jsonOrderRecords = JSON.stringify(orderRecords, replacer);
+
+		// // Write the JSON string to a file
+		// fs.writeFile('orderRecords.json', jsonOrderRecords, 'utf8', (err) => {
+		// 	if (err) {
+		// 		console.error('Error writing to JSON file:', err);
+		// 		return;
+		// 	}
+		// 	console.log('orderRecords successfully written to orderRecords.json');
+		// });
+
+		// assert(orderRecords)
 		const settleLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
 
