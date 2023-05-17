@@ -4,8 +4,13 @@ import {
 	AccountLayout,
 	MintLayout,
 	NATIVE_MINT,
-	Token,
 	TOKEN_PROGRAM_ID,
+	getMinimumBalanceForRentExemptMint,
+	getMinimumBalanceForRentExemptAccount,
+	createInitializeMintInstruction,
+	createInitializeAccountInstruction,
+	createMintToInstruction,
+	createWrappedNativeAccount,
 } from '@solana/spl-token';
 import {
 	Connection,
@@ -70,16 +75,17 @@ export async function mockUSDCMint(provider: Provider): Promise<Keypair> {
 	const createUSDCMintAccountIx = SystemProgram.createAccount({
 		fromPubkey: provider.wallet.publicKey,
 		newAccountPubkey: fakeUSDCMint.publicKey,
-		lamports: await Token.getMinBalanceRentForExemptMint(provider.connection),
+		lamports: await getMinimumBalanceForRentExemptMint(provider.connection),
 		space: MintLayout.span,
 		programId: TOKEN_PROGRAM_ID,
 	});
-	const initCollateralMintIx = Token.createInitMintInstruction(
-		TOKEN_PROGRAM_ID,
+	const initCollateralMintIx = createInitializeMintInstruction(
 		fakeUSDCMint.publicKey,
 		6,
+		// @ts-ignore
 		provider.wallet.publicKey,
-		null
+		// @ts-ignore
+		provider.wallet.publicKey
 	);
 
 	const fakeUSDCTx = new Transaction();
@@ -116,28 +122,24 @@ export async function mockUserUSDCAccount(
 	const createUSDCTokenAccountIx = SystemProgram.createAccount({
 		fromPubkey: provider.wallet.publicKey,
 		newAccountPubkey: userUSDCAccount.publicKey,
-		lamports: await Token.getMinBalanceRentForExemptAccount(
-			provider.connection
-		),
+		lamports: await getMinimumBalanceForRentExemptAccount(provider.connection),
 		space: AccountLayout.span,
 		programId: TOKEN_PROGRAM_ID,
 	});
 	fakeUSDCTx.add(createUSDCTokenAccountIx);
 
-	const initUSDCTokenAccountIx = Token.createInitAccountInstruction(
-		TOKEN_PROGRAM_ID,
-		fakeUSDCMint.publicKey,
+	const initUSDCTokenAccountIx = createInitializeAccountInstruction(
 		userUSDCAccount.publicKey,
+		fakeUSDCMint.publicKey,
 		owner
 	);
 	fakeUSDCTx.add(initUSDCTokenAccountIx);
 
-	const mintToUserAccountTx = await Token.createMintToInstruction(
-		TOKEN_PROGRAM_ID,
+	const mintToUserAccountTx = await createMintToInstruction(
 		fakeUSDCMint.publicKey,
 		userUSDCAccount.publicKey,
+		// @ts-ignore
 		provider.wallet.publicKey,
-		[],
 		usdcMintAmount.toNumber()
 	);
 	fakeUSDCTx.add(mintToUserAccountTx);
@@ -163,12 +165,11 @@ export async function mintUSDCToUser(
 	provider: Provider
 ): Promise<void> {
 	const tx = new Transaction();
-	const mintToUserAccountTx = await Token.createMintToInstruction(
-		TOKEN_PROGRAM_ID,
+	const mintToUserAccountTx = await createMintToInstruction(
 		fakeUSDCMint.publicKey,
 		userUSDCAccount,
+		// @ts-ignore
 		provider.wallet.publicKey,
-		[],
 		usdcMintAmount.toNumber()
 	);
 	tx.add(mintToUserAccountTx);
@@ -281,14 +282,13 @@ export async function createWSolTokenAccountForUser(
 	await provider.connection.requestAirdrop(
 		userKeypair.publicKey,
 		amount.toNumber() +
-			(await Token.getMinBalanceRentForExemptAccount(provider.connection))
+			(await getMinimumBalanceForRentExemptAccount(provider.connection))
 	);
-	return await Token.createWrappedNativeAccount(
+	return await createWrappedNativeAccount(
 		provider.connection,
-		TOKEN_PROGRAM_ID,
-		userKeypair.publicKey,
 		// @ts-ignore
 		provider.wallet.payer,
+		userKeypair.publicKey,
 		amount.toNumber()
 	);
 }
@@ -346,12 +346,11 @@ export async function mintToInsuranceFund(
 	amount: BN,
 	provider: Provider
 ): Promise<TransactionSignature> {
-	const mintToUserAccountTx = await Token.createMintToInstruction(
-		TOKEN_PROGRAM_ID,
+	const mintToUserAccountTx = await createMintToInstruction(
 		fakeUSDCMint.publicKey,
 		chInsuranceAccountPubkey,
+		// @ts-ignore
 		provider.wallet.publicKey,
-		[],
 		amount.toNumber()
 	);
 

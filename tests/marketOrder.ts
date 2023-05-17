@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
 	BN,
@@ -30,7 +30,12 @@ import {
 	PEG_PRECISION,
 	ZERO,
 } from '../sdk';
-import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+	Account,
+	createMint,
+	getOrCreateAssociatedTokenAccount,
+	mintTo,
+} from '@solana/spl-token';
 
 describe('market order', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -64,8 +69,8 @@ describe('market order', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	let discountMint: Token;
-	let discountTokenAccount: AccountInfo;
+	let discountMint: PublicKey;
+	let discountTokenAccount: Account;
 
 	const fillerKeyPair = new Keypair();
 	let fillerUSDCAccount: Keypair;
@@ -141,27 +146,33 @@ describe('market order', () => {
 		});
 		await driftClientUser.subscribe();
 
-		discountMint = await Token.createMint(
+		discountMint = await createMint(
 			connection,
 			// @ts-ignore
 			provider.wallet.payer,
 			provider.wallet.publicKey,
 			provider.wallet.publicKey,
-			6,
-			TOKEN_PROGRAM_ID
+			6
 		);
 
-		await driftClient.updateDiscountMint(discountMint.publicKey);
+		await driftClient.updateDiscountMint(discountMint);
 
-		discountTokenAccount = await discountMint.getOrCreateAssociatedAccountInfo(
+		discountTokenAccount = await getOrCreateAssociatedTokenAccount(
+			connection,
+			// @ts-ignore
+			provider.wallet.payer,
+			discountMint,
 			provider.wallet.publicKey
 		);
 
-		await discountMint.mintTo(
+		await mintTo(
+			connection,
+			// @ts-ignore
+			provider.wallet.payer,
+			discountMint,
 			discountTokenAccount.address,
 			// @ts-ignore
 			provider.wallet.payer,
-			[],
 			1000 * 10 ** 6
 		);
 

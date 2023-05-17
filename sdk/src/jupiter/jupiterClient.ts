@@ -193,6 +193,12 @@ export class JupiterClient {
 			}
 
 			if (
+				instruction.programId.toString() === '11111111111111111111111111111111'
+			) {
+				return false;
+			}
+
+			if (
 				instruction.programId.toString() ===
 				'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'
 			) {

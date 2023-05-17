@@ -8,7 +8,10 @@ import {
 import bs58 from 'bs58';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
-	Token,
+	createAssociatedTokenAccountInstruction,
+	createCloseAccountInstruction,
+	createInitializeAccountInstruction,
+	getAssociatedTokenAddress,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import {
@@ -113,7 +116,7 @@ import { isSpotPositionAvailable } from './math/spotPosition';
 import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
-import { JupiterClient } from './jupiter/jupiterClient';
+import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -720,9 +723,7 @@ export class DriftClient {
 
 		const state = this.getStateAccount();
 		if (!state.whitelistMint.equals(PublicKey.default)) {
-			const associatedTokenPublicKey = await Token.getAssociatedTokenAddress(
-				ASSOCIATED_TOKEN_PROGRAM_ID,
-				TOKEN_PROGRAM_ID,
+			const associatedTokenPublicKey = await getAssociatedTokenAddress(
 				state.whitelistMint,
 				this.wallet.publicKey
 			);
@@ -1489,20 +1490,15 @@ export class DriftClient {
 			return this.wallet.publicKey;
 		}
 		const mint = spotMarket.mint;
-		return await Token.getAssociatedTokenAddress(
-			ASSOCIATED_TOKEN_PROGRAM_ID,
-			TOKEN_PROGRAM_ID,
-			mint,
-			this.wallet.publicKey
-		);
+		return await getAssociatedTokenAddress(mint, this.wallet.publicKey);
 	}
 
-	public async createAssociatedTokenAccountIdempotentInstruction(
+	public createAssociatedTokenAccountIdempotentInstruction(
 		account: PublicKey,
 		payer: PublicKey,
 		owner: PublicKey,
 		mint: PublicKey
-	): Promise<TransactionInstruction> {
+	): TransactionInstruction {
 		return new TransactionInstruction({
 			keys: [
 				{ pubkey: payer, isSigner: true, isWritable: true },
@@ -1510,7 +1506,7 @@ export class DriftClient {
 				{ pubkey: owner, isSigner: false, isWritable: false },
 				{ pubkey: mint, isSigner: false, isWritable: false },
 				{
-					pubkey: SystemProgram.programId,
+					pubkey: anchor.web3.SystemProgram.programId,
 					isSigner: false,
 					isWritable: false,
 				},
@@ -1582,8 +1578,7 @@ export class DriftClient {
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
 			tx.add(
-				Token.createCloseAccountInstruction(
-					TOKEN_PROGRAM_ID,
+				createCloseAccountInstruction(
 					associatedTokenAccount,
 					signerAuthority,
 					signerAuthority,
@@ -1696,10 +1691,9 @@ export class DriftClient {
 		);
 
 		result.ixs.push(
-			Token.createInitAccountInstruction(
-				TOKEN_PROGRAM_ID,
-				WRAPPED_SOL_MINT,
+			createInitializeAccountInstruction(
 				wrappedSolAccount.publicKey,
+				WRAPPED_SOL_MINT,
 				authority
 			)
 		);
@@ -1713,17 +1707,12 @@ export class DriftClient {
 		tokenMintAddress: PublicKey,
 		associatedTokenAddress: PublicKey
 	): anchor.web3.TransactionInstruction {
-		const createAssociatedAccountIx =
-			Token.createAssociatedTokenAccountInstruction(
-				ASSOCIATED_TOKEN_PROGRAM_ID,
-				TOKEN_PROGRAM_ID,
-				tokenMintAddress,
-				associatedTokenAddress,
-				this.wallet.publicKey,
-				this.wallet.publicKey
-			);
-
-		return createAssociatedAccountIx;
+		return createAssociatedTokenAccountInstruction(
+			this.wallet.publicKey,
+			associatedTokenAddress,
+			this.wallet.publicKey,
+			tokenMintAddress
+		);
 	}
 
 	/**
@@ -1825,8 +1814,7 @@ export class DriftClient {
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
 			tx.add(
-				Token.createCloseAccountInstruction(
-					TOKEN_PROGRAM_ID,
+				createCloseAccountInstruction(
 					userTokenAccount,
 					authority,
 					authority,
@@ -1965,8 +1953,7 @@ export class DriftClient {
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
 			tx.add(
-				Token.createCloseAccountInstruction(
-					TOKEN_PROGRAM_ID,
+				createCloseAccountInstruction(
 					associatedTokenAddress,
 					authority,
 					authority,
@@ -3300,6 +3287,7 @@ export class DriftClient {
 	 * @param inAssociatedTokenAccount the token account to
 	 * @param amount the amount of the token to sell
 	 * @param slippageBps the max slippage passed to jupiter api
+	 * @param route the jupiter route to use for the swap
 	 * @param txParams
 	 */
 	public async swap({
@@ -3310,32 +3298,40 @@ export class DriftClient {
 		inAssociatedTokenAccount,
 		amount,
 		slippageBps,
+		swapMode,
+		route,
 		txParams,
 	}: {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
 		inMarketIndex: number;
-		outAssociatedTokenAccount: PublicKey;
-		inAssociatedTokenAccount: PublicKey;
+		outAssociatedTokenAccount?: PublicKey;
+		inAssociatedTokenAccount?: PublicKey;
 		amount: BN;
-		slippageBps: number;
+		slippageBps?: number;
+		swapMode?: SwapMode;
+		route?: Route;
 		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
-		const routes = await jupiterClient.getRoutes({
-			inputMint: inMarket.mint,
-			outputMint: outMarket.mint,
-			amount,
-			slippageBps,
-		});
+		if (!route) {
+			const routes = await jupiterClient.getRoutes({
+				inputMint: inMarket.mint,
+				outputMint: outMarket.mint,
+				amount,
+				slippageBps,
+				swapMode,
+			});
 
-		if (!routes || routes.length === 0) {
-			throw new Error('No jupiter routes found');
+			if (!routes || routes.length === 0) {
+				throw new Error('No jupiter routes found');
+			}
+
+			route = routes[0];
 		}
 
-		const route = routes[0];
 		const transaction = await jupiterClient.getSwapTransaction({
 			route,
 			userPublicKey: this.provider.wallet.publicKey,
@@ -3356,7 +3352,8 @@ export class DriftClient {
 		const preInstructions = [];
 		if (!outAssociatedTokenAccount) {
 			outAssociatedTokenAccount = await this.getAssociatedTokenAccount(
-				outMarket.marketIndex
+				outMarket.marketIndex,
+				false
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
@@ -3376,7 +3373,8 @@ export class DriftClient {
 
 		if (!inAssociatedTokenAccount) {
 			inAssociatedTokenAccount = await this.getAssociatedTokenAccount(
-				inMarket.marketIndex
+				inMarket.marketIndex,
+				false
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
@@ -5011,8 +5009,7 @@ export class DriftClient {
 
 		if (createWSOLTokenAccount) {
 			tx.add(
-				Token.createCloseAccountInstruction(
-					TOKEN_PROGRAM_ID,
+				createCloseAccountInstruction(
 					tokenAccount,
 					this.wallet.publicKey,
 					this.wallet.publicKey,
@@ -5162,8 +5159,7 @@ export class DriftClient {
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
 			tx.add(
-				Token.createCloseAccountInstruction(
-					TOKEN_PROGRAM_ID,
+				createCloseAccountInstruction(
 					tokenAccount,
 					this.wallet.publicKey,
 					this.wallet.publicKey,
@@ -5364,7 +5360,8 @@ export class DriftClient {
 			allIx.push(instructions);
 		}
 
-		if (this.txVersion === 'legacy') {
+		txVersion = txVersion ?? this.txVersion;
+		if (txVersion === 'legacy') {
 			return new Transaction().add(...allIx);
 		} else {
 			const marketLookupTable = await this.fetchMarketLookupTableAccount();
