@@ -8,7 +8,10 @@ import {
 import bs58 from 'bs58';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
-	Token,
+	createAssociatedTokenAccountInstruction,
+	createCloseAccountInstruction,
+	createInitializeAccountInstruction,
+	getAssociatedTokenAddress,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import {
@@ -720,9 +723,7 @@ export class DriftClient {
 
 		const state = this.getStateAccount();
 		if (!state.whitelistMint.equals(PublicKey.default)) {
-			const associatedTokenPublicKey = await Token.getAssociatedTokenAddress(
-				ASSOCIATED_TOKEN_PROGRAM_ID,
-				TOKEN_PROGRAM_ID,
+			const associatedTokenPublicKey = await getAssociatedTokenAddress(
 				state.whitelistMint,
 				this.wallet.publicKey
 			);
@@ -1489,12 +1490,7 @@ export class DriftClient {
 			return this.wallet.publicKey;
 		}
 		const mint = spotMarket.mint;
-		return await Token.getAssociatedTokenAddress(
-			ASSOCIATED_TOKEN_PROGRAM_ID,
-			TOKEN_PROGRAM_ID,
-			mint,
-			this.wallet.publicKey
-		);
+		return await getAssociatedTokenAddress(mint, this.wallet.publicKey);
 	}
 
 	public async createAssociatedTokenAccountIdempotentInstruction(
@@ -1582,8 +1578,7 @@ export class DriftClient {
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
 			tx.add(
-				Token.createCloseAccountInstruction(
-					TOKEN_PROGRAM_ID,
+				createCloseAccountInstruction(
 					associatedTokenAccount,
 					signerAuthority,
 					signerAuthority,
@@ -1696,10 +1691,9 @@ export class DriftClient {
 		);
 
 		result.ixs.push(
-			Token.createInitAccountInstruction(
-				TOKEN_PROGRAM_ID,
-				WRAPPED_SOL_MINT,
+			createInitializeAccountInstruction(
 				wrappedSolAccount.publicKey,
+				WRAPPED_SOL_MINT,
 				authority
 			)
 		);
@@ -1713,17 +1707,12 @@ export class DriftClient {
 		tokenMintAddress: PublicKey,
 		associatedTokenAddress: PublicKey
 	): anchor.web3.TransactionInstruction {
-		const createAssociatedAccountIx =
-			Token.createAssociatedTokenAccountInstruction(
-				ASSOCIATED_TOKEN_PROGRAM_ID,
-				TOKEN_PROGRAM_ID,
-				tokenMintAddress,
-				associatedTokenAddress,
-				this.wallet.publicKey,
-				this.wallet.publicKey
-			);
-
-		return createAssociatedAccountIx;
+		return createAssociatedTokenAccountInstruction(
+			this.wallet.publicKey,
+			associatedTokenAddress,
+			this.wallet.publicKey,
+			tokenMintAddress
+		);
 	}
 
 	/**
@@ -1825,8 +1814,7 @@ export class DriftClient {
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
 			tx.add(
-				Token.createCloseAccountInstruction(
-					TOKEN_PROGRAM_ID,
+				createCloseAccountInstruction(
 					userTokenAccount,
 					authority,
 					authority,
@@ -1965,8 +1953,7 @@ export class DriftClient {
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
 			tx.add(
-				Token.createCloseAccountInstruction(
-					TOKEN_PROGRAM_ID,
+				createCloseAccountInstruction(
 					associatedTokenAddress,
 					authority,
 					authority,
@@ -5011,8 +4998,7 @@ export class DriftClient {
 
 		if (createWSOLTokenAccount) {
 			tx.add(
-				Token.createCloseAccountInstruction(
-					TOKEN_PROGRAM_ID,
+				createCloseAccountInstruction(
 					tokenAccount,
 					this.wallet.publicKey,
 					this.wallet.publicKey,
@@ -5162,8 +5148,7 @@ export class DriftClient {
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
 			tx.add(
-				Token.createCloseAccountInstruction(
-					TOKEN_PROGRAM_ID,
+				createCloseAccountInstruction(
 					tokenAccount,
 					this.wallet.publicKey,
 					this.wallet.publicKey,

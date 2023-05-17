@@ -9,7 +9,7 @@
 		"@project-serum/common": "0.0.1-beta.3",
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "^2.5.1",
-		"@solana/spl-token": "^0.1.6",
+		"@solana/spl-token": "^0.3.7",
 		"@solana/web3.js": "1.73.2",
 		"@types/mocha": "^8.2.2",
 		"@typescript-eslint/eslint-plugin": "^4.28.0",
