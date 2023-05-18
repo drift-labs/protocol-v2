@@ -303,593 +303,593 @@ describe('lp jit', () => {
 	});
 
 	const lpCooldown = 1;
-	// it('perp jit check (amm jit intensity = 0)', async () => {
-	// 	const marketIndex = 0;
-	// 	console.log('adding liquidity...');
-	// 	await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(
-	// 		0,
-	// 		BASE_PRECISION.toNumber()
-	// 	);
+	it('perp jit check (amm jit intensity = 0)', async () => {
+		const marketIndex = 0;
+		console.log('adding liquidity...');
+		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(
+			0,
+			BASE_PRECISION.toNumber()
+		);
 
-	// 	await driftClient.fetchAccounts();
-	// 	let market = driftClient.getPerpMarketAccount(0);
-	// 	console.log(
-	// 		'market.amm.sqrtK:',
-	// 		market.amm.userLpShares.toString(),
-	// 		'/',
-	// 		market.amm.sqrtK.toString()
-	// 	);
-	// 	assert(market.amm.sqrtK.eq(new BN('300000000000')));
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-	// 	assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
+		await driftClient.fetchAccounts();
+		let market = driftClient.getPerpMarketAccount(0);
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
+		assert(market.amm.sqrtK.eq(new BN('300000000000')));
+		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
-	// 	const _sig = await driftClient.addPerpLpShares(
-	// 		new BN(100 * BASE_PRECISION.toNumber()),
-	// 		market.marketIndex
-	// 	);
-	// 	await delay(lpCooldown + 1000);
-	// 	await driftClient.fetchAccounts();
-	// 	market = driftClient.getPerpMarketAccount(0);
-	// 	console.log(
-	// 		'market.amm.sqrtK:',
-	// 		market.amm.userLpShares.toString(),
-	// 		'/',
-	// 		market.amm.sqrtK.toString()
-	// 	);
-	// 	assert(market.amm.sqrtK.eq(new BN('400000000000')));
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-	// 	assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
+		const _sig = await driftClient.addPerpLpShares(
+			new BN(100 * BASE_PRECISION.toNumber()),
+			market.marketIndex
+		);
+		await delay(lpCooldown + 1000);
+		await driftClient.fetchAccounts();
+		market = driftClient.getPerpMarketAccount(0);
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
+		assert(market.amm.sqrtK.eq(new BN('400000000000')));
+		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
-	// 	let user = await driftClientUser.getUserAccount();
-	// 	assert(user.perpPositions[0].lpShares.toString() == '100000000000'); // 10 * 1e9
+		let user = await driftClientUser.getUserAccount();
+		assert(user.perpPositions[0].lpShares.toString() == '100000000000'); // 10 * 1e9
 
-	// 	// lp goes long
-	// 	const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
-	// 	try {
-	// 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-	// 		const _txsig = await driftClient.openPosition(
-	// 			PositionDirection.LONG,
-	// 			tradeSize,
-	// 			market.marketIndex
-	// 			// new BN(100 * BASE_PRECISION.toNumber())
-	// 		);
-	// 		await _viewLogs(_txsig);
-	// 	} catch (e) {
-	// 		console.log(e);
-	// 	}
-	// 	await driftClient.fetchAccounts();
-	// 	market = driftClient.getPerpMarketAccount(0);
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountPerLp:',
-	// 		market.amm.baseAssetAmountPerLp.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(new BN('-12500000')));
+		// lp goes long
+		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
+		try {
+			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+			const _txsig = await driftClient.openPosition(
+				PositionDirection.LONG,
+				tradeSize,
+				market.marketIndex
+				// new BN(100 * BASE_PRECISION.toNumber())
+			);
+			await _viewLogs(_txsig);
+		} catch (e) {
+			console.log(e);
+		}
+		await driftClient.fetchAccounts();
+		market = driftClient.getPerpMarketAccount(0);
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-12500000')));
 
-	// 	// some user goes long (lp should get a short + pnl for closing long on settle)
-	// 	try {
-	// 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-	// 		const _txsig = await traderDriftClient.openPosition(
-	// 			PositionDirection.LONG,
-	// 			tradeSize,
-	// 			market.marketIndex
-	// 			// new BN(100 * BASE_PRECISION.toNumber())
-	// 		);
-	// 		await _viewLogs(_txsig);
-	// 	} catch (e) {
-	// 		console.log(e);
-	// 	}
-	// 	await driftClient.fetchAccounts();
-	// 	market = driftClient.getPerpMarketAccount(0);
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountPerLp:',
-	// 		market.amm.baseAssetAmountPerLp.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(new BN('-25000000')));
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountWithAmm:',
-	// 		market.amm.baseAssetAmountWithAmm.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountWithAmm.eq(new BN('7500000000')));
+		// some user goes long (lp should get a short + pnl for closing long on settle)
+		try {
+			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+			const _txsig = await traderDriftClient.openPosition(
+				PositionDirection.LONG,
+				tradeSize,
+				market.marketIndex
+				// new BN(100 * BASE_PRECISION.toNumber())
+			);
+			await _viewLogs(_txsig);
+		} catch (e) {
+			console.log(e);
+		}
+		await driftClient.fetchAccounts();
+		market = driftClient.getPerpMarketAccount(0);
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-25000000')));
+		console.log(
+			'market.amm.baseAssetAmountWithAmm:',
+			market.amm.baseAssetAmountWithAmm.toString()
+		);
+		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('7500000000')));
 
-	// 	// add jit maker going other way
-	// 	const takerOrderParams = getLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount: tradeSize,
-	// 		price: new BN(0.9 * PRICE_PRECISION.toNumber()),
-	// 		auctionStartPrice: new BN(0.99 * PRICE_PRECISION.toNumber()),
-	// 		auctionEndPrice: new BN(0.929 * PRICE_PRECISION.toNumber()),
-	// 		auctionDuration: 10,
-	// 		userOrderId: 1,
-	// 		postOnly: PostOnlyParams.NONE,
-	// 	});
-	// 	await traderDriftClient.placePerpOrder(takerOrderParams);
-	// 	await traderDriftClient.fetchAccounts();
-	// 	const order = traderDriftClientUser.getOrderByUserOrderId(1);
-	// 	assert(!order.postOnly);
+		// add jit maker going other way
+		const takerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount: tradeSize,
+			price: new BN(0.9 * PRICE_PRECISION.toNumber()),
+			auctionStartPrice: new BN(0.99 * PRICE_PRECISION.toNumber()),
+			auctionEndPrice: new BN(0.929 * PRICE_PRECISION.toNumber()),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+		await traderDriftClient.placePerpOrder(takerOrderParams);
+		await traderDriftClient.fetchAccounts();
+		const order = traderDriftClientUser.getOrderByUserOrderId(1);
+		assert(!order.postOnly);
 
-	// 	const makerOrderParams = getLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.LONG,
-	// 		baseAssetAmount: tradeSize,
-	// 		price: new BN(1.011 * PRICE_PRECISION.toNumber()),
-	// 		userOrderId: 1,
-	// 		postOnly: PostOnlyParams.MUST_POST_ONLY,
-	// 		immediateOrCancel: true,
-	// 	});
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: tradeSize,
+			price: new BN(1.011 * PRICE_PRECISION.toNumber()),
+			userOrderId: 1,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+		});
 
-	// 	const txSig = await poorDriftClient.placeAndMakePerpOrder(
-	// 		makerOrderParams,
-	// 		{
-	// 			taker: await traderDriftClient.getUserAccountPublicKey(),
-	// 			order: traderDriftClient.getOrderByUserId(1),
-	// 			takerUserAccount: traderDriftClient.getUserAccount(),
-	// 			takerStats: traderDriftClient.getUserStatsAccountPublicKey(),
-	// 		}
-	// 	);
-	// 	await _viewLogs(txSig);
-	// 	await driftClient.fetchAccounts();
-	// 	market = driftClient.getPerpMarketAccount(0);
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountPerLp:',
-	// 		market.amm.baseAssetAmountPerLp.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(new BN('-12500000')));
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountWithAmm:',
-	// 		market.amm.baseAssetAmountWithAmm.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountWithAmm.eq(new BN('3750000000')));
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountWithUnsettledLp:',
-	// 		market.amm.baseAssetAmountWithUnsettledLp.toString()
-	// 	);
+		const txSig = await poorDriftClient.placeAndMakePerpOrder(
+			makerOrderParams,
+			{
+				taker: await traderDriftClient.getUserAccountPublicKey(),
+				order: traderDriftClient.getOrderByUserId(1),
+				takerUserAccount: traderDriftClient.getUserAccount(),
+				takerStats: traderDriftClient.getUserStatsAccountPublicKey(),
+			}
+		);
+		await _viewLogs(txSig);
+		await driftClient.fetchAccounts();
+		market = driftClient.getPerpMarketAccount(0);
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-12500000')));
+		console.log(
+			'market.amm.baseAssetAmountWithAmm:',
+			market.amm.baseAssetAmountWithAmm.toString()
+		);
+		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('3750000000')));
+		console.log(
+			'market.amm.baseAssetAmountWithUnsettledLp:',
+			market.amm.baseAssetAmountWithUnsettledLp.toString()
+		);
 
-	// 	assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('1250000000')));
+		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('1250000000')));
 
-	// 	const trader = await traderDriftClient.getUserAccount();
-	// 	console.log(
-	// 		'trader size',
-	// 		trader.perpPositions[0].baseAssetAmount.toString()
-	// 	);
+		const trader = await traderDriftClient.getUserAccount();
+		console.log(
+			'trader size',
+			trader.perpPositions[0].baseAssetAmount.toString()
+		);
 
-	// 	await driftClientUser.fetchAccounts();
-	// 	const sdkPnl = driftClientUser.getSettledLPPosition(0)[2];
+		await driftClientUser.fetchAccounts();
+		const sdkPnl = driftClientUser.getSettledLPPosition(0)[2];
 
-	// 	console.log('settling...');
-	// 	try {
-	// 		const _txsigg = await driftClient.settleLP(
-	// 			await driftClient.getUserAccountPublicKey(),
-	// 			0
-	// 		);
-	// 		await _viewLogs(_txsigg);
-	// 	} catch (e) {
-	// 		console.log(e);
-	// 	}
-	// 	user = await await driftClientUser.getUserAccount();
+		console.log('settling...');
+		try {
+			const _txsigg = await driftClient.settleLP(
+				await driftClient.getUserAccountPublicKey(),
+				0
+			);
+			await _viewLogs(_txsigg);
+		} catch (e) {
+			console.log(e);
+		}
+		user = await await driftClientUser.getUserAccount();
 
-	// 	const settleLiquidityRecord: LPRecord =
-	// 		eventSubscriber.getEventsArray('LPRecord')[0];
+		const settleLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
 
-	// 	console.log(
-	// 		'settle pnl vs sdk',
-	// 		settleLiquidityRecord.pnl.toString(),
-	// 		sdkPnl.toString()
-	// 	);
-	// 	assert(settleLiquidityRecord.pnl.eq(sdkPnl));
-	// });
-	// it('perp jit check (amm jit intensity = 100)', async () => {
-	// 	const marketIndex = 1;
-	// 	await driftClient.updateAmmJitIntensity(marketIndex, 100);
+		console.log(
+			'settle pnl vs sdk',
+			settleLiquidityRecord.pnl.toString(),
+			sdkPnl.toString()
+		);
+		assert(settleLiquidityRecord.pnl.eq(sdkPnl));
+	});
+	it('perp jit check (amm jit intensity = 100)', async () => {
+		const marketIndex = 1;
+		await driftClient.updateAmmJitIntensity(marketIndex, 100);
 
-	// 	console.log('adding liquidity...');
-	// 	await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(
-	// 		marketIndex,
-	// 		BASE_PRECISION.toNumber()
-	// 	);
+		console.log('adding liquidity...');
+		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(
+			marketIndex,
+			BASE_PRECISION.toNumber()
+		);
 
-	// 	await driftClient.fetchAccounts();
-	// 	let market = driftClient.getPerpMarketAccount(marketIndex);
-	// 	console.log(
-	// 		'market.amm.sqrtK:',
-	// 		market.amm.userLpShares.toString(),
-	// 		'/',
-	// 		market.amm.sqrtK.toString()
-	// 	);
-	// 	assert(market.amm.sqrtK.eq(new BN('1000000000000')));
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-	// 	assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
+		await driftClient.fetchAccounts();
+		let market = driftClient.getPerpMarketAccount(marketIndex);
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
+		assert(market.amm.sqrtK.eq(new BN('1000000000000')));
+		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
-	// 	const _sig = await driftClient.addPerpLpShares(
-	// 		new BN(100 * BASE_PRECISION.toNumber()),
-	// 		market.marketIndex
-	// 	);
-	// 	await delay(lpCooldown + 1000);
-	// 	await driftClient.fetchAccounts();
-	// 	market = driftClient.getPerpMarketAccount(marketIndex);
-	// 	console.log(
-	// 		'market.amm.sqrtK:',
-	// 		market.amm.userLpShares.toString(),
-	// 		'/',
-	// 		market.amm.sqrtK.toString()
-	// 	);
-	// 	assert(market.amm.sqrtK.eq(new BN('1100000000000')));
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-	// 	assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
+		const _sig = await driftClient.addPerpLpShares(
+			new BN(100 * BASE_PRECISION.toNumber()),
+			market.marketIndex
+		);
+		await delay(lpCooldown + 1000);
+		await driftClient.fetchAccounts();
+		market = driftClient.getPerpMarketAccount(marketIndex);
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
+		assert(market.amm.sqrtK.eq(new BN('1100000000000')));
+		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
-	// 	let user = await driftClientUser.getUserAccount();
-	// 	assert(user.perpPositions[0].lpShares.toString() == '100000000000'); // 10 * 1e9
+		let user = await driftClientUser.getUserAccount();
+		assert(user.perpPositions[0].lpShares.toString() == '100000000000'); // 10 * 1e9
 
-	// 	// lp goes long
-	// 	const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
-	// 	try {
-	// 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-	// 		const _txsig = await driftClient.openPosition(
-	// 			PositionDirection.LONG,
-	// 			tradeSize,
-	// 			market.marketIndex
-	// 			// new BN(100 * BASE_PRECISION.toNumber())
-	// 		);
-	// 		await _viewLogs(_txsig);
-	// 	} catch (e) {
-	// 		console.log(e);
-	// 	}
-	// 	await driftClient.fetchAccounts();
-	// 	market = driftClient.getPerpMarketAccount(marketIndex);
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountPerLp:',
-	// 		market.amm.baseAssetAmountPerLp.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(new BN('-4545454')));
+		// lp goes long
+		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
+		try {
+			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+			const _txsig = await driftClient.openPosition(
+				PositionDirection.LONG,
+				tradeSize,
+				market.marketIndex
+				// new BN(100 * BASE_PRECISION.toNumber())
+			);
+			await _viewLogs(_txsig);
+		} catch (e) {
+			console.log(e);
+		}
+		await driftClient.fetchAccounts();
+		market = driftClient.getPerpMarketAccount(marketIndex);
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-4545454')));
 
-	// 	// some user goes long (lp should get a short + pnl for closing long on settle)
-	// 	try {
-	// 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-	// 		const _txsig = await traderDriftClient.openPosition(
-	// 			PositionDirection.LONG,
-	// 			tradeSize,
-	// 			market.marketIndex
-	// 			// new BN(100 * BASE_PRECISION.toNumber())
-	// 		);
-	// 		await _viewLogs(_txsig);
-	// 	} catch (e) {
-	// 		console.log(e);
-	// 	}
-	// 	await driftClient.fetchAccounts();
-	// 	market = driftClient.getPerpMarketAccount(marketIndex);
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountPerLp:',
-	// 		market.amm.baseAssetAmountPerLp.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(new BN('-9090908')));
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountWithAmm:',
-	// 		market.amm.baseAssetAmountWithAmm.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountWithAmm.eq(new BN('9090909200')));
+		// some user goes long (lp should get a short + pnl for closing long on settle)
+		try {
+			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+			const _txsig = await traderDriftClient.openPosition(
+				PositionDirection.LONG,
+				tradeSize,
+				market.marketIndex
+				// new BN(100 * BASE_PRECISION.toNumber())
+			);
+			await _viewLogs(_txsig);
+		} catch (e) {
+			console.log(e);
+		}
+		await driftClient.fetchAccounts();
+		market = driftClient.getPerpMarketAccount(marketIndex);
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-9090908')));
+		console.log(
+			'market.amm.baseAssetAmountWithAmm:',
+			market.amm.baseAssetAmountWithAmm.toString()
+		);
+		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('9090909200')));
 
-	// 	// add jit maker going other way
-	// 	const takerOrderParams = getLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount: tradeSize,
-	// 		price: new BN(0.9 * PRICE_PRECISION.toNumber()),
-	// 		auctionStartPrice: new BN(0.99 * PRICE_PRECISION.toNumber()),
-	// 		auctionEndPrice: new BN(0.929 * PRICE_PRECISION.toNumber()),
-	// 		auctionDuration: 10,
-	// 		userOrderId: 1,
-	// 		postOnly: PostOnlyParams.NONE,
-	// 	});
-	// 	await traderDriftClient.placePerpOrder(takerOrderParams);
-	// 	await traderDriftClient.fetchAccounts();
-	// 	const order = traderDriftClientUser.getOrderByUserOrderId(1);
-	// 	assert(!order.postOnly);
+		// add jit maker going other way
+		const takerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount: tradeSize,
+			price: new BN(0.9 * PRICE_PRECISION.toNumber()),
+			auctionStartPrice: new BN(0.99 * PRICE_PRECISION.toNumber()),
+			auctionEndPrice: new BN(0.929 * PRICE_PRECISION.toNumber()),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+		await traderDriftClient.placePerpOrder(takerOrderParams);
+		await traderDriftClient.fetchAccounts();
+		const order = traderDriftClientUser.getOrderByUserOrderId(1);
+		assert(!order.postOnly);
 
-	// 	const makerOrderParams = getLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.LONG,
-	// 		baseAssetAmount: tradeSize,
-	// 		price: new BN(1.011 * PRICE_PRECISION.toNumber()),
-	// 		userOrderId: 1,
-	// 		postOnly: PostOnlyParams.MUST_POST_ONLY,
-	// 		immediateOrCancel: true,
-	// 	});
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: tradeSize,
+			price: new BN(1.011 * PRICE_PRECISION.toNumber()),
+			userOrderId: 1,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+		});
 
-	// 	const txSig = await poorDriftClient.placeAndMakePerpOrder(
-	// 		makerOrderParams,
-	// 		{
-	// 			taker: await traderDriftClient.getUserAccountPublicKey(),
-	// 			order: traderDriftClient.getOrderByUserId(1),
-	// 			takerUserAccount: traderDriftClient.getUserAccount(),
-	// 			takerStats: traderDriftClient.getUserStatsAccountPublicKey(),
-	// 		}
-	// 	);
-	// 	await _viewLogs(txSig);
-	// 	await driftClient.fetchAccounts();
-	// 	market = driftClient.getPerpMarketAccount(marketIndex);
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountPerLp:',
-	// 		market.amm.baseAssetAmountPerLp.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(new BN('-5455090')));
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountWithAmm:',
-	// 		market.amm.baseAssetAmountWithAmm.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountWithAmm.eq(new BN('5204991000')));
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountWithUnsettledLp:',
-	// 		market.amm.baseAssetAmountWithUnsettledLp.toString()
-	// 	);
+		const txSig = await poorDriftClient.placeAndMakePerpOrder(
+			makerOrderParams,
+			{
+				taker: await traderDriftClient.getUserAccountPublicKey(),
+				order: traderDriftClient.getOrderByUserId(1),
+				takerUserAccount: traderDriftClient.getUserAccount(),
+				takerStats: traderDriftClient.getUserStatsAccountPublicKey(),
+			}
+		);
+		await _viewLogs(txSig);
+		await driftClient.fetchAccounts();
+		market = driftClient.getPerpMarketAccount(marketIndex);
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-5455090')));
+		console.log(
+			'market.amm.baseAssetAmountWithAmm:',
+			market.amm.baseAssetAmountWithAmm.toString()
+		);
+		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('5204991000')));
+		console.log(
+			'market.amm.baseAssetAmountWithUnsettledLp:',
+			market.amm.baseAssetAmountWithUnsettledLp.toString()
+		);
 
-	// 	assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('545509000')));
+		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('545509000')));
 
-	// 	const trader = await traderDriftClient.getUserAccount();
-	// 	console.log(
-	// 		'trader size',
-	// 		trader.perpPositions[0].baseAssetAmount.toString()
-	// 	);
+		const trader = await traderDriftClient.getUserAccount();
+		console.log(
+			'trader size',
+			trader.perpPositions[0].baseAssetAmount.toString()
+		);
 
-	// 	await driftClientUser.fetchAccounts();
-	// 	const sdkPnl = driftClientUser.getSettledLPPosition(0)[2];
+		await driftClientUser.fetchAccounts();
+		const sdkPnl = driftClientUser.getSettledLPPosition(0)[2];
 
-	// 	console.log('settling...');
-	// 	try {
-	// 		const _txsigg = await driftClient.settleLP(
-	// 			await driftClient.getUserAccountPublicKey(),
-	// 			0
-	// 		);
-	// 		await _viewLogs(_txsigg);
-	// 	} catch (e) {
-	// 		console.log(e);
-	// 	}
-	// 	user = await await driftClientUser.getUserAccount();
+		console.log('settling...');
+		try {
+			const _txsigg = await driftClient.settleLP(
+				await driftClient.getUserAccountPublicKey(),
+				0
+			);
+			await _viewLogs(_txsigg);
+		} catch (e) {
+			console.log(e);
+		}
+		user = await await driftClientUser.getUserAccount();
 
-	// 	const settleLiquidityRecord: LPRecord =
-	// 		eventSubscriber.getEventsArray('LPRecord')[0];
+		const settleLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
 
-	// 	console.log(
-	// 		'settle pnl vs sdk',
-	// 		settleLiquidityRecord.pnl.toString(),
-	// 		sdkPnl.toString()
-	// 	);
-	// 	// assert(settleLiquidityRecord.pnl.eq(sdkPnl)); //TODO
-	// });
-	// it('perp jit check (amm jit intensity = 200)', async () => {
-	// 	const marketIndex = 2;
+		console.log(
+			'settle pnl vs sdk',
+			settleLiquidityRecord.pnl.toString(),
+			sdkPnl.toString()
+		);
+		// assert(settleLiquidityRecord.pnl.eq(sdkPnl)); //TODO
+	});
+	it('perp jit check (amm jit intensity = 200)', async () => {
+		const marketIndex = 2;
 
-	// 	await driftClient.updateAmmJitIntensity(marketIndex, 200);
+		await driftClient.updateAmmJitIntensity(marketIndex, 200);
 
-	// 	console.log('adding liquidity...');
-	// 	await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(
-	// 		marketIndex,
-	// 		BASE_PRECISION.toNumber()
-	// 	);
+		console.log('adding liquidity...');
+		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(
+			marketIndex,
+			BASE_PRECISION.toNumber()
+		);
 
-	// 	await driftClient.fetchAccounts();
-	// 	let market = driftClient.getPerpMarketAccount(marketIndex);
-	// 	console.log(
-	// 		'market.amm.sqrtK:',
-	// 		market.amm.userLpShares.toString(),
-	// 		'/',
-	// 		market.amm.sqrtK.toString()
-	// 	);
-	// 	assert(market.amm.sqrtK.eq(new BN('1000000000000')));
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-	// 	assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
+		await driftClient.fetchAccounts();
+		let market = driftClient.getPerpMarketAccount(marketIndex);
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
+		assert(market.amm.sqrtK.eq(new BN('1000000000000')));
+		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
-	// 	const _sig = await driftClient.addPerpLpShares(
-	// 		new BN(100 * BASE_PRECISION.toNumber()),
-	// 		market.marketIndex
-	// 	);
-	// 	await delay(lpCooldown + 1000);
-	// 	await driftClient.fetchAccounts();
-	// 	market = driftClient.getPerpMarketAccount(marketIndex);
-	// 	console.log(
-	// 		'market.amm.sqrtK:',
-	// 		market.amm.userLpShares.toString(),
-	// 		'/',
-	// 		market.amm.sqrtK.toString()
-	// 	);
-	// 	assert(market.amm.sqrtK.eq(new BN('1100000000000')));
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-	// 	assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
+		const _sig = await driftClient.addPerpLpShares(
+			new BN(100 * BASE_PRECISION.toNumber()),
+			market.marketIndex
+		);
+		await delay(lpCooldown + 1000);
+		await driftClient.fetchAccounts();
+		market = driftClient.getPerpMarketAccount(marketIndex);
+		console.log(
+			'market.amm.sqrtK:',
+			market.amm.userLpShares.toString(),
+			'/',
+			market.amm.sqrtK.toString()
+		);
+		assert(market.amm.sqrtK.eq(new BN('1100000000000')));
+		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
+		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
-	// 	let user = await driftClientUser.getUserAccount();
-	// 	assert(user.perpPositions[0].lpShares.toString() == '100000000000'); // 10 * 1e9
+		let user = await driftClientUser.getUserAccount();
+		assert(user.perpPositions[0].lpShares.toString() == '100000000000'); // 10 * 1e9
 
-	// 	// lp goes long
-	// 	const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
-	// 	try {
-	// 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-	// 		const _txsig = await driftClient.openPosition(
-	// 			PositionDirection.LONG,
-	// 			tradeSize,
-	// 			market.marketIndex
-	// 			// new BN(100 * BASE_PRECISION.toNumber())
-	// 		);
-	// 		await _viewLogs(_txsig);
-	// 	} catch (e) {
-	// 		console.log(e);
-	// 	}
-	// 	await driftClient.fetchAccounts();
-	// 	market = driftClient.getPerpMarketAccount(marketIndex);
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountPerLp:',
-	// 		market.amm.baseAssetAmountPerLp.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(new BN('-4545454')));
+		// lp goes long
+		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
+		try {
+			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+			const _txsig = await driftClient.openPosition(
+				PositionDirection.LONG,
+				tradeSize,
+				market.marketIndex
+				// new BN(100 * BASE_PRECISION.toNumber())
+			);
+			await _viewLogs(_txsig);
+		} catch (e) {
+			console.log(e);
+		}
+		await driftClient.fetchAccounts();
+		market = driftClient.getPerpMarketAccount(marketIndex);
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-4545454')));
 
-	// 	// some user goes long (lp should get a short + pnl for closing long on settle)
-	// 	// try {
-	// 	await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-	// 	const _txsig = await traderDriftClient.openPosition(
-	// 		PositionDirection.LONG,
-	// 		tradeSize,
-	// 		market.marketIndex
-	// 		// new BN(100 * BASE_PRECISION.toNumber())
-	// 	);
-	// 	await _viewLogs(_txsig);
-	// 	// } catch (e) {
-	// 	// 	console.log(e);
-	// 	// }
-	// 	await driftClient.fetchAccounts();
-	// 	market = driftClient.getPerpMarketAccount(marketIndex);
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountPerLp:',
-	// 		market.amm.baseAssetAmountPerLp.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(new BN('-9090908')));
-	// 	console.log(
-	// 		'market.amm.baseAssetAmountWithAmm:',
-	// 		market.amm.baseAssetAmountWithAmm.toString()
-	// 	);
-	// 	assert(market.amm.baseAssetAmountWithAmm.eq(new BN('9090909200')));
+		// some user goes long (lp should get a short + pnl for closing long on settle)
+		// try {
+		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+		const _txsig = await traderDriftClient.openPosition(
+			PositionDirection.LONG,
+			tradeSize,
+			market.marketIndex
+			// new BN(100 * BASE_PRECISION.toNumber())
+		);
+		await _viewLogs(_txsig);
+		// } catch (e) {
+		// 	console.log(e);
+		// }
+		await driftClient.fetchAccounts();
+		market = driftClient.getPerpMarketAccount(marketIndex);
+		console.log(
+			'market.amm.baseAssetAmountPerLp:',
+			market.amm.baseAssetAmountPerLp.toString()
+		);
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('-9090908')));
+		console.log(
+			'market.amm.baseAssetAmountWithAmm:',
+			market.amm.baseAssetAmountWithAmm.toString()
+		);
+		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('9090909200')));
 
-	// 	// const trader = await traderDriftClient.getUserAccount();
-	// 	// console.log(
-	// 	// 	'trader size',
-	// 	// 	trader.perpPositions[0].baseAssetAmount.toString()
-	// 	// );
+		// const trader = await traderDriftClient.getUserAccount();
+		// console.log(
+		// 	'trader size',
+		// 	trader.perpPositions[0].baseAssetAmount.toString()
+		// );
 
-	// 	for (let i = 0; i < 10; i++) {
-	// 		// add jit maker going other way
-	// 		const takerOrderParams = getLimitOrderParams({
-	// 			marketIndex,
-	// 			direction: PositionDirection.SHORT,
-	// 			baseAssetAmount: tradeSize,
-	// 			price: new BN(0.9 * PRICE_PRECISION.toNumber()),
-	// 			auctionStartPrice: new BN(0.99 * PRICE_PRECISION.toNumber()),
-	// 			auctionEndPrice: new BN(0.929 * PRICE_PRECISION.toNumber()),
-	// 			auctionDuration: 10,
-	// 			userOrderId: 1,
-	// 			postOnly: PostOnlyParams.NONE,
-	// 		});
-	// 		await traderDriftClient.placePerpOrder(takerOrderParams);
-	// 		await traderDriftClient.fetchAccounts();
-	// 		console.log(takerOrderParams);
-	// 		const order = traderDriftClientUser.getOrderByUserOrderId(1);
-	// 		console.log(order);
+		for (let i = 0; i < 10; i++) {
+			// add jit maker going other way
+			const takerOrderParams = getLimitOrderParams({
+				marketIndex,
+				direction: PositionDirection.SHORT,
+				baseAssetAmount: tradeSize,
+				price: new BN(0.9 * PRICE_PRECISION.toNumber()),
+				auctionStartPrice: new BN(0.99 * PRICE_PRECISION.toNumber()),
+				auctionEndPrice: new BN(0.929 * PRICE_PRECISION.toNumber()),
+				auctionDuration: 10,
+				userOrderId: 1,
+				postOnly: PostOnlyParams.NONE,
+			});
+			await traderDriftClient.placePerpOrder(takerOrderParams);
+			await traderDriftClient.fetchAccounts();
+			console.log(takerOrderParams);
+			const order = traderDriftClientUser.getOrderByUserOrderId(1);
+			console.log(order);
 
-	// 		assert(!order.postOnly);
+			assert(!order.postOnly);
 
-	// 		const makerOrderParams = getLimitOrderParams({
-	// 			marketIndex,
-	// 			direction: PositionDirection.LONG,
-	// 			baseAssetAmount: tradeSize,
-	// 			price: new BN(1.011 * PRICE_PRECISION.toNumber()),
-	// 			userOrderId: 1,
-	// 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-	// 			immediateOrCancel: true,
-	// 		});
-	// 		console.log('maker:', makerOrderParams);
+			const makerOrderParams = getLimitOrderParams({
+				marketIndex,
+				direction: PositionDirection.LONG,
+				baseAssetAmount: tradeSize,
+				price: new BN(1.011 * PRICE_PRECISION.toNumber()),
+				userOrderId: 1,
+				postOnly: PostOnlyParams.MUST_POST_ONLY,
+				immediateOrCancel: true,
+			});
+			console.log('maker:', makerOrderParams);
 
-	// 		const txSig = await poorDriftClient.placeAndMakePerpOrder(
-	// 			makerOrderParams,
-	// 			{
-	// 				taker: await traderDriftClient.getUserAccountPublicKey(),
-	// 				order: traderDriftClient.getOrderByUserId(1),
-	// 				takerUserAccount: traderDriftClient.getUserAccount(),
-	// 				takerStats: traderDriftClient.getUserStatsAccountPublicKey(),
-	// 			}
-	// 		);
-	// 		await _viewLogs(txSig);
-	// 		await driftClient.fetchAccounts();
-	// 		market = driftClient.getPerpMarketAccount(marketIndex);
-	// 		console.log(
-	// 			'market.amm.baseAssetAmountPerLp:',
-	// 			market.amm.baseAssetAmountPerLp.toString()
-	// 		);
-	// 		console.log(
-	// 			'market.amm.baseAssetAmountWithAmm:',
-	// 			market.amm.baseAssetAmountWithAmm.toString()
-	// 		);
-	// 		console.log(
-	// 			'market.amm.baseAssetAmountWithUnsettledLp:',
-	// 			market.amm.baseAssetAmountWithUnsettledLp.toString()
-	// 		);
+			const txSig = await poorDriftClient.placeAndMakePerpOrder(
+				makerOrderParams,
+				{
+					taker: await traderDriftClient.getUserAccountPublicKey(),
+					order: traderDriftClient.getOrderByUserId(1),
+					takerUserAccount: traderDriftClient.getUserAccount(),
+					takerStats: traderDriftClient.getUserStatsAccountPublicKey(),
+				}
+			);
+			await _viewLogs(txSig);
+			await driftClient.fetchAccounts();
+			market = driftClient.getPerpMarketAccount(marketIndex);
+			console.log(
+				'market.amm.baseAssetAmountPerLp:',
+				market.amm.baseAssetAmountPerLp.toString()
+			);
+			console.log(
+				'market.amm.baseAssetAmountWithAmm:',
+				market.amm.baseAssetAmountWithAmm.toString()
+			);
+			console.log(
+				'market.amm.baseAssetAmountWithUnsettledLp:',
+				market.amm.baseAssetAmountWithUnsettledLp.toString()
+			);
 
-	// 		if (i == 0) {
-	// 			assert(market.amm.baseAssetAmountPerLp.eq(new BN('-5227727')));
-	// 			assert(market.amm.baseAssetAmountWithAmm.eq(new BN('5227727300')));
-	// 			assert(
-	// 				market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('522772700'))
-	// 			);
-	// 		}
-	// 	}
-	// 	market = driftClient.getPerpMarketAccount(marketIndex);
-	// 	assert(market.amm.baseAssetAmountPerLp.eq(new BN('12499904')));
-	// 	assert(market.amm.baseAssetAmountWithAmm.eq(new BN('90400')));
-	// 	assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('-1249990400')));
+			if (i == 0) {
+				assert(market.amm.baseAssetAmountPerLp.eq(new BN('-5227727')));
+				assert(market.amm.baseAssetAmountWithAmm.eq(new BN('5227727300')));
+				assert(
+					market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('522772700'))
+				);
+			}
+		}
+		market = driftClient.getPerpMarketAccount(marketIndex);
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('12499904')));
+		assert(market.amm.baseAssetAmountWithAmm.eq(new BN('90400')));
+		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(new BN('-1249990400')));
 
-	// 	const trader = await traderDriftClient.getUserAccount();
-	// 	console.log(
-	// 		'trader size',
-	// 		trader.perpPositions[0].baseAssetAmount.toString()
-	// 	);
+		const trader = await traderDriftClient.getUserAccount();
+		console.log(
+			'trader size',
+			trader.perpPositions[0].baseAssetAmount.toString()
+		);
 
-	// 	await driftClientUser.fetchAccounts();
-	// 	const sdkPnl = driftClientUser.getSettledLPPosition(0)[2];
+		await driftClientUser.fetchAccounts();
+		const sdkPnl = driftClientUser.getSettledLPPosition(0)[2];
 
-	// 	console.log('settling...');
-	// 	try {
-	// 		const _txsigg = await driftClient.settleLP(
-	// 			await driftClient.getUserAccountPublicKey(),
-	// 			0
-	// 		);
-	// 		await _viewLogs(_txsigg);
-	// 	} catch (e) {
-	// 		console.log(e);
-	// 	}
-	// 	user = await await driftClientUser.getUserAccount();
-	// 	const orderRecords = eventSubscriber.getEventsArray('OrderActionRecord');
+		console.log('settling...');
+		try {
+			const _txsigg = await driftClient.settleLP(
+				await driftClient.getUserAccountPublicKey(),
+				0
+			);
+			await _viewLogs(_txsigg);
+		} catch (e) {
+			console.log(e);
+		}
+		user = await await driftClientUser.getUserAccount();
+		const orderRecords = eventSubscriber.getEventsArray('OrderActionRecord');
 
-	// 	const matchOrderRecord = orderRecords[1];
-	// 	assert(
-	// 		isVariant(matchOrderRecord.actionExplanation, 'orderFilledWithMatchJit')
-	// 	);
-	// 	assert(matchOrderRecord.baseAssetAmountFilled.toString(), '3750000000');
-	// 	assert(matchOrderRecord.quoteAssetAmountFilled.toString(), '3791212');
+		const matchOrderRecord = orderRecords[1];
+		assert(
+			isVariant(matchOrderRecord.actionExplanation, 'orderFilledWithMatchJit')
+		);
+		assert(matchOrderRecord.baseAssetAmountFilled.toString(), '3750000000');
+		assert(matchOrderRecord.quoteAssetAmountFilled.toString(), '3791212');
 
-	// 	const jitOrderRecord = orderRecords[2];
-	// 	assert(isVariant(jitOrderRecord.actionExplanation, 'orderFilledWithLpJit'));
-	// 	assert(jitOrderRecord.baseAssetAmountFilled.toString(), '1250000000');
-	// 	assert(jitOrderRecord.quoteAssetAmountFilled.toString(), '1263738');
+		const jitOrderRecord = orderRecords[2];
+		assert(isVariant(jitOrderRecord.actionExplanation, 'orderFilledWithLpJit'));
+		assert(jitOrderRecord.baseAssetAmountFilled.toString(), '1250000000');
+		assert(jitOrderRecord.quoteAssetAmountFilled.toString(), '1263738');
 
-	// 	// console.log('len of orderRecords', orderRecords.length);
-	// 	lastOrderRecordsLength = orderRecords.length;
+		// console.log('len of orderRecords', orderRecords.length);
+		lastOrderRecordsLength = orderRecords.length;
 
-	// 	// Convert the array to a JSON string
-	// 	// const fs = require('fs');
-	// 	// // Custom replacer function to convert BN values to numerical representation
-	// 	// const replacer = (key, value) => {
-	// 	// 	if (value instanceof BN) {
-	// 	// 		return value.toString(10); // Convert BN to base-10 string
-	// 	// 	}
-	// 	// 	return value;
-	// 	// };
-	// 	// const jsonOrderRecords = JSON.stringify(orderRecords, replacer);
+		// Convert the array to a JSON string
+		// const fs = require('fs');
+		// // Custom replacer function to convert BN values to numerical representation
+		// const replacer = (key, value) => {
+		// 	if (value instanceof BN) {
+		// 		return value.toString(10); // Convert BN to base-10 string
+		// 	}
+		// 	return value;
+		// };
+		// const jsonOrderRecords = JSON.stringify(orderRecords, replacer);
 
-	// 	// // Write the JSON string to a file
-	// 	// fs.writeFile('orderRecords.json', jsonOrderRecords, 'utf8', (err) => {
-	// 	// 	if (err) {
-	// 	// 		console.error('Error writing to JSON file:', err);
-	// 	// 		return;
-	// 	// 	}
-	// 	// 	console.log('orderRecords successfully written to orderRecords.json');
-	// 	// });
+		// // Write the JSON string to a file
+		// fs.writeFile('orderRecords.json', jsonOrderRecords, 'utf8', (err) => {
+		// 	if (err) {
+		// 		console.error('Error writing to JSON file:', err);
+		// 		return;
+		// 	}
+		// 	console.log('orderRecords successfully written to orderRecords.json');
+		// });
 
-	// 	// assert(orderRecords)
-	// 	const settleLiquidityRecord: LPRecord =
-	// 		eventSubscriber.getEventsArray('LPRecord')[0];
+		// assert(orderRecords)
+		const settleLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
 
-	// 	console.log(
-	// 		'settle pnl vs sdk',
-	// 		settleLiquidityRecord.pnl.toString(),
-	// 		sdkPnl.toString()
-	// 	);
-	// 	// assert(settleLiquidityRecord.pnl.eq(sdkPnl));
-	// });
+		console.log(
+			'settle pnl vs sdk',
+			settleLiquidityRecord.pnl.toString(),
+			sdkPnl.toString()
+		);
+		// assert(settleLiquidityRecord.pnl.eq(sdkPnl));
+	});
 	it('perp jit check BTC inout (amm jit intensity = 200)', async () => {
 		const marketIndex = 3;
 
@@ -939,10 +939,13 @@ describe('lp jit', () => {
 		let perpy = await driftClientUser.getPerpPosition(marketIndex);
 
 		assert(perpy.lpShares.toString() == '1000000000'); //  1e9
-		console.log('user.perpPositions[0].baseAssetAmount:', perpy.baseAssetAmount.toString());
+		console.log(
+			'user.perpPositions[0].baseAssetAmount:',
+			perpy.baseAssetAmount.toString()
+		);
 		assert(perpy.baseAssetAmount.toString() == '0'); // no fills
 
-		// lp goes long
+		// trader goes long
 		const tradeSize = BASE_PRECISION.div(new BN(20));
 		const _txsig = await traderDriftClient.openPosition(
 			PositionDirection.LONG,
@@ -952,7 +955,6 @@ describe('lp jit', () => {
 		);
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
-		
 
 		perpy = await driftClientUser.getPerpPosition(marketIndex);
 		assert(perpy.baseAssetAmount.toString() == '0'); // unsettled
@@ -964,12 +966,10 @@ describe('lp jit', () => {
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
-		
 
 		perpy = await driftClientUser.getPerpPosition(marketIndex);
 		console.log('perpy.baseAssetAmount:', perpy.baseAssetAmount.toString());
 		assert(perpy.baseAssetAmount.toString() == '-10000000'); // settled
-
 
 		[bid, ask] = calculateBidAskPrice(
 			driftClient.getPerpMarketAccount(marketIndex).amm,
@@ -1026,25 +1026,8 @@ describe('lp jit', () => {
 
 		console.log('len of orderRecords', orderRecords.length);
 		assert(orderRecords.length - lastOrderRecordsLength == 7);
+		lastOrderRecordsLength = orderRecords.length;
 		// Convert the array to a JSON string
-		// const fs = require('fs');
-		// // Custom replacer function to convert BN values to numerical representation
-		// const replacer = (key, value) => {
-		// 	if (value instanceof BN) {
-		// 		return value.toString(10); // Convert BN to base-10 string
-		// 	}
-		// 	return value;
-		// };
-		// const jsonOrderRecords = JSON.stringify(orderRecords, replacer);
-
-		// Write the JSON string to a file
-		// fs.writeFile('orderRecords.json', jsonOrderRecords, 'utf8', (err) => {
-		// 	if (err) {
-		// 		console.error('Error writing to JSON file:', err);
-		// 		return;
-		// 	}
-		// 	console.log('orderRecords successfully written to orderRecords.json');
-		// });
 
 		// console.log(marketAfter);
 		console.log(marketAfter.amm.baseAssetAmountPerLp.toString());
@@ -1060,13 +1043,17 @@ describe('lp jit', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 		const perpPos = driftClientUser.getPerpPosition(marketIndex);
-		const [settledPos, dustPos, lpPnl] = driftClientUser.getSettledLPPosition(marketIndex);
+		console.log(perpPos.baseAssetAmount.toString());
+		assert(perpPos.baseAssetAmount.toString() == '-10000000');
+
+		const [settledPos, dustPos, lpPnl] =
+			driftClientUser.getSettledLPPosition(marketIndex);
 		console.log('settlePos:', settledPos);
 		console.log('dustPos:', dustPos.toString());
 		console.log('lpPnl:', lpPnl.toString());
 
-		assert(dustPos.toString()=='0')
-		assert(lpPnl.toString()=='6134172')
+		assert(dustPos.toString() == '0');
+		assert(lpPnl.toString() == '6134172');
 
 		const _sig2 = await driftClient.settleLP(
 			await driftClient.getUserAccountPublicKey(),
@@ -1075,9 +1062,118 @@ describe('lp jit', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 		const perpPosAfter = driftClientUser.getPerpPosition(marketIndex);
-
+		console.log(
+			'perpPosAfter.baseAssetAmount:',
+			perpPosAfter.baseAssetAmount.toString()
+		);
+		assert(perpPosAfter.baseAssetAmount.toString() == '-5000000');
 		assert(perpPosAfter.baseAssetAmount.eq(settledPos.baseAssetAmount));
 
+		const takerOrderParams2 = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount: tradeSize.mul(new BN(20)),
+			price: new BN(26000 * PRICE_PRECISION.toNumber()),
+			auctionStartPrice: new BN(26400.99 * PRICE_PRECISION.toNumber()),
+			auctionEndPrice: new BN(26000.929 * PRICE_PRECISION.toNumber()),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+		await traderDriftClient.placePerpOrder(takerOrderParams2);
+		await traderDriftClient.fetchAccounts();
+		// console.log(takerOrderParams);
+		// const order = traderDriftClientUser.getOrderByUserOrderId(1);
 
+		const makerOrderParams2 = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: tradeSize.mul(new BN(20)),
+			price: new BN(26488.88 * PRICE_PRECISION.toNumber()),
+			userOrderId: 1,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+		});
+
+		[bid, ask] = calculateBidAskPrice(
+			driftClient.getPerpMarketAccount(marketIndex).amm,
+			driftClient.getOracleDataForPerpMarket(marketIndex)
+		);
+		console.log(bid.toString(), '/', ask.toString());
+		console.log('bid:', bid.toString());
+		console.log('ask:', ask.toString());
+
+		await poorDriftClient.placeAndMakePerpOrder(makerOrderParams2, {
+			taker: await traderDriftClient.getUserAccountPublicKey(),
+			order: traderDriftClient.getOrderByUserId(1),
+			takerUserAccount: traderDriftClient.getUserAccount(),
+			takerStats: traderDriftClient.getUserStatsAccountPublicKey(),
+		});
+		const marketAfter2 = driftClient.getPerpMarketAccount(marketIndex);
+
+		console.log(marketAfter2.amm.baseAssetAmountPerLp.toString());
+		console.log(marketAfter2.amm.quoteAssetAmountPerLp.toString());
+		console.log(marketAfter2.amm.baseAssetAmountWithUnsettledLp.toString());
+		console.log(marketAfter2.amm.baseAssetAmountWithAmm.toString());
+
+		assert(marketAfter2.amm.baseAssetAmountPerLp.eq(new BN(-2500000)));
+		assert(marketAfter2.amm.quoteAssetAmountPerLp.eq(new BN(78437568)));
+		assert(
+			marketAfter2.amm.baseAssetAmountWithUnsettledLp.eq(new BN(-2500000))
+		);
+		assert(marketAfter2.amm.baseAssetAmountWithAmm.eq(new BN(2500000)));
+
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+		const perpPos2 = driftClientUser.getPerpPosition(marketIndex);
+		console.log(perpPos2.baseAssetAmount.toString());
+		assert(perpPos2.baseAssetAmount.toString() == '-5000000');
+
+		const [settledPos2, dustPos2, lpPnl2] =
+			driftClientUser.getSettledLPPosition(marketIndex);
+		console.log('settlePos:', settledPos2);
+		console.log('dustPos:', dustPos2.toString());
+		console.log('lpPnl:', lpPnl2.toString());
+
+		assert(dustPos2.toString() == '0');
+		assert(lpPnl2.toString() == '3067087');
+
+		await driftClient.settleLP(
+			await driftClient.getUserAccountPublicKey(),
+			marketIndex
+		);
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+		const perpPosAfter2 = driftClientUser.getPerpPosition(marketIndex);
+		console.log(
+			'perpPosAfter2.baseAssetAmount:',
+			perpPosAfter2.baseAssetAmount.toString()
+		);
+		assert(perpPosAfter2.baseAssetAmount.toString() == '-2500000');
+		assert(perpPosAfter2.baseAssetAmount.eq(settledPos2.baseAssetAmount));
+
+		const orderRecords2 = eventSubscriber.getEventsArray('OrderActionRecord');
+		console.log('len of orderRecords', orderRecords2.length);
+		// assert(orderRecords.length - lastOrderRecordsLength == 7);
+		lastOrderRecordsLength = orderRecords2.length;
+
+		// const fs = require('fs');
+		// // Custom replacer function to convert BN values to numerical representation
+		// const replacer = (key, value) => {
+		// 	if (value instanceof BN) {
+		// 		return value.toString(10); // Convert BN to base-10 string
+		// 	}
+		// 	return value;
+		// };
+		// const jsonOrderRecords2 = JSON.stringify(orderRecords2, replacer);
+
+		// // Write the JSON string to a file
+		// fs.writeFile('orderRecords.json', jsonOrderRecords2, 'utf8', (err) => {
+		// 	if (err) {
+		// 		console.error('Error writing to JSON file:', err);
+		// 		return;
+		// 	}
+		// 	console.log('orderRecords successfully written to orderRecords.json');
+		// });
 	});
 });
