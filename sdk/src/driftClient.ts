@@ -2317,6 +2317,48 @@ export class DriftClient {
 		});
 	}
 
+	public getQuoteValuePerLpShare(marketIndex: number): BN {
+		const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+
+		const openBidsPerLp = BN.max(
+			perpMarketAccount.amm.baseAssetReserve.sub(
+				perpMarketAccount.amm.minBaseAssetReserve
+			),
+			ZERO
+		)
+			.mul(BASE_PRECISION)
+			.div(perpMarketAccount.amm.sqrtK);
+
+		const openAsksPerLp = BN.max(
+			perpMarketAccount.amm.maxBaseAssetReserve.sub(
+				perpMarketAccount.amm.baseAssetReserve
+			),
+			ZERO
+		)
+			.mul(BASE_PRECISION)
+			.div(perpMarketAccount.amm.sqrtK);
+
+		let maxLpB = perpMarketAccount.amm.sqrtK;
+		let maxLpA = perpMarketAccount.amm.sqrtK;
+
+		if (openBidsPerLp.gt(ZERO)) {
+			maxLpB = BASE_PRECISION.mul(BASE_PRECISION).div(openBidsPerLp);
+		}
+		if (openAsksPerLp.gt(ZERO)) {
+			maxLpA = BASE_PRECISION.mul(BASE_PRECISION).div(openAsksPerLp);
+		}
+
+		const lpSharesPerBase = BN.min(maxLpB, maxLpA);
+
+		const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
+
+		const quoteValuePerLpShare = lpSharesPerBase
+			.mul(oraclePriceData.price)
+			.div(BASE_PRECISION);
+
+		return quoteValuePerLpShare;
+	}
+
 	/**
 	 * @deprecated use {@link placePerpOrder} or {@link placeAndTakePerpOrder} instead
 	 */
