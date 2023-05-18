@@ -23,6 +23,15 @@ import { OraclePriceData } from '../oracles/types';
 import { PERCENTAGE_PRECISION } from '../constants/numericConstants';
 import { divCeil } from './utils';
 
+/**
+ * Calculates the balance of a given token amount including any accumulated interest. This
+ * is the same as `SpotPosition.scaledBalance`.
+ *
+ * @param {BN} tokenAmount - the amount of tokens
+ * @param {SpotMarketAccount} spotMarket - the spot market account
+ * @param {SpotBalanceType} balanceType - the balance type ('deposit' or 'borrow')
+ * @return {BN} the calculated balance, scaled by `SPOT_MARKET_BALANCE_PRECISION`
+ */
 export function getBalance(
 	tokenAmount: BN,
 	spotMarket: SpotMarketAccount,
@@ -43,6 +52,14 @@ export function getBalance(
 	return balance;
 }
 
+/**
+ * Calculates the spot token amount including any accumulated interest.
+ *
+ * @param {BN} balanceAmount - The balance amount, typically from `SpotPosition.scaledBalance`
+ * @param {SpotMarketAccount} spotMarket - The spot market account details
+ * @param {SpotBalanceType} balanceType - The balance type to be used for calculation
+ * @returns {BN} The calculated token amount, scaled by `SpotMarketConfig.precision`
+ */
 export function getTokenAmount(
 	balanceAmount: BN,
 	spotMarket: SpotMarketAccount,
@@ -62,6 +79,13 @@ export function getTokenAmount(
 	}
 }
 
+/**
+ * Returns the signed (positive for deposit,negative for borrow) token amount based on the balance type.
+ *
+ * @param {BN} tokenAmount - The token amount to convert (from `getTokenAmount`)
+ * @param {SpotBalanceType} balanceType - The balance type to determine the sign of the token amount.
+ * @returns {BN} - The signed token amount, scaled by `SpotMarketConfig.precision`
+ */
 export function getSignedTokenAmount(
 	tokenAmount: BN,
 	balanceType: SpotBalanceType
@@ -73,6 +97,15 @@ export function getSignedTokenAmount(
 	}
 }
 
+/**
+ * Calculates the value of a given token amount using the worst of the provided oracle price and its TWAP.
+ *
+ * @param {BN} tokenAmount - The amount of tokens to calculate the value for (from `getTokenAmount`)
+ * @param {number} spotDecimals - The number of decimals in the token.
+ * @param {OraclePriceData} oraclePriceData - The oracle price data (typically a token/USD oracle).
+ * @param {BN} oraclePriceTwap - The Time-Weighted Average Price of the oracle.
+ * @return {BN} The calculated value of the given token amount, scaled by `PRICE_PRECISION`
+ */
 export function getStrictTokenValue(
 	tokenAmount: BN,
 	spotDecimals: number,
@@ -95,6 +128,14 @@ export function getStrictTokenValue(
 	return tokenAmount.mul(price).div(precisionDecrease);
 }
 
+/**
+ * Calculates the value of a given token amount in relation to an oracle price data
+ *
+ * @param {BN} tokenAmount - The amount of tokens to calculate the value for (from `getTokenAmount`)
+ * @param {number} spotDecimals - The number of decimal places of the token.
+ * @param {OraclePriceData} oraclePriceData - The oracle price data (typically a token/USD oracle).
+ * @return {BN} The value of the token based on the oracle, scaled by `PRICE_PRECISION`
+ */
 export function getTokenValue(
 	tokenAmount: BN,
 	spotDecimals: number,
