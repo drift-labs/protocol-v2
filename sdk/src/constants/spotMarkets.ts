@@ -6,6 +6,7 @@ import {
 	LAMPORTS_EXP,
 	LAMPORTS_PRECISION,
 	SIX,
+	NINE,
 } from './numericConstants';
 
 export type SpotMarketConfig = {
@@ -81,6 +82,16 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		phoenixMarket: new PublicKey(
 			'4DoNfFBfF7UokCC2FQzriy7yHK6DY6NVdYpuekQ5pRgg'
 		),
+	},
+	{
+		symbol: 'mSOL',
+		marketIndex: 2,
+		oracle: new PublicKey('E4v1BBgoso9s64TQvmyownAVJbhbEPGyzA3qn4n46qj9'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		serumMarket: new PublicKey('9Lyhks5bQQxb9EyyX55NtgKQzpM4WK7JCmeaWuQ5MoXD'),
 	},
 ];
 
