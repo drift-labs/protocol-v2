@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: allow up to 7500 subaccounts
 - program: allow users to swap on jupiter inside of drift account ([#462](https://github.com/drift-labs/protocol-v2/pull/462))
+- ts-sdk: add mSOL spot market ([#467](https://github.com/drift-labs/protocol-v2/pull/467))
 
 ### Fixes
 
@@ -74,7 +75,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - sdk: fix removing unstaked sol
 - program: fix math error in settle_revenue_to_insurance_fund for large sizes ([#443](https://github.com/drift-labs/protocol-v2/pull/443))
 - program: fix revenue pool corner case for updating last_revenue_withdraw_ts ([#447](https://github.com/drift-labs/protocol-v2/pull/447))
-
 
 ### Breaking
 
