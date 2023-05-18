@@ -89,7 +89,7 @@ export class JupiterClient {
 	/**
 	 * Get a swap transaction for a route
 	 * @param route the route to perform swap
-	 * @param userPublicKey the user's wallet public key
+	 * @param userPublicKey the signer's wallet public key
 	 * @param slippageBps the slippage tolerance in basis points
 	 */
 	public async getSwapTransaction({
