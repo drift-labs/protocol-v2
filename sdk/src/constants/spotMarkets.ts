@@ -6,6 +6,7 @@ import {
 	LAMPORTS_EXP,
 	LAMPORTS_PRECISION,
 	SIX,
+	NINE,
 } from './numericConstants';
 
 export type SpotMarketConfig = {
@@ -57,16 +58,6 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: SIX,
 		serumMarket: new PublicKey('AGsmbVu3MS9u68GEYABWosQQCZwmLcBHu4pWEuBYH7Za'),
 	},
-	{
-		symbol: 'mSOL',
-		marketIndex: 3,
-		oracle: new PublicKey('9a6RNx3tCu1TSs6TBSfV2XRXEPEZXQ6WB7jRojZRvyeZ'),
-		oracleSource: OracleSource.PYTH,
-		mint: new PublicKey('mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So'),
-		precision: new BN(10).pow(SIX),
-		precisionExp: SIX,
-		// serumMarket: new PublicKey('AGsmbVu3MS9u68GEYABWosQQCZwmLcBHu4pWEuBYH7Za'), TODO
-	},
 ];
 
 export const MainnetSpotMarkets: SpotMarketConfig[] = [
@@ -98,8 +89,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		oracle: new PublicKey('E4v1BBgoso9s64TQvmyownAVJbhbEPGyzA3qn4n46qj9'),
 		oracleSource: OracleSource.PYTH,
 		mint: new PublicKey('mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So'),
-		precision: new BN(10).pow(SIX),
-		precisionExp: SIX,
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
 		serumMarket: new PublicKey('9Lyhks5bQQxb9EyyX55NtgKQzpM4WK7JCmeaWuQ5MoXD'),
 	},
 ];
