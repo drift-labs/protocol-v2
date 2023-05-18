@@ -512,7 +512,7 @@ export type OrderActionRecord = {
 };
 
 export type SwapRecord = {
-	ts: number;
+	ts: BN;
 	user: PublicKey;
 	amountOut: BN;
 	amountIn: BN;
