@@ -863,6 +863,14 @@
           "type": {
             "option": "u64"
           }
+        },
+        {
+          "name": "reduceOnly",
+          "type": {
+            "option": {
+              "defined": "SwapReduceOnly"
+            }
+          }
         }
       ]
     },
@@ -7445,6 +7453,20 @@
           },
           {
             "name": "MustModify"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwapReduceOnly",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "In"
+          },
+          {
+            "name": "Out"
           }
         ]
       }
