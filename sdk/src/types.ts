@@ -1,4 +1,4 @@
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
 // # Utility Types / Enums / Constants
@@ -962,6 +962,15 @@ export type TxParams = {
 export interface IWallet {
 	signTransaction(tx: Transaction): Promise<Transaction>;
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
+	publicKey: PublicKey;
+}
+export interface IVersionedWallet {
+	signVersionedTransaction(
+		tx: VersionedTransaction
+	): Promise<VersionedTransaction>;
+	signAllVersionedTransactions(
+		txs: VersionedTransaction[]
+	): Promise<VersionedTransaction[]>;
 	publicKey: PublicKey;
 }
 

@@ -1,5 +1,6 @@
 import { getOrderSignature, getVammNodeGenerator, NodeList } from './NodeList';
 import {
+	BASE_PRECISION,
 	BN,
 	calculateAskPrice,
 	calculateBidPrice,
@@ -24,12 +25,15 @@ import {
 	OrderActionRecord,
 	OrderRecord,
 	PerpMarketAccount,
+	PositionDirection,
 	PRICE_PRECISION,
+	QUOTE_PRECISION,
 	SlotSubscriber,
 	SpotMarketAccount,
 	StateAccount,
 	TriggerOrderNode,
 	UserMap,
+	ZERO,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
@@ -1848,5 +1852,76 @@ export class DLOB {
 			bids,
 			asks,
 		};
+	}
+
+	private estimateFillExactBaseAmountInForSide(
+		baseAmountIn: BN,
+		oraclePriceData: OraclePriceData,
+		slot: number,
+		dlobSide: Generator<DLOBNode>
+	): BN {
+		let runningSumQuote = ZERO;
+		let runningSumBase = ZERO;
+		for (const side of dlobSide) {
+			const price = side.getPrice(oraclePriceData, slot); //side.order.quoteAssetAmount.div(side.order.baseAssetAmount);
+			const baseAmountRemaining = side.order.baseAssetAmount.sub(
+				side.order.baseAssetAmountFilled
+			);
+			if (runningSumBase.add(baseAmountRemaining).gt(baseAmountIn)) {
+				const remainingBase = baseAmountIn.sub(runningSumBase);
+				runningSumBase = runningSumBase.add(remainingBase);
+				runningSumQuote = runningSumQuote.add(remainingBase.mul(price));
+				break;
+			} else {
+				runningSumBase = runningSumBase.add(baseAmountRemaining);
+				runningSumQuote = runningSumQuote.add(baseAmountRemaining.mul(price));
+			}
+		}
+
+		return runningSumQuote
+			.mul(QUOTE_PRECISION)
+			.div(BASE_PRECISION.mul(PRICE_PRECISION));
+	}
+
+	/**
+	 *
+	 * @param param.marketIndex the index of the market
+	 * @param param.marketType the type of the market
+	 * @param param.baseAmount the base amount in to estimate
+	 * @param param.orderDirection the direction of the trade
+	 * @param param.slot current slot for estimating dlob node price
+	 * @param param.oraclePriceData the oracle price data
+	 * @returns the estimated quote amount filled: QUOTE_PRECISION
+	 */
+	public estimateFillWithExactBaseAmount({
+		marketIndex,
+		marketType,
+		baseAmount,
+		orderDirection,
+		slot,
+		oraclePriceData,
+	}: {
+		marketIndex: number;
+		marketType: MarketType;
+		baseAmount: BN;
+		orderDirection: PositionDirection;
+		slot: number;
+		oraclePriceData: OraclePriceData;
+	}): BN {
+		if (isVariant(orderDirection, 'long')) {
+			return this.estimateFillExactBaseAmountInForSide(
+				baseAmount,
+				oraclePriceData,
+				slot,
+				this.getRestingLimitAsks(marketIndex, slot, marketType, oraclePriceData)
+			);
+		} else if (isVariant(orderDirection, 'short')) {
+			return this.estimateFillExactBaseAmountInForSide(
+				baseAmount,
+				oraclePriceData,
+				slot,
+				this.getRestingLimitBids(marketIndex, slot, marketType, oraclePriceData)
+			);
+		}
 	}
 }
