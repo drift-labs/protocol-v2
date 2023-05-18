@@ -42,6 +42,7 @@ import {
 	ModifyOrderParams,
 	PhoenixV1FulfillmentConfigAccount,
 	ModifyOrderPolicy,
+	SwapReduceOnly,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -3300,6 +3301,7 @@ export class DriftClient {
 		slippageBps,
 		swapMode,
 		route,
+		reduceOnly,
 		txParams,
 	}: {
 		jupiterClient: JupiterClient;
@@ -3311,6 +3313,7 @@ export class DriftClient {
 		slippageBps?: number;
 		swapMode?: SwapMode;
 		route?: Route;
+		reduceOnly?: SwapReduceOnly;
 		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
@@ -3398,6 +3401,7 @@ export class DriftClient {
 			amountIn: amount,
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
+			reduceOnly,
 		});
 
 		const instructions = [
@@ -3438,6 +3442,7 @@ export class DriftClient {
 		inTokenAccount,
 		outTokenAccount,
 		limitPrice,
+		reduceOnly,
 	}: {
 		outMarketIndex: number;
 		inMarketIndex: number;
@@ -3445,6 +3450,7 @@ export class DriftClient {
 		inTokenAccount: PublicKey;
 		outTokenAccount: PublicKey;
 		limitPrice?: BN;
+		reduceOnly?: SwapReduceOnly;
 	}): Promise<{
 		beginSwapIx: TransactionInstruction;
 		endSwapIx: TransactionInstruction;
@@ -3485,6 +3491,7 @@ export class DriftClient {
 			inMarketIndex,
 			outMarketIndex,
 			limitPrice ?? null,
+			reduceOnly ?? null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),

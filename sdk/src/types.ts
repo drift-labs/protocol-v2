@@ -958,6 +958,11 @@ export type TxParams = {
 	computeUnitsPrice?: number;
 };
 
+export class SwapReduceOnly {
+	static readonly In = { in: {} };
+	static readonly Out = { out: {} };
+}
+
 // # Misc Types
 export interface IWallet {
 	signTransaction(tx: Transaction): Promise<Transaction>;
