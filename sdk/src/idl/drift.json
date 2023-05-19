@@ -3645,6 +3645,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketTargetBaseAssetAmountPerLp",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "targetBaseAssetAmountPerLp",
+          "type": "i32"
+        }
+      ]
+    },
+    {
       "name": "updateLpCooldownTime",
       "accounts": [
         {
@@ -6449,7 +6475,8 @@
           {
             "name": "lastOracleNormalisedPrice",
             "docs": [
-              "the last seen oracle price partially shrunk toward the amm reserve price"
+              "the last seen oracle price partially shrunk toward the amm reserve price",
+              "precision: PRICE_PRECISION"
             ],
             "type": "i64"
           },
@@ -6463,21 +6490,24 @@
           {
             "name": "lastBidPriceTwap",
             "docs": [
-              "average estimate of bid price over funding_period"
+              "average estimate of bid price over funding_period",
+              "precision: PRICE_PRECISION"
             ],
             "type": "u64"
           },
           {
             "name": "lastAskPriceTwap",
             "docs": [
-              "average estimate of ask price over funding_period"
+              "average estimate of ask price over funding_period",
+              "precision: PRICE_PRECISION"
             ],
             "type": "u64"
           },
           {
             "name": "lastMarkPriceTwap",
             "docs": [
-              "average estimate of (bid+ask)/2 price over funding_period"
+              "average estimate of (bid+ask)/2 price over funding_period",
+              "precision: PRICE_PRECISION"
             ],
             "type": "u64"
           },
@@ -6499,14 +6529,15 @@
             "name": "lastOracleConfPct",
             "docs": [
               "the pct size of the oracle confidence interval",
-              "PERCENTAGE_PRECISION"
+              "precision: PERCENTAGE_PRECISION"
             ],
             "type": "u64"
           },
           {
             "name": "netRevenueSinceLastFunding",
             "docs": [
-              "the total_fee_minus_distribution change since the last funding update"
+              "the total_fee_minus_distribution change since the last funding update",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i64"
           },
@@ -6527,28 +6558,32 @@
           {
             "name": "orderStepSize",
             "docs": [
-              "the base step size (increment) of orders"
+              "the base step size (increment) of orders",
+              "precision: BASE_PRECISION"
             ],
             "type": "u64"
           },
           {
             "name": "orderTickSize",
             "docs": [
-              "the price tick size of orders"
+              "the price tick size of orders",
+              "precision: PRICE_PRECISION"
             ],
             "type": "u64"
           },
           {
             "name": "minOrderSize",
             "docs": [
-              "the minimum base size of an order"
+              "the minimum base size of an order",
+              "precision: BASE_PRECISION"
             ],
             "type": "u64"
           },
           {
             "name": "maxPositionSize",
             "docs": [
-              "the max base size a single user can have"
+              "the max base size a single user can have",
+              "precision: BASE_PRECISION"
             ],
             "type": "u64"
           },
@@ -6584,14 +6619,16 @@
           {
             "name": "markStd",
             "docs": [
-              "estimate of standard deviation of the fill (mark) prices"
+              "estimate of standard deviation of the fill (mark) prices",
+              "precision: PRICE_PRECISION"
             ],
             "type": "u64"
           },
           {
             "name": "oracleStd",
             "docs": [
-              "estimate of standard deviation of the oracle price at each update"
+              "estimate of standard deviation of the oracle price at each update",
+              "precision: PRICE_PRECISION"
             ],
             "type": "u64"
           },
@@ -6668,7 +6705,8 @@
           {
             "name": "ammJitIntensity",
             "docs": [
-              "the jit intensity of AMM. larger intensity means larger participation in jit. 0 means no jit participation."
+              "the jit intensity of AMM. larger intensity means larger participation in jit. 0 means no jit participation.",
+              "(0, 100] is intensity for protocol-owned AMM. (100, 200] is intensity for user LP-owned AMM."
             ],
             "type": "u8"
           },
@@ -6689,11 +6727,19 @@
             "type": "bool"
           },
           {
+            "name": "targetBaseAssetAmountPerLp",
+            "docs": [
+              "the target value for `base_asset_amount_per_lp`, used during AMM JIT with LP split",
+              "precision: BASE_PRECISION"
+            ],
+            "type": "i32"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                48
+                44
               ]
             }
           }
@@ -7703,6 +7749,12 @@
           },
           {
             "name": "OrderFillWithPhoenix"
+          },
+          {
+            "name": "OrderFilledWithAMMJitLPSplit"
+          },
+          {
+            "name": "OrderFilledWithLPJit"
           }
         ]
       }
@@ -7915,6 +7967,23 @@
           },
           {
             "name": "Isolated"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AMMLiquiditySplit",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "ProtocolOwned"
+          },
+          {
+            "name": "LPOwned"
+          },
+          {
+            "name": "Shared"
           }
         ]
       }

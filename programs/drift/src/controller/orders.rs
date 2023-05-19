@@ -24,6 +24,7 @@ use crate::error::DriftResult;
 use crate::error::ErrorCode;
 use crate::instructions::OrderParams;
 use crate::load_mut;
+use crate::math::amm_jit::calculate_amm_jit_liquidity;
 use crate::math::auction::calculate_auction_prices;
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -57,7 +58,7 @@ use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::{MarketStatus, PerpMarket};
+use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -79,6 +80,8 @@ mod tests;
 
 #[cfg(test)]
 mod amm_jit_tests;
+#[cfg(test)]
+mod amm_lp_jit_tests;
 
 pub fn place_perp_order(
     state: &State,
@@ -1505,7 +1508,7 @@ fn fulfill_perp_order(
                         fee_structure,
                         None,
                         *maker_price,
-                        true,
+                        AMMLiquiditySplit::Shared,
                     )?;
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1703,7 +1706,7 @@ pub fn fulfill_perp_order_with_amm(
     fee_structure: &FeeStructure,
     override_base_asset_amount: Option<u64>,
     override_fill_price: Option<u64>,
-    split_with_lps: bool,
+    liquidity_split: AMMLiquiditySplit,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
 
@@ -1819,8 +1822,13 @@ pub fn fulfill_perp_order_with_amm(
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
-    if split_with_lps {
-        update_lp_market_position(market, &user_position_delta, fee_to_market_for_lp.cast()?)?;
+    if liquidity_split != AMMLiquiditySplit::ProtocolOwned {
+        update_lp_market_position(
+            market,
+            &user_position_delta,
+            fee_to_market_for_lp.cast()?,
+            liquidity_split,
+        )?;
     }
 
     if market.amm.user_lp_shares > 0 {
@@ -1915,12 +1923,10 @@ pub fn fulfill_perp_order_with_amm(
         get_taker_and_maker_for_order_record(user_key, &user.orders[order_index]);
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
-    let order_action_explanation =
-        if override_base_asset_amount.is_some() && override_fill_price.is_some() {
-            OrderActionExplanation::OrderFilledWithAMMJit
-        } else {
-            OrderActionExplanation::OrderFilledWithAMM
-        };
+    let order_action_explanation = match (override_base_asset_amount, override_fill_price) {
+        (Some(_), Some(_)) => liquidity_split.get_order_action_explanation(),
+        _ => OrderActionExplanation::OrderFilledWithAMM,
+    };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
@@ -2053,51 +2059,44 @@ pub fn fulfill_perp_order_with_match(
         sanitize_clamp_denominator,
     )?;
 
-    let amm_wants_to_make = match taker_direction {
-        PositionDirection::Long => market.amm.base_asset_amount_with_amm < 0,
-        PositionDirection::Short => market.amm.base_asset_amount_with_amm > 0,
-    } && market.amm.amm_jit_is_active();
-
-    // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
-    // market order will always land and fill on amm next round
-    let amm_will_fill_next_round = !taker.orders[taker_order_index].has_limit_price(slot)?
-        && maker_base_asset_amount < taker_base_asset_amount;
-
     let mut total_quote_asset_amount = 0_u64;
-    if amm_wants_to_make && !amm_will_fill_next_round {
-        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+
+    let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
+        market,
+        taker_direction,
+        maker_price,
+        valid_oracle_price,
+        base_asset_amount,
+        taker_base_asset_amount,
+        maker_base_asset_amount,
+        taker.orders[taker_order_index].has_limit_price(slot)?,
+    )?;
+
+    if jit_base_asset_amount > 0 {
+        let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
+            taker,
+            taker_stats,
+            taker_order_index,
             market,
-            base_asset_amount,
-            maker_price,
+            oracle_map,
+            reserve_price_before,
+            now,
+            slot,
             valid_oracle_price,
-            taker_direction,
+            taker_key,
+            filler_key,
+            filler,
+            filler_stats,
+            &mut None,
+            &mut None,
+            fee_structure,
+            Some(jit_base_asset_amount),
+            Some(maker_price), // match the makers price
+            amm_liquidity_split,
         )?;
 
-        if jit_base_asset_amount > 0 {
-            let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
-                taker,
-                taker_stats,
-                taker_order_index,
-                market,
-                oracle_map,
-                reserve_price_before,
-                now,
-                slot,
-                valid_oracle_price,
-                taker_key,
-                filler_key,
-                filler,
-                filler_stats,
-                &mut None,
-                &mut None,
-                fee_structure,
-                Some(jit_base_asset_amount),
-                Some(maker_price), // match the makers price
-                false,             // dont split with the lps
-            )?;
-            total_quote_asset_amount = quote_asset_amount_filled_by_amm;
-        };
-    };
+        total_quote_asset_amount = quote_asset_amount_filled_by_amm
+    }
 
     let taker_existing_position = taker
         .get_perp_position(market.market_index)?
