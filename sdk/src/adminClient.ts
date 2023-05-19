@@ -544,6 +544,25 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketTargetBaseAssetAmountPerLp(
+		perpMarketIndex: number,
+		targetBaseAssetAmountPerLP: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketTargetBaseAssetAmountPerLp(
+			targetBaseAssetAmountPerLP,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updatePerpMarketMarginRatio(
 		perpMarketIndex: number,
 		marginRatioInitial: number,

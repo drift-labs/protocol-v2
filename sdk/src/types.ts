@@ -133,6 +133,12 @@ export class OrderActionExplanation {
 	static readonly ORDER_FILLED_WITH_AMM_JIT = {
 		orderFilledWithAmmJit: {},
 	};
+	static readonly ORDER_FILLED_WITH_AMM_JIT_LP_SPLIT = {
+		orderFilledWithAmmJitLpSplit: {},
+	};
+	static readonly ORDER_FILLED_WITH_LP_JIT = {
+		orderFilledWithAmmJitLpSplit: {},
+	};
 	static readonly ORDER_FILLED_WITH_MATCH = {
 		orderFilledWithMatch: {},
 	};
@@ -730,6 +736,7 @@ export type AMM = {
 
 	baseAssetAmountPerLp: BN;
 	quoteAssetAmountPerLp: BN;
+	targetBaseAssetAmountPerLp: number;
 
 	ammJitIntensity: number;
 	maxOpenInterest: BN;
