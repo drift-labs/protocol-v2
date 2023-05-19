@@ -6735,11 +6735,15 @@
             "type": "i32"
           },
           {
+            "name": "netUnsettledFundingPnl",
+            "type": "i64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                44
+                32
               ]
             }
           }

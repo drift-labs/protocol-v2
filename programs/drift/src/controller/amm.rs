@@ -26,13 +26,13 @@ use crate::math::spot_withdraw::{
     get_max_withdraw_for_market_with_token_amount, validate_spot_balances,
 };
 use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
-
 use crate::state::events::CurveRecord;
 use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::{SpotPosition, User};
 use crate::validate;
+use crate::validation::perp_market::validate_perp_market_pools;
 
 #[cfg(test)]
 mod tests;
@@ -670,6 +670,7 @@ pub fn update_pool_balances(
     )?;
 
     let _depositors_claim = validate_spot_balances(spot_market)?;
+    // validate_perp_market_pools(market, spot_market)?;
 
     Ok(pnl_to_settle_with_user)
 }

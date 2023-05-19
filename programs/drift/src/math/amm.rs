@@ -785,8 +785,9 @@ pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i64) -> DriftResult<i128>
         "oracle_price <= 0",
     )?;
 
-    let net_user_base_asset_value = amm
-        .base_asset_amount_with_amm
+    let protocol_owned_position = amm.get_implicit_position()?;
+
+    let net_user_base_asset_value = protocol_owned_position
         .safe_mul(oracle_price.cast()?)?
         .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO.cast()?)?;
 

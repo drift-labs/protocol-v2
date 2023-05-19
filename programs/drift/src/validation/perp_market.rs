@@ -4,6 +4,7 @@ use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
+use crate::state::spot_market::SpotMarket;
 use crate::validate;
 use solana_program::msg;
 
@@ -189,6 +190,21 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs()
     )?;
 
+    Ok(())
+}
+
+pub fn validate_perp_market_pools(market: &PerpMarket, spot_market: &SpotMarket) -> DriftResult {
+    let aum = market.aum(spot_market)?;
+    let terminal_aum = market.amm.terminal_aum()?;
+
+    validate!(
+        aum <= terminal_aum,
+        ErrorCode::InvalidAmmDetected,
+        "Invalid AUM Estimates: 
+        aum={} >= terminal_aum={}",
+        aum,
+        terminal_aum,
+    )?;
     Ok(())
 }
 

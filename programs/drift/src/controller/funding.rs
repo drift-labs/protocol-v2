@@ -95,13 +95,13 @@ pub fn settle_funding_payments(
 
         let market =
             &mut perp_market_map.get_ref_mut(&user.perp_positions[position_index].market_index)?;
-        let amm: &AMM = &market.amm;
+        // let amm: &AMM = &market.amm;
 
         let amm_cumulative_funding_rate =
             if user.perp_positions[position_index].base_asset_amount > 0 {
-                amm.cumulative_funding_rate_long
+                market.amm.cumulative_funding_rate_long
             } else {
-                amm.cumulative_funding_rate_short
+                market.amm.cumulative_funding_rate_short
             };
 
         if amm_cumulative_funding_rate
@@ -114,6 +114,10 @@ pub fn settle_funding_payments(
                 &user.perp_positions[position_index],
             )?;
 
+            market.amm.net_unsettled_funding_pnl = market
+                .amm
+                .net_unsettled_funding_pnl
+                .safe_sub(market_funding_payment)?;
             user.update_cumulative_perp_funding(market_funding_payment)?;
 
             let market_position = &mut user.perp_positions[position_index];
@@ -125,8 +129,8 @@ pub fn settle_funding_payments(
                 market_index: market_position.market_index,
                 funding_payment: market_funding_payment, //1e6
                 user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //1e9
-                amm_cumulative_funding_long: amm.cumulative_funding_rate_long, //1e9
-                amm_cumulative_funding_short: amm.cumulative_funding_rate_short, //1e9
+                amm_cumulative_funding_long: market.amm.cumulative_funding_rate_long, //1e9
+                amm_cumulative_funding_short: market.amm.cumulative_funding_rate_short, //1e9
                 base_asset_amount: market_position.base_asset_amount, //1e9
             });
 
@@ -229,11 +233,12 @@ pub fn update_funding_rate(
 
         let (funding_rate_long, funding_rate_short, funding_imbalance_revenue) =
             calculate_funding_rate_long_short(market, funding_rate.cast()?)?;
+        let funding_imbalance_cost = -funding_imbalance_revenue;
 
         if market.amm.curve_update_intensity > 0 {
             // if funding_imbalance_revenue is positive, protocol receives.
             // if funding_imbalance_cost is positive, protocol spends.
-            let funding_imbalance_cost = -funding_imbalance_revenue;
+
             formulaic_update_k(market, oracle_price_data, funding_imbalance_cost, now)?;
         }
 
@@ -258,6 +263,10 @@ pub fn update_funding_rate(
             TWENTY_FOUR_HOUR,
         )?;
         market.amm.last_funding_rate_ts = now;
+        market.amm.net_unsettled_funding_pnl = market
+            .amm
+            .net_unsettled_funding_pnl
+            .safe_add(funding_imbalance_cost.cast()?)?;
 
         emit!(FundingRateRecord {
             ts: now,

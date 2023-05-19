@@ -15,6 +15,7 @@ use crate::math::constants::{
     TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
+use crate::math::spot_balance::get_token_amount;
 
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
@@ -29,6 +30,8 @@ use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
+
+use super::spot_market::SpotMarket;
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
@@ -362,6 +365,36 @@ impl PerpMarket {
             .max(self.amm.base_asset_amount_short.abs())
             .unsigned_abs()
     }
+
+    pub fn aum(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
+        let amm_fee_pool = get_token_amount(
+            self.amm.fee_pool.balance(),
+            spot_market,
+            self.amm.fee_pool.balance_type(),
+        )?
+        .cast::<i128>()?;
+
+        let market_pnl_pool = get_token_amount(
+            self.pnl_pool.balance(),
+            spot_market,
+            self.pnl_pool.balance_type(),
+        )?
+        .cast::<i128>()?;
+
+        let user_pnl = amm::calculate_net_user_pnl(
+            &self.amm,
+            self.amm.historical_oracle_data.last_oracle_price,
+        )?;
+
+        crate::dlog!(market_pnl_pool, amm_fee_pool, user_pnl);
+
+        let assets = market_pnl_pool.safe_add(amm_fee_pool)?;
+        let liab = user_pnl;
+
+        let aum = assets.safe_sub(liab)?;
+
+        Ok(aum)
+    }
 }
 
 #[cfg(test)]
@@ -623,7 +656,8 @@ pub struct AMM {
     /// the target value for `base_asset_amount_per_lp`, used during AMM JIT with LP split
     /// precision: BASE_PRECISION
     pub target_base_asset_amount_per_lp: i32,
-    pub padding: [u8; 44],
+    pub net_unsettled_funding_pnl: i64,
+    pub padding: [u8; 32],
 }
 
 impl Default for AMM {
@@ -705,7 +739,8 @@ impl Default for AMM {
             oracle_source: OracleSource::default(),
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
-            padding: [0; 44],
+            net_unsettled_funding_pnl: 0,
+            padding: [0; 32],
         }
     }
 }
@@ -886,6 +921,17 @@ impl AMM {
         self.last_trade_ts = now;
 
         Ok(())
+    }
+
+    pub fn get_implicit_position(&self) -> DriftResult<i128> {
+        self.base_asset_amount_with_amm
+            .safe_add(self.base_asset_amount_with_unsettled_lp)
+    }
+
+    pub fn terminal_aum(&self) -> DriftResult<i128> {
+        Ok(self
+            .total_fee_minus_distributions
+            .safe_sub(self.total_fee_withdrawn.cast()?)?)
     }
 }
 
