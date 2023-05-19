@@ -19,6 +19,7 @@ import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import * as Buffer from 'buffer';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
+import { findAllMarketAndOracles } from '../config';
 
 export class WebSocketDriftClientAccountSubscriber
 	implements DriftClientAccountSubscriber
@@ -74,6 +75,19 @@ export class WebSocketDriftClientAccountSubscriber
 		this.subscriptionPromise = new Promise((res) => {
 			this.subscriptionPromiseResolver = res;
 		});
+
+		// If none of markets/oracles set, fetch em all
+		if (
+			this.perpMarketIndexes.length === 0 &&
+			this.spotMarketIndexes.length === 0 &&
+			this.oracleInfos.length === 0
+		) {
+			const { perpMarketIndexes, spotMarketIndexes, oracleInfos } =
+				await findAllMarketAndOracles(this.program);
+			this.perpMarketIndexes = perpMarketIndexes;
+			this.spotMarketIndexes = spotMarketIndexes;
+			this.oracleInfos = oracleInfos;
+		}
 
 		const statePublicKey = await getDriftStateAccountPublicKey(
 			this.program.programId

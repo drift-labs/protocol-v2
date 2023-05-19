@@ -106,11 +106,7 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import {
-	configs,
-	DRIFT_PROGRAM_ID,
-	getMarketsAndOraclesForSubscription,
-} from './config';
+import { configs, DRIFT_PROGRAM_ID } from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -230,24 +226,6 @@ export class DriftClient {
 			});
 		}
 
-		let perpMarketIndexes = config.perpMarketIndexes;
-		let spotMarketIndexes = config.spotMarketIndexes;
-		let oracleInfos = config.oracleInfos;
-		if (config.env) {
-			const {
-				perpMarketIndexes: envPerpMarketIndexes,
-				spotMarketIndexes: envSpotMarketIndexes,
-				oracleInfos: envOracleInfos,
-			} = getMarketsAndOraclesForSubscription(config.env);
-			perpMarketIndexes = perpMarketIndexes
-				? perpMarketIndexes
-				: envPerpMarketIndexes;
-			spotMarketIndexes = spotMarketIndexes
-				? spotMarketIndexes
-				: envSpotMarketIndexes;
-			oracleInfos = oracleInfos ? oracleInfos : envOracleInfos;
-		}
-
 		this.marketLookupTable = config.marketLookupTable;
 		if (config.env && !this.marketLookupTable) {
 			this.marketLookupTable = new PublicKey(
@@ -255,20 +233,23 @@ export class DriftClient {
 			);
 		}
 
+		const perpMarketIndexes = config.perpMarketIndexes ?? [];
+		const spotMarketIndexes = config.spotMarketIndexes ?? [];
+		const oracleInfos = config.oracleInfos ?? [];
 		if (config.accountSubscription?.type === 'polling') {
 			this.accountSubscriber = new PollingDriftClientAccountSubscriber(
 				this.program,
 				config.accountSubscription.accountLoader,
-				perpMarketIndexes ?? [],
-				spotMarketIndexes ?? [],
-				oracleInfos ?? []
+				perpMarketIndexes,
+				spotMarketIndexes,
+				oracleInfos
 			);
 		} else {
 			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
 				this.program,
-				perpMarketIndexes ?? [],
-				spotMarketIndexes ?? [],
-				oracleInfos ?? []
+				perpMarketIndexes,
+				spotMarketIndexes,
+				oracleInfos
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;

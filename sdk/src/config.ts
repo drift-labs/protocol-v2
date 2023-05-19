@@ -11,6 +11,7 @@ import {
 	MainnetSpotMarkets,
 } from './constants/spotMarkets';
 import { OracleInfo } from './oracles/types';
+import { Program } from '@coral-xyz/anchor';
 
 type DriftConfig = {
 	ENV: DriftEnv;
@@ -111,5 +112,37 @@ export function getMarketsAndOraclesForSubscription(env: DriftEnv): {
 		perpMarketIndexes: perpMarketIndexes,
 		spotMarketIndexes: spotMarketIndexes,
 		oracleInfos: Array.from(oracleInfos.values()),
+	};
+}
+
+export async function findAllMarketAndOracles(program: Program): Promise<{
+	perpMarketIndexes: number[];
+	spotMarketIndexes: number[];
+	oracleInfos: OracleInfo[];
+}> {
+	const perpMarkets = await program.account.perpMarket.all();
+	const spotMarkets = await program.account.spotMarket.all();
+
+	const perpMarketIndexes = perpMarkets.map(
+		(market) => market.account.marketIndex
+	);
+	const spotMarketIndexes = spotMarkets.map(
+		(market) => market.account.marketIndex
+	);
+	const oracleInfos = [
+		...perpMarkets.map((market) => ({
+			publicKey: market.account.amm.oracle,
+			source: market.account.amm.oracleSource,
+		})),
+		...spotMarkets.map((market) => ({
+			publicKey: market.account.oracle,
+			source: market.account.oracleSource,
+		})),
+	];
+
+	return {
+		perpMarketIndexes,
+		spotMarketIndexes,
+		oracleInfos,
 	};
 }
