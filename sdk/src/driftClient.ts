@@ -418,6 +418,7 @@ export class DriftClient {
 	public getSpotMarketAccount(
 		marketIndex: number
 	): SpotMarketAccount | undefined {
+		console.log('marketIndex:', marketIndex);
 		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
 	}
 
@@ -1330,6 +1331,7 @@ export class DriftClient {
 					isSigner: false,
 					isWritable: false,
 				});
+				console.log('perpMarketAccount.quoteSpotMarketIndex:', perpMarketAccount.quoteSpotMarketIndex);
 				const spotMarketAccount = this.getSpotMarketAccount(
 					perpMarketAccount.quoteSpotMarketIndex
 				);

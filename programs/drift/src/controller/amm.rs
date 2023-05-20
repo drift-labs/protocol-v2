@@ -32,7 +32,7 @@ use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::{SpotPosition, User};
 use crate::validate;
-use crate::validation::perp_market::validate_perp_market_pools;
+// use crate::validation::perp_market::validate_perp_market_pools;
 
 #[cfg(test)]
 mod tests;

@@ -6,6 +6,7 @@ fi
 
 test_files=(liquidityProvider.ts)
 test_files=(tradingLP.ts)
+test_files=(ammDistributionsValidate.ts)
 
 for test_file in ${test_files[@]}; do
   ANCHOR_TEST_FILE=${test_file} anchor test --skip-build || exit 1;

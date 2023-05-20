@@ -657,7 +657,7 @@ pub struct AMM {
     /// precision: BASE_PRECISION
     pub target_base_asset_amount_per_lp: i32,
     pub net_unsettled_funding_pnl: i64,
-    pub padding: [u8; 32],
+    pub padding: [u8; 36],
 }
 
 impl Default for AMM {
@@ -740,7 +740,7 @@ impl Default for AMM {
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
             net_unsettled_funding_pnl: 0,
-            padding: [0; 32],
+            padding: [0; 36],
         }
     }
 }
@@ -929,9 +929,9 @@ impl AMM {
     }
 
     pub fn terminal_aum(&self) -> DriftResult<i128> {
-        Ok(self
+        self
             .total_fee_minus_distributions
-            .safe_sub(self.total_fee_withdrawn.cast()?)?)
+            .safe_sub(self.total_fee_withdrawn.cast()?)
     }
 }
 
