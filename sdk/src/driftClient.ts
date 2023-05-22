@@ -42,6 +42,7 @@ import {
 	ModifyOrderParams,
 	PhoenixV1FulfillmentConfigAccount,
 	ModifyOrderPolicy,
+	SwapReduceOnly,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -116,7 +117,7 @@ import { isSpotPositionAvailable } from './math/spotPosition';
 import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
-import { JupiterClient } from './jupiter/jupiterClient';
+import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -1493,12 +1494,12 @@ export class DriftClient {
 		return await getAssociatedTokenAddress(mint, this.wallet.publicKey);
 	}
 
-	public async createAssociatedTokenAccountIdempotentInstruction(
+	public createAssociatedTokenAccountIdempotentInstruction(
 		account: PublicKey,
 		payer: PublicKey,
 		owner: PublicKey,
 		mint: PublicKey
-	): Promise<TransactionInstruction> {
+	): TransactionInstruction {
 		return new TransactionInstruction({
 			keys: [
 				{ pubkey: payer, isSigner: true, isWritable: true },
@@ -1506,7 +1507,7 @@ export class DriftClient {
 				{ pubkey: owner, isSigner: false, isWritable: false },
 				{ pubkey: mint, isSigner: false, isWritable: false },
 				{
-					pubkey: SystemProgram.programId,
+					pubkey: anchor.web3.SystemProgram.programId,
 					isSigner: false,
 					isWritable: false,
 				},
@@ -3329,6 +3330,7 @@ export class DriftClient {
 	 * @param inAssociatedTokenAccount the token account to
 	 * @param amount the amount of the token to sell
 	 * @param slippageBps the max slippage passed to jupiter api
+	 * @param route the jupiter route to use for the swap
 	 * @param txParams
 	 */
 	public async swap({
@@ -3339,32 +3341,42 @@ export class DriftClient {
 		inAssociatedTokenAccount,
 		amount,
 		slippageBps,
+		swapMode,
+		route,
+		reduceOnly,
 		txParams,
 	}: {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
 		inMarketIndex: number;
-		outAssociatedTokenAccount: PublicKey;
-		inAssociatedTokenAccount: PublicKey;
+		outAssociatedTokenAccount?: PublicKey;
+		inAssociatedTokenAccount?: PublicKey;
 		amount: BN;
-		slippageBps: number;
+		slippageBps?: number;
+		swapMode?: SwapMode;
+		route?: Route;
+		reduceOnly?: SwapReduceOnly;
 		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
-		const routes = await jupiterClient.getRoutes({
-			inputMint: inMarket.mint,
-			outputMint: outMarket.mint,
-			amount,
-			slippageBps,
-		});
+		if (!route) {
+			const routes = await jupiterClient.getRoutes({
+				inputMint: inMarket.mint,
+				outputMint: outMarket.mint,
+				amount,
+				slippageBps,
+				swapMode,
+			});
 
-		if (!routes || routes.length === 0) {
-			throw new Error('No jupiter routes found');
+			if (!routes || routes.length === 0) {
+				throw new Error('No jupiter routes found');
+			}
+
+			route = routes[0];
 		}
 
-		const route = routes[0];
 		const transaction = await jupiterClient.getSwapTransaction({
 			route,
 			userPublicKey: this.provider.wallet.publicKey,
@@ -3385,7 +3397,8 @@ export class DriftClient {
 		const preInstructions = [];
 		if (!outAssociatedTokenAccount) {
 			outAssociatedTokenAccount = await this.getAssociatedTokenAccount(
-				outMarket.marketIndex
+				outMarket.marketIndex,
+				false
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
@@ -3405,7 +3418,8 @@ export class DriftClient {
 
 		if (!inAssociatedTokenAccount) {
 			inAssociatedTokenAccount = await this.getAssociatedTokenAccount(
-				inMarket.marketIndex
+				inMarket.marketIndex,
+				false
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
@@ -3429,6 +3443,7 @@ export class DriftClient {
 			amountIn: amount,
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
+			reduceOnly,
 		});
 
 		const instructions = [
@@ -3469,6 +3484,7 @@ export class DriftClient {
 		inTokenAccount,
 		outTokenAccount,
 		limitPrice,
+		reduceOnly,
 	}: {
 		outMarketIndex: number;
 		inMarketIndex: number;
@@ -3476,6 +3492,7 @@ export class DriftClient {
 		inTokenAccount: PublicKey;
 		outTokenAccount: PublicKey;
 		limitPrice?: BN;
+		reduceOnly?: SwapReduceOnly;
 	}): Promise<{
 		beginSwapIx: TransactionInstruction;
 		endSwapIx: TransactionInstruction;
@@ -3516,6 +3533,7 @@ export class DriftClient {
 			inMarketIndex,
 			outMarketIndex,
 			limitPrice ?? null,
+			reduceOnly ?? null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -5391,7 +5409,8 @@ export class DriftClient {
 			allIx.push(instructions);
 		}
 
-		if (this.txVersion === 'legacy') {
+		txVersion = txVersion ?? this.txVersion;
+		if (txVersion === 'legacy') {
 			return new Transaction().add(...allIx);
 		} else {
 			const marketLookupTable = await this.fetchMarketLookupTableAccount();

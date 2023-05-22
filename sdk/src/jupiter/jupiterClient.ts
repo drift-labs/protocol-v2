@@ -89,7 +89,7 @@ export class JupiterClient {
 	/**
 	 * Get a swap transaction for a route
 	 * @param route the route to perform swap
-	 * @param userPublicKey the user's wallet public key
+	 * @param userPublicKey the signer's wallet public key
 	 * @param slippageBps the slippage tolerance in basis points
 	 */
 	public async getSwapTransaction({
@@ -143,7 +143,9 @@ export class JupiterClient {
 			)
 		).filter((lookup) => lookup);
 
-		const transactionMessage = TransactionMessage.decompile(message);
+		const transactionMessage = TransactionMessage.decompile(message, {
+			addressLookupTableAccounts: lookupTables,
+		});
 		return {
 			transactionMessage,
 			lookupTables,
@@ -186,6 +188,12 @@ export class JupiterClient {
 			if (
 				instruction.programId.toString() ===
 				'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+			) {
+				return false;
+			}
+
+			if (
+				instruction.programId.toString() === '11111111111111111111111111111111'
 			) {
 				return false;
 			}

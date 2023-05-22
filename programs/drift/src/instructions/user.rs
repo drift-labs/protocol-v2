@@ -2279,6 +2279,12 @@ pub fn handle_begin_swap(
     Ok(())
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum SwapReduceOnly {
+    In,
+    Out,
+}
+
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
@@ -2287,6 +2293,7 @@ pub fn handle_end_swap(
     in_market_index: u16,
     out_market_index: u16,
     limit_price: Option<u64>,
+    reduce_only: Option<SwapReduceOnly>,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
@@ -2368,6 +2375,14 @@ pub fn handle_end_swap(
             !in_spot_market.is_reduce_only(),
             ErrorCode::SpotMarketReduceOnly,
             "in spot market is reduce only but token amount before ({}) < amount in ({})",
+            in_token_amount_before,
+            amount_in
+        )?;
+
+        validate!(
+            reduce_only != Some(SwapReduceOnly::In),
+            ErrorCode::InvalidSwap,
+            "reduce only violated. In position before ({}) < amount in ({})",
             in_token_amount_before,
             amount_in
         )?;
@@ -2463,6 +2478,14 @@ pub fn handle_end_swap(
             !out_spot_market.is_reduce_only(),
             ErrorCode::SpotMarketReduceOnly,
             "out spot market is reduce only but token amount before ({}) < amount out ({})",
+            out_token_amount_before,
+            amount_out
+        )?;
+
+        validate!(
+            reduce_only != Some(SwapReduceOnly::Out),
+            ErrorCode::InvalidSwap,
+            "reduce only violated. Out position before ({}) < amount out ({})",
             out_token_amount_before,
             amount_out
         )?;

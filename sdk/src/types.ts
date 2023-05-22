@@ -1,4 +1,4 @@
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
 // # Utility Types / Enums / Constants
@@ -132,6 +132,12 @@ export class OrderActionExplanation {
 	};
 	static readonly ORDER_FILLED_WITH_AMM_JIT = {
 		orderFilledWithAmmJit: {},
+	};
+	static readonly ORDER_FILLED_WITH_AMM_JIT_LP_SPLIT = {
+		orderFilledWithAmmJitLpSplit: {},
+	};
+	static readonly ORDER_FILLED_WITH_LP_JIT = {
+		orderFilledWithAmmJitLpSplit: {},
 	};
 	static readonly ORDER_FILLED_WITH_MATCH = {
 		orderFilledWithMatch: {},
@@ -506,7 +512,7 @@ export type OrderActionRecord = {
 };
 
 export type SwapRecord = {
-	ts: number;
+	ts: BN;
 	user: PublicKey;
 	amountOut: BN;
 	amountIn: BN;
@@ -730,6 +736,7 @@ export type AMM = {
 
 	baseAssetAmountPerLp: BN;
 	quoteAssetAmountPerLp: BN;
+	targetBaseAssetAmountPerLp: number;
 
 	ammJitIntensity: number;
 	maxOpenInterest: BN;
@@ -951,10 +958,24 @@ export type TxParams = {
 	computeUnitsPrice?: number;
 };
 
+export class SwapReduceOnly {
+	static readonly In = { in: {} };
+	static readonly Out = { out: {} };
+}
+
 // # Misc Types
 export interface IWallet {
 	signTransaction(tx: Transaction): Promise<Transaction>;
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
+	publicKey: PublicKey;
+}
+export interface IVersionedWallet {
+	signVersionedTransaction(
+		tx: VersionedTransaction
+	): Promise<VersionedTransaction>;
+	signAllVersionedTransactions(
+		txs: VersionedTransaction[]
+	): Promise<VersionedTransaction[]>;
 	publicKey: PublicKey;
 }
 

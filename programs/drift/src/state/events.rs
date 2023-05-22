@@ -278,6 +278,8 @@ pub enum OrderActionExplanation {
     OrderFillWithSerum,
     NoBorrowLiquidity,
     OrderFillWithPhoenix,
+    OrderFilledWithAMMJitLPSplit,
+    OrderFilledWithLPJit,
 }
 
 impl Default for OrderAction {

@@ -13,8 +13,12 @@ fn balanced_market_zero_jit() {
     };
     let jit_base_asset_amount = 100;
 
-    let jit_amount =
-        calculate_clamped_jit_base_asset_amount(&market, jit_base_asset_amount).unwrap();
+    let jit_amount = calculate_clamped_jit_base_asset_amount(
+        &market,
+        AMMLiquiditySplit::ProtocolOwned,
+        jit_base_asset_amount,
+    )
+    .unwrap();
     assert_eq!(jit_amount, 0);
 }
 
@@ -30,8 +34,12 @@ fn balanced_market_zero_intensity() {
     };
     let jit_base_asset_amount = 100;
 
-    let jit_amount =
-        calculate_clamped_jit_base_asset_amount(&market, jit_base_asset_amount).unwrap();
+    let jit_amount = calculate_clamped_jit_base_asset_amount(
+        &market,
+        AMMLiquiditySplit::ProtocolOwned,
+        jit_base_asset_amount,
+    )
+    .unwrap();
     assert_eq!(jit_amount, 0);
 }
 
@@ -47,8 +55,12 @@ fn balanced_market_full_intensity() {
     };
     let jit_base_asset_amount = 100;
 
-    let jit_amount =
-        calculate_clamped_jit_base_asset_amount(&market, jit_base_asset_amount).unwrap();
+    let jit_amount = calculate_clamped_jit_base_asset_amount(
+        &market,
+        AMMLiquiditySplit::ProtocolOwned,
+        jit_base_asset_amount,
+    )
+    .unwrap();
     assert_eq!(jit_amount, 100);
 }
 
@@ -64,7 +76,11 @@ fn balanced_market_half_intensity() {
     };
     let jit_base_asset_amount = 100;
 
-    let jit_amount =
-        calculate_clamped_jit_base_asset_amount(&market, jit_base_asset_amount).unwrap();
+    let jit_amount = calculate_clamped_jit_base_asset_amount(
+        &market,
+        AMMLiquiditySplit::ProtocolOwned,
+        jit_base_asset_amount,
+    )
+    .unwrap();
     assert_eq!(jit_amount, 50);
 }

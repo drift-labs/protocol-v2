@@ -186,8 +186,15 @@ pub mod drift {
         in_market_index: u16,
         out_market_index: u16,
         limit_price: Option<u64>,
+        reduce_only: Option<SwapReduceOnly>,
     ) -> Result<()> {
-        handle_end_swap(ctx, in_market_index, out_market_index, limit_price)
+        handle_end_swap(
+            ctx,
+            in_market_index,
+            out_market_index,
+            limit_price,
+            reduce_only,
+        )
     }
 
     pub fn add_perp_lp_shares(
@@ -815,6 +822,16 @@ pub mod drift {
         curve_update_intensity: u8,
     ) -> Result<()> {
         handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
+    }
+
+    pub fn update_perp_market_target_base_asset_amount_per_lp(
+        ctx: Context<AdminUpdatePerpMarket>,
+        target_base_asset_amount_per_lp: i32,
+    ) -> Result<()> {
+        handle_update_perp_market_target_base_asset_amount_per_lp(
+            ctx,
+            target_base_asset_amount_per_lp,
+        )
     }
 
     pub fn update_lp_cooldown_time(
