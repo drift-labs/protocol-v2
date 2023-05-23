@@ -143,3 +143,50 @@ fn test_partial_long_settle() {
     assert_eq!(position.last_base_asset_amount_per_lp, -10);
     assert_eq!(position.last_quote_asset_amount_per_lp, 10);
 }
+
+#[test]
+fn test_remainder_long_settle_big_order_step_size() {
+    let mut position = PerpPosition {
+        ..PerpPosition::default()
+    };
+
+    let amm = AMM {
+        order_step_size: 5 * BASE_PRECISION_U64,
+        ..AMM::default_test()
+    };
+    let mut market = PerpMarket {
+        amm,
+        ..PerpMarket::default_test()
+    };
+    let og_market = market;
+
+    mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
+
+    market.amm.base_asset_amount_per_lp = 10;
+    market.amm.quote_asset_amount_per_lp = -10;
+    market.amm.base_asset_amount_with_unsettled_lp = -10;
+    market.amm.base_asset_amount_short = -10;
+
+    settle_lp_position(&mut position, &mut market).unwrap();
+
+    assert_eq!(position.last_base_asset_amount_per_lp, 10);
+    assert_eq!(position.last_quote_asset_amount_per_lp, -10);
+    assert_eq!(position.base_asset_amount, 0);
+    assert_eq!(position.quote_asset_amount, -10);
+    assert_eq!(position.remainder_base_asset_amount, 10);
+    assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, -10);
+    // net baa doesnt change
+    assert_eq!(
+        og_market.amm.base_asset_amount_with_amm,
+        market.amm.base_asset_amount_with_amm
+    );
+
+    // burn
+    let lp_shares = position.lp_shares;
+    assert_eq!(lp_shares, BASE_PRECISION_U64);
+    burn_lp_shares(&mut position, &mut market, lp_shares, 22).unwrap();
+    assert_eq!(position.lp_shares, 0);
+    assert_eq!(og_market.amm.sqrt_k, market.amm.sqrt_k);
+    assert_eq!(position.quote_asset_amount, -11);
+    assert_eq!(position.remainder_base_asset_amount, 0);
+}

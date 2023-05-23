@@ -70,7 +70,8 @@ pub fn settle_lp_position(
         .remainder_base_asset_amount
         .safe_add(lp_metrics.remainder_base_asset_amount)?;
 
-    if position.remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size.cast()? {
+    // if position.remainder_base_asset_amount.unsigned_abs() <= market.amm.order_step_size.cast()? {
+    if market.amm.order_step_size >= position.remainder_base_asset_amount.unsigned_abs().cast()? {
         let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
             crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
                 position.remainder_base_asset_amount.cast()?,
@@ -162,7 +163,6 @@ pub fn burn_lp_shares(
         .amm
         .base_asset_amount_with_unsettled_lp
         .safe_add(position.remainder_base_asset_amount.cast()?)?;
-
     if shares_to_burn as u128 == market.amm.user_lp_shares && unsettled_remainder != 0 {
         crate::validate!(
             unsettled_remainder.unsigned_abs() <= market.amm.order_step_size as u128,
