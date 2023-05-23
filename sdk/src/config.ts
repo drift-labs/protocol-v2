@@ -120,29 +120,34 @@ export async function findAllMarketAndOracles(program: Program): Promise<{
 	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
 }> {
-	const perpMarkets = await program.account.perpMarket.all();
-	const spotMarkets = await program.account.spotMarket.all();
+	const perpMarketIndexes = [];
+	const spotMarketIndexes = [];
+	const oracleInfos = new Map<string, OracleInfo>();
 
-	const perpMarketIndexes = perpMarkets.map(
-		(market) => market.account.marketIndex
-	);
-	const spotMarketIndexes = spotMarkets.map(
-		(market) => market.account.marketIndex
-	);
-	const oracleInfos = [
-		...perpMarkets.map((market) => ({
-			publicKey: market.account.amm.oracle,
-			source: market.account.amm.oracleSource,
-		})),
-		...spotMarkets.map((market) => ({
-			publicKey: market.account.oracle,
-			source: market.account.oracleSource,
-		})),
-	];
+	const perpMarketProgramAccounts = await program.account.perpMarket.all();
+	const spotMarketProgramAccounts = await program.account.spotMarket.all();
+
+	for (const perpMarketProgramAccount of perpMarketProgramAccounts) {
+		const perpMarket = perpMarketProgramAccount.account;
+		perpMarketIndexes.push(perpMarket.marketIndex);
+		oracleInfos.set(perpMarket.amm.oracle.toString(), {
+			publicKey: perpMarket.amm.oracle,
+			source: perpMarket.amm.oracleSource,
+		});
+	}
+
+	for (const spotMarketProgramAccount of spotMarketProgramAccounts) {
+		const spotMarket = spotMarketProgramAccount.account;
+		spotMarketIndexes.push(spotMarket.marketIndex);
+		oracleInfos.set(spotMarket.oracle.toString(), {
+			publicKey: spotMarket.oracle,
+			source: spotMarket.oracleSource,
+		});
+	}
 
 	return {
 		perpMarketIndexes,
 		spotMarketIndexes,
-		oracleInfos,
+		oracleInfos: Array.from(oracleInfos.values()),
 	};
 }
