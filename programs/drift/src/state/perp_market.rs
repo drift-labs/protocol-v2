@@ -11,8 +11,10 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
 };
 use crate::math::constants::{
-    BID_ASK_SPREAD_PRECISION_U128, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    BASE_PRECISION, BID_ASK_SPREAD_PRECISION_U128, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION,
+    TWENTY_FOUR_HOUR,
 };
+use crate::math::helpers::get_proportion_i128;
 
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
@@ -20,6 +22,7 @@ use crate::math::margin::{
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::stats;
+use crate::state::events::OrderActionExplanation;
 
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
@@ -100,6 +103,23 @@ impl ContractTier {
             true
         } else {
             other >= &AssetTier::Cross && self <= &ContractTier::C
+        }
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+pub enum AMMLiquiditySplit {
+    ProtocolOwned,
+    LPOwned,
+    Shared,
+}
+
+impl AMMLiquiditySplit {
+    pub fn get_order_action_explanation(&self) -> OrderActionExplanation {
+        match &self {
+            AMMLiquiditySplit::ProtocolOwned => OrderActionExplanation::OrderFilledWithAMMJit,
+            AMMLiquiditySplit::LPOwned => OrderActionExplanation::OrderFilledWithLPJit,
+            AMMLiquiditySplit::Shared => OrderActionExplanation::OrderFilledWithAMMJitLPSplit,
         }
     }
 }
@@ -519,35 +539,44 @@ pub struct AMM {
     /// transformed quote_asset_reserve for users going short
     pub bid_quote_asset_reserve: u128,
     /// the last seen oracle price partially shrunk toward the amm reserve price
+    /// precision: PRICE_PRECISION
     pub last_oracle_normalised_price: i64,
     /// the gap between the oracle price and the reserve price = y * peg_multiplier / x
     pub last_oracle_reserve_price_spread_pct: i64,
     /// average estimate of bid price over funding_period
+    /// precision: PRICE_PRECISION
     pub last_bid_price_twap: u64,
     /// average estimate of ask price over funding_period
+    /// precision: PRICE_PRECISION
     pub last_ask_price_twap: u64,
     /// average estimate of (bid+ask)/2 price over funding_period
+    /// precision: PRICE_PRECISION
     pub last_mark_price_twap: u64,
     /// average estimate of (bid+ask)/2 price over FIVE_MINUTES
     pub last_mark_price_twap_5min: u64,
     /// the last blockchain slot the amm was updated
     pub last_update_slot: u64,
     /// the pct size of the oracle confidence interval
-    /// PERCENTAGE_PRECISION
+    /// precision: PERCENTAGE_PRECISION
     pub last_oracle_conf_pct: u64,
     /// the total_fee_minus_distribution change since the last funding update
+    /// precision: QUOTE_PRECISION
     pub net_revenue_since_last_funding: i64,
     /// the last funding rate update unix_timestamp
     pub last_funding_rate_ts: i64,
     /// the peridocity of the funding rate updates
     pub funding_period: i64,
     /// the base step size (increment) of orders
+    /// precision: BASE_PRECISION
     pub order_step_size: u64,
     /// the price tick size of orders
+    /// precision: PRICE_PRECISION
     pub order_tick_size: u64,
     /// the minimum base size of an order
+    /// precision: BASE_PRECISION
     pub min_order_size: u64,
     /// the max base size a single user can have
+    /// precision: BASE_PRECISION
     pub max_position_size: u64,
     /// estimated total of volume in market
     /// QUOTE_PRECISION
@@ -559,8 +588,10 @@ pub struct AMM {
     /// the blockchain unix timestamp at the time of the last trade
     pub last_trade_ts: i64,
     /// estimate of standard deviation of the fill (mark) prices
+    /// precision: PRICE_PRECISION
     pub mark_std: u64,
     /// estimate of standard deviation of the oracle price at each update
+    /// precision: PRICE_PRECISION
     pub oracle_std: u64,
     /// the last unix_timestamp the mark twap was updated
     pub last_mark_price_twap_ts: i64,
@@ -583,13 +614,16 @@ pub struct AMM {
     /// the update intensity of AMM formulaic updates (adjusting k). 0-100
     pub curve_update_intensity: u8,
     /// the jit intensity of AMM. larger intensity means larger participation in jit. 0 means no jit participation.
+    /// (0, 100] is intensity for protocol-owned AMM. (100, 200] is intensity for user LP-owned AMM.  
     pub amm_jit_intensity: u8,
     /// the oracle provider information. used to decode/scale the oracle public key
     pub oracle_source: OracleSource,
     /// tracks whether the oracle was considered valid at the last AMM update
     pub last_oracle_valid: bool,
-
-    pub padding: [u8; 48],
+    /// the target value for `base_asset_amount_per_lp`, used during AMM JIT with LP split
+    /// precision: BASE_PRECISION
+    pub target_base_asset_amount_per_lp: i32,
+    pub padding: [u8; 44],
 }
 
 impl Default for AMM {
@@ -670,14 +704,82 @@ impl Default for AMM {
             amm_jit_intensity: 0,
             oracle_source: OracleSource::default(),
             last_oracle_valid: false,
-            padding: [0; 48],
+            target_base_asset_amount_per_lp: 0,
+            padding: [0; 44],
         }
     }
 }
 
 impl AMM {
+    pub fn imbalanced_base_asset_amount_with_lp(&self) -> DriftResult<i128> {
+        let target_lp_gap = self
+            .base_asset_amount_per_lp
+            .safe_sub(self.target_base_asset_amount_per_lp.cast()?)?;
+
+        get_proportion_i128(target_lp_gap, self.user_lp_shares, BASE_PRECISION)
+    }
+
+    pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> DriftResult<bool> {
+        let amm_wants_to_jit_make = match taker_direction {
+            PositionDirection::Long => {
+                self.base_asset_amount_with_amm < -(self.order_step_size.cast()?)
+            }
+            PositionDirection::Short => {
+                self.base_asset_amount_with_amm > (self.order_step_size.cast()?)
+            }
+        };
+        Ok(amm_wants_to_jit_make && self.amm_jit_is_active())
+    }
+
+    pub fn amm_lp_wants_to_jit_make(
+        &self,
+        taker_direction: PositionDirection,
+    ) -> DriftResult<bool> {
+        if self.user_lp_shares == 0 {
+            return Ok(false);
+        }
+
+        let amm_lp_wants_to_jit_make = match taker_direction {
+            PositionDirection::Long => {
+                self.base_asset_amount_per_lp > self.target_base_asset_amount_per_lp.cast()?
+            }
+            PositionDirection::Short => {
+                self.base_asset_amount_per_lp < self.target_base_asset_amount_per_lp.cast()?
+            }
+        };
+        Ok(amm_lp_wants_to_jit_make && self.amm_lp_jit_is_active())
+    }
+
+    pub fn amm_lp_allowed_to_jit_make(&self, amm_wants_to_jit_make: bool) -> DriftResult<bool> {
+        // only allow lps to make when the amm inventory is below a certain level of available liquidity
+        // i.e. 10%
+        if amm_wants_to_jit_make {
+            // inventory scale
+            let (max_bids, max_asks) = amm::_calculate_market_open_bids_asks(
+                self.base_asset_reserve,
+                self.min_base_asset_reserve,
+                self.max_base_asset_reserve,
+            )?;
+
+            let min_side_liquidity = max_bids.min(max_asks.abs());
+            let protocol_owned_min_side_liquidity = get_proportion_i128(
+                min_side_liquidity,
+                self.sqrt_k.safe_sub(self.user_lp_shares)?,
+                self.sqrt_k,
+            )?;
+
+            Ok(self.base_asset_amount_with_amm < protocol_owned_min_side_liquidity.safe_div(10)?)
+        } else {
+            Ok(true)
+        }
+    }
+
     pub fn amm_jit_is_active(&self) -> bool {
         self.amm_jit_intensity > 0
+    }
+
+    pub fn amm_lp_jit_is_active(&self) -> bool {
+        self.amm_jit_intensity > 100
     }
 
     pub fn reserve_price(&self) -> DriftResult<u64> {

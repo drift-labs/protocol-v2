@@ -824,6 +824,16 @@ pub mod drift {
         handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
     }
 
+    pub fn update_perp_market_target_base_asset_amount_per_lp(
+        ctx: Context<AdminUpdatePerpMarket>,
+        target_base_asset_amount_per_lp: i32,
+    ) -> Result<()> {
+        handle_update_perp_market_target_base_asset_amount_per_lp(
+            ctx,
+            target_base_asset_amount_per_lp,
+        )
+    }
+
     pub fn update_lp_cooldown_time(
         ctx: Context<AdminUpdateState>,
         lp_cooldown_time: u64,
