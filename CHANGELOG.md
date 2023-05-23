@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- ts-sdk: user map default excludes idle users (([#471](https://github.com/drift-labs/protocol-v2/pull/471)))
+
 ## [2.30.0] - 2023-05-18
 
 ### Features
