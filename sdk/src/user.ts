@@ -1769,19 +1769,8 @@ export class User {
 	/**
 	 * Get the maximum trade size for a given market, taking into account the user's current leverage, positions, collateral, etc.
 	 *
-	 * To Calculate Max Quote Available:
-	 *
-	 * Case 1: SameSide
-	 * 	=> Remaining quote to get to maxLeverage
-	 *
-	 * Case 2: NOT SameSide && currentLeverage <= maxLeverage
-	 * 	=> Current opposite position x2 + remaining to get to maxLeverage
-	 *
-	 * Case 3: NOT SameSide && currentLeverage > maxLeverage && otherPositions - currentPosition > maxLeverage
-	 * 	=> strictly reduce current position size
-	 *
-	 * Case 4: NOT SameSide && currentLeverage > maxLeverage && otherPositions - currentPosition < maxLeverage
-	 * 	=> current position + remaining to get to maxLeverage
+	 * If the user is increasing worst case base, just return current buying power.If they are opening an order going the opposite direction
+	 * must account for worst case base being flipped the opposite direction as well
 	 *
 	 * @param targetMarketIndex
 	 * @param tradeSide
@@ -1797,7 +1786,10 @@ export class User {
 
 		const targetSide = isVariant(tradeSide, 'short') ? 'short' : 'long';
 
-		const currentPositionSide = currentPosition?.baseAssetAmount.isNeg()
+		const worstCaseBaseAssetAmount =
+			calculateWorstCaseBaseAssetAmount(currentPosition);
+
+		const currentPositionSide = worstCaseBaseAssetAmount.isNeg()
 			? 'short'
 			: 'long';
 
@@ -1807,60 +1799,36 @@ export class User {
 
 		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 
-		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
-		const oppositeSizeValueUSDC = targetingSameSide
-			? ZERO
-			: this.getPerpPositionValue(targetMarketIndex, oracleData);
+		const freeCollateral = this.getFreeCollateral();
+		const buyingPower =
+			this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
+				targetMarketIndex,
+				freeCollateral,
+				worstCaseBaseAssetAmount
+			);
 
-		let maxPositionSize = this.getPerpBuyingPower(targetMarketIndex);
-		if (maxPositionSize.gte(ZERO)) {
-			if (oppositeSizeValueUSDC.eq(ZERO)) {
-				// case 1 : Regular trade where current total position less than max, and no opposite position to account for
-				// do nothing
-			} else {
-				// case 2 : trade where current total position less than max, but need to account for flipping the current position over to the other side
-				maxPositionSize = maxPositionSize.add(
-					oppositeSizeValueUSDC.mul(new BN(2))
-				);
-			}
+		if (targetingSameSide) {
+			return buyingPower;
 		} else {
-			// current leverage is greater than max leverage - can only reduce position size
-
-			if (!targetingSameSide) {
-				const market = this.driftClient.getPerpMarketAccount(targetMarketIndex);
-				const perpPositionValue = this.getPerpPositionValue(
-					targetMarketIndex,
-					oracleData
-				);
-				const totalCollateral = this.getTotalCollateral();
-				const marginRequirement = this.getInitialMarginRequirement();
-				const marginFreedByClosing = perpPositionValue
-					.mul(new BN(market.marginRatioInitial))
-					.div(MARGIN_PRECISION);
-				const marginRequirementAfterClosing =
-					marginRequirement.sub(marginFreedByClosing);
-
-				if (marginRequirementAfterClosing.gt(totalCollateral)) {
-					maxPositionSize = perpPositionValue;
-				} else {
-					const freeCollateralAfterClose = totalCollateral.sub(
-						marginRequirementAfterClosing
-					);
-
-					const buyingPowerAfterClose =
-						this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
-							targetMarketIndex,
-							freeCollateralAfterClose,
-							ZERO
-						);
-					maxPositionSize = perpPositionValue.add(buyingPowerAfterClose);
-				}
+			let baseToFlipPosition;
+			if (currentPositionSide === 'short') {
+				baseToFlipPosition = worstCaseBaseAssetAmount
+					.abs()
+					.sub(currentPosition.baseAssetAmount.add(currentPosition.openBids))
+					.abs();
 			} else {
-				// do nothing if targetting same side
+				baseToFlipPosition = worstCaseBaseAssetAmount
+					.neg()
+					.sub(currentPosition.baseAssetAmount.add(currentPosition.openAsks))
+					.abs();
 			}
-		}
 
-		return maxPositionSize;
+			const additionalBuyingPower = baseToFlipPosition
+				.mul(oracleData.price)
+				.div(BASE_PRECISION);
+
+			return buyingPower.add(additionalBuyingPower);
+		}
 	}
 
 	/**
