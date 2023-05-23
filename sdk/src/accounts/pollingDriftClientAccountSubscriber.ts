@@ -38,6 +38,8 @@ export class PollingDriftClientAccountSubscriber
 	oracleInfos: OracleInfo[];
 	oracleClientCache = new OracleClientCache();
 
+	shouldFindAllMarketsAndOracles: boolean;
+
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 
 	accountLoader: BulkAccountLoader;
@@ -60,7 +62,8 @@ export class PollingDriftClientAccountSubscriber
 		accountLoader: BulkAccountLoader,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
-		oracleInfos: OracleInfo[]
+		oracleInfos: OracleInfo[],
+		shouldFindAllMarketsAndOracles: boolean
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -69,6 +72,7 @@ export class PollingDriftClientAccountSubscriber
 		this.perpMarketIndexes = perpMarketIndexes;
 		this.spotMarketIndexes = spotMarketIndexes;
 		this.oracleInfos = oracleInfos;
+		this.shouldFindAllMarketsAndOracles = shouldFindAllMarketsAndOracles;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -86,12 +90,7 @@ export class PollingDriftClientAccountSubscriber
 			this.subscriptionPromiseResolver = res;
 		});
 
-		// If none of markets/oracles set, fetch em all
-		if (
-			this.perpMarketIndexes.length === 0 &&
-			this.spotMarketIndexes.length === 0 &&
-			this.oracleInfos.length === 0
-		) {
+		if (this.shouldFindAllMarketsAndOracles) {
 			const { perpMarketIndexes, spotMarketIndexes, oracleInfos } =
 				await findAllMarketAndOracles(this.program);
 			this.perpMarketIndexes = perpMarketIndexes;

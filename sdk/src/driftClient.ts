@@ -233,23 +233,26 @@ export class DriftClient {
 			);
 		}
 
-		const perpMarketIndexes = config.perpMarketIndexes ?? [];
-		const spotMarketIndexes = config.spotMarketIndexes ?? [];
-		const oracleInfos = config.oracleInfos ?? [];
+		const noMarketsAndOraclesSpecified =
+			config.perpMarketIndexes === undefined &&
+			config.spotMarketIndexes === undefined &&
+			config.oracleInfos === undefined;
 		if (config.accountSubscription?.type === 'polling') {
 			this.accountSubscriber = new PollingDriftClientAccountSubscriber(
 				this.program,
 				config.accountSubscription.accountLoader,
-				perpMarketIndexes,
-				spotMarketIndexes,
-				oracleInfos
+				config.perpMarketIndexes ?? [],
+				config.spotMarketIndexes ?? [],
+				config.oracleInfos ?? [],
+				noMarketsAndOraclesSpecified
 			);
 		} else {
 			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
 				this.program,
-				perpMarketIndexes,
-				spotMarketIndexes,
-				oracleInfos
+				config.perpMarketIndexes ?? [],
+				config.spotMarketIndexes ?? [],
+				config.oracleInfos ?? [],
+				noMarketsAndOraclesSpecified
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;

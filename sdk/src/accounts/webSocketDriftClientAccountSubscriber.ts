@@ -31,6 +31,8 @@ export class WebSocketDriftClientAccountSubscriber
 	oracleInfos: OracleInfo[];
 	oracleClientCache = new OracleClientCache();
 
+	shouldFindAllMarketsAndOracles: boolean;
+
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	stateAccountSubscriber?: AccountSubscriber<StateAccount>;
 	perpMarketAccountSubscribers = new Map<
@@ -51,7 +53,8 @@ export class WebSocketDriftClientAccountSubscriber
 		program: Program,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
-		oracleInfos: OracleInfo[]
+		oracleInfos: OracleInfo[],
+		shouldFindAllMarketsAndOracles: boolean
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -59,6 +62,7 @@ export class WebSocketDriftClientAccountSubscriber
 		this.perpMarketIndexes = perpMarketIndexes;
 		this.spotMarketIndexes = spotMarketIndexes;
 		this.oracleInfos = oracleInfos;
+		this.shouldFindAllMarketsAndOracles = shouldFindAllMarketsAndOracles;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -76,12 +80,7 @@ export class WebSocketDriftClientAccountSubscriber
 			this.subscriptionPromiseResolver = res;
 		});
 
-		// If none of markets/oracles set, fetch em all
-		if (
-			this.perpMarketIndexes.length === 0 &&
-			this.spotMarketIndexes.length === 0 &&
-			this.oracleInfos.length === 0
-		) {
+		if (this.shouldFindAllMarketsAndOracles) {
 			const { perpMarketIndexes, spotMarketIndexes, oracleInfos } =
 				await findAllMarketAndOracles(this.program);
 			this.perpMarketIndexes = perpMarketIndexes;
