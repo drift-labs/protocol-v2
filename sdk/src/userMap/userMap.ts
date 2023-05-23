@@ -14,6 +14,7 @@ import {
 	LPRecord,
 	StateAccount,
 	DLOB,
+	MarketType,
 } from '..';
 
 import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
@@ -131,9 +132,29 @@ export class UserMap implements UserMapInterface {
 	 * create a DLOB from all the subscribed users
 	 * @param slot
 	 */
-	public async getDLOB(slot: number): Promise<DLOB> {
+	public async getDLOB({
+		slot,
+		marketName,
+		marketIndex,
+		marketType,
+	}: {
+		slot: number;
+		marketName?: string;
+		marketIndex?: number;
+		marketType?: MarketType;
+	}): Promise<DLOB> {
 		const dlob = new DLOB();
-		await dlob.initFromUserMap(this, slot);
+		if (marketName && marketIndex === undefined && marketType === undefined) {
+			({ marketIndex, marketType } = this.driftClient.getMarketIndexAndType(
+				(marketName as string).toUpperCase()
+			));
+		}
+		await dlob.initFromUserMap({
+			userMap: this,
+			slot,
+			marketIndex,
+			marketType,
+		});
 		return dlob;
 	}
 

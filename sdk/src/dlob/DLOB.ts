@@ -138,12 +138,25 @@ export class DLOB {
 	 *
 	 * @returns a promise that resolves when the DLOB is initialized
 	 */
-	public async initFromUserMap(
-		userMap: UserMap,
-		slot: number
-	): Promise<boolean> {
+	public async initFromUserMap({
+		userMap,
+		slot,
+		marketIndex,
+		marketType,
+	}: {
+		userMap: UserMap;
+		slot: number;
+		marketIndex?: number;
+		marketType?: MarketType;
+	}): Promise<boolean> {
 		if (this.initialized) {
 			return false;
+		}
+
+		const filterMarket = marketIndex !== undefined && marketType != undefined;
+		let filterMarketType;
+		if (filterMarket) {
+			filterMarketType = getVariant(marketType);
 		}
 
 		// initialize the dlob with the user map
@@ -152,6 +165,14 @@ export class DLOB {
 			const userAccountPubkey = user.getUserAccountPublicKey();
 
 			for (const order of userAccount.orders) {
+				if (filterMarket) {
+					if (
+						getVariant(order.marketType) !== filterMarketType ||
+						order.marketIndex !== marketIndex
+					) {
+						continue;
+					}
+				}
 				this.insertOrder(order, userAccountPubkey, slot);
 			}
 		}

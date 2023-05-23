@@ -22,6 +22,9 @@ export class DLOBSubscriber {
 	dlobSource: DLOBSource;
 	slotSource: SlotSource;
 	updateFrequency: number;
+	marketName?: string;
+	marketIndex?: number;
+	marketType?: MarketType;
 	intervalId?: NodeJS.Timeout;
 	dlob = new DLOB();
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
@@ -31,6 +34,9 @@ export class DLOBSubscriber {
 		this.dlobSource = config.dlobSource;
 		this.slotSource = config.slotSource;
 		this.updateFrequency = config.updateFrequency;
+		this.marketName = config.marketName;
+		this.marketIndex = config.marketIndex;
+		this.marketType = config.marketType;
 		this.eventEmitter = new EventEmitter();
 	}
 
@@ -51,8 +57,27 @@ export class DLOBSubscriber {
 		}, this.updateFrequency);
 	}
 
+	async updateDLOBMarket({
+		marketName,
+		marketIndex,
+		marketType,
+	}: {
+		marketName?: string;
+		marketIndex?: number;
+		marketType?: MarketType;
+	}) {
+		this.marketName = marketName;
+		this.marketIndex = marketIndex;
+		this.marketType = marketType;
+	}
+
 	async updateDLOB(): Promise<void> {
-		this.dlob = await this.dlobSource.getDLOB(this.slotSource.getSlot());
+		this.dlob = await this.dlobSource.getDLOB({
+			slot: this.slotSource.getSlot(),
+			marketName: this.marketName,
+			marketIndex: this.marketIndex,
+			marketType: this.marketType,
+		});
 	}
 
 	public getDLOB(): DLOB {

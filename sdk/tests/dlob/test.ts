@@ -136,11 +136,16 @@ function printOrderNode(
 	slot: number | undefined
 ) {
 	console.log(
-		` . vAMMNode? ${node.isVammNode()},\t${node.order ? getVariant(node.order?.orderType) : '~'
-		} ${node.order ? getVariant(node.order?.direction) : '~'}\t, slot: ${node.order?.slot.toString() || '~'
-		}, orderId: ${node.order?.orderId.toString() || '~'},\tnode.getPrice: ${oracle ? node.getPrice(oracle, slot!) : '~'
-		}, node.price: ${node.order?.price.toString() || '~'}, priceOffset: ${node.order?.oraclePriceOffset.toString() || '~'
-		} quantity: ${node.order?.baseAssetAmountFilled.toString() || '~'}/${node.order?.baseAssetAmount.toString() || '~'
+		` . vAMMNode? ${node.isVammNode()},\t${
+			node.order ? getVariant(node.order?.orderType) : '~'
+		} ${node.order ? getVariant(node.order?.direction) : '~'}\t, slot: ${
+			node.order?.slot.toString() || '~'
+		}, orderId: ${node.order?.orderId.toString() || '~'},\tnode.getPrice: ${
+			oracle ? node.getPrice(oracle, slot!) : '~'
+		}, node.price: ${node.order?.price.toString() || '~'}, priceOffset: ${
+			node.order?.oraclePriceOffset.toString() || '~'
+		} quantity: ${node.order?.baseAssetAmountFilled.toString() || '~'}/${
+			node.order?.baseAssetAmount.toString() || '~'
 		}`
 	);
 }
@@ -187,7 +192,8 @@ function printBookState(
 
 function printCrossedNodes(n: NodeToFill, slot: number) {
 	console.log(
-		`Cross Found, takerExists: ${n.node.order !== undefined}, makerExists: ${n.makerNodes !== undefined
+		`Cross Found, takerExists: ${n.node.order !== undefined}, makerExists: ${
+			n.makerNodes !== undefined
 		}`
 	);
 	console.log(
@@ -209,8 +215,10 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 		console.log(
 			`  orderId: ${o.orderId}, ${getVariant(o.orderType)}, ${getVariant(
 				o.direction
-			)},\texpired: ${isOrderExpired(o, slot)}, postOnly: ${o.postOnly
-			}, reduceOnly: ${o.reduceOnly
+			)},\texpired: ${isOrderExpired(o, slot)}, postOnly: ${
+				o.postOnly
+			}, reduceOnly: ${
+				o.reduceOnly
 			}, price: ${o.price.toString()}, priceOffset: ${o.oraclePriceOffset.toString()}, baseAmtFileld: ${o.baseAssetAmountFilled.toString()}/${o.baseAssetAmount.toString()}`
 		);
 	};
@@ -5789,10 +5797,7 @@ describe('DLOB Spot Tests', () => {
 			slot,
 			oraclePriceData: oracle,
 		});
-		const quoteAmtOut = convertToNumber(
-			out,
-			QUOTE_PRECISION
-		);
+		const quoteAmtOut = convertToNumber(out, QUOTE_PRECISION);
 
 		// 1 * 20.69 + 2 * 20.70 + 1 * 20.71 = 82.8
 		expect(quoteAmtOut === 82.8).to.be.true;
@@ -5881,10 +5886,7 @@ describe('DLOB Spot Tests', () => {
 			slot,
 			oraclePriceData: oracle,
 		});
-		const quoteAmtOut = convertToNumber(
-			out,
-			QUOTE_PRECISION
-		);
+		const quoteAmtOut = convertToNumber(out, QUOTE_PRECISION);
 
 		// 1 * 20.69 + 2 * 20.68 + 1 * 20.67 = 82.72
 		expect(quoteAmtOut === 82.72).to.be.true;
