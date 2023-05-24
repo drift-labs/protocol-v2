@@ -516,6 +516,7 @@ describe('lp jit', () => {
 		assert(market.amm.sqrtK.eq(new BN('1100000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
 		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
+		await driftClientUser.fetchAccounts();
 
 		let user = await driftClientUser.getUserAccount();
 		assert(user.perpPositions[0].lpShares.toString() == '100000000000'); // 10 * 1e9
@@ -582,7 +583,7 @@ describe('lp jit', () => {
 		});
 		await traderDriftClient.placePerpOrder(takerOrderParams);
 		await traderDriftClient.fetchAccounts();
-		const order = traderDriftClientUser.getOrderByUserOrderId(1);
+		const order = traderDriftClient.getUser().getOrderByUserOrderId(1);
 		assert(!order.postOnly);
 
 		const makerOrderParams = getLimitOrderParams({
@@ -643,7 +644,8 @@ describe('lp jit', () => {
 		} catch (e) {
 			console.log(e);
 		}
-		user = await await driftClientUser.getUserAccount();
+		await driftClientUser.fetchAccounts();
+		user = await driftClientUser.getUserAccount();
 
 		const settleLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
@@ -694,6 +696,7 @@ describe('lp jit', () => {
 		assert(market.amm.sqrtK.eq(new BN('1100000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
 		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
+		await driftClientUser.fetchAccounts();
 
 		let user = await driftClientUser.getUserAccount();
 		assert(user.perpPositions[0].lpShares.toString() == '100000000000'); // 10 * 1e9
@@ -768,7 +771,7 @@ describe('lp jit', () => {
 			await traderDriftClient.placePerpOrder(takerOrderParams);
 			await traderDriftClient.fetchAccounts();
 			console.log(takerOrderParams);
-			const order = traderDriftClientUser.getOrderByUserOrderId(1);
+			const order = traderDriftClient.getUser().getOrderByUserOrderId(1);
 			console.log(order);
 
 			assert(!order.postOnly);
@@ -841,7 +844,7 @@ describe('lp jit', () => {
 		} catch (e) {
 			console.log(e);
 		}
-		user = await await driftClientUser.getUserAccount();
+		user = await driftClientUser.getUserAccount();
 		const orderRecords = eventSubscriber.getEventsArray('OrderActionRecord');
 
 		const matchOrderRecord = orderRecords[1];
@@ -1048,7 +1051,7 @@ describe('lp jit', () => {
 
 		const [settledPos, dustPos, lpPnl] =
 			driftClientUser.getSettledLPPosition(marketIndex);
-		console.log('settlePos:', settledPos);
+		// console.log('settlePos:', settledPos);
 		console.log('dustPos:', dustPos.toString());
 		console.log('lpPnl:', lpPnl.toString());
 
@@ -1131,7 +1134,7 @@ describe('lp jit', () => {
 
 		const [settledPos2, dustPos2, lpPnl2] =
 			driftClientUser.getSettledLPPosition(marketIndex);
-		console.log('settlePos:', settledPos2);
+		// console.log('settlePos:', settledPos2);
 		console.log('dustPos:', dustPos2.toString());
 		console.log('lpPnl:', lpPnl2.toString());
 
