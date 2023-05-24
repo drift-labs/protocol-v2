@@ -5,7 +5,7 @@ export class WebSocketLogProvider implements LogProvider {
 	private subscriptionId: number;
 	public constructor(
 		private connection: Connection,
-		private programId: PublicKey,
+		private address: PublicKey,
 		private commitment: Commitment
 	) {}
 
@@ -15,7 +15,7 @@ export class WebSocketLogProvider implements LogProvider {
 		}
 
 		this.subscriptionId = this.connection.onLogs(
-			this.programId,
+			this.address,
 			(logs, ctx) => {
 				callback(logs.signature, ctx.slot, logs.logs, undefined);
 			},
