@@ -64,17 +64,18 @@ pub fn settle_lp_position(
     position: &mut PerpPosition,
     market: &mut PerpMarket,
 ) -> DriftResult<(PositionDelta, i64)> {
-    let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, position)?;
+    let mut lp_metrics: crate::math::lp::LPMetrics =
+        calculate_settle_lp_metrics(&market.amm, position)?;
 
-    position.remainder_base_asset_amount = position
+    let new_remainder_base_asset_amount = position
         .remainder_base_asset_amount
-        .safe_add(lp_metrics.remainder_base_asset_amount)?;
+        .cast::<i64>()?
+        .safe_add(lp_metrics.remainder_base_asset_amount.cast()?)?;
 
-    // if position.remainder_base_asset_amount.unsigned_abs() <= market.amm.order_step_size.cast()? {
-    if market.amm.order_step_size >= position.remainder_base_asset_amount.unsigned_abs().cast()? {
+    if new_remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size {
         let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
             crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
-                position.remainder_base_asset_amount.cast()?,
+                new_remainder_base_asset_amount.cast()?,
                 market.amm.order_step_size.cast()?,
             )?;
 
@@ -83,6 +84,8 @@ pub fn settle_lp_position(
             .safe_add(standardized_remainder_base_asset_amount)?;
 
         position.remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
+    } else {
+        position.remainder_base_asset_amount = new_remainder_base_asset_amount.cast()?;
     }
 
     let position_delta = PositionDelta {
