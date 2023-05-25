@@ -768,7 +768,8 @@ impl AMM {
                 self.sqrt_k,
             )?;
 
-            Ok(self.base_asset_amount_with_amm < protocol_owned_min_side_liquidity.safe_div(10)?)
+            Ok(self.base_asset_amount_with_amm.abs()
+                < protocol_owned_min_side_liquidity.safe_div(10)?)
         } else {
             Ok(true)
         }
