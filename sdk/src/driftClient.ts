@@ -998,6 +998,20 @@ export class DriftClient {
 			(programAccount) => programAccount.account as UserStatsAccount
 		);
 	}
+	
+	public async getAllUserStatsAccounts(): Promise<ProgramAccount<UserStatsAccount>[]> {
+		const programAccounts = await this.program.account.userStats.all([
+			{
+				memcmp: {
+					offset: 40,
+					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
+					bytes: bs58.encode(Uint8Array.from([0])),
+				},
+			},
+		]);
+
+		return programAccounts as ProgramAccount<UserStatsAccount>[];
+	}
 
 	public async getReferrerNameAccountsForAuthority(
 		authority: PublicKey
@@ -1015,6 +1029,20 @@ export class DriftClient {
 		return programAccounts.map(
 			(programAccount) => programAccount.account as ReferrerNameAccount
 		);
+	}
+	
+	public async getAllReferrerNameAccounts() : Promise<ProgramAccount<ReferrerNameAccount>[]> {
+		const programAccounts = await this.program.account.referrerName.all([
+			{
+				memcmp: {
+					offset: 8,
+					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
+					bytes: bs58.encode(Uint8Array.from([0])),
+				},
+			},
+		]);
+
+		return programAccounts as ProgramAccount<ReferrerNameAccount>[];
 	}
 
 	public async deleteUser(
