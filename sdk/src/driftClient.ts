@@ -1000,15 +1000,7 @@ export class DriftClient {
 	}
 	
 	public async getAllUserStatsAccounts(): Promise<ProgramAccount<UserStatsAccount>[]> {
-		const programAccounts = await this.program.account.userStats.all([
-			{
-				memcmp: {
-					offset: 40,
-					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
-					bytes: bs58.encode(Uint8Array.from([0])),
-				},
-			},
-		]);
+		const programAccounts = await this.program.account.userStats.all();
 
 		return programAccounts as ProgramAccount<UserStatsAccount>[];
 	}
@@ -1032,15 +1024,7 @@ export class DriftClient {
 	}
 	
 	public async getAllReferrerNameAccounts() : Promise<ProgramAccount<ReferrerNameAccount>[]> {
-		const programAccounts = await this.program.account.referrerName.all([
-			{
-				memcmp: {
-					offset: 8,
-					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
-					bytes: bs58.encode(Uint8Array.from([0])),
-				},
-			},
-		]);
+		const programAccounts = await this.program.account.referrerName.all();
 
 		return programAccounts as ProgramAccount<ReferrerNameAccount>[];
 	}
