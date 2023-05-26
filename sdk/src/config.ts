@@ -1,4 +1,3 @@
-import { PerpMarketAccount, SpotMarketAccount } from '@drift-labs/sdk';
 import {
 	DevnetPerpMarkets,
 	MainnetPerpMarkets,
@@ -13,6 +12,7 @@ import {
 } from './constants/spotMarkets';
 import { OracleInfo } from './oracles/types';
 import { Program } from '@coral-xyz/anchor';
+import { PerpMarketAccount, SpotMarketAccount } from './types';
 
 type DriftConfig = {
 	ENV: DriftEnv;
