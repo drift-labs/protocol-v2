@@ -114,6 +114,7 @@ import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
 import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
+import { getNonIdleUserFilter } from './memcmp';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -897,14 +898,7 @@ export class DriftClient {
 	): Promise<ProgramAccount<UserAccount>[]> {
 		let filters = undefined;
 		if (!includeIdle) {
-			filters = [
-				{
-					memcmp: {
-						offset: 4350,
-						bytes: bs58.encode(Uint8Array.from([0])),
-					},
-				},
-			];
+			filters = [getNonIdleUserFilter()];
 		}
 		return (await this.program.account.user.all(
 			filters

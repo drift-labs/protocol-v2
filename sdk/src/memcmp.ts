@@ -1,0 +1,21 @@
+import { MemcmpFilter } from '@solana/web3.js';
+import bs58 from 'bs58';
+import { BorshAccountsCoder } from '@coral-xyz/anchor';
+
+export function getUserFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 0,
+			bytes: bs58.encode(BorshAccountsCoder.accountDiscriminator('User')),
+		},
+	};
+}
+
+export function getNonIdleUserFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 4350,
+			bytes: bs58.encode(Uint8Array.from([0])),
+		},
+	};
+}
