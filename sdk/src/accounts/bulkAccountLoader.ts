@@ -174,6 +174,11 @@ export class BulkAccountLoader {
 
 		for (const i in rpcResponses) {
 			const rpcResponse = rpcResponses[i];
+			if (!rpcResponse.result) {
+				console.error('rpc response missing result:');
+				console.log(JSON.stringify(rpcResponse));
+				continue;
+			}
 			const newSlot = rpcResponse.result.context.slot;
 
 			if (newSlot > this.mostRecentSlot) {

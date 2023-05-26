@@ -1143,7 +1143,16 @@ pub fn handle_update_funding_rate(
     )?;
 
     if !is_updated {
-        return Err(ErrorCode::InvalidFundingProfitability.into());
+        let time_until_next_update = crate::math::helpers::on_the_hour_update(
+            now,
+            perp_market.amm.last_funding_rate_ts,
+            perp_market.amm.funding_period,
+        )?;
+        msg!(
+            "time_until_next_update = {:?} seconds",
+            time_until_next_update
+        );
+        return Err(ErrorCode::FundingWasNotUpdated.into());
     }
 
     Ok(())

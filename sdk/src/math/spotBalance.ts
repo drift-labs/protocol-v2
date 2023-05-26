@@ -282,9 +282,7 @@ export function calculateInterestRate(bank: SpotMarketAccount): BN {
 	} else {
 		const borrowRateSlope = new BN(bank.optimalBorrowRate)
 			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-			.div(
-				SPOT_MARKET_UTILIZATION_PRECISION.sub(new BN(bank.optimalUtilization))
-			);
+			.div(new BN(bank.optimalUtilization));
 
 		interestRate = utilization
 			.mul(borrowRateSlope)

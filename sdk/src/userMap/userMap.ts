@@ -45,10 +45,16 @@ export class UserMap implements UserMapInterface {
 		}
 	};
 
+	/**
+	 *
+	 * @param driftClient
+	 * @param accountSubscription
+	 * @param includeIdle whether idle users are subscribed to. defaults to false to decrease # of user subscriptions
+	 */
 	constructor(
 		driftClient: DriftClient,
 		accountSubscription: UserSubscriptionConfig,
-		includeIdle = true
+		includeIdle = false
 	) {
 		this.driftClient = driftClient;
 		this.accountSubscription = accountSubscription;

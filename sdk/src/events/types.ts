@@ -1,4 +1,4 @@
-import { Commitment, TransactionSignature } from '@solana/web3.js';
+import { Commitment, PublicKey, TransactionSignature } from '@solana/web3.js';
 import {
 	DepositRecord,
 	FundingPaymentRecord,
@@ -17,6 +17,7 @@ import {
 } from '../index';
 
 export type EventSubscriptionOptions = {
+	address?: PublicKey;
 	eventTypes?: EventType[];
 	maxEventsPerType?: number;
 	orderBy?: EventSubscriptionOrderBy;

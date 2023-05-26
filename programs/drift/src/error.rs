@@ -507,6 +507,8 @@ pub enum ErrorCode {
     SwapLimitPriceBreached,
     #[msg("SpotMarketReduceOnly")]
     SpotMarketReduceOnly,
+    #[msg("FundingWasNotUpdated")]
+    FundingWasNotUpdated,
 }
 
 #[macro_export]

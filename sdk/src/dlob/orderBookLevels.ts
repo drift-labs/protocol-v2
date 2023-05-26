@@ -9,6 +9,8 @@ import {
 	DLOBNode,
 	OraclePriceData,
 	PerpMarketAccount,
+	PositionDirection,
+	standardizePrice,
 	SwapDirection,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
@@ -114,7 +116,7 @@ export function createL2Levels(
 		const size = level.size;
 		if (levels.length > 0 && levels[levels.length - 1].price.eq(price)) {
 			const currentLevel = levels[levels.length - 1];
-			currentLevel.size.add(size);
+			currentLevel.size = currentLevel.size.add(size);
 			for (const [source, size] of Object.entries(level.sources)) {
 				if (currentLevel.sources[source]) {
 					currentLevel.sources[source] = currentLevel.sources[source].add(size);
@@ -240,4 +242,45 @@ export function getVammL2Generator({
 		getL2Bids,
 		getL2Asks,
 	};
+}
+
+export function groupL2(l2: L2OrderBook, grouping: BN): L2OrderBook {
+	return {
+		bids: groupL2Levels(l2.bids, grouping, PositionDirection.LONG),
+		asks: groupL2Levels(l2.asks, grouping, PositionDirection.SHORT),
+	};
+}
+
+function groupL2Levels(
+	levels: L2Level[],
+	grouping: BN,
+	direction: PositionDirection
+): L2Level[] {
+	const groupedLevels = [];
+	for (const level of levels) {
+		const price = standardizePrice(level.price, grouping, direction);
+		const size = level.size;
+		if (
+			groupedLevels.length > 0 &&
+			groupedLevels[groupedLevels.length - 1].price.eq(price)
+		) {
+			const currentLevel = groupedLevels[groupedLevels.length - 1];
+			currentLevel.size = currentLevel.size.add(size);
+			for (const [source, size] of Object.entries(level.sources)) {
+				if (currentLevel.sources[source]) {
+					currentLevel.sources[source] = currentLevel.sources[source].add(size);
+				} else {
+					currentLevel.sources[source] = size;
+				}
+			}
+		} else {
+			const groupedLevel = {
+				price: price,
+				size,
+				sources: level.sources,
+			};
+			groupedLevels.push(groupedLevel);
+		}
+	}
+	return groupedLevels;
 }
