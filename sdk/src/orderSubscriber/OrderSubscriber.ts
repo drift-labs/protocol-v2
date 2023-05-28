@@ -1,48 +1,35 @@
 import { DriftClient } from '../driftClient';
 import { UserAccount } from '../types';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
-import {
-	MemcmpFilter,
-	PublicKey,
-	RpcResponseAndContext,
-} from '@solana/web3.js';
+import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { DLOB } from './DLOB';
+import { DLOB } from '../dlob/DLOB';
+import { OrderSubscriberConfig } from './types';
+import { PollingOrderSubscriber } from './PollingOrderSubscriber';
 
 export class OrderSubscriber {
-	private driftClient: DriftClient;
-	private pollingFrequency: number;
-
-	intervalId?: NodeJS.Timer;
+	driftClient: DriftClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
+	subscription: PollingOrderSubscriber;
 
-	constructor({
-		driftClient,
-		pollingFrequency,
-	}: {
-		driftClient: DriftClient;
-		pollingFrequency: number;
-	}) {
-		this.driftClient = driftClient;
-		this.pollingFrequency = pollingFrequency;
+	constructor(config: OrderSubscriberConfig) {
+		this.driftClient = config.driftClient;
+		this.subscription = new PollingOrderSubscriber({
+			orderSubscriber: this,
+			frequency: config.subscriptionConfig.frequency,
+		});
 	}
 
 	public async subscribe(): Promise<void> {
-		if (this.intervalId) {
-			return;
-		}
-
-		this.intervalId = setInterval(this.load.bind(this), this.pollingFrequency);
-
-		await this.load();
+		await this.subscription.subscribe();
 	}
 
-	async load(): Promise<void> {
+	async fetch(): Promise<void> {
 		const rpcRequestArgs = [
 			this.driftClient.program.programId.toBase58(),
 			{
 				commitment: this.driftClient.opts.commitment,
-				filters: this.getFilters(),
+				filters: [getUserFilter(), getNonIdleUserFilter()],
 				encoding: 'base64',
 				withContext: true,
 			},
@@ -96,10 +83,6 @@ export class OrderSubscriber {
 		}
 	}
 
-	getFilters(): MemcmpFilter[] {
-		return [getUserFilter(), getNonIdleUserFilter()];
-	}
-
 	public async getDLOB(slot: number): Promise<DLOB> {
 		const dlob = new DLOB();
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
@@ -112,9 +95,6 @@ export class OrderSubscriber {
 	}
 
 	public async unsubscribe(): Promise<void> {
-		if (this.intervalId) {
-			clearInterval(this.intervalId);
-			this.intervalId = undefined;
-		}
+		await this.subscription.unsubscribe();
 	}
 }

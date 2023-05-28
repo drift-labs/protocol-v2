@@ -76,5 +76,6 @@ export * from './dlob/orderBookLevels';
 export * from './userMap/userMap';
 export * from './userMap/userStatsMap';
 export * from './math/bankruptcy';
+export * from './orderSubscriber';
 
 export { BN, PublicKey, pyth };
