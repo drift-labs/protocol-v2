@@ -292,6 +292,10 @@ pub mod drift {
         handle_update_user_idle(ctx)
     }
 
+    pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {
+        handle_update_user_open_orders_count(ctx)
+    }
+
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         handle_settle_pnl(ctx, market_index)
     }

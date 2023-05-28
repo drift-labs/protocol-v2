@@ -113,12 +113,6 @@ pub struct User {
     pub padding: [u8; 21],
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum OpenOrderFlags {
-    OpenOrder = 0,
-    Open,
-}
-
 impl User {
     pub fn is_being_liquidated(&self) -> bool {
         matches!(
