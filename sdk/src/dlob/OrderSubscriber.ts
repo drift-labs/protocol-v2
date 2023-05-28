@@ -7,43 +7,37 @@ import {
 	RpcResponseAndContext,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
+import { DLOB } from './DLOB';
 
 export class OrderSubscriber {
 	private driftClient: DriftClient;
+	private pollingFrequency: number;
+
+	intervalId?: NodeJS.Timer;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
 
-	constructor({ driftClient }: { driftClient: DriftClient }) {
+	constructor({
+		driftClient,
+		pollingFrequency,
+	}: {
+		driftClient: DriftClient;
+		pollingFrequency: number;
+	}) {
 		this.driftClient = driftClient;
+		this.pollingFrequency = pollingFrequency;
 	}
 
 	public async subscribe(): Promise<void> {
-		await this.loadUsers();
+		if (this.intervalId) {
+			return;
+		}
 
-		this.driftClient.connection.onProgramAccountChange(
-			this.driftClient.program.programId,
-			(keyAccountInfo, context) => {
-				const userKey = keyAccountInfo.accountId.toBase58();
-				const current = this.usersAccounts.get(userKey);
-				if (current && current.slot < context.slot) {
-					return;
-				}
+		this.intervalId = setInterval(this.load.bind(this), this.pollingFrequency);
 
-				const userAccount =
-					this.driftClient.program.account.user.coder.accounts.decode(
-						'User',
-						keyAccountInfo.accountInfo.data
-					);
-				this.usersAccounts.set(userKey, {
-					slot: context.slot,
-					userAccount,
-				});
-			},
-			this.driftClient.opts.commitment,
-			this.getFilters()
-		);
+		await this.load();
 	}
 
-	async loadUsers(): Promise<void> {
+	async load(): Promise<void> {
 		const rpcRequestArgs = [
 			this.driftClient.program.programId.toBase58(),
 			{
@@ -71,26 +65,56 @@ export class OrderSubscriber {
 
 		const slot: number = rpcResponseAndContext.context.slot;
 
+		const programAccountBufferMap = new Map<string, Buffer>();
 		for (const programAccount of rpcResponseAndContext.value) {
-			// @ts-ignore
-			const buffer = Buffer.from(
-				programAccount.account.data[0],
-				programAccount.account.data[1]
+			programAccountBufferMap.set(
+				programAccount.pubkey.toString(),
+				// @ts-ignore
+				Buffer.from(
+					programAccount.account.data[0],
+					programAccount.account.data[1]
+				)
 			);
-			const userAccount =
-				this.driftClient.program.account.user.coder.accounts.decode(
-					'User',
-					buffer
-				);
+		}
 
-			this.usersAccounts.set(programAccount.pubkey.toString(), {
-				slot,
-				userAccount,
-			});
+		for (const [key, buffer] of programAccountBufferMap.entries()) {
+			const slotAndUserAccount = this.usersAccounts.get(key);
+			if (!slotAndUserAccount || slotAndUserAccount.slot < slot) {
+				const userAccount =
+					this.driftClient.program.account.user.coder.accounts.decode(
+						'User',
+						buffer
+					);
+				await this.usersAccounts.set(key, { slot, userAccount });
+			}
+		}
+
+		for (const key of this.usersAccounts.keys()) {
+			if (!programAccountBufferMap.has(key)) {
+				this.usersAccounts.delete(key);
+			}
 		}
 	}
 
 	getFilters(): MemcmpFilter[] {
 		return [getUserFilter(), getNonIdleUserFilter()];
+	}
+
+	public async getDLOB(slot: number): Promise<DLOB> {
+		const dlob = new DLOB();
+		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
+			const userAccountPubkey = new PublicKey(key);
+			for (const order of userAccount.orders) {
+				dlob.insertOrder(order, userAccountPubkey, slot);
+			}
+		}
+		return dlob;
+	}
+
+	public async unsubscribe(): Promise<void> {
+		if (this.intervalId) {
+			clearInterval(this.intervalId);
+			this.intervalId = undefined;
+		}
 	}
 }
