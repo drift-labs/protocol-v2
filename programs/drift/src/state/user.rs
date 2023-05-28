@@ -102,11 +102,15 @@ pub struct User {
     /// User is idle if they haven't interacted with the protocol in 1 week and they have no orders, perp positions or borrows
     /// Off-chain keeper bots can ignore users that are idle
     pub idle: bool,
+    /// number of open orders
+    pub open_orders: u8,
     /// Whether or not user has open order
     pub has_open_order: bool,
-    /// Whether or not user has open auction
+    /// number of open orders with auction
+    pub open_auctions: u8,
+    /// Whether or not user has open order with auction
     pub has_open_auction: bool,
-    pub padding: [u8; 23],
+    pub padding: [u8; 21],
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -335,19 +339,22 @@ impl User {
         self.idle = false;
     }
 
-    pub fn update_has_open_order(&mut self) {
-        let mut has_open_order = false;
-        let mut has_open_auction = false;
-        for order in self.orders.iter() {
-            has_open_auction |= order.auction_duration > 0;
-            has_open_order |= order.status == OrderStatus::Open;
-            if has_open_auction && has_open_order {
-                break;
-            }
+    pub fn increment_open_orders(&mut self, is_auction: bool) {
+        self.open_orders = self.open_orders.saturating_add(1);
+        self.has_open_order = self.open_orders > 0;
+        if is_auction {
+            self.open_auctions = self.open_auctions.saturating_add(1);
+            self.has_open_auction = self.open_auctions > 0;
         }
+    }
 
-        self.has_open_auction = has_open_auction;
-        self.has_open_order = has_open_order;
+    pub fn decrement_open_orders(&mut self, is_auction: bool) {
+        self.open_orders = self.open_orders.saturating_sub(1);
+        self.has_open_order = self.open_orders > 0;
+        if is_auction {
+            self.open_auctions = self.open_auctions.saturating_sub(1);
+            self.has_open_auction = self.open_auctions > 0;
+        }
     }
 }
 
