@@ -266,6 +266,8 @@ pub fn place_perp_order(
         Err(err) => return Err(err),
     };
 
+    user.has_open_order = true;
+    user.has_open_auction = new_order.auction_duration > 0;
     user.orders[new_order_index] = new_order;
     user.perp_positions[position_index].open_orders += 1;
     if !new_order.must_be_triggered() {
@@ -478,6 +480,13 @@ pub fn cancel_orders(
         )?;
     }
 
+    if market_type.is_none() && market_index.is_none() && direction.is_none() {
+        user.has_open_order = false;
+        user.has_open_auction = false;
+    } else {
+        user.update_has_open_order();
+    }
+
     user.update_last_active_slot(slot);
 
     Ok(canceled_order_ids)
@@ -515,6 +524,8 @@ pub fn cancel_order_by_order_id(
         0,
         false,
     )?;
+
+    user.update_has_open_order();
 
     user.update_last_active_slot(clock.slot);
 
@@ -557,6 +568,8 @@ pub fn cancel_order_by_user_order_id(
         0,
         false,
     )?;
+
+    user.update_has_open_order();
 
     user.update_last_active_slot(clock.slot);
 
@@ -2581,6 +2594,8 @@ pub fn trigger_order(
             0,
             false,
         )?;
+
+        user.update_has_open_order();
     }
 
     user.update_last_active_slot(slot);
@@ -2688,6 +2703,8 @@ pub fn force_cancel_orders(
         spot_market_map.get_quote_spot_market_mut()?.deref_mut(),
         total_fee,
     )?;
+
+    user.update_has_open_order();
 
     user.update_last_active_slot(slot);
 
@@ -2965,6 +2982,8 @@ pub fn place_spot_order(
         spot_market.min_order_size,
     )?;
 
+    user.has_open_order = true;
+    user.has_open_auction = new_order.auction_duration > 0;
     user.orders[new_order_index] = new_order;
     user.spot_positions[spot_position_index].open_orders += 1;
     if !new_order.must_be_triggered() {
@@ -4391,6 +4410,8 @@ pub fn trigger_spot_order(
             0,
             false,
         )?;
+
+        user.update_has_open_order();
     }
 
     user.update_last_active_slot(slot);

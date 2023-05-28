@@ -102,7 +102,17 @@ pub struct User {
     /// User is idle if they haven't interacted with the protocol in 1 week and they have no orders, perp positions or borrows
     /// Off-chain keeper bots can ignore users that are idle
     pub idle: bool,
-    pub padding: [u8; 25],
+    /// Whether or not user has open order
+    pub has_open_order: bool,
+    /// Whether or not user has open auction
+    pub has_open_auction: bool,
+    pub padding: [u8; 23],
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum OpenOrderFlags {
+    OpenOrder = 0,
+    Open,
 }
 
 impl User {
@@ -323,6 +333,21 @@ impl User {
             self.last_active_slot = slot;
         }
         self.idle = false;
+    }
+
+    pub fn update_has_open_order(&mut self) {
+        let mut has_open_order = false;
+        let mut has_open_auction = false;
+        for order in self.orders.iter() {
+            has_open_auction |= order.auction_duration > 0;
+            has_open_order |= order.status == OrderStatus::Open;
+            if has_open_auction && has_open_order {
+                break;
+            }
+        }
+
+        self.has_open_auction = has_open_auction;
+        self.has_open_order = has_open_order;
     }
 }
 
