@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	"programs/*",
+	"sdk-rs",
 ]
 exclude = [
 	"deps/serum-dex"

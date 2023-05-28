@@ -1,0 +1,12 @@
+[package]
+name = "drift-sdk"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.13.1", features = ["full"] }
+drift = { path = "../programs/drift", features=["no-entrypoint"] }
+anchor-client = { version = "0.26.0", features = ["debug"] }
+serde_json = "1.0.96"
