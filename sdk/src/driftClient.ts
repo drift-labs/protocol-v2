@@ -3395,12 +3395,12 @@ export class DriftClient {
 			endSwapIx,
 		];
 
-		const tx = await this.buildTransaction(
+		const tx = (await this.buildTransaction(
 			instructions,
 			txParams,
 			0,
 			lookupTables
-		);
+		)) as VersionedTransaction;
 
 		const { txSig, slot } = await this.sendTransaction(tx);
 		this.spotMarketLastSlotCache.set(outMarketIndex, slot);
