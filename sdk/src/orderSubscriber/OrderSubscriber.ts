@@ -1,23 +1,31 @@
 import { DriftClient } from '../driftClient';
 import { UserAccount } from '../types';
-import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
+import { getUserFilter, getUserWithOrderFilter } from '../memcmp';
 import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { DLOB } from '../dlob/DLOB';
 import { OrderSubscriberConfig } from './types';
-import { PollingOrderSubscriber } from './PollingOrderSubscriber';
+import { PollingSubscription } from './PollingSubscription';
+import { WebsocketSubscription } from './WebsocketSubscription';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
-	subscription: PollingOrderSubscriber;
+	subscription: PollingSubscription | WebsocketSubscription;
 
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
-		this.subscription = new PollingOrderSubscriber({
-			orderSubscriber: this,
-			frequency: config.subscriptionConfig.frequency,
-		});
+		if (config.subscriptionConfig.type === 'polling') {
+			this.subscription = new PollingSubscription({
+				orderSubscriber: this,
+				frequency: config.subscriptionConfig.frequency,
+			});
+		} else {
+			this.subscription = new WebsocketSubscription({
+				orderSubscriber: this,
+				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
+			});
+		}
 	}
 
 	public async subscribe(): Promise<void> {
@@ -29,7 +37,7 @@ export class OrderSubscriber {
 			this.driftClient.program.programId.toBase58(),
 			{
 				commitment: this.driftClient.opts.commitment,
-				filters: [getUserFilter(), getNonIdleUserFilter()],
+				filters: [getUserFilter(), getUserWithOrderFilter()],
 				encoding: 'base64',
 				withContext: true,
 			},
@@ -65,19 +73,28 @@ export class OrderSubscriber {
 		}
 
 		for (const [key, buffer] of programAccountBufferMap.entries()) {
-			const slotAndUserAccount = this.usersAccounts.get(key);
-			if (!slotAndUserAccount || slotAndUserAccount.slot < slot) {
-				const userAccount =
-					this.driftClient.program.account.user.coder.accounts.decode(
-						'User',
-						buffer
-					);
-				await this.usersAccounts.set(key, { slot, userAccount });
-			}
+			this.tryUpdateUserAccount(key, buffer, slot);
 		}
 
 		for (const key of this.usersAccounts.keys()) {
 			if (!programAccountBufferMap.has(key)) {
+				this.usersAccounts.delete(key);
+			}
+		}
+	}
+
+	tryUpdateUserAccount(key: string, buffer: Buffer, slot: number): void {
+		const slotAndUserAccount = this.usersAccounts.get(key);
+		if (!slotAndUserAccount || slotAndUserAccount.slot < slot) {
+			const userAccount =
+				this.driftClient.program.account.user.coder.accounts.decode(
+					'User',
+					buffer
+				) as UserAccount;
+
+			if (userAccount.hasOpenOrder) {
+				this.usersAccounts.set(key, { slot, userAccount });
+			} else {
 				this.usersAccounts.delete(key);
 			}
 		}

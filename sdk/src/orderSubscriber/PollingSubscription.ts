@@ -1,6 +1,6 @@
 import { OrderSubscriber } from './OrderSubscriber';
 
-export class PollingOrderSubscriber {
+export class PollingSubscription {
 	private orderSubscriber: OrderSubscriber;
 	private frequency: number;
 

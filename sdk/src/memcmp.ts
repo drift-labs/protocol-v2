@@ -19,3 +19,12 @@ export function getNonIdleUserFilter(): MemcmpFilter {
 		},
 	};
 }
+
+export function getUserWithOrderFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 4352,
+			bytes: bs58.encode(Uint8Array.from([1])),
+		},
+	};
+}
