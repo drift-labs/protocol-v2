@@ -1921,112 +1921,12 @@ export class User {
 	 * @param includeOpenOrders
 	 * @returns leverageRatio : Precision TEN_THOUSAND
 	 */
-	public accountLeverageRatioAfterTrade(
+	public accountLeverageRatioAfterPerpTrade(
 		targetMarketIndex: number,
-		targetMarketType: MarketType,
 		tradeQuoteAmount: BN,
 		tradeSide: PositionDirection,
 		includeOpenOrders = true
 	): BN {
-		const tradeIsPerp = isVariant(targetMarketType, 'perp');
-
-		if (!tradeIsPerp) {
-			// calculate new asset/liability values for base and quote market to find new account leverage
-			const totalLiabilityValue = this.getTotalLiabilityValue();
-			const totalAssetValue = this.getTotalAssetValue();
-			const spotLiabilityValue = this.getSpotMarketLiabilityValue(
-				undefined,
-				undefined,
-				undefined,
-				includeOpenOrders
-			);
-
-			const currentQuoteAssetValue = this.getSpotMarketAssetValue(
-				QUOTE_SPOT_MARKET_INDEX,
-				undefined,
-				includeOpenOrders
-			);
-			const currentQuoteLiabilityValue = this.getSpotMarketLiabilityValue(
-				QUOTE_SPOT_MARKET_INDEX,
-				undefined,
-				undefined,
-				includeOpenOrders
-			);
-			const currentQuoteValue = currentQuoteAssetValue.sub(
-				currentQuoteLiabilityValue
-			);
-
-			const currentSpotMarketAssetValue = this.getSpotMarketAssetValue(
-				targetMarketIndex,
-				undefined,
-				includeOpenOrders
-			);
-			const currentSpotMarketLiabilityValue = this.getSpotMarketLiabilityValue(
-				targetMarketIndex,
-				undefined,
-				undefined,
-				includeOpenOrders
-			);
-			const currentSpotMarketNetValue = currentSpotMarketAssetValue.sub(
-				currentSpotMarketLiabilityValue
-			);
-
-			let assetValueToAdd = ZERO;
-			let liabilityValueToAdd = ZERO;
-
-			const newQuoteNetValue =
-				tradeSide == PositionDirection.SHORT
-					? currentQuoteValue.add(tradeQuoteAmount)
-					: currentQuoteValue.sub(tradeQuoteAmount);
-			const newQuoteAssetValue = BN.max(newQuoteNetValue, ZERO);
-			const newQuoteLiabilityValue = BN.min(newQuoteNetValue, ZERO).abs();
-
-			assetValueToAdd = assetValueToAdd.add(
-				newQuoteAssetValue.sub(currentQuoteAssetValue)
-			);
-			liabilityValueToAdd = liabilityValueToAdd.add(
-				newQuoteLiabilityValue.sub(currentQuoteLiabilityValue)
-			);
-
-			const newSpotMarketNetValue =
-				tradeSide == PositionDirection.LONG
-					? currentSpotMarketNetValue.add(tradeQuoteAmount)
-					: currentSpotMarketNetValue.sub(tradeQuoteAmount);
-			const newSpotMarketAssetValue = BN.max(newSpotMarketNetValue, ZERO);
-			const newSpotMarketLiabilityValue = BN.min(
-				newSpotMarketNetValue,
-				ZERO
-			).abs();
-
-			assetValueToAdd = assetValueToAdd.add(
-				newSpotMarketAssetValue.sub(currentSpotMarketAssetValue)
-			);
-			liabilityValueToAdd = liabilityValueToAdd.add(
-				newSpotMarketLiabilityValue.sub(currentSpotMarketLiabilityValue)
-			);
-
-			const totalAssetValueAfterTrade = totalAssetValue.add(assetValueToAdd);
-			const totalSpotLiabilityValueAfterTrade =
-				spotLiabilityValue.add(liabilityValueToAdd);
-
-			const totalLiabilityValueAfterTrade =
-				totalLiabilityValue.add(liabilityValueToAdd);
-
-			const netAssetValueAfterTrade = totalAssetValueAfterTrade.sub(
-				totalSpotLiabilityValueAfterTrade
-			);
-
-			if (netAssetValueAfterTrade.eq(ZERO)) {
-				return ZERO;
-			}
-
-			const newLeverage = totalLiabilityValueAfterTrade
-				.mul(TEN_THOUSAND)
-				.div(netAssetValueAfterTrade);
-
-			return newLeverage;
-		}
-
 		const currentPosition =
 			this.getPerpPosition(targetMarketIndex) ||
 			this.getEmptyPosition(targetMarketIndex);
@@ -2044,10 +1944,10 @@ export class User {
 				? PositionDirection.SHORT
 				: PositionDirection.LONG;
 
-		if (currentSide === PositionDirection.SHORT)
+		if (isVariant(currentSide, 'short'))
 			currentPositionQuoteAmount = currentPositionQuoteAmount.neg();
 
-		if (tradeSide === PositionDirection.SHORT)
+		if (isVariant(tradeSide, 'short'))
 			tradeQuoteAmount = tradeQuoteAmount.neg();
 
 		const currentPerpPositionAfterTrade = currentPositionQuoteAmount
@@ -2087,6 +1987,117 @@ export class User {
 		const newLeverage = totalLiabilitiesAfterTrade
 			.mul(TEN_THOUSAND)
 			.div(netAssetValue);
+
+		return newLeverage;
+	}
+
+	/**
+	 * Returns the leverage ratio for the account after adding (or subtracting) the given quote size to the given position
+	 * @param targetMarketIndex
+	 * @param: targetMarketType
+	 * @param tradeQuoteAmount
+	 * @param tradeSide
+	 * @param includeOpenOrders
+	 * @returns leverageRatio : Precision TEN_THOUSAND
+	 */
+	public accountLeverageRatioAfterSpotTrade(
+		targetMarketIndex: number,
+		tradeQuoteAmount: BN,
+		tradeSide: PositionDirection,
+		includeOpenOrders = true
+	): BN {
+		// calculate new asset/liability values for base and quote market to find new account leverage
+		const totalLiabilityValue = this.getTotalLiabilityValue();
+		const totalAssetValue = this.getTotalAssetValue();
+		const spotLiabilityValue = this.getSpotMarketLiabilityValue(
+			undefined,
+			undefined,
+			undefined,
+			includeOpenOrders
+		);
+
+		const currentQuoteAssetValue = this.getSpotMarketAssetValue(
+			QUOTE_SPOT_MARKET_INDEX,
+			undefined,
+			includeOpenOrders
+		);
+		const currentQuoteLiabilityValue = this.getSpotMarketLiabilityValue(
+			QUOTE_SPOT_MARKET_INDEX,
+			undefined,
+			undefined,
+			includeOpenOrders
+		);
+		const currentQuoteValue = currentQuoteAssetValue.sub(
+			currentQuoteLiabilityValue
+		);
+
+		const currentSpotMarketAssetValue = this.getSpotMarketAssetValue(
+			targetMarketIndex,
+			undefined,
+			includeOpenOrders
+		);
+		const currentSpotMarketLiabilityValue = this.getSpotMarketLiabilityValue(
+			targetMarketIndex,
+			undefined,
+			undefined,
+			includeOpenOrders
+		);
+		const currentSpotMarketNetValue = currentSpotMarketAssetValue.sub(
+			currentSpotMarketLiabilityValue
+		);
+
+		let assetValueToAdd = ZERO;
+		let liabilityValueToAdd = ZERO;
+
+		const newQuoteNetValue =
+			tradeSide == PositionDirection.SHORT
+				? currentQuoteValue.add(tradeQuoteAmount)
+				: currentQuoteValue.sub(tradeQuoteAmount);
+		const newQuoteAssetValue = BN.max(newQuoteNetValue, ZERO);
+		const newQuoteLiabilityValue = BN.min(newQuoteNetValue, ZERO).abs();
+
+		assetValueToAdd = assetValueToAdd.add(
+			newQuoteAssetValue.sub(currentQuoteAssetValue)
+		);
+		liabilityValueToAdd = liabilityValueToAdd.add(
+			newQuoteLiabilityValue.sub(currentQuoteLiabilityValue)
+		);
+
+		const newSpotMarketNetValue =
+			tradeSide == PositionDirection.LONG
+				? currentSpotMarketNetValue.add(tradeQuoteAmount)
+				: currentSpotMarketNetValue.sub(tradeQuoteAmount);
+		const newSpotMarketAssetValue = BN.max(newSpotMarketNetValue, ZERO);
+		const newSpotMarketLiabilityValue = BN.min(
+			newSpotMarketNetValue,
+			ZERO
+		).abs();
+
+		assetValueToAdd = assetValueToAdd.add(
+			newSpotMarketAssetValue.sub(currentSpotMarketAssetValue)
+		);
+		liabilityValueToAdd = liabilityValueToAdd.add(
+			newSpotMarketLiabilityValue.sub(currentSpotMarketLiabilityValue)
+		);
+
+		const totalAssetValueAfterTrade = totalAssetValue.add(assetValueToAdd);
+		const totalSpotLiabilityValueAfterTrade =
+			spotLiabilityValue.add(liabilityValueToAdd);
+
+		const totalLiabilityValueAfterTrade =
+			totalLiabilityValue.add(liabilityValueToAdd);
+
+		const netAssetValueAfterTrade = totalAssetValueAfterTrade.sub(
+			totalSpotLiabilityValueAfterTrade
+		);
+
+		if (netAssetValueAfterTrade.eq(ZERO)) {
+			return ZERO;
+		}
+
+		const newLeverage = totalLiabilityValueAfterTrade
+			.mul(TEN_THOUSAND)
+			.div(netAssetValueAfterTrade);
 
 		return newLeverage;
 	}
