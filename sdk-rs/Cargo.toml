@@ -8,5 +8,8 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.13.1", features = ["full"] }
 drift = { path = "../programs/drift", features=["no-entrypoint"] }
-anchor-client = { version = "0.26.0", features = ["debug"] }
+anchor-client = { git = "https://github.com/drift-labs/anchor.git", rev = "ed950fe", version = "0.26.0" }
+anchor-lang = { git = "https://github.com/drift-labs/anchor.git", rev = "ed950fe", version = "0.26.0" }
+anchor-spl = { git = "https://github.com/drift-labs/anchor.git", rev = "ed950fe", version = "0.26.0" }
 serde_json = "1.0.96"
+anyhow = "1.0.71"
