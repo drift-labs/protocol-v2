@@ -28,3 +28,12 @@ export function getUserWithOrderFilter(): MemcmpFilter {
 		},
 	};
 }
+
+export function getUserWithAuctionFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 4354,
+			bytes: bs58.encode(Uint8Array.from([1])),
+		},
+	};
+}
