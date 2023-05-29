@@ -3299,7 +3299,7 @@ export class DriftClient {
 		route?: Route;
 		reduceOnly?: SwapReduceOnly;
 		txParams?: TxParams;
-	}): Promise<VersionedTransaction> {
+	}): Promise<TransactionSignature> {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
@@ -3402,13 +3402,11 @@ export class DriftClient {
 			lookupTables
 		)) as VersionedTransaction;
 
-		return tx;
+		const { txSig, slot } = await this.sendTransaction(tx);
+		this.spotMarketLastSlotCache.set(outMarketIndex, slot);
+		this.spotMarketLastSlotCache.set(inMarketIndex, slot);
 
-		// const { txSig, slot } = await this.sendTransaction(tx);
-		// this.spotMarketLastSlotCache.set(outMarketIndex, slot);
-		// this.spotMarketLastSlotCache.set(inMarketIndex, slot);
-
-		// return txSig;
+		return txSig;
 	}
 
 	/**

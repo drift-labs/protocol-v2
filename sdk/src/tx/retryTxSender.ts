@@ -126,13 +126,13 @@ export class RetryTxSender implements TxSender {
 			});
 
 		// @ts-ignore
-		await this.provider.wallet.signTransaction(tx);
+		const signedTx = await this.provider.wallet.signTransaction(tx);
 
 		if (opts === undefined) {
 			opts = this.provider.opts;
 		}
 
-		return this.sendRawTransaction(tx.serialize(), opts);
+		return this.sendRawTransaction(signedTx.serialize(), opts);
 	}
 
 	async sendRawTransaction(
