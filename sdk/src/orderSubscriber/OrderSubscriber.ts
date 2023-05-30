@@ -13,6 +13,9 @@ export class OrderSubscriber {
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
 	subscription: PollingSubscription | WebsocketSubscription;
 
+	fetchPromise?: Promise<void>;
+	fetchPromiseResolver: () => void;
+
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
 		if (config.subscriptionConfig.type === 'polling') {
@@ -33,49 +36,65 @@ export class OrderSubscriber {
 	}
 
 	async fetch(): Promise<void> {
-		const rpcRequestArgs = [
-			this.driftClient.program.programId.toBase58(),
-			{
-				commitment: this.driftClient.opts.commitment,
-				filters: [getUserFilter(), getUserWithOrderFilter()],
-				encoding: 'base64',
-				withContext: true,
-			},
-		];
-
-		// @ts-ignore
-		const rpcJSONResponse: any = await this.driftClient.connection._rpcRequest(
-			'getProgramAccounts',
-			rpcRequestArgs
-		);
-
-		const rpcResponseAndContext: RpcResponseAndContext<
-			Array<{
-				pubkey: PublicKey;
-				account: {
-					data: [string, string];
-				};
-			}>
-		> = rpcJSONResponse.result;
-
-		const slot: number = rpcResponseAndContext.context.slot;
-
-		const programAccountSet = new Set<string>();
-		for (const programAccount of rpcResponseAndContext.value) {
-			const key = programAccount.pubkey.toString();
-			// @ts-ignore
-			const buffer = Buffer.from(
-				programAccount.account.data[0],
-				programAccount.account.data[1]
-			);
-			programAccountSet.add(key);
-			this.tryUpdateUserAccount(key, buffer, slot);
+		if (this.fetchPromise) {
+			return this.fetchPromise;
 		}
 
-		for (const key of this.usersAccounts.keys()) {
-			if (!programAccountSet.has(key)) {
-				this.usersAccounts.delete(key);
+		this.fetchPromise = new Promise((resolver) => {
+			this.fetchPromiseResolver = resolver;
+		});
+
+		try {
+			const rpcRequestArgs = [
+				this.driftClient.program.programId.toBase58(),
+				{
+					commitment: this.driftClient.opts.commitment,
+					filters: [getUserFilter(), getUserWithOrderFilter()],
+					encoding: 'base64',
+					withContext: true,
+				},
+			];
+
+			const rpcJSONResponse: any =
+				// @ts-ignore
+				await this.driftClient.connection._rpcRequest(
+					'getProgramAccounts',
+					rpcRequestArgs
+				);
+
+			const rpcResponseAndContext: RpcResponseAndContext<
+				Array<{
+					pubkey: PublicKey;
+					account: {
+						data: [string, string];
+					};
+				}>
+			> = rpcJSONResponse.result;
+
+			const slot: number = rpcResponseAndContext.context.slot;
+
+			const programAccountSet = new Set<string>();
+			for (const programAccount of rpcResponseAndContext.value) {
+				const key = programAccount.pubkey.toString();
+				// @ts-ignore
+				const buffer = Buffer.from(
+					programAccount.account.data[0],
+					programAccount.account.data[1]
+				);
+				programAccountSet.add(key);
+				this.tryUpdateUserAccount(key, buffer, slot);
 			}
+
+			for (const key of this.usersAccounts.keys()) {
+				if (!programAccountSet.has(key)) {
+					this.usersAccounts.delete(key);
+				}
+			}
+		} catch (e) {
+			console.error(e);
+		} finally {
+			this.fetchPromiseResolver();
+			this.fetchPromise = undefined;
 		}
 	}
 
