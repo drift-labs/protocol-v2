@@ -829,6 +829,10 @@ export type UserAccount = {
 	lastActiveSlot: BN;
 	isMarginTradingEnabled: boolean;
 	idle: boolean;
+	openOrders: number;
+	hasOpenOrder: boolean;
+	openAuctions: number;
+	hasOpenAuction: boolean;
 };
 
 export type SpotPosition = {

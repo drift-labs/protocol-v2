@@ -1016,3 +1016,40 @@ mod get_base_asset_amount_unfilled {
         assert_eq!(order.get_base_asset_amount_unfilled(Some(6)).unwrap(), 5)
     }
 }
+
+mod open_orders {
+    use crate::state::user::User;
+
+    #[test]
+    fn test() {
+        let mut user = User::default();
+
+        user.increment_open_orders(false);
+
+        assert_eq!(user.open_orders, 1);
+        assert!(user.has_open_order);
+        assert_eq!(user.open_auctions, 0);
+        assert!(!user.has_open_auction);
+
+        user.increment_open_orders(true);
+
+        assert_eq!(user.open_orders, 2);
+        assert!(user.has_open_order);
+        assert_eq!(user.open_auctions, 1);
+        assert!(user.has_open_auction);
+
+        user.decrement_open_orders(false);
+
+        assert_eq!(user.open_orders, 1);
+        assert!(user.has_open_order);
+        assert_eq!(user.open_auctions, 1);
+        assert!(user.has_open_auction);
+
+        user.decrement_open_orders(true);
+
+        assert_eq!(user.open_orders, 0);
+        assert!(!user.has_open_order);
+        assert_eq!(user.open_auctions, 0);
+        assert!(!user.has_open_auction);
+    }
+}

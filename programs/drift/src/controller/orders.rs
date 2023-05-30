@@ -266,6 +266,7 @@ pub fn place_perp_order(
         Err(err) => return Err(err),
     };
 
+    user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.perp_positions[position_index].open_orders += 1;
     if !new_order.must_be_triggered() {
@@ -589,9 +590,6 @@ pub fn cancel_order(
 
     validate!(order_status == OrderStatus::Open, ErrorCode::OrderNotOpen)?;
 
-    // When save in the record, we want the status to be canceled
-    user.orders[order_index].status = OrderStatus::Canceled;
-
     let oracle = if is_perp_order {
         perp_market_map.get_ref(&order_market_index)?.amm.oracle
     } else {
@@ -626,6 +624,7 @@ pub fn cancel_order(
         emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
 
+    user.decrement_open_orders(user.orders[order_index].has_auction());
     if is_perp_order {
         // Decrement open orders for existing position
         let position_index = get_position_index(&user.perp_positions, order_market_index)?;
@@ -1036,6 +1035,7 @@ pub fn fill_perp_order(
             filler_reward,
             false,
         )?;
+
         return Ok((0, true));
     }
 
@@ -1952,6 +1952,7 @@ pub fn fulfill_perp_order_with_amm(
 
     // Cant reset order until after its logged
     if user.orders[order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        user.decrement_open_orders(user.orders[order_index].has_auction());
         user.orders[order_index] = Order::default();
         let market_position = &mut user.perp_positions[position_index];
         market_position.open_orders -= 1;
@@ -2326,12 +2327,14 @@ pub fn fulfill_perp_order_with_match(
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
         taker.orders[taker_order_index] = Order::default();
         let market_position = &mut taker.perp_positions[taker_position_index];
         market_position.open_orders -= 1;
     }
 
     if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        maker.decrement_open_orders(false);
         maker.orders[maker_order_index] = Order::default();
         let market_position = &mut maker.perp_positions[maker_position_index];
         market_position.open_orders -= 1;
@@ -2965,6 +2968,7 @@ pub fn place_spot_order(
         spot_market.min_order_size,
     )?;
 
+    user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.spot_positions[spot_position_index].open_orders += 1;
     if !new_order.must_be_triggered() {
@@ -3911,11 +3915,13 @@ pub fn fulfill_spot_order_with_match(
 
     // Clear taker/maker order if completely filled
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
         taker.orders[taker_order_index] = Order::default();
         taker.spot_positions[taker_spot_position_index].open_orders -= 1;
     }
 
     if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        maker.decrement_open_orders(false);
         maker.orders[maker_order_index] = Order::default();
         maker.spot_positions[maker_spot_position_index].open_orders -= 1;
     }
@@ -4207,6 +4213,7 @@ pub fn fulfill_spot_order_with_external_market(
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
         taker.orders[taker_order_index] = Order::default();
         taker
             .force_get_spot_position_mut(base_market.market_index)?

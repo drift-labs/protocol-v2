@@ -1306,6 +1306,32 @@
       "args": []
     },
     {
+      "name": "updateUserOpenOrdersCount",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "settlePnl",
       "accounts": [
         {
@@ -5439,11 +5465,39 @@
             "type": "bool"
           },
           {
+            "name": "openOrders",
+            "docs": [
+              "number of open orders"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "hasOpenOrder",
+            "docs": [
+              "Whether or not user has open order"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "openAuctions",
+            "docs": [
+              "number of open orders with auction"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "hasOpenAuction",
+            "docs": [
+              "Whether or not user has open order with auction"
+            ],
+            "type": "bool"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                25
+                21
               ]
             }
           }

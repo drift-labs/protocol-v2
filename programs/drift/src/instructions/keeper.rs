@@ -26,7 +26,7 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
 use crate::state::state::State;
-use crate::state::user::{MarketType, User, UserStats};
+use crate::state::user::{MarketType, OrderStatus, User, UserStats};
 use crate::state::user_map::load_user_maps;
 use crate::validate;
 use crate::validation::user::validate_user_is_idle;
@@ -356,6 +356,33 @@ pub fn handle_update_user_idle<'info>(ctx: Context<UpdateUserIdle>) -> Result<()
     validate_user_is_idle(&user, clock.slot)?;
 
     user.idle = true;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    let mut open_orders = 0_u8;
+    let mut open_auctions = 0_u8;
+
+    for order in user.orders.iter() {
+        if order.status == OrderStatus::Open {
+            open_orders += 1;
+        }
+
+        if order.has_auction() {
+            open_auctions += 1;
+        }
+    }
+
+    user.open_orders = open_orders;
+    user.has_open_order = open_orders > 0;
+    user.open_auctions = open_auctions;
+    user.has_open_auction = open_auctions > 0;
 
     Ok(())
 }
