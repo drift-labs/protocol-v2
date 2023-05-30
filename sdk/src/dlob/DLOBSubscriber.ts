@@ -16,6 +16,12 @@ import {
 	L3OrderBook,
 } from './orderBookLevels';
 import { calculateAskPrice, calculateBidPrice } from '../math/market';
+import { PhoenixSubscriber } from '../phoenix/phoenixSubscriber';
+import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
+import { SpotMarkets } from '../constants/spotMarkets';
+import { SerumSubscriber } from '../serum/serumSubscriber';
+import { DriftEnv, configs } from '../config';
+import { PublicKey } from '@solana/web3.js';
 
 export class DLOBSubscriber {
 	driftClient: DriftClient;
@@ -25,6 +31,7 @@ export class DLOBSubscriber {
 	intervalId?: NodeJS.Timeout;
 	dlob = new DLOB();
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
+	env : DriftEnv;
 
 	constructor(config: DLOBSubscriptionConfig) {
 		this.driftClient = config.driftClient;
@@ -32,6 +39,16 @@ export class DLOBSubscriber {
 		this.slotSource = config.slotSource;
 		this.updateFrequency = config.updateFrequency;
 		this.eventEmitter = new EventEmitter();
+		this.env = config.env;
+
+		if (!config.env) {
+			const isMainnet = !this.driftClient.connection.rpcEndpoint.includes('devnet');
+			if (isMainnet) {
+				this.env = 'mainnet-beta';
+			} else {
+				this.env = 'devnet';
+			}
+		}
 	}
 
 	public async subscribe(): Promise<void> {
@@ -69,21 +86,26 @@ export class DLOBSubscriber {
 	 * @param includeVamm Whether to include the VAMM orders in the order book. Defaults to false. If true, creates vAMM generator {@link getVammL2Generator} and adds it to fallbackL2Generators.
 	 * @param fallbackL2Generators L2 generators for fallback liquidity e.g. vAMM {@link getVammL2Generator}, openbook {@link SerumSubscriber}
 	 */
-	public getL2({
+	public async getL2({
 		marketName,
 		marketIndex,
 		marketType,
 		depth = 10,
-		includeVamm = false,
 		fallbackL2Generators = [],
+		opts
 	}: {
 		marketName?: string;
 		marketIndex?: number;
 		marketType?: MarketType;
 		depth?: number;
-		includeVamm?: boolean;
 		fallbackL2Generators?: L2OrderBookGenerator[];
-	}): L2OrderBook {
+		opts?: {
+			includeVammL2?:boolean;
+			includePhoenixL2?:boolean,
+			includeSerumL2?:boolean,
+		}
+	}): Promise<L2OrderBook> {
+
 		if (marketName) {
 			const derivedMarketInfo =
 				this.driftClient.getMarketIndexAndType(marketName);
@@ -117,7 +139,7 @@ export class DLOBSubscriber {
 				this.driftClient.getOracleDataForSpotMarket(marketIndex);
 		}
 
-		if (isPerp && includeVamm) {
+		if (isPerp && opts?.includeVammL2) {
 			fallbackL2Generators = [
 				getVammL2Generator({
 					marketAccount: this.driftClient.getPerpMarketAccount(marketIndex),
@@ -125,6 +147,48 @@ export class DLOBSubscriber {
 					numOrders: depth,
 				}),
 			];
+		}
+
+		if (!isPerp) {
+			const isMainnet = this.env === 'mainnet-beta';
+			const config = isMainnet ? configs['mainnet-beta'] : configs['devnet'];
+			const spotMarket = (isMainnet ? (SpotMarkets['mainnet-beta']) : (SpotMarkets.devnet)).find(market => market.marketIndex === marketIndex);
+			const phoenixMarket = spotMarket.phoenixMarket;
+
+			if (opts?.includePhoenixL2) {
+				// TODO : Is websocket the right thing to use here?
+				//// TODO is it better to initialize these subscribers when we create the DLOB subscriber so that they always have data available?
+				const phoenixSubscriber = new PhoenixSubscriber({
+					connection: this.driftClient.connection,
+					programId: PHOENIX_PROGRAM_ID,
+					marketAddress: phoenixMarket,
+					accountSubscription: {
+						type:'websocket'
+					}
+				});
+
+				await phoenixSubscriber.subscribe();
+
+				fallbackL2Generators.push(phoenixSubscriber);
+			}
+
+			if (opts?.includeSerumL2) {
+				// TODO : Is websocket the right thing to use here?
+				//// TODO is it better to initialize these subscribers when we create the DLOB subscriber so that they always have data available?
+				const serumSubscriber = new SerumSubscriber({
+					connection: this.driftClient.connection,
+					programId: new PublicKey(config.SERUM_V3),
+					marketAddress: spotMarket.serumMarket,
+					accountSubscription: {
+						type:'websocket'
+					}
+				});
+
+				await serumSubscriber.subscribe();
+	
+				fallbackL2Generators.push(serumSubscriber);
+			}
+
 		}
 
 		return this.dlob.getL2({
