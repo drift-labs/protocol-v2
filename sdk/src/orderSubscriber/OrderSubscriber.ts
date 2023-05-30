@@ -60,24 +60,20 @@ export class OrderSubscriber {
 
 		const slot: number = rpcResponseAndContext.context.slot;
 
-		const programAccountBufferMap = new Map<string, Buffer>();
+		const programAccountSet = new Set<string>();
 		for (const programAccount of rpcResponseAndContext.value) {
-			programAccountBufferMap.set(
-				programAccount.pubkey.toString(),
-				// @ts-ignore
-				Buffer.from(
-					programAccount.account.data[0],
-					programAccount.account.data[1]
-				)
+			const key = programAccount.pubkey.toString();
+			// @ts-ignore
+			const buffer = Buffer.from(
+				programAccount.account.data[0],
+				programAccount.account.data[1]
 			);
-		}
-
-		for (const [key, buffer] of programAccountBufferMap.entries()) {
+			programAccountSet.add(key);
 			this.tryUpdateUserAccount(key, buffer, slot);
 		}
 
 		for (const key of this.usersAccounts.keys()) {
-			if (!programAccountBufferMap.has(key)) {
+			if (!programAccountSet.has(key)) {
 				this.usersAccounts.delete(key);
 			}
 		}
