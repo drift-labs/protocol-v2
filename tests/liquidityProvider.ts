@@ -619,7 +619,7 @@ describe('liquidity providing', () => {
 		);
 
 		const [settledLPPosition, _, sdkPnl] =
-			driftClientUser.getSettledLPPosition(0);
+			driftClientUser.getPerpPositionWithLPSettle(0);
 
 		console.log('settling...');
 		try {
@@ -1206,7 +1206,7 @@ describe('liquidity providing', () => {
 		);
 
 		await driftClientUser.fetchAccounts();
-		const sdkPnl = driftClientUser.getSettledLPPosition(0)[2];
+		const sdkPnl = driftClientUser.getPerpPositionWithLPSettle(0)[2];
 
 		console.log('settling...');
 		try {
@@ -1481,7 +1481,7 @@ describe('liquidity providing', () => {
 			new BN(0)
 		);
 
-		const [settledPosition, result, _] = driftClientUser.getSettledLPPosition(
+		const [settledPosition, result, _] = driftClientUser.getPerpPositionWithLPSettle(
 			new BN(0)
 		);
 

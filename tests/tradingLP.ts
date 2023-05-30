@@ -234,7 +234,7 @@ describe('trading liquidity providing', () => {
 		assert(position.baseAssetAmount.gt(ZERO));
 
 		// settle says the lp would take on a short
-		const lpPosition = driftClientUser.getSettledLPPosition(0)[0];
+		const lpPosition = driftClientUser.getPerpPositionWithLPSettle(0)[0];
 		console.log(
 			'sdk settled lp position:',
 			lpPosition.baseAssetAmount.toString(),
