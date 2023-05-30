@@ -137,7 +137,7 @@ export class OrderActionExplanation {
 		orderFilledWithAmmJitLpSplit: {},
 	};
 	static readonly ORDER_FILLED_WITH_LP_JIT = {
-		orderFilledWithAmmJitLpSplit: {},
+		orderFilledWithLpJit: {},
 	};
 	static readonly ORDER_FILLED_WITH_MATCH = {
 		orderFilledWithMatch: {},
