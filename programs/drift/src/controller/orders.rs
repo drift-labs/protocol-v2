@@ -266,7 +266,7 @@ pub fn place_perp_order(
         Err(err) => return Err(err),
     };
 
-    user.increment_open_orders(new_order.auction_duration > 0);
+    user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.perp_positions[position_index].open_orders += 1;
     if !new_order.must_be_triggered() {
@@ -2976,7 +2976,7 @@ pub fn place_spot_order(
         spot_market.min_order_size,
     )?;
 
-    user.increment_open_orders(new_order.auction_duration > 0);
+    user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.spot_positions[spot_position_index].open_orders += 1;
     if !new_order.must_be_triggered() {
