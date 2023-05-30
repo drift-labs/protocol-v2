@@ -656,8 +656,9 @@ pub struct AMM {
     /// the target value for `base_asset_amount_per_lp`, used during AMM JIT with LP split
     /// precision: BASE_PRECISION
     pub target_base_asset_amount_per_lp: i32,
+    pub padding1: u32,
     pub net_unsettled_funding_pnl: i64,
-    pub padding: [u8; 36],
+    pub padding: [u8; 32],
 }
 
 impl Default for AMM {
@@ -739,8 +740,9 @@ impl Default for AMM {
             oracle_source: OracleSource::default(),
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
+            padding1: 0,
             net_unsettled_funding_pnl: 0,
-            padding: [0; 36],
+            padding: [0; 32],
         }
     }
 }
@@ -929,8 +931,7 @@ impl AMM {
     }
 
     pub fn terminal_aum(&self) -> DriftResult<i128> {
-        self
-            .total_fee_minus_distributions
+        self.total_fee_minus_distributions
             .safe_sub(self.total_fee_withdrawn.cast()?)
     }
 }

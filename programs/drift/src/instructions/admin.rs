@@ -717,8 +717,9 @@ pub fn handle_initialize_perp_market(
 
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
+            padding1: 0,
             net_unsettled_funding_pnl: 0,
-            padding: [0; 36],
+            padding: [0; 32],
         },
     };
 

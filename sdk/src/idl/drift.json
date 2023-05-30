@@ -6735,6 +6735,10 @@
             "type": "i32"
           },
           {
+            "name": "padding1",
+            "type": "u32"
+          },
+          {
             "name": "netUnsettledFundingPnl",
             "type": "i64"
           },
@@ -6743,7 +6747,7 @@
             "type": {
               "array": [
                 "u8",
-                28
+                32
               ]
             }
           }
@@ -10438,8 +10442,5 @@
       "name": "SpotMarketReduceOnly",
       "msg": "SpotMarketReduceOnly"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }

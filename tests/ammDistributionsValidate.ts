@@ -11,13 +11,12 @@ import {
 	EventSubscriber,
 	MarketStatus,
 	BASE_PRECISION,
-	isVariant,
 	OracleSource,
 	PEG_PRECISION,
 	BulkAccountLoader,
 	calculateBidAskPrice,
-	MARGIN_PRECISION, 
-	OrderType
+	MARGIN_PRECISION,
+	OrderType,
 } from '../sdk/src';
 
 import {
@@ -140,11 +139,9 @@ describe('amm distribution validations', () => {
 	});
 
 	it('taker long solUsd', async () => {
-
 		const state = await fillerDriftClient.getStateAccount();
-		assert(state.numberOfMarkets==1);
-		assert(state.numberOfSpotMarkets==1);
-
+		assert(state.numberOfMarkets == 1);
+		assert(state.numberOfSpotMarkets == 1);
 
 		const [takerDriftClient, takerUSDCAccount] =
 			await createUserWithUSDCAccount(
@@ -170,13 +167,12 @@ describe('amm distribution validations', () => {
 		);
 		console.log('bid:', bid.toString());
 		console.log('ask:', ask.toString());
-		debugger;
 
-		const uu = await takerDriftClient.getSpotPosition(0);
-		const uu2 = await takerDriftClient.getSpotPosition(1);
-		console.log(uu);
-		console.log(uu2);
-		
+		// const uu = await takerDriftClient.getSpotPosition(0);
+		// const uu2 = await takerDriftClient.getSpotPosition(1);
+		// console.log(uu);
+		// console.log(uu2);
+
 		const takerBaseAssetAmount = new BN(6).mul(BASE_PRECISION);
 		const txSig = await takerDriftClient.placeAndTakePerpOrder({
 			marketIndex: 0,

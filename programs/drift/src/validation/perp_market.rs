@@ -193,7 +193,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
     Ok(())
 }
 
-pub fn validate_perp_market_pools(market: &PerpMarket, spot_market: &SpotMarket) -> DriftResult {
+pub fn _validate_perp_market_pools(market: &PerpMarket, spot_market: &SpotMarket) -> DriftResult {
     let aum = market.aum(spot_market)?;
     let terminal_aum = market.amm.terminal_aum()?;
 

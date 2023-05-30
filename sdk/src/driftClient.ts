@@ -1331,7 +1331,10 @@ export class DriftClient {
 					isSigner: false,
 					isWritable: false,
 				});
-				console.log('perpMarketAccount.quoteSpotMarketIndex:', perpMarketAccount.quoteSpotMarketIndex);
+				console.log(
+					'perpMarketAccount.quoteSpotMarketIndex:',
+					perpMarketAccount.quoteSpotMarketIndex
+				);
 				const spotMarketAccount = this.getSpotMarketAccount(
 					perpMarketAccount.quoteSpotMarketIndex
 				);
