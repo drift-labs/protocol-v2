@@ -578,19 +578,12 @@ pub fn cancel_order(
     filler_reward: u64,
     skip_log: bool,
 ) -> DriftResult {
-    let (
-        order_status,
-        order_market_index,
-        order_direction,
-        order_market_type,
-        order_auction_duration,
-    ) = get_struct_values!(
+    let (order_status, order_market_index, order_direction, order_market_type) = get_struct_values!(
         user.orders[order_index],
         status,
         market_index,
         direction,
-        market_type,
-        auction_duration
+        market_type
     );
 
     let is_perp_order = order_market_type == MarketType::Perp;
@@ -631,6 +624,7 @@ pub fn cancel_order(
         emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
 
+    user.decrement_open_orders(user.orders[order_index].has_auction());
     if is_perp_order {
         // Decrement open orders for existing position
         let position_index = get_position_index(&user.perp_positions, order_market_index)?;
@@ -664,8 +658,6 @@ pub fn cancel_order(
         user.spot_positions[spot_position_index].open_orders -= 1;
         user.orders[order_index] = Order::default();
     }
-
-    user.decrement_open_orders(order_auction_duration > 0);
 
     Ok(())
 }
