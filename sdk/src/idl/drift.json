@@ -10433,6 +10433,11 @@
       "code": 6250,
       "name": "SpotMarketReduceOnly",
       "msg": "SpotMarketReduceOnly"
+    },
+    {
+      "code": 6251,
+      "name": "FundingWasNotUpdated",
+      "msg": "FundingWasNotUpdated"
     }
   ]
 }

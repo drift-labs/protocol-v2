@@ -487,6 +487,7 @@ describe('lp jit', () => {
 			marketIndex,
 			BASE_PRECISION.toNumber()
 		);
+		await delay(lpCooldown + 1000);
 
 		await driftClient.fetchAccounts();
 		let market = driftClient.getPerpMarketAccount(marketIndex);
