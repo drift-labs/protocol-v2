@@ -137,7 +137,7 @@ export class OrderActionExplanation {
 		orderFilledWithAmmJitLpSplit: {},
 	};
 	static readonly ORDER_FILLED_WITH_LP_JIT = {
-		orderFilledWithAmmJitLpSplit: {},
+		orderFilledWithLpJit: {},
 	};
 	static readonly ORDER_FILLED_WITH_MATCH = {
 		orderFilledWithMatch: {},
@@ -829,6 +829,10 @@ export type UserAccount = {
 	lastActiveSlot: BN;
 	isMarginTradingEnabled: boolean;
 	idle: boolean;
+	openOrders: number;
+	hasOpenOrder: boolean;
+	openAuctions: number;
+	hasOpenAuction: boolean;
 };
 
 export type SpotPosition = {

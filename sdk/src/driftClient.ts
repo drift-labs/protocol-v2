@@ -114,6 +114,7 @@ import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
 import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
+import { getNonIdleUserFilter } from './memcmp';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -897,14 +898,7 @@ export class DriftClient {
 	): Promise<ProgramAccount<UserAccount>[]> {
 		let filters = undefined;
 		if (!includeIdle) {
-			filters = [
-				{
-					memcmp: {
-						offset: 4350,
-						bytes: bs58.encode(Uint8Array.from([0])),
-					},
-				},
-			];
+			filters = [getNonIdleUserFilter()];
 		}
 		return (await this.program.account.user.all(
 			filters
@@ -3437,12 +3431,12 @@ export class DriftClient {
 			endSwapIx,
 		];
 
-		const tx = await this.buildTransaction(
+		const tx = (await this.buildTransaction(
 			instructions,
 			txParams,
 			0,
 			lookupTables
-		);
+		)) as VersionedTransaction;
 
 		const { txSig, slot } = await this.sendTransaction(tx);
 		this.spotMarketLastSlotCache.set(outMarketIndex, slot);
@@ -3657,6 +3651,43 @@ export class DriftClient {
 		});
 
 		return await this.program.instruction.updateUserIdle({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				filler: fillerPublicKey,
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async updateUserOpenOrdersCount(
+		userAccountPublicKey: PublicKey,
+		user: UserAccount,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateUserOpenOrdersCountIx(userAccountPublicKey, user),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateUserOpenOrdersCountIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount
+	): Promise<TransactionInstruction> {
+		const fillerPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+		});
+
+		return await this.program.instruction.updateUserOpenOrdersCount({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				filler: fillerPublicKey,
