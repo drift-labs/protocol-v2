@@ -1,3 +1,4 @@
+import { PerpMarketAccount, SpotMarketAccount } from '.';
 import {
 	DevnetPerpMarkets,
 	MainnetPerpMarkets,
@@ -11,7 +12,7 @@ import {
 	MainnetSpotMarkets,
 } from './constants/spotMarkets';
 import { OracleInfo } from './oracles/types';
-import { Program } from '@coral-xyz/anchor';
+import { Program, ProgramAccount } from '@coral-xyz/anchor';
 
 type DriftConfig = {
 	ENV: DriftEnv;
@@ -124,8 +125,8 @@ export async function findAllMarketAndOracles(program: Program): Promise<{
 	const spotMarketIndexes = [];
 	const oracleInfos = new Map<string, OracleInfo>();
 
-	const perpMarketProgramAccounts = await program.account.perpMarket.all();
-	const spotMarketProgramAccounts = await program.account.spotMarket.all();
+	const perpMarketProgramAccounts = (await program.account.perpMarket.all()) as ProgramAccount<PerpMarketAccount>[];
+	const spotMarketProgramAccounts = (await program.account.spotMarket.all()) as ProgramAccount<SpotMarketAccount>[];
 
 	for (const perpMarketProgramAccount of perpMarketProgramAccounts) {
 		const perpMarket = perpMarketProgramAccount.account;
