@@ -37,3 +37,12 @@ export function getUserWithAuctionFilter(): MemcmpFilter {
 		},
 	};
 }
+
+export function getUserThatHasBeenLP(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 4267,
+			bytes: bs58.encode(Uint8Array.from([99])),
+		},
+	};
+}
