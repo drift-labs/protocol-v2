@@ -905,7 +905,7 @@ export function calculateEstimatedEntryPriceWithL2(
 	let cumulativeBaseFilled = ZERO;
 	let cumulativeQuoteFilled = ZERO;
 
-	const levels = takerIsLong ? l2.asks : l2.bids;
+	const levels = [...takerIsLong ? l2.asks : l2.bids];
 	let nextLevel = levels.shift();
 
 	let bestPrice;
