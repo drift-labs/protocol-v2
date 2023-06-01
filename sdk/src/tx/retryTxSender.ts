@@ -119,14 +119,21 @@ export class RetryTxSender implements TxSender {
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions
 	): Promise<TxSigAndSlot> {
-		additionalSigners
-			?.filter((s): s is Signer => s !== undefined)
-			.forEach((kp) => {
-				tx.sign([kp]);
-			});
-
+		let signedTx;
 		// @ts-ignore
-		const signedTx = await this.provider.wallet.signTransaction(tx);
+		if (this.provider.wallet.payer) {
+			// @ts-ignore
+			tx.sign((additionalSigners ?? []).concat(this.provider.wallet.payer));
+			signedTx = tx;
+		} else {
+			additionalSigners
+				?.filter((s): s is Signer => s !== undefined)
+				.forEach((kp) => {
+					tx.sign([kp]);
+				});
+			// @ts-ignore
+			signedTx = await this.provider.wallet.signTransaction(tx);
+		}
 
 		if (opts === undefined) {
 			opts = this.provider.opts;
