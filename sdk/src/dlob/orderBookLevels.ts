@@ -244,17 +244,22 @@ export function getVammL2Generator({
 	};
 }
 
-export function groupL2(l2: L2OrderBook, grouping: BN): L2OrderBook {
+export function groupL2(
+	l2: L2OrderBook,
+	grouping: BN,
+	depth: number
+): L2OrderBook {
 	return {
-		bids: groupL2Levels(l2.bids, grouping, PositionDirection.LONG),
-		asks: groupL2Levels(l2.asks, grouping, PositionDirection.SHORT),
+		bids: groupL2Levels(l2.bids, grouping, PositionDirection.LONG, depth),
+		asks: groupL2Levels(l2.asks, grouping, PositionDirection.SHORT, depth),
 	};
 }
 
 function groupL2Levels(
 	levels: L2Level[],
 	grouping: BN,
-	direction: PositionDirection
+	direction: PositionDirection,
+	depth: number
 ): L2Level[] {
 	const groupedLevels = [];
 	for (const level of levels) {
@@ -280,6 +285,10 @@ function groupL2Levels(
 				sources: level.sources,
 			};
 			groupedLevels.push(groupedLevel);
+		}
+
+		if (groupedLevels.length === depth) {
+			break;
 		}
 	}
 	return groupedLevels;
