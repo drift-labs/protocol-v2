@@ -298,15 +298,16 @@ export class User {
 	 * @returns : pnl from settle
 	 */
 	public getPerpPositionWithLPSettle(
-		marketIndex: number
+		marketIndex: number,
+		originalPosition?: PerpPosition
 	): [PerpPosition, BN, BN] {
-		const orginalPosition = this.getPerpPosition(marketIndex);
+		originalPosition = originalPosition ?? this.getPerpPosition(marketIndex);
 
-		if (orginalPosition.lpShares.eq(ZERO)) {
-			return [orginalPosition, ZERO, ZERO];
+		if (originalPosition.lpShares.eq(ZERO)) {
+			return [originalPosition, ZERO, ZERO];
 		}
 
-		const position = this.getClonedPosition(orginalPosition);
+		const position = this.getClonedPosition(originalPosition);
 
 		const market = this.driftClient.getPerpMarketAccount(position.marketIndex);
 		const nShares = position.lpShares;
@@ -321,14 +322,11 @@ export class User {
 			.div(AMM_RESERVE_PRECISION);
 
 		function sign(v: BN) {
-			const sign = { true: new BN(1), false: new BN(-1) }[
-				v.gte(ZERO).toString()
-			];
-			return sign;
+			return v.isNeg() ? new BN(-1) : new BN(1);
 		}
 
-		function standardize(amount: BN, stepsize: BN) {
-			const remainder = amount.abs().mod(stepsize).mul(sign(amount));
+		function standardize(amount: BN, stepSize: BN) {
+			const remainder = amount.abs().mod(stepSize).mul(sign(amount));
 			const standardizedAmount = amount.sub(remainder);
 			return [standardizedAmount, remainder];
 		}
