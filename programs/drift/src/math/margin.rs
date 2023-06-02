@@ -14,7 +14,6 @@ use crate::{validate, PRICE_PRECISION_I128};
 
 use crate::math::casting::Cast;
 use crate::math::funding::calculate_funding_payment;
-use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::spot_balance::{
@@ -138,67 +137,16 @@ pub fn calculate_perp_position_value_and_pnl(
     with_bounds: bool,
     strict: bool,
 ) -> DriftResult<(u128, i128, u128)> {
-    let unrealized_funding = calculate_funding_payment(
-        if market_position.base_asset_amount > 0 {
-            market.amm.cumulative_funding_rate_long
-        } else {
-            market.amm.cumulative_funding_rate_short
-        },
-        market_position,
-    )?;
-
-    let market_position = if market_position.is_lp() {
-        // compute lp metrics
-        let lp_metrics = calculate_settle_lp_metrics(&market.amm, market_position)?;
-
-        // compute settled position
-        let base_asset_amount = market_position
-            .base_asset_amount
-            .safe_add(lp_metrics.base_asset_amount.cast()?)?;
-
-        let mut quote_asset_amount = market_position
-            .quote_asset_amount
-            .safe_add(lp_metrics.quote_asset_amount.cast()?)?;
-
-        // dust position in baa/qaa
-        if lp_metrics.remainder_base_asset_amount != 0 {
-            let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(
-                lp_metrics.remainder_base_asset_amount.cast()?,
-                oracle_price_data.price,
-            )?
-            .safe_add(1)?;
-
-            quote_asset_amount = quote_asset_amount.safe_sub(dust_base_asset_value.cast()?)?;
-        }
-
-        let (lp_bids, lp_asks) = calculate_lp_open_bids_asks(market_position, market)?;
-
-        let open_bids = market_position.open_bids.safe_add(lp_bids)?;
-
-        let open_asks = market_position.open_asks.safe_add(lp_asks)?;
-
-        PerpPosition {
-            base_asset_amount,
-            quote_asset_amount,
-            open_asks,
-            open_bids,
-            // todo double check: this is ok because no other values are used in the future computations
-            ..PerpPosition::default()
-        }
-    } else {
-        *market_position
-    };
-
     let valuation_price = if market.status == MarketStatus::Settlement {
         market.expiry_price
     } else {
         oracle_price_data.price
     };
 
-    let (_, unrealized_pnl) =
-        calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
+    let market_position = market_position.simulate_settled_lp_position(market, valuation_price)?;
 
-    let total_unrealized_pnl = unrealized_pnl.safe_add(unrealized_funding.cast()?)?;
+    let total_unrealized_pnl =
+        calculate_total_unrealized_perp_pnl(&market_position, market, valuation_price)?;
 
     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
 
@@ -238,9 +186,9 @@ pub fn calculate_perp_position_value_and_pnl(
     let unrealized_asset_weight =
         market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
 
-    let quote_price = if strict && unrealized_pnl > 0 {
+    let quote_price = if strict && total_unrealized_pnl > 0 {
         quote_oracle_price.min(quote_oracle_twap)
-    } else if strict && unrealized_pnl < 0 {
+    } else if strict && total_unrealized_pnl < 0 {
         quote_oracle_price.max(quote_oracle_twap)
     } else {
         quote_oracle_price
@@ -262,6 +210,26 @@ pub fn calculate_perp_position_value_and_pnl(
         weighted_unrealized_pnl,
         worse_case_base_asset_value,
     ))
+}
+
+pub fn calculate_total_unrealized_perp_pnl(
+    market_position: &PerpPosition,
+    market: &PerpMarket,
+    valuation_price: i64,
+) -> DriftResult<i128> {
+    let unrealized_funding = calculate_funding_payment(
+        if market_position.base_asset_amount > 0 {
+            market.amm.cumulative_funding_rate_long
+        } else {
+            market.amm.cumulative_funding_rate_short
+        },
+        market_position,
+    )?;
+
+    let (_, unrealized_pnl) =
+        calculate_base_asset_value_and_pnl_with_oracle_price(market_position, valuation_price)?;
+
+    unrealized_pnl.safe_add(unrealized_funding.cast()?)
 }
 
 pub fn calculate_user_safest_position_tiers(
@@ -924,4 +892,85 @@ pub fn validate_spot_margin_trading(
     )?;
 
     Ok(())
+}
+
+pub fn calculate_net_usd_value(
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+) -> DriftResult<(i128, bool)> {
+    let mut net_usd_value: i128 = 0;
+    let mut all_oracles_valid = true;
+
+    for spot_position in user.spot_positions.iter() {
+        if spot_position.is_available() {
+            continue;
+        }
+
+        let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
+        let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            &spot_market.oracle,
+            spot_market.historical_oracle_data.last_oracle_price_twap,
+        )?;
+        all_oracles_valid &=
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
+
+        let token_amount = spot_position.get_signed_token_amount(&spot_market)?;
+        let oracle_price = oracle_price_data.price;
+        let token_value = get_token_value(token_amount, spot_market.decimals, oracle_price)?;
+
+        net_usd_value = net_usd_value.safe_add(token_value)?;
+    }
+
+    for market_position in user.perp_positions.iter() {
+        if market_position.is_available() {
+            continue;
+        }
+
+        let market = &perp_market_map.get_ref(&market_position.market_index)?;
+
+        let quote_oracle_price = {
+            let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
+            let (quote_oracle_price_data, quote_oracle_validity) = oracle_map
+                .get_price_data_and_validity(
+                    &quote_spot_market.oracle,
+                    quote_spot_market
+                        .historical_oracle_data
+                        .last_oracle_price_twap,
+                )?;
+
+            all_oracles_valid &=
+                is_oracle_valid_for_action(quote_oracle_validity, Some(DriftAction::MarginCalc))?;
+
+            quote_oracle_price_data.price
+        };
+
+        let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            &market.amm.oracle,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
+        )?;
+
+        all_oracles_valid &=
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
+
+        let valuation_price = if market.status == MarketStatus::Settlement {
+            market.expiry_price
+        } else {
+            oracle_price_data.price
+        };
+
+        let market_position =
+            market_position.simulate_settled_lp_position(market, valuation_price)?;
+
+        let pnl = calculate_total_unrealized_perp_pnl(&market_position, market, valuation_price)?;
+
+        let pnl_value = pnl
+            .safe_mul(quote_oracle_price.cast()?)?
+            .safe_div(PRICE_PRECISION_I128)?;
+
+        net_usd_value = net_usd_value.safe_add(pnl_value)?;
+    }
+
+    Ok((net_usd_value, all_oracles_valid))
 }

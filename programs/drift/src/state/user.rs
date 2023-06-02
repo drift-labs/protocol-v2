@@ -7,14 +7,19 @@ use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT,
     PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
+use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::orders::{standardize_base_asset_amount, standardize_price};
-use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
+use crate::math::position::{
+    calculate_base_asset_value_and_pnl_with_oracle_price,
+    calculate_base_asset_value_with_oracle_price,
+};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math::stats::calculate_rolling_sum;
 use crate::math_error;
 use crate::safe_increment;
 use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
 use crate::validate;
@@ -572,6 +577,54 @@ impl PerpPosition {
 
     pub fn is_lp(&self) -> bool {
         self.lp_shares > 0
+    }
+
+    pub fn simulate_settled_lp_position(
+        &self,
+        market: &PerpMarket,
+        valuation_price: i64,
+    ) -> DriftResult<PerpPosition> {
+        if !self.is_lp() {
+            return Ok(*self);
+        }
+
+        // compute lp metrics
+        let lp_metrics = calculate_settle_lp_metrics(&market.amm, self)?;
+
+        // compute settled position
+        let base_asset_amount = self
+            .base_asset_amount
+            .safe_add(lp_metrics.base_asset_amount.cast()?)?;
+
+        let mut quote_asset_amount = self
+            .quote_asset_amount
+            .safe_add(lp_metrics.quote_asset_amount.cast()?)?;
+
+        // dust position in baa/qaa
+        if lp_metrics.remainder_base_asset_amount != 0 {
+            let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(
+                lp_metrics.remainder_base_asset_amount.cast()?,
+                valuation_price,
+            )?
+            .safe_add(1)?;
+
+            quote_asset_amount = quote_asset_amount.safe_sub(dust_base_asset_value.cast()?)?;
+        }
+
+        let (lp_bids, lp_asks) = calculate_lp_open_bids_asks(self, market)?;
+
+        let open_bids = self.open_bids.safe_add(lp_bids)?;
+
+        let open_asks = self.open_asks.safe_add(lp_asks)?;
+
+        Ok(PerpPosition {
+            base_asset_amount,
+            quote_asset_amount,
+            open_asks,
+            open_bids,
+            // todo double check: this is ok because no other values are used in the future computations
+            ..PerpPosition::default()
+        })
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {
