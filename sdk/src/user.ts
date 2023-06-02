@@ -45,7 +45,6 @@ import {
 	BN,
 	SpotMarketAccount,
 	getTokenValue,
-	MarketType,
 	getStrictTokenValue,
 	calculateSpotMarketMarginRatio,
 	getSignedTokenAmount,
