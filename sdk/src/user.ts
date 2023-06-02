@@ -1944,6 +1944,114 @@ export class User {
 		return tradeAmount;
 	}
 
+	/**
+	 * Calculates the max amount of token that can be swapped from inMarket to outMarket
+	 * Assumes swap happens at oracle price
+	 *
+	 * @param inMarketIndex
+	 * @param outMarketIndex
+	 * @param marginTradingEnabled
+	 */
+	public getMaxSwapAmount({
+		inMarketIndex,
+		outMarketIndex,
+		marginTradingEnabled = true,
+	}: {
+		inMarketIndex: number;
+		outMarketIndex: number;
+		marginTradingEnabled: boolean;
+	}): BN {
+		const inMarket = this.driftClient.getSpotMarketAccount(inMarketIndex);
+		const outMarket = this.driftClient.getSpotMarketAccount(outMarketIndex);
+
+		const inPrecision: BN = new BN(10).pow(new BN(inMarket.decimals));
+		const outPrecision: BN = new BN(10).pow(new BN(outMarket.decimals));
+
+		const inOraclePrice = this.getOracleDataForSpotMarket(inMarketIndex).price;
+		const outOraclePrice =
+			this.getOracleDataForSpotMarket(outMarketIndex).price;
+
+		// Assume asset/liability weight are symmetrical around 1
+		const inInitialAssetWeight = new BN(inMarket.initialAssetWeight);
+		const inInitialLiabilityWeight = new BN(inMarket.initialLiabilityWeight);
+		const outInitialAssetWeight = new BN(outMarket.initialAssetWeight);
+		const outInitialLiabilityWeight = new BN(outMarket.initialLiabilityWeight);
+
+		const outSaferThanIn = outInitialAssetWeight.gt(inInitialAssetWeight);
+
+		let freeCollateral = this.getFreeCollateral();
+		const inTokenAmount = this.getTokenAmount(inMarketIndex);
+		const outTokenAmount = this.getTokenAmount(outMarketIndex);
+
+		if (freeCollateral.lte(ZERO)) {
+			if (inTokenAmount.gt(ZERO) && outSaferThanIn) {
+				return inTokenAmount;
+			}
+
+			return ZERO;
+		}
+
+		let maxSwap = ZERO;
+
+		if (inTokenAmount) {
+			const swapOut = inTokenAmount
+				.mul(inOraclePrice)
+				.mul(outPrecision)
+				.div(outOraclePrice)
+				.div(inPrecision);
+
+			if (outTokenAmount.isNeg() && swapOut.gte(outTokenAmount.abs())) {
+				const inTokenAmountPayingLiability = outTokenAmount
+					.abs()
+					.mul(inTokenAmount)
+					.div(swapOut);
+
+				const freeCollateralDeltaPayingLiability = inTokenAmountPayingLiability
+					.mul(inOraclePrice)
+					.mul(outInitialLiabilityWeight.sub(inInitialAssetWeight))
+					.div(SPOT_MARKET_WEIGHT_PRECISION)
+					.div(inPrecision);
+
+				freeCollateral = freeCollateral.add(freeCollateralDeltaPayingLiability);
+
+				const freeCollateralDeltaRest = inTokenAmount
+					.sub(inTokenAmountPayingLiability)
+					.mul(inOraclePrice)
+					.mul(outInitialAssetWeight.sub(inInitialAssetWeight))
+					.div(SPOT_MARKET_WEIGHT_PRECISION)
+					.div(inPrecision);
+
+				maxSwap = inTokenAmount;
+			}
+		}
+
+		if (inTokenAmount.gt(ZERO) && outSaferThanIn) {
+			const freeCollateralDelta = inTokenAmount
+				.mul(inOraclePrice)
+				.mul(outInitialAssetWeight.sub(inInitialAssetWeight))
+				.div(SPOT_MARKET_WEIGHT_PRECISION)
+				.div(inPrecision);
+
+			freeCollateral = freeCollateral.add(freeCollateralDelta);
+			maxSwap = inTokenAmount;
+		}
+
+		const maxSwapDelta = freeCollateral
+			.mul(SPOT_MARKET_WEIGHT_PRECISION)
+			.mul(inPrecision)
+			.div(
+				inInitialAssetWeight.sub(outInitialAssetWeight).abs().mul(inOraclePrice)
+			);
+
+		maxSwap = maxSwap.add(maxSwapDelta);
+
+		if (!marginTradingEnabled) {
+			maxSwap = BN.min(maxSwap, BN.max(inTokenAmount, ZERO));
+		}
+
+		return maxSwap;
+	}
+
 	// TODO - should this take the price impact of the trade into account for strict accuracy?
 
 	/**
