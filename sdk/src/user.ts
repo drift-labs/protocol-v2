@@ -2052,6 +2052,60 @@ export class User {
 		return maxSwap;
 	}
 
+	calculateSpotPositionFreeCollateralContribution(
+		spotPosition: SpotPosition
+	): BN {
+		let freeCollateralContribution = ZERO;
+		const now = new BN(new Date().getTime() / 1000);
+		const strict = true;
+		const marginCategory = 'Initial';
+
+		const spotMarketAccount: SpotMarketAccount =
+			this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
+
+		const oraclePriceData = this.getOracleDataForSpotMarket(
+			spotPosition.marketIndex
+		);
+
+		const [worstCaseTokenAmount, worstCaseQuoteTokenAmount] =
+			getWorstCaseTokenAmounts(
+				spotPosition,
+				spotMarketAccount,
+				oraclePriceData
+			);
+
+		if (worstCaseTokenAmount.gt(ZERO)) {
+			const baseAssetValue = this.getSpotAssetValue(
+				worstCaseTokenAmount,
+				oraclePriceData,
+				spotMarketAccount,
+				marginCategory,
+				strict,
+				now
+			);
+
+			freeCollateralContribution =
+				freeCollateralContribution.add(baseAssetValue);
+		} else {
+			const baseLiabilityValue = this.getSpotLiabilityValue(
+				worstCaseTokenAmount,
+				oraclePriceData,
+				spotMarketAccount,
+				'Initial',
+				undefined,
+				strict,
+				now
+			).abs();
+
+			freeCollateralContribution =
+				freeCollateralContribution.sub(baseLiabilityValue);
+		}
+
+		freeCollateralContribution.add(worstCaseQuoteTokenAmount);
+
+		return freeCollateralContribution;
+	}
+
 	// TODO - should this take the price impact of the trade into account for strict accuracy?
 
 	/**
