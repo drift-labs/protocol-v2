@@ -2071,7 +2071,7 @@ export class User {
 		const error = QUOTE_PRECISION;
 
 		let freeCollateralAfter = freeCollateral;
-		while (freeCollateralAfter.abs().gt(error) || freeCollateralAfter.isNeg()) {
+		while (freeCollateralAfter.gt(error) || freeCollateralAfter.isNeg()) {
 			const inSwap = swap;
 			const outSwap = inSwap
 				.mul(outPrecision)
@@ -2103,7 +2103,7 @@ export class User {
 			if (freeCollateralAfter.gt(error)) {
 				minSwap = swap;
 				swap = minSwap.add(maxSwap).div(TWO);
-			} else if (freeCollateralAfter.abs().gt(error)) {
+			} else if (freeCollateralAfter.isNeg()) {
 				maxSwap = swap;
 				swap = minSwap.add(maxSwap).div(TWO);
 			}
