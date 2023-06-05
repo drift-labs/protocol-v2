@@ -34,6 +34,10 @@ export const divCeil = (a: BN, b: BN): BN => {
 	}
 };
 
+export const sigNum = (x: BN): BN => {
+	return x.isNeg() ? new BN(-1) : new BN(1);
+};
+
 /**
  * calculates the time remaining until the next update based on a rounded, "on-the-hour" update schedule
  * this schedule is used for Perpetual Funding Rate and Revenue -> Insurance Updates
