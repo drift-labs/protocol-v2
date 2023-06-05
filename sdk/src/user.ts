@@ -368,7 +368,7 @@ export class User {
 		let pnl;
 		if (updateType == 'open' || updateType == 'increase') {
 			newQuoteEntry = position.quoteEntryAmount.add(deltaQaa);
-			pnl = 0;
+			pnl = ZERO;
 		} else if (updateType == 'reduce' || updateType == 'close') {
 			newQuoteEntry = position.quoteEntryAmount.sub(
 				position.quoteEntryAmount
