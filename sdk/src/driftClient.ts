@@ -2369,26 +2369,21 @@ export class DriftClient {
 			referrerInfo
 		);
 
-		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
-
 		const walletSupportsVersionedTxns =
 			//@ts-ignore
 			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
 
 		// use versioned transactions if there is a lookup table account and wallet is compatible
-		if (walletSupportsVersionedTxns && lookupTableAccount && useVersionedTx) {
-			const versionedMarketOrderTx =
-				await this.txSender.getVersionedTransaction(
-					[placePerpOrderIx].concat(bracketOrderIxs),
-					[lookupTableAccount],
-					[],
-					this.opts
-				);
-			const versionedFillTx = await this.txSender.getVersionedTransaction(
+		if (walletSupportsVersionedTxns && useVersionedTx) {
+			const versionedMarketOrderTx = this.buildTransaction(
+				[placePerpOrderIx].concat(bracketOrderIxs),
+				txParams,
+				0
+			);
+			const versionedFillTx = await this.buildTransaction(
 				[fillPerpOrderIx],
-				[lookupTableAccount],
-				[],
-				this.opts
+				txParams,
+				0
 			);
 			const [signedVersionedMarketOrderTx, signedVersionedFillTx] =
 				await this.provider.wallet.signAllTransactions([
