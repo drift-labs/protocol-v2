@@ -5389,7 +5389,8 @@ export class DriftClient {
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
 				additionalSigners,
-				opts
+				opts,
+				preSigned
 			);
 		}
 	}

@@ -27,7 +27,8 @@ export interface TxSender {
 	sendVersionedTransaction(
 		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		preSigned?: boolean
 	): Promise<TxSigAndSlot>;
 
 	getVersionedTransaction(

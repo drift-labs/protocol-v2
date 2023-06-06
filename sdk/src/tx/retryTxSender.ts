@@ -117,11 +117,14 @@ export class RetryTxSender implements TxSender {
 	async sendVersionedTransaction(
 		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
 		let signedTx;
-		// @ts-ignore
-		if (this.provider.wallet.payer) {
+		if (preSigned) {
+			signedTx = tx;
+			// @ts-ignore
+		} else if (this.provider.wallet.payer) {
 			// @ts-ignore
 			tx.sign((additionalSigners ?? []).concat(this.provider.wallet.payer));
 			signedTx = tx;
