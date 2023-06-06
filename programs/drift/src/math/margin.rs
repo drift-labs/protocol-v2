@@ -894,7 +894,7 @@ pub fn validate_spot_margin_trading(
     Ok(())
 }
 
-pub fn calculate_net_usd_value(
+pub fn calculate_user_equity(
     user: &User,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
