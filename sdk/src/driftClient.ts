@@ -2375,7 +2375,7 @@ export class DriftClient {
 
 		// use versioned transactions if there is a lookup table account and wallet is compatible
 		if (walletSupportsVersionedTxns && useVersionedTx) {
-			const versionedMarketOrderTx = this.buildTransaction(
+			const versionedMarketOrderTx = await this.buildTransaction(
 				[placePerpOrderIx].concat(bracketOrderIxs),
 				txParams,
 				0
