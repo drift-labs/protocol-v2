@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+
+## [2.31.0] - 2023-06-06
+
+### Features
+
 - program: store if use has open orders/auctions on user account (([#480](https://github.com/drift-labs/protocol-v2/pull/480)))
 - program: add user perp lp jit liquidity toward a target base (([#448](https://github.com/drift-labs/protocol-v2/pull/448)))
 - ts-sdk: drift client will query rpc to find all markets/oracles if they're not explicitly specified (([#469](https://github.com/drift-labs/protocol-v2/pull/469)))
