@@ -77,5 +77,7 @@ export * from './userMap/userMap';
 export * from './userMap/userStatsMap';
 export * from './math/bankruptcy';
 export * from './orderSubscriber';
+export * from './auctionSubscriber';
+export * from './auctionSubscriber/types';
 
 export { BN, PublicKey, pyth };

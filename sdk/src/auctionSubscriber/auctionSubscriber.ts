@@ -17,6 +17,7 @@ export class AuctionSubscriber {
 	constructor({ driftClient, opts }: AuctionSubscriberConfig) {
 		this.driftClient = driftClient;
 		this.opts = opts || this.driftClient.opts;
+		this.eventEmitter = new EventEmitter();
 	}
 
 	public async subscribe() {
