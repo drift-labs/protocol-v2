@@ -5,7 +5,6 @@ import pyth from '@pythnetwork/client';
 export * from './tokenFaucet';
 export * from './oracles/types';
 export * from './oracles/pythClient';
-// export * from './oracles/switchboardClient';
 export * from './types';
 export * from './constants/perpMarkets';
 export * from './accounts/fetch';

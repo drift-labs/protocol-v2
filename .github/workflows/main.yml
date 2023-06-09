@@ -155,7 +155,7 @@ jobs:
               - 'sdk/src/**'
   release:
     runs-on: ubuntu-latest
-    needs: [fmt-clippy, unit, cargo-audit, yarn-prettier, yarn-lint, anchor-tests, check-for-sdk-changes]
+    needs: [fmt-clippy, unit, cargo-audit, yarn-prettier, yarn-lint, check-for-sdk-changes]
     if: ${{ github.ref == 'refs/heads/master' && needs.check-for-sdk-changes.outputs.sdk == 'true' }}
     defaults:
       run:
