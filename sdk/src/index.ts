@@ -59,6 +59,7 @@ export * from './serum/serumFulfillmentConfigMap';
 export * from './phoenix/phoenixSubscriber';
 export * from './phoenix/phoenixFulfillmentConfigMap';
 export * from './tx/retryTxSender';
+export * from './tx/types';
 export * from './util/computeUnits';
 export * from './util/tps';
 export * from './util/promiseTimeout';
@@ -77,6 +78,7 @@ export * from './userMap/userMap';
 export * from './userMap/userStatsMap';
 export * from './math/bankruptcy';
 export * from './orderSubscriber';
+export * from './orderSubscriber/types';
 export * from './auctionSubscriber';
 export * from './auctionSubscriber/types';
 
