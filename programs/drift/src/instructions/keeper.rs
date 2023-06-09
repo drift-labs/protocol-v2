@@ -7,6 +7,7 @@ use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, load_maps, AccountMaps,
 };
 use crate::load_mut;
+use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
@@ -28,6 +29,7 @@ use crate::state::spot_market_map::{
 use crate::state::state::State;
 use crate::state::user::{MarketType, OrderStatus, User, UserStats};
 use crate::state::user_map::load_user_maps;
+
 use crate::validate;
 use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math};
@@ -872,7 +874,19 @@ pub fn handle_resolve_perp_pnl_deficit(
             "Market is in settlement mode",
         )?;
 
-        controller::orders::validate_market_within_price_band(perp_market, state, true, None)?;
+        controller::orders::validate_market_within_price_band(
+            perp_market,
+            state,
+            true,
+            None,
+            Some(
+                perp_market
+                    .amm
+                    .historical_oracle_data
+                    .last_oracle_price
+                    .cast()?,
+            ),
+        )?;
 
         controller::insurance::resolve_perp_pnl_deficit(
             spot_market_vault_amount,

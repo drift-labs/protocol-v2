@@ -268,6 +268,8 @@ pub fn calculate_user_safest_position_tiers(
     user: &User,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    only_perps_with_negative_pnl: bool,
 ) -> DriftResult<(AssetTier, ContractTier)> {
     let mut safest_tier_spot_liablity: AssetTier = AssetTier::default();
     let mut safest_tier_perp_liablity: ContractTier = ContractTier::default();
@@ -285,6 +287,24 @@ pub fn calculate_user_safest_position_tiers(
             continue;
         }
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
+
+        if only_perps_with_negative_pnl {
+            let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+            let (_perp_margin_requirement, weighted_pnl, _worst_case_base_asset_value) =
+                calculate_perp_position_value_and_pnl(
+                    market_position,
+                    market,
+                    oracle_price_data,
+                    MarginRequirementType::Maintenance,
+                    0,
+                    true,
+                )?;
+
+            if weighted_pnl >= 0 {
+                continue;
+            }
+        }
+
         safest_tier_perp_liablity = min(safest_tier_perp_liablity, market.contract_tier);
     }
 

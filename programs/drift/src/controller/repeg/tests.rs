@@ -81,12 +81,12 @@ pub fn update_amm_test() {
         .historical_oracle_data
         .last_oracle_price_twap_5min = 18907668639;
     market.amm.historical_oracle_data.last_oracle_price_twap_ts = now - (167 + 6);
-    let oracle_reserve_price_spread_pct_before =
+    let oracle_ref_price_spread_pct_before =
         amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(reserve_price_before))
             .unwrap();
-    assert_eq!(oracle_reserve_price_spread_pct_before, -5316);
+    assert_eq!(oracle_ref_price_spread_pct_before, -5316);
     let too_diverge = amm::is_oracle_mark_too_divergent(
-        oracle_reserve_price_spread_pct_before,
+        oracle_ref_price_spread_pct_before,
         &state.oracle_guard_rails.price_divergence,
     )
     .unwrap();
@@ -122,14 +122,14 @@ pub fn update_amm_test() {
         16954113056
     ); // since manually set higher above
 
-    let oracle_reserve_price_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
+    let oracle_ref_price_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
         &market.amm,
         Some(reserve_price_after_prepeg),
     )
     .unwrap();
-    assert_eq!(oracle_reserve_price_spread_pct_before, -330370);
+    assert_eq!(oracle_ref_price_spread_pct_before, -330370);
     let too_diverge = amm::is_oracle_mark_too_divergent(
-        oracle_reserve_price_spread_pct_before,
+        oracle_ref_price_spread_pct_before,
         &state.oracle_guard_rails.price_divergence,
     )
     .unwrap();

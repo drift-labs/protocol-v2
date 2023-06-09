@@ -2444,28 +2444,28 @@ pub mod fulfill_order {
         };
 
         // valid initial state
-        assert!(validate_market_within_price_band(&market, &state, true, None).unwrap());
+        assert!(validate_market_within_price_band(&market, &state, true, None, None).unwrap());
 
         // twap_5min $50 and mark $100 breaches 10% divergence -> failure
         market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min = 50 * PRICE_PRECISION as i64;
-        assert!(validate_market_within_price_band(&market, &state, true, None).is_err());
+        assert!(validate_market_within_price_band(&market, &state, true, None, None).is_err());
 
         // within 60% ok -> success
         state
             .oracle_guard_rails
             .price_divergence
             .mark_oracle_divergence_numerator = 6;
-        assert!(validate_market_within_price_band(&market, &state, true, None).unwrap());
+        assert!(validate_market_within_price_band(&market, &state, true, None, None).unwrap());
 
         // twap_5min $20 and mark $100 breaches 60% divergence -> failure
         market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i64;
-        assert!(validate_market_within_price_band(&market, &state, true, None).is_err());
+        assert!(validate_market_within_price_band(&market, &state, true, None, None).is_err());
 
         // twap_5min $20 and mark $100 but risk reduction when already breached -> success
         market
@@ -2476,7 +2476,8 @@ pub mod fulfill_order {
             &market,
             &state,
             false,
-            Some(BID_ASK_SPREAD_PRECISION_I64 * 77 / 100)
+            Some(BID_ASK_SPREAD_PRECISION_I64 * 77 / 100),
+            None
         )
         .unwrap());
 
@@ -2489,7 +2490,8 @@ pub mod fulfill_order {
             &market,
             &state,
             false,
-            Some(BID_ASK_SPREAD_PRECISION_I64 * 51 / 100)
+            Some(BID_ASK_SPREAD_PRECISION_I64 * 51 / 100),
+            None
         )
         .is_err());
     }

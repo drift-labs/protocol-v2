@@ -12,7 +12,9 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_net_user_pnl;
 
 use crate::math::casting::Cast;
-use crate::math::margin::meets_maintenance_margin_requirement;
+use crate::math::margin::{
+    calculate_user_safest_position_tiers, meets_maintenance_margin_requirement,
+};
 use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -56,12 +58,12 @@ pub fn settle_pnl(
     }
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
+    let contract_tier = market.contract_tier;
+    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
-    validate_market_within_price_band(&market, state, true, None)?;
+    validate_market_within_price_band(&market, state, true, None, Some(oracle_price.cast()?))?;
 
     crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
-
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
     drop(market);
 
@@ -78,6 +80,21 @@ pub fn settle_pnl(
         )?
     {
         return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
+    }
+
+    {
+        let (_, safest_tier_perp_liability) = calculate_user_safest_position_tiers(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            true,
+        )?;
+
+        validate!(
+            contract_tier.is_as_safe_as_contract(&safest_tier_perp_liability),
+            ErrorCode::TierViolationLiquidatingPerpPnl
+        )?;
     }
 
     let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
