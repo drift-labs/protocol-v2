@@ -4309,6 +4309,26 @@ export class DriftClient {
 		}[],
 		marketIndexes: number[]
 	): Promise<TransactionSignature> {
+		const ixs = await this.getSettlePNLsIxs(users, marketIndexes);
+		const tx = new Transaction()
+			.add(
+				ComputeBudgetProgram.setComputeUnitLimit({
+					units: 1_000_000,
+				})
+			)
+			.add(...ixs);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getSettlePNLsIxs(
+		users: {
+			settleeUserAccountPublicKey: PublicKey;
+			settleeUserAccount: UserAccount;
+		}[],
+		marketIndexes: number[]
+	): Promise<Array<TransactionInstruction>> {
 		const ixs = [];
 		for (const { settleeUserAccountPublicKey, settleeUserAccount } of users) {
 			for (const marketIndex of marketIndexes) {
@@ -4322,16 +4342,7 @@ export class DriftClient {
 			}
 		}
 
-		const tx = new Transaction()
-			.add(
-				ComputeBudgetProgram.setComputeUnitLimit({
-					units: 1_000_000,
-				})
-			)
-			.add(...ixs);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
+		return ixs;
 	}
 
 	public async settlePNL(
