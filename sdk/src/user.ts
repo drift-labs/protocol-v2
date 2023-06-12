@@ -301,7 +301,10 @@ export class User {
 		marketIndex: number,
 		originalPosition?: PerpPosition
 	): [PerpPosition, BN, BN] {
-		originalPosition = originalPosition ?? this.getPerpPosition(marketIndex);
+		originalPosition =
+			originalPosition ??
+			this.getPerpPosition(marketIndex) ??
+			this.getEmptyPosition(marketIndex);
 
 		if (originalPosition.lpShares.eq(ZERO)) {
 			return [originalPosition, ZERO, ZERO];
