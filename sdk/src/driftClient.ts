@@ -95,6 +95,7 @@ import {
 	PRICE_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
+	QUOTE_PRECISION,
 } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
@@ -115,7 +116,6 @@ import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
 import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
 import { getNonIdleUserFilter } from './memcmp';
-import { QUOTE_PRECISION } from '@drift-labs/sdk';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
