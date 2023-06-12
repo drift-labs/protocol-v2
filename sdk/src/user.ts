@@ -1435,24 +1435,29 @@ export class User {
 		return netAssetValue.mul(TEN_THOUSAND).div(totalLiabilityValue);
 	}
 
-	public canBeLiquidated(): boolean {
+	public canBeLiquidated(): {
+		canBeLiquidated: boolean;
+		marginRequirement: BN;
+		totalCollateral: BN;
+	} {
 		const totalCollateral = this.getTotalCollateral('Maintenance');
 
 		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
 		let liquidationBuffer = undefined;
-		const isBeingLiquidated = isVariant(
-			this.getUserAccount().status,
-			'beingLiquidated'
-		);
-
-		if (isBeingLiquidated) {
+		if (this.isBeingLiquidated()) {
 			liquidationBuffer = new BN(
 				this.driftClient.getStateAccount().liquidationMarginBufferRatio
 			);
 		}
-		const maintenanceRequirement =
+		const marginRequirement =
 			this.getMaintenanceMarginRequirement(liquidationBuffer);
-		return totalCollateral.lt(maintenanceRequirement);
+		const canBeLiquidated = totalCollateral.lt(marginRequirement);
+
+		return {
+			canBeLiquidated,
+			marginRequirement,
+			totalCollateral,
+		};
 	}
 
 	public isBeingLiquidated(): boolean {
