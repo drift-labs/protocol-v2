@@ -115,6 +115,7 @@ import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
 import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
 import { getNonIdleUserFilter } from './memcmp';
+import { QUOTE_PRECISION } from '@drift-labs/sdk';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -2299,41 +2300,28 @@ export class DriftClient {
 	public getQuoteValuePerLpShare(marketIndex: number): BN {
 		const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
 
-		const openBidsPerLp = BN.max(
+		const openBids = BN.max(
 			perpMarketAccount.amm.baseAssetReserve.sub(
 				perpMarketAccount.amm.minBaseAssetReserve
 			),
 			ZERO
-		)
-			.mul(BASE_PRECISION)
-			.div(perpMarketAccount.amm.sqrtK);
+		);
 
-		const openAsksPerLp = BN.max(
+		const openAsks = BN.max(
 			perpMarketAccount.amm.maxBaseAssetReserve.sub(
 				perpMarketAccount.amm.baseAssetReserve
 			),
 			ZERO
-		)
-			.mul(BASE_PRECISION)
-			.div(perpMarketAccount.amm.sqrtK);
-
-		let maxLpB = perpMarketAccount.amm.sqrtK;
-		let maxLpA = perpMarketAccount.amm.sqrtK;
-
-		if (openBidsPerLp.gt(ZERO)) {
-			maxLpB = BASE_PRECISION.mul(BASE_PRECISION).div(openBidsPerLp);
-		}
-		if (openAsksPerLp.gt(ZERO)) {
-			maxLpA = BASE_PRECISION.mul(BASE_PRECISION).div(openAsksPerLp);
-		}
-
-		const lpSharesPerBase = BN.min(maxLpB, maxLpA);
+		);
 
 		const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
 
-		const quoteValuePerLpShare = lpSharesPerBase
+		const maxOpenBidsAsks = BN.max(openBids, openAsks);
+		const quoteValuePerLpShare = maxOpenBidsAsks
 			.mul(oraclePriceData.price)
-			.div(BASE_PRECISION);
+			.mul(QUOTE_PRECISION)
+			.div(PRICE_PRECISION)
+			.div(perpMarketAccount.amm.sqrtK);
 
 		return quoteValuePerLpShare;
 	}
