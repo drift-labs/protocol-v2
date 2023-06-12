@@ -30,6 +30,7 @@ export class RetryTxSender implements TxSender {
 	timeout: number;
 	retrySleep: number;
 	additionalConnections: Connection[];
+	timoutCount = 0;
 
 	public constructor(
 		provider: AnchorProvider,
@@ -260,6 +261,7 @@ export class RetryTxSender implements TxSender {
 		}
 
 		if (response === null) {
+			this.timoutCount += 1;
 			const duration = (Date.now() - start) / 1000;
 			throw new Error(
 				`Transaction was not confirmed in ${duration.toFixed(
@@ -324,5 +326,9 @@ export class RetryTxSender implements TxSender {
 		if (!alreadyUsingConnection) {
 			this.additionalConnections.push(newConnection);
 		}
+	}
+
+	public getTimeoutCount(): number {
+		return this.timoutCount;
 	}
 }

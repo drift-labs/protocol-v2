@@ -257,12 +257,7 @@ export class DriftClient {
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
-		this.txSender = new RetryTxSender(
-			this.provider,
-			config.txSenderConfig?.timeout,
-			config.txSenderConfig?.retrySleep,
-			config.txSenderConfig?.additionalConnections
-		);
+		this.txSender = config.txSender ?? new RetryTxSender(this.provider);
 	}
 
 	public getUserMapKey(subAccountId: number, authority: PublicKey): string {

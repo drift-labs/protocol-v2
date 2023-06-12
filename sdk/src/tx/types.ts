@@ -42,4 +42,6 @@ export interface TxSender {
 		rawTransaction: Buffer | Uint8Array,
 		opts: ConfirmOptions
 	): Promise<TxSigAndSlot>;
+
+	getTimeoutCount(): number;
 }

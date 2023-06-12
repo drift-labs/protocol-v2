@@ -8,6 +8,7 @@ import { IWallet } from './types';
 import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
+import { TxSender } from './tx/types';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -16,7 +17,7 @@ export type DriftClientConfig = {
 	programID?: PublicKey;
 	accountSubscription?: DriftClientSubscriptionConfig;
 	opts?: ConfirmOptions;
-	txSenderConfig?: TxSenderConfig;
+	txSender?: TxSender;
 	subAccountIds?: number[];
 	activeSubAccountId?: number;
 	perpMarketIndexes?: number[];
@@ -39,10 +40,3 @@ export type DriftClientSubscriptionConfig =
 			type: 'polling';
 			accountLoader: BulkAccountLoader;
 	  };
-
-type TxSenderConfig = {
-	type: 'retry';
-	timeout?: number;
-	retrySleep?: number;
-	additionalConnections?: Connection[];
-};
