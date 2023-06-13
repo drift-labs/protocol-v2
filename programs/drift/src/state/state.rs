@@ -3,8 +3,10 @@ use enumflags2::BitFlags;
 
 use crate::error::DriftResult;
 use crate::math::constants::{
-    FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
+    BID_ASK_SPREAD_PRECISION, FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR,
+    MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
 };
+use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
 
@@ -98,6 +100,18 @@ impl Default for OracleGuardRails {
                 too_volatile_ratio: 5,                // 5x or 80% down
             },
         }
+    }
+}
+
+impl OracleGuardRails {
+    pub fn default_divergence(&self) -> DriftResult<u64> {
+        let default_oracle_guard_rail_divergence: u64 = self
+            .price_divergence
+            .mark_oracle_divergence_numerator
+            .safe_mul(BID_ASK_SPREAD_PRECISION)?
+            .safe_div(self.price_divergence.mark_oracle_divergence_denominator)?;
+
+        Ok(default_oracle_guard_rail_divergence)
     }
 }
 

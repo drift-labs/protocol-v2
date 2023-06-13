@@ -28,9 +28,9 @@ use crate::math::amm_jit::calculate_amm_jit_liquidity;
 use crate::math::auction::calculate_auction_prices;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    BID_ASK_SPREAD_PRECISION_U128, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE,
-    MARGIN_PRECISION_U128, ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
+    BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
+    FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, MARGIN_PRECISION_U128, ONE_HOUR,
+    PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
 };
 use crate::math::fees::{ExternalFillFees, FillFees};
 use crate::math::fulfillment::{
@@ -1162,17 +1162,8 @@ pub fn validate_perp_market_within_price_band(
         market.amm.reserve_price()?
     };
 
-    let default_oracle_guard_rail_divergence: u64 = state
-        .oracle_guard_rails
-        .price_divergence
-        .mark_oracle_divergence_numerator
-        .safe_mul(BID_ASK_SPREAD_PRECISION)?
-        .safe_div(
-            state
-                .oracle_guard_rails
-                .price_divergence
-                .mark_oracle_divergence_denominator,
-        )?;
+    let default_oracle_guard_rail_divergence: u64 =
+        state.oracle_guard_rails.default_divergence()?;
 
     let max_divergence = default_oracle_guard_rail_divergence.max(
         market
@@ -1227,6 +1218,9 @@ pub fn validate_perp_market_within_price_band(
     Ok(true)
 }
 
+// spot orders can only fill within max of oracle_guard_rails divergence and margin ratio
+// vs the oracle_price_twap_5min
+// max(10%, 5x -> 20%) => 20% divergence vs
 pub fn validate_spot_market_within_price_band(
     spot_market: &SpotMarket,
     state: &State,
@@ -1243,17 +1237,8 @@ pub fn validate_spot_market_within_price_band(
 
     validate!(ref_price_after != 0, ErrorCode::InvalidOracle)?;
 
-    let default_oracle_guard_rail_divergence: u64 = state
-        .oracle_guard_rails
-        .price_divergence
-        .mark_oracle_divergence_numerator
-        .safe_mul(BID_ASK_SPREAD_PRECISION)?
-        .safe_div(
-            state
-                .oracle_guard_rails
-                .price_divergence
-                .mark_oracle_divergence_denominator,
-        )?;
+    let default_oracle_guard_rail_divergence: u64 =
+        state.oracle_guard_rails.default_divergence()?;
 
     let max_divergence = default_oracle_guard_rail_divergence.max(
         spot_market

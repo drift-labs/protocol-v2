@@ -147,15 +147,7 @@ pub fn get_oracle_status<'a>(
     )?;
     let oracle_reserve_price_spread_pct =
         amm::calculate_oracle_twap_5min_mark_spread_pct(amm, precomputed_reserve_price)?;
-    let max_divergence: u64 = guard_rails
-        .price_divergence
-        .mark_oracle_divergence_numerator
-        .safe_mul(BID_ASK_SPREAD_PRECISION)?
-        .safe_div(
-            guard_rails
-                .price_divergence
-                .mark_oracle_divergence_denominator,
-        )?;
+    let max_divergence: u64 = guard_rails.default_divergence()?;
 
     let is_oracle_mark_too_divergent =
         amm::is_oracle_mark_too_divergent(oracle_reserve_price_spread_pct, max_divergence)?;
