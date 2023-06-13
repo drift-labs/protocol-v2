@@ -4,7 +4,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { UserAccount } from '../types';
 
-export class CustomUserAccountSubscriber implements UserAccountSubscriber {
+export class MockUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 	userAccountPublicKey: PublicKey;
