@@ -172,6 +172,31 @@ pub mod drift {
         )
     }
 
+    pub fn begin_swap(
+        ctx: Context<Swap>,
+        in_market_index: u16,
+        out_market_index: u16,
+        amount_in: u64,
+    ) -> Result<()> {
+        handle_begin_swap(ctx, in_market_index, out_market_index, amount_in)
+    }
+
+    pub fn end_swap(
+        ctx: Context<Swap>,
+        in_market_index: u16,
+        out_market_index: u16,
+        limit_price: Option<u64>,
+        reduce_only: Option<SwapReduceOnly>,
+    ) -> Result<()> {
+        handle_end_swap(
+            ctx,
+            in_market_index,
+            out_market_index,
+            limit_price,
+            reduce_only,
+        )
+    }
+
     pub fn add_perp_lp_shares(
         ctx: Context<AddRemoveLiquidity>,
         n_shares: u64,
@@ -265,6 +290,10 @@ pub mod drift {
 
     pub fn update_user_idle(ctx: Context<UpdateUserIdle>) -> Result<()> {
         handle_update_user_idle(ctx)
+    }
+
+    pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {
+        handle_update_user_open_orders_count(ctx)
     }
 
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
@@ -799,6 +828,16 @@ pub mod drift {
         handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
     }
 
+    pub fn update_perp_market_target_base_asset_amount_per_lp(
+        ctx: Context<AdminUpdatePerpMarket>,
+        target_base_asset_amount_per_lp: i32,
+    ) -> Result<()> {
+        handle_update_perp_market_target_base_asset_amount_per_lp(
+            ctx,
+            target_base_asset_amount_per_lp,
+        )
+    }
+
     pub fn update_lp_cooldown_time(
         ctx: Context<AdminUpdateState>,
         lp_cooldown_time: u64,
@@ -966,4 +1005,16 @@ pub mod drift {
     ) -> Result<()> {
         handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
     }
+}
+
+#[cfg(not(feature = "no-entrypoint"))]
+use solana_security_txt::security_txt;
+#[cfg(not(feature = "no-entrypoint"))]
+security_txt! {
+    name: "Drift v2",
+    project_url: "https://drift.trade",
+    contacts: "link:https://docs.drift.trade/bug-bounty",
+    policy: "https://github.com/drift-labs/protocol-v2/blob/main/SECURITY.md",
+    preferred_languages: "en",
+    source_code: "https://github.com/drift-labs/protocol-v2"
 }

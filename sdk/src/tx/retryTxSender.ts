@@ -30,6 +30,7 @@ export class RetryTxSender implements TxSender {
 	timeout: number;
 	retrySleep: number;
 	additionalConnections: Connection[];
+	timoutCount = 0;
 
 	public constructor(
 		provider: AnchorProvider,
@@ -115,22 +116,34 @@ export class RetryTxSender implements TxSender {
 	}
 
 	async sendVersionedTransaction(
-		ixs: TransactionInstruction[],
-		lookupTableAccounts: AddressLookupTableAccount[],
+		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
-		const tx = await this.getVersionedTransaction(
-			ixs,
-			lookupTableAccounts,
-			additionalSigners,
-			opts
-		);
+		let signedTx;
+		if (preSigned) {
+			signedTx = tx;
+			// @ts-ignore
+		} else if (this.provider.wallet.payer) {
+			// @ts-ignore
+			tx.sign((additionalSigners ?? []).concat(this.provider.wallet.payer));
+			signedTx = tx;
+		} else {
+			additionalSigners
+				?.filter((s): s is Signer => s !== undefined)
+				.forEach((kp) => {
+					tx.sign([kp]);
+				});
+			// @ts-ignore
+			signedTx = await this.provider.wallet.signTransaction(tx);
+		}
 
-		// @ts-ignore
-		tx.sign(additionalSigners.concat(this.provider.wallet.payer));
+		if (opts === undefined) {
+			opts = this.provider.opts;
+		}
 
-		return this.sendRawTransaction(tx.serialize(), opts);
+		return this.sendRawTransaction(signedTx.serialize(), opts);
 	}
 
 	async sendRawTransaction(
@@ -248,6 +261,7 @@ export class RetryTxSender implements TxSender {
 		}
 
 		if (response === null) {
+			this.timoutCount += 1;
 			const duration = (Date.now() - start) / 1000;
 			throw new Error(
 				`Transaction was not confirmed in ${duration.toFixed(
@@ -312,5 +326,9 @@ export class RetryTxSender implements TxSender {
 		if (!alreadyUsingConnection) {
 			this.additionalConnections.push(newConnection);
 		}
+	}
+
+	public getTimeoutCount(): number {
+		return this.timoutCount;
 	}
 }

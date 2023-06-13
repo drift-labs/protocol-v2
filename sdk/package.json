@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.26.0-beta.1",
+	"version": "2.31.1-beta.5",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -18,7 +18,8 @@
 		"test:bignum": "mocha -r ts-node/register tests/bn/**/*.ts",
 		"patch-and-pub": "npm version patch --force && npm publish",
 		"prettify": "prettier --check './src/***/*.ts'",
-		"prettify:fix": "prettier --write './{src,tests}/***/*.ts'"
+		"prettify:fix": "prettier --write './{src,tests}/***/*.ts'",
+		"version": "node ./scripts/updateVersion.js"
 	},
 	"keywords": [
 		"drift-labs",
@@ -34,10 +35,10 @@
 	},
 	"dependencies": {
 		"@coral-xyz/anchor": "0.26.0",
-		"@ellipsis-labs/phoenix-sdk": "^1.3.2",
+		"@ellipsis-labs/phoenix-sdk": "^1.4.2",
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "2.5.3",
-		"@solana/spl-token": "^0.1.6",
+		"@solana/spl-token": "^0.3.7",
 		"@solana/web3.js": "1.73.2",
 		"strict-event-emitter-types": "^2.0.0",
 		"uuid": "^8.3.2"

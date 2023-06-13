@@ -22,7 +22,6 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { BulkAccountLoader, ExchangeStatus } from '../sdk';
 
 describe('user order id', () => {
@@ -53,9 +52,6 @@ describe('user order id', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
-
-	let discountMint: Token;
-	let discountTokenAccount: AccountInfo;
 
 	const marketIndex = 0;
 	let solUsd;
@@ -150,30 +146,6 @@ describe('user order id', () => {
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
 		await driftClientUser.subscribe();
-
-		discountMint = await Token.createMint(
-			connection,
-			// @ts-ignore
-			provider.wallet.payer,
-			provider.wallet.publicKey,
-			provider.wallet.publicKey,
-			6,
-			TOKEN_PROGRAM_ID
-		);
-
-		await driftClient.updateDiscountMint(discountMint.publicKey);
-
-		discountTokenAccount = await discountMint.getOrCreateAssociatedAccountInfo(
-			provider.wallet.publicKey
-		);
-
-		await discountMint.mintTo(
-			discountTokenAccount.address,
-			// @ts-ignore
-			provider.wallet.payer,
-			[],
-			1000 * 10 ** 6
-		);
 	});
 
 	after(async () => {

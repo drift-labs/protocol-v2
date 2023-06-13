@@ -874,6 +874,8 @@ fn update_pool_balances_revenue_to_fee_test() {
         spot_market.revenue_pool.scaled_balance,
         100 * SPOT_BALANCE_PRECISION
     );
+    assert_eq!(market.amm.total_fee_minus_distributions, -10000000000);
+
     update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
 
     assert_eq!(
@@ -1220,4 +1222,488 @@ fn update_pool_balances_revenue_to_fee_new_market() {
     market.insurance_claim.max_revenue_withdraw_per_period = 100000000 * 2;
     assert_eq!(spot_market.deposit_balance, 200 * SPOT_BALANCE_PRECISION);
     assert_eq!(spot_market.revenue_pool.scaled_balance, 50000000000);
+}
+
+mod revenue_pool_transfer_tests {
+    use crate::controller::amm::*;
+    use crate::math::constants::{
+        QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
+        SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    };
+    use crate::state::perp_market::{InsuranceClaim, PoolBalance};
+    use crate::state::spot_market::InsuranceFund;
+    #[test]
+    fn test_calculate_revenue_pool_transfer() {
+        // Set up input parameters
+        let mut market = PerpMarket {
+            amm: AMM {
+                total_social_loss: 0,
+                total_liquidation_fee: 0,
+                net_revenue_since_last_funding: 0,
+                total_fee_withdrawn: 0,
+                ..AMM::default()
+            },
+            insurance_claim: InsuranceClaim {
+                max_revenue_withdraw_per_period: 0,
+                revenue_withdraw_since_last_settle: 0,
+                quote_settled_insurance: 0,
+                quote_max_insurance: 0,
+                ..InsuranceClaim::default()
+            },
+            ..PerpMarket::default()
+        };
+        let mut spot_market = SpotMarket {
+            deposit_balance: 20020 * SPOT_BALANCE_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            revenue_pool: PoolBalance {
+                market_index: 0,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION,
+                ..PoolBalance::default()
+            },
+            decimals: 6,
+            ..SpotMarket::default()
+        };
+        let amm_fee_pool_token_amount_after = 0;
+        let terminal_state_surplus = 0;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert_eq!(result.unwrap(), 0);
+
+        let amm_fee_pool_token_amount_after = 0;
+        let terminal_state_surplus = 1;
+        let result: std::result::Result<i128, crate::error::ErrorCode> =
+            calculate_revenue_pool_transfer(
+                &market,
+                &spot_market,
+                amm_fee_pool_token_amount_after,
+                terminal_state_surplus,
+            );
+        assert_eq!(result.unwrap(), 0);
+
+        market.insurance_claim.max_revenue_withdraw_per_period = QUOTE_PRECISION_U64;
+        let result: std::result::Result<i128, crate::error::ErrorCode> =
+            calculate_revenue_pool_transfer(
+                &market,
+                &spot_market,
+                amm_fee_pool_token_amount_after,
+                terminal_state_surplus,
+            );
+        assert_eq!(result.unwrap(), -1000000); // take whole pool
+
+        market.insurance_claim.max_revenue_withdraw_per_period = 100 * QUOTE_PRECISION_U64;
+        let result: std::result::Result<i128, crate::error::ErrorCode> =
+            calculate_revenue_pool_transfer(
+                &market,
+                &spot_market,
+                amm_fee_pool_token_amount_after,
+                terminal_state_surplus,
+            );
+        assert_eq!(result.unwrap(), -100000000); // take whole pool
+
+        market.insurance_claim.max_revenue_withdraw_per_period = 1000 * QUOTE_PRECISION_U64;
+        let result: std::result::Result<i128, crate::error::ErrorCode> =
+            calculate_revenue_pool_transfer(
+                &market,
+                &spot_market,
+                amm_fee_pool_token_amount_after,
+                terminal_state_surplus,
+            );
+        assert_eq!(result.unwrap(), -100000000); // take whole pool
+
+        let terminal_state_surplus = 1000 * QUOTE_PRECISION_I128;
+        let result: std::result::Result<i128, crate::error::ErrorCode> =
+            calculate_revenue_pool_transfer(
+                &market,
+                &spot_market,
+                amm_fee_pool_token_amount_after,
+                terminal_state_surplus,
+            );
+        assert_eq!(result.unwrap(), 0); // take none
+
+        // Test case 2: When amm_budget_surplus is greater than zero and max_revenue_to_settle is greater than zero, revenue_pool_transfer should be greater than zero
+        market.amm.net_revenue_since_last_funding = 1000 * QUOTE_PRECISION_I64;
+        market.amm.total_fee_withdrawn = 500 * QUOTE_PRECISION;
+        market.amm.total_liquidation_fee = 300 * QUOTE_PRECISION;
+        market.insurance_claim.quote_max_insurance = 100 * QUOTE_PRECISION_U64;
+        market.insurance_claim.quote_settled_insurance = 50 * QUOTE_PRECISION_U64;
+        market.insurance_claim.revenue_withdraw_since_last_settle = 200 * QUOTE_PRECISION_I64;
+        market.insurance_claim.max_revenue_withdraw_per_period = 500 * QUOTE_PRECISION_U64;
+        let amm_fee_pool_token_amount_after = 300 * QUOTE_PRECISION;
+        let terminal_state_surplus = 1000 * QUOTE_PRECISION_I128;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert_eq!(result.unwrap(), 0); //todo?
+
+        let amm_fee_pool_token_amount_after = 300 * QUOTE_PRECISION;
+        let terminal_state_surplus = -500 * QUOTE_PRECISION_I128;
+        market.insurance_claim.max_revenue_withdraw_per_period = 20 * QUOTE_PRECISION_U64;
+        market.insurance_claim.revenue_withdraw_since_last_settle = 0;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert_eq!(result.unwrap(), -20000000);
+
+        // Test case 3: When amm_budget_surplus is less than zero and max_revenue_withdraw_allowed is equal to zero, revenue_pool_transfer should be zero.
+        let amm_fee_pool_token_amount_after = 300 * QUOTE_PRECISION;
+        let terminal_state_surplus = -500 * QUOTE_PRECISION_I128;
+        market.insurance_claim.max_revenue_withdraw_per_period = 0;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert_eq!(result.unwrap(), 0);
+
+        // Test case 4: When amm_budget_surplus is greater than zero and fee_pool_threshold is greater than max_revenue_to_settle, revenue_pool_transfer should be equal to max_revenue_to_settle.
+        let amm_fee_pool_token_amount_after = 500 * QUOTE_PRECISION;
+        let terminal_state_surplus = 1000 * QUOTE_PRECISION_I128;
+        market.insurance_claim.max_revenue_withdraw_per_period = 20 * QUOTE_PRECISION_U64;
+        market.amm.total_social_loss = 100 * QUOTE_PRECISION;
+        market.amm.total_exchange_fee = 3000 * QUOTE_PRECISION;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert_eq!(result.unwrap(), 20000000);
+
+        //Test case 5: When amm_budget_surplus is greater than zero and fee_pool_threshold is less than max_revenue_to_settle, revenue_pool_transfer should be equal to fee_pool_threshold.
+        let amm_fee_pool_token_amount_after = 500 * QUOTE_PRECISION;
+        let terminal_state_surplus = 1000 * QUOTE_PRECISION_I128;
+        market.insurance_claim.max_revenue_withdraw_per_period = 1000 * QUOTE_PRECISION_U64;
+        market.amm.total_social_loss = 100 * QUOTE_PRECISION;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert_eq!(result.unwrap(), 150000000);
+
+        //Test case 6: When total_liq_fees_for_revenue_pool is greater than total_fee_for_if, revenue_pool_transfer should be greater than zero.
+        let amm_fee_pool_token_amount_after = 500 * QUOTE_PRECISION;
+        let terminal_state_surplus = 1000 * QUOTE_PRECISION_I128;
+        market.insurance_claim.max_revenue_withdraw_per_period = 1000 * QUOTE_PRECISION_U64;
+        market.amm.total_social_loss = 100 * QUOTE_PRECISION;
+        market.amm.total_liquidation_fee = 800 * QUOTE_PRECISION;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert!(result.unwrap() > 0);
+
+        //Test case 7: When total_liq_fees_for_revenue_pool is less than total_fee_for_if, revenue_pool_transfer should be less than or equal to zero.
+        let amm_fee_pool_token_amount_after = 500 * QUOTE_PRECISION;
+        let terminal_state_surplus = 1000 * QUOTE_PRECISION_I128;
+        market.insurance_claim.max_revenue_withdraw_per_period = 1000 * QUOTE_PRECISION_U64;
+        market.amm.total_social_loss = 100 * QUOTE_PRECISION;
+        market.amm.total_liquidation_fee = 200 * QUOTE_PRECISION;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        let expected_result: i128 = (amm_fee_pool_token_amount_after
+            - market.amm.total_social_loss
+            - FEE_POOL_TO_REVENUE_POOL_THRESHOLD) as i128;
+        assert_eq!(result.unwrap(), expected_result);
+
+        //Test case 8: When total_social_loss is greater than fee_pool_threshold, revenue_pool_transfer should be zero.
+        let amm_fee_pool_token_amount_after = 500 * QUOTE_PRECISION;
+        let terminal_state_surplus = 1000 * QUOTE_PRECISION_I128;
+        market.insurance_claim.max_revenue_withdraw_per_period = 1000 * QUOTE_PRECISION_U64;
+        market.amm.total_social_loss = 600 * QUOTE_PRECISION;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert_eq!(result.unwrap(), 0);
+
+        //Test case 9: When total_social_loss is less than fee_pool_threshold and max_revenue_to_settle is less than fee_pool_threshold, revenue_pool_transfer should be equal to max_revenue_to_settle.
+        let amm_fee_pool_token_amount_after: u128 = 500 * QUOTE_PRECISION;
+        let terminal_state_surplus = 1000 * QUOTE_PRECISION_I128;
+        market.insurance_claim.max_revenue_withdraw_per_period = 40 * QUOTE_PRECISION_U64;
+        market.amm.total_social_loss = 100 * QUOTE_PRECISION;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert_eq!(result.unwrap(), 40000000);
+
+        //Test case 10: When total_social_loss is less than fee_pool_threshold and max_revenue_to_settle is greater than fee_pool_threshold, revenue_pool_transfer should be equal to fee_pool_threshold.
+        let amm_fee_pool_token_amount_after = 500 * QUOTE_PRECISION;
+        let terminal_state_surplus = 1000 * QUOTE_PRECISION_I128;
+        market.insurance_claim.max_revenue_withdraw_per_period = 1000 * QUOTE_PRECISION_U64;
+        market.amm.total_social_loss = 100 * QUOTE_PRECISION;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert_eq!(result.unwrap(), 150000000);
+
+        spot_market.revenue_pool.scaled_balance = 15000 * SPOT_BALANCE_PRECISION;
+
+        //Test case 11: claim max_revenue_withdraw_per_period
+        let amm_fee_pool_token_amount_after = 500 * QUOTE_PRECISION;
+        let terminal_state_surplus = -1000 * QUOTE_PRECISION_I128;
+        market.insurance_claim.max_revenue_withdraw_per_period = 1000 * QUOTE_PRECISION_U64;
+        market.amm.total_social_loss = 100 * QUOTE_PRECISION;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert_eq!(result.unwrap(), -1000000000);
+
+        //Test case 12: claim back up to FEE_POOL_TO_REVENUE_POOL_THRESHOLD
+        let amm_fee_pool_token_amount_after = 500 * QUOTE_PRECISION;
+        let terminal_state_surplus = -1000 * QUOTE_PRECISION_I128;
+        market.insurance_claim.max_revenue_withdraw_per_period = 2000 * QUOTE_PRECISION_U64;
+        market.amm.total_social_loss = 100 * QUOTE_PRECISION;
+        let result = calculate_revenue_pool_transfer(
+            &market,
+            &spot_market,
+            amm_fee_pool_token_amount_after,
+            terminal_state_surplus,
+        );
+        assert_eq!(result.unwrap(), -1250000000);
+    }
+
+    #[test]
+    fn test_update_postive_last_revenue_withdraw_ts() {
+        // Set up input parameters
+        let mut market = PerpMarket {
+            amm: AMM {
+                total_social_loss: 0,
+                total_liquidation_fee: 0,
+                total_fee_withdrawn: 0,
+                net_revenue_since_last_funding: 169 * QUOTE_PRECISION_I64,
+                total_fee_minus_distributions: 1420420420420,
+                total_exchange_fee: 420420420420,
+                fee_pool: PoolBalance {
+                    scaled_balance: 81000 * SPOT_BALANCE_PRECISION,
+                    ..PoolBalance::default()
+                },
+                ..AMM::default()
+            },
+            pnl_pool: PoolBalance {
+                scaled_balance: 10000 * SPOT_BALANCE_PRECISION,
+                ..PoolBalance::default()
+            },
+            insurance_claim: InsuranceClaim {
+                max_revenue_withdraw_per_period: 65000000,
+                revenue_withdraw_since_last_settle: 0,
+                quote_settled_insurance: 0,
+                quote_max_insurance: 1000,
+                ..InsuranceClaim::default()
+            },
+            ..PerpMarket::default()
+        };
+        let mut spot_market = SpotMarket {
+            deposit_balance: 20020 * SPOT_BALANCE_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            revenue_pool: PoolBalance {
+                market_index: 0,
+                scaled_balance: 10000 * SPOT_BALANCE_PRECISION,
+                ..PoolBalance::default()
+            },
+            insurance_fund: InsuranceFund {
+                revenue_settle_period: 3600,
+                ..InsuranceFund::default()
+            },
+            decimals: 6,
+            ..SpotMarket::default()
+        };
+
+        // would lead to a borrow
+        let spot_position = SpotPosition::default();
+        let unsettled_pnl = -100;
+        let now = 100;
+        let to_settle_with_user = update_pool_balances(
+            &mut market,
+            &mut spot_market,
+            &spot_position,
+            unsettled_pnl,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(to_settle_with_user, -100);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 100);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 10065000000000);
+
+        // revenue pool not yet settled
+        let now = 10000;
+        let to_settle_with_user = update_pool_balances(
+            &mut market,
+            &mut spot_market,
+            &spot_position,
+            unsettled_pnl,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(to_settle_with_user, -100);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 100);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 10065000000000);
+
+        // revenue pool settled but negative revenue for hour
+        spot_market.insurance_fund.last_revenue_settle_ts = 3600 + 100;
+        market.amm.net_revenue_since_last_funding = -169;
+
+        let now = 10000;
+        let to_settle_with_user = update_pool_balances(
+            &mut market,
+            &mut spot_market,
+            &spot_position,
+            unsettled_pnl,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(to_settle_with_user, -100);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 100);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 10065000000000);
+
+        // revenue pool settled and positive revenue for hour
+        spot_market.insurance_fund.last_revenue_settle_ts = 3600 + 100;
+        market.amm.net_revenue_since_last_funding = 169;
+
+        let now = 10000;
+        let to_settle_with_user = update_pool_balances(
+            &mut market,
+            &mut spot_market,
+            &spot_position,
+            unsettled_pnl,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(to_settle_with_user, -100);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 10000);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 10065000169000);
+    }
+
+    #[test]
+    fn test_update_negative_last_revenue_withdraw_ts() {
+        // Set up input parameters
+        let mut market = PerpMarket {
+            amm: AMM {
+                total_social_loss: 0,
+                total_liquidation_fee: 0,
+                total_fee_withdrawn: 0,
+                net_revenue_since_last_funding: 169 * QUOTE_PRECISION_I64,
+                total_fee_minus_distributions: -6969696969,
+                total_exchange_fee: 420420420420,
+                fee_pool: PoolBalance {
+                    scaled_balance: 81000 * SPOT_BALANCE_PRECISION,
+                    ..PoolBalance::default()
+                },
+                ..AMM::default()
+            },
+            pnl_pool: PoolBalance {
+                scaled_balance: 10000 * SPOT_BALANCE_PRECISION,
+                ..PoolBalance::default()
+            },
+            insurance_claim: InsuranceClaim {
+                max_revenue_withdraw_per_period: 65000000,
+                revenue_withdraw_since_last_settle: 0,
+                quote_settled_insurance: 0,
+                quote_max_insurance: 1000,
+                ..InsuranceClaim::default()
+            },
+            ..PerpMarket::default()
+        };
+        let mut spot_market = SpotMarket {
+            deposit_balance: 20020000 * SPOT_BALANCE_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            revenue_pool: PoolBalance {
+                market_index: 0,
+                scaled_balance: 10000 * SPOT_BALANCE_PRECISION,
+                ..PoolBalance::default()
+            },
+            insurance_fund: InsuranceFund {
+                revenue_settle_period: 3600,
+                ..InsuranceFund::default()
+            },
+            decimals: 6,
+            ..SpotMarket::default()
+        };
+
+        // would lead to a borrow
+        let spot_position = SpotPosition::default();
+        let unsettled_pnl = -100;
+        let now = 100;
+        let to_settle_with_user = update_pool_balances(
+            &mut market,
+            &mut spot_market,
+            &spot_position,
+            unsettled_pnl,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(to_settle_with_user, -100);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 100);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 9935000000000);
+
+        // revenue pool not yet settled
+        let now = 10000;
+        let to_settle_with_user = update_pool_balances(
+            &mut market,
+            &mut spot_market,
+            &spot_position,
+            unsettled_pnl,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(to_settle_with_user, -100);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 100);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 9935000000000);
+
+        // revenue pool settled and negative/positive revenue for hour irrelevant for withdraw
+        spot_market.insurance_fund.last_revenue_settle_ts = 3600 + 100;
+        market.amm.net_revenue_since_last_funding = -169;
+
+        let now = 10000;
+        let to_settle_with_user = update_pool_balances(
+            &mut market,
+            &mut spot_market,
+            &spot_position,
+            unsettled_pnl,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(to_settle_with_user, -100);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 10000);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 9870000000000);
+    }
 }

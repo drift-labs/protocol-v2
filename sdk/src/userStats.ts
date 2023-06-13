@@ -25,6 +25,10 @@ export class UserStats {
 				config.userStatsAccountPublicKey,
 				config.accountSubscription.accountLoader
 			);
+		} else if (config.accountSubscription?.type === 'custom') {
+			throw new Error(
+				'Custom account subscription not yet implemented for user stats'
+			);
 		} else {
 			this.accountSubscriber = new WebSocketUserStatsAccountSubscriber(
 				config.driftClient.program,

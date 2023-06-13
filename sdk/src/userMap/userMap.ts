@@ -18,7 +18,7 @@ import {
 
 import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import bs58 from 'bs58';
+import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 
 export interface UserMapInterface {
 	subscribe(): Promise<void>;
@@ -45,10 +45,16 @@ export class UserMap implements UserMapInterface {
 		}
 	};
 
+	/**
+	 *
+	 * @param driftClient
+	 * @param accountSubscription
+	 * @param includeIdle whether idle users are subscribed to. defaults to false to decrease # of user subscriptions
+	 */
 	constructor(
 		driftClient: DriftClient,
 		accountSubscription: UserSubscriptionConfig,
-		includeIdle = true
+		includeIdle = false
 	) {
 		this.driftClient = driftClient;
 		this.accountSubscription = accountSubscription;
@@ -182,28 +188,16 @@ export class UserMap implements UserMapInterface {
 	}
 
 	public async sync() {
-		let filters = undefined;
+		const filters = [getUserFilter()];
 		if (!this.includeIdle) {
-			filters = [
-				{
-					memcmp: {
-						offset: 4350,
-						bytes: bs58.encode(Uint8Array.from([0])),
-					},
-				},
-			];
+			filters.push(getNonIdleUserFilter());
 		}
 
 		const rpcRequestArgs = [
 			this.driftClient.program.programId.toBase58(),
 			{
 				commitment: this.driftClient.connection.commitment,
-				filters: [
-					{
-						memcmp: this.driftClient.program.coder.accounts.memcmp('User'),
-					},
-					...(Array.isArray(filters) ? filters : []),
-				],
+				filters,
 				encoding: 'base64',
 				withContext: true,
 			},

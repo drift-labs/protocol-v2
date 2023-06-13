@@ -9,11 +9,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+
+## [2.31.0] - 2023-06-06
+
+### Features
+
+- program: store if use has open orders/auctions on user account (([#480](https://github.com/drift-labs/protocol-v2/pull/480)))
+- program: add user perp lp jit liquidity toward a target base (([#448](https://github.com/drift-labs/protocol-v2/pull/448)))
+- ts-sdk: drift client will query rpc to find all markets/oracles if they're not explicitly specified (([#469](https://github.com/drift-labs/protocol-v2/pull/469)))
+- ts-sdk: fix client borrow interest rate calculation (([#479](https://github.com/drift-labs/protocol-v2/pull/479)))
+
+### Fixes
+
+- program: fix settle lp position math error for large step sizes (([#473](https://github.com/drift-labs/protocol-v2/pull/473)))
+
+### Breaking
+
+- ts-sdk: user map default excludes idle users (([#471](https://github.com/drift-labs/protocol-v2/pull/471)))
+
+## [2.30.0] - 2023-05-18
+
+### Features
+
+- program: allow up to 7500 subaccounts
+- program: allow users to swap on jupiter inside of drift account ([#462](https://github.com/drift-labs/protocol-v2/pull/462))
+- ts-sdk: add mSOL spot market ([#467](https://github.com/drift-labs/protocol-v2/pull/467))
+
+### Fixes
+
+### Breaking
+
+## [2.29.0] - 2023-05-12
+
+### Features
+
+- sdk: expose method in account subscriber to change polling frequency
+
+### Fixes
+
+### Breaking
+
+- program: modify_order and modify_order_by_id now expect a ModifyOrderPolicy ([#461](https://github.com/drift-labs/protocol-v2/pull/461))
+- program: cancel_order does not fail if order does not exist ([#461](https://github.com/drift-labs/protocol-v2/pull/461))
+
+## [2.28.0] - 2023-05-11
+
+### Features
+
+- program: add precision docs to the state accounts ([#452](https://github.com/drift-labs/protocol-v2/pull/452))
+
+### Fixes
+
+### Breaking
+
+- ts-sdk: driftClient.getTokenAmount now returns negative for borrows ([#452](https://github.com/drift-labs/protocol-v2/pull/452))
+- ts-sdk: txSender.sendVersionedTransaction now expects VersionedTransaction ([#452](https://github.com/drift-labs/protocol-v2/pull/452))
+
+## [2.27.0] - 2023-05-02
+
+### Features
+
+- ts-sdk: add SUI perp market ([#453](https://github.com/drift-labs/protocol-v2/pull/453))
+
+### Fixes
+
+### Breaking
+
+## [2.26.0] - 2023-05-02
+
+### Features
+
+- program: use forked version of anchor 0.26.0 that supports large idls ([#451](https://github.com/drift-labs/protocol-v2/pull/451))
+- program: add security.txt ([#450](https://github.com/drift-labs/protocol-v2/pull/450))
+- program: add L2 and L3 view of DLOB ([#445](https://github.com/drift-labs/protocol-v2/pull/445))
 - ts-sdk: new DLOBSubscriber class to keep updated DLOB ([#439](https://github.com/drift-labs/protocol-v2/pull/439))
 - program: add support for phoenix spot markets ([#437](https://github.com/drift-labs/protocol-v2/pull/437))
 - sdk: ability to add stake from subaccount
 - ts-sdk: Add phoenix subscriber ([#444](https://github.com/drift-labs/protocol-v2/pull/444))
-    
+- sdk: driftClient allows subscription to delegate accounts; pass includeDelegates or authoritySubaccountMap to constructor/updateWallet ([#432](https://github.com/drift-labs/protocol-v2/pull/432))
+
 ### Fixes
 
 - program: check max_token_deposits at the end of fill_spot_order ([#441](https://github.com/drift-labs/protocol-v2/pull/441))
@@ -21,6 +99,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: allow amm to pull up to FEE_POOL_TO_REVENUE_POOL_THRESHOLD into fee pool ([#436](https://github.com/drift-labs/protocol-v2/pull/436))
 - program: fix modify order trigger condition
 - sdk: fix removing unstaked sol
+- program: fix math error in settle_revenue_to_insurance_fund for large sizes ([#443](https://github.com/drift-labs/protocol-v2/pull/443))
+- program: fix revenue pool corner case for updating last_revenue_withdraw_ts ([#447](https://github.com/drift-labs/protocol-v2/pull/447))
 
 ### Breaking
 

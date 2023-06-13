@@ -22,9 +22,9 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
+use crate::math::amm_jit::calculate_amm_jit_liquidity;
 use crate::math::auction::calculate_auction_prices;
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -49,6 +49,7 @@ use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::{controller, PostOnlyParam};
 use crate::{get_struct_values, ModifyOrderParams};
+use crate::{get_then_update_id, ModifyOrderPolicy};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -58,7 +59,7 @@ use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::{MarketStatus, PerpMarket};
+use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -80,6 +81,8 @@ mod tests;
 
 #[cfg(test)]
 mod amm_jit_tests;
+#[cfg(test)]
+mod amm_lp_jit_tests;
 
 pub fn place_perp_order(
     state: &State,
@@ -264,6 +267,7 @@ pub fn place_perp_order(
         Err(err) => return Err(err),
     };
 
+    user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.perp_positions[position_index].open_orders += 1;
     if !new_order.must_be_triggered() {
@@ -495,7 +499,7 @@ pub fn cancel_order_by_order_id(
         Ok(order_index) => order_index,
         Err(_) => {
             msg!("could not find order id {}", order_id);
-            return Err(ErrorCode::InvalidOrder);
+            return Ok(());
         }
     };
 
@@ -537,7 +541,7 @@ pub fn cancel_order_by_user_order_id(
         Some(order_index) => order_index,
         None => {
             msg!("could not find user order id {}", user_order_id);
-            return Err(ErrorCode::InvalidOrder);
+            return Ok(());
         }
     };
 
@@ -587,9 +591,6 @@ pub fn cancel_order(
 
     validate!(order_status == OrderStatus::Open, ErrorCode::OrderNotOpen)?;
 
-    // When save in the record, we want the status to be canceled
-    user.orders[order_index].status = OrderStatus::Canceled;
-
     let oracle = if is_perp_order {
         perp_market_map.get_ref(&order_market_index)?.amm.oracle
     } else {
@@ -624,6 +625,7 @@ pub fn cancel_order(
         emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
 
+    user.decrement_open_orders(user.orders[order_index].has_auction());
     if is_perp_order {
         // Decrement open orders for existing position
         let position_index = get_position_index(&user.perp_positions, order_market_index)?;
@@ -678,18 +680,34 @@ pub fn modify_order(
 ) -> DriftResult {
     let user_key = user_loader.key();
     let mut user = load_mut!(user_loader)?;
+
     let order_index = match order_id {
-        ModifyOrderId::UserOrderId(user_order_id) => user
-            .get_order_index_by_user_order_id(user_order_id)
-            .map_err(|e| {
-                msg!("User order id {} not found", user_order_id);
-                e
-            })?,
-        ModifyOrderId::OrderId(order_id) => user.get_order_index(order_id).map_err(|e| {
-            msg!("Order id {} not found", order_id);
-            e
-        })?,
+        ModifyOrderId::UserOrderId(user_order_id) => {
+            match user.get_order_index_by_user_order_id(user_order_id) {
+                Ok(order_index) => order_index,
+                Err(e) => {
+                    msg!("User order id {} not found", user_order_id);
+                    if modify_order_params.policy == Some(ModifyOrderPolicy::MustModify) {
+                        return Err(e);
+                    } else {
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        ModifyOrderId::OrderId(order_id) => match user.get_order_index(order_id) {
+            Ok(order_index) => order_index,
+            Err(e) => {
+                msg!("Order id {} not found", order_id);
+                if modify_order_params.policy == Some(ModifyOrderPolicy::MustModify) {
+                    return Err(e);
+                } else {
+                    return Ok(());
+                }
+            }
+        },
     };
+
     let existing_order = user.orders[order_index];
 
     cancel_order(
@@ -1018,6 +1036,7 @@ pub fn fill_perp_order(
             filler_reward,
             false,
         )?;
+
         return Ok((0, true));
     }
 
@@ -1560,7 +1579,7 @@ fn fulfill_perp_order(
                         fee_structure,
                         None,
                         *maker_price,
-                        true,
+                        AMMLiquiditySplit::Shared,
                     )?;
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1758,7 +1777,7 @@ pub fn fulfill_perp_order_with_amm(
     fee_structure: &FeeStructure,
     override_base_asset_amount: Option<u64>,
     override_fill_price: Option<u64>,
-    split_with_lps: bool,
+    liquidity_split: AMMLiquiditySplit,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
 
@@ -1874,8 +1893,13 @@ pub fn fulfill_perp_order_with_amm(
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
-    if split_with_lps {
-        update_lp_market_position(market, &user_position_delta, fee_to_market_for_lp.cast()?)?;
+    if liquidity_split != AMMLiquiditySplit::ProtocolOwned {
+        update_lp_market_position(
+            market,
+            &user_position_delta,
+            fee_to_market_for_lp.cast()?,
+            liquidity_split,
+        )?;
     }
 
     if market.amm.user_lp_shares > 0 {
@@ -1970,12 +1994,10 @@ pub fn fulfill_perp_order_with_amm(
         get_taker_and_maker_for_order_record(user_key, &user.orders[order_index]);
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
-    let order_action_explanation =
-        if override_base_asset_amount.is_some() && override_fill_price.is_some() {
-            OrderActionExplanation::OrderFilledWithAMMJit
-        } else {
-            OrderActionExplanation::OrderFilledWithAMM
-        };
+    let order_action_explanation = match (override_base_asset_amount, override_fill_price) {
+        (Some(_), Some(_)) => liquidity_split.get_order_action_explanation(),
+        _ => OrderActionExplanation::OrderFilledWithAMM,
+    };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
@@ -2001,6 +2023,7 @@ pub fn fulfill_perp_order_with_amm(
 
     // Cant reset order until after its logged
     if user.orders[order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        user.decrement_open_orders(user.orders[order_index].has_auction());
         user.orders[order_index] = Order::default();
         let market_position = &mut user.perp_positions[position_index];
         market_position.open_orders -= 1;
@@ -2108,51 +2131,44 @@ pub fn fulfill_perp_order_with_match(
         sanitize_clamp_denominator,
     )?;
 
-    let amm_wants_to_make = match taker_direction {
-        PositionDirection::Long => market.amm.base_asset_amount_with_amm < 0,
-        PositionDirection::Short => market.amm.base_asset_amount_with_amm > 0,
-    } && market.amm.amm_jit_is_active();
-
-    // taker has_limit_price = false means (limit price = 0 AND auction is complete) so
-    // market order will always land and fill on amm next round
-    let amm_will_fill_next_round = !taker.orders[taker_order_index].has_limit_price(slot)?
-        && maker_base_asset_amount < taker_base_asset_amount;
-
     let mut total_quote_asset_amount = 0_u64;
-    if amm_wants_to_make && !amm_will_fill_next_round {
-        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+
+    let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
+        market,
+        taker_direction,
+        maker_price,
+        valid_oracle_price,
+        base_asset_amount,
+        taker_base_asset_amount,
+        maker_base_asset_amount,
+        taker.orders[taker_order_index].has_limit_price(slot)?,
+    )?;
+
+    if jit_base_asset_amount > 0 {
+        let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
+            taker,
+            taker_stats,
+            taker_order_index,
             market,
-            base_asset_amount,
-            maker_price,
+            oracle_map,
+            reserve_price_before,
+            now,
+            slot,
             valid_oracle_price,
-            taker_direction,
+            taker_key,
+            filler_key,
+            filler,
+            filler_stats,
+            &mut None,
+            &mut None,
+            fee_structure,
+            Some(jit_base_asset_amount),
+            Some(maker_price), // match the makers price
+            amm_liquidity_split,
         )?;
 
-        if jit_base_asset_amount > 0 {
-            let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
-                taker,
-                taker_stats,
-                taker_order_index,
-                market,
-                oracle_map,
-                reserve_price_before,
-                now,
-                slot,
-                valid_oracle_price,
-                taker_key,
-                filler_key,
-                filler,
-                filler_stats,
-                &mut None,
-                &mut None,
-                fee_structure,
-                Some(jit_base_asset_amount),
-                Some(maker_price), // match the makers price
-                false,             // dont split with the lps
-            )?;
-            total_quote_asset_amount = quote_asset_amount_filled_by_amm;
-        };
-    };
+        total_quote_asset_amount = quote_asset_amount_filled_by_amm
+    }
 
     let taker_existing_position = taker
         .get_perp_position(market.market_index)?
@@ -2382,12 +2398,14 @@ pub fn fulfill_perp_order_with_match(
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
         taker.orders[taker_order_index] = Order::default();
         let market_position = &mut taker.perp_positions[taker_position_index];
         market_position.open_orders -= 1;
     }
 
     if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        maker.decrement_open_orders(false);
         maker.orders[maker_order_index] = Order::default();
         let market_position = &mut maker.perp_positions[maker_position_index];
         market_position.open_orders -= 1;
@@ -2894,7 +2912,7 @@ pub fn place_spot_order(
 
     let market_index = params.market_index;
     let spot_market = &spot_market_map.get_ref(&market_index)?;
-    let force_reduce_only = spot_market.is_reduce_only()?;
+    let force_reduce_only = spot_market.is_reduce_only();
     let step_size = spot_market.order_step_size;
 
     validate!(
@@ -3021,6 +3039,7 @@ pub fn place_spot_order(
         spot_market.min_order_size,
     )?;
 
+    user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.spot_positions[spot_position_index].open_orders += 1;
     if !new_order.must_be_triggered() {
@@ -3134,13 +3153,7 @@ pub fn fill_spot_order(
     {
         let spot_market = spot_market_map.get_ref(&order_market_index)?;
         validate!(
-            matches!(
-                spot_market.status,
-                MarketStatus::Active
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::ReduceOnly
-                    | MarketStatus::WithdrawPaused
-            ),
+            spot_market.fills_enabled(),
             ErrorCode::MarketFillOrderPaused,
             "Market unavailable for fills"
         )?;
@@ -3338,29 +3351,15 @@ pub fn fill_spot_order(
         )?
     }
 
-    {
-        let spot_market = spot_market_map.get_ref(&order_market_index)?;
-        let token_deposits: u64 = spot_market.get_deposits()?.cast()?;
-        let max_token_deposits = spot_market.max_token_deposits;
+    spot_market_map
+        .get_ref(&order_market_index)?
+        .validate_max_token_deposits()?;
 
-        validate!(
-            max_token_deposits == 0 || max_token_deposits > token_deposits,
-            ErrorCode::MaxDeposit,
-            "after fill, token_deposits ({}) > max_token_deposits ({})",
-            token_deposits,
-            max_token_deposits
-        )?;
-        crate::dlog!(spot_market.historical_oracle_data.last_oracle_price);
-        crate::dlog!(spot_market.historical_oracle_data.last_oracle_price_twap);
-        crate::dlog!(
-            spot_market
-                .historical_oracle_data
-                .last_oracle_price_twap_5min
-        );
-        crate::dlog!(spot_market.historical_oracle_data.last_oracle_price_twap_ts);
-
-        validate_spot_market_within_price_band(&spot_market, state, None)?;
-    }
+    validate_spot_market_within_price_band(
+        &*spot_market_map.get_ref(&order_market_index)?,
+        state,
+        None,
+    )?;
 
     user.update_last_active_slot(slot);
 
@@ -3701,7 +3700,10 @@ pub fn fulfill_spot_order_with_match(
     let taker_token_amount =
         taker.spot_positions[taker_spot_position_index].get_signed_token_amount(base_market)?;
     let taker_base_asset_amount = taker.orders[taker_order_index]
-        .get_base_asset_amount_unfilled(Some(taker_token_amount.cast()?))?;
+        .get_standardized_base_asset_amount_unfilled(
+            Some(taker_token_amount.cast()?),
+            base_market.order_step_size,
+        )?;
     let taker_order_slot = taker.orders[taker_order_index].slot;
     let taker_direction = taker.orders[taker_order_index].direction;
 
@@ -3716,7 +3718,10 @@ pub fn fulfill_spot_order_with_match(
     let maker_token_amount =
         maker.spot_positions[maker_spot_position_index].get_signed_token_amount(base_market)?;
     let maker_base_asset_amount = maker.orders[maker_order_index]
-        .get_base_asset_amount_unfilled(Some(maker_token_amount.cast()?))?;
+        .get_standardized_base_asset_amount_unfilled(
+            Some(maker_token_amount.cast()?),
+            base_market.order_step_size,
+        )?;
 
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
@@ -3987,11 +3992,13 @@ pub fn fulfill_spot_order_with_match(
 
     // Clear taker/maker order if completely filled
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
         taker.orders[taker_order_index] = Order::default();
         taker.spot_positions[taker_spot_position_index].open_orders -= 1;
     }
 
     if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        maker.decrement_open_orders(false);
         maker.orders[maker_order_index] = Order::default();
         maker.spot_positions[maker_spot_position_index].open_orders -= 1;
     }
@@ -4026,7 +4033,10 @@ pub fn fulfill_spot_order_with_external_market(
         .force_get_spot_position_mut(base_market.market_index)?
         .get_signed_token_amount(base_market)?;
     let taker_base_asset_amount = taker.orders[taker_order_index]
-        .get_base_asset_amount_unfilled(Some(taker_token_amount.cast()?))?;
+        .get_standardized_base_asset_amount_unfilled(
+            Some(taker_token_amount.cast()?),
+            base_market.order_step_size,
+        )?;
     let order_direction = taker.orders[taker_order_index].direction;
     let taker_order_slot = taker.orders[taker_order_index].slot;
 
@@ -4280,6 +4290,7 @@ pub fn fulfill_spot_order_with_external_market(
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
         taker.orders[taker_order_index] = Order::default();
         taker
             .force_get_spot_position_mut(base_market.market_index)?

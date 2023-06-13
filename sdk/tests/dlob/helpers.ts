@@ -114,6 +114,7 @@ export const mockAMM: AMM = {
 	totalSocialLoss: new BN(0),
 	baseAssetAmountPerLp: new BN(0),
 	quoteAssetAmountPerLp: new BN(0),
+	targetBaseAssetAmountPerLp: 0,
 
 	quoteBreakEvenAmountLong: new BN(0),
 	quoteBreakEvenAmountShort: new BN(0),
@@ -254,6 +255,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 	{
 		status: MarketStatus.ACTIVE,
 		assetTier: AssetTier.COLLATERAL,
+		name: [],
 		maxTokenDeposits: new BN(100),
 		marketIndex: 0,
 		pubkey: PublicKey.default,
@@ -308,6 +310,9 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
+		totalSwapFee: new BN(0),
+		flashLoanAmount: new BN(0),
+		flashLoanInitialTokenAmount: new BN(0),
 		oracleSource: OracleSource.PYTH,
 		historicalOracleData: {
 			lastOraclePrice: new BN(0),
@@ -328,6 +333,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 	{
 		status: MarketStatus.ACTIVE,
 		assetTier: AssetTier.CROSS,
+		name: [],
 		maxTokenDeposits: new BN(100),
 		marketIndex: 1,
 		pubkey: PublicKey.default,
@@ -382,6 +388,9 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
+		totalSwapFee: new BN(0),
+		flashLoanAmount: new BN(0),
+		flashLoanInitialTokenAmount: new BN(0),
 		oracleSource: OracleSource.PYTH,
 		historicalOracleData: {
 			lastOraclePrice: new BN(0),
@@ -402,6 +411,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 	{
 		status: MarketStatus.ACTIVE,
 		assetTier: AssetTier.PROTECTED,
+		name: [],
 		maxTokenDeposits: new BN(100),
 		marketIndex: 2,
 		pubkey: PublicKey.default,
@@ -456,6 +466,9 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
+		totalSwapFee: new BN(0),
+		flashLoanAmount: new BN(0),
+		flashLoanInitialTokenAmount: new BN(0),
 		oracleSource: OracleSource.PYTH,
 		historicalOracleData: {
 			lastOraclePrice: new BN(0),

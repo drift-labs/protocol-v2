@@ -1,15 +1,15 @@
 import { Connection, PublicKey, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js';
 import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
 import {
-	MarketData,
 	Client,
-	deserializeMarketData,
 	deserializeClockData,
 	toNum,
 	getMarketUiLadder,
+	Market,
 } from '@ellipsis-labs/phoenix-sdk';
 import { PRICE_PRECISION } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
+import { L2Level, L2OrderBookGenerator } from '../dlob/orderBookLevels';
 
 export type PhoenixMarketSubscriberConfig = {
 	connection: Connection;
@@ -26,14 +26,14 @@ export type PhoenixMarketSubscriberConfig = {
 		  };
 };
 
-export class PhoenixSubscriber {
+export class PhoenixSubscriber implements L2OrderBookGenerator {
 	connection: Connection;
 	client: Client;
 	programId: PublicKey;
 	marketAddress: PublicKey;
 	subscriptionType: 'polling' | 'websocket';
 	accountLoader: BulkAccountLoader | undefined;
-	market: MarketData;
+	market: Market;
 	marketCallbackId: string | number;
 	clockCallbackId: string | number;
 
@@ -60,10 +60,10 @@ export class PhoenixSubscriber {
 			return;
 		}
 
-		this.market = deserializeMarketData(
-			(await this.connection.getAccountInfo(this.marketAddress, 'confirmed'))
-				.data
-		);
+		this.market = await Market.loadFromAddress({
+			connection: this.connection,
+			address: this.marketAddress,
+		});
 
 		const clock = deserializeClockData(
 			(await this.connection.getAccountInfo(SYSVAR_CLOCK_PUBKEY, 'confirmed'))
@@ -75,31 +75,49 @@ export class PhoenixSubscriber {
 			this.marketCallbackId = this.connection.onAccountChange(
 				this.marketAddress,
 				(accountInfo, _ctx) => {
-					this.market = deserializeMarketData(accountInfo.data);
+					try {
+						this.market = this.market.reload(accountInfo.data);
+					} catch {
+						console.error('Failed to reload Phoenix market data');
+					}
 				}
 			);
 			this.clockCallbackId = this.connection.onAccountChange(
 				SYSVAR_CLOCK_PUBKEY,
 				(accountInfo, ctx) => {
-					this.lastSlot = ctx.slot;
-					const clock = deserializeClockData(accountInfo.data);
-					this.lastUnixTimestamp = toNum(clock.unixTimestamp);
+					try {
+						this.lastSlot = ctx.slot;
+						const clock = deserializeClockData(accountInfo.data);
+						this.lastUnixTimestamp = toNum(clock.unixTimestamp);
+					} catch {
+						console.error('Failed to reload clock data');
+					}
 				}
 			);
 		} else {
 			this.marketCallbackId = await this.accountLoader.addAccount(
 				this.marketAddress,
 				(buffer, slot) => {
-					this.lastSlot = slot;
-					this.market = deserializeMarketData(buffer);
+					try {
+						this.lastSlot = slot;
+						if (buffer) {
+							this.market = this.market.reload(buffer);
+						}
+					} catch {
+						console.error('Failed to reload Phoenix market data');
+					}
 				}
 			);
 			this.clockCallbackId = await this.accountLoader.addAccount(
 				SYSVAR_CLOCK_PUBKEY,
 				(buffer, slot) => {
-					this.lastSlot = slot;
-					const clock = deserializeClockData(buffer);
-					this.lastUnixTimestamp = toNum(clock.unixTimestamp);
+					try {
+						this.lastSlot = slot;
+						const clock = deserializeClockData(buffer);
+						this.lastUnixTimestamp = toNum(clock.unixTimestamp);
+					} catch {
+						console.error('Failed to reload clock data');
+					}
 				}
 			);
 		}
@@ -107,24 +125,68 @@ export class PhoenixSubscriber {
 		this.subscribed = true;
 	}
 
-	public getBestBid(): BN {
+	public getBestBid(): BN | undefined {
 		const ladder = getMarketUiLadder(
 			this.market,
 			this.lastSlot,
 			this.lastUnixTimestamp,
 			1
 		);
-		return new BN(Math.floor(ladder.bids[0][0] * PRICE_PRECISION.toNumber()));
+		const bestBid = ladder.bids[0];
+		if (!bestBid) {
+			return undefined;
+		}
+		return new BN(Math.floor(bestBid.price * PRICE_PRECISION.toNumber()));
 	}
 
-	public getBestAsk(): BN {
+	public getBestAsk(): BN | undefined {
 		const ladder = getMarketUiLadder(
 			this.market,
 			this.lastSlot,
 			this.lastUnixTimestamp,
 			1
 		);
-		return new BN(Math.floor(ladder.asks[0][0] * PRICE_PRECISION.toNumber()));
+
+		const bestAsk = ladder.asks[0];
+		if (!bestAsk) {
+			return undefined;
+		}
+		return new BN(Math.floor(bestAsk.price * PRICE_PRECISION.toNumber()));
+	}
+
+	public getL2Bids(): Generator<L2Level> {
+		return this.getL2Levels('bids');
+	}
+
+	public getL2Asks(): Generator<L2Level> {
+		return this.getL2Levels('asks');
+	}
+
+	*getL2Levels(side: 'bids' | 'asks'): Generator<L2Level> {
+		const basePrecision = Math.pow(
+			10,
+			this.market.data.header.baseParams.decimals
+		);
+		const pricePrecision = PRICE_PRECISION.toNumber();
+
+		const ladder = getMarketUiLadder(
+			this.market,
+			this.lastSlot,
+			this.lastUnixTimestamp,
+			20
+		);
+
+		for (let i = 0; i < ladder[side].length; i++) {
+			const { price, quantity } = ladder[side][i];
+			const size = new BN(Math.floor(quantity * basePrecision));
+			yield {
+				price: new BN(Math.floor(price * pricePrecision)),
+				size,
+				sources: {
+					phoenix: size,
+				},
+			};
+		}
 	}
 
 	public async unsubscribe(): Promise<void> {

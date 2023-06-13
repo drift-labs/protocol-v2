@@ -11,7 +11,7 @@ use crate::error::ErrorCode;
 use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT, ONE_YEAR, PERCENTAGE_PRECISION_U64,
+    MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT, ONE_YEAR, PERCENTAGE_PRECISION,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
 };
@@ -571,15 +571,14 @@ pub fn settle_revenue_to_insurance_fund(
     if spot_market.insurance_fund.user_shares > 0 {
         // only allow MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT or half revenue pool to be settled
         let capped_apr_amount = insurance_vault_amount
-            .safe_mul(MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT)?
-            .safe_div(PERCENTAGE_PRECISION_U64)?
+            .cast::<u128>()?
+            .safe_mul(MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT.cast::<u128>()?)?
+            .safe_div(PERCENTAGE_PRECISION)?
             .safe_div(
                 ONE_YEAR
-                    .cast::<u64>()?
                     .safe_div(spot_market.insurance_fund.revenue_settle_period.cast()?)?
                     .max(1),
-            )?
-            .cast::<u128>()?;
+            )?;
         let capped_token_pct_amount = token_amount.safe_div(10)?;
         token_amount = capped_token_pct_amount.min(capped_apr_amount);
     }

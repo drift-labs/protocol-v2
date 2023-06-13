@@ -124,6 +124,28 @@ export function standardizeBaseAssetAmount(
 	return baseAssetAmount.sub(remainder);
 }
 
+export function standardizePrice(
+	price: BN,
+	tickSize: BN,
+	direction: PositionDirection
+): BN {
+	if (price.eq(ZERO)) {
+		console.log('price is zero');
+		return price;
+	}
+
+	const remainder = price.mod(tickSize);
+	if (remainder.eq(ZERO)) {
+		return price;
+	}
+
+	if (isVariant(direction, 'long')) {
+		return price.sub(remainder);
+	} else {
+		return price.add(tickSize).sub(remainder);
+	}
+}
+
 export function getLimitPrice(
 	order: Order,
 	oraclePriceData: OraclePriceData,

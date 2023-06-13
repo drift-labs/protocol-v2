@@ -1,4 +1,4 @@
-import { Commitment, TransactionSignature } from '@solana/web3.js';
+import { Commitment, PublicKey, TransactionSignature } from '@solana/web3.js';
 import {
 	DepositRecord,
 	FundingPaymentRecord,
@@ -13,9 +13,11 @@ import {
 	SpotInterestRecord,
 	InsuranceFundStakeRecord,
 	CurveRecord,
+	SwapRecord,
 } from '../index';
 
 export type EventSubscriptionOptions = {
+	address?: PublicKey;
 	eventTypes?: EventType[];
 	maxEventsPerType?: number;
 	orderBy?: EventSubscriptionOrderBy;
@@ -43,6 +45,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'SpotInterestRecord',
 		'InsuranceFundStakeRecord',
 		'CurveRecord',
+		'SwapRecord',
 	],
 	maxEventsPerType: 4096,
 	orderBy: 'blockchain',
@@ -83,6 +86,7 @@ export type EventMap = {
 	SpotInterestRecord: Event<SpotInterestRecord>;
 	InsuranceFundStakeRecord: Event<InsuranceFundStakeRecord>;
 	CurveRecord: Event<CurveRecord>;
+	SwapRecord: Event<SwapRecord>;
 };
 
 export type EventType = keyof EventMap;
@@ -100,7 +104,8 @@ export type DriftEvent =
 	| Event<InsuranceFundRecord>
 	| Event<SpotInterestRecord>
 	| Event<InsuranceFundStakeRecord>
-	| Event<CurveRecord>;
+	| Event<CurveRecord>
+	| Event<SwapRecord>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;

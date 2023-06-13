@@ -15,4 +15,7 @@ export type UserStatsSubscriptionConfig =
 	| {
 			type: 'polling';
 			accountLoader: BulkAccountLoader;
+	  }
+	| {
+			type: 'custom';
 	  };

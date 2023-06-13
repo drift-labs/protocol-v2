@@ -25,10 +25,10 @@ export interface TxSender {
 	): Promise<TxSigAndSlot>;
 
 	sendVersionedTransaction(
-		ixs: TransactionInstruction[],
-		lookupTableAccounts: AddressLookupTableAccount[],
+		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		preSigned?: boolean
 	): Promise<TxSigAndSlot>;
 
 	getVersionedTransaction(
@@ -42,4 +42,6 @@ export interface TxSender {
 		rawTransaction: Buffer | Uint8Array,
 		opts: ConfirmOptions
 	): Promise<TxSigAndSlot>;
+
+	getTimeoutCount(): number;
 }

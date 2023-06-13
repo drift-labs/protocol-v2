@@ -42,7 +42,7 @@ pub mod amm_jit {
     };
     use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
-    use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
+    use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -118,6 +118,7 @@ pub mod amm_jit {
             PRICE_PRECISION_U64,
             Some(PRICE_PRECISION_I64),
             PositionDirection::Long,
+            AMMLiquiditySplit::ProtocolOwned,
         )
         .unwrap();
     }
@@ -1317,6 +1318,449 @@ pub mod amm_jit {
 
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
         assert!(quote_asset_amount_surplus > 0);
+    }
+
+    #[test]
+    fn fulfill_with_amm_jit_taker_short_with_split_lps() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        // net users are short
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                base_spread: 250,
+                long_spread: 125,
+                short_spread: 125,
+                max_spread: 20000,
+                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
+                user_lp_shares: 20 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 10000000,
+                order_tick_size: 1,
+                oracle: oracle_price_key,
+                amm_jit_intensity: 100,
+                concentration_coef: CONCENTRATION_PRECISION + 1,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
+        };
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
+        market.amm.min_base_asset_reserve = 0;
+
+        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Long,
+            )
+            .unwrap();
+        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Short,
+            )
+            .unwrap();
+        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
+        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
+        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
+        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        // taker wants to go long (would improve balance)
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
+                auction_duration: 0,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_asks: -BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let mut maker = User {
+            authority: maker_authority,
+            orders: get_orders(Order {
+                market_index: 0,
+                post_only: true,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64 / 2,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let mut filler = User::default();
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, _, filler_key) = get_user_keys();
+
+        let mut taker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+        let mut filler_stats = UserStats::default();
+
+        assert_eq!(market.amm.total_fee, 0);
+        assert_eq!(market.amm.total_fee_minus_distributions, 0);
+        assert_eq!(market.amm.net_revenue_since_last_funding, 0);
+        assert_eq!(market.amm.total_mm_fee, 0);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+
+        let (base_asset_amount, _, _) = fulfill_perp_order(
+            &mut taker,
+            0,
+            &taker_key,
+            &mut taker_stats,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 100 * PRICE_PRECISION_U64)],
+            &mut Some(&mut filler),
+            &filler_key,
+            &mut Some(&mut filler_stats),
+            None,
+            &spot_market_map,
+            &market_map,
+            &mut oracle_map,
+            &fee_structure,
+            0,
+            Some(market.amm.historical_oracle_data.last_oracle_price),
+            now,
+            slot,
+            0,
+            true,
+        )
+        .unwrap();
+
+        // base is filled
+        assert!(base_asset_amount > 0);
+        assert_eq!(base_asset_amount, 1000000000); // 1 base
+                                                   // let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let market_after = market_map.get_ref(&0).unwrap();
+        assert!(
+            market_after.amm.base_asset_amount_with_amm.abs()
+                < market.amm.base_asset_amount_with_amm.abs()
+        );
+
+        let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
+        assert!(quote_asset_amount_surplus > 0);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 100000000);
+        assert_eq!(market_after.amm.base_asset_amount_long, 1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_short, -1000000000);
+
+        assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 0);
+        assert_eq!(
+            market_after.amm.base_asset_amount_with_unsettled_lp,
+            -100000000
+        );
+
+        assert_eq!(market.amm.quote_asset_amount_per_lp, 0);
+        assert_eq!(market_after.amm.quote_asset_amount_per_lp, -497271);
+
+        assert_eq!(market.amm.base_asset_amount_per_lp, 0);
+        assert_eq!(market_after.amm.base_asset_amount_per_lp, 5000000);
+
+        assert_eq!(market_after.amm.total_exchange_fee, 32373);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 36039);
+
+        crate::validation::perp_market::validate_perp_market(&market).unwrap();
+        crate::validation::perp_market::validate_perp_market(&market_after).unwrap();
+    }
+
+    #[test]
+    fn fulfill_with_amm_jit_taker_short_unavailable_amm() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        // net users are short
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                base_spread: 250,
+                long_spread: 125,
+                short_spread: 125,
+                max_spread: 20000,
+                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
+                user_lp_shares: 20 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 10000000,
+                order_tick_size: 1,
+                oracle: oracle_price_key,
+                amm_jit_intensity: 100,
+                concentration_coef: CONCENTRATION_PRECISION + 1,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
+        };
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
+        market.amm.min_base_asset_reserve = 0;
+
+        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Long,
+            )
+            .unwrap();
+        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Short,
+            )
+            .unwrap();
+        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
+        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
+        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
+        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        // taker wants to go long (would improve balance)
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
+                auction_duration: 0,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_asks: -BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let mut maker = User {
+            authority: maker_authority,
+            orders: get_orders(Order {
+                market_index: 0,
+                post_only: true,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64 / 2,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let mut filler = User::default();
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, _, filler_key) = get_user_keys();
+
+        let mut taker_stats = UserStats::default();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+        let mut filler_stats = UserStats::default();
+
+        assert_eq!(market.amm.total_fee, 0);
+        assert_eq!(market.amm.total_fee_minus_distributions, 0);
+        assert_eq!(market.amm.net_revenue_since_last_funding, 0);
+        assert_eq!(market.amm.total_mm_fee, 0);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+
+        let (base_asset_amount, _, _) = fulfill_perp_order(
+            &mut taker,
+            0,
+            &taker_key,
+            &mut taker_stats,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 100 * PRICE_PRECISION_U64)],
+            &mut Some(&mut filler),
+            &filler_key,
+            &mut Some(&mut filler_stats),
+            None,
+            &spot_market_map,
+            &market_map,
+            &mut oracle_map,
+            &fee_structure,
+            0,
+            Some(market.amm.historical_oracle_data.last_oracle_price),
+            now,
+            slot,
+            0,
+            false,
+        )
+        .unwrap();
+
+        // base is filled
+        assert!(base_asset_amount > 0);
+        assert_eq!(base_asset_amount, 500000000); // 1/2 base (half of otherwise)
+
+        let market_after = market_map.get_ref(&0).unwrap();
+        let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
+
+        assert_eq!(quote_asset_amount_surplus, 0);
+
+        crate::validation::perp_market::validate_perp_market(&market).unwrap();
+        crate::validation::perp_market::validate_perp_market(&market_after).unwrap();
     }
 
     #[test]

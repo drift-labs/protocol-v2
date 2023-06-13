@@ -17,7 +17,7 @@ export class PollingLogProvider implements LogProvider {
 
 	public constructor(
 		private connection: Connection,
-		private programId: PublicKey,
+		private address: PublicKey,
 		commitment: Commitment,
 		private frequency = 15 * 1000
 	) {
@@ -41,7 +41,7 @@ export class PollingLogProvider implements LogProvider {
 			try {
 				const response = await fetchLogs(
 					this.connection,
-					this.programId,
+					this.address,
 					this.finality,
 					undefined,
 					this.mostRecentSeenTx,

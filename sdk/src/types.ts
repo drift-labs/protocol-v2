@@ -1,4 +1,4 @@
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
 // # Utility Types / Enums / Constants
@@ -132,6 +132,12 @@ export class OrderActionExplanation {
 	};
 	static readonly ORDER_FILLED_WITH_AMM_JIT = {
 		orderFilledWithAmmJit: {},
+	};
+	static readonly ORDER_FILLED_WITH_AMM_JIT_LP_SPLIT = {
+		orderFilledWithAmmJitLpSplit: {},
+	};
+	static readonly ORDER_FILLED_WITH_LP_JIT = {
+		orderFilledWithLpJit: {},
 	};
 	static readonly ORDER_FILLED_WITH_MATCH = {
 		orderFilledWithMatch: {},
@@ -391,8 +397,8 @@ export class LiquidationType {
 	static readonly PERP_BANKRUPTCY = {
 		perpBankruptcy: {},
 	};
-	static readonly BORROW_BANKRUPTCY = {
-		borrowBankruptcy: {},
+	static readonly SPOT_BANKRUPTCY = {
+		spotBankruptcy: {},
 	};
 	static readonly LIQUIDATE_SPOT = {
 		liquidateSpot: {},
@@ -505,6 +511,18 @@ export type OrderActionRecord = {
 	oraclePrice: BN;
 };
 
+export type SwapRecord = {
+	ts: BN;
+	user: PublicKey;
+	amountOut: BN;
+	amountIn: BN;
+	outMarketIndex: number;
+	inMarketIndex: number;
+	outOraclePrice: BN;
+	inOraclePrice: BN;
+	fee: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
@@ -585,6 +603,7 @@ export type HistoricalIndexData = {
 export type SpotMarketAccount = {
 	status: MarketStatus;
 	assetTier: AssetTier;
+	name: number[];
 
 	marketIndex: number;
 	pubkey: PublicKey;
@@ -644,6 +663,10 @@ export type SpotMarketAccount = {
 	nextFillRecordId: BN;
 	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
+	totalSwapFee: BN;
+
+	flashLoanAmount: BN;
+	flashLoanInitialTokenAmount: BN;
 
 	ordersEnabled: boolean;
 };
@@ -713,6 +736,7 @@ export type AMM = {
 
 	baseAssetAmountPerLp: BN;
 	quoteAssetAmountPerLp: BN;
+	targetBaseAssetAmountPerLp: number;
 
 	ammJitIntensity: number;
 	maxOpenInterest: BN;
@@ -800,10 +824,15 @@ export type UserAccount = {
 	totalWithdraws: BN;
 	totalSocialLoss: BN;
 	cumulativePerpFunding: BN;
+	cumulativeSpotFees: BN;
 	liquidationMarginFreed: BN;
 	lastActiveSlot: BN;
 	isMarginTradingEnabled: boolean;
 	idle: boolean;
+	openOrders: number;
+	hasOpenOrder: boolean;
+	openAuctions: number;
+	hasOpenAuction: boolean;
 };
 
 export type SpotPosition = {
@@ -856,7 +885,6 @@ export type OrderParams = {
 	immediateOrCancel: boolean;
 	triggerPrice: BN | null;
 	triggerCondition: OrderTriggerCondition;
-	positionLimit: BN;
 	oraclePriceOffset: number | null;
 	auctionDuration: number | null;
 	maxTs: BN | null;
@@ -883,7 +911,12 @@ export type OptionalOrderParams = {
 
 export type ModifyOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property] | null;
-};
+} & { policy?: ModifyOrderPolicy };
+
+export class ModifyOrderPolicy {
+	static readonly MUST_MODIFY = { mustModify: {} };
+	static readonly TRY_MODIFY = { tryModify: {} };
+}
 
 export const DefaultOrderParams: OrderParams = {
 	orderType: OrderType.MARKET,
@@ -898,7 +931,6 @@ export const DefaultOrderParams: OrderParams = {
 	immediateOrCancel: false,
 	triggerPrice: null,
 	triggerCondition: OrderTriggerCondition.ABOVE,
-	positionLimit: ZERO,
 	oraclePriceOffset: null,
 	auctionDuration: null,
 	maxTs: null,
@@ -930,10 +962,24 @@ export type TxParams = {
 	computeUnitsPrice?: number;
 };
 
+export class SwapReduceOnly {
+	static readonly In = { in: {} };
+	static readonly Out = { out: {} };
+}
+
 // # Misc Types
 export interface IWallet {
 	signTransaction(tx: Transaction): Promise<Transaction>;
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
+	publicKey: PublicKey;
+}
+export interface IVersionedWallet {
+	signVersionedTransaction(
+		tx: VersionedTransaction
+	): Promise<VersionedTransaction>;
+	signAllVersionedTransactions(
+		txs: VersionedTransaction[]
+	): Promise<VersionedTransaction[]>;
 	publicKey: PublicKey;
 }
 

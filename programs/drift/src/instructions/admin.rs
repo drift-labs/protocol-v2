@@ -262,7 +262,11 @@ pub fn handle_initialize_spot_market(
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
         orders_enabled: spot_market_index != 0,
-        padding: [0; 86],
+        padding1: [0; 6],
+        flash_loan_amount: 0,
+        flash_loan_initial_token_amount: 0,
+        total_swap_fee: 0,
+        padding: [0; 56],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -712,7 +716,8 @@ pub fn handle_initialize_perp_market(
             amm_jit_intensity: 0, // turn it off at the start
 
             last_oracle_valid: false,
-            padding: [0; 48],
+            target_base_asset_amount_per_lp: 0,
+            padding: [0; 44],
         },
     };
 
@@ -1822,6 +1827,18 @@ pub fn handle_update_perp_market_curve_update_intensity(
     Ok(())
 }
 
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_target_base_asset_amount_per_lp(
+    ctx: Context<AdminUpdatePerpMarket>,
+    target_base_asset_amount_per_lp: i32,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    perp_market.amm.target_base_asset_amount_per_lp = target_base_asset_amount_per_lp;
+    Ok(())
+}
+
 pub fn handle_update_lp_cooldown_time(
     ctx: Context<AdminUpdateState>,
     lp_cooldown_time: u64,
@@ -1927,7 +1944,7 @@ pub fn handle_update_amm_jit_intensity(
     amm_jit_intensity: u8,
 ) -> Result<()> {
     validate!(
-        (0..=100).contains(&amm_jit_intensity),
+        (0..=200).contains(&amm_jit_intensity),
         ErrorCode::DefaultError,
         "invalid amm_jit_intensity",
     )?;
@@ -1973,6 +1990,8 @@ pub fn handle_update_perp_market_step_size_and_tick_size(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(step_size > 0 && tick_size > 0, ErrorCode::DefaultError)?;
+    validate!(step_size <= 2000000000, ErrorCode::DefaultError)?; // below i32 max for lp's remainder_base_asset
+
     perp_market.amm.order_step_size = step_size;
     perp_market.amm.order_tick_size = tick_size;
     Ok(())

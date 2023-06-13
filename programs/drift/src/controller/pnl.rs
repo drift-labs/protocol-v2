@@ -172,6 +172,12 @@ pub fn settle_pnl(
     let quote_asset_amount_after = user.perp_positions[position_index].quote_asset_amount;
     let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
 
+    crate::validation::perp_market::validate_perp_market(perp_market)?;
+    crate::validation::position::validate_perp_position_with_perp_market(
+        &user.perp_positions[position_index],
+        perp_market,
+    )?;
+
     emit!(SettlePnlRecord {
         ts: now,
         user: *user_key,
