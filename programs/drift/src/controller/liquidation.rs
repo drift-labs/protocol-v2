@@ -48,10 +48,10 @@ use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
-    LPAction, LPRecord, LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord,
-    LiquidatePerpRecord, LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction,
-    OrderActionExplanation, OrderActionRecord, OrderRecord, PerpBankruptcyRecord,
-    SpotBankruptcyRecord,
+    emit_stack, LPAction, LPRecord, LiquidateBorrowForPerpPnlRecord,
+    LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord, LiquidateSpotRecord, LiquidationRecord,
+    LiquidationType, OrderAction, OrderActionExplanation, OrderActionRecord, OrderRecord,
+    PerpBankruptcyRecord, SpotBankruptcyRecord,
 };
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
@@ -59,6 +59,7 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
+use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::validate;
 
@@ -208,7 +209,7 @@ pub fn liquidate_perp(
         )?;
 
         // emit LP record for shares removed
-        emit!(LPRecord {
+        emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
             ts: now,
             action: LPAction::RemoveLiquidity,
             user: *user_key,
@@ -217,7 +218,7 @@ pub fn liquidate_perp(
             delta_base_asset_amount: position_delta.base_asset_amount,
             delta_quote_asset_amount: position_delta.quote_asset_amount,
             pnl,
-        });
+        })?;
     }
 
     // check if user exited liquidation territory
