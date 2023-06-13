@@ -756,6 +756,20 @@ impl Default for PostOnlyParam {
     }
 }
 
+pub struct PlaceOrderOptions {
+    pub try_expire_orders: bool,
+    pub enforce_margin_check: bool,
+}
+
+impl Default for PlaceOrderOptions {
+    fn default() -> Self {
+        Self {
+            try_expire_orders: true,
+            enforce_margin_check: true,
+        }
+    }
+}
+
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
@@ -788,6 +802,7 @@ pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         &mut oracle_map,
         clock,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     Ok(())
@@ -1015,6 +1030,73 @@ pub fn handle_modify_order_by_user_order_id(
 }
 
 #[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    validate!(
+        params.len() <= 32,
+        ErrorCode::DefaultError,
+        "max 32 order params"
+    )?;
+
+    let num_orders = params.len();
+    for (i, params) in params.iter().enumerate() {
+        validate!(
+            !params.immediate_or_cancel,
+            ErrorCode::InvalidOrderIOC,
+            "immediate_or_cancel order must be in place_and_make or place_and_take"
+        )?;
+
+        // only enforce margin on last order and only try to expire on first order
+        let options = PlaceOrderOptions {
+            enforce_margin_check: i == num_orders - 1,
+            try_expire_orders: i == 0,
+        };
+
+        if params.market_type == MarketType::Perp {
+            controller::orders::place_perp_order(
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                clock,
+                *params,
+                options,
+            )?;
+        } else {
+            controller::orders::place_spot_order(
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                clock,
+                *params,
+                options,
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
+#[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_place_and_take_perp_order<'info>(
@@ -1063,6 +1145,7 @@ pub fn handle_place_and_take_perp_order<'info>(
         &mut oracle_map,
         &Clock::get()?,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     let user = &mut ctx.accounts.user;
@@ -1151,6 +1234,7 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         &mut oracle_map,
         clock,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     let (order_id, authority) = {
@@ -1225,6 +1309,7 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         &mut oracle_map,
         &Clock::get()?,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     Ok(())
@@ -1313,6 +1398,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         &mut oracle_map,
         &clock,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     let user = &mut ctx.accounts.user;
@@ -1436,6 +1522,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         &mut oracle_map,
         clock,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     let order_id = load!(ctx.accounts.user)?.get_last_order_id();
