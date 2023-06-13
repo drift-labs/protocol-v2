@@ -50,7 +50,7 @@ use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
     LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
     LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction, OrderActionExplanation,
-    OrderActionRecord, OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord,
+    OrderActionRecord, OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord, LPAction, LPRecord
 };
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
@@ -199,12 +199,24 @@ pub fn liquidate_perp(
     // burning lp shares = removing open bids/asks
     let lp_shares = user.perp_positions[position_index].lp_shares;
     if lp_shares > 0 {
-        burn_lp_shares(
+        let (position_delta, pnl) = burn_lp_shares(
             &mut user.perp_positions[position_index],
             perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
             lp_shares,
             oracle_price,
         )?;
+
+        // emit LP record for shares removed
+        emit!(LPRecord {
+            ts: now,
+            action: LPAction::RemoveLiquidity,
+            user: *user_key,
+            n_shares: lp_shares,
+            market_index,
+            delta_base_asset_amount: position_delta.base_asset_amount,
+            delta_quote_asset_amount: position_delta.quote_asset_amount,
+            pnl,
+        });
     }
 
     // check if user exited liquidation territory
