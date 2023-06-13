@@ -97,6 +97,8 @@ export class User {
 				config.userAccountPublicKey,
 				config.accountSubscription.accountLoader
 			);
+		} else if (config.accountSubscription?.type === 'custom') {
+			this.accountSubscriber = config.accountSubscription.userAccountSubscriber;
 		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,

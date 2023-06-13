@@ -115,6 +115,7 @@ import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
 import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
 import { getNonIdleUserFilter } from './memcmp';
+import { UserStatsSubscriptionConfig } from './userStatsConfig';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -139,6 +140,7 @@ export class DriftClient {
 	userStats?: UserStats;
 	activeSubAccountId: number;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
+	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	_isSubscribed = false;
@@ -206,15 +208,23 @@ export class DriftClient {
 			: new Map<string, number[]>();
 
 		this.includeDelegates = config.includeDelegates ?? false;
-		this.userAccountSubscriptionConfig =
-			config.accountSubscription?.type === 'polling'
-				? {
-						type: 'polling',
-						accountLoader: config.accountSubscription.accountLoader,
-				  }
-				: {
-						type: 'websocket',
-				  };
+		if (config.accountSubscription?.type === 'polling') {
+			this.userAccountSubscriptionConfig = {
+				type: 'polling',
+				accountLoader: config.accountSubscription.accountLoader,
+			};
+			this.userStatsAccountSubscriptionConfig = {
+				type: 'polling',
+				accountLoader: config.accountSubscription.accountLoader,
+			};
+		} else {
+			this.userAccountSubscriptionConfig = {
+				type: 'websocket',
+			};
+			this.userStatsAccountSubscriptionConfig = {
+				type: 'websocket',
+			};
+		}
 
 		if (config.userStats) {
 			this.userStats = new UserStats({
@@ -542,7 +552,7 @@ export class DriftClient {
 				this.userStats = new UserStats({
 					driftClient: this,
 					userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
-					accountSubscription: this.userAccountSubscriptionConfig,
+					accountSubscription: this.userStatsAccountSubscriptionConfig,
 				});
 
 				await this.userStats.subscribe();
