@@ -1,4 +1,3 @@
-import { Provider } from '@coral-xyz/anchor';
 import {
 	AddressLookupTableAccount,
 	ConfirmOptions,
@@ -8,6 +7,7 @@ import {
 	TransactionSignature,
 	VersionedTransaction,
 } from '@solana/web3.js';
+import { IWallet } from '../types';
 
 export type TxSigAndSlot = {
 	txSig: TransactionSignature;
@@ -15,7 +15,7 @@ export type TxSigAndSlot = {
 };
 
 export interface TxSender {
-	provider: Provider;
+	wallet: IWallet;
 
 	send(
 		tx: Transaction,

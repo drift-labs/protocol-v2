@@ -273,7 +273,13 @@ export class DriftClient {
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
-		this.txSender = config.txSender ?? new RetryTxSender(this.provider);
+		this.txSender =
+			config.txSender ??
+			new RetryTxSender({
+				connection: this.connection,
+				wallet: this.wallet,
+				opts: this.opts,
+			});
 	}
 
 	public getUserMapKey(subAccountId: number, authority: PublicKey): string {
@@ -514,7 +520,7 @@ export class DriftClient {
 
 		this.skipLoadUsers = false;
 		// Update provider for txSender with new wallet details
-		this.txSender.provider = newProvider;
+		this.txSender.wallet = newWallet;
 		this.wallet = newWallet;
 		this.provider = newProvider;
 		this.program = newProgram;
