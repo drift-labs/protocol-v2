@@ -11,6 +11,8 @@ export function getPerpMarketTierNumber(perpMarket: PerpMarketAccount): number {
 		return 3;
 	} else if (isVariant(perpMarket.contractTier, 'isolated')) {
 		return 4;
+	} else {
+		return 5;
 	}
 }
 
@@ -25,6 +27,8 @@ export function getSpotMarketTierNumber(spotMarket: SpotMarketAccount): number {
 		return 3;
 	} else if (isVariant(spotMarket.assetTier, 'unlisted')) {
 		return 4;
+	} else {
+		return 5;
 	}
 }
 
