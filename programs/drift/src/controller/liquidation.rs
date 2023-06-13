@@ -50,7 +50,7 @@ use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
     LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
     LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction, OrderActionExplanation,
-    OrderActionRecord, OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord, LPAction, LPRecord
+    OrderActionRecord, OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord, LPAction, LPRecord,
 };
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
