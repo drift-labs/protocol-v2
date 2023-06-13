@@ -155,6 +155,7 @@ export class DriftClient {
 	authoritySubAccountMap?: Map<string, number[]>;
 	skipLoadUsers?: boolean;
 	txVersion: TransactionVersion;
+	txParams: TxParams;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -183,6 +184,10 @@ export class DriftClient {
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
 		this.skipLoadUsers = config.skipLoadUsers ?? false;
 		this.txVersion = config.txVersion ?? 'legacy';
+		this.txParams = {
+			computeUnits: config.txParams?.computeUnits ?? 600_000,
+			computeUnitsPrice: config.txParams?.computeUnitsPrice ?? 0,
+		};
 
 		if (config.includeDelegates && config.subAccountIds) {
 			throw new Error(
@@ -5407,7 +5412,7 @@ export class DriftClient {
 		lookupTables?: AddressLookupTableAccount[]
 	): Promise<Transaction | VersionedTransaction> {
 		const allIx = [];
-		const computeUnits = txParams?.computeUnits ?? 600_000;
+		const computeUnits = txParams?.computeUnits ?? this.txParams.computeUnits;
 		if (computeUnits !== 200_000) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitLimit({
@@ -5415,7 +5420,8 @@ export class DriftClient {
 				})
 			);
 		}
-		const computeUnitsPrice = txParams?.computeUnitsPrice ?? 0;
+		const computeUnitsPrice =
+			txParams?.computeUnitsPrice ?? this.txParams.computeUnitsPrice;
 		if (computeUnitsPrice !== 0) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({
