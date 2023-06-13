@@ -131,7 +131,7 @@ export async function findAllMarketAndOracles(program: Program): Promise<{
 		(await program.account.spotMarket.all()) as ProgramAccount<SpotMarketAccount>[];
 
 	for (const perpMarketProgramAccount of perpMarketProgramAccounts) {
-		const perpMarket = perpMarketProgramAccount.account;
+		const perpMarket = perpMarketProgramAccount.account as PerpMarketAccount;
 		perpMarketIndexes.push(perpMarket.marketIndex);
 		oracleInfos.set(perpMarket.amm.oracle.toString(), {
 			publicKey: perpMarket.amm.oracle,
@@ -140,7 +140,7 @@ export async function findAllMarketAndOracles(program: Program): Promise<{
 	}
 
 	for (const spotMarketProgramAccount of spotMarketProgramAccounts) {
-		const spotMarket = spotMarketProgramAccount.account;
+		const spotMarket = spotMarketProgramAccount.account as SpotMarketAccount;
 		spotMarketIndexes.push(spotMarket.marketIndex);
 		oracleInfos.set(spotMarket.oracle.toString(), {
 			publicKey: spotMarket.oracle,

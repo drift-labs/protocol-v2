@@ -304,7 +304,10 @@ export class User {
 		marketIndex: number,
 		originalPosition?: PerpPosition
 	): [PerpPosition, BN, BN] {
-		originalPosition = originalPosition ?? this.getPerpPosition(marketIndex);
+		originalPosition =
+			originalPosition ??
+			this.getPerpPosition(marketIndex) ??
+			this.getEmptyPosition(marketIndex);
 
 		if (originalPosition.lpShares.eq(ZERO)) {
 			return [originalPosition, ZERO, ZERO];
@@ -371,7 +374,7 @@ export class User {
 		let pnl;
 		if (updateType == 'open' || updateType == 'increase') {
 			newQuoteEntry = position.quoteEntryAmount.add(deltaQaa);
-			pnl = 0;
+			pnl = ZERO;
 		} else if (updateType == 'reduce' || updateType == 'close') {
 			newQuoteEntry = position.quoteEntryAmount.sub(
 				position.quoteEntryAmount
@@ -1136,7 +1139,8 @@ export class User {
 		includeOpenOrders = false
 	): BN {
 		const userPosition =
-			this.getPerpPosition(marketIndex) || this.getEmptyPosition(marketIndex);
+			this.getPerpPositionWithLPSettle(marketIndex)[0] ||
+			this.getEmptyPosition(marketIndex);
 		const market = this.driftClient.getPerpMarketAccount(
 			userPosition.marketIndex
 		);

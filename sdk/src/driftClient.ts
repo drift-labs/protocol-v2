@@ -95,6 +95,7 @@ import {
 	PRICE_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
+	QUOTE_PRECISION,
 } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
@@ -2299,6 +2300,35 @@ export class DriftClient {
 			},
 			remainingAccounts: remainingAccounts,
 		});
+	}
+
+	public getQuoteValuePerLpShare(marketIndex: number): BN {
+		const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+
+		const openBids = BN.max(
+			perpMarketAccount.amm.baseAssetReserve.sub(
+				perpMarketAccount.amm.minBaseAssetReserve
+			),
+			ZERO
+		);
+
+		const openAsks = BN.max(
+			perpMarketAccount.amm.maxBaseAssetReserve.sub(
+				perpMarketAccount.amm.baseAssetReserve
+			),
+			ZERO
+		);
+
+		const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
+
+		const maxOpenBidsAsks = BN.max(openBids, openAsks);
+		const quoteValuePerLpShare = maxOpenBidsAsks
+			.mul(oraclePriceData.price)
+			.mul(QUOTE_PRECISION)
+			.div(PRICE_PRECISION)
+			.div(perpMarketAccount.amm.sqrtK);
+
+		return quoteValuePerLpShare;
 	}
 
 	/**
