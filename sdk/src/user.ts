@@ -72,6 +72,7 @@ import {
 } from './math/spotPosition';
 
 import { calculateLiveOracleTwap } from './math/oracles';
+import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 
 export class User {
 	driftClient: DriftClient;
@@ -489,6 +490,12 @@ export class User {
 				!pos.quoteAssetAmount.eq(ZERO) ||
 				!(pos.openOrders == 0) ||
 				!pos.lpShares.eq(ZERO)
+		);
+	}
+
+	public getActiveSpotPositions(): SpotPosition[] {
+		return this.getUserAccount().spotPositions.filter(
+			(pos) => !isSpotPositionAvailable(pos)
 		);
 	}
 
@@ -2311,6 +2318,38 @@ export class User {
 		return true;
 	}
 
+	public getSafestTiers(): { perpTier: number; spotTier: number } {
+		let safestPerpTier = 4;
+		let safestSpotTier = 4;
+
+		for (const perpPosition of this.getActivePerpPositions()) {
+			safestPerpTier = Math.min(
+				safestPerpTier,
+				getPerpMarketTierNumber(
+					this.driftClient.getPerpMarketAccount(perpPosition.marketIndex)
+				)
+			);
+		}
+
+		for (const spotPosition of this.getActiveSpotPositions()) {
+			if (isVariant(spotPosition.balanceType, 'deposit')) {
+				continue;
+			}
+
+			safestSpotTier = Math.min(
+				safestSpotTier,
+				getSpotMarketTierNumber(
+					this.driftClient.getSpotMarketAccount(spotPosition.marketIndex)
+				)
+			);
+		}
+
+		return {
+			perpTier: safestPerpTier,
+			spotTier: safestSpotTier,
+		};
+	}
+
 	/**
 	 * Get the total position value, excluding any position coming from the given target market
 	 * @param marketToIgnore
@@ -2352,6 +2391,7 @@ export class User {
 
 		return oracleData;
 	}
+
 	private getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
 		const oracleKey = this.driftClient.getSpotMarketAccount(marketIndex).oracle;
 
