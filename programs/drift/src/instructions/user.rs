@@ -722,7 +722,7 @@ pub fn handle_transfer_deposit(
     Ok(())
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy)]
 pub struct OrderParams {
     pub order_type: OrderType,
     pub market_type: MarketType,
