@@ -2429,7 +2429,7 @@ pub fn handle_end_swap(
         )?;
     }
 
-    let fee = amount_out / 2000; // 0.05% fee
+    let fee = 0_u64; // no fee
     let amount_out_after_fee = amount_out.safe_sub(fee)?;
 
     out_spot_market.total_swap_fee = out_spot_market.total_swap_fee.saturating_add(fee);
