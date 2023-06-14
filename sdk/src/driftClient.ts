@@ -95,6 +95,7 @@ import {
 	PRICE_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
+	QUOTE_PRECISION,
 } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
@@ -115,6 +116,7 @@ import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
 import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
 import { getNonIdleUserFilter } from './memcmp';
+import { UserStatsSubscriptionConfig } from './userStatsConfig';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -139,6 +141,7 @@ export class DriftClient {
 	userStats?: UserStats;
 	activeSubAccountId: number;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
+	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	_isSubscribed = false;
@@ -152,6 +155,7 @@ export class DriftClient {
 	authoritySubAccountMap?: Map<string, number[]>;
 	skipLoadUsers?: boolean;
 	txVersion: TransactionVersion;
+	txParams: TxParams;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -180,6 +184,10 @@ export class DriftClient {
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
 		this.skipLoadUsers = config.skipLoadUsers ?? false;
 		this.txVersion = config.txVersion ?? 'legacy';
+		this.txParams = {
+			computeUnits: config.txParams?.computeUnits ?? 600_000,
+			computeUnitsPrice: config.txParams?.computeUnitsPrice ?? 0,
+		};
 
 		if (config.includeDelegates && config.subAccountIds) {
 			throw new Error(
@@ -206,15 +214,23 @@ export class DriftClient {
 			: new Map<string, number[]>();
 
 		this.includeDelegates = config.includeDelegates ?? false;
-		this.userAccountSubscriptionConfig =
-			config.accountSubscription?.type === 'polling'
-				? {
-						type: 'polling',
-						accountLoader: config.accountSubscription.accountLoader,
-				  }
-				: {
-						type: 'websocket',
-				  };
+		if (config.accountSubscription?.type === 'polling') {
+			this.userAccountSubscriptionConfig = {
+				type: 'polling',
+				accountLoader: config.accountSubscription.accountLoader,
+			};
+			this.userStatsAccountSubscriptionConfig = {
+				type: 'polling',
+				accountLoader: config.accountSubscription.accountLoader,
+			};
+		} else {
+			this.userAccountSubscriptionConfig = {
+				type: 'websocket',
+			};
+			this.userStatsAccountSubscriptionConfig = {
+				type: 'websocket',
+			};
+		}
 
 		if (config.userStats) {
 			this.userStats = new UserStats({
@@ -257,12 +273,13 @@ export class DriftClient {
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
-		this.txSender = new RetryTxSender(
-			this.provider,
-			config.txSenderConfig?.timeout,
-			config.txSenderConfig?.retrySleep,
-			config.txSenderConfig?.additionalConnections
-		);
+		this.txSender =
+			config.txSender ??
+			new RetryTxSender({
+				connection: this.connection,
+				wallet: this.wallet,
+				opts: this.opts,
+			});
 	}
 
 	public getUserMapKey(subAccountId: number, authority: PublicKey): string {
@@ -503,7 +520,7 @@ export class DriftClient {
 
 		this.skipLoadUsers = false;
 		// Update provider for txSender with new wallet details
-		this.txSender.provider = newProvider;
+		this.txSender.wallet = newWallet;
 		this.wallet = newWallet;
 		this.provider = newProvider;
 		this.program = newProgram;
@@ -547,7 +564,7 @@ export class DriftClient {
 				this.userStats = new UserStats({
 					driftClient: this,
 					userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
-					accountSubscription: this.userAccountSubscriptionConfig,
+					accountSubscription: this.userStatsAccountSubscriptionConfig,
 				});
 
 				await this.userStats.subscribe();
@@ -2296,6 +2313,35 @@ export class DriftClient {
 		});
 	}
 
+	public getQuoteValuePerLpShare(marketIndex: number): BN {
+		const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+
+		const openBids = BN.max(
+			perpMarketAccount.amm.baseAssetReserve.sub(
+				perpMarketAccount.amm.minBaseAssetReserve
+			),
+			ZERO
+		);
+
+		const openAsks = BN.max(
+			perpMarketAccount.amm.maxBaseAssetReserve.sub(
+				perpMarketAccount.amm.baseAssetReserve
+			),
+			ZERO
+		);
+
+		const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
+
+		const maxOpenBidsAsks = BN.max(openBids, openAsks);
+		const quoteValuePerLpShare = maxOpenBidsAsks
+			.mul(oraclePriceData.price)
+			.mul(QUOTE_PRECISION)
+			.div(PRICE_PRECISION)
+			.div(perpMarketAccount.amm.sqrtK);
+
+		return quoteValuePerLpShare;
+	}
+
 	/**
 	 * @deprecated use {@link placePerpOrder} or {@link placeAndTakePerpOrder} instead
 	 */
@@ -2369,26 +2415,21 @@ export class DriftClient {
 			referrerInfo
 		);
 
-		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
-
 		const walletSupportsVersionedTxns =
 			//@ts-ignore
 			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
 
 		// use versioned transactions if there is a lookup table account and wallet is compatible
-		if (walletSupportsVersionedTxns && lookupTableAccount && useVersionedTx) {
-			const versionedMarketOrderTx =
-				await this.txSender.getVersionedTransaction(
-					[placePerpOrderIx].concat(bracketOrderIxs),
-					[lookupTableAccount],
-					[],
-					this.opts
-				);
-			const versionedFillTx = await this.txSender.getVersionedTransaction(
+		if (walletSupportsVersionedTxns && useVersionedTx) {
+			const versionedMarketOrderTx = await this.buildTransaction(
+				[placePerpOrderIx].concat(bracketOrderIxs),
+				txParams,
+				0
+			);
+			const versionedFillTx = await this.buildTransaction(
 				[fillPerpOrderIx],
-				[lookupTableAccount],
-				[],
-				this.opts
+				txParams,
+				0
 			);
 			const [signedVersionedMarketOrderTx, signedVersionedFillTx] =
 				await this.provider.wallet.signAllTransactions([
@@ -4314,6 +4355,26 @@ export class DriftClient {
 		}[],
 		marketIndexes: number[]
 	): Promise<TransactionSignature> {
+		const ixs = await this.getSettlePNLsIxs(users, marketIndexes);
+		const tx = new Transaction()
+			.add(
+				ComputeBudgetProgram.setComputeUnitLimit({
+					units: 1_000_000,
+				})
+			)
+			.add(...ixs);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getSettlePNLsIxs(
+		users: {
+			settleeUserAccountPublicKey: PublicKey;
+			settleeUserAccount: UserAccount;
+		}[],
+		marketIndexes: number[]
+	): Promise<Array<TransactionInstruction>> {
 		const ixs = [];
 		for (const { settleeUserAccountPublicKey, settleeUserAccount } of users) {
 			for (const marketIndex of marketIndexes) {
@@ -4327,16 +4388,7 @@ export class DriftClient {
 			}
 		}
 
-		const tx = new Transaction()
-			.add(
-				ComputeBudgetProgram.setComputeUnitLimit({
-					units: 1_000_000,
-				})
-			)
-			.add(...ixs);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
+		return ixs;
 	}
 
 	public async settlePNL(
@@ -5347,7 +5399,8 @@ export class DriftClient {
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
 				additionalSigners,
-				opts
+				opts,
+				preSigned
 			);
 		}
 	}
@@ -5359,7 +5412,7 @@ export class DriftClient {
 		lookupTables?: AddressLookupTableAccount[]
 	): Promise<Transaction | VersionedTransaction> {
 		const allIx = [];
-		const computeUnits = txParams?.computeUnits ?? 600_000;
+		const computeUnits = txParams?.computeUnits ?? this.txParams.computeUnits;
 		if (computeUnits !== 200_000) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitLimit({
@@ -5367,7 +5420,8 @@ export class DriftClient {
 				})
 			);
 		}
-		const computeUnitsPrice = txParams?.computeUnitsPrice ?? 0;
+		const computeUnitsPrice =
+			txParams?.computeUnitsPrice ?? this.txParams.computeUnitsPrice;
 		if (computeUnitsPrice !== 0) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({

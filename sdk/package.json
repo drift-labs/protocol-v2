@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.31.0-beta.5",
+	"version": "2.31.1-beta.8",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -18,7 +18,8 @@
 		"test:bignum": "mocha -r ts-node/register tests/bn/**/*.ts",
 		"patch-and-pub": "npm version patch --force && npm publish",
 		"prettify": "prettier --check './src/***/*.ts'",
-		"prettify:fix": "prettier --write './{src,tests}/***/*.ts'"
+		"prettify:fix": "prettier --write './{src,tests}/***/*.ts'",
+		"version": "node ./scripts/updateVersion.js"
 	},
 	"keywords": [
 		"drift-labs",

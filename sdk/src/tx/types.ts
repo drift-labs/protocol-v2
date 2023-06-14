@@ -1,4 +1,3 @@
-import { Provider } from '@coral-xyz/anchor';
 import {
 	AddressLookupTableAccount,
 	ConfirmOptions,
@@ -8,6 +7,7 @@ import {
 	TransactionSignature,
 	VersionedTransaction,
 } from '@solana/web3.js';
+import { IWallet } from '../types';
 
 export type TxSigAndSlot = {
 	txSig: TransactionSignature;
@@ -15,7 +15,7 @@ export type TxSigAndSlot = {
 };
 
 export interface TxSender {
-	provider: Provider;
+	wallet: IWallet;
 
 	send(
 		tx: Transaction,
@@ -27,7 +27,8 @@ export interface TxSender {
 	sendVersionedTransaction(
 		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		preSigned?: boolean
 	): Promise<TxSigAndSlot>;
 
 	getVersionedTransaction(
@@ -41,4 +42,6 @@ export interface TxSender {
 		rawTransaction: Buffer | Uint8Array,
 		opts: ConfirmOptions
 	): Promise<TxSigAndSlot>;
+
+	getTimeoutCount(): number;
 }
