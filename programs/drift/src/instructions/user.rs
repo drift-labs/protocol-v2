@@ -11,7 +11,7 @@ use crate::controller::spot_position::{
 };
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
-use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, serum_program};
+use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, marinade_mainnet, serum_program};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
@@ -2261,7 +2261,8 @@ pub fn handle_begin_swap(
                 ix.program_id == AssociatedToken::id()
                     || ix.program_id == serum_program::id()
                     || ix.program_id == jupiter_mainnet_3::ID
-                    || ix.program_id == jupiter_mainnet_4::ID,
+                    || ix.program_id == jupiter_mainnet_4::ID
+                    || ix.program_id == marinade_mainnet::ID,
                 ErrorCode::InvalidSwap,
                 "only allowed to pass in ixs to ATA or openbook or Jupiter v3 or v4 programs"
             )?;
