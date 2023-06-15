@@ -2101,6 +2101,7 @@ pub fn handle_begin_swap(
     )?;
 
     let mut user = load_mut!(&ctx.accounts.user)?;
+    let delegate_is_signer = user.delegate == ctx.accounts.authority.key();
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
@@ -2257,14 +2258,20 @@ pub fn handle_begin_swap(
                 "the in_token_account passed to SwapBegin and End must match"
             )?;
         } else {
+            let mut whitelisted_programs = vec![
+                serum_program::id(),
+                AssociatedToken::id(),
+                jupiter_mainnet_3::ID,
+                jupiter_mainnet_4::ID,
+                marinade_mainnet::ID,
+            ];
+            if !delegate_is_signer {
+                whitelisted_programs.push(Token::id());
+            }
             validate!(
-                ix.program_id == AssociatedToken::id()
-                    || ix.program_id == serum_program::id()
-                    || ix.program_id == jupiter_mainnet_3::ID
-                    || ix.program_id == jupiter_mainnet_4::ID
-                    || ix.program_id == marinade_mainnet::ID,
+                whitelisted_programs.contains(&ix.program_id),
                 ErrorCode::InvalidSwap,
-                "only allowed to pass in ixs to ATA or openbook or Jupiter v3 or v4 programs"
+                "only allowed to pass in ixs to token or openbook or Jupiter v3 or v4 programs"
             )?;
         }
 
