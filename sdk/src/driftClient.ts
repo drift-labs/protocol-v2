@@ -3542,6 +3542,16 @@ export class DriftClient {
 	}
 
 	public async stakeForMSOL({ amount }: { amount: BN }): Promise<TxSigAndSlot> {
+		const ixs = await this.getStakeForMSOLIx({ amount });
+		const tx = await this.buildTransaction(ixs);
+		return this.sendTransaction(tx);
+	}
+
+	public async getStakeForMSOLIx({
+		amount,
+	}: {
+		amount: BN;
+	}): Promise<TransactionInstruction[]> {
 		const wSOLMint = this.getSpotMarketAccount(1).mint;
 		const mSOLAccount = await this.getAssociatedTokenAccount(2);
 		const wSOLAccount = await this.getAssociatedTokenAccount(1, false);
@@ -3585,9 +3595,7 @@ export class DriftClient {
 		}
 		ixs.push(beginSwapIx, closeWSOLIx, depositIx, createWSOLIx, endSwapIx);
 
-		const tx = await this.buildTransaction(ixs);
-
-		return this.sendTransaction(tx);
+		return ixs;
 	}
 
 	public async triggerOrder(
