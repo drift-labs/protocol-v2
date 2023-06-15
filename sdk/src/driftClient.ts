@@ -1260,12 +1260,12 @@ export class DriftClient {
 		}
 
 		if (params.readablePerpMarketIndex !== undefined) {
-			const readablePerpMarkerIndexes = Array.isArray(
+			const readablePerpMarketIndexes = Array.isArray(
 				params.readablePerpMarketIndex
 			)
 				? params.readablePerpMarketIndex
 				: [params.readablePerpMarketIndex];
-			for (const marketIndex of readablePerpMarkerIndexes) {
+			for (const marketIndex of readablePerpMarketIndexes) {
 				const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
 				perpMarketAccountMap.set(marketIndex, {
 					pubkey: perpMarketAccount.pubkey,
