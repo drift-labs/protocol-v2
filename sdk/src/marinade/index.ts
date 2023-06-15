@@ -53,3 +53,12 @@ export function getMarinadeDepositIx({
 		})
 		.instruction();
 }
+
+export async function getMarinadeMSolPrice(
+	program: Program<MarinadeFinance>
+): Promise<number> {
+	const state = await program.account.state.fetch(
+		new PublicKey('8szGkuLTAux9XMgZ2vtY39jVSowEcpBfFfD8hXSEqdGC')
+	);
+	return state.msolPrice.toNumber() / 0x1_0000_0000;
+}
