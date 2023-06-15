@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+-program: allow token program to be used for swap for non delegate
+
+### Fixes
+
+### Breaking
+
+## [2.31.1] - 2023-06-14
+
+### Features
+
 -program: allow marinade to be used for swap
 
 ### Fixes
