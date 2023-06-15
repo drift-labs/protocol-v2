@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: emit lp records in liquidate_perp (([#498](https://github.com/drift-labs/protocol-v2/pull/498)))
+
 ### Breaking
 
 
