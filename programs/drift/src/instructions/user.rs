@@ -2263,10 +2263,10 @@ pub fn handle_begin_swap(
                 AssociatedToken::id(),
                 jupiter_mainnet_3::ID,
                 jupiter_mainnet_4::ID,
-                marinade_mainnet::ID,
             ];
             if !delegate_is_signer {
                 whitelisted_programs.push(Token::id());
+                whitelisted_programs.push(marinade_mainnet::ID);
             }
             validate!(
                 whitelisted_programs.contains(&ix.program_id),
