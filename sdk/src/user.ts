@@ -2112,7 +2112,6 @@ export class User {
 
 		let freeCollateralAfter = freeCollateral;
 		while (freeCollateralAfter.gt(error) || freeCollateralAfter.isNeg()) {
-			console.log('loop');
 			const inSwap = swap;
 			outSwap = inSwap
 				.mul(outPrecision)
@@ -2166,17 +2165,6 @@ export class User {
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
 			this.getLeverageComponents();
 
-		console.log('inTotalAssetValueAfter', inTotalAssetValueAfter.toString());
-		console.log(
-			'inTotalLiabilityValueAfter',
-			inTotalLiabilityValueAfter.toString()
-		);
-		console.log('outTotalAssetValueAfter', outTotalAssetValueAfter.toString());
-		console.log(
-			'outTotalLiabilityValueAfter',
-			outTotalLiabilityValueAfter.toString()
-		);
-
 		const spotAssetValueDelta = inTotalAssetValueAfter
 			.add(outTotalAssetValueAfter)
 			.sub(inTotalAssetValueInitial)
@@ -2190,11 +2178,6 @@ export class User {
 		const spotLiabilityValueAfter = spotLiabilityValue.add(
 			spotLiabilityValueDelta
 		);
-
-		console.log('spotAssetValueBefore', spotAssetValue.toString());
-		console.log('spotLiabilityValueBefore', spotLiabilityValue.toString());
-		console.log('spotAssetValueAfter', spotAssetValueAfter.toString());
-		console.log('spotLiabilityValueAfter', spotLiabilityValueAfter.toString());
 
 		const leverage = this.calculateLeverageFromComponents({
 			perpLiabilityValue,
