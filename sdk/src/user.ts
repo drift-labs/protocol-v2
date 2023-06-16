@@ -2002,13 +2002,16 @@ export class User {
 	}: {
 		inMarketIndex: number;
 		outMarketIndex: number;
-	}): { inAmount: BN; leverage: BN } {
+	}): { inAmount: BN; outAmount: BN; leverage: BN } {
 		const inMarket = this.driftClient.getSpotMarketAccount(inMarketIndex);
 		const outMarket = this.driftClient.getSpotMarketAccount(outMarketIndex);
 
 		const inOraclePrice = this.getOracleDataForSpotMarket(inMarketIndex).price;
 		const outOraclePrice =
 			this.getOracleDataForSpotMarket(outMarketIndex).price;
+
+		const inPrecision = new BN(10 ** inMarket.decimals);
+		const outPrecision = new BN(10 ** outMarket.decimals);
 
 		const outSaferThanIn =
 			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
@@ -2022,148 +2025,108 @@ export class User {
 
 		const freeCollateral = this.getFreeCollateral();
 
-		const inTokenAmount = this.getSpotTokenAmount(inMarketIndex);
-		if (freeCollateral.lt(ONE)) {
-			if (outSaferThanIn) {
-				return { inAmount: inTokenAmount, leverage: ZERO };
-			} else {
-				return { inAmount: ZERO, leverage: ZERO };
-			}
-		}
-
+		const inContributionInitial =
+			this.calculateSpotPositionFreeCollateralContribution(inSpotPosition);
 		const {
-			freeCollateral: inContributionInitial,
 			totalAssetValue: inTotalAssetValueInitial,
 			totalLiabilityValue: inTotalLiabilityValueInitial,
-		} = this.calculateSpotPositionFreeCollateralContribution(inSpotPosition);
+		} = this.calculateSpotPositionLeverageContribution(inSpotPosition);
+		const outContributionInitial =
+			this.calculateSpotPositionFreeCollateralContribution(outSpotPosition);
 		const {
-			freeCollateral: outContributionInitial,
 			totalAssetValue: outTotalAssetValueInitial,
 			totalLiabilityValue: outTotalLiabilityValueInitial,
-		} = this.calculateSpotPositionFreeCollateralContribution(outSpotPosition);
+		} = this.calculateSpotPositionLeverageContribution(outSpotPosition);
 		const initialContribution = inContributionInitial.add(
 			outContributionInitial
 		);
 
-		const inPrecision = new BN(10 ** inMarket.decimals);
-		const outPrecision = new BN(10 ** outMarket.decimals);
+		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
+			this.getLeverageComponents();
 
-		const cloneAndUpdateSpotPosition = (
-			position: SpotPosition,
-			tokenAmount: BN,
-			market: SpotMarketAccount
-		) => {
-			const clonedPosition = Object.assign({}, position);
-			const preTokenAmount = getTokenAmount(
-				position.scaledBalance,
-				market,
-				position.balanceType
-			);
-
-			if (sigNum(preTokenAmount).eq(sigNum(tokenAmount))) {
-				const scaledBalanceDelta = getBalance(
-					tokenAmount,
-					market,
-					position.balanceType
-				);
-				clonedPosition.scaledBalance =
-					position.scaledBalance.add(scaledBalanceDelta);
-				return clonedPosition;
-			}
-
-			const updateDirection = tokenAmount.isNeg()
-				? SpotBalanceType.BORROW
-				: SpotBalanceType.DEPOSIT;
-
-			if (tokenAmount.abs().gt(preTokenAmount.abs())) {
-				clonedPosition.scaledBalance = getBalance(
-					tokenAmount.abs().sub(preTokenAmount.abs()),
-					market,
-					updateDirection
-				);
-				clonedPosition.balanceType = updateDirection;
-			} else {
-				const scaledBalanceDelta = getBalance(
-					tokenAmount,
-					market,
-					position.balanceType
-				);
-
-				clonedPosition.scaledBalance =
-					position.scaledBalance.sub(scaledBalanceDelta);
-			}
-			return clonedPosition;
-		};
-
-		let minSwap = ZERO;
-		let maxSwap = freeCollateral
-			.mul(inPrecision)
-			.mul(SPOT_MARKET_WEIGHT_PRECISION)
-			.div(SPOT_MARKET_WEIGHT_PRECISION.div(TEN))
-			.div(inOraclePrice); // just assume user can go 10x
-		let swap = maxSwap.div(TWO);
-		const error = QUOTE_PRECISION;
-
-		let outSwap = ZERO;
-		let inTotalAssetValueAfter = inTotalAssetValueInitial;
-		let outTotalLiabilityValueAfter = outTotalLiabilityValueInitial;
-		let inTotalLiabilityValueAfter = inTotalLiabilityValueInitial;
-		let outTotalAssetValueAfter = outTotalAssetValueInitial;
-
-		let freeCollateralAfter = freeCollateral;
-		while (freeCollateralAfter.gt(error) || freeCollateralAfter.isNeg()) {
-			const inSwap = swap;
-			outSwap = inSwap
+		const calculateOutSwap = (inSwap: BN) => {
+			return inSwap
 				.mul(outPrecision)
 				.mul(inOraclePrice)
 				.div(outOraclePrice)
 				.div(inPrecision);
+		};
 
-			const inPositionAfter = cloneAndUpdateSpotPosition(
-				inSpotPosition,
-				inSwap.neg(),
-				inMarket
-			);
-			const outPositionAfter = cloneAndUpdateSpotPosition(
-				outSpotPosition,
-				outSwap,
-				outMarket
-			);
-
-			const {
-				freeCollateral: inContributionAfter,
-				totalAssetValue: inTotalAssetValue,
-				totalLiabilityValue: inTotalLiabilityValue,
-			} = this.calculateSpotPositionFreeCollateralContribution(inPositionAfter);
-			const {
-				freeCollateral: outContributionAfter,
-				totalAssetValue: outTotalAssetValue,
-				totalLiabilityValue: outTotalLiabilityValue,
-			} = this.calculateSpotPositionFreeCollateralContribution(
-				outPositionAfter
-			);
-			const contributionAfter = inContributionAfter.add(outContributionAfter);
-
-			const contributionDelta = contributionAfter.sub(initialContribution);
-
-			freeCollateralAfter = freeCollateral.add(contributionDelta);
-
-			if (freeCollateralAfter.gt(error)) {
-				minSwap = swap;
-				swap = minSwap.add(maxSwap).div(TWO);
-			} else if (freeCollateralAfter.isNeg()) {
-				maxSwap = swap;
-				swap = minSwap.add(maxSwap).div(TWO);
+		let inSwap = ZERO;
+		let outSwap = ZERO;
+		const inTokenAmount = this.getSpotTokenAmount(inMarketIndex);
+		if (freeCollateral.lt(ONE)) {
+			if (outSaferThanIn) {
+				inSwap = inTokenAmount;
+				outSwap = calculateOutSwap(inSwap);
 			}
+		} else {
+			let minSwap = ZERO;
+			let maxSwap = freeCollateral
+				.mul(inPrecision)
+				.mul(SPOT_MARKET_WEIGHT_PRECISION)
+				.div(SPOT_MARKET_WEIGHT_PRECISION.div(TEN))
+				.div(inOraclePrice); // just assume user can go 10x
+			inSwap = maxSwap.div(TWO);
+			const error = QUOTE_PRECISION;
 
-			inTotalAssetValueAfter = inTotalAssetValue;
-			inTotalLiabilityValueAfter = inTotalLiabilityValue;
-			outTotalAssetValueAfter = outTotalAssetValue;
-			outTotalLiabilityValueAfter = outTotalLiabilityValue;
+			let freeCollateralAfter = freeCollateral;
+			while (freeCollateralAfter.gt(error) || freeCollateralAfter.isNeg()) {
+				outSwap = calculateOutSwap(inSwap);
+
+				const inPositionAfter = this.cloneAndUpdateSpotPosition(
+					inSpotPosition,
+					inSwap.neg(),
+					inMarket
+				);
+				const outPositionAfter = this.cloneAndUpdateSpotPosition(
+					outSpotPosition,
+					outSwap,
+					outMarket
+				);
+
+				const inContributionAfter =
+					this.calculateSpotPositionFreeCollateralContribution(inPositionAfter);
+				const outContributionAfter =
+					this.calculateSpotPositionFreeCollateralContribution(
+						outPositionAfter
+					);
+				const contributionAfter = inContributionAfter.add(outContributionAfter);
+
+				const contributionDelta = contributionAfter.sub(initialContribution);
+
+				freeCollateralAfter = freeCollateral.add(contributionDelta);
+
+				if (freeCollateralAfter.gt(error)) {
+					minSwap = inSwap;
+					inSwap = minSwap.add(maxSwap).div(TWO);
+				} else if (freeCollateralAfter.isNeg()) {
+					maxSwap = inSwap;
+					inSwap = minSwap.add(maxSwap).div(TWO);
+				}
+			}
 		}
 
-		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
-			this.getLeverageComponents();
+		const inPositionAfter = this.cloneAndUpdateSpotPosition(
+			inSpotPosition,
+			inSwap.neg(),
+			inMarket
+		);
+		const outPositionAfter = this.cloneAndUpdateSpotPosition(
+			outSpotPosition,
+			outSwap,
+			outMarket
+		);
+
+		const {
+			totalAssetValue: inTotalAssetValueAfter,
+			totalLiabilityValue: inTotalLiabilityValueAfter,
+		} = this.calculateSpotPositionLeverageContribution(inPositionAfter);
+
+		const {
+			totalAssetValue: outTotalAssetValueAfter,
+			totalLiabilityValue: outTotalLiabilityValueAfter,
+		} = this.calculateSpotPositionLeverageContribution(outPositionAfter);
 
 		const spotAssetValueDelta = inTotalAssetValueAfter
 			.add(outTotalAssetValueAfter)
@@ -2186,17 +2149,64 @@ export class User {
 			spotLiabilityValue: spotLiabilityValueAfter,
 		});
 
-		return { inAmount: swap, leverage };
+		return { inAmount: inSwap, outAmount: outSwap, leverage };
 	}
 
-	calculateSpotPositionFreeCollateralContribution(spotPosition: SpotPosition): {
-		freeCollateral: BN;
-		totalAssetValue: BN;
-		totalLiabilityValue: BN;
-	} {
+	cloneAndUpdateSpotPosition(
+		position: SpotPosition,
+		tokenAmount: BN,
+		market: SpotMarketAccount
+	): SpotPosition {
+		const clonedPosition = Object.assign({}, position);
+		if (tokenAmount.eq(ZERO)) {
+			return clonedPosition;
+		}
+
+		const preTokenAmount = getTokenAmount(
+			position.scaledBalance,
+			market,
+			position.balanceType
+		);
+
+		if (sigNum(preTokenAmount).eq(sigNum(tokenAmount))) {
+			const scaledBalanceDelta = getBalance(
+				tokenAmount,
+				market,
+				position.balanceType
+			);
+			clonedPosition.scaledBalance =
+				position.scaledBalance.add(scaledBalanceDelta);
+			return clonedPosition;
+		}
+
+		const updateDirection = tokenAmount.isNeg()
+			? SpotBalanceType.BORROW
+			: SpotBalanceType.DEPOSIT;
+
+		if (tokenAmount.abs().gt(preTokenAmount.abs())) {
+			clonedPosition.scaledBalance = getBalance(
+				tokenAmount.abs().sub(preTokenAmount.abs()),
+				market,
+				updateDirection
+			);
+			clonedPosition.balanceType = updateDirection;
+		} else {
+			const scaledBalanceDelta = getBalance(
+				tokenAmount,
+				market,
+				position.balanceType
+			);
+
+			clonedPosition.scaledBalance =
+				position.scaledBalance.sub(scaledBalanceDelta);
+		}
+		return clonedPosition;
+	}
+
+	calculateSpotPositionFreeCollateralContribution(
+		spotPosition: SpotPosition
+	): BN {
 		let freeCollateralContribution = ZERO;
-		let totalAssetValue = ZERO;
-		let totalLiabilityValue = ZERO;
 		const now = new BN(new Date().getTime() / 1000);
 		const strict = true;
 		const marginCategory = 'Initial';
@@ -2227,15 +2237,6 @@ export class User {
 
 			freeCollateralContribution =
 				freeCollateralContribution.add(baseAssetValue);
-
-			totalAssetValue = this.getSpotAssetValue(
-				worstCaseTokenAmount,
-				oraclePriceData,
-				spotMarketAccount,
-				undefined,
-				false,
-				now
-			);
 		} else {
 			const baseLiabilityValue = this.getSpotLiabilityValue(
 				worstCaseTokenAmount,
@@ -2249,7 +2250,45 @@ export class User {
 
 			freeCollateralContribution =
 				freeCollateralContribution.sub(baseLiabilityValue);
+		}
 
+		freeCollateralContribution.add(worstCaseQuoteTokenAmount);
+
+		return freeCollateralContribution;
+	}
+
+	calculateSpotPositionLeverageContribution(spotPosition: SpotPosition): {
+		totalAssetValue: BN;
+		totalLiabilityValue: BN;
+	} {
+		let totalAssetValue = ZERO;
+		let totalLiabilityValue = ZERO;
+		const now = new BN(new Date().getTime() / 1000);
+
+		const spotMarketAccount: SpotMarketAccount =
+			this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
+
+		const oraclePriceData = this.getOracleDataForSpotMarket(
+			spotPosition.marketIndex
+		);
+
+		const [worstCaseTokenAmount, worstCaseQuoteTokenAmount] =
+			getWorstCaseTokenAmounts(
+				spotPosition,
+				spotMarketAccount,
+				oraclePriceData
+			);
+
+		if (worstCaseTokenAmount.gt(ZERO)) {
+			totalAssetValue = this.getSpotAssetValue(
+				worstCaseTokenAmount,
+				oraclePriceData,
+				spotMarketAccount,
+				undefined,
+				false,
+				now
+			);
+		} else {
 			totalLiabilityValue = this.getSpotLiabilityValue(
 				worstCaseTokenAmount,
 				oraclePriceData,
@@ -2261,7 +2300,6 @@ export class User {
 			).abs();
 		}
 
-		freeCollateralContribution.add(worstCaseQuoteTokenAmount);
 		if (worstCaseQuoteTokenAmount.gt(ZERO)) {
 			totalAssetValue = totalAssetValue.add(worstCaseQuoteTokenAmount);
 		} else {
@@ -2271,7 +2309,6 @@ export class User {
 		}
 
 		return {
-			freeCollateral: freeCollateralContribution,
 			totalAssetValue,
 			totalLiabilityValue,
 		};
