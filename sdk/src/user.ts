@@ -76,6 +76,7 @@ import {
 } from './math/spotPosition';
 
 import { calculateLiveOracleTwap } from './math/oracles';
+import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 
 export class User {
 	driftClient: DriftClient;
@@ -101,6 +102,8 @@ export class User {
 				config.userAccountPublicKey,
 				config.accountSubscription.accountLoader
 			);
+		} else if (config.accountSubscription?.type === 'custom') {
+			this.accountSubscriber = config.accountSubscription.userAccountSubscriber;
 		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,
@@ -317,7 +320,10 @@ export class User {
 		marketIndex: number,
 		originalPosition?: PerpPosition
 	): [PerpPosition, BN, BN] {
-		originalPosition = originalPosition ?? this.getPerpPosition(marketIndex);
+		originalPosition =
+			originalPosition ??
+			this.getPerpPosition(marketIndex) ??
+			this.getEmptyPosition(marketIndex);
 
 		if (originalPosition.lpShares.eq(ZERO)) {
 			return [originalPosition, ZERO, ZERO];
@@ -384,7 +390,7 @@ export class User {
 		let pnl;
 		if (updateType == 'open' || updateType == 'increase') {
 			newQuoteEntry = position.quoteEntryAmount.add(deltaQaa);
-			pnl = 0;
+			pnl = ZERO;
 		} else if (updateType == 'reduce' || updateType == 'close') {
 			newQuoteEntry = position.quoteEntryAmount.sub(
 				position.quoteEntryAmount
@@ -503,6 +509,12 @@ export class User {
 				!pos.quoteAssetAmount.eq(ZERO) ||
 				!(pos.openOrders == 0) ||
 				!pos.lpShares.eq(ZERO)
+		);
+	}
+
+	public getActiveSpotPositions(): SpotPosition[] {
+		return this.getUserAccount().spotPositions.filter(
+			(pos) => !isSpotPositionAvailable(pos)
 		);
 	}
 
@@ -1143,7 +1155,8 @@ export class User {
 		includeOpenOrders = false
 	): BN {
 		const userPosition =
-			this.getPerpPosition(marketIndex) || this.getEmptyPosition(marketIndex);
+			this.getPerpPositionWithLPSettle(marketIndex)[0] ||
+			this.getEmptyPosition(marketIndex);
 		const market = this.driftClient.getPerpMarketAccount(
 			userPosition.marketIndex
 		);
@@ -1461,24 +1474,29 @@ export class User {
 		return netAssetValue.mul(TEN_THOUSAND).div(totalLiabilityValue);
 	}
 
-	public canBeLiquidated(): boolean {
+	public canBeLiquidated(): {
+		canBeLiquidated: boolean;
+		marginRequirement: BN;
+		totalCollateral: BN;
+	} {
 		const totalCollateral = this.getTotalCollateral('Maintenance');
 
 		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
 		let liquidationBuffer = undefined;
-		const isBeingLiquidated = isVariant(
-			this.getUserAccount().status,
-			'beingLiquidated'
-		);
-
-		if (isBeingLiquidated) {
+		if (this.isBeingLiquidated()) {
 			liquidationBuffer = new BN(
 				this.driftClient.getStateAccount().liquidationMarginBufferRatio
 			);
 		}
-		const maintenanceRequirement =
+		const marginRequirement =
 			this.getMaintenanceMarginRequirement(liquidationBuffer);
-		return totalCollateral.lt(maintenanceRequirement);
+		const canBeLiquidated = totalCollateral.lt(marginRequirement);
+
+		return {
+			canBeLiquidated,
+			marginRequirement,
+			totalCollateral,
+		};
 	}
 
 	public isBeingLiquidated(): boolean {
@@ -2636,6 +2654,38 @@ export class User {
 		return true;
 	}
 
+	public getSafestTiers(): { perpTier: number; spotTier: number } {
+		let safestPerpTier = 4;
+		let safestSpotTier = 4;
+
+		for (const perpPosition of this.getActivePerpPositions()) {
+			safestPerpTier = Math.min(
+				safestPerpTier,
+				getPerpMarketTierNumber(
+					this.driftClient.getPerpMarketAccount(perpPosition.marketIndex)
+				)
+			);
+		}
+
+		for (const spotPosition of this.getActiveSpotPositions()) {
+			if (isVariant(spotPosition.balanceType, 'deposit')) {
+				continue;
+			}
+
+			safestSpotTier = Math.min(
+				safestSpotTier,
+				getSpotMarketTierNumber(
+					this.driftClient.getSpotMarketAccount(spotPosition.marketIndex)
+				)
+			);
+		}
+
+		return {
+			perpTier: safestPerpTier,
+			spotTier: safestSpotTier,
+		};
+	}
+
 	/**
 	 * Get the total position value, excluding any position coming from the given target market
 	 * @param marketToIgnore
@@ -2677,6 +2727,7 @@ export class User {
 
 		return oracleData;
 	}
+
 	private getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
 		const oracleKey = this.driftClient.getSpotMarketAccount(marketIndex).oracle;
 

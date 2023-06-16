@@ -315,6 +315,9 @@ describe('liquidate perp and lp', () => {
 
 		await printTxLogs(connection, txSig);
 
+		const lpEvent = eventSubscriber.getEventsArray('LPRecord')[0];
+		assert(lpEvent.nShares.eq(nLpShares));
+
 		for (let i = 0; i < 32; i++) {
 			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
 		}

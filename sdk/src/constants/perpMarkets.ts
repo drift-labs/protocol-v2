@@ -124,6 +124,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1683125906000,
 		oracleSource: OracleSource.PYTH_1M,
 	},
+	{
+		fullName: 'OP',
+		category: ['L2', 'Infra'],
+		symbol: 'OP-PERP',
+		baseAssetSymbol: 'OP',
+		marketIndex: 11,
+		oracle: new PublicKey('8ctSiDhA7eJoii4TkKV8Rx4KFdz3ycsA1FXy9wq56quG'),
+		launchTs: 1683125906000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -236,6 +246,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('FSfxunDmjjbDV2QxpyxFCAPKmYJHSLnLuvQXDLkMzLBm'),
 		launchTs: 1683125906000,
 		oracleSource: OracleSource.PYTH_1M,
+	},
+	{
+		fullName: 'OP',
+		category: ['L2', 'Infra'],
+		symbol: 'OP-PERP',
+		baseAssetSymbol: 'OP',
+		marketIndex: 11,
+		oracle: new PublicKey('4o4CUwzFwLqCvmA5x1G4VzoZkAhAcbiuiYyjWX1CVbY2'),
+		launchTs: 1683125906000,
+		oracleSource: OracleSource.PYTH,
 	},
 ];
 
