@@ -2037,7 +2037,7 @@ export class User {
 				return clonedPosition;
 			}
 
-			const updateDirection = isVariant(position.balanceType, 'deposit')
+			const updateDirection = tokenAmount.isNeg()
 				? SpotBalanceType.BORROW
 				: SpotBalanceType.DEPOSIT;
 
@@ -2151,7 +2151,7 @@ export class User {
 				worstCaseTokenAmount,
 				oraclePriceData,
 				spotMarketAccount,
-				'Initial',
+				marginCategory,
 				undefined,
 				strict,
 				now
