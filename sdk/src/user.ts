@@ -1234,10 +1234,20 @@ export class User {
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getLeverage(): BN {
-		// get leverage components
-		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
-			this.getLeverageComponents();
+		return this.calculateLeverageFromComponents(this.getLeverageComponents());
+	}
 
+	calculateLeverageFromComponents({
+		perpLiabilityValue,
+		perpPnl,
+		spotAssetValue,
+		spotLiabilityValue,
+	}: {
+		perpLiabilityValue: BN;
+		perpPnl: BN;
+		spotAssetValue: BN;
+		spotLiabilityValue: BN;
+	}): BN {
 		const totalLiabilityValue = perpLiabilityValue.add(spotLiabilityValue);
 		const totalAssetValue = spotAssetValue.add(perpPnl);
 		const netAssetValue = totalAssetValue.sub(spotLiabilityValue);
@@ -1974,7 +1984,7 @@ export class User {
 	}: {
 		inMarketIndex: number;
 		outMarketIndex: number;
-	}): BN {
+	}): { inAmount: BN; leverage: BN } {
 		const inMarket = this.driftClient.getSpotMarketAccount(inMarketIndex);
 		const outMarket = this.driftClient.getSpotMarketAccount(outMarketIndex);
 
@@ -1997,16 +2007,22 @@ export class User {
 		const inTokenAmount = this.getSpotTokenAmount(inMarketIndex);
 		if (freeCollateral.lt(ONE)) {
 			if (outSaferThanIn) {
-				return inTokenAmount;
+				return { inAmount: inTokenAmount, leverage: ZERO };
 			} else {
-				return ZERO;
+				return { inAmount: ZERO, leverage: ZERO };
 			}
 		}
 
-		const inContributionInitial =
-			this.calculateSpotPositionFreeCollateralContribution(inSpotPosition);
-		const outContributionInitial =
-			this.calculateSpotPositionFreeCollateralContribution(outSpotPosition);
+		const {
+			freeCollateral: inContributionInitial,
+			totalAssetValue: inTotalAssetValueInitial,
+			totalLiabilityValue: inTotalLiabilityValueInitial,
+		} = this.calculateSpotPositionFreeCollateralContribution(inSpotPosition);
+		const {
+			freeCollateral: outContributionInitial,
+			totalAssetValue: outTotalAssetValueInitial,
+			totalLiabilityValue: outTotalLiabilityValueInitial,
+		} = this.calculateSpotPositionFreeCollateralContribution(outSpotPosition);
 		const initialContribution = inContributionInitial.add(
 			outContributionInitial
 		);
@@ -2070,10 +2086,17 @@ export class User {
 		let swap = maxSwap.div(TWO);
 		const error = QUOTE_PRECISION;
 
+		let outSwap = ZERO;
+		let inTotalAssetValueAfter = inTotalAssetValueInitial;
+		let outTotalLiabilityValueAfter = outTotalLiabilityValueInitial;
+		let inTotalLiabilityValueAfter = inTotalLiabilityValueInitial;
+		let outTotalAssetValueAfter = outTotalAssetValueInitial;
+
 		let freeCollateralAfter = freeCollateral;
 		while (freeCollateralAfter.gt(error) || freeCollateralAfter.isNeg()) {
+			console.log('loop');
 			const inSwap = swap;
-			const outSwap = inSwap
+			outSwap = inSwap
 				.mul(outPrecision)
 				.mul(inOraclePrice)
 				.div(outOraclePrice)
@@ -2090,10 +2113,18 @@ export class User {
 				outMarket
 			);
 
-			const inContributionAfter =
-				this.calculateSpotPositionFreeCollateralContribution(inPositionAfter);
-			const outContributionAfter =
-				this.calculateSpotPositionFreeCollateralContribution(outPositionAfter);
+			const {
+				freeCollateral: inContributionAfter,
+				totalAssetValue: inTotalAssetValue,
+				totalLiabilityValue: inTotalLiabilityValue,
+			} = this.calculateSpotPositionFreeCollateralContribution(inPositionAfter);
+			const {
+				freeCollateral: outContributionAfter,
+				totalAssetValue: outTotalAssetValue,
+				totalLiabilityValue: outTotalLiabilityValue,
+			} = this.calculateSpotPositionFreeCollateralContribution(
+				outPositionAfter
+			);
 			const contributionAfter = inContributionAfter.add(outContributionAfter);
 
 			const contributionDelta = contributionAfter.sub(initialContribution);
@@ -2107,15 +2138,64 @@ export class User {
 				maxSwap = swap;
 				swap = minSwap.add(maxSwap).div(TWO);
 			}
+
+			inTotalAssetValueAfter = inTotalAssetValue;
+			inTotalLiabilityValueAfter = inTotalLiabilityValue;
+			outTotalAssetValueAfter = outTotalAssetValue;
+			outTotalLiabilityValueAfter = outTotalLiabilityValue;
 		}
 
-		return swap;
+		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
+			this.getLeverageComponents();
+
+		console.log('inTotalAssetValueAfter', inTotalAssetValueAfter.toString());
+		console.log(
+			'inTotalLiabilityValueAfter',
+			inTotalLiabilityValueAfter.toString()
+		);
+		console.log('outTotalAssetValueAfter', outTotalAssetValueAfter.toString());
+		console.log(
+			'outTotalLiabilityValueAfter',
+			outTotalLiabilityValueAfter.toString()
+		);
+
+		const spotAssetValueDelta = inTotalAssetValueAfter
+			.add(outTotalAssetValueAfter)
+			.sub(inTotalAssetValueInitial)
+			.sub(outTotalAssetValueInitial);
+		const spotLiabilityValueDelta = inTotalLiabilityValueAfter
+			.add(outTotalLiabilityValueAfter)
+			.sub(inTotalLiabilityValueInitial)
+			.sub(outTotalLiabilityValueInitial);
+
+		const spotAssetValueAfter = spotAssetValue.add(spotAssetValueDelta);
+		const spotLiabilityValueAfter = spotLiabilityValue.add(
+			spotLiabilityValueDelta
+		);
+
+		console.log('spotAssetValueBefore', spotAssetValue.toString());
+		console.log('spotLiabilityValueBefore', spotLiabilityValue.toString());
+		console.log('spotAssetValueAfter', spotAssetValueAfter.toString());
+		console.log('spotLiabilityValueAfter', spotLiabilityValueAfter.toString());
+
+		const leverage = this.calculateLeverageFromComponents({
+			perpLiabilityValue,
+			perpPnl,
+			spotAssetValue: spotAssetValueAfter,
+			spotLiabilityValue: spotLiabilityValueAfter,
+		});
+
+		return { inAmount: swap, leverage };
 	}
 
-	calculateSpotPositionFreeCollateralContribution(
-		spotPosition: SpotPosition
-	): BN {
+	calculateSpotPositionFreeCollateralContribution(spotPosition: SpotPosition): {
+		freeCollateral: BN;
+		totalAssetValue: BN;
+		totalLiabilityValue: BN;
+	} {
 		let freeCollateralContribution = ZERO;
+		let totalAssetValue = ZERO;
+		let totalLiabilityValue = ZERO;
 		const now = new BN(new Date().getTime() / 1000);
 		const strict = true;
 		const marginCategory = 'Initial';
@@ -2146,6 +2226,15 @@ export class User {
 
 			freeCollateralContribution =
 				freeCollateralContribution.add(baseAssetValue);
+
+			totalAssetValue = this.getSpotAssetValue(
+				worstCaseTokenAmount,
+				oraclePriceData,
+				spotMarketAccount,
+				undefined,
+				false,
+				now
+			);
 		} else {
 			const baseLiabilityValue = this.getSpotLiabilityValue(
 				worstCaseTokenAmount,
@@ -2159,11 +2248,32 @@ export class User {
 
 			freeCollateralContribution =
 				freeCollateralContribution.sub(baseLiabilityValue);
+
+			totalLiabilityValue = this.getSpotLiabilityValue(
+				worstCaseTokenAmount,
+				oraclePriceData,
+				spotMarketAccount,
+				undefined,
+				undefined,
+				false,
+				now
+			).abs();
 		}
 
 		freeCollateralContribution.add(worstCaseQuoteTokenAmount);
+		if (worstCaseQuoteTokenAmount.gt(ZERO)) {
+			totalAssetValue = totalAssetValue.add(worstCaseQuoteTokenAmount);
+		} else {
+			totalLiabilityValue = totalLiabilityValue.add(
+				worstCaseQuoteTokenAmount.abs()
+			);
+		}
 
-		return freeCollateralContribution;
+		return {
+			freeCollateral: freeCollateralContribution,
+			totalAssetValue,
+			totalLiabilityValue,
+		};
 	}
 
 	// TODO - should this take the price impact of the trade into account for strict accuracy?
