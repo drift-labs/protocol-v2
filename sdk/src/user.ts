@@ -2068,7 +2068,7 @@ export class User {
 				.div(SPOT_MARKET_WEIGHT_PRECISION.div(TEN))
 				.div(inOraclePrice); // just assume user can go 10x
 			inSwap = maxSwap.div(TWO);
-			const error = QUOTE_PRECISION;
+			const error = BN.min(QUOTE_PRECISION, freeCollateral.div(new BN(100)));
 
 			let freeCollateralAfter = freeCollateral;
 			while (freeCollateralAfter.gt(error) || freeCollateralAfter.isNeg()) {
