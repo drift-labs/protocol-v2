@@ -19,6 +19,7 @@ export async function findBestSuperStakeIxs({
 	ixs: TransactionInstruction[];
 	lookupTables: AddressLookupTableAccount[];
 	method: 'jupiter' | 'marinade';
+	price: number;
 }> {
 	const marinadeProgram = getMarinadeFinanceProgram(driftClient.provider);
 	const marinadePrice = await getMarinadeMSolPrice(marinadeProgram);
@@ -40,6 +41,7 @@ export async function findBestSuperStakeIxs({
 			method: 'marinade',
 			ixs,
 			lookupTables: [],
+			price: marinadePrice,
 		};
 	} else {
 		const { ixs, lookupTables } = await driftClient.getJupiterSwapIx({
@@ -53,6 +55,7 @@ export async function findBestSuperStakeIxs({
 			method: 'jupiter',
 			ixs,
 			lookupTables,
+			price: jupiterPrice,
 		};
 	}
 }
