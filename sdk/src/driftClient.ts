@@ -1050,9 +1050,17 @@ export class DriftClient {
 		const userMapKey = this.getUserMapKey(subAccountId, authority);
 
 		if (!this.users.has(userMapKey)) {
-			throw new Error(`Clearing House has no user for user id ${userMapKey}`);
+			throw new Error(`DriftClient has no user for user id ${userMapKey}`);
 		}
 		return this.users.get(userMapKey);
+	}
+
+	public hasUser(subAccountId?: number, authority?: PublicKey): boolean {
+		subAccountId = subAccountId ?? this.activeSubAccountId;
+		authority = authority ?? this.authority;
+		const userMapKey = this.getUserMapKey(subAccountId, authority);
+
+		return this.users.has(userMapKey);
 	}
 
 	public getUsers(): User[] {
@@ -1717,7 +1725,7 @@ export class DriftClient {
 	}
 
 	/**
-	 * Creates the Clearing House User account for a user, and deposits some initial collateral
+	 * Creates the User account for a user, and deposits some initial collateral
 	 * @param amount
 	 * @param userTokenAccount
 	 * @param marketIndex
