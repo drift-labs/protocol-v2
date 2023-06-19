@@ -2394,6 +2394,13 @@ pub fn handle_end_swap(
             in_token_amount_before,
             amount_in
         )?;
+
+        validate!(
+            user.is_margin_trading_enabled,
+            ErrorCode::MarginTradingDisabled,
+            "swap lead to increase in liability for in market {}",
+            in_market_index
+        )?;
     }
 
     math::spot_withdraw::validate_spot_market_vault_amount(&in_spot_market, in_vault.amount)?;
