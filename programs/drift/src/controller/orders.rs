@@ -3013,9 +3013,9 @@ pub fn place_spot_order(
         if !meets_initial_margin_requirement {
             return Err(ErrorCode::InvalidOrderForInitialMarginReq);
         }
-
-        validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
     }
+
+    validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
 
     if force_reduce_only && !risk_decreasing {
         return Err(ErrorCode::InvalidOrderNotRiskReducing);
