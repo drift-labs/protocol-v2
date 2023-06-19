@@ -3344,6 +3344,59 @@ export class DriftClient {
 		reduceOnly?: SwapReduceOnly;
 		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
+		const { ixs, lookupTables } = await this.getJupiterSwapIx({
+			jupiterClient,
+			outMarketIndex,
+			inMarketIndex,
+			outAssociatedTokenAccount,
+			inAssociatedTokenAccount,
+			amount,
+			slippageBps,
+			swapMode,
+			route,
+			reduceOnly,
+		});
+
+		const tx = (await this.buildTransaction(
+			ixs,
+			txParams,
+			0,
+			lookupTables
+		)) as VersionedTransaction;
+
+		const { txSig, slot } = await this.sendTransaction(tx);
+		this.spotMarketLastSlotCache.set(outMarketIndex, slot);
+		this.spotMarketLastSlotCache.set(inMarketIndex, slot);
+
+		return txSig;
+	}
+
+	public async getJupiterSwapIx({
+		jupiterClient,
+		outMarketIndex,
+		inMarketIndex,
+		outAssociatedTokenAccount,
+		inAssociatedTokenAccount,
+		amount,
+		slippageBps,
+		swapMode,
+		route,
+		reduceOnly,
+	}: {
+		jupiterClient: JupiterClient;
+		outMarketIndex: number;
+		inMarketIndex: number;
+		outAssociatedTokenAccount?: PublicKey;
+		inAssociatedTokenAccount?: PublicKey;
+		amount: BN;
+		slippageBps?: number;
+		swapMode?: SwapMode;
+		route?: Route;
+		reduceOnly?: SwapReduceOnly;
+	}): Promise<{
+		ixs: TransactionInstruction[];
+		lookupTables: AddressLookupTableAccount[];
+	}> {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
@@ -3432,25 +3485,14 @@ export class DriftClient {
 			reduceOnly,
 		});
 
-		const instructions = [
+		const ixs = [
 			...preInstructions,
 			beginSwapIx,
 			...jupiterInstructions,
 			endSwapIx,
 		];
 
-		const tx = (await this.buildTransaction(
-			instructions,
-			txParams,
-			0,
-			lookupTables
-		)) as VersionedTransaction;
-
-		const { txSig, slot } = await this.sendTransaction(tx);
-		this.spotMarketLastSlotCache.set(outMarketIndex, slot);
-		this.spotMarketLastSlotCache.set(inMarketIndex, slot);
-
-		return txSig;
+		return { ixs, lookupTables };
 	}
 
 	/**
