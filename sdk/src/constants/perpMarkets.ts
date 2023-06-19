@@ -124,6 +124,26 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1683125906000,
 		oracleSource: OracleSource.PYTH_1M,
 	},
+	{
+		fullName: 'OP',
+		category: ['L2', 'Infra'],
+		symbol: 'OP-PERP',
+		baseAssetSymbol: 'OP',
+		marketIndex: 11,
+		oracle: new PublicKey('8ctSiDhA7eJoii4TkKV8Rx4KFdz3ycsA1FXy9wq56quG'),
+		launchTs: 1683125906000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'RNDR',
+		category: ['Infra'],
+		symbol: 'RNDR-PERP',
+		baseAssetSymbol: 'RNDR',
+		marketIndex: 12,
+		oracle: new PublicKey('C2QvUPBiU3fViSyqA4nZgGyYqLgYf9PRpd8B8oLoo48w'),
+		launchTs: 1683125906000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -236,6 +256,26 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('FSfxunDmjjbDV2QxpyxFCAPKmYJHSLnLuvQXDLkMzLBm'),
 		launchTs: 1683125906000,
 		oracleSource: OracleSource.PYTH_1M,
+	},
+	{
+		fullName: 'OP',
+		category: ['L2', 'Infra'],
+		symbol: 'OP-PERP',
+		baseAssetSymbol: 'OP',
+		marketIndex: 11,
+		oracle: new PublicKey('4o4CUwzFwLqCvmA5x1G4VzoZkAhAcbiuiYyjWX1CVbY2'),
+		launchTs: 1683125906000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'RNDR',
+		category: ['Infra'],
+		symbol: 'RNDR-PERP',
+		baseAssetSymbol: 'RNDR',
+		marketIndex: 12,
+		oracle: new PublicKey('CYGfrBJB9HgLf9iZyN4aH5HvUAi2htQ4MjPxeXMf4Egn'),
+		launchTs: 1683125906000,
+		oracleSource: OracleSource.PYTH,
 	},
 ];
 

@@ -1,6 +1,7 @@
 import { DriftClient } from './driftClient';
 import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
+import { UserAccountSubscriber } from './accounts/types';
 
 export type UserConfig = {
 	accountSubscription?: UserSubscriptionConfig;
@@ -15,4 +16,8 @@ export type UserSubscriptionConfig =
 	| {
 			type: 'polling';
 			accountLoader: BulkAccountLoader;
+	  }
+	| {
+			type: 'custom';
+			userAccountSubscriber: UserAccountSubscriber;
 	  };

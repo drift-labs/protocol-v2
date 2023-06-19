@@ -11,7 +11,7 @@ use crate::controller::spot_position::{
 };
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
-use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, serum_program};
+use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, marinade_mainnet, serum_program};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
@@ -2101,6 +2101,7 @@ pub fn handle_begin_swap(
     )?;
 
     let mut user = load_mut!(&ctx.accounts.user)?;
+    let delegate_is_signer = user.delegate == ctx.accounts.authority.key();
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
@@ -2257,13 +2258,20 @@ pub fn handle_begin_swap(
                 "the in_token_account passed to SwapBegin and End must match"
             )?;
         } else {
+            let mut whitelisted_programs = vec![
+                serum_program::id(),
+                AssociatedToken::id(),
+                jupiter_mainnet_3::ID,
+                jupiter_mainnet_4::ID,
+            ];
+            if !delegate_is_signer {
+                whitelisted_programs.push(Token::id());
+                whitelisted_programs.push(marinade_mainnet::ID);
+            }
             validate!(
-                ix.program_id == AssociatedToken::id()
-                    || ix.program_id == serum_program::id()
-                    || ix.program_id == jupiter_mainnet_3::ID
-                    || ix.program_id == jupiter_mainnet_4::ID,
+                whitelisted_programs.contains(&ix.program_id),
                 ErrorCode::InvalidSwap,
-                "only allowed to pass in ixs to ATA or openbook or Jupiter v3 or v4 programs"
+                "only allowed to pass in ixs to token or openbook or Jupiter v3 or v4 programs"
             )?;
         }
 
@@ -2386,6 +2394,13 @@ pub fn handle_end_swap(
             in_token_amount_before,
             amount_in
         )?;
+
+        validate!(
+            user.is_margin_trading_enabled,
+            ErrorCode::MarginTradingDisabled,
+            "swap lead to increase in liability for in market {}",
+            in_market_index
+        )?;
     }
 
     math::spot_withdraw::validate_spot_market_vault_amount(&in_spot_market, in_vault.amount)?;
@@ -2429,7 +2444,7 @@ pub fn handle_end_swap(
         )?;
     }
 
-    let fee = amount_out / 2000; // 0.05% fee
+    let fee = 0_u64; // no fee
     let amount_out_after_fee = amount_out.safe_sub(fee)?;
 
     out_spot_market.total_swap_fee = out_spot_market.total_swap_fee.saturating_add(fee);
