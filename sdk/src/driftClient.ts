@@ -148,6 +148,8 @@ export class DriftClient {
 	txSender: TxSender;
 	perpMarketLastSlotCache = new Map<number, number>();
 	spotMarketLastSlotCache = new Map<number, number>();
+	mustIncludePerpMarketIndexes = new Set<number>();
+	mustIncludeSpotMarketIndexes = new Set<number>();
 	authority: PublicKey;
 	marketLookupTable: PublicKey;
 	lookupTableAccount: AddressLookupTableAccount;
@@ -1197,6 +1199,29 @@ export class DriftClient {
 		return amount.mul(PRICE_PRECISION);
 	}
 
+	/**
+	 * Each drift instruction must include perp and sport market accounts in the ix remaining accounts.
+	 * Use this function to force a subset of markets to be included in the remaining accounts for every ix
+	 *
+	 * @param perpMarketIndexes
+	 * @param spotMarketIndexes
+	 */
+	public mustIncludeMarketsInIx({
+		perpMarketIndexes,
+		spotMarketIndexes,
+	}: {
+		perpMarketIndexes: number[];
+		spotMarketIndexes: number[];
+	}): void {
+		perpMarketIndexes.forEach((perpMarketIndex) => {
+			this.mustIncludePerpMarketIndexes.add(perpMarketIndex);
+		});
+
+		spotMarketIndexes.forEach((spotMarketIndex) => {
+			this.mustIncludeSpotMarketIndexes.add(spotMarketIndex);
+		});
+	}
+
 	getRemainingAccounts(params: RemainingAccountParams): AccountMeta[] {
 		const { oracleAccountMap, spotMarketAccountMap, perpMarketAccountMap } =
 			this.getRemainingAccountMapsForUsers(params.userAccounts);
@@ -1210,32 +1235,13 @@ export class DriftClient {
 				// if cache has more recent slot than user positions account slot, add market to remaining accounts
 				// otherwise remove from slot
 				if (slot > lastUserSlot) {
-					const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
-					perpMarketAccountMap.set(marketIndex, {
-						pubkey: perpMarketAccount.pubkey,
-						isSigner: false,
-						isWritable: false,
-					});
-					oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
-						pubkey: perpMarketAccount.amm.oracle,
-						isSigner: false,
-						isWritable: false,
-					});
-					const spotMarketAccount = this.getSpotMarketAccount(
-						perpMarketAccount.quoteSpotMarketIndex
+					this.addPerpMarketToRemainingAccountMaps(
+						marketIndex,
+						false,
+						oracleAccountMap,
+						spotMarketAccountMap,
+						perpMarketAccountMap
 					);
-					spotMarketAccountMap.set(perpMarketAccount.quoteSpotMarketIndex, {
-						pubkey: spotMarketAccount.pubkey,
-						isSigner: false,
-						isWritable: false,
-					});
-					if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-						oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-							pubkey: spotMarketAccount.oracle,
-							isSigner: false,
-							isWritable: false,
-						});
-					}
 				} else {
 					this.perpMarketLastSlotCache.delete(marketIndex);
 				}
@@ -1248,19 +1254,12 @@ export class DriftClient {
 				// if cache has more recent slot than user positions account slot, add market to remaining accounts
 				// otherwise remove from slot
 				if (slot > lastUserSlot) {
-					const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
-					spotMarketAccountMap.set(marketIndex, {
-						pubkey: spotMarketAccount.pubkey,
-						isSigner: false,
-						isWritable: false,
-					});
-					if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-						oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-							pubkey: spotMarketAccount.oracle,
-							isSigner: false,
-							isWritable: false,
-						});
-					}
+					this.addSpotMarketToRemainingAccountMaps(
+						marketIndex,
+						false,
+						oracleAccountMap,
+						spotMarketAccountMap
+					);
 				} else {
 					this.spotMarketLastSlotCache.delete(marketIndex);
 				}
@@ -1268,106 +1267,65 @@ export class DriftClient {
 		}
 
 		if (params.readablePerpMarketIndex !== undefined) {
-			const perpMarketAccount = this.getPerpMarketAccount(
-				params.readablePerpMarketIndex
+			this.addPerpMarketToRemainingAccountMaps(
+				params.readablePerpMarketIndex,
+				false,
+				oracleAccountMap,
+				spotMarketAccountMap,
+				perpMarketAccountMap
 			);
-			perpMarketAccountMap.set(params.readablePerpMarketIndex, {
-				pubkey: perpMarketAccount.pubkey,
-				isSigner: false,
-				isWritable: false,
-			});
-			oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
-				pubkey: perpMarketAccount.amm.oracle,
-				isSigner: false,
-				isWritable: false,
-			});
-			const spotMarketAccount = this.getSpotMarketAccount(
-				perpMarketAccount.quoteSpotMarketIndex
+		}
+
+		for (const perpMarketIndex of this.mustIncludePerpMarketIndexes.values()) {
+			this.addPerpMarketToRemainingAccountMaps(
+				perpMarketIndex,
+				false,
+				oracleAccountMap,
+				spotMarketAccountMap,
+				perpMarketAccountMap
 			);
-			spotMarketAccountMap.set(perpMarketAccount.quoteSpotMarketIndex, {
-				pubkey: spotMarketAccount.pubkey,
-				isSigner: false,
-				isWritable: false,
-			});
-			if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-				oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-					pubkey: spotMarketAccount.oracle,
-					isSigner: false,
-					isWritable: false,
-				});
-			}
 		}
 
 		if (params.readableSpotMarketIndexes !== undefined) {
 			for (const readableSpotMarketIndex of params.readableSpotMarketIndexes) {
-				const spotMarketAccount = this.getSpotMarketAccount(
-					readableSpotMarketIndex
+				this.addSpotMarketToRemainingAccountMaps(
+					readableSpotMarketIndex,
+					false,
+					oracleAccountMap,
+					spotMarketAccountMap
 				);
-				spotMarketAccountMap.set(readableSpotMarketIndex, {
-					pubkey: spotMarketAccount.pubkey,
-					isSigner: false,
-					isWritable: false,
-				});
-				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-						pubkey: spotMarketAccount.oracle,
-						isSigner: false,
-						isWritable: false,
-					});
-				}
 			}
+		}
+
+		for (const spotMarketIndex of this.mustIncludeSpotMarketIndexes.values()) {
+			this.addSpotMarketToRemainingAccountMaps(
+				spotMarketIndex,
+				false,
+				oracleAccountMap,
+				spotMarketAccountMap
+			);
 		}
 
 		if (params.writablePerpMarketIndexes !== undefined) {
 			for (const writablePerpMarketIndex of params.writablePerpMarketIndexes) {
-				const perpMarketAccount = this.getPerpMarketAccount(
-					writablePerpMarketIndex
+				this.addPerpMarketToRemainingAccountMaps(
+					writablePerpMarketIndex,
+					true,
+					oracleAccountMap,
+					spotMarketAccountMap,
+					perpMarketAccountMap
 				);
-				perpMarketAccountMap.set(writablePerpMarketIndex, {
-					pubkey: perpMarketAccount.pubkey,
-					isSigner: false,
-					isWritable: true,
-				});
-				oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
-					pubkey: perpMarketAccount.amm.oracle,
-					isSigner: false,
-					isWritable: false,
-				});
-				const spotMarketAccount = this.getSpotMarketAccount(
-					perpMarketAccount.quoteSpotMarketIndex
-				);
-				spotMarketAccountMap.set(perpMarketAccount.quoteSpotMarketIndex, {
-					pubkey: spotMarketAccount.pubkey,
-					isSigner: false,
-					isWritable: false,
-				});
-				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-						pubkey: spotMarketAccount.oracle,
-						isSigner: false,
-						isWritable: false,
-					});
-				}
 			}
 		}
 
 		if (params.writableSpotMarketIndexes !== undefined) {
 			for (const writableSpotMarketIndex of params.writableSpotMarketIndexes) {
-				const spotMarketAccount = this.getSpotMarketAccount(
-					writableSpotMarketIndex
+				this.addSpotMarketToRemainingAccountMaps(
+					writableSpotMarketIndex,
+					true,
+					oracleAccountMap,
+					spotMarketAccountMap
 				);
-				spotMarketAccountMap.set(spotMarketAccount.marketIndex, {
-					pubkey: spotMarketAccount.pubkey,
-					isSigner: false,
-					isWritable: true,
-				});
-				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-						pubkey: spotMarketAccount.oracle,
-						isSigner: false,
-						isWritable: false,
-					});
-				}
 			}
 		}
 
@@ -1376,6 +1334,53 @@ export class DriftClient {
 			...spotMarketAccountMap.values(),
 			...perpMarketAccountMap.values(),
 		];
+	}
+
+	addPerpMarketToRemainingAccountMaps(
+		marketIndex: number,
+		writable: boolean,
+		oracleAccountMap: Map<string, AccountMeta>,
+		spotMarketAccountMap: Map<number, AccountMeta>,
+		perpMarketAccountMap: Map<number, AccountMeta>
+	): void {
+		const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+		perpMarketAccountMap.set(marketIndex, {
+			pubkey: perpMarketAccount.pubkey,
+			isSigner: false,
+			isWritable: writable,
+		});
+		oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
+			pubkey: perpMarketAccount.amm.oracle,
+			isSigner: false,
+			isWritable: false,
+		});
+		this.addSpotMarketToRemainingAccountMaps(
+			perpMarketAccount.quoteSpotMarketIndex,
+			false,
+			oracleAccountMap,
+			spotMarketAccountMap
+		);
+	}
+
+	addSpotMarketToRemainingAccountMaps(
+		marketIndex: number,
+		writable: boolean,
+		oracleAccountMap: Map<string, AccountMeta>,
+		spotMarketAccountMap: Map<number, AccountMeta>
+	): void {
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+		spotMarketAccountMap.set(spotMarketAccount.marketIndex, {
+			pubkey: spotMarketAccount.pubkey,
+			isSigner: false,
+			isWritable: writable,
+		});
+		if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
+			oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+				pubkey: spotMarketAccount.oracle,
+				isSigner: false,
+				isWritable: false,
+			});
+		}
 	}
 
 	getRemainingAccountMapsForUsers(userAccounts: UserAccount[]): {
@@ -1390,73 +1395,35 @@ export class DriftClient {
 		for (const userAccount of userAccounts) {
 			for (const spotPosition of userAccount.spotPositions) {
 				if (!isSpotPositionAvailable(spotPosition)) {
-					const spotMarket = this.getSpotMarketAccount(
-						spotPosition.marketIndex
+					this.addSpotMarketToRemainingAccountMaps(
+						spotPosition.marketIndex,
+						false,
+						oracleAccountMap,
+						spotMarketAccountMap
 					);
-					spotMarketAccountMap.set(spotPosition.marketIndex, {
-						pubkey: spotMarket.pubkey,
-						isSigner: false,
-						isWritable: false,
-					});
-
-					if (!spotMarket.oracle.equals(PublicKey.default)) {
-						oracleAccountMap.set(spotMarket.oracle.toString(), {
-							pubkey: spotMarket.oracle,
-							isSigner: false,
-							isWritable: false,
-						});
-					}
 
 					if (
 						!spotPosition.openAsks.eq(ZERO) ||
 						!spotPosition.openBids.eq(ZERO)
 					) {
-						const quoteSpotMarket = this.getQuoteSpotMarketAccount();
-						spotMarketAccountMap.set(QUOTE_SPOT_MARKET_INDEX, {
-							pubkey: quoteSpotMarket.pubkey,
-							isSigner: false,
-							isWritable: false,
-						});
-						if (!quoteSpotMarket.oracle.equals(PublicKey.default)) {
-							oracleAccountMap.set(quoteSpotMarket.oracle.toString(), {
-								pubkey: quoteSpotMarket.oracle,
-								isSigner: false,
-								isWritable: false,
-							});
-						}
+						this.addSpotMarketToRemainingAccountMaps(
+							QUOTE_SPOT_MARKET_INDEX,
+							false,
+							oracleAccountMap,
+							spotMarketAccountMap
+						);
 					}
 				}
 			}
 			for (const position of userAccount.perpPositions) {
 				if (!positionIsAvailable(position)) {
-					const perpMarketAccount = this.getPerpMarketAccount(
-						position.marketIndex
+					this.addPerpMarketToRemainingAccountMaps(
+						position.marketIndex,
+						false,
+						oracleAccountMap,
+						spotMarketAccountMap,
+						perpMarketAccountMap
 					);
-					perpMarketAccountMap.set(position.marketIndex, {
-						pubkey: perpMarketAccount.pubkey,
-						isWritable: false,
-						isSigner: false,
-					});
-					oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
-						pubkey: perpMarketAccount.amm.oracle,
-						isWritable: false,
-						isSigner: false,
-					});
-					const spotMarketAccount = this.getSpotMarketAccount(
-						perpMarketAccount.quoteSpotMarketIndex
-					);
-					spotMarketAccountMap.set(perpMarketAccount.quoteSpotMarketIndex, {
-						pubkey: spotMarketAccount.pubkey,
-						isSigner: false,
-						isWritable: false,
-					});
-					if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-						oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-							pubkey: spotMarketAccount.oracle,
-							isSigner: false,
-							isWritable: false,
-						});
-					}
 				}
 			}
 		}
