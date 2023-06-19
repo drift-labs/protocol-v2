@@ -861,6 +861,43 @@ export class DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateUserMarginTradingEnabledIx(
+		marginTradingEnabled: boolean,
+		subAccountId = 0,
+		userAccountPublicKey?: PublicKey
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKeyToUse =
+			userAccountPublicKey ||
+			getUserAccountPublicKeySync(
+				this.program.programId,
+				this.wallet.publicKey,
+				subAccountId
+			);
+
+		await this.addUser(subAccountId, this.wallet.publicKey);
+
+		let remainingAccounts;
+		try {
+			remainingAccounts = this.getRemainingAccounts({
+				userAccounts: [this.getUserAccount(subAccountId)],
+			});
+		} catch (err) {
+			remainingAccounts = [];
+		}
+
+		return await this.program.instruction.updateUserMarginTradingEnabled(
+			subAccountId,
+			marginTradingEnabled,
+			{
+				accounts: {
+					user: userAccountPublicKeyToUse,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async updateUserMarginTradingEnabled(
 		marginTradingEnabled: boolean,
 		subAccountId = 0
