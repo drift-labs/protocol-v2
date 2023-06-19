@@ -117,6 +117,7 @@ import { castNumberToSpotPrecision } from './math/spotMarket';
 import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
 import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
+import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -3538,6 +3539,63 @@ export class DriftClient {
 		);
 
 		return { beginSwapIx, endSwapIx };
+	}
+
+	public async stakeForMSOL({ amount }: { amount: BN }): Promise<TxSigAndSlot> {
+		const ixs = await this.getStakeForMSOLIx({ amount });
+		const tx = await this.buildTransaction(ixs);
+		return this.sendTransaction(tx);
+	}
+
+	public async getStakeForMSOLIx({
+		amount,
+	}: {
+		amount: BN;
+	}): Promise<TransactionInstruction[]> {
+		const wSOLMint = this.getSpotMarketAccount(1).mint;
+		const mSOLAccount = await this.getAssociatedTokenAccount(2);
+		const wSOLAccount = await this.getAssociatedTokenAccount(1, false);
+
+		const wSOLAccountExists = await this.checkIfAccountExists(wSOLAccount);
+
+		const closeWSOLIx = createCloseAccountInstruction(
+			wSOLAccount,
+			this.wallet.publicKey,
+			this.wallet.publicKey
+		);
+
+		const createWSOLIx =
+			await this.createAssociatedTokenAccountIdempotentInstruction(
+				wSOLAccount,
+				this.wallet.publicKey,
+				this.wallet.publicKey,
+				wSOLMint
+			);
+
+		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
+			inMarketIndex: 1,
+			outMarketIndex: 2,
+			amountIn: amount,
+			inTokenAccount: wSOLAccount,
+			outTokenAccount: mSOLAccount,
+		});
+
+		const program = getMarinadeFinanceProgram(this.provider);
+		const depositIx = await getMarinadeDepositIx({
+			program,
+			mSOLAccount: mSOLAccount,
+			transferFrom: this.wallet.publicKey,
+			amount,
+		});
+
+		const ixs = [];
+
+		if (!wSOLAccountExists) {
+			ixs.push(createWSOLIx);
+		}
+		ixs.push(beginSwapIx, closeWSOLIx, depositIx, createWSOLIx, endSwapIx);
+
+		return ixs;
 	}
 
 	public async triggerOrder(
