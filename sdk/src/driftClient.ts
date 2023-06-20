@@ -3419,6 +3419,7 @@ export class DriftClient {
 		swapMode,
 		route,
 		reduceOnly,
+		userAccountPublicKey,
 	}: {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
@@ -3430,6 +3431,7 @@ export class DriftClient {
 		swapMode?: SwapMode;
 		route?: Route;
 		reduceOnly?: SwapReduceOnly;
+		userAccountPublicKey?: PublicKey;
 	}): Promise<{
 		ixs: TransactionInstruction[];
 		lookupTables: AddressLookupTableAccount[];
@@ -3520,6 +3522,7 @@ export class DriftClient {
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 			reduceOnly,
+			userAccountPublicKey,
 		});
 
 		const ixs = [
@@ -3541,6 +3544,8 @@ export class DriftClient {
 	 * @param inTokenAccount the token account to move the tokens being sold
 	 * @param outTokenAccount the token account to receive the tokens being bought
 	 * @param limitPrice the limit price of the swap
+	 * @param reduceOnly
+	 * @param userAccountPublicKey optional, specify a custom userAccountPublicKey to use instead of getting the current user account; can be helpful if the account is being created within the current tx
 	 */
 	public async getSwapIx({
 		outMarketIndex,
@@ -3550,6 +3555,7 @@ export class DriftClient {
 		outTokenAccount,
 		limitPrice,
 		reduceOnly,
+		userAccountPublicKey,
 	}: {
 		outMarketIndex: number;
 		inMarketIndex: number;
@@ -3558,11 +3564,13 @@ export class DriftClient {
 		outTokenAccount: PublicKey;
 		limitPrice?: BN;
 		reduceOnly?: SwapReduceOnly;
+		userAccountPublicKey?: PublicKey;
 	}): Promise<{
 		beginSwapIx: TransactionInstruction;
 		endSwapIx: TransactionInstruction;
 	}> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
+		const userAccountPublicKeyToUse =
+			userAccountPublicKey || (await this.getUserAccountPublicKey());
 
 		const userAccounts = this.hasUser() ? [this.getUserAccount()] : [];
 		const remainingAccounts = this.getRemainingAccounts({
@@ -3580,7 +3588,7 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					user: userAccountPublicKey,
+					user: userAccountPublicKeyToUse,
 					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.authority,
 					outSpotMarketVault: outSpotMarket.vault,
@@ -3603,7 +3611,7 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					user: userAccountPublicKey,
+					user: userAccountPublicKeyToUse,
 					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.authority,
 					outSpotMarketVault: outSpotMarket.vault,
