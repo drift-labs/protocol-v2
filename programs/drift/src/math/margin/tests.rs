@@ -2793,7 +2793,7 @@ mod validate_spot_margin_trading {
 }
 
 #[cfg(test)]
-mod calculate_net_usd_value {
+mod calculate_user_equity {
     use std::str::FromStr;
 
     use anchor_lang::Owner;
@@ -2803,7 +2803,7 @@ mod calculate_net_usd_value {
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
-    use crate::math::margin::calculate_net_usd_value;
+    use crate::math::margin::calculate_user_equity;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
 
@@ -2916,7 +2916,7 @@ mod calculate_net_usd_value {
         };
 
         let (net_usd_value, _) =
-            calculate_net_usd_value(&user, &market_map, &spot_market_map, &mut oracle_map).unwrap();
+            calculate_user_equity(&user, &market_map, &spot_market_map, &mut oracle_map).unwrap();
 
         assert_eq!(net_usd_value, 20000000);
     }
@@ -3014,7 +3014,7 @@ mod calculate_net_usd_value {
         };
 
         let (net_usd_value, _) =
-            calculate_net_usd_value(&user, &market_map, &spot_market_map, &mut oracle_map).unwrap();
+            calculate_user_equity(&user, &market_map, &spot_market_map, &mut oracle_map).unwrap();
 
         assert_eq!(net_usd_value, 5000000);
     }
@@ -3097,7 +3097,7 @@ mod calculate_net_usd_value {
         };
 
         let (net_usd_value, _) =
-            calculate_net_usd_value(&user, &market_map, &spot_market_map, &mut oracle_map).unwrap();
+            calculate_user_equity(&user, &market_map, &spot_market_map, &mut oracle_map).unwrap();
 
         assert_eq!(net_usd_value, 1000000000);
     }
