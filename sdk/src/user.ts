@@ -1994,7 +1994,6 @@ export class User {
 	 *
 	 * @param inMarketIndex
 	 * @param outMarketIndex
-	 * @param marginTradingEnabled
 	 */
 	public getMaxSwapAmount({
 		inMarketIndex,
@@ -2312,6 +2311,89 @@ export class User {
 			totalAssetValue,
 			totalLiabilityValue,
 		};
+	}
+
+	/**
+	 * Estimates what the user leverage will be after swap
+	 * @param inMarketIndex
+	 * @param outMarketIndex
+	 * @param inAmount
+	 * @param outAmount
+	 */
+	public accountLeverageAfterSwap({
+		inMarketIndex,
+		outMarketIndex,
+		inAmount,
+		outAmount,
+	}: {
+		inMarketIndex: number;
+		outMarketIndex: number;
+		inAmount: BN;
+		outAmount: BN;
+	}): BN {
+		const inMarket = this.driftClient.getSpotMarketAccount(inMarketIndex);
+		const outMarket = this.driftClient.getSpotMarketAccount(outMarketIndex);
+
+		const inSpotPosition =
+			this.getSpotPosition(inMarketIndex) ||
+			this.getEmptySpotPosition(inMarketIndex);
+		const outSpotPosition =
+			this.getSpotPosition(outMarketIndex) ||
+			this.getEmptySpotPosition(outMarketIndex);
+
+		const {
+			totalAssetValue: inTotalAssetValueInitial,
+			totalLiabilityValue: inTotalLiabilityValueInitial,
+		} = this.calculateSpotPositionLeverageContribution(inSpotPosition);
+		const {
+			totalAssetValue: outTotalAssetValueInitial,
+			totalLiabilityValue: outTotalLiabilityValueInitial,
+		} = this.calculateSpotPositionLeverageContribution(outSpotPosition);
+
+		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
+			this.getLeverageComponents();
+
+		const inPositionAfter = this.cloneAndUpdateSpotPosition(
+			inSpotPosition,
+			inAmount.abs().neg(),
+			inMarket
+		);
+		const outPositionAfter = this.cloneAndUpdateSpotPosition(
+			outSpotPosition,
+			outAmount.abs(),
+			outMarket
+		);
+
+		const {
+			totalAssetValue: inTotalAssetValueAfter,
+			totalLiabilityValue: inTotalLiabilityValueAfter,
+		} = this.calculateSpotPositionLeverageContribution(inPositionAfter);
+
+		const {
+			totalAssetValue: outTotalAssetValueAfter,
+			totalLiabilityValue: outTotalLiabilityValueAfter,
+		} = this.calculateSpotPositionLeverageContribution(outPositionAfter);
+
+		const spotAssetValueDelta = inTotalAssetValueAfter
+			.add(outTotalAssetValueAfter)
+			.sub(inTotalAssetValueInitial)
+			.sub(outTotalAssetValueInitial);
+		const spotLiabilityValueDelta = inTotalLiabilityValueAfter
+			.add(outTotalLiabilityValueAfter)
+			.sub(inTotalLiabilityValueInitial)
+			.sub(outTotalLiabilityValueInitial);
+
+		const spotAssetValueAfter = spotAssetValue.add(spotAssetValueDelta);
+		const spotLiabilityValueAfter = spotLiabilityValue.add(
+			spotLiabilityValueDelta
+		);
+
+		return this.calculateLeverageFromComponents({
+			perpLiabilityValue,
+			perpPnl,
+			spotAssetValue: spotAssetValueAfter,
+			spotLiabilityValue: spotLiabilityValueAfter,
+		});
 	}
 
 	// TODO - should this take the price impact of the trade into account for strict accuracy?
