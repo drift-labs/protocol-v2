@@ -3564,8 +3564,9 @@ export class DriftClient {
 	}> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
+		const userAccounts = this.hasUser() ? [this.getUserAccount()] : [];
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts,
 			writableSpotMarketIndexes: [outMarketIndex, inMarketIndex],
 		});
 
