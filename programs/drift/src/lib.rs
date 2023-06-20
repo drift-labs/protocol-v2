@@ -172,6 +172,10 @@ pub mod drift {
         )
     }
 
+    pub fn place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -> Result<()> {
+        handle_place_orders(ctx, params)
+    }
+
     pub fn begin_swap(
         ctx: Context<Swap>,
         in_market_index: u16,

@@ -123,7 +123,7 @@ type RemainingAccountParams = {
 	userAccounts: UserAccount[];
 	writablePerpMarketIndexes?: number[];
 	writableSpotMarketIndexes?: number[];
-	readablePerpMarketIndex?: number;
+	readablePerpMarketIndex?: number | number[];
 	readableSpotMarketIndexes?: number[];
 	useMarketLastSlotCache?: boolean;
 };
@@ -1268,13 +1268,20 @@ export class DriftClient {
 		}
 
 		if (params.readablePerpMarketIndex !== undefined) {
-			this.addPerpMarketToRemainingAccountMaps(
-				params.readablePerpMarketIndex,
-				false,
-				oracleAccountMap,
-				spotMarketAccountMap,
-				perpMarketAccountMap
-			);
+			const readablePerpMarketIndexes = Array.isArray(
+				params.readablePerpMarketIndex
+			)
+				? params.readablePerpMarketIndex
+				: [params.readablePerpMarketIndex];
+			for (const marketIndex of readablePerpMarketIndexes) {
+				this.addPerpMarketToRemainingAccountMaps(
+					marketIndex,
+					false,
+					oracleAccountMap,
+					spotMarketAccountMap,
+					perpMarketAccountMap
+				);
+			}
 		}
 
 		for (const perpMarketIndex of this.mustIncludePerpMarketIndexes.values()) {
@@ -2783,32 +2790,65 @@ export class DriftClient {
 		placeOrderParams: OrderParams[],
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const tx = wrapInTx(
+		const ixs = [
 			await this.getCancelOrdersIx(
 				cancelOrderParams.marketType,
 				cancelOrderParams.marketIndex,
 				cancelOrderParams.direction
 			),
-			txParams?.computeUnits,
-			txParams?.computeUnitsPrice
-		);
-
-		for (const placeOrderParam of placeOrderParams) {
-			const marketType = placeOrderParam.marketType;
-			if (!marketType) {
-				throw new Error('marketType must be set on placeOrderParams');
-			}
-			let ix;
-			if (isVariant(marketType, 'perp')) {
-				ix = this.getPlacePerpOrderIx(placeOrderParam);
-			} else {
-				ix = this.getPlaceSpotOrderIx(placeOrderParam);
-			}
-			tx.add(ix);
-		}
-
+			await this.getPlaceOrdersIx(placeOrderParams),
+		];
+		const tx = await this.buildTransaction(ixs, txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
+	}
+
+	public async placeOrders(
+		params: OrderParams[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getPlaceOrdersIx(params),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getPlaceOrdersIx(
+		params: OrderParams[]
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const readablePerpMarketIndex: number[] = [];
+		const readableSpotMarketIndexes: number[] = [];
+		for (const param of params) {
+			if (isVariant(param.marketType, 'perp')) {
+				readablePerpMarketIndex.push(param.marketIndex);
+			} else {
+				readableSpotMarketIndexes.push(param.marketIndex);
+			}
+		}
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			readablePerpMarketIndex,
+			readableSpotMarketIndexes,
+			useMarketLastSlotCache: true,
+		});
+
+		return await this.program.instruction.placeOrders(params, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
 	}
 
 	public async fillPerpOrder(
