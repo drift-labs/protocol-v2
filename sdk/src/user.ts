@@ -2065,8 +2065,8 @@ export class User {
 			let maxSwap = freeCollateral
 				.mul(inPrecision)
 				.mul(SPOT_MARKET_WEIGHT_PRECISION)
-				.div(SPOT_MARKET_WEIGHT_PRECISION.div(TEN))
-				.div(inOraclePrice); // just assume user can go 10x
+				.div(SPOT_MARKET_WEIGHT_PRECISION.div(new BN(100)))
+				.div(inOraclePrice); // just assume user can go 100x
 			inSwap = maxSwap.div(TWO);
 			const error = BN.min(QUOTE_PRECISION, freeCollateral.div(new BN(100)));
 
@@ -2091,6 +2091,7 @@ export class User {
 					this.calculateSpotPositionFreeCollateralContribution(
 						outPositionAfter
 					);
+
 				const contributionAfter = inContributionAfter.add(outContributionAfter);
 
 				const contributionDelta = contributionAfter.sub(initialContribution);
@@ -2162,20 +2163,19 @@ export class User {
 			return clonedPosition;
 		}
 
-		const preTokenAmount = getTokenAmount(
-			position.scaledBalance,
-			market,
+		const preTokenAmount = getSignedTokenAmount(
+			getTokenAmount(position.scaledBalance, market, position.balanceType),
 			position.balanceType
 		);
 
 		if (sigNum(preTokenAmount).eq(sigNum(tokenAmount))) {
 			const scaledBalanceDelta = getBalance(
-				tokenAmount,
+				tokenAmount.abs(),
 				market,
 				position.balanceType
 			);
 			clonedPosition.scaledBalance =
-				position.scaledBalance.add(scaledBalanceDelta);
+				clonedPosition.scaledBalance.add(scaledBalanceDelta);
 			return clonedPosition;
 		}
 
@@ -2183,7 +2183,7 @@ export class User {
 			? SpotBalanceType.BORROW
 			: SpotBalanceType.DEPOSIT;
 
-		if (tokenAmount.abs().gt(preTokenAmount.abs())) {
+		if (tokenAmount.abs().gte(preTokenAmount.abs())) {
 			clonedPosition.scaledBalance = getBalance(
 				tokenAmount.abs().sub(preTokenAmount.abs()),
 				market,
@@ -2192,13 +2192,13 @@ export class User {
 			clonedPosition.balanceType = updateDirection;
 		} else {
 			const scaledBalanceDelta = getBalance(
-				tokenAmount,
+				tokenAmount.abs(),
 				market,
 				position.balanceType
 			);
 
 			clonedPosition.scaledBalance =
-				position.scaledBalance.sub(scaledBalanceDelta);
+				clonedPosition.scaledBalance.sub(scaledBalanceDelta);
 		}
 		return clonedPosition;
 	}
