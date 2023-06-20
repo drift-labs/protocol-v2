@@ -262,6 +262,84 @@ export function calculateUtilization(bank: SpotMarketAccount): BN {
 	return utilization;
 }
 
+/**
+ * calculates max borrow amount where rate would stay below targetBorrowRate
+ * @param spotMarketAccount
+ * @param targetBorrowRate
+ * @returns : Precision: TOKEN DECIMALS
+ */
+export function calculateSpotMarketBorrowCapacity(
+	spotMarketAccount: SpotMarketAccount,
+	targetBorrowRate: BN
+): BN {
+	const currentBorrowRate = calculateBorrowRate(spotMarketAccount);
+
+	if (currentBorrowRate.gte(targetBorrowRate)) {
+		return ZERO;
+	} else {
+		const tokenDepositAmount = getTokenAmount(
+			spotMarketAccount.depositBalance,
+			spotMarketAccount,
+			SpotBalanceType.DEPOSIT
+		);
+		const tokenBorrowAmount = getTokenAmount(
+			spotMarketAccount.borrowBalance,
+			spotMarketAccount,
+			SpotBalanceType.BORROW
+		);
+
+		let utilization: BN;
+		if (tokenBorrowAmount.eq(ZERO) && tokenDepositAmount.eq(ZERO)) {
+			utilization = ZERO;
+		} else if (tokenDepositAmount.eq(ZERO)) {
+			utilization = SPOT_MARKET_UTILIZATION_PRECISION;
+		} else {
+			utilization = tokenBorrowAmount
+				.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+				.div(tokenDepositAmount);
+		}
+
+		let targetUtilization;
+
+		// utilization past mid point
+		if (utilization.gte(spotMarketAccount.optimalUtilization)) {
+			const borrowRateSlope = new BN(
+				spotMarketAccount.maxBorrowRate - spotMarketAccount.optimalBorrowRate
+			)
+				.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+				.div(
+					SPOT_MARKET_UTILIZATION_PRECISION.sub(
+						new BN(spotMarketAccount.optimalUtilization)
+					)
+				);
+
+			const surplusTargetUtilization = targetBorrowRate
+				.sub(new BN(spotMarketAccount.optimalBorrowRate))
+				.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+				.div(borrowRateSlope);
+
+			targetUtilization = surplusTargetUtilization.add(
+				new BN(spotMarketAccount.optimalUtilization)
+			);
+		} else {
+			const borrowRateSlope = new BN(spotMarketAccount.optimalBorrowRate)
+				.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+				.div(new BN(spotMarketAccount.optimalUtilization));
+
+			targetUtilization = targetBorrowRate
+				.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+				.div(borrowRateSlope);
+		}
+
+		const targetBorrowAmount = tokenDepositAmount
+			.mul(targetUtilization)
+			.div(SPOT_MARKET_UTILIZATION_PRECISION);
+		const capacity = targetBorrowAmount.sub(tokenBorrowAmount);
+
+		return capacity;
+	}
+}
+
 export function calculateInterestRate(bank: SpotMarketAccount): BN {
 	const utilization = calculateUtilization(bank);
 
