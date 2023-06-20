@@ -1296,14 +1296,17 @@ export class User {
 
 	/**
 	 * calculates max allowable leverage exceeding hitting requirement category
+	 * for large sizes where imf factor activates, result is a lower bound
 	 * @params category {Initial, Maintenance}
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getMaxLeverageForPerp(
 		perpMarketIndex: number,
-		category: MarginCategory = 'Initial'
+		marginCategory: MarginCategory = 'Initial'
 	): BN {
 		const market = this.driftClient.getPerpMarketAccount(perpMarketIndex);
+		const marketPrice =
+			this.driftClient.getOracleDataForPerpMarket(perpMarketIndex).price;
 
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
 			this.getLeverageComponents();
@@ -1318,12 +1321,60 @@ export class User {
 
 		const totalLiabilityValue = perpLiabilityValue.add(spotLiabilityValue);
 
-		const marginRatio = calculateMarketMarginRatio(
-			market,
-			ZERO, // todo
-			category
-		);
 		const freeCollateral = this.getFreeCollateral();
+
+		let rawMarginRatio;
+
+		switch (marginCategory) {
+			case 'Initial':
+				rawMarginRatio = market.marginRatioInitial;
+				break;
+			case 'Maintenance':
+				rawMarginRatio = market.marginRatioMaintenance;
+				break;
+			default:
+				rawMarginRatio = market.marginRatioInitial;
+				break;
+		}
+
+		// absolute max fesible size (upper bound)
+		const maxSize = BN.max(
+			ZERO,
+			freeCollateral
+				.mul(MARGIN_PRECISION)
+				.div(rawMarginRatio)
+				.mul(PRICE_PRECISION)
+				.div(marketPrice)
+		);
+
+		// margin ratio incorporting upper bound on size
+		let marginRatio = calculateMarketMarginRatio(
+			market,
+			maxSize,
+			marginCategory
+		);
+
+		// use more fesible size since imf factor activated
+		let attempts = 0;
+		while (marginRatio > rawMarginRatio + 1e-4 && attempts < 10) {
+			// more fesible size (upper bound)
+			const targetSize = BN.max(
+				ZERO,
+				freeCollateral
+					.mul(MARGIN_PRECISION)
+					.div(marginRatio)
+					.mul(PRICE_PRECISION)
+					.div(marketPrice)
+			);
+
+			// margin ratio incorporting more fesible target size
+			marginRatio = calculateMarketMarginRatio(
+				market,
+				targetSize,
+				marginCategory
+			);
+			attempts += 1;
+		}
 
 		// how much more liabilities can be opened w remaining free collateral
 		const additionalLiabilities = freeCollateral
