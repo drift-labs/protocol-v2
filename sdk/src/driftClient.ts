@@ -863,6 +863,43 @@ export class DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateUserMarginTradingEnabledIx(
+		marginTradingEnabled: boolean,
+		subAccountId = 0,
+		userAccountPublicKey?: PublicKey
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKeyToUse =
+			userAccountPublicKey ||
+			getUserAccountPublicKeySync(
+				this.program.programId,
+				this.wallet.publicKey,
+				subAccountId
+			);
+
+		await this.addUser(subAccountId, this.wallet.publicKey);
+
+		let remainingAccounts;
+		try {
+			remainingAccounts = this.getRemainingAccounts({
+				userAccounts: [this.getUserAccount(subAccountId)],
+			});
+		} catch (err) {
+			remainingAccounts = [];
+		}
+
+		return await this.program.instruction.updateUserMarginTradingEnabled(
+			subAccountId,
+			marginTradingEnabled,
+			{
+				accounts: {
+					user: userAccountPublicKeyToUse,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async updateUserMarginTradingEnabled(
 		marginTradingEnabled: boolean,
 		subAccountId = 0
@@ -3351,6 +3388,61 @@ export class DriftClient {
 		reduceOnly?: SwapReduceOnly;
 		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
+		const { ixs, lookupTables } = await this.getJupiterSwapIx({
+			jupiterClient,
+			outMarketIndex,
+			inMarketIndex,
+			outAssociatedTokenAccount,
+			inAssociatedTokenAccount,
+			amount,
+			slippageBps,
+			swapMode,
+			route,
+			reduceOnly,
+		});
+
+		const tx = (await this.buildTransaction(
+			ixs,
+			txParams,
+			0,
+			lookupTables
+		)) as VersionedTransaction;
+
+		const { txSig, slot } = await this.sendTransaction(tx);
+		this.spotMarketLastSlotCache.set(outMarketIndex, slot);
+		this.spotMarketLastSlotCache.set(inMarketIndex, slot);
+
+		return txSig;
+	}
+
+	public async getJupiterSwapIx({
+		jupiterClient,
+		outMarketIndex,
+		inMarketIndex,
+		outAssociatedTokenAccount,
+		inAssociatedTokenAccount,
+		amount,
+		slippageBps,
+		swapMode,
+		route,
+		reduceOnly,
+		userAccountPublicKey,
+	}: {
+		jupiterClient: JupiterClient;
+		outMarketIndex: number;
+		inMarketIndex: number;
+		outAssociatedTokenAccount?: PublicKey;
+		inAssociatedTokenAccount?: PublicKey;
+		amount: BN;
+		slippageBps?: number;
+		swapMode?: SwapMode;
+		route?: Route;
+		reduceOnly?: SwapReduceOnly;
+		userAccountPublicKey?: PublicKey;
+	}): Promise<{
+		ixs: TransactionInstruction[];
+		lookupTables: AddressLookupTableAccount[];
+	}> {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
@@ -3437,27 +3529,17 @@ export class DriftClient {
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 			reduceOnly,
+			userAccountPublicKey,
 		});
 
-		const instructions = [
+		const ixs = [
 			...preInstructions,
 			beginSwapIx,
 			...jupiterInstructions,
 			endSwapIx,
 		];
 
-		const tx = (await this.buildTransaction(
-			instructions,
-			txParams,
-			0,
-			lookupTables
-		)) as VersionedTransaction;
-
-		const { txSig, slot } = await this.sendTransaction(tx);
-		this.spotMarketLastSlotCache.set(outMarketIndex, slot);
-		this.spotMarketLastSlotCache.set(inMarketIndex, slot);
-
-		return txSig;
+		return { ixs, lookupTables };
 	}
 
 	/**
@@ -3469,6 +3551,8 @@ export class DriftClient {
 	 * @param inTokenAccount the token account to move the tokens being sold
 	 * @param outTokenAccount the token account to receive the tokens being bought
 	 * @param limitPrice the limit price of the swap
+	 * @param reduceOnly
+	 * @param userAccountPublicKey optional, specify a custom userAccountPublicKey to use instead of getting the current user account; can be helpful if the account is being created within the current tx
 	 */
 	public async getSwapIx({
 		outMarketIndex,
@@ -3478,6 +3562,7 @@ export class DriftClient {
 		outTokenAccount,
 		limitPrice,
 		reduceOnly,
+		userAccountPublicKey,
 	}: {
 		outMarketIndex: number;
 		inMarketIndex: number;
@@ -3486,14 +3571,17 @@ export class DriftClient {
 		outTokenAccount: PublicKey;
 		limitPrice?: BN;
 		reduceOnly?: SwapReduceOnly;
+		userAccountPublicKey?: PublicKey;
 	}): Promise<{
 		beginSwapIx: TransactionInstruction;
 		endSwapIx: TransactionInstruction;
 	}> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
+		const userAccountPublicKeyToUse =
+			userAccountPublicKey || (await this.getUserAccountPublicKey());
 
+		const userAccounts = this.hasUser() ? [this.getUserAccount()] : [];
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts,
 			writableSpotMarketIndexes: [outMarketIndex, inMarketIndex],
 		});
 
@@ -3507,7 +3595,7 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					user: userAccountPublicKey,
+					user: userAccountPublicKeyToUse,
 					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.authority,
 					outSpotMarketVault: outSpotMarket.vault,
@@ -3530,7 +3618,7 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					user: userAccountPublicKey,
+					user: userAccountPublicKeyToUse,
 					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.authority,
 					outSpotMarketVault: outSpotMarket.vault,
@@ -3556,8 +3644,10 @@ export class DriftClient {
 
 	public async getStakeForMSOLIx({
 		amount,
+		userAccountPublicKey,
 	}: {
 		amount: BN;
+		userAccountPublicKey?: PublicKey;
 	}): Promise<TransactionInstruction[]> {
 		const wSOLMint = this.getSpotMarketAccount(1).mint;
 		const mSOLAccount = await this.getAssociatedTokenAccount(2);
@@ -3585,6 +3675,7 @@ export class DriftClient {
 			amountIn: amount,
 			inTokenAccount: wSOLAccount,
 			outTokenAccount: mSOLAccount,
+			userAccountPublicKey,
 		});
 
 		const program = getMarinadeFinanceProgram(this.provider);
