@@ -1672,7 +1672,7 @@ export class DriftClient {
 		}
 	}
 
-	private async getWrappedSolAccountCreationIxs(
+	public async getWrappedSolAccountCreationIxs(
 		amount: BN,
 		includeRent?: boolean
 	): Promise<{
