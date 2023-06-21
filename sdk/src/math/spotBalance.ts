@@ -288,21 +288,10 @@ export function calculateSpotMarketBorrowCapacity(
 			SpotBalanceType.BORROW
 		);
 
-		let utilization: BN;
-		if (tokenBorrowAmount.eq(ZERO) && tokenDepositAmount.eq(ZERO)) {
-			utilization = ZERO;
-		} else if (tokenDepositAmount.eq(ZERO)) {
-			utilization = SPOT_MARKET_UTILIZATION_PRECISION;
-		} else {
-			utilization = tokenBorrowAmount
-				.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-				.div(tokenDepositAmount);
-		}
-
 		let targetUtilization;
 
-		// utilization past mid point
-		if (utilization.gte(spotMarketAccount.optimalUtilization)) {
+		// target utilization past mid point
+		if (targetBorrowRate.gte(new BN(spotMarketAccount.optimalBorrowRate))) {
 			const borrowRateSlope = new BN(
 				spotMarketAccount.maxBorrowRate - spotMarketAccount.optimalBorrowRate
 			)
