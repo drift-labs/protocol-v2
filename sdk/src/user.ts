@@ -935,7 +935,9 @@ export class User {
 	}
 
 	public getSpotTokenAmount(marketIndex: number): BN {
-		const spotPosition = this.getSpotPosition(marketIndex);
+		const spotPosition =
+			this.getSpotPosition(marketIndex) ??
+			this.getEmptySpotPosition(marketIndex);
 		return getTokenAmount(
 			spotPosition.scaledBalance,
 			this.driftClient.getSpotMarketAccount(marketIndex),
