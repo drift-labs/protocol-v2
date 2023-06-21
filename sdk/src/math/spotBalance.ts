@@ -323,7 +323,7 @@ export function calculateSpotMarketBorrowCapacity(
 		const targetBorrowAmount = tokenDepositAmount
 			.mul(targetUtilization)
 			.div(SPOT_MARKET_UTILIZATION_PRECISION);
-		const capacity = targetBorrowAmount.sub(tokenBorrowAmount);
+		const capacity = BN.max(ZERO, targetBorrowAmount.sub(tokenBorrowAmount));
 
 		return capacity;
 	}
