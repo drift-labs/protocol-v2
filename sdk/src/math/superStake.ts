@@ -1,5 +1,6 @@
 import {
 	AddressLookupTableAccount,
+	PublicKey,
 	TransactionInstruction,
 } from '@solana/web3.js';
 import { JupiterClient } from '../jupiter/jupiterClient';
@@ -11,10 +12,12 @@ export async function findBestSuperStakeIxs({
 	amount,
 	jupiterClient,
 	driftClient,
+	userAccountPublicKey,
 }: {
 	amount: BN;
 	jupiterClient: JupiterClient;
 	driftClient: DriftClient;
+	userAccountPublicKey?: PublicKey;
 }): Promise<{
 	ixs: TransactionInstruction[];
 	lookupTables: AddressLookupTableAccount[];
@@ -50,6 +53,7 @@ export async function findBestSuperStakeIxs({
 			route: bestRoute,
 			jupiterClient,
 			amount,
+			userAccountPublicKey,
 		});
 		return {
 			method: 'jupiter',

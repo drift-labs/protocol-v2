@@ -3637,8 +3637,10 @@ export class DriftClient {
 
 	public async getStakeForMSOLIx({
 		amount,
+		userAccountPublicKey,
 	}: {
 		amount: BN;
+		userAccountPublicKey?: PublicKey;
 	}): Promise<TransactionInstruction[]> {
 		const wSOLMint = this.getSpotMarketAccount(1).mint;
 		const mSOLAccount = await this.getAssociatedTokenAccount(2);
@@ -3666,6 +3668,7 @@ export class DriftClient {
 			amountIn: amount,
 			inTokenAccount: wSOLAccount,
 			outTokenAccount: mSOLAccount,
+			userAccountPublicKey,
 		});
 
 		const program = getMarinadeFinanceProgram(this.provider);
