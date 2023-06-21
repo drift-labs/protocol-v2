@@ -236,17 +236,26 @@ export function calculateLiabilityWeight(
 	return liabilityWeight;
 }
 
-export function calculateUtilization(bank: SpotMarketAccount): BN {
-	const tokenDepositAmount = getTokenAmount(
+export function calculateUtilization(
+	bank: SpotMarketAccount,
+	delta = ZERO
+): BN {
+	let tokenDepositAmount = getTokenAmount(
 		bank.depositBalance,
 		bank,
 		SpotBalanceType.DEPOSIT
 	);
-	const tokenBorrowAmount = getTokenAmount(
+	let tokenBorrowAmount = getTokenAmount(
 		bank.borrowBalance,
 		bank,
 		SpotBalanceType.BORROW
 	);
+
+	if (delta.gt(ZERO)) {
+		tokenDepositAmount = tokenDepositAmount.add(delta);
+	} else if (delta.lt(ZERO)) {
+		tokenBorrowAmount = tokenBorrowAmount.add(delta.abs());
+	}
 
 	let utilization: BN;
 	if (tokenBorrowAmount.eq(ZERO) && tokenDepositAmount.eq(ZERO)) {
@@ -329,9 +338,11 @@ export function calculateSpotMarketBorrowCapacity(
 	}
 }
 
-export function calculateInterestRate(bank: SpotMarketAccount): BN {
-	const utilization = calculateUtilization(bank);
-
+export function calculateInterestRate(
+	bank: SpotMarketAccount,
+	delta = ZERO
+): BN {
+	const utilization = calculateUtilization(bank, delta);
 	let interestRate: BN;
 	if (utilization.gt(new BN(bank.optimalUtilization))) {
 		const surplusUtilization = utilization.sub(new BN(bank.optimalUtilization));
