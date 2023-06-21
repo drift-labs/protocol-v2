@@ -98,18 +98,22 @@ export async function calculateSolEarned({
 
 	let solEarned = ZERO;
 	for (const record of depositRecords) {
-		if (record.marketIndex !== 2) {
-			continue;
-		}
+		if (record.marketIndex === 1) {
+			if (isVariant(record.explanation, 'deposit')) {
+				solEarned = solEarned.sub(record.amount);
+			} else {
+				solEarned = solEarned.add(record.amount);
+			}
+		} else if (record.marketIndex === 2) {
+			const msolRatio = msolRatios.get(record.ts.toNumber());
+			const msolRatioBN = new BN(msolRatio * LAMPORTS_PER_SOL);
 
-		const msolRatio = msolRatios.get(record.ts.toNumber());
-		const msolRatioBN = new BN(msolRatio * LAMPORTS_PER_SOL);
-
-		const solAmount = record.amount.mul(msolRatioBN).div(LAMPORTS_PRECISION);
-		if (isVariant(record.explanation, 'deposit')) {
-			solEarned = solEarned.sub(solAmount);
-		} else {
-			solEarned = solEarned.add(solAmount);
+			const solAmount = record.amount.mul(msolRatioBN).div(LAMPORTS_PRECISION);
+			if (isVariant(record.explanation, 'deposit')) {
+				solEarned = solEarned.sub(solAmount);
+			} else {
+				solEarned = solEarned.add(solAmount);
+			}
 		}
 	}
 
