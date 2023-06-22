@@ -934,17 +934,6 @@ export class User {
 		return assetValue;
 	}
 
-	public getSpotTokenAmount(marketIndex: number): BN {
-		const spotPosition =
-			this.getSpotPosition(marketIndex) ??
-			this.getEmptySpotPosition(marketIndex);
-		return getTokenAmount(
-			spotPosition.scaledBalance,
-			this.driftClient.getSpotMarketAccount(marketIndex),
-			spotPosition.balanceType
-		);
-	}
-
 	public getSpotPositionValue(
 		marketIndex: number,
 		marginCategory?: MarginCategory,
@@ -1953,7 +1942,7 @@ export class User {
 				const marginRatio = calculateSpotMarketMarginRatio(
 					market,
 					'Initial',
-					this.getSpotTokenAmount(targetMarketIndex),
+					this.getTokenAmount(targetMarketIndex).abs(),
 					SpotBalanceType.BORROW
 				);
 				freeCollateral = freeCollateral.add(
@@ -1967,7 +1956,7 @@ export class User {
 				const marginRatio = calculateSpotMarketMarginRatio(
 					market,
 					'Initial',
-					this.getSpotTokenAmount(targetMarketIndex),
+					this.getTokenAmount(targetMarketIndex),
 					SpotBalanceType.DEPOSIT
 				);
 				freeCollateral = freeCollateral.add(
@@ -2063,9 +2052,9 @@ export class User {
 
 		let inSwap = ZERO;
 		let outSwap = ZERO;
-		const inTokenAmount = this.getSpotTokenAmount(inMarketIndex);
+		const inTokenAmount = this.getTokenAmount(inMarketIndex);
 		if (freeCollateral.lt(ONE)) {
-			if (outSaferThanIn) {
+			if (outSaferThanIn && inTokenAmount.gt(ZERO)) {
 				inSwap = inTokenAmount;
 				outSwap = calculateSwap(inSwap);
 			}
