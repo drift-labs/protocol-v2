@@ -135,14 +135,14 @@ export async function calculateSolEarned({
 // calculate estimated liquidation price (in mSOL/SOL) based on target amounts
 export async function calculateEstimatedSuperStakeLiquidationPrice(
 	msolDepositAmount: number,
-	msolMaintainanceAssetWeight: number,
+	msolMaintenanceAssetWeight: number,
 	solBorrowAmount: number,
-	solMaintainanceLiabilityWeight: number,
+	solMaintenanceLiabilityWeight: number,
 	msolPriceRatio: number
 ): BN {
 	const liquidationDivergence =
-		(solMaintainanceLiabilityWeight * solBorrowAmount) /
-		(msolMaintainanceAssetWeight * msolDepositAmount * msolPriceRatio);
+		(solMaintenanceLiabilityWeight * solBorrowAmount) /
+		(msolMaintenanceAssetWeight * msolDepositAmount * msolPriceRatio);
 	const liquidationPrice = msolPriceRatio * liquidationDivergence;
 	return liquidationPrice;
 }
