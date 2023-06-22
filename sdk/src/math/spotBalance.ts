@@ -370,9 +370,12 @@ export function calculateInterestRate(
 	return interestRate;
 }
 
-export function calculateDepositRate(bank: SpotMarketAccount): BN {
-	const utilization = calculateUtilization(bank);
-	const borrowRate = calculateBorrowRate(bank);
+export function calculateDepositRate(
+	bank: SpotMarketAccount,
+	delta = ZERO
+): BN {
+	const utilization = calculateUtilization(bank, delta);
+	const borrowRate = calculateBorrowRate(bank, delta);
 	const depositRate = borrowRate
 		.mul(PERCENTAGE_PRECISION.sub(new BN(bank.insuranceFund.totalFactor)))
 		.mul(utilization)
@@ -381,8 +384,8 @@ export function calculateDepositRate(bank: SpotMarketAccount): BN {
 	return depositRate;
 }
 
-export function calculateBorrowRate(bank: SpotMarketAccount): BN {
-	return calculateInterestRate(bank);
+export function calculateBorrowRate(bank: SpotMarketAccount, delta = ZERO): BN {
+	return calculateInterestRate(bank, delta);
 }
 
 export function calculateInterestAccumulated(
