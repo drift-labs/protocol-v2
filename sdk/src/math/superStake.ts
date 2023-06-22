@@ -174,7 +174,7 @@ export function calculateProposedSuperStakeStats(
 	);
 	const solBorrowAmount = msolTokensLevered
 		.sub(msolTokens)
-		.mul(msolPriceRatio * PRICE_PRECISION.toNumber())
+		.mul(new BN(msolPriceRatio * PRICE_PRECISION.toNumber()))
 		.div(PRICE_PRECISION);
 
 	const solMaintenanceLiabilityWeight = calculateSizePremiumLiabilityWeight(
