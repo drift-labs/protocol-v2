@@ -2863,6 +2863,9 @@ export class DriftClient {
 		const readablePerpMarketIndex: number[] = [];
 		const readableSpotMarketIndexes: number[] = [];
 		for (const param of params) {
+			if (!param.marketType) {
+				throw new Error('must set param.marketType');
+			}
 			if (isVariant(param.marketType, 'perp')) {
 				readablePerpMarketIndex.push(param.marketIndex);
 			} else {

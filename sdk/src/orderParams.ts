@@ -2,7 +2,7 @@ import { OptionalOrderParams, OrderTriggerCondition, OrderType } from './types';
 import { BN } from '@coral-xyz/anchor';
 
 export function getLimitOrderParams(
-	params: Omit<OptionalOrderParams, 'orderType' | 'marketType'> & { price: BN }
+	params: Omit<OptionalOrderParams, 'orderType'> & { price: BN }
 ): OptionalOrderParams {
 	return Object.assign({}, params, {
 		orderType: OrderType.LIMIT,
@@ -10,7 +10,7 @@ export function getLimitOrderParams(
 }
 
 export function getTriggerMarketOrderParams(
-	params: Omit<OptionalOrderParams, 'orderType' | 'marketType'> & {
+	params: Omit<OptionalOrderParams, 'orderType'> & {
 		triggerCondition: OrderTriggerCondition;
 		triggerPrice: BN;
 	}
@@ -21,7 +21,7 @@ export function getTriggerMarketOrderParams(
 }
 
 export function getTriggerLimitOrderParams(
-	params: Omit<OptionalOrderParams, 'orderType' | 'marketType'> & {
+	params: Omit<OptionalOrderParams, 'orderType'> & {
 		triggerCondition: OrderTriggerCondition;
 		triggerPrice: BN;
 		price: BN;
@@ -33,7 +33,7 @@ export function getTriggerLimitOrderParams(
 }
 
 export function getMarketOrderParams(
-	params: Omit<OptionalOrderParams, 'orderType' | 'marketType'>
+	params: Omit<OptionalOrderParams, 'orderType'>
 ): OptionalOrderParams {
 	return Object.assign({}, params, {
 		orderType: OrderType.MARKET,
