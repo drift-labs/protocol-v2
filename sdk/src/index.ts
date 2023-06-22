@@ -46,6 +46,8 @@ export * from './math/orders';
 export * from './math/repeg';
 export * from './math/margin';
 export * from './math/insurance';
+export * from './math/superStake';
+export * from './marinade';
 export * from './orderParams';
 export * from './slot/SlotSubscriber';
 export * from './wallet';

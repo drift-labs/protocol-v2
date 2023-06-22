@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add bulk place orders ix (([#499](https://github.com/drift-labs/protocol-v2/pull/499)))
+- ts-sdk: add stakeForMSOL to driftClient (([#500](https://github.com/drift-labs/protocol-v2/pull/500)))
 - ts-sdk: driftClient accepts default txParams (([#496](https://github.com/drift-labs/protocol-v2/pull/496)))
+- ts-sdk: add method to force inclusion of markets in ix remaining accounts (([#503](https://github.com/drift-labs/protocol-v2/pull/503)))
 
 ### Fixes
 
 - program: emit lp records in liquidate_perp (([#498](https://github.com/drift-labs/protocol-v2/pull/498)))
+- program: check margin enabled in swaps (([#501](https://github.com/drift-labs/protocol-v2/pull/501)))
 
 ### Breaking
 

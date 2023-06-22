@@ -12,6 +12,7 @@ import {
 	PositionDirection,
 	standardizePrice,
 	SwapDirection,
+	ZERO,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 
@@ -169,7 +170,7 @@ export function getVammL2Generator({
 		pegMultiplier: updatedAmm.pegMultiplier,
 	};
 	const getL2Bids = function* () {
-		while (numBids < numOrders) {
+		while (numBids < numOrders && baseSize.gt(ZERO)) {
 			const [afterSwapQuoteReserves, afterSwapBaseReserves] =
 				calculateAmmReservesAfterSwap(
 					bidAmm,
@@ -208,7 +209,7 @@ export function getVammL2Generator({
 		pegMultiplier: updatedAmm.pegMultiplier,
 	};
 	const getL2Asks = function* () {
-		while (numAsks < numOrders) {
+		while (numAsks < numOrders && askSize.gt(ZERO)) {
 			const [afterSwapQuoteReserves, afterSwapBaseReserves] =
 				calculateAmmReservesAfterSwap(
 					askAmm,
