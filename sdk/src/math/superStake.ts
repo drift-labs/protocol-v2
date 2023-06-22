@@ -15,6 +15,7 @@ import {
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
 	SPOT_MARKET_IMF_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
 import fetch from 'node-fetch';
@@ -168,8 +169,8 @@ export function calculateProposedSuperStakeStats(
 		.div(PERCENTAGE_PRECISION);
 	const msolMaintenanceAssetWeight = calculateSizeDiscountAssetWeight(
 		msolTokensLevered,
-		msolSpotMarket.imfFactor,
-		msolSpotMarket.maintenanceAssetWeight
+		new BN(msolSpotMarket.imfFactor),
+		new BN(msolSpotMarket.maintenanceAssetWeight)
 	);
 	const solBorrowAmount = msolTokensLevered
 		.sub(msolTokens)
@@ -178,9 +179,9 @@ export function calculateProposedSuperStakeStats(
 
 	const solMaintenanceLiabilityWeight = calculateSizePremiumLiabilityWeight(
 		solBorrowAmount,
-		solSpotMarket.imfFactor,
-		solSpotMarket.maintenanceLiabilityWeight,
-		new BN(10 * solSpotMarket.decimals)
+		new BN(solSpotMarket.imfFactor),
+		new BN(solSpotMarket.maintenanceLiabilityWeight),
+		SPOT_MARKET_WEIGHT_PRECISION
 	);
 
 	const capacity = BN.min(
