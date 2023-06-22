@@ -1,4 +1,10 @@
-import { OptionalOrderParams, OrderTriggerCondition, OrderType } from './types';
+import {
+	DefaultOrderParams,
+	OptionalOrderParams,
+	OrderParams,
+	OrderTriggerCondition,
+	OrderType,
+} from './types';
 import { BN } from '@coral-xyz/anchor';
 
 export function getLimitOrderParams(
@@ -38,4 +44,28 @@ export function getMarketOrderParams(
 	return Object.assign({}, params, {
 		orderType: OrderType.MARKET,
 	});
+}
+
+/**
+ * Creates an OrderParams object with the given OptionalOrderParams and any params to override.
+ *
+ * example:
+ * ```
+ * const orderParams = getOrderParams(optionalOrderParams, { marketType: MarketType.PERP });
+ * ```
+ *
+ * @param optionalOrderParams
+ * @param overridingParams
+ * @returns
+ */
+export function getOrderParams(
+	optionalOrderParams: OptionalOrderParams,
+	overridingParams: Record<string, any> = {}
+): OrderParams {
+	return Object.assign(
+		{},
+		DefaultOrderParams,
+		optionalOrderParams,
+		overridingParams
+	);
 }

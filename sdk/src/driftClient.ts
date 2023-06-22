@@ -27,7 +27,6 @@ import {
 	MakerInfo,
 	TakerInfo,
 	OptionalOrderParams,
-	DefaultOrderParams,
 	OrderType,
 	ReferrerInfo,
 	MarketType,
@@ -118,6 +117,7 @@ import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
 import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
+import { getOrderParams } from './orderParams';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -2522,19 +2522,10 @@ export class DriftClient {
 		return txSig;
 	}
 
-	getOrderParams(
-		optionalOrderParams: OptionalOrderParams,
-		marketType: MarketType
-	): OrderParams {
-		return Object.assign({}, DefaultOrderParams, optionalOrderParams, {
-			marketType,
-		});
-	}
-
 	public async getPlacePerpOrderIx(
 		orderParams: OptionalOrderParams
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -3031,7 +3022,7 @@ export class DriftClient {
 	public async getPlaceSpotOrderIx(
 		orderParams: OptionalOrderParams
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -3891,7 +3882,7 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -3987,7 +3978,7 @@ export class DriftClient {
 		takerInfo: TakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -4059,7 +4050,7 @@ export class DriftClient {
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -4157,7 +4148,7 @@ export class DriftClient {
 		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
