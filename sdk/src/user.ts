@@ -1996,13 +1996,19 @@ export class User {
 	 *
 	 * @param inMarketIndex
 	 * @param outMarketIndex
+	 * @param calculateSwap function to similate in to out swa
+	 * @param iterationLimit how long to run appromixation before erroring out
 	 */
 	public getMaxSwapAmount({
 		inMarketIndex,
 		outMarketIndex,
+		calculateSwap,
+		iterationLimit = 1000,
 	}: {
 		inMarketIndex: number;
 		outMarketIndex: number;
+		calculateSwap?: (inAmount: BN) => BN;
+		iterationLimit?: number;
 	}): { inAmount: BN; outAmount: BN; leverage: BN } {
 		const inMarket = this.driftClient.getSpotMarketAccount(inMarketIndex);
 		const outMarket = this.driftClient.getSpotMarketAccount(outMarketIndex);
@@ -2045,13 +2051,15 @@ export class User {
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
 			this.getLeverageComponents();
 
-		const calculateOutSwap = (inSwap: BN) => {
-			return inSwap
-				.mul(outPrecision)
-				.mul(inOraclePrice)
-				.div(outOraclePrice)
-				.div(inPrecision);
-		};
+		if (!calculateSwap) {
+			calculateSwap = (inSwap: BN) => {
+				return inSwap
+					.mul(outPrecision)
+					.mul(inOraclePrice)
+					.div(outOraclePrice)
+					.div(inPrecision);
+			};
+		}
 
 		let inSwap = ZERO;
 		let outSwap = ZERO;
@@ -2059,7 +2067,7 @@ export class User {
 		if (freeCollateral.lt(ONE)) {
 			if (outSaferThanIn) {
 				inSwap = inTokenAmount;
-				outSwap = calculateOutSwap(inSwap);
+				outSwap = calculateSwap(inSwap);
 			}
 		} else {
 			let minSwap = ZERO;
@@ -2071,9 +2079,10 @@ export class User {
 			inSwap = maxSwap.div(TWO);
 			const error = BN.min(QUOTE_PRECISION, freeCollateral.div(new BN(100)));
 
+			let i = 0;
 			let freeCollateralAfter = freeCollateral;
 			while (freeCollateralAfter.gt(error) || freeCollateralAfter.isNeg()) {
-				outSwap = calculateOutSwap(inSwap);
+				outSwap = calculateSwap(inSwap);
 
 				const inPositionAfter = this.cloneAndUpdateSpotPosition(
 					inSpotPosition,
@@ -2105,6 +2114,10 @@ export class User {
 				} else if (freeCollateralAfter.isNeg()) {
 					maxSwap = inSwap;
 					inSwap = minSwap.add(maxSwap).div(TWO);
+				}
+
+				if (i++ > iterationLimit) {
+					throw new Error('getMaxSwapAmount iteration limit reached');
 				}
 			}
 		}
