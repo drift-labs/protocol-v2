@@ -11,6 +11,7 @@ import { BN } from '@coral-xyz/anchor';
 import { User } from '../user';
 import { DepositRecord, isVariant } from '../types';
 import { LAMPORTS_PRECISION, ZERO } from '../constants/numericConstants';
+import fetch from 'node-fetch';
 
 export async function findBestSuperStakeIxs({
 	amount,
@@ -99,7 +100,7 @@ export async function calculateSolEarned({
 	let solEarned = ZERO;
 	for (const record of depositRecords) {
 		if (record.marketIndex === 1) {
-			if (isVariant(record.explanation, 'deposit')) {
+			if (isVariant(record.direction, 'deposit')) {
 				solEarned = solEarned.sub(record.amount);
 			} else {
 				solEarned = solEarned.add(record.amount);
@@ -109,7 +110,7 @@ export async function calculateSolEarned({
 			const msolRatioBN = new BN(msolRatio * LAMPORTS_PER_SOL);
 
 			const solAmount = record.amount.mul(msolRatioBN).div(LAMPORTS_PRECISION);
-			if (isVariant(record.explanation, 'deposit')) {
+			if (isVariant(record.direction, 'deposit')) {
 				solEarned = solEarned.sub(solAmount);
 			} else {
 				solEarned = solEarned.add(solAmount);
