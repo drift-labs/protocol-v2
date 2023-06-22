@@ -9,9 +9,25 @@ import { DriftClient } from '../driftClient';
 import { getMarinadeFinanceProgram, getMarinadeMSolPrice } from '../marinade';
 import { BN } from '@coral-xyz/anchor';
 import { User } from '../user';
-import { DepositRecord, isVariant } from '../types';
-import { LAMPORTS_PRECISION, ZERO } from '../constants/numericConstants';
+import { DepositRecord, SpotMarketAccount, isVariant } from '../types';
+import {
+	LAMPORTS_PRECISION,
+	PERCENTAGE_PRECISION,
+	PRICE_PRECISION,
+	SPOT_MARKET_IMF_PRECISION,
+	ZERO,
+} from '../constants/numericConstants';
 import fetch from 'node-fetch';
+import {
+	calculateSizeDiscountAssetWeight,
+	calculateSizePremiumLiabilityWeight,
+} from '../math/margin';
+
+import {
+	calculateSpotMarketBorrowCapacity,
+	calculateWithdrawLimit,
+	convertToNumber,
+} from '..';
 
 export async function findBestSuperStakeIxs({
 	amount,
@@ -130,6 +146,66 @@ export async function calculateSolEarned({
 	solEarned = solEarned.add(currentSOLTokenAmount);
 
 	return solEarned;
+}
+
+// calculate risk reward, limits information for proposed levered stake
+export function calculateProposedSuperStakeStats(
+	msolTokens: BN,
+	msolSpotMarket: SpotMarketAccount,
+	solSpotMarket: SpotMarketAccount,
+	leverage: number,
+	stakeYield: number,
+	msolPriceRatio: number,
+	now: BN
+): {
+	msolTokensLevered: BN;
+	solBorrowAmount: BN;
+	solCapacity: BN;
+	liquidationPrice: number;
+} {
+	const msolTokensLevered = msolTokens
+		.mul(new BN(leverage * PERCENTAGE_PRECISION.toNumber()))
+		.div(PERCENTAGE_PRECISION);
+	const msolMaintenanceAssetWeight = calculateSizeDiscountAssetWeight(
+		msolTokensLevered,
+		msolSpotMarket.imfFactor,
+		msolSpotMarket.maintenanceAssetWeight
+	);
+	const solBorrowAmount = msolTokensLevered
+		.sub(msolTokens)
+		.mul(msolPriceRatio * PRICE_PRECISION.toNumber())
+		.div(PRICE_PRECISION);
+
+	const solMaintenanceLiabilityWeight = calculateSizePremiumLiabilityWeight(
+		solBorrowAmount,
+		solSpotMarket.imfFactor,
+		solSpotMarket.maintenanceLiabilityWeight,
+		new BN(10 * solSpotMarket.decimals)
+	);
+
+	const capacity = BN.min(
+		calculateSpotMarketBorrowCapacity(
+			solSpotMarket,
+			new BN(stakeYield * PERCENTAGE_PRECISION.toNumber())
+		),
+
+		calculateWithdrawLimit(solSpotMarket, now)['borrowLimit']
+	);
+
+	const liqPrice = calculateEstimatedSuperStakeLiquidationPrice(
+		convertToNumber(msolTokensLevered, new BN(10 ** solSpotMarket.decimals)),
+		convertToNumber(msolMaintenanceAssetWeight, SPOT_MARKET_IMF_PRECISION),
+		convertToNumber(solBorrowAmount, new BN(10 ** solSpotMarket.decimals)),
+		convertToNumber(solMaintenanceLiabilityWeight, SPOT_MARKET_IMF_PRECISION),
+		msolPriceRatio
+	);
+
+	return {
+		msolTokensLevered,
+		solBorrowAmount,
+		solCapacity: capacity,
+		liquidationPrice: liqPrice,
+	};
 }
 
 // calculate estimated liquidation price (in mSOL/SOL) based on target amounts
