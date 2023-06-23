@@ -17,6 +17,7 @@ export * from './accounts/pollingOracleAccountSubscriber';
 export * from './accounts/pollingTokenAccountSubscriber';
 export * from './accounts/pollingUserAccountSubscriber';
 export * from './accounts/pollingUserStatsAccountSubscriber';
+export * from './accounts/mockUserAccountSubscriber';
 export * from './accounts/types';
 export * from './addresses/pda';
 export * from './adminClient';
