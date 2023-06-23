@@ -1987,23 +1987,17 @@ export class User {
 	 * @param outMarketIndex
 	 * @param calculateSwap function to similate in to out swa
 	 * @param iterationLimit how long to run appromixation before erroring out
-	 * @param inDelta how much to initially add to inAmount
-	 * @param outDelta how much to initially add to outAmount
 	 */
 	public getMaxSwapAmount({
 		inMarketIndex,
 		outMarketIndex,
 		calculateSwap,
 		iterationLimit = 1000,
-		inDelta,
-		outDelta,
 	}: {
 		inMarketIndex: number;
 		outMarketIndex: number;
 		calculateSwap?: (inAmount: BN) => BN;
 		iterationLimit?: number;
-		inDelta?: BN;
-		outDelta?: BN;
 	}): { inAmount: BN; outAmount: BN; leverage: BN } {
 		const inMarket = this.driftClient.getSpotMarketAccount(inMarketIndex);
 		const outMarket = this.driftClient.getSpotMarketAccount(outMarketIndex);
@@ -2018,26 +2012,12 @@ export class User {
 		const outSaferThanIn =
 			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
 
-		let inSpotPosition =
+		const inSpotPosition =
 			this.getSpotPosition(inMarketIndex) ||
 			this.getEmptySpotPosition(inMarketIndex);
-		if (inDelta) {
-			inSpotPosition = this.cloneAndUpdateSpotPosition(
-				inSpotPosition,
-				inDelta,
-				inMarket
-			);
-		}
-		let outSpotPosition =
+		const outSpotPosition =
 			this.getSpotPosition(outMarketIndex) ||
 			this.getEmptySpotPosition(outMarketIndex);
-		if (outDelta) {
-			outSpotPosition = this.cloneAndUpdateSpotPosition(
-				outSpotPosition,
-				outDelta,
-				outMarket
-			);
-		}
 
 		const freeCollateral = this.getFreeCollateral();
 
