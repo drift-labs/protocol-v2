@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.32.0] - 2023-06-23
+
+### Features
+
 - ts-sdk: add getMaxSwapAmount (([#488](https://github.com/drift-labs/protocol-v2/pull/488)))
 - program: add bulk place orders ix (([#499](https://github.com/drift-labs/protocol-v2/pull/499)))
 - ts-sdk: add stakeForMSOL to driftClient (([#500](https://github.com/drift-labs/protocol-v2/pull/500)))
