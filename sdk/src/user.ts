@@ -2156,7 +2156,7 @@ export class User {
 		return { inAmount: inSwap, outAmount: outSwap, leverage };
 	}
 
-	cloneAndUpdateSpotPosition(
+	public cloneAndUpdateSpotPosition(
 		position: SpotPosition,
 		tokenAmount: BN,
 		market: SpotMarketAccount
