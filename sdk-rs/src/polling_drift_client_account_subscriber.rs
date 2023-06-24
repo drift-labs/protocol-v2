@@ -2,8 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anchor_client::solana_client::rpc_client::RpcClient;
 use anchor_client::Program;
+use anchor_client::{
+    solana_client::rpc_client::RpcClient, solana_sdk::commitment_config::CommitmentLevel,
+};
 use anchor_lang::prelude::Pubkey;
 use drift::state::perp_market::PerpMarket;
 use drift::state::spot_market::SpotMarket;
@@ -21,6 +23,7 @@ impl PollingAccountSubscriber {
     pub fn new(
         rpc_client: Arc<RpcClient>,
         program: Program,
+        commitment: CommitmentLevel,
         poll_interval: Duration,
         perp_market_indexes_to_watch: Option<Vec<u16>>,
         spot_market_indexes_to_watch: Option<Vec<u16>>,
@@ -31,6 +34,7 @@ impl PollingAccountSubscriber {
             poll_interval,
             common: DriftClientAccountSubscriberCommon {
                 program_id: program.id(),
+                commitment,
                 perp_market_indexes_to_watch: perp_market_indexes_to_watch.clone(),
                 spot_market_indexes_to_watch: spot_market_indexes_to_watch.clone(),
                 authority_to_subaccount_ids_to_watch: authority_to_subaccount_ids_to_watch.clone(),

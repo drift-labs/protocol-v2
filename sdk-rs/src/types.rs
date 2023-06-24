@@ -1,3 +1,4 @@
+use anchor_client::solana_sdk::commitment_config::CommitmentLevel;
 use anyhow::{anyhow, Result};
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -18,6 +19,7 @@ pub struct AccountDataWithSlot<T> {
 #[derive(Debug, Clone, Default)]
 pub struct DriftClientAccountSubscriberCommon {
     pub program_id: Pubkey,
+    pub commitment: CommitmentLevel,
 
     pub perp_market_indexes_to_watch: Option<Vec<u16>>,
     pub spot_market_indexes_to_watch: Option<Vec<u16>>,

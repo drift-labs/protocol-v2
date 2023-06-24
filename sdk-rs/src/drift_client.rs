@@ -97,6 +97,11 @@ impl DriftClientBuilder {
         self
     }
 
+    pub fn commitment(mut self, commitment: CommitmentLevel) -> Self {
+        self.commitment = commitment;
+        self
+    }
+
     pub fn signing_authority(mut self, authority: Keypair) -> Self {
         self.signing_authority = Some(authority);
         self
@@ -106,21 +111,6 @@ impl DriftClientBuilder {
         self.readonly_authority = Some(authority);
         self
     }
-
-    // pub fn perp_market_indexes_to_watch(mut self, perp_market_indexes_to_watch: Vec<u16>) -> Self {
-    //     self.perp_market_indexes_to_watch = Some(perp_market_indexes_to_watch);
-    //     self
-    // }
-
-    // pub fn spot_market_indexes_to_watch(mut self, spot_market_indexes_to_watch: Vec<u16>) -> Self {
-    //     self.spot_market_indexes_to_watch = Some(spot_market_indexes_to_watch);
-    //     self
-    // }
-
-    // pub fn sub_account_ids_to_watch(mut self, sub_account_ids_to_watch: Vec<u16>) -> Self {
-    //     self.sub_account_ids_to_watch = Some(sub_account_ids_to_watch);
-    //     self
-    // }
 
     pub fn drift_client_account_subscriber(
         mut self,
@@ -177,6 +167,7 @@ impl DriftClientBuilder {
                 Box::new(WebsocketAccountSubscriber::new(
                     rpc_client.clone(),
                     cluster.ws_url().to_string(),
+                    self.commitment,
                     provider.program(self.drift_program_id),
                     Some(vec![]),
                     Some(vec![]),

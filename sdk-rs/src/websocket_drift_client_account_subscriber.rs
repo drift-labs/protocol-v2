@@ -3,7 +3,7 @@ use anchor_client::solana_client::rpc_client::RpcClient;
 use anchor_client::solana_client::rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig};
 use anchor_client::solana_client::rpc_filter::{Memcmp, RpcFilterType};
 use anchor_client::solana_sdk::account::Account;
-use anchor_client::solana_sdk::commitment_config::CommitmentConfig;
+use anchor_client::solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
 use anchor_client::Program;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::{AccountDeserialize, Discriminator};
@@ -34,6 +34,7 @@ impl WebsocketAccountSubscriber {
     pub fn new(
         rpc_client: Arc<RpcClient>,
         ws_url: String,
+        commitment: CommitmentLevel,
         program: Program,
         perp_market_indexes_to_watch: Option<Vec<u16>>,
         spot_market_indexes_to_watch: Option<Vec<u16>>,
@@ -42,6 +43,7 @@ impl WebsocketAccountSubscriber {
         Self {
             common: DriftClientAccountSubscriberCommon {
                 program_id: program.id(),
+                commitment,
                 perp_market_indexes_to_watch: perp_market_indexes_to_watch.clone(),
                 spot_market_indexes_to_watch: spot_market_indexes_to_watch.clone(),
                 authority_to_subaccount_ids_to_watch: authority_to_subaccount_ids_to_watch.clone(),
@@ -94,6 +96,7 @@ impl WebsocketAccountSubscriber {
         let ws_url = self.ws_url.clone();
         let program_id = self.common.program_id.clone();
         let accounts_map = Arc::clone(accounts_map);
+        let commitment = self.common.commitment.clone();
         std::thread::spawn(move || {
             match PubsubClient::program_subscribe(
                 ws_url.as_str(),
@@ -105,7 +108,7 @@ impl WebsocketAccountSubscriber {
                     ))]),
                     account_config: RpcAccountInfoConfig {
                         encoding: Some(UiAccountEncoding::Base64),
-                        commitment: Some(CommitmentConfig::processed()),
+                        commitment: Some(CommitmentConfig { commitment }),
                         ..RpcAccountInfoConfig::default()
                     },
                     with_context: Some(true),
@@ -273,13 +276,14 @@ impl WebsocketAccountSubscriber {
         // let accounts_cache = self.common.clone();
         let user_accounts_map = Arc::clone(&self.common.user_accounts);
         let pubkey = user_pubkeys[0].clone();
+        let commitment = self.common.commitment.clone();
         std::thread::spawn(move || {
             match PubsubClient::account_subscribe(
                 ws_url.as_str(),
                 &pubkey,
                 Some(RpcAccountInfoConfig {
                     encoding: Some(UiAccountEncoding::Base64),
-                    commitment: Some(CommitmentConfig::processed()),
+                    commitment: Some(CommitmentConfig { commitment }),
                     ..RpcAccountInfoConfig::default()
                 }),
             ) {

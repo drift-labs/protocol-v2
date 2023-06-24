@@ -1,3 +1,4 @@
+use anchor_client::solana_sdk::commitment_config::CommitmentLevel;
 use anchor_lang::prelude::Pubkey;
 /// Example of using drift_client to connect to on chain drift program:
 /// cargo run --example drift_client
@@ -12,6 +13,7 @@ use dotenv::dotenv;
 use drift::math::constants::{BASE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION};
 use std::borrow::Borrow;
 use std::env;
+use std::str::FromStr;
 use tokio::select;
 
 use anchor_client::solana_sdk::signer::Signer;
@@ -41,6 +43,8 @@ async fn main() -> Result<(), anchor_client::ClientError> {
         }
         Err(_) => drift_client_builder,
     };
+    // let auth = Pubkey::from_str("8u9AGxxAfGzUDVPMPvYvBhidfEmrXPeXcxCbHu9gNn9m");
+    // drift_client_builder = drift_client_builder.readonly_authority(auth);
 
     drift_client_builder = match env::var("RPC_HTTP_URL") {
         Ok(rpc_http_url) => drift_client_builder.rpc_http_url(rpc_http_url),
@@ -51,6 +55,7 @@ async fn main() -> Result<(), anchor_client::ClientError> {
         Ok(rpc_ws_url) => drift_client_builder.rpc_ws_url(rpc_ws_url),
         Err(_) => drift_client_builder,
     };
+    drift_client_builder = drift_client_builder.commitment(CommitmentLevel::Processed);
 
     let mut drift_client = drift_client_builder.build().unwrap();
 
@@ -89,6 +94,7 @@ async fn main() -> Result<(), anchor_client::ClientError> {
 
                 let user = drift_client.account_subscriber.get_user(&auth.unwrap(), 0).unwrap();
                 println!("user bal: {:?}", user.get_quote_spot_position().get_signed_token_amount(&spot_market).unwrap() as f64 / QUOTE_PRECISION as f64);
+                println!("user has auction: {:?}, open orders: {:?}", user.has_open_auction, user.open_orders);
                 match user.get_perp_position(0) {
                     Ok(pos) => {
                         println!(" open orders on SOL-PERp: {:?}", pos.open_orders);
