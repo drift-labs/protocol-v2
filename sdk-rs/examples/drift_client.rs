@@ -79,9 +79,11 @@ async fn main() -> Result<(), anchor_client::ClientError> {
             _ = poll.tick() => {
                 let perp_market = drift_client.account_subscriber.get_perp_market_by_market_index(1).unwrap();
                 let spot_market = drift_client.account_subscriber.get_spot_market_by_market_index(0).unwrap();
+                let spot_market_2 = drift_client.account_subscriber.get_spot_market_by_market_index(1).unwrap();
                 println!(
-                    "==> BTC-PERP: {}, USDC: {}",
+                    "==> BTC-PERP: {}, SOL: {}, USDC: {}",
                     perp_market.amm.historical_oracle_data.last_oracle_price as f64 / PRICE_PRECISION as f64,
+                    spot_market_2.historical_oracle_data.last_oracle_price as f64 / PRICE_PRECISION as f64,
                     spot_market.historical_oracle_data.last_oracle_price as f64 / PRICE_PRECISION as f64,
                 );
 

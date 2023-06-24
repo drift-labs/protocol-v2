@@ -9,6 +9,7 @@ use anchor_lang::{AccountDeserialize, Discriminator};
 use drift::state::user::User;
 use parking_lot::Mutex;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -52,6 +53,116 @@ impl WebsocketAccountSubscriber {
         }
     }
 
+    fn load_market_account<
+        T: 'static + AccountDeserialize + Discriminator + std::marker::Send + Clone + Debug,
+    >(
+        &self,
+        market_indexes_to_watch: &Option<Vec<u16>>,
+        accounts_map: &Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<T>>>>,
+    ) -> Result<(), anyhow::Error> {
+        // hydrate market map
+        if market_indexes_to_watch.is_some() {
+            match self.program.accounts::<T>(vec![]) {
+                Ok(markets) => {
+                    let markets_map: HashMap<Pubkey, AccountDataWithSlot<T>> = markets
+                        .into_iter()
+                        .map(|m| {
+                            (
+                                m.0,
+                                AccountDataWithSlot {
+                                    data: m.1,
+                                    slot: None,
+                                },
+                            )
+                        })
+                        .collect();
+                    *accounts_map.lock() = markets_map;
+                }
+                Err(err) => {
+                    println!("Error: {:?}", err);
+                    return Err(anyhow::Error::msg(format!(
+                        "Error loading {:?} markets",
+                        std::any::type_name::<T>()
+                    )));
+                }
+            };
+        }
+
+        // make websocket subscription to update the map
+        // TODO: catch connection problems and reconnect
+        let ws_url = self.ws_url.clone();
+        let program_id = self.common.program_id.clone();
+        // let accounts_cache = self.common.clone();
+        let accounts_map = Arc::clone(accounts_map);
+        std::thread::spawn(move || {
+            match PubsubClient::program_subscribe(
+                ws_url.as_str(),
+                &program_id,
+                Some(RpcProgramAccountsConfig {
+                    filters: Some(vec![RpcFilterType::Memcmp(Memcmp::new_raw_bytes(
+                        0,
+                        T::discriminator().to_vec(),
+                    ))]),
+                    account_config: RpcAccountInfoConfig {
+                        encoding: Some(UiAccountEncoding::Base64),
+                        ..RpcAccountInfoConfig::default()
+                    },
+                    with_context: Some(true),
+                }),
+            ) {
+                Ok(sub) => {
+                    println!("Websocket subscription successful");
+                    loop {
+                        match sub.1.recv() {
+                            Ok(msg) => {
+                                let pubkey = Pubkey::from_str(msg.value.pubkey.as_str()).unwrap();
+                                let mut market_map = accounts_map.lock();
+                                match market_map.get(&pubkey) {
+                                    Some(market) => {
+                                        let last_slot = market.slot.unwrap_or(0);
+                                        if msg.context.slot >= last_slot {
+                                            let acc: Account = msg.value.account.decode().unwrap();
+                                            let p = T::try_deserialize(&mut (&acc.data as &[u8]))
+                                                .unwrap();
+                                            market_map.insert(
+                                                pubkey,
+                                                AccountDataWithSlot {
+                                                    data: p,
+                                                    slot: Some(msg.context.slot),
+                                                },
+                                            );
+                                        } else {
+                                            println!(
+                                                "Updating old data on {:?} markets",
+                                                std::any::type_name::<T>()
+                                            );
+                                        }
+                                    }
+                                    None => {
+                                        println!(
+                                            "Error: {:?} market not found",
+                                            std::any::type_name::<T>()
+                                        );
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                println!("Websocket error: {:?}", err.to_string());
+                                return;
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    println!("Error subscribing to websocket: {:?}", err);
+                    return;
+                }
+            }
+        });
+
+        Ok(())
+    }
+
     /// Loads market accounts data from the RPC node (fetch via http), then sets up websocket connections that
     /// update the account data as it's pushed from the node.
     ///
@@ -61,201 +172,21 @@ impl WebsocketAccountSubscriber {
     /// * If the field is Some(vec![]), then all markets will be loaded.
     /// * (TODO) If the field is Some(vec![1, 2, 3]), then only markets with indexes 1, 2, and 3 will be loaded.
     fn load_market_accounts(&mut self) -> Result<(), anyhow::Error> {
-        if self.common.perp_market_indexes_to_watch.is_some() {
-            match self.program.accounts::<PerpMarket>(vec![]) {
-                Ok(markets) => {
-                    let markets_map: HashMap<Pubkey, AccountDataWithSlot<PerpMarket>> = markets
-                        .into_iter()
-                        .map(|m| {
-                            (
-                                m.0,
-                                AccountDataWithSlot {
-                                    data: m.1,
-                                    slot: None,
-                                },
-                            )
-                        })
-                        .collect();
-                    self.common.perp_market_accounts = Arc::new(Mutex::new(markets_map));
-                }
-                Err(err) => {
-                    println!("Error: {:?}", err);
-                    return Err(anyhow::Error::msg("Error loading perp markets"));
-                }
-            };
-        }
+        // TODO: i think we can actually just store raw bytes in the maps like perp_market_accounts
+        // and spot_market_accounts, and lazily deserialize it as needed. this would save a lot of
+        // memory, and we could also just store the slot in the map instead of the whole context.
+        //
+        // but separating the maps by market type helps with lock contention i guess...
 
-        if self.common.spot_market_indexes_to_watch.is_some() {
-            match self.program.accounts::<SpotMarket>(vec![]) {
-                Ok(markets) => {
-                    let markets_map: HashMap<Pubkey, AccountDataWithSlot<SpotMarket>> = markets
-                        .into_iter()
-                        .map(|m| {
-                            (
-                                m.0,
-                                AccountDataWithSlot {
-                                    data: m.1,
-                                    slot: None,
-                                },
-                            )
-                        })
-                        .collect();
-                    self.common.spot_market_accounts = Arc::new(Mutex::new(markets_map));
-                }
-                Err(err) => {
-                    println!("Error: {:?}", err);
-                    return Err(anyhow::Error::msg("Error loading spot markets"));
-                }
-            };
-        }
+        self.load_market_account::<PerpMarket>(
+            &self.common.perp_market_indexes_to_watch,
+            &self.common.perp_market_accounts,
+        )?;
 
-        // make websocket subscriptions
-        // TODO: catch connection problems and reconnect
-        let ws_url = self.ws_url.clone();
-        let program_id = self.common.program_id.clone();
-        let accounts_cache = self.common.clone();
-        std::thread::spawn(move || {
-            match PubsubClient::program_subscribe(
-                ws_url.as_str(),
-                &program_id,
-                Some(RpcProgramAccountsConfig {
-                    filters: Some(vec![RpcFilterType::Memcmp(Memcmp::new_raw_bytes(
-                        0,
-                        PerpMarket::discriminator().to_vec(),
-                    ))]),
-                    account_config: RpcAccountInfoConfig {
-                        encoding: Some(UiAccountEncoding::Base64),
-                        ..RpcAccountInfoConfig::default()
-                    },
-                    with_context: Some(true),
-                }),
-            ) {
-                Ok(sub) => {
-                    println!("Websocket subscription successful");
-                    loop {
-                        match sub.1.recv() {
-                            Ok(msg) => {
-                                let pubkey = Pubkey::from_str(msg.value.pubkey.as_str()).unwrap();
-                                let mut perp_market_map =
-                                    accounts_cache.perp_market_accounts.lock();
-                                match perp_market_map.get(&pubkey) {
-                                    Some(market) => {
-                                        let last_slot = market.slot.unwrap_or(0);
-                                        if msg.context.slot >= last_slot {
-                                            let acc: Account = msg.value.account.decode().unwrap();
-                                            let p = PerpMarket::try_deserialize(
-                                                &mut (&acc.data as &[u8]),
-                                            )
-                                            .unwrap();
-                                            println!(
-                                                "  updating ({} -> {}) {}",
-                                                last_slot,
-                                                msg.context.slot,
-                                                String::from_utf8_lossy(&p.name)
-                                            );
-                                            perp_market_map.insert(
-                                                pubkey,
-                                                AccountDataWithSlot {
-                                                    data: p,
-                                                    slot: Some(msg.context.slot),
-                                                },
-                                            );
-                                        } else {
-                                            println!("old data on perp market")
-                                        }
-                                    }
-                                    None => {
-                                        println!("Error: perp market not found");
-                                    }
-                                }
-                            }
-                            Err(err) => {
-                                println!("Websocket error: {:?}", err.to_string());
-                                return;
-                            }
-                        }
-                    }
-                }
-                Err(err) => {
-                    println!("Error subscribing to websocket: {:?}", err);
-                    return;
-                }
-            }
-        });
-
-        let ws_url = self.ws_url.clone();
-        let program_id = self.common.program_id;
-        // let mut spot_market_map = self.common.spot_market_accounts.as_ref().clone();
-        let accounts_cache = self.common.clone();
-        std::thread::spawn(move || {
-            match PubsubClient::program_subscribe(
-                ws_url.as_str(),
-                &program_id,
-                Some(RpcProgramAccountsConfig {
-                    filters: Some(vec![RpcFilterType::Memcmp(Memcmp::new_raw_bytes(
-                        0,
-                        SpotMarket::discriminator().to_vec(),
-                    ))]),
-                    account_config: RpcAccountInfoConfig {
-                        encoding: Some(UiAccountEncoding::Base64),
-                        ..RpcAccountInfoConfig::default()
-                    },
-                    with_context: Some(true),
-                }),
-            ) {
-                Ok(sub) => {
-                    println!("Websocket subscription successful");
-                    loop {
-                        match sub.1.recv() {
-                            Ok(msg) => {
-                                let pubkey = Pubkey::from_str(msg.value.pubkey.as_str()).unwrap();
-                                let mut spot_market_map =
-                                    accounts_cache.spot_market_accounts.lock();
-                                match spot_market_map.get(&pubkey) {
-                                    Some(market) => {
-                                        let last_slot = market.slot.unwrap_or(0);
-                                        if msg.context.slot >= last_slot {
-                                            let acc: Account = msg.value.account.decode().unwrap();
-                                            let p = SpotMarket::try_deserialize(
-                                                &mut (&acc.data as &[u8]),
-                                            )
-                                            .unwrap();
-                                            println!(
-                                                "  updating ({} -> {}) {}",
-                                                last_slot,
-                                                msg.context.slot,
-                                                String::from_utf8_lossy(&p.name)
-                                            );
-                                            spot_market_map.insert(
-                                                pubkey,
-                                                AccountDataWithSlot {
-                                                    data: p,
-                                                    slot: Some(msg.context.slot),
-                                                },
-                                            );
-                                        } else {
-                                            println!("old data on spot market")
-                                        }
-                                    }
-                                    None => {
-                                        println!("Error: spot market not found");
-                                    }
-                                }
-                            }
-                            Err(err) => {
-                                println!("Websocket error: {:?}", err.to_string());
-                                return;
-                            }
-                        }
-                    }
-                }
-                Err(err) => {
-                    // return Err(anyhow::Error::msg(format!("Error subscribing to websocket: {:?}", err)));
-                    println!("Error subscribing to websocket: {:?}", err);
-                    return;
-                }
-            }
-        });
+        self.load_market_account::<SpotMarket>(
+            &self.common.spot_market_indexes_to_watch,
+            &self.common.spot_market_accounts,
+        )?;
 
         Ok(())
     }
