@@ -3,6 +3,7 @@ use anchor_client::solana_client::rpc_client::RpcClient;
 use anchor_client::solana_client::rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig};
 use anchor_client::solana_client::rpc_filter::{Memcmp, RpcFilterType};
 use anchor_client::solana_sdk::account::Account;
+use anchor_client::solana_sdk::commitment_config::CommitmentConfig;
 use anchor_client::Program;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::{AccountDeserialize, Discriminator};
@@ -92,7 +93,6 @@ impl WebsocketAccountSubscriber {
         // TODO: catch connection problems and reconnect
         let ws_url = self.ws_url.clone();
         let program_id = self.common.program_id.clone();
-        // let accounts_cache = self.common.clone();
         let accounts_map = Arc::clone(accounts_map);
         std::thread::spawn(move || {
             match PubsubClient::program_subscribe(
@@ -105,6 +105,7 @@ impl WebsocketAccountSubscriber {
                     ))]),
                     account_config: RpcAccountInfoConfig {
                         encoding: Some(UiAccountEncoding::Base64),
+                        commitment: Some(CommitmentConfig::processed()),
                         ..RpcAccountInfoConfig::default()
                     },
                     with_context: Some(true),
@@ -263,6 +264,75 @@ impl WebsocketAccountSubscriber {
                 return Err(anyhow::Error::msg("Error loading user accounts"));
             }
         };
+
+        // make websocket subscription to update the map
+        // TODO: catch connection problems and reconnect
+        // TODO: this might be a problem, i think it opens up individual websocket connectsion for each account
+        let ws_url = self.ws_url.clone();
+        // let program_id = self.common.program_id.clone();
+        // let accounts_cache = self.common.clone();
+        let user_accounts_map = Arc::clone(&self.common.user_accounts);
+        let pubkey = user_pubkeys[0].clone();
+        std::thread::spawn(move || {
+            match PubsubClient::account_subscribe(
+                ws_url.as_str(),
+                &pubkey,
+                Some(RpcAccountInfoConfig {
+                    encoding: Some(UiAccountEncoding::Base64),
+                    commitment: Some(CommitmentConfig::processed()),
+                    ..RpcAccountInfoConfig::default()
+                }),
+            ) {
+                Ok(sub) => {
+                    println!("Websocket subscription successful");
+                    loop {
+                        match sub.1.recv() {
+                            Ok(msg) => {
+                                // let pubkey = Pubkey::from_str(msg.value.pubkey.as_str()).unwrap();
+                                let mut user_accounts_map = user_accounts_map.lock();
+                                match user_accounts_map.get(&pubkey) {
+                                    Some(market) => {
+                                        let last_slot = market.slot.unwrap_or(0);
+                                        if msg.context.slot >= last_slot {
+                                            let acc: Account = msg.value.decode().unwrap();
+                                            let p =
+                                                User::try_deserialize(&mut (&acc.data as &[u8]))
+                                                    .unwrap();
+                                            user_accounts_map.insert(
+                                                pubkey,
+                                                AccountDataWithSlot {
+                                                    data: p,
+                                                    slot: Some(msg.context.slot),
+                                                },
+                                            );
+                                        } else {
+                                            println!(
+                                                "Updating old data on {:?} markets",
+                                                std::any::type_name::<User>()
+                                            );
+                                        }
+                                    }
+                                    None => {
+                                        println!(
+                                            "Error: {:?} market not found",
+                                            std::any::type_name::<User>()
+                                        );
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                println!("Websocket error: {:?}", err.to_string());
+                                return;
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    println!("Error subscribing to websocket: {:?}", err);
+                    return;
+                }
+            }
+        });
 
         Ok(())
     }

@@ -89,6 +89,12 @@ async fn main() -> Result<(), anchor_client::ClientError> {
 
                 let user = drift_client.account_subscriber.get_user(&auth.unwrap(), 0).unwrap();
                 println!("user bal: {:?}", user.get_quote_spot_position().get_signed_token_amount(&spot_market).unwrap() as f64 / QUOTE_PRECISION as f64);
+                match user.get_perp_position(0) {
+                    Ok(pos) => {
+                        println!(" open orders on SOL-PERp: {:?}", pos.open_orders);
+                    }
+                    Err(err) => println!("Error: {:?}", err),
+                }
             }
         }
     }
