@@ -18,10 +18,12 @@ export async function findBestSuperStakeIxs({
 	jupiterClient,
 	driftClient,
 	userAccountPublicKey,
+	marinadePrice,
 }: {
 	amount: BN;
 	jupiterClient: JupiterClient;
 	driftClient: DriftClient;
+	marinadePrice?: number;
 	userAccountPublicKey?: PublicKey;
 }): Promise<{
 	ixs: TransactionInstruction[];
@@ -29,21 +31,30 @@ export async function findBestSuperStakeIxs({
 	method: 'jupiter' | 'marinade';
 	price: number;
 }> {
-	const marinadeProgram = getMarinadeFinanceProgram(driftClient.provider);
-	const marinadePrice = await getMarinadeMSolPrice(marinadeProgram);
+	if (!marinadePrice) {
+		const marinadeProgram = getMarinadeFinanceProgram(driftClient.provider);
+		marinadePrice = await getMarinadeMSolPrice(marinadeProgram);
+	}
 
 	const solMint = driftClient.getSpotMarketAccount(1).mint;
 	const mSOLMint = driftClient.getSpotMarketAccount(2).mint;
-	const jupiterRoutes = await jupiterClient.getRoutes({
-		inputMint: solMint,
-		outputMint: mSOLMint,
-		amount,
-	});
 
-	const bestRoute = jupiterRoutes[0];
-	const jupiterPrice = bestRoute.inAmount / bestRoute.outAmount;
+	let jupiterPrice;
+	let bestRoute;
+	try {
+		const jupiterRoutes = await jupiterClient.getRoutes({
+			inputMint: solMint,
+			outputMint: mSOLMint,
+			amount,
+		});
 
-	if (marinadePrice <= jupiterPrice) {
+		bestRoute = jupiterRoutes[0];
+		jupiterPrice = bestRoute.inAmount / bestRoute.outAmount;
+	} catch (e) {
+		console.error('Error getting jupiter price', e);
+	}
+
+	if (!jupiterPrice || marinadePrice <= jupiterPrice) {
 		const ixs = await driftClient.getStakeForMSOLIx({ amount });
 		return {
 			method: 'marinade',
