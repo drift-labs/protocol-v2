@@ -280,62 +280,64 @@ export function calculateUtilization(
 export function calculateSpotMarketBorrowCapacity(
 	spotMarketAccount: SpotMarketAccount,
 	targetBorrowRate: BN
-): BN {
+): { totalCapacity: BN; remainingCapacity: BN } {
 	const currentBorrowRate = calculateBorrowRate(spotMarketAccount);
 
-	if (currentBorrowRate.gte(targetBorrowRate)) {
-		return ZERO;
-	} else {
-		const tokenDepositAmount = getTokenAmount(
-			spotMarketAccount.depositBalance,
-			spotMarketAccount,
-			SpotBalanceType.DEPOSIT
-		);
-		const tokenBorrowAmount = getTokenAmount(
-			spotMarketAccount.borrowBalance,
-			spotMarketAccount,
-			SpotBalanceType.BORROW
-		);
+	const tokenDepositAmount = getTokenAmount(
+		spotMarketAccount.depositBalance,
+		spotMarketAccount,
+		SpotBalanceType.DEPOSIT
+	);
 
-		let targetUtilization;
+	const tokenBorrowAmount = getTokenAmount(
+		spotMarketAccount.borrowBalance,
+		spotMarketAccount,
+		SpotBalanceType.BORROW
+	);
 
-		// target utilization past mid point
-		if (targetBorrowRate.gte(new BN(spotMarketAccount.optimalBorrowRate))) {
-			const borrowRateSlope = new BN(
-				spotMarketAccount.maxBorrowRate - spotMarketAccount.optimalBorrowRate
-			)
-				.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-				.div(
-					SPOT_MARKET_UTILIZATION_PRECISION.sub(
-						new BN(spotMarketAccount.optimalUtilization)
-					)
-				);
-
-			const surplusTargetUtilization = targetBorrowRate
-				.sub(new BN(spotMarketAccount.optimalBorrowRate))
-				.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-				.div(borrowRateSlope);
-
-			targetUtilization = surplusTargetUtilization.add(
-				new BN(spotMarketAccount.optimalUtilization)
+	let targetUtilization;
+	// target utilization past mid point
+	if (targetBorrowRate.gte(new BN(spotMarketAccount.optimalBorrowRate))) {
+		const borrowRateSlope = new BN(
+			spotMarketAccount.maxBorrowRate - spotMarketAccount.optimalBorrowRate
+		)
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(
+				SPOT_MARKET_UTILIZATION_PRECISION.sub(
+					new BN(spotMarketAccount.optimalUtilization)
+				)
 			);
-		} else {
-			const borrowRateSlope = new BN(spotMarketAccount.optimalBorrowRate)
-				.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-				.div(new BN(spotMarketAccount.optimalUtilization));
 
-			targetUtilization = targetBorrowRate
-				.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-				.div(borrowRateSlope);
-		}
+		const surplusTargetUtilization = targetBorrowRate
+			.sub(new BN(spotMarketAccount.optimalBorrowRate))
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(borrowRateSlope);
 
-		const targetBorrowAmount = tokenDepositAmount
-			.mul(targetUtilization)
-			.div(SPOT_MARKET_UTILIZATION_PRECISION);
-		const capacity = BN.max(ZERO, targetBorrowAmount.sub(tokenBorrowAmount));
+		targetUtilization = surplusTargetUtilization.add(
+			new BN(spotMarketAccount.optimalUtilization)
+		);
+	} else {
+		const borrowRateSlope = new BN(spotMarketAccount.optimalBorrowRate)
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(new BN(spotMarketAccount.optimalUtilization));
 
-		return capacity;
+		targetUtilization = targetBorrowRate
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(borrowRateSlope);
 	}
+
+	const totalCapacity = tokenDepositAmount
+		.mul(targetUtilization)
+		.div(SPOT_MARKET_UTILIZATION_PRECISION);
+
+	let remainingCapacity;
+	if (currentBorrowRate.gte(targetBorrowRate)) {
+		remainingCapacity = ZERO;
+	} else {
+		remainingCapacity = BN.max(ZERO, totalCapacity.sub(tokenBorrowAmount));
+	}
+
+	return { totalCapacity, remainingCapacity };
 }
 
 export function calculateInterestRate(
