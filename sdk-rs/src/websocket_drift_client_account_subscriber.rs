@@ -16,7 +16,8 @@ use drift::state::spot_market::SpotMarket;
 use solana_account_decoder::UiAccountEncoding;
 
 use crate::types::{
-    AccountDataWithSlot, DriftClientAccountSubscriber, DriftClientAccountSubscriberCommon,
+    get_user_pubkey_pda, AccountDataWithSlot, DriftClientAccountSubscriber,
+    DriftClientAccountSubscriberCommon,
 };
 
 pub struct WebsocketAccountSubscriber {
@@ -33,25 +34,38 @@ impl WebsocketAccountSubscriber {
         program: Program,
         perp_market_indexes_to_watch: Option<Vec<u16>>,
         spot_market_indexes_to_watch: Option<Vec<u16>>,
-        sub_account_ids_to_watch: Option<Vec<u16>>,
+        authority_to_subaccount_ids_to_watch: Option<HashMap<Pubkey, Vec<u16>>>,
     ) -> Self {
         Self {
             common: DriftClientAccountSubscriberCommon {
+                // perp_market_indexes_to_watch: perp_market_indexes_to_watch.clone(),
+                // spot_market_indexes_to_watch: spot_market_indexes_to_watch.clone(),
+                // authority_to_subaccount_ids_to_watch: authority_to_subaccount_ids_to_watch.clone(),
+                // perp_market_accounts: Arc::new(Mutex::new(HashMap::new())),
+                // spot_market_accounts: Arc::new(Mutex::new(HashMap::new())),
+                // user_accounts: Arc::new(Mutex::new(HashMap::new())),
+                // program_id: program.id(),
+                program_id: program.id(),
                 perp_market_indexes_to_watch: perp_market_indexes_to_watch.clone(),
                 spot_market_indexes_to_watch: spot_market_indexes_to_watch.clone(),
-                sub_account_ids_to_watch: sub_account_ids_to_watch.clone(),
-                perp_market_accounts: Arc::new(Mutex::new(HashMap::new())),
-                spot_market_accounts: Arc::new(Mutex::new(HashMap::new())),
-                program_id: program.id(),
+                authority_to_subaccount_ids_to_watch: authority_to_subaccount_ids_to_watch.clone(),
+
+                ..Default::default()
             },
             rpc_client,
             ws_url,
             program,
         }
     }
-}
 
-impl WebsocketAccountSubscriber {
+    /// Loads market accounts data from the RPC node (fetch via http), then sets up websocket connections that
+    /// update the account data as it's pushed from the node.
+    ///
+    /// This method refers to self.common.perp_market_indexes_to_watch and self.common.spot_market_indexes_to_watch to determine
+    /// which markets to load.
+    /// * If the corresponding field is None, then no markets will be loaded.
+    /// * If the field is Some(vec![]), then all markets will be loaded.
+    /// * (TODO) If the field is Some(vec![1, 2, 3]), then only markets with indexes 1, 2, and 3 will be loaded.
     fn load_market_accounts(&mut self) -> Result<(), anyhow::Error> {
         if self.common.perp_market_indexes_to_watch.is_some() {
             match self.program.accounts::<PerpMarket>(vec![]) {
@@ -252,10 +266,36 @@ impl WebsocketAccountSubscriber {
 
         Ok(())
     }
+
+    /// Loads market accounts data from the RPC node (fetch via http), then sets up websocket connections that
+    /// update the account data as it's pushed from the node.
+    ///
+    /// This method refers to self.common.perp_market_indexes_to_watch and self.common.spot_market_indexes_to_watch to determine
+    /// which markets to load.
+    /// * If the corresponding field is None, then no markets will be loaded.
+    /// * If the field is Some(vec![]), then all markets will be loaded.
+    /// * If the field is Some(vec![1, 2, 3]), then only markets with indexes 1, 2, and 3 will be loaded.
+    fn load_user_accounts(&mut self) -> Result<(), anyhow::Error> {
+        if self.common.authority_to_subaccount_ids_to_watch.is_none() {
+            println!(
+                "No authority_to_subaccount_ids_to_watch specified, not loading any user accounts"
+            );
+            return Ok(());
+        }
+
+        let user_keys = get_user_pubkeys_to_load(
+            self.common
+                .authority_to_subaccount_ids_to_watch
+                .clone()
+                .unwrap(),
+            self.program.id(),
+        );
+
+        Ok(())
+    }
 }
 
 impl DriftClientAccountSubscriber for WebsocketAccountSubscriber {
-    /// in load hydrate the account hashmaps and make websocket subscriptions
     fn load(&mut self) -> Result<(), anyhow::Error> {
         println!("WebsocketAccountSubscriber::load() called");
         match self.rpc_client.get_slot() {
@@ -282,5 +322,89 @@ impl DriftClientAccountSubscriber for WebsocketAccountSubscriber {
 
     fn get_spot_market_by_market_index(&self, market_index: u16) -> Option<SpotMarket> {
         self.common.get_spot_market_by_market_index(market_index)
+    }
+
+    fn get_user(&self, authority: &Pubkey, subaccount_id: u16) -> Option<drift::state::user::User> {
+        self.common.get_user(authority, subaccount_id)
+    }
+}
+
+fn get_user_pubkeys_to_load(
+    authority_to_subaccount_ids_to_watch: HashMap<Pubkey, Vec<u16>>,
+    program_id: Pubkey,
+) -> Vec<Pubkey> {
+    authority_to_subaccount_ids_to_watch
+        .iter()
+        .map(|(authority, subaccount_ids)| {
+            match subaccount_ids.len() {
+                0 => {
+                    // default will just load subaccount id 0
+                    vec![get_user_pubkey_pda(program_id, authority, 0)]
+                }
+                _ => {
+                    // else load specified subaccount ids
+                    subaccount_ids
+                        .iter()
+                        .map(|subaccount_id| {
+                            get_user_pubkey_pda(program_id, authority, *subaccount_id)
+                        })
+                        .collect::<Vec<Pubkey>>()
+                }
+            }
+        })
+        .flatten()
+        .collect::<Vec<Pubkey>>()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_user_pubkeys_to_load() {
+        let auth_to_subaccount_ids: HashMap<Pubkey, Vec<u16>> = [
+            (
+                Pubkey::from_str("CTh4Q6xooiaJMWCwKP5KLQ4j7X3NEJPf3Uq6rX8UsKSi").unwrap(),
+                vec![0, 1, 2],
+            ),
+            (
+                Pubkey::from_str("EWEWa4jZANb7VmDD6E3KHVkvUceHQQkeTANrJtb9P7dw").unwrap(),
+                vec![0, 1, 2],
+            ),
+        ]
+        .iter()
+        .cloned()
+        .collect();
+
+        let auth_to_no_subaccount_ids: HashMap<Pubkey, Vec<u16>> = [
+            (
+                Pubkey::from_str("CTh4Q6xooiaJMWCwKP5KLQ4j7X3NEJPf3Uq6rX8UsKSi").unwrap(),
+                vec![],
+            ),
+            (
+                Pubkey::from_str("EWEWa4jZANb7VmDD6E3KHVkvUceHQQkeTANrJtb9P7dw").unwrap(),
+                vec![],
+            ),
+        ]
+        .iter()
+        .cloned()
+        .collect();
+
+        let program_id = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+
+        let pubkeys_a = get_user_pubkeys_to_load(auth_to_subaccount_ids, program_id);
+        assert!(pubkeys_a.len() == 6);
+        // at least one of the pubkeys should be h5jfag
+        assert!(pubkeys_a.iter().any(|pubkey| *pubkey
+            == Pubkey::from_str("H5jfagEnMVNH3PMc2TU2F7tNuXE6b4zCwoL5ip1b4ZHi").unwrap()));
+        assert!(pubkeys_a.iter().any(|pubkey| *pubkey
+            == Pubkey::from_str("76YFECDc5MWvks3sYsaW1ULDyXgXEnATp22nCgLH44WF").unwrap()));
+
+        let pubkeys_b = get_user_pubkeys_to_load(auth_to_no_subaccount_ids, program_id);
+        assert!(pubkeys_b.len() == 2);
+        assert!(pubkeys_b.iter().any(|pubkey| *pubkey
+            == Pubkey::from_str("H5jfagEnMVNH3PMc2TU2F7tNuXE6b4zCwoL5ip1b4ZHi").unwrap()));
+        assert!(pubkeys_b.iter().any(|pubkey| *pubkey
+            == Pubkey::from_str("76YFECDc5MWvks3sYsaW1ULDyXgXEnATp22nCgLH44WF").unwrap()));
     }
 }
