@@ -1240,6 +1240,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dotenv"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
+
+[[package]]
 name = "drift"
 version = "2.32.0"
 dependencies = [
@@ -1272,8 +1278,13 @@ dependencies = [
  "anchor-lang 0.26.0 (git+https://github.com/drift-labs/anchor.git?rev=ed950fe)",
  "anchor-spl 0.26.0 (git+https://github.com/drift-labs/anchor.git?rev=ed950fe)",
  "anyhow",
+ "async-trait",
+ "bincode",
+ "dotenv",
  "drift",
+ "parking_lot",
  "serde_json",
+ "solana-account-decoder",
  "tokio",
 ]
 

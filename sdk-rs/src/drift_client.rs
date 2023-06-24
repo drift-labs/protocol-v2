@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use anchor_client::solana_client::rpc_client::RpcClient;
 use anchor_client::solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
@@ -7,21 +8,31 @@ use anchor_client::solana_sdk::pubkey::Pubkey;
 use anchor_client::solana_sdk::signature::Keypair;
 use anchor_client::{Client, Cluster, Program};
 
+use crate::types::DriftClientAccountSubscriber;
 use crate::utils::http_to_ws_url;
+use crate::websocket_drift_client_account_subscriber::WebsocketAccountSubscriber;
 
 pub struct DriftClient {
     // to interact with the chain
     pub cluster: Cluster,
     pub provider: Client,
     pub program: Program,
-    pub rpc_client: RpcClient,
-    // on chain accounts
-    // pub perp_markets
+    pub rpc_client: Arc<RpcClient>,
+
+    // pub perp_market_indexes_to_watch: Option<Vec<u16>>,
+    // pub spot_market_indexes_to_watch: Option<Vec<u16>>,
+    // pub sub_account_ids_to_watch: Option<Vec<u16>>,
+    pub drift_client_account_subscriber: Box<dyn DriftClientAccountSubscriber>,
 }
 
 impl DriftClient {
     pub fn builder() -> DriftClientBuilder {
         DriftClientBuilder::default()
+    }
+
+    /// Loads on-chain accounts into the load drift client, you should call this after builder.build()
+    pub fn load(&mut self) -> Result<(), anyhow::Error> {
+        self.drift_client_account_subscriber.load()
     }
 }
 
@@ -31,8 +42,17 @@ pub struct DriftClientBuilder {
     pub drift_program_id: Pubkey,
     pub rpc_http_url: Option<String>,
     pub rpc_ws_url: Option<String>,
+
+    /// A signing_authority can be provided if you want to sign transactions
     pub signing_authority: Option<Keypair>,
+
+    /// A readonly_authority can be provided if you only want to read a certain user account's data
     pub readonly_authority: Option<Pubkey>,
+
+    // pub perp_market_indexes_to_watch: Option<Vec<u16>>,
+    // pub spot_market_indexes_to_watch: Option<Vec<u16>>,
+    // pub sub_account_ids_to_watch: Option<Vec<u16>>,
+    pub drift_client_account_subscriber: Option<Box<dyn DriftClientAccountSubscriber>>,
 }
 
 impl Default for DriftClientBuilder {
@@ -46,6 +66,10 @@ impl Default for DriftClientBuilder {
             rpc_ws_url: None,
             signing_authority: None,
             readonly_authority: None,
+            // perp_market_indexes_to_watch: None,
+            // spot_market_indexes_to_watch:  None,
+            // sub_account_ids_to_watch:  None,
+            drift_client_account_subscriber: None,
         }
     }
 }
@@ -81,6 +105,29 @@ impl DriftClientBuilder {
         self
     }
 
+    // pub fn perp_market_indexes_to_watch(mut self, perp_market_indexes_to_watch: Vec<u16>) -> Self {
+    //     self.perp_market_indexes_to_watch = Some(perp_market_indexes_to_watch);
+    //     self
+    // }
+
+    // pub fn spot_market_indexes_to_watch(mut self, spot_market_indexes_to_watch: Vec<u16>) -> Self {
+    //     self.spot_market_indexes_to_watch = Some(spot_market_indexes_to_watch);
+    //     self
+    // }
+
+    // pub fn sub_account_ids_to_watch(mut self, sub_account_ids_to_watch: Vec<u16>) -> Self {
+    //     self.sub_account_ids_to_watch = Some(sub_account_ids_to_watch);
+    //     self
+    // }
+
+    pub fn drift_client_account_subscriber(
+        mut self,
+        account_subscriber: Box<dyn DriftClientAccountSubscriber>,
+    ) -> Self {
+        self.drift_client_account_subscriber = Some(account_subscriber);
+        self
+    }
+
     pub fn build(self) -> Result<DriftClient, &'static str> {
         if self.signing_authority.is_none() && self.readonly_authority.is_none() {
             return Err("signing_authority or readonly_authority is required");
@@ -96,12 +143,12 @@ impl DriftClientBuilder {
         } else {
             self.cluster
         };
-        let rpc_client = RpcClient::new_with_commitment(
+        let rpc_client = Arc::new(RpcClient::new_with_commitment(
             cluster.url(),
             CommitmentConfig {
                 commitment: self.commitment,
             },
-        );
+        ));
 
         let provider = Client::new_with_options(
             cluster.clone(),
@@ -115,18 +162,30 @@ impl DriftClientBuilder {
             },
         );
 
+        let account_subscriber: Box<dyn DriftClientAccountSubscriber> =
+            if self.drift_client_account_subscriber.is_some() {
+                self.drift_client_account_subscriber.unwrap()
+            } else {
+                Box::new(WebsocketAccountSubscriber::new(
+                    rpc_client.clone(),
+                    cluster.ws_url().to_string(),
+                    provider.program(self.drift_program_id),
+                    Some(vec![]), // None,
+                    Some(vec![]), // None,
+                    None,
+                )) as Box<dyn DriftClientAccountSubscriber>
+            };
+
         Ok(DriftClient {
             cluster,
             program: provider.program(self.drift_program_id),
             provider,
             rpc_client,
+
+            // perp_market_indexes_to_watch: self.perp_market_indexes_to_watch,
+            // spot_market_indexes_to_watch: self.spot_market_indexes_to_watch,
+            // sub_account_ids_to_watch: self.sub_account_ids_to_watch,
+            drift_client_account_subscriber: account_subscriber,
         })
     }
-}
-
-/// OnChainAccount is a trait implemented by account data that is stored on chain and
-/// cached locally.
-trait OnChainAccount {
-    /// update the account with the latest data
-    fn update<T>(&mut self, pubkey: Pubkey, slot_updated: u64, data: T) -> Result<(), T>;
 }
