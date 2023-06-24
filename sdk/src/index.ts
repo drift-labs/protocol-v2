@@ -25,6 +25,7 @@ export * from './testClient';
 export * from './user';
 export * from './userConfig';
 export * from './userStats';
+export * from './userName';
 export * from './userStatsConfig';
 export * from './driftClient';
 export * from './factory/oracleClient';
