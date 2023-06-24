@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -6,6 +7,7 @@ use anchor_client::solana_client::rpc_client::RpcClient;
 use anchor_client::solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
 use anchor_client::solana_sdk::pubkey::Pubkey;
 use anchor_client::solana_sdk::signature::Keypair;
+use anchor_client::solana_sdk::signature::Signer;
 use anchor_client::{Client, Cluster, Program};
 
 use crate::types::DriftClientAccountSubscriber;
@@ -22,7 +24,7 @@ pub struct DriftClient {
     // pub perp_market_indexes_to_watch: Option<Vec<u16>>,
     // pub spot_market_indexes_to_watch: Option<Vec<u16>>,
     // pub sub_account_ids_to_watch: Option<Vec<u16>>,
-    pub drift_client_account_subscriber: Box<dyn DriftClientAccountSubscriber>,
+    pub account_subscriber: Box<dyn DriftClientAccountSubscriber>,
 }
 
 impl DriftClient {
@@ -32,7 +34,7 @@ impl DriftClient {
 
     /// Loads on-chain accounts into the load drift client, you should call this after builder.build()
     pub fn load(&mut self) -> Result<(), anyhow::Error> {
-        self.drift_client_account_subscriber.load()
+        self.account_subscriber.load()
     }
 }
 
@@ -150,6 +152,12 @@ impl DriftClientBuilder {
             },
         ));
 
+        let user_to_load = if self.readonly_authority.is_some() {
+            self.readonly_authority.unwrap()
+        } else {
+            self.signing_authority.as_ref().unwrap().pubkey()
+        };
+
         let provider = Client::new_with_options(
             cluster.clone(),
             if self.signing_authority.is_some() {
@@ -170,9 +178,9 @@ impl DriftClientBuilder {
                     rpc_client.clone(),
                     cluster.ws_url().to_string(),
                     provider.program(self.drift_program_id),
-                    Some(vec![]), // None,
-                    Some(vec![]), // None,
-                    None,
+                    Some(vec![]),
+                    Some(vec![]),
+                    Some([(user_to_load, vec![])].iter().cloned().collect()), // as Option<HashMap<Pubkey, Vec<u16>>>,
                 )) as Box<dyn DriftClientAccountSubscriber>
             };
 
@@ -185,7 +193,7 @@ impl DriftClientBuilder {
             // perp_market_indexes_to_watch: self.perp_market_indexes_to_watch,
             // spot_market_indexes_to_watch: self.spot_market_indexes_to_watch,
             // sub_account_ids_to_watch: self.sub_account_ids_to_watch,
-            drift_client_account_subscriber: account_subscriber,
+            account_subscriber,
         })
     }
 }

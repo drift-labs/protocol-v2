@@ -6,6 +6,7 @@ use anchor_client::solana_sdk::account::Account;
 use anchor_client::Program;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::{AccountDeserialize, Discriminator};
+use drift::state::user::User;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -38,13 +39,6 @@ impl WebsocketAccountSubscriber {
     ) -> Self {
         Self {
             common: DriftClientAccountSubscriberCommon {
-                // perp_market_indexes_to_watch: perp_market_indexes_to_watch.clone(),
-                // spot_market_indexes_to_watch: spot_market_indexes_to_watch.clone(),
-                // authority_to_subaccount_ids_to_watch: authority_to_subaccount_ids_to_watch.clone(),
-                // perp_market_accounts: Arc::new(Mutex::new(HashMap::new())),
-                // spot_market_accounts: Arc::new(Mutex::new(HashMap::new())),
-                // user_accounts: Arc::new(Mutex::new(HashMap::new())),
-                // program_id: program.id(),
                 program_id: program.id(),
                 perp_market_indexes_to_watch: perp_market_indexes_to_watch.clone(),
                 spot_market_indexes_to_watch: spot_market_indexes_to_watch.clone(),
@@ -183,7 +177,6 @@ impl WebsocketAccountSubscriber {
                     }
                 }
                 Err(err) => {
-                    // return Err(anyhow::Error::msg(format!("Error subscribing to websocket: {:?}", err)));
                     println!("Error subscribing to websocket: {:?}", err);
                     return;
                 }
@@ -281,15 +274,64 @@ impl WebsocketAccountSubscriber {
                 "No authority_to_subaccount_ids_to_watch specified, not loading any user accounts"
             );
             return Ok(());
+        } else {
+            println!(
+                "Loading user accounts: {:?}",
+                self.common
+                    .authority_to_subaccount_ids_to_watch
+                    .as_ref()
+                    .unwrap()
+            );
         }
 
-        let user_keys = get_user_pubkeys_to_load(
+        let user_pubkeys = get_user_pubkeys_to_load(
             self.common
                 .authority_to_subaccount_ids_to_watch
                 .clone()
                 .unwrap(),
             self.program.id(),
         );
+
+        match self.rpc_client.get_multiple_accounts_with_config(
+            &user_pubkeys,
+            RpcAccountInfoConfig {
+                encoding: Some(UiAccountEncoding::Base64),
+                ..RpcAccountInfoConfig::default()
+            },
+        ) {
+            Ok(accounts) => {
+                let mut user_accounts_map: HashMap<Pubkey, AccountDataWithSlot<User>> =
+                    HashMap::new();
+                for account in accounts.value {
+                    match account {
+                        Some(account) => {
+                            let p = User::try_deserialize(&mut (&account.data as &[u8])).unwrap();
+                            let user_key = get_user_pubkey_pda(
+                                self.program.id(),
+                                &p.authority,
+                                p.sub_account_id,
+                            );
+                            user_accounts_map.insert(
+                                user_key,
+                                AccountDataWithSlot {
+                                    data: p,
+                                    slot: Some(accounts.context.slot),
+                                },
+                            );
+                        }
+                        None => {
+                            println!("Error: account not found");
+                            continue;
+                        }
+                    }
+                }
+                self.common.user_accounts = Arc::new(Mutex::new(user_accounts_map));
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                return Err(anyhow::Error::msg("Error loading user accounts"));
+            }
+        };
 
         Ok(())
     }
@@ -304,6 +346,7 @@ impl DriftClientAccountSubscriber for WebsocketAccountSubscriber {
         }
 
         self.load_market_accounts()?;
+        self.load_user_accounts()?;
 
         Ok(())
     }

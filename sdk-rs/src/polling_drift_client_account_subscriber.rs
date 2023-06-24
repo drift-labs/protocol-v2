@@ -24,21 +24,11 @@ impl PollingAccountSubscriber {
         poll_interval: Duration,
         perp_market_indexes_to_watch: Option<Vec<u16>>,
         spot_market_indexes_to_watch: Option<Vec<u16>>,
-        sub_account_ids_to_watch: Option<Vec<u16>>,
         authority_to_subaccount_ids_to_watch: Option<HashMap<Pubkey, Vec<u16>>>,
     ) -> Self {
         Self {
             rpc_client,
             poll_interval,
-            // common: DriftClientAccountSubscriberCommon {
-            //     program_id: program.id(),
-            //     perp_market_indexes_to_watch: perp_market_indexes_to_watch.clone(),
-            //     spot_market_indexes_to_watch: spot_market_indexes_to_watch.clone(),
-            //     authority_to_subaccount_ids_to_watch: authority_to_subaccount_ids_to_watch.clone(),
-            //     perp_market_accounts: Arc::new(Mutex::new(HashMap::new())),
-            //     spot_market_accounts: Arc::new(Mutex::new(HashMap::new())),
-            //     user_accounts: Arc::new(Mutex::new(HashMap::new())),
-            // },
             common: DriftClientAccountSubscriberCommon {
                 program_id: program.id(),
                 perp_market_indexes_to_watch: perp_market_indexes_to_watch.clone(),

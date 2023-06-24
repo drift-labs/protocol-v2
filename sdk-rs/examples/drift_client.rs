@@ -1,3 +1,4 @@
+use anchor_lang::prelude::Pubkey;
 /// Example of using drift_client to connect to on chain drift program:
 /// cargo run --example drift_client
 ///
@@ -8,7 +9,8 @@
 ///
 ///
 use dotenv::dotenv;
-use drift::math::constants::{BASE_PRECISION, PRICE_PRECISION};
+use drift::math::constants::{BASE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION};
+use std::borrow::Borrow;
 use std::env;
 use tokio::select;
 
@@ -29,10 +31,12 @@ async fn main() -> Result<(), anchor_client::ClientError> {
 
     let mut drift_client_builder = DriftClient::builder();
 
+    let mut auth: Option<Pubkey> = None;
     drift_client_builder = match env::var("KEYPAIR_FILE") {
         Ok(keypair_path) => {
             let keypair = read_keypair_file_multi_format(keypair_path.as_str()).unwrap();
             println!("keypair loaded: {:?}", keypair.pubkey().to_string());
+            auth = Some(keypair.pubkey().clone());
             drift_client_builder.signing_authority(keypair)
         }
         Err(_) => drift_client_builder,
@@ -73,13 +77,16 @@ async fn main() -> Result<(), anchor_client::ClientError> {
     loop {
         select! {
             _ = poll.tick() => {
-                let perp_market = drift_client.drift_client_account_subscriber.get_perp_market_by_market_index(1).unwrap();
-                let spot_market = drift_client.drift_client_account_subscriber.get_spot_market_by_market_index(1).unwrap();
+                let perp_market = drift_client.account_subscriber.get_perp_market_by_market_index(1).unwrap();
+                let spot_market = drift_client.account_subscriber.get_spot_market_by_market_index(0).unwrap();
                 println!(
-                    "==> BTC-PERP: {}, SOL: {}",
+                    "==> BTC-PERP: {}, USDC: {}",
                     perp_market.amm.historical_oracle_data.last_oracle_price as f64 / PRICE_PRECISION as f64,
                     spot_market.historical_oracle_data.last_oracle_price as f64 / PRICE_PRECISION as f64,
                 );
+
+                let user = drift_client.account_subscriber.get_user(&auth.unwrap(), 0).unwrap();
+                println!("user bal: {:?}", user.get_quote_spot_position().get_signed_token_amount(&spot_market).unwrap() as f64 / QUOTE_PRECISION as f64);
             }
         }
     }

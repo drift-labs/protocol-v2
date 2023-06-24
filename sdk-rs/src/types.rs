@@ -27,7 +27,7 @@ pub struct DriftClientAccountSubscriberCommon {
     pub spot_market_accounts: Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<SpotMarket>>>>,
 
     /// Map of authority -> user pubkey -> user account
-    pub user_accounts: Arc<Mutex<HashMap<Pubkey, HashMap<Pubkey, AccountDataWithSlot<User>>>>>,
+    pub user_accounts: Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<User>>>>,
 }
 
 pub trait DriftClientAccountSubscriber {
@@ -66,12 +66,7 @@ impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
 
     fn get_user(&self, authority: &Pubkey, subaccount_id: u16) -> Option<User> {
         let user_pubkey = get_user_pubkey_pda(self.program_id, authority, subaccount_id);
-        self.user_accounts
-            .lock()
-            .get(authority)
-            .map(|x| x.get(&user_pubkey))
-            .flatten()
-            .map(|x| x.data)
+        self.user_accounts.lock().get(&user_pubkey).map(|x| x.data)
     }
 }
 
