@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -52,28 +53,38 @@ impl DriftClientAccountSubscriber for PollingAccountSubscriber {
         unimplemented!()
     }
 
-    fn get_perp_market_by_pubkey(&self, pubkey: &Pubkey) -> Option<PerpMarket> {
-        self.common.get_perp_market_by_pubkey(pubkey)
+    fn get_program_id(&self) -> Pubkey {
+        self.common.get_program_id()
+    }
+
+    fn get_perp_market_accounts_map(
+        &self,
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<PerpMarket>>>> {
+        self.common.get_perp_market_accounts_map()
+    }
+
+    fn get_spot_market_accounts_map(
+        &self,
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<SpotMarket>>>> {
+        self.common.get_spot_market_accounts_map()
     }
 
     fn get_spot_market_by_pubkey(&self, pubkey: &Pubkey) -> Option<SpotMarket> {
         self.common.get_spot_market_by_pubkey(pubkey)
     }
 
-    fn get_perp_market_by_market_index(&self, market_index: u16) -> Option<PerpMarket> {
-        self.common.get_perp_market_by_market_index(market_index)
-    }
-
     fn get_spot_market_by_market_index(&self, market_index: u16) -> Option<SpotMarket> {
         self.common.get_spot_market_by_market_index(market_index)
     }
 
-    fn get_user(&self, authority: &Pubkey, subaccount_id: u16) -> Option<User> {
-        self.common.get_user(authority, subaccount_id)
+    fn get_user_accounts_map(&self) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<User>>>> {
+        self.common.get_user_accounts_map()
     }
 
-    fn get_user_stats(&self, authority: &Pubkey) -> Option<UserStats> {
-        self.common.get_user_stats(authority)
+    fn get_user_stats_accounts_map(
+        &self,
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<UserStats>>>> {
+        self.common.get_user_stats_accounts_map()
     }
 
     fn get_perp_market_by_pubkey_with_slot(

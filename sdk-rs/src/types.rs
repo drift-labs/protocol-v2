@@ -41,73 +41,49 @@ pub struct DriftClientAccountSubscriberCommon {
 
 pub trait DriftClientAccountSubscriber {
     fn load(&mut self) -> Result<(), anyhow::Error>;
-    fn get_perp_market_by_pubkey(&self, pubkey: &Pubkey) -> Option<PerpMarket>;
-    fn get_spot_market_by_pubkey(&self, pubkey: &Pubkey) -> Option<SpotMarket>;
-    fn get_perp_market_by_market_index(&self, market_index: u16) -> Option<PerpMarket>;
-    fn get_spot_market_by_market_index(&self, market_index: u16) -> Option<SpotMarket>;
-    fn get_user(&self, authority: &Pubkey, subaccount_id: u16) -> Option<User>;
-    fn get_user_stats(&self, authority: &Pubkey) -> Option<UserStats>;
 
-    fn get_perp_market_by_pubkey_with_slot(
+    fn get_program_id(&self) -> Pubkey;
+    fn get_perp_market_accounts_map(
         &self,
-        pubkey: &Pubkey,
-    ) -> Option<AccountDataWithSlot<PerpMarket>>;
-    fn get_spot_market_by_pubkey_with_slot(
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<PerpMarket>>>>;
+    fn get_spot_market_accounts_map(
         &self,
-        pubkey: &Pubkey,
-    ) -> Option<AccountDataWithSlot<SpotMarket>>;
-    fn get_perp_market_by_market_index_with_slot(
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<SpotMarket>>>>;
+    fn get_user_accounts_map(&self) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<User>>>>;
+    fn get_user_stats_accounts_map(
         &self,
-        market_index: u16,
-    ) -> Option<AccountDataWithSlot<PerpMarket>>;
-    fn get_spot_market_by_market_index_with_slot(
-        &self,
-        market_index: u16,
-    ) -> Option<AccountDataWithSlot<SpotMarket>>;
-    fn get_user_with_slot(
-        &self,
-        authority: &Pubkey,
-        subaccount_id: u16,
-    ) -> Option<AccountDataWithSlot<User>>;
-    fn get_user_stats_with_slot(
-        &self,
-        authority: &Pubkey,
-    ) -> Option<AccountDataWithSlot<UserStats>>;
-}
-
-impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
-    fn load(&mut self) -> Result<(), anyhow::Error> {
-        Err(anyhow!("Function not yet implemented"))
-    }
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<UserStats>>>>;
 
     fn get_perp_market_by_pubkey(&self, pubkey: &Pubkey) -> Option<PerpMarket> {
-        self.perp_market_accounts.lock().get(pubkey).map(|x| x.data)
+        self.get_perp_market_accounts_map()
+            .lock()
+            .get(pubkey)
+            .map(|x| x.data)
     }
-
     fn get_spot_market_by_pubkey(&self, pubkey: &Pubkey) -> Option<SpotMarket> {
-        self.spot_market_accounts.lock().get(pubkey).map(|x| x.data)
+        self.get_spot_market_accounts_map()
+            .lock()
+            .get(pubkey)
+            .map(|x| x.data)
     }
-
-    /// compute PDA of market account then check local map for it
     fn get_perp_market_by_market_index(&self, market_index: u16) -> Option<PerpMarket> {
-        let pubkey = get_perp_market_pda(self.program_id, market_index);
+        let pubkey = get_perp_market_pda(self.get_program_id(), market_index);
         self.get_perp_market_by_pubkey(&pubkey)
     }
-
-    /// compute PDA of market account then check local map for it
     fn get_spot_market_by_market_index(&self, market_index: u16) -> Option<SpotMarket> {
-        let pubkey = get_spot_market_pda(self.program_id, market_index);
+        let pubkey = get_spot_market_pda(self.get_program_id(), market_index);
         self.get_spot_market_by_pubkey(&pubkey)
     }
-
     fn get_user(&self, authority: &Pubkey, subaccount_id: u16) -> Option<User> {
-        let user_pubkey = get_user_pubkey_pda(self.program_id, *authority, subaccount_id);
-        self.user_accounts.lock().get(&user_pubkey).map(|x| x.data)
+        let user_pubkey = get_user_pubkey_pda(self.get_program_id(), *authority, subaccount_id);
+        self.get_user_accounts_map()
+            .lock()
+            .get(&user_pubkey)
+            .map(|x| x.data)
     }
-
     fn get_user_stats(&self, authority: &Pubkey) -> Option<UserStats> {
-        let user_stats_pubkey = get_user_stats_pubkey_pda(self.program_id, *authority);
-        self.user_stats_accounts
+        let user_stats_pubkey = get_user_stats_pubkey_pda(self.get_program_id(), *authority);
+        self.get_user_stats_accounts_map()
             .lock()
             .get(&user_stats_pubkey)
             .map(|x| x.data)
@@ -117,7 +93,7 @@ impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
         &self,
         pubkey: &Pubkey,
     ) -> Option<AccountDataWithSlot<PerpMarket>> {
-        self.perp_market_accounts
+        self.get_perp_market_accounts_map()
             .lock()
             .get(pubkey)
             .map(|x| x)
@@ -128,19 +104,17 @@ impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
         &self,
         pubkey: &Pubkey,
     ) -> Option<AccountDataWithSlot<SpotMarket>> {
-        self.spot_market_accounts
+        self.get_spot_market_accounts_map()
             .lock()
             .get(pubkey)
             .map(|x| x)
             .cloned()
     }
-
-    /// compute PDA of market account then check local map for it
     fn get_perp_market_by_market_index_with_slot(
         &self,
         market_index: u16,
     ) -> Option<AccountDataWithSlot<PerpMarket>> {
-        let pubkey = get_perp_market_pda(self.program_id, market_index);
+        let pubkey = get_perp_market_pda(self.get_program_id(), market_index);
         self.get_perp_market_by_pubkey_with_slot(&pubkey)
     }
 
@@ -149,7 +123,7 @@ impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
         &self,
         market_index: u16,
     ) -> Option<AccountDataWithSlot<SpotMarket>> {
-        let pubkey = get_spot_market_pda(self.program_id, market_index);
+        let pubkey = get_spot_market_pda(self.get_program_id(), market_index);
         self.get_spot_market_by_pubkey_with_slot(&pubkey)
     }
 
@@ -158,8 +132,8 @@ impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
         authority: &Pubkey,
         subaccount_id: u16,
     ) -> Option<AccountDataWithSlot<User>> {
-        let user_pubkey = get_user_pubkey_pda(self.program_id, *authority, subaccount_id);
-        self.user_accounts
+        let user_pubkey = get_user_pubkey_pda(self.get_program_id(), *authority, subaccount_id);
+        self.get_user_accounts_map()
             .lock()
             .get(&user_pubkey)
             .map(|x| x)
@@ -170,12 +144,44 @@ impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
         &self,
         authority: &Pubkey,
     ) -> Option<AccountDataWithSlot<UserStats>> {
-        let user_stats_pubkey = get_user_stats_pubkey_pda(self.program_id, *authority);
-        self.user_stats_accounts
+        let user_stats_pubkey = get_user_stats_pubkey_pda(self.get_program_id(), *authority);
+        self.get_user_stats_accounts_map()
             .lock()
             .get(&user_stats_pubkey)
             .map(|x| x)
             .cloned()
+    }
+}
+
+impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
+    fn load(&mut self) -> Result<(), anyhow::Error> {
+        Err(anyhow!("Function not yet implemented"))
+    }
+
+    fn get_program_id(&self) -> Pubkey {
+        self.program_id
+    }
+
+    fn get_perp_market_accounts_map(
+        &self,
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<PerpMarket>>>> {
+        self.perp_market_accounts.clone()
+    }
+
+    fn get_spot_market_accounts_map(
+        &self,
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<SpotMarket>>>> {
+        self.spot_market_accounts.clone()
+    }
+
+    fn get_user_accounts_map(&self) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<User>>>> {
+        self.user_accounts.clone()
+    }
+
+    fn get_user_stats_accounts_map(
+        &self,
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<UserStats>>>> {
+        self.user_stats_accounts.clone()
     }
 }
 

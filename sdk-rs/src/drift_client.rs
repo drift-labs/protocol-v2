@@ -19,10 +19,6 @@ pub struct DriftClient {
     pub provider: Client,
     pub program: Program,
     pub rpc_client: Arc<RpcClient>,
-
-    // pub perp_market_indexes_to_watch: Option<Vec<u16>>,
-    // pub spot_market_indexes_to_watch: Option<Vec<u16>>,
-    // pub sub_account_ids_to_watch: Option<Vec<u16>>,
     pub account_subscriber: Box<dyn DriftClientAccountSubscriber>,
 }
 
@@ -50,9 +46,6 @@ pub struct DriftClientBuilder {
     /// A readonly_authority can be provided if you only want to read a certain user account's data
     pub readonly_authority: Option<Pubkey>,
 
-    // pub perp_market_indexes_to_watch: Option<Vec<u16>>,
-    // pub spot_market_indexes_to_watch: Option<Vec<u16>>,
-    // pub sub_account_ids_to_watch: Option<Vec<u16>>,
     pub drift_client_account_subscriber: Option<Box<dyn DriftClientAccountSubscriber>>,
 }
 
@@ -67,9 +60,6 @@ impl Default for DriftClientBuilder {
             rpc_ws_url: None,
             signing_authority: None,
             readonly_authority: None,
-            // perp_market_indexes_to_watch: None,
-            // spot_market_indexes_to_watch:  None,
-            // sub_account_ids_to_watch:  None,
             drift_client_account_subscriber: None,
         }
     }
