@@ -7,7 +7,7 @@ use anchor_client::solana_sdk::commitment_config::{CommitmentConfig, CommitmentL
 use anchor_client::Program;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::{AccountDeserialize, Discriminator};
-use drift::state::user::User;
+use log::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use drift::state::perp_market::PerpMarket;
 use drift::state::spot_market::SpotMarket;
+use drift::state::user::{User, UserStats};
 use solana_account_decoder::UiAccountEncoding;
 
 use crate::types::{
@@ -38,7 +39,7 @@ impl WebsocketAccountSubscriber {
         program: Program,
         perp_market_indexes_to_watch: Option<Vec<u16>>,
         spot_market_indexes_to_watch: Option<Vec<u16>>,
-        authority_to_subaccount_ids_to_watch: Option<HashMap<Pubkey, Vec<u16>>>,
+        authorities_to_watch: Option<Vec<Pubkey>>,
     ) -> Self {
         Self {
             common: DriftClientAccountSubscriberCommon {
@@ -46,7 +47,7 @@ impl WebsocketAccountSubscriber {
                 commitment,
                 perp_market_indexes_to_watch: perp_market_indexes_to_watch.clone(),
                 spot_market_indexes_to_watch: spot_market_indexes_to_watch.clone(),
-                authority_to_subaccount_ids_to_watch: authority_to_subaccount_ids_to_watch.clone(),
+                authorities_to_watch: authorities_to_watch.clone(),
 
                 ..Default::default()
             },
@@ -115,7 +116,10 @@ impl WebsocketAccountSubscriber {
                 }),
             ) {
                 Ok(sub) => {
-                    println!("Websocket subscription successful");
+                    println!(
+                        "Websocket subscription successful {:?}",
+                        std::any::type_name::<T>()
+                    );
                     loop {
                         match sub.1.recv() {
                             Ok(msg) => {
@@ -135,11 +139,6 @@ impl WebsocketAccountSubscriber {
                                                     slot: Some(msg.context.slot),
                                                 },
                                             );
-                                        } else {
-                                            println!(
-                                                "Updating old data on {:?} markets",
-                                                std::any::type_name::<T>()
-                                            );
                                         }
                                     }
                                     None => {
@@ -151,14 +150,22 @@ impl WebsocketAccountSubscriber {
                                 }
                             }
                             Err(err) => {
-                                println!("Websocket error: {:?}", err.to_string());
+                                println!(
+                                    "Websocket error ({:?}): {:?}",
+                                    std::any::type_name::<T>(),
+                                    err.to_string()
+                                );
                                 return;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    println!("Error subscribing to websocket: {:?}", err);
+                    println!(
+                        "Error subscribing to websocket ({:?}): {:?}",
+                        std::any::type_name::<T>(),
+                        err
+                    );
                     return;
                 }
             }
@@ -195,149 +202,168 @@ impl WebsocketAccountSubscriber {
         Ok(())
     }
 
-    /// Loads market accounts data from the RPC node (fetch via http), then sets up websocket connections that
-    /// update the account data as it's pushed from the node.
+    /// Loads User account data from the RPC node (fetch via http), then sets up websocket connections that
+    /// update the account data as it's pushed from the node. All subaccounts belonging to an auhority
+    /// will be loaded.
     ///
-    /// This method refers to self.common.perp_market_indexes_to_watch and self.common.spot_market_indexes_to_watch to determine
-    /// which markets to load.
-    /// * If the corresponding field is None, then no markets will be loaded.
-    /// * If the field is Some(vec![]), then all markets will be loaded.
-    /// * If the field is Some(vec![1, 2, 3]), then only markets with indexes 1, 2, and 3 will be loaded.
+    /// This method refers to self.authorities_to_watch to determine which User accounts to load.
+    /// * If the corresponding field is None, then no users will be loaded.
     fn load_user_accounts(&mut self) -> Result<(), anyhow::Error> {
-        if self.common.authority_to_subaccount_ids_to_watch.is_none() {
-            println!(
-                "No authority_to_subaccount_ids_to_watch specified, not loading any user accounts"
-            );
+        if self.common.authorities_to_watch.is_none() {
+            println!("No authorities_to_watch specified, not loading any user accounts");
             return Ok(());
         } else {
             println!(
-                "Loading user accounts: {:?}",
-                self.common
-                    .authority_to_subaccount_ids_to_watch
-                    .as_ref()
-                    .unwrap()
+                "Loading user accounts for authorities: {:?}",
+                self.common.authorities_to_watch.as_ref().unwrap()
             );
         }
 
-        let user_pubkeys = get_user_pubkeys_to_load(
-            self.common
-                .authority_to_subaccount_ids_to_watch
-                .clone()
-                .unwrap(),
-            self.program.id(),
-        );
+        self.common.authorities_to_watch.as_ref().unwrap().iter().for_each(
+            |authority| {
 
-        match self.rpc_client.get_multiple_accounts_with_config(
-            &user_pubkeys,
-            RpcAccountInfoConfig {
-                encoding: Some(UiAccountEncoding::Base64),
-                ..RpcAccountInfoConfig::default()
-            },
-        ) {
-            Ok(accounts) => {
-                let mut user_accounts_map: HashMap<Pubkey, AccountDataWithSlot<User>> =
-                    HashMap::new();
-                for account in accounts.value {
-                    match account {
-                        Some(account) => {
-                            let p = User::try_deserialize(&mut (&account.data as &[u8])).unwrap();
-                            let user_key = get_user_pubkey_pda(
-                                self.program.id(),
-                                &p.authority,
-                                p.sub_account_id,
-                            );
-                            user_accounts_map.insert(
-                                user_key,
-                                AccountDataWithSlot {
-                                    data: p,
-                                    slot: Some(accounts.context.slot),
-                                },
-                            );
-                        }
-                        None => {
-                            println!("Error: account not found");
-                            continue;
-                        }
+                let user_account_filters = RpcFilterType::Memcmp(
+                    Memcmp::new_raw_bytes(
+                        8,
+                        authority.to_bytes().to_vec(),
+                    )
+                );
+
+                // load Users associated with this authority
+                match self.program.accounts::<User>(vec![
+                    user_account_filters.clone(),
+                    ]) {
+                    Ok(users) => {
+                        let mut user_accounts_map = self.common.user_accounts.lock();
+                        users.iter().for_each(|user| {
+                            info!("Loaded User account: {:?}", user.0);
+                            user_accounts_map.insert(user.0, AccountDataWithSlot {
+                                data: user.1,
+                                slot: None
+                            });
+                        });
+                    }
+                    Err(err) => {
+                        error!("Error loading User accounts: {:?}", err.to_string());
                     }
                 }
-                self.common.user_accounts = Arc::new(Mutex::new(user_accounts_map));
-            }
-            Err(err) => {
-                println!("Error: {:?}", err);
-                return Err(anyhow::Error::msg("Error loading user accounts"));
-            }
-        };
 
-        // make websocket subscription to update the map
-        // TODO: catch connection problems and reconnect
-        // TODO: this might be a problem, i think it opens up individual websocket connectsion for each account
-        let ws_url = self.ws_url.clone();
-        // let program_id = self.common.program_id.clone();
-        // let accounts_cache = self.common.clone();
-        let user_accounts_map = Arc::clone(&self.common.user_accounts);
-        let pubkey = user_pubkeys[0].clone();
-        let commitment = self.common.commitment.clone();
-        std::thread::spawn(move || {
-            match PubsubClient::account_subscribe(
-                ws_url.as_str(),
-                &pubkey,
-                Some(RpcAccountInfoConfig {
-                    encoding: Some(UiAccountEncoding::Base64),
-                    commitment: Some(CommitmentConfig { commitment }),
-                    ..RpcAccountInfoConfig::default()
-                }),
-            ) {
-                Ok(sub) => {
-                    println!("Websocket subscription successful");
-                    loop {
-                        match sub.1.recv() {
-                            Ok(msg) => {
-                                // let pubkey = Pubkey::from_str(msg.value.pubkey.as_str()).unwrap();
-                                let mut user_accounts_map = user_accounts_map.lock();
-                                match user_accounts_map.get(&pubkey) {
-                                    Some(market) => {
-                                        let last_slot = market.slot.unwrap_or(0);
-                                        if msg.context.slot >= last_slot {
-                                            let acc: Account = msg.value.decode().unwrap();
-                                            let p =
-                                                User::try_deserialize(&mut (&acc.data as &[u8]))
-                                                    .unwrap();
-                                            user_accounts_map.insert(
-                                                pubkey,
-                                                AccountDataWithSlot {
-                                                    data: p,
-                                                    slot: Some(msg.context.slot),
-                                                },
-                                            );
-                                        } else {
-                                            println!(
-                                                "Updating old data on {:?} markets",
-                                                std::any::type_name::<User>()
-                                            );
+                // load UserStats associated with this authority
+                match self.program.accounts::<UserStats>(vec![
+                    user_account_filters.clone(),
+                    ]) {
+                    Ok(users) => {
+                        let mut user_stats_accounts_map = self.common.user_stats_accounts.lock();
+                        users.iter().for_each(|user| {
+                            info!("Loaded UserStats account: {:?}", user.0);
+                            user_stats_accounts_map.insert(user.0, AccountDataWithSlot {
+                                data: user.1,
+                                slot: None
+                            });
+                        });
+                    }
+                    Err(err) => {
+                        error!("Error loading UserStats accounts: {:?}", err.to_string());
+                    }
+                }
+
+                // make websocket subscription to update the map
+                // TODO: catch connection problems and reconnect
+                let ws_url = self.ws_url.clone();
+                let program_id = self.common.program_id.clone();
+                let user_accounts_map = Arc::clone(&self.common.user_accounts);
+                let user_stats_account_map = Arc::clone(&self.common.user_stats_accounts);
+                let commitment = self.common.commitment.clone();
+                // let user_account_filters = user_account_filters.clone();
+                std::thread::spawn(move || {
+                    match PubsubClient::program_subscribe(
+                        ws_url.as_str(),
+                        &program_id,
+                        Some(RpcProgramAccountsConfig {
+                            filters: Some(vec![user_account_filters.clone()]),
+                            account_config: RpcAccountInfoConfig {
+                                encoding: Some(UiAccountEncoding::Base64),
+                                commitment: Some(CommitmentConfig { commitment }),
+                                ..RpcAccountInfoConfig::default()
+                            },
+                            with_context: Some(true),
+                        }),
+                    ) {
+                        Ok(sub) => {
+                            println!(
+                                "Websocket subscription successful User",
+                            );
+                            loop {
+                                match sub.1.recv() {
+                                    Ok(msg) => {
+                                        let pubkey = Pubkey::from_str(msg.value.pubkey.as_str()).unwrap();
+                                        let mut user_accounts_map = user_accounts_map.lock();
+                                        match user_accounts_map.get(&pubkey) {
+                                            Some(user) => {
+                                                let last_slot = user.slot.unwrap_or(0);
+                                                if msg.context.slot >= last_slot {
+                                                    let acc: Account = msg.value.account.decode().unwrap();
+                                                    let p = User::try_deserialize(&mut (&acc.data as &[u8]))
+                                                        .unwrap();
+                                                    info!(" . User update for {}", pubkey);
+                                                    user_accounts_map.insert(
+                                                        pubkey,
+                                                        AccountDataWithSlot {
+                                                            data: p,
+                                                            slot: Some(msg.context.slot),
+                                                        },
+                                                    );
+                                                }
+                                            }
+                                            None => {
+                                                // it might be a UserStats account
+                                                let mut user_stats_accounts_map = user_stats_account_map.lock();
+                                                match user_stats_accounts_map.get(&pubkey) {
+                                                    Some(user_stats) => {
+                                                        let last_slot = user_stats.slot.unwrap_or(0);
+                                                        if msg.context.slot >= last_slot {
+                                                            let acc: Account = msg.value.account.decode().unwrap();
+                                                            let p = UserStats::try_deserialize(&mut (&acc.data as &[u8]))
+                                                                .unwrap();
+                                                            info!(" . UserStats update for {}", pubkey);
+                                                            user_stats_accounts_map.insert(
+                                                                pubkey,
+                                                                AccountDataWithSlot {
+                                                                    data: p,
+                                                                    slot: Some(msg.context.slot),
+                                                                },
+                                                            );
+                                                        }
+                                                    }
+                                                    None => {
+                                                        error!(
+                                                            "Error: User/UserStats account not recognized: {}", pubkey,
+                                                        );
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
-                                    None => {
-                                        println!(
-                                            "Error: {:?} market not found",
-                                            std::any::type_name::<User>()
+                                    Err(err) => {
+                                        error!(
+                                            "Websocket error (User): {:?}",
+                                            err.to_string()
                                         );
+                                        return;
                                     }
                                 }
                             }
-                            Err(err) => {
-                                println!("Websocket error: {:?}", err.to_string());
-                                return;
-                            }
+                        }
+                        Err(err) => {
+                            println!(
+                                "Error subscribing to websocket (User): {:?}",
+                                err
+                            );
+                            return;
                         }
                     }
-                }
-                Err(err) => {
-                    println!("Error subscribing to websocket: {:?}", err);
-                    return;
-                }
-            }
-        });
-
+                });
+            });
         Ok(())
     }
 }
@@ -372,8 +398,57 @@ impl DriftClientAccountSubscriber for WebsocketAccountSubscriber {
         self.common.get_spot_market_by_market_index(market_index)
     }
 
-    fn get_user(&self, authority: &Pubkey, subaccount_id: u16) -> Option<drift::state::user::User> {
+    fn get_user(&self, authority: &Pubkey, subaccount_id: u16) -> Option<User> {
         self.common.get_user(authority, subaccount_id)
+    }
+
+    fn get_user_stats(&self, authority: &Pubkey) -> Option<UserStats> {
+        self.common.get_user_stats(authority)
+    }
+
+    fn get_perp_market_by_pubkey_with_slot(
+        &self,
+        pubkey: &Pubkey,
+    ) -> Option<AccountDataWithSlot<PerpMarket>> {
+        self.common.get_perp_market_by_pubkey_with_slot(pubkey)
+    }
+
+    fn get_spot_market_by_pubkey_with_slot(
+        &self,
+        pubkey: &Pubkey,
+    ) -> Option<AccountDataWithSlot<SpotMarket>> {
+        self.common.get_spot_market_by_pubkey_with_slot(pubkey)
+    }
+
+    fn get_perp_market_by_market_index_with_slot(
+        &self,
+        market_index: u16,
+    ) -> Option<AccountDataWithSlot<PerpMarket>> {
+        self.common
+            .get_perp_market_by_market_index_with_slot(market_index)
+    }
+
+    fn get_spot_market_by_market_index_with_slot(
+        &self,
+        market_index: u16,
+    ) -> Option<AccountDataWithSlot<SpotMarket>> {
+        self.common
+            .get_spot_market_by_market_index_with_slot(market_index)
+    }
+
+    fn get_user_with_slot(
+        &self,
+        authority: &Pubkey,
+        subaccount_id: u16,
+    ) -> Option<AccountDataWithSlot<User>> {
+        self.common.get_user_with_slot(authority, subaccount_id)
+    }
+
+    fn get_user_stats_with_slot(
+        &self,
+        authority: &Pubkey,
+    ) -> Option<AccountDataWithSlot<UserStats>> {
+        self.common.get_user_stats_with_slot(authority)
     }
 }
 

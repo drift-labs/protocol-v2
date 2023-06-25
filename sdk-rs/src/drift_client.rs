@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -171,7 +170,7 @@ impl DriftClientBuilder {
                     provider.program(self.drift_program_id),
                     Some(vec![]),
                     Some(vec![]),
-                    Some([(user_to_load, vec![])].iter().cloned().collect()), // as Option<HashMap<Pubkey, Vec<u16>>>,
+                    Some(vec![user_to_load]),
                 )) as Box<dyn DriftClientAccountSubscriber>
             };
 

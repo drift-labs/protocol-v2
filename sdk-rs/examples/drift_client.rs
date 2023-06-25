@@ -11,10 +11,7 @@ use anchor_lang::prelude::Pubkey;
 ///
 use dotenv::dotenv;
 use drift::math::constants::{BASE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION};
-use std::borrow::Borrow;
 use std::env;
-use std::str::FromStr;
-use tokio::select;
 
 use anchor_client::solana_sdk::signer::Signer;
 use drift_sdk::drift_client::DriftClient;
@@ -29,6 +26,7 @@ use anyhow::Result;
 
 #[tokio::main]
 async fn main() -> Result<(), anchor_client::ClientError> {
+    env_logger::init();
     dotenv().ok();
 
     let mut drift_client_builder = DriftClient::builder();
@@ -78,31 +76,38 @@ async fn main() -> Result<(), anchor_client::ClientError> {
     // let perp_market_20 = drift_client.drift_client_account_subscriber.get_perp_market_by_market_index(20);
     // println!("perp_market_20: {:?}", perp_market_20);
 
-    let mut poll = tokio::time::interval(tokio::time::Duration::from_secs(1));
+    // let mut poll = tokio::time::interval(tokio::time::Duration::from_secs(1));
     loop {
-        select! {
-            _ = poll.tick() => {
-                let perp_market = drift_client.account_subscriber.get_perp_market_by_market_index(1).unwrap();
-                let spot_market = drift_client.account_subscriber.get_spot_market_by_market_index(0).unwrap();
-                let spot_market_2 = drift_client.account_subscriber.get_spot_market_by_market_index(1).unwrap();
-                println!(
-                    "==> BTC-PERP: {}, SOL: {}, USDC: {}",
-                    perp_market.amm.historical_oracle_data.last_oracle_price as f64 / PRICE_PRECISION as f64,
-                    spot_market_2.historical_oracle_data.last_oracle_price as f64 / PRICE_PRECISION as f64,
-                    spot_market.historical_oracle_data.last_oracle_price as f64 / PRICE_PRECISION as f64,
-                );
+        // select! {
+        //     _ = poll.tick() => {
+        //         let perp_market = drift_client.account_subscriber.get_perp_market_by_market_index_with_slot(1).unwrap();
+        //         let spot_market = drift_client.account_subscriber.get_spot_market_by_market_index_with_slot(0).unwrap();
+        //         let spot_market_2 = drift_client.account_subscriber.get_spot_market_by_market_index_with_slot(1).unwrap();
+        //         println!(
+        //             "==> BTC-PERP: {} ({}), SOL: {} ({}), USDC: {} ({})",
+        //             perp_market.data.amm.historical_oracle_data.last_oracle_price as f64 / PRICE_PRECISION as f64,
+        //             perp_market.slot.unwrap_or_default(),
+        //             spot_market_2.data.historical_oracle_data.last_oracle_price as f64 / PRICE_PRECISION as f64,
+        //             spot_market_2.slot.unwrap_or_default(),
+        //             spot_market.data.historical_oracle_data.last_oracle_price as f64 / PRICE_PRECISION as f64,
+        //             spot_market.slot.unwrap_or_default(),
+        //         );
 
-                let user = drift_client.account_subscriber.get_user(&auth.unwrap(), 0).unwrap();
-                println!("user bal: {:?}", user.get_quote_spot_position().get_signed_token_amount(&spot_market).unwrap() as f64 / QUOTE_PRECISION as f64);
-                println!("user has auction: {:?}, open orders: {:?}", user.has_open_auction, user.open_orders);
-                match user.get_perp_position(0) {
-                    Ok(pos) => {
-                        println!(" open orders on SOL-PERp: {:?}", pos.open_orders);
-                    }
-                    Err(err) => println!("Error: {:?}", err),
-                }
-            }
-        }
+        //         let user = drift_client.account_subscriber.get_user_with_slot(&auth.unwrap(), 0).unwrap();
+        //         println!(
+        //             "user bal: {:?} ({})",
+        //             user.data.get_quote_spot_position().get_signed_token_amount(&spot_market.data).unwrap() as f64 / QUOTE_PRECISION as f64,
+        //             user.slot.unwrap_or_default()
+        //         );
+        //         println!("user has auction: {:?}, open orders: {:?}", user.data.has_open_auction, user.data.open_orders);
+        //         match user.data.get_perp_position(0) {
+        //             Ok(pos) => {
+        //                 println!(" open orders on SOL-PERp: {:?}", pos.open_orders);
+        //             }
+        //             Err(err) => println!("Error: {:?}", err),
+        //         }
+        //     }
+        // }
     }
 
     /*
