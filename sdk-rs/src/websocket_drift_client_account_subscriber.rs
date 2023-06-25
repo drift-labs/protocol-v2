@@ -74,6 +74,7 @@ impl WebsocketAccountSubscriber {
                             (
                                 m.0,
                                 AccountDataWithSlot {
+                                    pubkey: Some(m.0),
                                     data: m.1,
                                     slot: None,
                                 },
@@ -135,6 +136,7 @@ impl WebsocketAccountSubscriber {
                                             market_map.insert(
                                                 pubkey,
                                                 AccountDataWithSlot {
+                                                    pubkey: Some(pubkey),
                                                     data: p,
                                                     slot: Some(msg.context.slot),
                                                 },
@@ -236,8 +238,8 @@ impl WebsocketAccountSubscriber {
                     Ok(users) => {
                         let mut user_accounts_map = self.common.user_accounts.lock();
                         users.iter().for_each(|user| {
-                            info!("Loaded User account: {:?}", user.0);
                             user_accounts_map.insert(user.0, AccountDataWithSlot {
+                                pubkey: Some(user.0),
                                 data: user.1,
                                 slot: None
                             });
@@ -257,6 +259,7 @@ impl WebsocketAccountSubscriber {
                         users.iter().for_each(|user| {
                             info!("Loaded UserStats account: {:?}", user.0);
                             user_stats_accounts_map.insert(user.0, AccountDataWithSlot {
+                                pubkey: Some(user.0),
                                 data: user.1,
                                 slot: None
                             });
@@ -305,10 +308,11 @@ impl WebsocketAccountSubscriber {
                                                     let acc: Account = msg.value.account.decode().unwrap();
                                                     let p = User::try_deserialize(&mut (&acc.data as &[u8]))
                                                         .unwrap();
-                                                    info!(" . User update for {}", pubkey);
+                                                    // info!(" . User update for {}", pubkey);
                                                     user_accounts_map.insert(
                                                         pubkey,
                                                         AccountDataWithSlot {
+                                                            pubkey: Some(pubkey),
                                                             data: p,
                                                             slot: Some(msg.context.slot),
                                                         },
@@ -325,10 +329,11 @@ impl WebsocketAccountSubscriber {
                                                             let acc: Account = msg.value.account.decode().unwrap();
                                                             let p = UserStats::try_deserialize(&mut (&acc.data as &[u8]))
                                                                 .unwrap();
-                                                            info!(" . UserStats update for {}", pubkey);
+                                                            // info!(" . UserStats update for {}", pubkey);
                                                             user_stats_accounts_map.insert(
                                                                 pubkey,
                                                                 AccountDataWithSlot {
+                                                                    pubkey: Some(pubkey),
                                                                     data: p,
                                                                     slot: Some(msg.context.slot),
                                                                 },
@@ -462,14 +467,14 @@ fn get_user_pubkeys_to_load(
             match subaccount_ids.len() {
                 0 => {
                     // default will just load subaccount id 0
-                    vec![get_user_pubkey_pda(program_id, authority, 0)]
+                    vec![get_user_pubkey_pda(program_id, *authority, 0)]
                 }
                 _ => {
                     // else load specified subaccount ids
                     subaccount_ids
                         .iter()
                         .map(|subaccount_id| {
-                            get_user_pubkey_pda(program_id, authority, *subaccount_id)
+                            get_user_pubkey_pda(program_id, *authority, *subaccount_id)
                         })
                         .collect::<Vec<Pubkey>>()
                 }
@@ -515,7 +520,7 @@ mod tests {
 
         let program_id = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
 
-        let pubkeys_a = get_user_pubkeys_to_load(auth_to_subaccount_ids, program_id);
+        let pubkeys_a = get_user_pubkeys_to_load(auth_to_subaccount_ids, program_id.clone());
         assert!(pubkeys_a.len() == 6);
         // at least one of the pubkeys should be h5jfag
         assert!(pubkeys_a.iter().any(|pubkey| *pubkey

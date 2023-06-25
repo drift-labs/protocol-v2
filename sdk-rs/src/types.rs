@@ -1,9 +1,13 @@
-use anchor_client::solana_sdk::commitment_config::CommitmentLevel;
 use anyhow::{anyhow, Result};
+use drift::math::constants::BASE_PRECISION;
+use drift::math::constants::QUOTE_PRECISION;
+use drift::state::user::PerpPosition;
 use parking_lot::Mutex;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::sync::Arc;
 
+use anchor_client::solana_sdk::commitment_config::CommitmentLevel;
 use anchor_client::solana_sdk::pubkey::Pubkey;
 
 use drift::state::perp_market::PerpMarket;
@@ -13,6 +17,7 @@ use drift::state::user::UserStats;
 
 #[derive(Debug, Clone)]
 pub struct AccountDataWithSlot<T> {
+    pub pubkey: Option<Pubkey>,
     pub data: T,
     pub slot: Option<u64>,
 }
@@ -96,14 +101,15 @@ impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
     }
 
     fn get_user(&self, authority: &Pubkey, subaccount_id: u16) -> Option<User> {
-        let user_pubkey = get_user_pubkey_pda(self.program_id, authority, subaccount_id);
+        let user_pubkey = get_user_pubkey_pda(self.program_id, *authority, subaccount_id);
         self.user_accounts.lock().get(&user_pubkey).map(|x| x.data)
     }
 
     fn get_user_stats(&self, authority: &Pubkey) -> Option<UserStats> {
+        let user_stats_pubkey = get_user_stats_pubkey_pda(self.program_id, *authority);
         self.user_stats_accounts
             .lock()
-            .get(authority)
+            .get(&user_stats_pubkey)
             .map(|x| x.data)
     }
 
@@ -152,7 +158,7 @@ impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
         authority: &Pubkey,
         subaccount_id: u16,
     ) -> Option<AccountDataWithSlot<User>> {
-        let user_pubkey = get_user_pubkey_pda(self.program_id, authority, subaccount_id);
+        let user_pubkey = get_user_pubkey_pda(self.program_id, *authority, subaccount_id);
         self.user_accounts
             .lock()
             .get(&user_pubkey)
@@ -164,9 +170,10 @@ impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
         &self,
         authority: &Pubkey,
     ) -> Option<AccountDataWithSlot<UserStats>> {
+        let user_stats_pubkey = get_user_stats_pubkey_pda(self.program_id, *authority);
         self.user_stats_accounts
             .lock()
-            .get(authority)
+            .get(&user_stats_pubkey)
             .map(|x| x)
             .cloned()
     }
@@ -188,7 +195,7 @@ pub fn get_spot_market_pda(program_id: Pubkey, market_index: u16) -> Pubkey {
     .0
 }
 
-pub fn get_user_pubkey_pda(program_id: Pubkey, authority: &Pubkey, subaccount_id: u16) -> Pubkey {
+pub fn get_user_pubkey_pda(program_id: Pubkey, authority: Pubkey, subaccount_id: u16) -> Pubkey {
     Pubkey::find_program_address(
         &[
             b"user",
@@ -198,4 +205,82 @@ pub fn get_user_pubkey_pda(program_id: Pubkey, authority: &Pubkey, subaccount_id
         &program_id,
     )
     .0
+}
+
+pub fn get_user_stats_pubkey_pda(program_id: Pubkey, authority: Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[b"user_stats", authority.to_bytes().as_ref()], &program_id).0
+}
+
+pub struct DisplayPerpPosition<'a>(pub &'a PerpPosition);
+impl<'a> Display for DisplayPerpPosition<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let p = self.0;
+        write!(
+            f,
+            "
+Market Index: {}
+  Base position:  {}
+  Quote position: {}
+  LP shares:      {}
+        ",
+            p.market_index,
+            p.base_asset_amount as f64 / BASE_PRECISION as f64,
+            p.quote_asset_amount as f64 / QUOTE_PRECISION as f64,
+            p.lp_shares as f64 / BASE_PRECISION as f64,
+        )
+    }
+}
+
+pub struct DisplayUser<'a>(pub &'a User);
+impl<'a> Display for DisplayUser<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let user = self.0;
+        write!(
+            f,
+            "
+Name:         {}
+SubaccountID: {}
+Idle: {}, Being Liquidated: {}, Bankrupt: {}
+Next orderID: {}, Next liquidationID: {}
+Authority:    {}
+Delegate:     {}
+Total deposits:  {}
+Total withdraws: {}
+Total social loss: {}
+Open orders:   {} (has open orders: {})
+Open auctions: {} (has open auctions: {})
+
+Perp Positions:
+{}
+        ",
+            String::from_utf8_lossy(&user.name),
+            user.sub_account_id,
+            user.idle,
+            user.is_being_liquidated(),
+            user.is_bankrupt(),
+            user.next_order_id,
+            user.next_liquidation_id,
+            user.authority.to_string(),
+            user.delegate.to_string(),
+            user.total_deposits as f64 / QUOTE_PRECISION as f64,
+            user.total_withdraws as f64 / QUOTE_PRECISION as f64,
+            user.total_social_loss as f64 / QUOTE_PRECISION as f64,
+            user.open_orders,
+            user.has_open_order,
+            user.open_auctions,
+            user.has_open_auction,
+            user.perp_positions
+                .iter()
+                .map(|x| {
+                    if !x.is_available() {
+                        return format!("{}", DisplayPerpPosition(x));
+                    } else {
+                        // return format!("{}: unavailable", x.market_index)
+                        return format!("");
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(""),
+        )
+    }
 }
