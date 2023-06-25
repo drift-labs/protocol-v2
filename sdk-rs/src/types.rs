@@ -88,6 +88,13 @@ pub trait DriftClientAccountSubscriber {
             .get(&user_stats_pubkey)
             .map(|x| x.data)
     }
+    fn get_all_users(&self) -> Vec<User> {
+        self.get_user_accounts_map()
+            .lock()
+            .values()
+            .map(|x| x.data.clone())
+            .collect()
+    }
 
     fn get_perp_market_by_pubkey_with_slot(
         &self,

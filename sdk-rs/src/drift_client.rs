@@ -145,7 +145,7 @@ impl DriftClientBuilder {
                 Rc::new(Keypair::new())
             },
             CommitmentConfig {
-                commitment: CommitmentLevel::Confirmed,
+                commitment: self.commitment,
             },
         );
 
@@ -154,7 +154,6 @@ impl DriftClientBuilder {
                 self.drift_client_account_subscriber.unwrap()
             } else {
                 Box::new(WebsocketAccountSubscriber::new(
-                    rpc_client.clone(),
                     cluster.ws_url().to_string(),
                     self.commitment,
                     provider.program(self.drift_program_id),

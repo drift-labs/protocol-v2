@@ -1,5 +1,5 @@
 use anchor_client::solana_client::pubsub_client::PubsubClient;
-use anchor_client::solana_client::rpc_client::RpcClient;
+// use anchor_client::solana_client::rpc_client::RpcClient;
 use anchor_client::solana_client::rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig};
 use anchor_client::solana_client::rpc_filter::{Memcmp, RpcFilterType};
 use anchor_client::solana_sdk::account::Account;
@@ -26,14 +26,14 @@ use crate::types::{
 
 pub struct WebsocketAccountSubscriber {
     common: DriftClientAccountSubscriberCommon,
-    rpc_client: Arc<RpcClient>,
+    // rpc_client: Arc<RpcClient>,
     ws_url: String,
     program: Program,
 }
 
 impl WebsocketAccountSubscriber {
     pub fn new(
-        rpc_client: Arc<RpcClient>,
+        // rpc_client: Arc<RpcClient>,
         ws_url: String,
         commitment: CommitmentLevel,
         program: Program,
@@ -51,7 +51,7 @@ impl WebsocketAccountSubscriber {
 
                 ..Default::default()
             },
-            rpc_client,
+            // rpc_client,
             ws_url,
             program,
         }
@@ -91,6 +91,8 @@ impl WebsocketAccountSubscriber {
                     )));
                 }
             };
+        } else {
+            return Ok(());
         }
 
         // make websocket subscription to update the map
@@ -204,24 +206,11 @@ impl WebsocketAccountSubscriber {
         Ok(())
     }
 
-    /// Loads User account data from the RPC node (fetch via http), then sets up websocket connections that
-    /// update the account data as it's pushed from the node. All subaccounts belonging to an auhority
-    /// will be loaded.
-    ///
-    /// This method refers to self.authorities_to_watch to determine which User accounts to load.
-    /// * If the corresponding field is None, then no users will be loaded.
-    fn load_user_accounts(&mut self) -> Result<(), anyhow::Error> {
-        if self.common.authorities_to_watch.is_none() {
-            println!("No authorities_to_watch specified, not loading any user accounts");
-            return Ok(());
-        } else {
-            println!(
-                "Loading user accounts for authorities: {:?}",
-                self.common.authorities_to_watch.as_ref().unwrap()
-            );
-        }
-
-        self.common.authorities_to_watch.as_ref().unwrap().iter().for_each(
+    fn load_some_user_accounts(
+        &self,
+        authorities_to_watch: &Vec<Pubkey>,
+    ) -> Result<(), anyhow::Error> {
+        authorities_to_watch.iter().for_each(
             |authority| {
 
                 let user_account_filters = RpcFilterType::Memcmp(
@@ -308,7 +297,6 @@ impl WebsocketAccountSubscriber {
                                                     let acc: Account = msg.value.account.decode().unwrap();
                                                     let p = User::try_deserialize(&mut (&acc.data as &[u8]))
                                                         .unwrap();
-                                                    // info!(" . User update for {}", pubkey);
                                                     user_accounts_map.insert(
                                                         pubkey,
                                                         AccountDataWithSlot {
@@ -371,15 +359,149 @@ impl WebsocketAccountSubscriber {
             });
         Ok(())
     }
+
+    fn load_all_user_accounts(&self) -> Result<(), anyhow::Error> {
+        match self.program.accounts::<User>(vec![]) {
+            Ok(users) => {
+                let mut user_accounts_map = self.common.user_accounts.lock();
+                info!("Loaded {} User accounts", users.len());
+                users.iter().for_each(|user| {
+                    user_accounts_map.insert(
+                        user.0,
+                        AccountDataWithSlot {
+                            pubkey: Some(user.0),
+                            data: user.1,
+                            slot: None,
+                        },
+                    );
+                });
+            }
+            Err(err) => {
+                error!("Error loading User accounts: {:?}", err.to_string());
+            }
+        }
+
+        // make websocket subscription to update the map
+        // TODO: catch connection problems and reconnect
+        let ws_url = self.ws_url.clone();
+        let program_id = self.common.program_id.clone();
+        let user_accounts_map = Arc::clone(&self.common.user_accounts);
+        // let user_stats_account_map = Arc::clone(&self.common.user_stats_accounts);
+        let commitment = self.common.commitment.clone();
+        // let user_account_filters = user_account_filters.clone();
+        std::thread::spawn(move || {
+            match PubsubClient::program_subscribe(
+                ws_url.as_str(),
+                &program_id,
+                Some(RpcProgramAccountsConfig {
+                    filters: Some(vec![RpcFilterType::Memcmp(Memcmp::new_raw_bytes(
+                        0,
+                        User::discriminator().to_vec(),
+                    ))]),
+                    account_config: RpcAccountInfoConfig {
+                        encoding: Some(UiAccountEncoding::Base64),
+                        commitment: Some(CommitmentConfig { commitment }),
+                        ..RpcAccountInfoConfig::default()
+                    },
+                    with_context: Some(true),
+                }),
+            ) {
+                Ok(sub) => {
+                    println!("Websocket subscription successful for all Users",);
+                    loop {
+                        match sub.1.recv() {
+                            Ok(msg) => {
+                                let pubkey = Pubkey::from_str(msg.value.pubkey.as_str()).unwrap();
+                                // info!(" . User update for {}", pubkey);
+                                let mut user_accounts_map = user_accounts_map.lock();
+                                match user_accounts_map.get(&pubkey) {
+                                    Some(user) => {
+                                        let last_slot = user.slot.unwrap_or(0);
+                                        if msg.context.slot >= last_slot {
+                                            let acc: Account = msg.value.account.decode().unwrap();
+                                            let p =
+                                                User::try_deserialize(&mut (&acc.data as &[u8]))
+                                                    .unwrap();
+                                            user_accounts_map.insert(
+                                                pubkey,
+                                                AccountDataWithSlot {
+                                                    pubkey: Some(pubkey),
+                                                    data: p,
+                                                    slot: Some(msg.context.slot),
+                                                },
+                                            );
+                                        }
+                                    }
+                                    None => {
+                                        let acc: Account = msg.value.account.decode().unwrap();
+                                        let p = User::try_deserialize(&mut (&acc.data as &[u8]))
+                                            .unwrap();
+                                        user_accounts_map.insert(
+                                            pubkey,
+                                            AccountDataWithSlot {
+                                                pubkey: Some(pubkey),
+                                                data: p,
+                                                slot: Some(msg.context.slot),
+                                            },
+                                        );
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                error!("Websocket error (User): {:?}", err.to_string());
+                                return;
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    println!("Error subscribing to websocket (User): {:?}", err);
+                    return;
+                }
+            }
+        });
+
+        Ok(())
+    }
+
+    /// Loads User account data from the RPC node (fetch via http), then sets up websocket connections that
+    /// update the account data as it's pushed from the node. All subaccounts belonging to an auhority
+    /// will be loaded.
+    ///
+    /// This method refers to self.authorities_to_watch to determine which User accounts to load.
+    /// * If the corresponding field is None, then no users will be loaded.
+    /// * If the corresponding field is Some(vec![]), then all users will be loaded.
+    /// * If the corresponding field is Some(vec![authority1, authority2, ...]), then only those users will be loaded.
+    ///     * Note: a new thread and ws connection will be created for each authority
+    fn load_user_accounts(&mut self) -> Result<(), anyhow::Error> {
+        if self.common.authorities_to_watch.is_none() {
+            println!("No authorities_to_watch specified, not loading any user accounts");
+            return Ok(());
+        } else {
+            println!(
+                "Loading user accounts for authorities: {:?}",
+                self.common.authorities_to_watch.as_ref().unwrap()
+            );
+        }
+
+        match self.common.authorities_to_watch.as_ref().unwrap().len() {
+            0 => self.load_all_user_accounts()?,
+            _ => {
+                self.load_some_user_accounts(self.common.authorities_to_watch.as_ref().unwrap())?
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl DriftClientAccountSubscriber for WebsocketAccountSubscriber {
     fn load(&mut self) -> Result<(), anyhow::Error> {
         println!("WebsocketAccountSubscriber::load() called");
-        match self.rpc_client.get_slot() {
-            Ok(slot) => println!("WS LOADER: Current slot: {:?}", slot),
-            Err(err) => println!("Error: {:?}", err),
-        }
+        // match self.rpc_client.get_slot() {
+        //     Ok(slot) => println!("WS LOADER: Current slot: {:?}", slot),
+        //     Err(err) => println!("Error: {:?}", err),
+        // }
 
         self.load_market_accounts()?;
         self.load_user_accounts()?;
