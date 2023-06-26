@@ -1,5 +1,4 @@
 use anchor_client::solana_client::pubsub_client::PubsubClient;
-// use anchor_client::solana_client::rpc_client::RpcClient;
 use anchor_client::solana_client::rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig};
 use anchor_client::solana_client::rpc_filter::{Memcmp, RpcFilterType};
 use anchor_client::solana_sdk::account::Account;
@@ -24,16 +23,17 @@ use crate::types::{
     DriftClientAccountSubscriberCommon,
 };
 
+/// Websocket based client that manages subscriptions to desired drift accounts.
+/// Account updates are initially hydrated via http, then updated via websocket subscriptions
+/// and stored in local HashMaps for easy access.
 pub struct WebsocketAccountSubscriber {
     common: DriftClientAccountSubscriberCommon,
-    // rpc_client: Arc<RpcClient>,
     ws_url: String,
     program: Program,
 }
 
 impl WebsocketAccountSubscriber {
     pub fn new(
-        // rpc_client: Arc<RpcClient>,
         ws_url: String,
         commitment: CommitmentLevel,
         program: Program,
@@ -51,7 +51,6 @@ impl WebsocketAccountSubscriber {
 
                 ..Default::default()
             },
-            // rpc_client,
             ws_url,
             program,
         }
@@ -498,10 +497,6 @@ impl WebsocketAccountSubscriber {
 impl DriftClientAccountSubscriber for WebsocketAccountSubscriber {
     fn load(&mut self) -> Result<(), anyhow::Error> {
         println!("WebsocketAccountSubscriber::load() called");
-        // match self.rpc_client.get_slot() {
-        //     Ok(slot) => println!("WS LOADER: Current slot: {:?}", slot),
-        //     Err(err) => println!("Error: {:?}", err),
-        // }
 
         self.load_market_accounts()?;
         self.load_user_accounts()?;

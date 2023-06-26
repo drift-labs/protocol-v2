@@ -5,29 +5,20 @@
 ///     * `RPC_WS_URL`: RPC node ws url (will be derived from http url if not set)
 ///
 /// Run example with:
-///     cargo run --example l
+///     cargo run --example load_all_users
 ///
 use anchor_client::solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
 use anchor_client::solana_sdk::signature::Keypair;
 use anchor_client::{Client, Cluster};
-use anchor_lang::accounts::program;
 use anchor_lang::prelude::Pubkey;
 use dotenv::dotenv;
-use drift::math::constants::{BASE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION};
 use drift_sdk::websocket_drift_client_account_subscriber::WebsocketAccountSubscriber;
 use std::env;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use anchor_client::solana_sdk::signer::Signer;
-use drift_sdk::drift_client::DriftClient;
-use drift_sdk::types::{DisplayUser, DriftClientAccountSubscriber};
-use drift_sdk::utils::{http_to_ws_url, read_keypair_file_multi_format};
-
-// use drift::state::user::User;
-// use drift::state::state::State;
-// use drift::state::perp_market::PerpMarket;
-// use drift::state::spot_market::{SpotMarket};
+use drift_sdk::types::DriftClientAccountSubscriber;
+use drift_sdk::utils::http_to_ws_url;
 
 use anyhow::Result;
 
@@ -35,8 +26,6 @@ use anyhow::Result;
 async fn main() -> Result<(), anchor_client::ClientError> {
     env_logger::init();
     dotenv().ok();
-
-    // let mut drift_client_builder = DriftClient::builder();
 
     let rpc_http_url = env::var("RPC_HTTP_URL").unwrap();
     let rpc_ws_url = env::var("RPC_WS_URL");
