@@ -2106,7 +2106,8 @@ export class User {
 				}
 
 				if (i++ > iterationLimit) {
-					throw new Error('getMaxSwapAmount iteration limit reached');
+					console.log('getMaxSwapAmount iteration limit reached');
+					break;
 				}
 			}
 		}
