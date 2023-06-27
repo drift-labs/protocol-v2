@@ -19,12 +19,14 @@ export async function findBestSuperStakeIxs({
 	driftClient,
 	userAccountPublicKey,
 	marinadePrice,
+	forceMarinade,
 }: {
 	amount: BN;
 	jupiterClient: JupiterClient;
 	driftClient: DriftClient;
 	marinadePrice?: number;
 	userAccountPublicKey?: PublicKey;
+	forceMarinade?: boolean;
 }): Promise<{
 	ixs: TransactionInstruction[];
 	lookupTables: AddressLookupTableAccount[];
@@ -54,7 +56,7 @@ export async function findBestSuperStakeIxs({
 		console.error('Error getting jupiter price', e);
 	}
 
-	if (!jupiterPrice || marinadePrice <= jupiterPrice) {
+	if (!jupiterPrice || marinadePrice <= jupiterPrice || forceMarinade) {
 		const ixs = await driftClient.getStakeForMSOLIx({ amount });
 		return {
 			method: 'marinade',
