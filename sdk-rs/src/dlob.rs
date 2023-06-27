@@ -28,7 +28,7 @@ pub trait DlobNode {
     fn is_vamm_node(&self) -> bool;
     fn order(&self) -> Order;
     fn user(&self) -> Pubkey;
-    fn get_sort_value(&self) -> u64;
+    fn get_sort_value(&self) -> i128;
     fn get_sort_direction(&self) -> SortDirection;
 }
 
@@ -48,8 +48,8 @@ impl DlobNode for TakingLimitOrderNode {
             .get_limit_price(Some(oracle_price_data.price), None, slot, tick_size)
             .unwrap()
     }
-    fn get_sort_value(&self) -> u64 {
-        self.order.slot
+    fn get_sort_value(&self) -> i128 {
+        self.order.slot as i128
     }
     fn get_sort_direction(&self) -> SortDirection {
         self.sort_direction
@@ -81,8 +81,8 @@ impl DlobNode for RestingLimitOrderNode {
             .get_limit_price(Some(oracle_price_data.price), None, slot, tick_size)
             .unwrap()
     }
-    fn get_sort_value(&self) -> u64 {
-        self.order.price
+    fn get_sort_value(&self) -> i128 {
+        self.order.price as i128
     }
     fn get_sort_direction(&self) -> SortDirection {
         self.sort_direction
@@ -114,8 +114,8 @@ impl DlobNode for FloatingLimitOrderNode {
             .get_limit_price(Some(oracle_price_data.price), None, slot, tick_size)
             .unwrap()
     }
-    fn get_sort_value(&self) -> u64 {
-        self.order.oracle_price_offset.try_into().unwrap()
+    fn get_sort_value(&self) -> i128 {
+        self.order.oracle_price_offset as i128
     }
     fn get_sort_direction(&self) -> SortDirection {
         self.sort_direction
@@ -146,8 +146,8 @@ impl DlobNode for MarketOrderNode {
             .get_limit_price(Some(oracle_price_data.price), None, slot, tick_size)
             .unwrap()
     }
-    fn get_sort_value(&self) -> u64 {
-        self.order.slot
+    fn get_sort_value(&self) -> i128 {
+        self.order.slot as i128
     }
     /// Market orders are always ascending
     fn get_sort_direction(&self) -> SortDirection {
@@ -180,8 +180,8 @@ impl DlobNode for TriggerOrderNode {
             .get_limit_price(Some(oracle_price_data.price), None, slot, tick_size)
             .unwrap()
     }
-    fn get_sort_value(&self) -> u64 {
-        self.order.trigger_price
+    fn get_sort_value(&self) -> i128 {
+        self.order.trigger_price as i128
     }
     fn get_sort_direction(&self) -> SortDirection {
         self.sort_direction
@@ -377,140 +377,176 @@ impl Dlob {
         Ok(())
     }
 
+    fn get_market_orders_list(
+        &mut self,
+        market_type: MarketType,
+        direction: PositionDirection,
+        market_index: u16,
+    ) -> &mut Vec<Box<dyn DlobNode>> {
+        match market_type {
+            MarketType::Perp => match direction {
+                PositionDirection::Long => {
+                    &mut self
+                        .perp_order_lists
+                        .get_mut(&market_index)
+                        .unwrap()
+                        .market
+                        .bid
+                }
+                PositionDirection::Short => {
+                    &mut self
+                        .perp_order_lists
+                        .get_mut(&market_index)
+                        .unwrap()
+                        .market
+                        .ask
+                }
+                _ => {
+                    panic!("Invalid position direction {:?}", direction)
+                }
+            },
+            MarketType::Spot => match direction {
+                PositionDirection::Long => {
+                    &mut self
+                        .spot_order_lists
+                        .get_mut(&market_index)
+                        .unwrap()
+                        .market
+                        .bid
+                }
+                PositionDirection::Short => {
+                    &mut self
+                        .spot_order_lists
+                        .get_mut(&market_index)
+                        .unwrap()
+                        .market
+                        .ask
+                }
+                _ => {
+                    panic!("Invalid position direction {:?}", direction)
+                }
+            },
+            _ => {
+                panic!("Invalid market type")
+            }
+        }
+    }
+
     fn insert_market_order(&mut self, user: Pubkey, order: Order) -> Result<(), anyhow::Error> {
-        match order.market_type {
-            MarketType::Perp => {
-                match order.direction {
-                    PositionDirection::Long => {
-                        // TODO: sorted insert
-                        self.perp_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .market
-                            .bid
-                            .push(Box::new(MarketOrderNode {
-                                user: user,
-                                order: order.clone(),
-                            }));
-                    }
-                    PositionDirection::Short => {
-                        // TODO: sorted insert
-                        self.perp_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .market
-                            .ask
-                            .push(Box::new(MarketOrderNode {
-                                user: user,
-                                order: order.clone(),
-                            }));
-                    }
-                    _ => {
-                        return Err(anyhow!("invalid market order direction"));
-                    }
-                };
-            }
-            MarketType::Spot => {
-                match order.direction {
-                    PositionDirection::Long => {
-                        // TODO: sorted insert
-                        self.spot_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .market
-                            .bid
-                            .push(Box::new(MarketOrderNode {
-                                user: user,
-                                order: order.clone(),
-                            }));
-                    }
-                    PositionDirection::Short => {
-                        // TODO: sorted insert
-                        self.spot_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .market
-                            .ask
-                            .push(Box::new(MarketOrderNode {
-                                user: user,
-                                order: order.clone(),
-                            }));
-                    }
-                    _ => {
-                        return Err(anyhow!("invalid market order direction"));
-                    }
-                };
-            }
+        let list = &mut self.get_market_orders_list(
+            order.market_type,
+            order.direction,
+            order.market_index,
+        );
+
+        let new_node = Box::new(MarketOrderNode {
+            user: user,
+            order: order.clone(),
+        });
+        let index = match list
+            .binary_search_by(|probe| probe.get_sort_value().cmp(&new_node.get_sort_value()))
+        {
+            Ok(index) => index,
+            Err(index) => index,
         };
+        list.insert(index, new_node);
         Ok(())
+    }
+
+    fn get_floating_limit_orders_list(
+        &mut self,
+        market_type: MarketType,
+        direction: PositionDirection,
+        market_index: u16,
+    ) -> &mut Vec<Box<dyn DlobNode>> {
+        match market_type {
+            MarketType::Perp => match direction {
+                PositionDirection::Long => {
+                    &mut self
+                        .perp_order_lists
+                        .get_mut(&market_index)
+                        .unwrap()
+                        .floating_limit
+                        .bid
+                }
+                PositionDirection::Short => {
+                    &mut self
+                        .perp_order_lists
+                        .get_mut(&market_index)
+                        .unwrap()
+                        .floating_limit
+                        .ask
+                }
+                _ => {
+                    panic!("Invalid position direction {:?}", direction)
+                }
+            },
+            MarketType::Spot => match direction {
+                PositionDirection::Long => {
+                    &mut self
+                        .spot_order_lists
+                        .get_mut(&market_index)
+                        .unwrap()
+                        .floating_limit
+                        .bid
+                }
+                PositionDirection::Short => {
+                    &mut self
+                        .spot_order_lists
+                        .get_mut(&market_index)
+                        .unwrap()
+                        .floating_limit
+                        .ask
+                }
+                _ => {
+                    panic!("Invalid position direction {:?}", direction)
+                }
+            },
+            _ => {
+                panic!("Invalid market type")
+            }
+        }
     }
 
     fn insert_floating_limit_order(
         &mut self,
-        slot: u64,
         user: Pubkey,
         order: Order,
     ) -> Result<(), anyhow::Error> {
-        match order.market_type {
-            MarketType::Perp => {
-                match order.direction {
-                    PositionDirection::Long => {
-                        // TODO: sorted insert
-                        self.perp_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .floating_limit
-                            .bid
-                            .push(Box::new(FloatingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Ascending,
-                            }));
-                    }
-                    PositionDirection::Short => {
-                        // TODO: sorted insert
-                        self.perp_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .floating_limit
-                            .ask
-                            .push(Box::new(FloatingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Descending,
-                            }));
-                    }
-                }
+        let list = &mut self.get_floating_limit_orders_list(
+            order.market_type,
+            order.direction,
+            order.market_index,
+        );
+
+        match order.direction {
+            PositionDirection::Long => {
+                let new_node = Box::new(FloatingLimitOrderNode {
+                    user: user,
+                    order: order.clone(),
+                    sort_direction: SortDirection::Descending,
+                });
+                let index = match list.binary_search_by(|probe| {
+                    new_node.get_sort_value().cmp(&probe.get_sort_value())
+                }) {
+                    Ok(index) => index,
+                    Err(index) => index,
+                };
+                list.insert(index, new_node);
             }
-            MarketType::Spot => {
-                match order.direction {
-                    PositionDirection::Long => {
-                        // TODO: sorted insert
-                        self.spot_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .floating_limit
-                            .bid
-                            .push(Box::new(FloatingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Ascending,
-                            }));
-                    }
-                    PositionDirection::Short => {
-                        // TODO: sorted insert
-                        self.spot_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .floating_limit
-                            .ask
-                            .push(Box::new(FloatingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Descending,
-                            }));
-                    }
-                }
+            PositionDirection::Short => {
+                let new_node = Box::new(FloatingLimitOrderNode {
+                    user: user,
+                    order: order.clone(),
+                    sort_direction: SortDirection::Ascending,
+                });
+                let index = match list.binary_search_by(|probe| {
+                    probe.get_sort_value().cmp(&new_node.get_sort_value())
+                }) {
+                    Ok(index) => index,
+                    Err(index) => index,
+                };
+                list.insert(index, new_node);
             }
         }
         Ok(())
@@ -535,7 +571,7 @@ impl Dlob {
                             .push(Box::new(RestingLimitOrderNode {
                                 user,
                                 order: order.clone(),
-                                sort_direction: SortDirection::Ascending,
+                                sort_direction: SortDirection::Descending,
                             }));
                     }
                     PositionDirection::Short => {
@@ -548,7 +584,7 @@ impl Dlob {
                             .push(Box::new(RestingLimitOrderNode {
                                 user,
                                 order: order.clone(),
-                                sort_direction: SortDirection::Descending,
+                                sort_direction: SortDirection::Ascending,
                             }));
                     }
                 }
@@ -565,7 +601,7 @@ impl Dlob {
                             .push(Box::new(RestingLimitOrderNode {
                                 user,
                                 order: order.clone(),
-                                sort_direction: SortDirection::Ascending,
+                                sort_direction: SortDirection::Descending,
                             }));
                     }
                     PositionDirection::Short => {
@@ -578,7 +614,7 @@ impl Dlob {
                             .push(Box::new(RestingLimitOrderNode {
                                 user,
                                 order: order.clone(),
-                                sort_direction: SortDirection::Descending,
+                                sort_direction: SortDirection::Ascending,
                             }));
                     }
                 }
@@ -609,7 +645,7 @@ impl Dlob {
                             .push(Box::new(RestingLimitOrderNode {
                                 user,
                                 order: order.clone(),
-                                sort_direction: SortDirection::Ascending,
+                                sort_direction: SortDirection::Descending,
                             }));
                     }
                     PositionDirection::Short => {
@@ -622,7 +658,7 @@ impl Dlob {
                             .push(Box::new(RestingLimitOrderNode {
                                 user,
                                 order: order.clone(),
-                                sort_direction: SortDirection::Descending,
+                                sort_direction: SortDirection::Ascending,
                             }));
                     }
                 }
@@ -639,7 +675,7 @@ impl Dlob {
                             .push(Box::new(RestingLimitOrderNode {
                                 user,
                                 order: order.clone(),
-                                sort_direction: SortDirection::Ascending,
+                                sort_direction: SortDirection::Descending,
                             }));
                     }
                     PositionDirection::Short => {
@@ -652,7 +688,7 @@ impl Dlob {
                             .push(Box::new(RestingLimitOrderNode {
                                 user,
                                 order: order.clone(),
-                                sort_direction: SortDirection::Descending,
+                                sort_direction: SortDirection::Ascending,
                             }));
                     }
                 }
@@ -664,18 +700,18 @@ impl Dlob {
         Ok(())
     }
 
-    fn ensure_market_index_in_list(&mut self, order: Order) {
-        match order.market_type {
+    fn ensure_market_index_in_list(&mut self, market_type: MarketType, market_index: u16) {
+        match market_type {
             MarketType::Perp => {
-                if !self.perp_order_lists.contains_key(&order.market_index) {
+                if !self.perp_order_lists.contains_key(&market_index) {
                     self.perp_order_lists
-                        .insert(order.market_index, NodeLists::default());
+                        .insert(market_index, NodeLists::default());
                 }
             }
             MarketType::Spot => {
-                if !self.spot_order_lists.contains_key(&order.market_index) {
+                if !self.spot_order_lists.contains_key(&market_index) {
                     self.spot_order_lists
-                        .insert(order.market_index, NodeLists::default());
+                        .insert(market_index, NodeLists::default());
                 }
             }
         };
@@ -698,7 +734,7 @@ impl Dlob {
             _ => return Ok(()),
         };
 
-        self.ensure_market_index_in_list(order);
+        self.ensure_market_index_in_list(order.market_type, order.market_index);
 
         let is_inactive_trigger = match order.order_type {
             OrderType::TriggerLimit | OrderType::TriggerMarket => !order.triggered(),
@@ -714,7 +750,7 @@ impl Dlob {
                 }
                 _ => {
                     if order.oracle_price_offset != 0 {
-                        self.insert_floating_limit_order(slot, user, order)?;
+                        self.insert_floating_limit_order(user, order)?;
                     } else {
                         match order.is_resting_limit_order(slot).unwrap() {
                             true => self.insert_resting_limit_order(slot, user, order)?,
@@ -768,12 +804,12 @@ impl DlobBuilder {
 mod tests {
     use drift::math::constants::PRICE_PRECISION_U64;
 
-    use crate::types::{DisplayOrder, DriftClientAccountSubscriberCommon};
+    use crate::types::DriftClientAccountSubscriberCommon;
 
     use super::*;
 
     #[tokio::test]
-    async fn test_insert_perp_inactive_trigger_order() {
+    async fn test_insert_inactive_trigger_order() {
         let mut dlob = DlobBuilder::default()
             .account_subscriber(Box::new(DriftClientAccountSubscriberCommon::default()))
             .build()
@@ -782,187 +818,304 @@ mod tests {
 
         let market_index = 0_u16;
 
+        struct TestData {
+            trigger_condition: OrderTriggerCondition,
+            trigger_price: u64,
+            direction: PositionDirection,
+            order_id: u32,
+        }
+
         for market_type in vec![MarketType::Perp, MarketType::Spot] {
-            let mut order = Order::default();
-            order.market_type = market_type;
-            order.trigger_condition = OrderTriggerCondition::Above;
-            order.trigger_price = (12.5 * PRICE_PRECISION_U64 as f64) as u64;
-            order.order_id = 1;
-            order.market_index = market_index;
-            dlob.ensure_market_index_in_list(order);
-            dlob.insert_inactive_trigger_order(user, order).unwrap();
+            dlob.ensure_market_index_in_list(market_type, market_index);
 
-            let mut order = Order::default();
-            order.market_type = market_type;
-            order.trigger_condition = OrderTriggerCondition::Above;
-            order.trigger_price = (12.7 * PRICE_PRECISION_U64 as f64) as u64;
-            order.order_id = 2;
-            order.market_index = market_index;
-            dlob.ensure_market_index_in_list(order);
-            dlob.insert_inactive_trigger_order(user, order).unwrap();
-
-            let mut order = Order::default();
-            order.market_type = market_type;
-            order.trigger_condition = OrderTriggerCondition::Above;
-            order.direction = PositionDirection::Short;
-            order.trigger_price = (11.32222 * PRICE_PRECISION_U64 as f64) as u64;
-            order.order_id = 3;
-            order.market_index = market_index;
-            dlob.ensure_market_index_in_list(order);
-            dlob.insert_inactive_trigger_order(user, order).unwrap();
-
-            let mut order = Order::default();
-            order.market_type = market_type;
-            order.trigger_condition = OrderTriggerCondition::Below;
-            order.trigger_price = (12.5 * PRICE_PRECISION_U64 as f64) as u64;
-            order.order_id = 4;
-            order.market_index = market_index;
-            dlob.ensure_market_index_in_list(order);
-            dlob.insert_inactive_trigger_order(user, order).unwrap();
-
-            let mut order = Order::default();
-            order.market_type = market_type;
-            order.trigger_condition = OrderTriggerCondition::Below;
-            order.direction = PositionDirection::Short;
-            order.trigger_price = (12.7 * PRICE_PRECISION_U64 as f64) as u64;
-            order.order_id = 5;
-            order.market_index = market_index;
-            dlob.ensure_market_index_in_list(order);
-            dlob.insert_inactive_trigger_order(user, order).unwrap();
-
-            let mut order = Order::default();
-            order.market_type = market_type;
-            order.trigger_condition = OrderTriggerCondition::Below;
-            order.trigger_price = (11.34 * PRICE_PRECISION_U64 as f64) as u64;
-            order.order_id = 6;
-            order.market_index = market_index;
-            dlob.ensure_market_index_in_list(order);
-            dlob.insert_inactive_trigger_order(user, order).unwrap();
+            for test_data in vec![
+                TestData {
+                    trigger_condition: OrderTriggerCondition::Above,
+                    trigger_price: (12.5 * PRICE_PRECISION_U64 as f64) as u64,
+                    direction: PositionDirection::Long,
+                    order_id: 1,
+                },
+                TestData {
+                    trigger_condition: OrderTriggerCondition::Above,
+                    trigger_price: (12.7 * PRICE_PRECISION_U64 as f64) as u64,
+                    direction: PositionDirection::Short,
+                    order_id: 2,
+                },
+                TestData {
+                    trigger_condition: OrderTriggerCondition::Above,
+                    trigger_price: (11.32222 * PRICE_PRECISION_U64 as f64) as u64,
+                    direction: PositionDirection::Long,
+                    order_id: 3,
+                },
+                TestData {
+                    trigger_condition: OrderTriggerCondition::Below,
+                    trigger_price: (12.5 * PRICE_PRECISION_U64 as f64) as u64,
+                    direction: PositionDirection::Short,
+                    order_id: 4,
+                },
+                TestData {
+                    trigger_condition: OrderTriggerCondition::Below,
+                    trigger_price: (12.7 * PRICE_PRECISION_U64 as f64) as u64,
+                    direction: PositionDirection::Long,
+                    order_id: 5,
+                },
+                TestData {
+                    trigger_condition: OrderTriggerCondition::Below,
+                    trigger_price: (11.34 * PRICE_PRECISION_U64 as f64) as u64,
+                    direction: PositionDirection::Long,
+                    order_id: 6,
+                },
+            ] {
+                let mut order = Order::default();
+                order.market_type = market_type;
+                order.trigger_condition = test_data.trigger_condition;
+                order.trigger_price = test_data.trigger_price;
+                order.order_id = test_data.order_id;
+                order.market_index = market_index;
+                order.direction = test_data.direction;
+                dlob.insert_inactive_trigger_order(user, order).unwrap();
+            }
 
             match market_type {
                 MarketType::Perp => {
-                    assert!(
-                        dlob.perp_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .trigger
-                            .above[0]
-                            .order()
-                            .order_id
-                            == 3
-                    );
-                    assert!(
-                        dlob.perp_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .trigger
-                            .above[1]
-                            .order()
-                            .order_id
-                            == 1
-                    );
-                    assert!(
-                        dlob.perp_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .trigger
-                            .above[2]
-                            .order()
-                            .order_id
-                            == 2
-                    );
-                    assert!(
-                        dlob.perp_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .trigger
-                            .below[0]
-                            .order()
-                            .order_id
-                            == 5
-                    );
-                    assert!(
-                        dlob.perp_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .trigger
-                            .below[1]
-                            .order()
-                            .order_id
-                            == 4
-                    );
-                    assert!(
-                        dlob.perp_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .trigger
-                            .below[2]
-                            .order()
-                            .order_id
-                            == 6
-                    );
+                    for (market_index, perp_order_list) in dlob.perp_order_lists.iter() {
+                        assert_eq!(market_index, &0_u16);
+                        assert_eq!(perp_order_list.trigger.above.len(), 3);
+                        assert_eq!(perp_order_list.trigger.below.len(), 3);
+                        assert_eq!(perp_order_list.trigger.above[0].order().order_id, 3_u32);
+                        assert_eq!(perp_order_list.trigger.above[1].order().order_id, 1_u32);
+                        assert_eq!(perp_order_list.trigger.above[2].order().order_id, 2_u32);
+                        assert_eq!(perp_order_list.trigger.below[0].order().order_id, 5_u32);
+                        assert_eq!(perp_order_list.trigger.below[1].order().order_id, 4_u32);
+                        assert_eq!(perp_order_list.trigger.below[2].order().order_id, 6_u32);
+                    }
                 }
                 MarketType::Spot => {
-                    assert!(
-                        dlob.spot_order_lists
+                    for (market_index, spot_order_list) in dlob.spot_order_lists.iter() {
+                        assert_eq!(market_index, &0_u16);
+                        assert_eq!(spot_order_list.trigger.above.len(), 3);
+                        assert_eq!(spot_order_list.trigger.below.len(), 3);
+                        assert_eq!(spot_order_list.trigger.above[0].order().order_id, 3_u32);
+                        assert_eq!(spot_order_list.trigger.above[1].order().order_id, 1_u32);
+                        assert_eq!(spot_order_list.trigger.above[2].order().order_id, 2_u32);
+                        assert_eq!(spot_order_list.trigger.below[0].order().order_id, 5_u32);
+                        assert_eq!(spot_order_list.trigger.below[1].order().order_id, 4_u32);
+                        assert_eq!(spot_order_list.trigger.below[2].order().order_id, 6_u32);
+                    }
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_insert_market_order() {
+        let mut dlob = DlobBuilder::default()
+            .account_subscriber(Box::new(DriftClientAccountSubscriberCommon::default()))
+            .build()
+            .unwrap();
+        let user = Pubkey::new_unique();
+
+        let market_index = 0_u16;
+
+        struct TestData {
+            order_id: u32,
+            direction: PositionDirection,
+            slot: u64,
+        }
+
+        for market_type in vec![MarketType::Perp, MarketType::Spot] {
+            dlob.ensure_market_index_in_list(market_type, market_index);
+
+            for test_data in vec![
+                TestData {
+                    order_id: 1,
+                    direction: PositionDirection::Long,
+                    slot: 6,
+                },
+                TestData {
+                    order_id: 2,
+                    direction: PositionDirection::Short,
+                    slot: 5,
+                },
+                TestData {
+                    order_id: 3,
+                    direction: PositionDirection::Long,
+                    slot: 4,
+                },
+                TestData {
+                    order_id: 4,
+                    direction: PositionDirection::Short,
+                    slot: 3,
+                },
+                TestData {
+                    order_id: 5,
+                    direction: PositionDirection::Long,
+                    slot: 2,
+                },
+                TestData {
+                    order_id: 6,
+                    direction: PositionDirection::Short,
+                    slot: 1,
+                },
+            ] {
+                let mut order = Order::default();
+                order.market_type = market_type;
+                order.direction = test_data.direction;
+                order.order_type = OrderType::Market;
+                order.order_id = test_data.order_id;
+                order.market_index = market_index;
+                order.slot = test_data.slot;
+                dlob.insert_market_order(user, order).unwrap();
+            }
+
+            match market_type {
+                MarketType::Perp => {
+                    for (i, order_id) in vec![5, 3, 1].iter().enumerate() {
+                        let want = dlob.perp_order_lists.get(&market_index).unwrap().market.bid[i]
+                            .order()
+                            .order_id;
+                        assert!(want == *order_id, "want: {}, got: {}", want, order_id);
+                    }
+
+                    for (i, order_id) in vec![6, 4, 2].iter().enumerate() {
+                        let want = dlob.perp_order_lists.get(&market_index).unwrap().market.ask[i]
+                            .order()
+                            .order_id;
+                        assert!(want == *order_id, "want: {}, got: {}", want, order_id);
+                    }
+                }
+                MarketType::Spot => {
+                    for (i, order_id) in vec![5, 3, 1].iter().enumerate() {
+                        let want = dlob.spot_order_lists.get(&market_index).unwrap().market.bid[i]
+                            .order()
+                            .order_id;
+                        assert!(want == *order_id, "want: {}, got: {}", want, order_id);
+                    }
+
+                    for (i, order_id) in vec![6, 4, 2].iter().enumerate() {
+                        let want = dlob.spot_order_lists.get(&market_index).unwrap().market.ask[i]
+                            .order()
+                            .order_id;
+                        assert!(want == *order_id, "want: {}, got: {}", want, order_id);
+                    }
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_insert_floating_limit_order() {
+        let mut dlob = DlobBuilder::default()
+            .account_subscriber(Box::new(DriftClientAccountSubscriberCommon::default()))
+            .build()
+            .unwrap();
+        let user = Pubkey::new_unique();
+
+        let market_index = 0_u16;
+
+        struct TestData {
+            order_id: u32,
+            direction: PositionDirection,
+            oracle_price_offset: i32,
+        }
+
+        for market_type in vec![MarketType::Perp, MarketType::Spot] {
+            dlob.ensure_market_index_in_list(market_type, market_index);
+
+            for data in vec![
+                TestData {
+                    order_id: 1,
+                    direction: PositionDirection::Long,
+                    oracle_price_offset: (1.11 * PRICE_PRECISION_U64 as f64) as i32,
+                },
+                TestData {
+                    order_id: 2,
+                    direction: PositionDirection::Long,
+                    oracle_price_offset: (0.91 * PRICE_PRECISION_U64 as f64) as i32,
+                },
+                TestData {
+                    order_id: 3,
+                    direction: PositionDirection::Long,
+                    oracle_price_offset: (-1.23 * PRICE_PRECISION_U64 as f64) as i32,
+                },
+                TestData {
+                    order_id: 4,
+                    direction: PositionDirection::Short,
+                    oracle_price_offset: (1.01 * PRICE_PRECISION_U64 as f64) as i32,
+                },
+                TestData {
+                    order_id: 5,
+                    direction: PositionDirection::Short,
+                    oracle_price_offset: (1.22 * PRICE_PRECISION_U64 as f64) as i32,
+                },
+                TestData {
+                    order_id: 6,
+                    direction: PositionDirection::Short,
+                    oracle_price_offset: (1.35 * PRICE_PRECISION_U64 as f64) as i32,
+                },
+            ] {
+                let mut order = Order::default();
+                order.market_index = market_index;
+                order.market_type = market_type;
+                order.order_id = data.order_id;
+                order.direction = data.direction;
+                order.order_type = OrderType::Limit;
+                order.oracle_price_offset = data.oracle_price_offset;
+                dlob.insert_floating_limit_order(user, order).unwrap();
+            }
+
+            match market_type {
+                MarketType::Perp => {
+                    for (i, order_id) in vec![1, 2, 3].iter().enumerate() {
+                        let got = dlob
+                            .perp_order_lists
                             .get(&market_index)
                             .unwrap()
-                            .trigger
-                            .above[0]
+                            .floating_limit
+                            .bid[i]
                             .order()
-                            .order_id
-                            == 3
-                    );
-                    assert!(
-                        dlob.spot_order_lists
+                            .order_id;
+                        let want = *order_id as u32;
+                        assert!(got == want, "got: {}, want: {}", got, want);
+                    }
+                    for (i, order_id) in vec![4, 5, 6].iter().enumerate() {
+                        let got = dlob
+                            .perp_order_lists
                             .get(&market_index)
                             .unwrap()
-                            .trigger
-                            .above[1]
+                            .floating_limit
+                            .ask[i]
                             .order()
-                            .order_id
-                            == 1
-                    );
-                    assert!(
-                        dlob.spot_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .trigger
-                            .above[2]
-                            .order()
-                            .order_id
-                            == 2
-                    );
-                    assert!(
-                        dlob.spot_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .trigger
-                            .below[0]
-                            .order()
-                            .order_id
-                            == 5
-                    );
-                    assert!(
-                        dlob.spot_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .trigger
-                            .below[1]
-                            .order()
-                            .order_id
-                            == 4
-                    );
-                    assert!(
-                        dlob.spot_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .trigger
-                            .below[2]
-                            .order()
-                            .order_id
-                            == 6
-                    );
+                            .order_id;
+                        let want = *order_id as u32;
+                        assert!(got == want, "got: {}, want: {}", got, want);
+                    }
+                }
+                MarketType::Spot => {
+                    for (i, order_id) in vec![1, 2, 3].iter().enumerate() {
+                        assert!(
+                            dlob.spot_order_lists
+                                .get(&market_index)
+                                .unwrap()
+                                .floating_limit
+                                .bid[i]
+                                .order()
+                                .order_id
+                                == (*order_id as u32)
+                        );
+                    }
+                    for (i, order_id) in vec![4, 5, 6].iter().enumerate() {
+                        assert!(
+                            dlob.spot_order_lists
+                                .get(&market_index)
+                                .unwrap()
+                                .floating_limit
+                                .ask[i]
+                                .order()
+                                .order_id
+                                == (*order_id as u32)
+                        );
+                    }
                 }
             }
         }
