@@ -57,7 +57,10 @@ export async function findBestSuperStakeIxs({
 	}
 
 	if (!jupiterPrice || marinadePrice <= jupiterPrice || forceMarinade) {
-		const ixs = await driftClient.getStakeForMSOLIx({ amount });
+		const ixs = await driftClient.getStakeForMSOLIx({
+			amount,
+			userAccountPublicKey,
+		});
 		return {
 			method: 'marinade',
 			ixs,
