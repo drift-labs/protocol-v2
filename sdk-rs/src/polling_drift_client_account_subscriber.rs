@@ -18,13 +18,11 @@ use crate::types::{
 
 pub struct PollingAccountSubscriber {
     common: DriftClientAccountSubscriberCommon,
-    rpc_client: Arc<RpcClient>,
     poll_interval: Duration,
 }
 
 impl PollingAccountSubscriber {
     pub fn new(
-        rpc_client: Arc<RpcClient>,
         program: Program,
         commitment: CommitmentLevel,
         poll_interval: Duration,
@@ -33,7 +31,6 @@ impl PollingAccountSubscriber {
         authorities_to_watch: Option<Vec<Pubkey>>,
     ) -> Self {
         Self {
-            rpc_client,
             poll_interval,
             common: DriftClientAccountSubscriberCommon {
                 program_id: program.id(),

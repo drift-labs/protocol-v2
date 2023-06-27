@@ -46,7 +46,7 @@ pub struct DriftClientBuilder {
     /// A readonly_authority can be provided if you only want to read a certain user account's data
     pub readonly_authority: Option<Pubkey>,
 
-    pub drift_client_account_subscriber: Option<Box<dyn DriftClientAccountSubscriber>>,
+    pub account_subscriber: Option<Box<dyn DriftClientAccountSubscriber>>,
 }
 
 impl Default for DriftClientBuilder {
@@ -60,7 +60,7 @@ impl Default for DriftClientBuilder {
             rpc_ws_url: None,
             signing_authority: None,
             readonly_authority: None,
-            drift_client_account_subscriber: None,
+            account_subscriber: None,
         }
     }
 }
@@ -101,11 +101,11 @@ impl DriftClientBuilder {
         self
     }
 
-    pub fn drift_client_account_subscriber(
+    pub fn account_subscriber(
         mut self,
         account_subscriber: Box<dyn DriftClientAccountSubscriber>,
     ) -> Self {
-        self.drift_client_account_subscriber = Some(account_subscriber);
+        self.account_subscriber = Some(account_subscriber);
         self
     }
 
@@ -150,8 +150,8 @@ impl DriftClientBuilder {
         );
 
         let account_subscriber: Box<dyn DriftClientAccountSubscriber> =
-            if self.drift_client_account_subscriber.is_some() {
-                self.drift_client_account_subscriber.unwrap()
+            if self.account_subscriber.is_some() {
+                self.account_subscriber.unwrap()
             } else {
                 Box::new(WebsocketAccountSubscriber::new(
                     cluster.ws_url().to_string(),

@@ -1,10 +1,14 @@
 use anyhow::{anyhow, Result};
 use drift::math::constants::BASE_PRECISION;
+use drift::math::constants::PRICE_PRECISION;
 use drift::math::constants::QUOTE_PRECISION;
+use drift::state::user::Order;
+use drift::state::user::OrderStatus;
 use drift::state::user::PerpPosition;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use anchor_client::solana_sdk::commitment_config::CommitmentLevel;
@@ -20,23 +24,6 @@ pub struct AccountDataWithSlot<T> {
     pub pubkey: Option<Pubkey>,
     pub data: T,
     pub slot: Option<u64>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct DriftClientAccountSubscriberCommon {
-    pub program_id: Pubkey,
-    pub commitment: CommitmentLevel,
-
-    pub perp_market_indexes_to_watch: Option<Vec<u16>>,
-    pub spot_market_indexes_to_watch: Option<Vec<u16>>,
-    pub authorities_to_watch: Option<Vec<Pubkey>>,
-
-    pub perp_market_accounts: Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<PerpMarket>>>>,
-    pub spot_market_accounts: Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<SpotMarket>>>>,
-
-    /// Map of authority -> user pubkey -> user account
-    pub user_accounts: Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<User>>>>,
-    pub user_stats_accounts: Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<UserStats>>>>,
 }
 
 pub trait DriftClientAccountSubscriber {
@@ -158,6 +145,35 @@ pub trait DriftClientAccountSubscriber {
             .map(|x| x)
             .cloned()
     }
+
+    fn num_tracked_perp_markets(&self) -> usize {
+        self.get_perp_market_accounts_map().lock().len()
+    }
+
+    fn num_tracked_spot_markets(&self) -> usize {
+        self.get_spot_market_accounts_map().lock().len()
+    }
+
+    fn num_tracked_users(&self) -> usize {
+        self.get_user_accounts_map().lock().len()
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct DriftClientAccountSubscriberCommon {
+    pub program_id: Pubkey,
+    pub commitment: CommitmentLevel,
+
+    pub perp_market_indexes_to_watch: Option<Vec<u16>>,
+    pub spot_market_indexes_to_watch: Option<Vec<u16>>,
+    pub authorities_to_watch: Option<Vec<Pubkey>>,
+
+    pub perp_market_accounts: Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<PerpMarket>>>>,
+    pub spot_market_accounts: Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<SpotMarket>>>>,
+
+    /// Map of authority -> user pubkey -> user account
+    pub user_accounts: Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<User>>>>,
+    pub user_stats_accounts: Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<UserStats>>>>,
 }
 
 impl DriftClientAccountSubscriber for DriftClientAccountSubscriberCommon {
@@ -294,6 +310,53 @@ Perp Positions:
                 })
                 .collect::<Vec<_>>()
                 .join(""),
+        )
+    }
+}
+
+pub struct DisplayOrder<'a>(pub &'a Order);
+impl<'a> Display for DisplayOrder<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let order = self.0;
+        write!(
+            f,
+            "
+Status:    {:?}
+OrderID:      {:?}
+User OrderID: {:?}
+Direction: {:?}
+Order Type:   {:?}
+Market Type:  {:?}
+Market Index: {:?}
+Base Asset Amount Filled: {:?}/{:?}
+Quote Asset Amount Filled: {:?}
+
+Price:               {:?}
+Oracle Price Offset: {:?}
+Auction Start Price: {:?}
+Auction End Price:   {:?}
+Auction Duration:    {:?}
+
+Trigger Condition: {:?}
+Trigger Price:     {:?}
+        ",
+            order.status,
+            order.order_id,
+            order.user_order_id,
+            order.direction,
+            order.order_type,
+            order.market_type,
+            order.market_index,
+            order.base_asset_amount_filled as f64 / BASE_PRECISION as f64,
+            order.base_asset_amount as f64 / BASE_PRECISION as f64,
+            order.quote_asset_amount_filled as f64 / QUOTE_PRECISION as f64,
+            order.price as f64 / PRICE_PRECISION as f64,
+            order.oracle_price_offset as f64 / PRICE_PRECISION as f64,
+            order.auction_start_price as f64 / PRICE_PRECISION as f64,
+            order.auction_end_price as f64 / PRICE_PRECISION as f64,
+            order.auction_duration,
+            order.trigger_condition,
+            order.trigger_price as f64 / PRICE_PRECISION as f64,
         )
     }
 }
