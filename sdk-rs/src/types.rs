@@ -160,6 +160,41 @@ pub trait DriftClientAccountSubscriber {
 }
 
 #[derive(Debug, Clone, Default)]
+pub struct MockDriftClientAccountSubscriber {}
+
+impl DriftClientAccountSubscriber for MockDriftClientAccountSubscriber {
+    fn load(&mut self) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+
+    fn get_program_id(&self) -> Pubkey {
+        Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap()
+    }
+
+    fn get_perp_market_accounts_map(
+        &self,
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<PerpMarket>>>> {
+        Arc::new(Mutex::new(HashMap::new()))
+    }
+
+    fn get_spot_market_accounts_map(
+        &self,
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<SpotMarket>>>> {
+        Arc::new(Mutex::new(HashMap::new()))
+    }
+
+    fn get_user_accounts_map(&self) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<User>>>> {
+        Arc::new(Mutex::new(HashMap::new()))
+    }
+
+    fn get_user_stats_accounts_map(
+        &self,
+    ) -> Arc<Mutex<HashMap<Pubkey, AccountDataWithSlot<UserStats>>>> {
+        Arc::new(Mutex::new(HashMap::new()))
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct DriftClientAccountSubscriberCommon {
     pub program_id: Pubkey,
     pub commitment: CommitmentLevel,

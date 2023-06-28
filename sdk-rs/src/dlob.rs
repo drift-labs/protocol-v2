@@ -18,6 +18,14 @@ pub enum SortDirection {
     Descending,
 }
 
+pub enum DlobNodeType {
+    TakingLimit,
+    RestingLimit,
+    FloatingLimit,
+    Market,
+    Trigger,
+}
+
 pub trait DlobNode {
     fn get_price(
         &self,
@@ -30,6 +38,9 @@ pub trait DlobNode {
     fn user(&self) -> Pubkey;
     fn get_sort_value(&self) -> i128;
     fn get_sort_direction(&self) -> SortDirection;
+    fn get_node_type() -> DlobNodeType
+    where
+        Self: Sized;
 }
 
 pub struct TakingLimitOrderNode {
@@ -62,6 +73,9 @@ impl DlobNode for TakingLimitOrderNode {
     }
     fn user(&self) -> Pubkey {
         self.user
+    }
+    fn get_node_type() -> DlobNodeType {
+        DlobNodeType::TakingLimit
     }
 }
 
@@ -96,6 +110,9 @@ impl DlobNode for RestingLimitOrderNode {
     fn user(&self) -> Pubkey {
         self.user
     }
+    fn get_node_type() -> DlobNodeType {
+        DlobNodeType::RestingLimit
+    }
 }
 
 pub struct FloatingLimitOrderNode {
@@ -128,6 +145,9 @@ impl DlobNode for FloatingLimitOrderNode {
     }
     fn user(&self) -> Pubkey {
         self.user
+    }
+    fn get_node_type() -> DlobNodeType {
+        DlobNodeType::FloatingLimit
     }
 }
 
@@ -162,6 +182,9 @@ impl DlobNode for MarketOrderNode {
     fn user(&self) -> Pubkey {
         self.user
     }
+    fn get_node_type() -> DlobNodeType {
+        DlobNodeType::Market
+    }
 }
 
 pub struct TriggerOrderNode {
@@ -194,6 +217,9 @@ impl DlobNode for TriggerOrderNode {
     }
     fn user(&self) -> Pubkey {
         self.user
+    }
+    fn get_node_type() -> DlobNodeType {
+        DlobNodeType::Trigger
     }
 }
 
@@ -272,434 +298,6 @@ impl Dlob {
         Ok(())
     }
 
-    fn get_trigger_orders_list(
-        &mut self,
-        market_type: MarketType,
-        trigger_condition: OrderTriggerCondition,
-        market_index: u16,
-    ) -> &mut Vec<Box<dyn DlobNode>> {
-        match market_type {
-            MarketType::Perp => match trigger_condition {
-                OrderTriggerCondition::Above => {
-                    &mut self
-                        .perp_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .trigger
-                        .above
-                }
-                OrderTriggerCondition::Below => {
-                    &mut self
-                        .perp_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .trigger
-                        .below
-                }
-                _ => {
-                    panic!("Invalid trigger condition {:?}", trigger_condition)
-                }
-            },
-            MarketType::Spot => match trigger_condition {
-                OrderTriggerCondition::Above => {
-                    &mut self
-                        .spot_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .trigger
-                        .above
-                }
-                OrderTriggerCondition::Below => {
-                    &mut self
-                        .spot_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .trigger
-                        .below
-                }
-                _ => {
-                    panic!("Invalid trigger condition {:?}", trigger_condition)
-                }
-            },
-            _ => {
-                panic!("Invalid market type")
-            }
-        }
-    }
-
-    fn insert_inactive_trigger_order(
-        &mut self,
-        user: Pubkey,
-        order: Order,
-    ) -> Result<(), anyhow::Error> {
-        let list = &mut self.get_trigger_orders_list(
-            order.market_type,
-            order.trigger_condition,
-            order.market_index,
-        );
-        match order.trigger_condition {
-            OrderTriggerCondition::Above => {
-                let new_node = Box::new(TriggerOrderNode {
-                    user: user,
-                    order: order.clone(),
-                    sort_direction: SortDirection::Ascending,
-                });
-                let index = match list.binary_search_by(|probe| {
-                    probe.get_sort_value().cmp(&new_node.get_sort_value())
-                }) {
-                    Ok(index) => index,
-                    Err(index) => index,
-                };
-                list.insert(index, new_node);
-            }
-            OrderTriggerCondition::Below => {
-                let new_node = Box::new(TriggerOrderNode {
-                    user: user,
-                    order: order.clone(),
-                    sort_direction: SortDirection::Descending,
-                });
-                let index = match list.binary_search_by(|probe| {
-                    new_node.get_sort_value().cmp(&probe.get_sort_value())
-                }) {
-                    Ok(index) => index,
-                    Err(index) => index,
-                };
-                list.insert(index, new_node);
-            }
-            _ => {
-                panic!(
-                    "Invalid inactive trigger condition {:?}",
-                    order.trigger_condition
-                )
-            }
-        }
-
-        Ok(())
-    }
-
-    fn get_market_orders_list(
-        &mut self,
-        market_type: MarketType,
-        direction: PositionDirection,
-        market_index: u16,
-    ) -> &mut Vec<Box<dyn DlobNode>> {
-        match market_type {
-            MarketType::Perp => match direction {
-                PositionDirection::Long => {
-                    &mut self
-                        .perp_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .market
-                        .bid
-                }
-                PositionDirection::Short => {
-                    &mut self
-                        .perp_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .market
-                        .ask
-                }
-                _ => {
-                    panic!("Invalid position direction {:?}", direction)
-                }
-            },
-            MarketType::Spot => match direction {
-                PositionDirection::Long => {
-                    &mut self
-                        .spot_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .market
-                        .bid
-                }
-                PositionDirection::Short => {
-                    &mut self
-                        .spot_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .market
-                        .ask
-                }
-                _ => {
-                    panic!("Invalid position direction {:?}", direction)
-                }
-            },
-            _ => {
-                panic!("Invalid market type")
-            }
-        }
-    }
-
-    fn insert_market_order(&mut self, user: Pubkey, order: Order) -> Result<(), anyhow::Error> {
-        let list = &mut self.get_market_orders_list(
-            order.market_type,
-            order.direction,
-            order.market_index,
-        );
-
-        let new_node = Box::new(MarketOrderNode {
-            user: user,
-            order: order.clone(),
-        });
-        let index = match list
-            .binary_search_by(|probe| probe.get_sort_value().cmp(&new_node.get_sort_value()))
-        {
-            Ok(index) => index,
-            Err(index) => index,
-        };
-        list.insert(index, new_node);
-        Ok(())
-    }
-
-    fn get_floating_limit_orders_list(
-        &mut self,
-        market_type: MarketType,
-        direction: PositionDirection,
-        market_index: u16,
-    ) -> &mut Vec<Box<dyn DlobNode>> {
-        match market_type {
-            MarketType::Perp => match direction {
-                PositionDirection::Long => {
-                    &mut self
-                        .perp_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .floating_limit
-                        .bid
-                }
-                PositionDirection::Short => {
-                    &mut self
-                        .perp_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .floating_limit
-                        .ask
-                }
-                _ => {
-                    panic!("Invalid position direction {:?}", direction)
-                }
-            },
-            MarketType::Spot => match direction {
-                PositionDirection::Long => {
-                    &mut self
-                        .spot_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .floating_limit
-                        .bid
-                }
-                PositionDirection::Short => {
-                    &mut self
-                        .spot_order_lists
-                        .get_mut(&market_index)
-                        .unwrap()
-                        .floating_limit
-                        .ask
-                }
-                _ => {
-                    panic!("Invalid position direction {:?}", direction)
-                }
-            },
-            _ => {
-                panic!("Invalid market type")
-            }
-        }
-    }
-
-    fn insert_floating_limit_order(
-        &mut self,
-        user: Pubkey,
-        order: Order,
-    ) -> Result<(), anyhow::Error> {
-        let list = &mut self.get_floating_limit_orders_list(
-            order.market_type,
-            order.direction,
-            order.market_index,
-        );
-
-        match order.direction {
-            PositionDirection::Long => {
-                let new_node = Box::new(FloatingLimitOrderNode {
-                    user: user,
-                    order: order.clone(),
-                    sort_direction: SortDirection::Descending,
-                });
-                let index = match list.binary_search_by(|probe| {
-                    new_node.get_sort_value().cmp(&probe.get_sort_value())
-                }) {
-                    Ok(index) => index,
-                    Err(index) => index,
-                };
-                list.insert(index, new_node);
-            }
-            PositionDirection::Short => {
-                let new_node = Box::new(FloatingLimitOrderNode {
-                    user: user,
-                    order: order.clone(),
-                    sort_direction: SortDirection::Ascending,
-                });
-                let index = match list.binary_search_by(|probe| {
-                    probe.get_sort_value().cmp(&new_node.get_sort_value())
-                }) {
-                    Ok(index) => index,
-                    Err(index) => index,
-                };
-                list.insert(index, new_node);
-            }
-        }
-        Ok(())
-    }
-
-    fn insert_resting_limit_order(
-        &mut self,
-        slot: u64,
-        user: Pubkey,
-        order: Order,
-    ) -> Result<(), anyhow::Error> {
-        match order.market_type {
-            MarketType::Perp => {
-                match order.direction {
-                    PositionDirection::Long => {
-                        // TODO: sorted insert
-                        self.perp_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .resting_limit
-                            .bid
-                            .push(Box::new(RestingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Descending,
-                            }));
-                    }
-                    PositionDirection::Short => {
-                        // TODO: sorted insert
-                        self.perp_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .resting_limit
-                            .ask
-                            .push(Box::new(RestingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Ascending,
-                            }));
-                    }
-                }
-            }
-            MarketType::Spot => {
-                match order.direction {
-                    PositionDirection::Long => {
-                        // TODO: sorted insert
-                        self.spot_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .resting_limit
-                            .bid
-                            .push(Box::new(RestingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Descending,
-                            }));
-                    }
-                    PositionDirection::Short => {
-                        // TODO: sorted insert
-                        self.spot_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .resting_limit
-                            .ask
-                            .push(Box::new(RestingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Ascending,
-                            }));
-                    }
-                }
-            }
-            _ => {
-                return Err(anyhow!("invalid market type"));
-            }
-        }
-        Ok(())
-    }
-
-    fn insert_taking_limit_order(
-        &mut self,
-        slot: u64,
-        user: Pubkey,
-        order: Order,
-    ) -> Result<(), anyhow::Error> {
-        match order.market_type {
-            MarketType::Perp => {
-                match order.direction {
-                    PositionDirection::Long => {
-                        // TODO: sorted insert
-                        self.perp_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .taking_limit
-                            .bid
-                            .push(Box::new(RestingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Descending,
-                            }));
-                    }
-                    PositionDirection::Short => {
-                        // TODO: sorted insert
-                        self.perp_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .taking_limit
-                            .ask
-                            .push(Box::new(RestingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Ascending,
-                            }));
-                    }
-                }
-            }
-            MarketType::Spot => {
-                match order.direction {
-                    PositionDirection::Long => {
-                        // TODO: sorted insert
-                        self.spot_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .taking_limit
-                            .bid
-                            .push(Box::new(RestingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Descending,
-                            }));
-                    }
-                    PositionDirection::Short => {
-                        // TODO: sorted insert
-                        self.spot_order_lists
-                            .get_mut(&order.market_index)
-                            .unwrap()
-                            .taking_limit
-                            .ask
-                            .push(Box::new(RestingLimitOrderNode {
-                                user,
-                                order: order.clone(),
-                                sort_direction: SortDirection::Ascending,
-                            }));
-                    }
-                }
-            }
-            _ => {
-                return Err(anyhow!("invalid market type"));
-            }
-        }
-        Ok(())
-    }
-
     fn ensure_market_index_in_list(&mut self, market_type: MarketType, market_index: u16) {
         match market_type {
             MarketType::Perp => {
@@ -717,8 +315,192 @@ impl Dlob {
         };
     }
 
+    fn get_order_list_by_type<T: DlobNode>(&mut self, order: Order) -> &mut Vec<Box<dyn DlobNode>> {
+        let order_lists = match order.market_type {
+            MarketType::Perp => self.perp_order_lists.get_mut(&order.market_index).unwrap(),
+            MarketType::Spot => self.spot_order_lists.get_mut(&order.market_index).unwrap(),
+        };
+
+        match T::get_node_type() {
+            DlobNodeType::TakingLimit => match order.direction {
+                PositionDirection::Long => &mut order_lists.taking_limit.bid,
+                PositionDirection::Short => &mut order_lists.taking_limit.ask,
+            },
+            DlobNodeType::RestingLimit => match order.direction {
+                PositionDirection::Long => &mut order_lists.resting_limit.bid,
+                PositionDirection::Short => &mut order_lists.resting_limit.ask,
+            },
+            DlobNodeType::FloatingLimit => match order.direction {
+                PositionDirection::Long => &mut order_lists.floating_limit.bid,
+                PositionDirection::Short => &mut order_lists.floating_limit.ask,
+            },
+            DlobNodeType::Market => match order.direction {
+                PositionDirection::Long => &mut order_lists.market.bid,
+                PositionDirection::Short => &mut order_lists.market.ask,
+            },
+            DlobNodeType::Trigger => match order.trigger_condition {
+                OrderTriggerCondition::Above => &mut order_lists.trigger.above,
+                OrderTriggerCondition::Below => &mut order_lists.trigger.below,
+                _ => panic!("Invalid trigger condition: {:?}", order.trigger_condition),
+            },
+            _ => panic!("Invalid order type: {:?}", std::any::type_name::<T>()),
+        }
+    }
+
+    fn insert_order_by_type<T: DlobNode>(
+        &mut self,
+        user: Pubkey,
+        order: Order,
+    ) -> Result<(), anyhow::Error> {
+        let list = &mut self.get_order_list_by_type::<T>(order);
+
+        match T::get_node_type() {
+            DlobNodeType::TakingLimit => match order.direction {
+                PositionDirection::Long => {
+                    let new_node = Box::new(TakingLimitOrderNode {
+                        user,
+                        order: order.clone(),
+                        sort_direction: SortDirection::Descending,
+                    });
+                    let index = match list.binary_search_by(|probe| {
+                        new_node.get_sort_value().cmp(&probe.get_sort_value())
+                    }) {
+                        Ok(index) => index,
+                        Err(index) => index,
+                    };
+                    list.insert(index, new_node);
+                }
+                PositionDirection::Short => {
+                    let new_node = Box::new(TakingLimitOrderNode {
+                        user,
+                        order: order.clone(),
+                        sort_direction: SortDirection::Ascending,
+                    });
+                    let index = match list.binary_search_by(|probe| {
+                        probe.get_sort_value().cmp(&new_node.get_sort_value())
+                    }) {
+                        Ok(index) => index,
+                        Err(index) => index,
+                    };
+                    list.insert(index, new_node);
+                }
+            },
+            DlobNodeType::RestingLimit => match order.direction {
+                PositionDirection::Long => {
+                    let new_node = Box::new(RestingLimitOrderNode {
+                        user: user,
+                        order: order.clone(),
+                        sort_direction: SortDirection::Descending,
+                    });
+                    let index = match list.binary_search_by(|probe| {
+                        new_node.get_sort_value().cmp(&probe.get_sort_value())
+                    }) {
+                        Ok(index) => index,
+                        Err(index) => index,
+                    };
+                    list.insert(index, new_node);
+                }
+                PositionDirection::Short => {
+                    let new_node = Box::new(RestingLimitOrderNode {
+                        user: user,
+                        order: order.clone(),
+                        sort_direction: SortDirection::Ascending,
+                    });
+                    let index = match list.binary_search_by(|probe| {
+                        probe.get_sort_value().cmp(&new_node.get_sort_value())
+                    }) {
+                        Ok(index) => index,
+                        Err(index) => index,
+                    };
+                    list.insert(index, new_node);
+                }
+            },
+            DlobNodeType::FloatingLimit => match order.direction {
+                PositionDirection::Long => {
+                    let new_node = Box::new(FloatingLimitOrderNode {
+                        user: user,
+                        order: order.clone(),
+                        sort_direction: SortDirection::Descending,
+                    });
+                    let index = match list.binary_search_by(|probe| {
+                        new_node.get_sort_value().cmp(&probe.get_sort_value())
+                    }) {
+                        Ok(index) => index,
+                        Err(index) => index,
+                    };
+                    list.insert(index, new_node);
+                }
+                PositionDirection::Short => {
+                    let new_node = Box::new(FloatingLimitOrderNode {
+                        user: user,
+                        order: order.clone(),
+                        sort_direction: SortDirection::Ascending,
+                    });
+                    let index = match list.binary_search_by(|probe| {
+                        probe.get_sort_value().cmp(&new_node.get_sort_value())
+                    }) {
+                        Ok(index) => index,
+                        Err(index) => index,
+                    };
+                    list.insert(index, new_node);
+                }
+            },
+            DlobNodeType::Market => {
+                let new_node = Box::new(MarketOrderNode {
+                    user: user,
+                    order: order.clone(),
+                });
+                let index = match list.binary_search_by(|probe| {
+                    probe.get_sort_value().cmp(&new_node.get_sort_value())
+                }) {
+                    Ok(index) => index,
+                    Err(index) => index,
+                };
+                list.insert(index, new_node);
+            }
+            DlobNodeType::Trigger => match order.trigger_condition {
+                OrderTriggerCondition::Above => {
+                    let new_node = Box::new(TriggerOrderNode {
+                        user: user,
+                        order: order.clone(),
+                        sort_direction: SortDirection::Ascending,
+                    });
+                    let index = match list.binary_search_by(|probe| {
+                        probe.get_sort_value().cmp(&new_node.get_sort_value())
+                    }) {
+                        Ok(index) => index,
+                        Err(index) => index,
+                    };
+                    list.insert(index, new_node);
+                }
+                OrderTriggerCondition::Below => {
+                    let new_node = Box::new(TriggerOrderNode {
+                        user: user,
+                        order: order.clone(),
+                        sort_direction: SortDirection::Descending,
+                    });
+                    let index = match list.binary_search_by(|probe| {
+                        new_node.get_sort_value().cmp(&probe.get_sort_value())
+                    }) {
+                        Ok(index) => index,
+                        Err(index) => index,
+                    };
+                    list.insert(index, new_node);
+                }
+                _ => {
+                    panic!(
+                        "Invalid inactive trigger condition {:?}",
+                        order.trigger_condition
+                    )
+                }
+            },
+        }
+
+        Ok(())
+    }
+
     fn insert_order(&mut self, slot: u64, user: Pubkey, order: Order) -> Result<(), anyhow::Error> {
-        assert!(self.dlob_init, "must call init_dlob first");
+        assert!(self.dlob_init, "must call load() first");
 
         match order.status {
             OrderStatus::Init => return Ok(()),
@@ -742,19 +524,23 @@ impl Dlob {
         };
 
         if is_inactive_trigger {
-            self.insert_inactive_trigger_order(user, order)?;
+            self.insert_order_by_type::<TriggerOrderNode>(user, order)?;
         } else {
             match order.order_type {
                 OrderType::Market | OrderType::TriggerMarket | OrderType::Oracle => {
-                    self.insert_market_order(user, order)?;
+                    self.insert_order_by_type::<MarketOrderNode>(user, order)?;
                 }
                 _ => {
                     if order.oracle_price_offset != 0 {
-                        self.insert_floating_limit_order(user, order)?;
+                        self.insert_order_by_type::<FloatingLimitOrderNode>(user, order)?;
                     } else {
                         match order.is_resting_limit_order(slot).unwrap() {
-                            true => self.insert_resting_limit_order(slot, user, order)?,
-                            false => self.insert_taking_limit_order(slot, user, order)?,
+                            true => {
+                                self.insert_order_by_type::<RestingLimitOrderNode>(user, order)?
+                            }
+                            false => {
+                                self.insert_order_by_type::<TakingLimitOrderNode>(user, order)?
+                            }
                         };
                     }
                 }
@@ -804,17 +590,18 @@ impl DlobBuilder {
 mod tests {
     use drift::math::constants::PRICE_PRECISION_U64;
 
-    use crate::types::DriftClientAccountSubscriberCommon;
+    use crate::types::MockDriftClientAccountSubscriber;
 
     use super::*;
 
-    #[tokio::test]
-    async fn test_insert_inactive_trigger_order() {
+    #[test]
+    fn test_insert_inactive_trigger_order() {
         let mut dlob = DlobBuilder::default()
-            .account_subscriber(Box::new(DriftClientAccountSubscriberCommon::default()))
+            .account_subscriber(Box::new(MockDriftClientAccountSubscriber::default()))
             .build()
             .unwrap();
         let user = Pubkey::new_unique();
+        dlob.load().unwrap();
 
         let market_index = 0_u16;
 
@@ -867,13 +654,15 @@ mod tests {
                 },
             ] {
                 let mut order = Order::default();
+                order.status = OrderStatus::Open;
                 order.market_type = market_type;
                 order.trigger_condition = test_data.trigger_condition;
                 order.trigger_price = test_data.trigger_price;
                 order.order_id = test_data.order_id;
                 order.market_index = market_index;
                 order.direction = test_data.direction;
-                dlob.insert_inactive_trigger_order(user, order).unwrap();
+                order.order_type = OrderType::TriggerLimit;
+                dlob.insert_order(0, user, order).unwrap();
             }
 
             match market_type {
@@ -907,13 +696,14 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_insert_market_order() {
+    #[test]
+    fn test_insert_market_order() {
         let mut dlob = DlobBuilder::default()
-            .account_subscriber(Box::new(DriftClientAccountSubscriberCommon::default()))
+            .account_subscriber(Box::new(MockDriftClientAccountSubscriber::default()))
             .build()
             .unwrap();
         let user = Pubkey::new_unique();
+        dlob.load().unwrap();
 
         let market_index = 0_u16;
 
@@ -959,13 +749,14 @@ mod tests {
                 },
             ] {
                 let mut order = Order::default();
+                order.status = OrderStatus::Open;
                 order.market_type = market_type;
                 order.direction = test_data.direction;
                 order.order_type = OrderType::Market;
                 order.order_id = test_data.order_id;
                 order.market_index = market_index;
                 order.slot = test_data.slot;
-                dlob.insert_market_order(user, order).unwrap();
+                dlob.insert_order(0, user, order).unwrap();
             }
 
             match market_type {
@@ -1003,13 +794,14 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_insert_floating_limit_order() {
+    #[test]
+    fn test_insert_floating_limit_order() {
         let mut dlob = DlobBuilder::default()
-            .account_subscriber(Box::new(DriftClientAccountSubscriberCommon::default()))
+            .account_subscriber(Box::new(MockDriftClientAccountSubscriber::default()))
             .build()
             .unwrap();
         let user = Pubkey::new_unique();
+        dlob.load().unwrap();
 
         let market_index = 0_u16;
 
@@ -1055,40 +847,42 @@ mod tests {
                 },
             ] {
                 let mut order = Order::default();
+                order.status = OrderStatus::Open;
                 order.market_index = market_index;
                 order.market_type = market_type;
                 order.order_id = data.order_id;
                 order.direction = data.direction;
                 order.order_type = OrderType::Limit;
                 order.oracle_price_offset = data.oracle_price_offset;
-                dlob.insert_floating_limit_order(user, order).unwrap();
+                // dlob.insert_floating_limit_order(user, order).unwrap();
+                dlob.insert_order(0, user, order).unwrap();
             }
 
             match market_type {
                 MarketType::Perp => {
                     for (i, order_id) in vec![1, 2, 3].iter().enumerate() {
-                        let got = dlob
-                            .perp_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .floating_limit
-                            .bid[i]
-                            .order()
-                            .order_id;
-                        let want = *order_id as u32;
-                        assert!(got == want, "got: {}, want: {}", got, want);
+                        assert!(
+                            dlob.perp_order_lists
+                                .get(&market_index)
+                                .unwrap()
+                                .floating_limit
+                                .bid[i]
+                                .order()
+                                .order_id
+                                == (*order_id as u32)
+                        );
                     }
                     for (i, order_id) in vec![4, 5, 6].iter().enumerate() {
-                        let got = dlob
-                            .perp_order_lists
-                            .get(&market_index)
-                            .unwrap()
-                            .floating_limit
-                            .ask[i]
-                            .order()
-                            .order_id;
-                        let want = *order_id as u32;
-                        assert!(got == want, "got: {}, want: {}", got, want);
+                        assert!(
+                            dlob.perp_order_lists
+                                .get(&market_index)
+                                .unwrap()
+                                .floating_limit
+                                .ask[i]
+                                .order()
+                                .order_id
+                                == (*order_id as u32)
+                        );
                     }
                 }
                 MarketType::Spot => {
@@ -1115,6 +909,126 @@ mod tests {
                                 .order_id
                                 == (*order_id as u32)
                         );
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    fn test_insert_resting_limit_order() {
+        let mut dlob = DlobBuilder::default()
+            .account_subscriber(Box::new(MockDriftClientAccountSubscriber::default()))
+            .build()
+            .unwrap();
+        let user = Pubkey::new_unique();
+        dlob.load().unwrap();
+
+        let market_index = 0_u16;
+
+        struct TestData {
+            order_id: u32,
+            direction: PositionDirection,
+            price: u64,
+        }
+
+        for market_type in vec![MarketType::Perp, MarketType::Spot] {
+            dlob.ensure_market_index_in_list(market_type, market_index);
+
+            for data in vec![
+                TestData {
+                    order_id: 1,
+                    direction: PositionDirection::Long,
+                    price: (1.11 * PRICE_PRECISION_U64 as f64) as u64,
+                },
+                TestData {
+                    order_id: 2,
+                    direction: PositionDirection::Long,
+                    price: (0.91 * PRICE_PRECISION_U64 as f64) as u64,
+                },
+                TestData {
+                    order_id: 3,
+                    direction: PositionDirection::Long,
+                    price: (-1.23 * PRICE_PRECISION_U64 as f64) as u64,
+                },
+                TestData {
+                    order_id: 4,
+                    direction: PositionDirection::Short,
+                    price: (1.01 * PRICE_PRECISION_U64 as f64) as u64,
+                },
+                TestData {
+                    order_id: 5,
+                    direction: PositionDirection::Short,
+                    price: (1.22 * PRICE_PRECISION_U64 as f64) as u64,
+                },
+                TestData {
+                    order_id: 6,
+                    direction: PositionDirection::Short,
+                    price: (1.35 * PRICE_PRECISION_U64 as f64) as u64,
+                },
+            ] {
+                let mut order = Order::default();
+                order.status = OrderStatus::Open;
+                order.market_index = market_index;
+                order.market_type = market_type;
+                order.order_id = data.order_id;
+                order.direction = data.direction;
+                order.order_type = OrderType::Limit;
+                order.price = data.price;
+                order.auction_duration = 0;
+                dlob.insert_order(1, user, order).unwrap();
+            }
+
+            match market_type {
+                MarketType::Perp => {
+                    for (i, order_id) in vec![1, 2, 3].iter().enumerate() {
+                        let got = dlob
+                            .perp_order_lists
+                            .get(&market_index)
+                            .unwrap()
+                            .resting_limit
+                            .bid[i]
+                            .order()
+                            .order_id;
+                        let want = (*order_id as u32);
+                        assert!(got == want, "got: {}, want: {}", got, want);
+                    }
+                    for (i, order_id) in vec![4, 5, 6].iter().enumerate() {
+                        let got = dlob
+                            .perp_order_lists
+                            .get(&market_index)
+                            .unwrap()
+                            .resting_limit
+                            .ask[i]
+                            .order()
+                            .order_id;
+                        let want = (*order_id as u32);
+                        assert!(got == want, "got: {}, want: {}", got, want);
+                    }
+                }
+                MarketType::Spot => {
+                    for (i, order_id) in vec![1, 2, 3].iter().enumerate() {
+                        let got = dlob
+                            .spot_order_lists
+                            .get(&market_index)
+                            .unwrap()
+                            .resting_limit
+                            .bid[i]
+                            .order()
+                            .order_id;
+                        let want = (*order_id as u32);
+                        assert!(got == want, "got: {}, want: {}", got, want);
+                    }
+                    for (i, order_id) in vec![4, 5, 6].iter().enumerate() {
+                        let got = dlob
+                            .spot_order_lists
+                            .get(&market_index)
+                            .unwrap()
+                            .resting_limit
+                            .ask[i]
+                            .order()
+                            .order_id;
+                        let want = (*order_id as u32);
+                        assert!(got == want, "got: {}, want: {}", got, want);
                     }
                 }
             }
