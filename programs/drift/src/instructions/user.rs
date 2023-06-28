@@ -11,7 +11,7 @@ use crate::controller::spot_position::{
 };
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
-use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, serum_program};
+use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, marinade_mainnet, serum_program};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
@@ -722,7 +722,7 @@ pub fn handle_transfer_deposit(
     Ok(())
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy)]
 pub struct OrderParams {
     pub order_type: OrderType,
     pub market_type: MarketType,
@@ -753,6 +753,20 @@ pub enum PostOnlyParam {
 impl Default for PostOnlyParam {
     fn default() -> Self {
         PostOnlyParam::None
+    }
+}
+
+pub struct PlaceOrderOptions {
+    pub try_expire_orders: bool,
+    pub enforce_margin_check: bool,
+}
+
+impl Default for PlaceOrderOptions {
+    fn default() -> Self {
+        Self {
+            try_expire_orders: true,
+            enforce_margin_check: true,
+        }
     }
 }
 
@@ -788,6 +802,7 @@ pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         &mut oracle_map,
         clock,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     Ok(())
@@ -1015,6 +1030,73 @@ pub fn handle_modify_order_by_user_order_id(
 }
 
 #[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    validate!(
+        params.len() <= 32,
+        ErrorCode::DefaultError,
+        "max 32 order params"
+    )?;
+
+    let num_orders = params.len();
+    for (i, params) in params.iter().enumerate() {
+        validate!(
+            !params.immediate_or_cancel,
+            ErrorCode::InvalidOrderIOC,
+            "immediate_or_cancel order must be in place_and_make or place_and_take"
+        )?;
+
+        // only enforce margin on last order and only try to expire on first order
+        let options = PlaceOrderOptions {
+            enforce_margin_check: i == num_orders - 1,
+            try_expire_orders: i == 0,
+        };
+
+        if params.market_type == MarketType::Perp {
+            controller::orders::place_perp_order(
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                clock,
+                *params,
+                options,
+            )?;
+        } else {
+            controller::orders::place_spot_order(
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                clock,
+                *params,
+                options,
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
+#[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_place_and_take_perp_order<'info>(
@@ -1063,6 +1145,7 @@ pub fn handle_place_and_take_perp_order<'info>(
         &mut oracle_map,
         &Clock::get()?,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     let user = &mut ctx.accounts.user;
@@ -1151,6 +1234,7 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         &mut oracle_map,
         clock,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     let (order_id, authority) = {
@@ -1225,6 +1309,7 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         &mut oracle_map,
         &Clock::get()?,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     Ok(())
@@ -1313,6 +1398,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         &mut oracle_map,
         &clock,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     let user = &mut ctx.accounts.user;
@@ -1436,6 +1522,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         &mut oracle_map,
         clock,
         params,
+        PlaceOrderOptions::default(),
     )?;
 
     let order_id = load!(ctx.accounts.user)?.get_last_order_id();
@@ -2101,6 +2188,7 @@ pub fn handle_begin_swap(
     )?;
 
     let mut user = load_mut!(&ctx.accounts.user)?;
+    let delegate_is_signer = user.delegate == ctx.accounts.authority.key();
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
@@ -2257,13 +2345,20 @@ pub fn handle_begin_swap(
                 "the in_token_account passed to SwapBegin and End must match"
             )?;
         } else {
+            let mut whitelisted_programs = vec![
+                serum_program::id(),
+                AssociatedToken::id(),
+                jupiter_mainnet_3::ID,
+                jupiter_mainnet_4::ID,
+            ];
+            if !delegate_is_signer {
+                whitelisted_programs.push(Token::id());
+                whitelisted_programs.push(marinade_mainnet::ID);
+            }
             validate!(
-                ix.program_id == AssociatedToken::id()
-                    || ix.program_id == serum_program::id()
-                    || ix.program_id == jupiter_mainnet_3::ID
-                    || ix.program_id == jupiter_mainnet_4::ID,
+                whitelisted_programs.contains(&ix.program_id),
                 ErrorCode::InvalidSwap,
-                "only allowed to pass in ixs to ATA or openbook or Jupiter v3 or v4 programs"
+                "only allowed to pass in ixs to token or openbook or Jupiter v3 or v4 programs"
             )?;
         }
 
@@ -2386,6 +2481,13 @@ pub fn handle_end_swap(
             in_token_amount_before,
             amount_in
         )?;
+
+        validate!(
+            user.is_margin_trading_enabled,
+            ErrorCode::MarginTradingDisabled,
+            "swap lead to increase in liability for in market {}",
+            in_market_index
+        )?;
     }
 
     math::spot_withdraw::validate_spot_market_vault_amount(&in_spot_market, in_vault.amount)?;
@@ -2429,7 +2531,7 @@ pub fn handle_end_swap(
         )?;
     }
 
-    let fee = amount_out / 2000; // 0.05% fee
+    let fee = 0_u64; // no fee
     let amount_out_after_fee = amount_out.safe_sub(fee)?;
 
     out_spot_market.total_swap_fee = out_spot_market.total_swap_fee.saturating_add(fee);

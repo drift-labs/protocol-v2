@@ -9,7 +9,10 @@ import {
 	DLOBNode,
 	OraclePriceData,
 	PerpMarketAccount,
+	PositionDirection,
+	standardizePrice,
 	SwapDirection,
+	ZERO,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 
@@ -114,7 +117,7 @@ export function createL2Levels(
 		const size = level.size;
 		if (levels.length > 0 && levels[levels.length - 1].price.eq(price)) {
 			const currentLevel = levels[levels.length - 1];
-			currentLevel.size.add(size);
+			currentLevel.size = currentLevel.size.add(size);
 			for (const [source, size] of Object.entries(level.sources)) {
 				if (currentLevel.sources[source]) {
 					currentLevel.sources[source] = currentLevel.sources[source].add(size);
@@ -167,7 +170,7 @@ export function getVammL2Generator({
 		pegMultiplier: updatedAmm.pegMultiplier,
 	};
 	const getL2Bids = function* () {
-		while (numBids < numOrders) {
+		while (numBids < numOrders && baseSize.gt(ZERO)) {
 			const [afterSwapQuoteReserves, afterSwapBaseReserves] =
 				calculateAmmReservesAfterSwap(
 					bidAmm,
@@ -206,7 +209,7 @@ export function getVammL2Generator({
 		pegMultiplier: updatedAmm.pegMultiplier,
 	};
 	const getL2Asks = function* () {
-		while (numAsks < numOrders) {
+		while (numAsks < numOrders && askSize.gt(ZERO)) {
 			const [afterSwapQuoteReserves, afterSwapBaseReserves] =
 				calculateAmmReservesAfterSwap(
 					askAmm,
@@ -240,4 +243,54 @@ export function getVammL2Generator({
 		getL2Bids,
 		getL2Asks,
 	};
+}
+
+export function groupL2(
+	l2: L2OrderBook,
+	grouping: BN,
+	depth: number
+): L2OrderBook {
+	return {
+		bids: groupL2Levels(l2.bids, grouping, PositionDirection.LONG, depth),
+		asks: groupL2Levels(l2.asks, grouping, PositionDirection.SHORT, depth),
+	};
+}
+
+function groupL2Levels(
+	levels: L2Level[],
+	grouping: BN,
+	direction: PositionDirection,
+	depth: number
+): L2Level[] {
+	const groupedLevels = [];
+	for (const level of levels) {
+		const price = standardizePrice(level.price, grouping, direction);
+		const size = level.size;
+		if (
+			groupedLevels.length > 0 &&
+			groupedLevels[groupedLevels.length - 1].price.eq(price)
+		) {
+			const currentLevel = groupedLevels[groupedLevels.length - 1];
+			currentLevel.size = currentLevel.size.add(size);
+			for (const [source, size] of Object.entries(level.sources)) {
+				if (currentLevel.sources[source]) {
+					currentLevel.sources[source] = currentLevel.sources[source].add(size);
+				} else {
+					currentLevel.sources[source] = size;
+				}
+			}
+		} else {
+			const groupedLevel = {
+				price: price,
+				size,
+				sources: level.sources,
+			};
+			groupedLevels.push(groupedLevel);
+		}
+
+		if (groupedLevels.length === depth) {
+			break;
+		}
+	}
+	return groupedLevels;
 }

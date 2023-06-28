@@ -309,6 +309,10 @@ pub enum LPAction {
     SettleLiquidity,
 }
 
+impl Size for LPRecord {
+    const SIZE: usize = 112;
+}
+
 impl Default for LPAction {
     fn default() -> Self {
         LPAction::AddLiquidity

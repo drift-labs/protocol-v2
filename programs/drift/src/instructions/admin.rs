@@ -1992,6 +1992,8 @@ pub fn handle_update_perp_market_step_size_and_tick_size(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(step_size > 0 && tick_size > 0, ErrorCode::DefaultError)?;
+    validate!(step_size <= 2000000000, ErrorCode::DefaultError)?; // below i32 max for lp's remainder_base_asset
+
     perp_market.amm.order_step_size = step_size;
     perp_market.amm.order_tick_size = tick_size;
     Ok(())

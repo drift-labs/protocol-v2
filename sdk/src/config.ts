@@ -1,3 +1,4 @@
+import { PerpMarketAccount, SpotMarketAccount } from '.';
 import {
 	DevnetPerpMarkets,
 	MainnetPerpMarkets,
@@ -11,6 +12,7 @@ import {
 	MainnetSpotMarkets,
 } from './constants/spotMarkets';
 import { OracleInfo } from './oracles/types';
+import { Program, ProgramAccount } from '@coral-xyz/anchor';
 
 type DriftConfig = {
 	ENV: DriftEnv;
@@ -110,6 +112,45 @@ export function getMarketsAndOraclesForSubscription(env: DriftEnv): {
 	return {
 		perpMarketIndexes: perpMarketIndexes,
 		spotMarketIndexes: spotMarketIndexes,
+		oracleInfos: Array.from(oracleInfos.values()),
+	};
+}
+
+export async function findAllMarketAndOracles(program: Program): Promise<{
+	perpMarketIndexes: number[];
+	spotMarketIndexes: number[];
+	oracleInfos: OracleInfo[];
+}> {
+	const perpMarketIndexes = [];
+	const spotMarketIndexes = [];
+	const oracleInfos = new Map<string, OracleInfo>();
+
+	const perpMarketProgramAccounts =
+		(await program.account.perpMarket.all()) as ProgramAccount<PerpMarketAccount>[];
+	const spotMarketProgramAccounts =
+		(await program.account.spotMarket.all()) as ProgramAccount<SpotMarketAccount>[];
+
+	for (const perpMarketProgramAccount of perpMarketProgramAccounts) {
+		const perpMarket = perpMarketProgramAccount.account as PerpMarketAccount;
+		perpMarketIndexes.push(perpMarket.marketIndex);
+		oracleInfos.set(perpMarket.amm.oracle.toString(), {
+			publicKey: perpMarket.amm.oracle,
+			source: perpMarket.amm.oracleSource,
+		});
+	}
+
+	for (const spotMarketProgramAccount of spotMarketProgramAccounts) {
+		const spotMarket = spotMarketProgramAccount.account as SpotMarketAccount;
+		spotMarketIndexes.push(spotMarket.marketIndex);
+		oracleInfos.set(spotMarket.oracle.toString(), {
+			publicKey: spotMarket.oracle,
+			source: spotMarket.oracleSource,
+		});
+	}
+
+	return {
+		perpMarketIndexes,
+		spotMarketIndexes,
 		oracleInfos: Array.from(oracleInfos.values()),
 	};
 }

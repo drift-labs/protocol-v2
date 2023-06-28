@@ -95,6 +95,7 @@ import {
 	PRICE_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
+	QUOTE_PRECISION,
 } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
@@ -106,11 +107,7 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import {
-	configs,
-	DRIFT_PROGRAM_ID,
-	getMarketsAndOraclesForSubscription,
-} from './config';
+import { configs, DRIFT_PROGRAM_ID } from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -118,12 +115,15 @@ import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
 import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
+import { getNonIdleUserFilter } from './memcmp';
+import { UserStatsSubscriptionConfig } from './userStatsConfig';
+import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
 	writablePerpMarketIndexes?: number[];
 	writableSpotMarketIndexes?: number[];
-	readablePerpMarketIndex?: number;
+	readablePerpMarketIndex?: number | number[];
 	readableSpotMarketIndexes?: number[];
 	useMarketLastSlotCache?: boolean;
 };
@@ -142,12 +142,15 @@ export class DriftClient {
 	userStats?: UserStats;
 	activeSubAccountId: number;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
+	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	_isSubscribed = false;
 	txSender: TxSender;
 	perpMarketLastSlotCache = new Map<number, number>();
 	spotMarketLastSlotCache = new Map<number, number>();
+	mustIncludePerpMarketIndexes = new Set<number>();
+	mustIncludeSpotMarketIndexes = new Set<number>();
 	authority: PublicKey;
 	marketLookupTable: PublicKey;
 	lookupTableAccount: AddressLookupTableAccount;
@@ -155,6 +158,7 @@ export class DriftClient {
 	authoritySubAccountMap?: Map<string, number[]>;
 	skipLoadUsers?: boolean;
 	txVersion: TransactionVersion;
+	txParams: TxParams;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -183,6 +187,10 @@ export class DriftClient {
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
 		this.skipLoadUsers = config.skipLoadUsers ?? false;
 		this.txVersion = config.txVersion ?? 'legacy';
+		this.txParams = {
+			computeUnits: config.txParams?.computeUnits ?? 600_000,
+			computeUnitsPrice: config.txParams?.computeUnitsPrice ?? 0,
+		};
 
 		if (config.includeDelegates && config.subAccountIds) {
 			throw new Error(
@@ -209,15 +217,23 @@ export class DriftClient {
 			: new Map<string, number[]>();
 
 		this.includeDelegates = config.includeDelegates ?? false;
-		this.userAccountSubscriptionConfig =
-			config.accountSubscription?.type === 'polling'
-				? {
-						type: 'polling',
-						accountLoader: config.accountSubscription.accountLoader,
-				  }
-				: {
-						type: 'websocket',
-				  };
+		if (config.accountSubscription?.type === 'polling') {
+			this.userAccountSubscriptionConfig = {
+				type: 'polling',
+				accountLoader: config.accountSubscription.accountLoader,
+			};
+			this.userStatsAccountSubscriptionConfig = {
+				type: 'polling',
+				accountLoader: config.accountSubscription.accountLoader,
+			};
+		} else {
+			this.userAccountSubscriptionConfig = {
+				type: 'websocket',
+			};
+			this.userStatsAccountSubscriptionConfig = {
+				type: 'websocket',
+			};
+		}
 
 		if (config.userStats) {
 			this.userStats = new UserStats({
@@ -230,24 +246,6 @@ export class DriftClient {
 			});
 		}
 
-		let perpMarketIndexes = config.perpMarketIndexes;
-		let spotMarketIndexes = config.spotMarketIndexes;
-		let oracleInfos = config.oracleInfos;
-		if (config.env) {
-			const {
-				perpMarketIndexes: envPerpMarketIndexes,
-				spotMarketIndexes: envSpotMarketIndexes,
-				oracleInfos: envOracleInfos,
-			} = getMarketsAndOraclesForSubscription(config.env);
-			perpMarketIndexes = perpMarketIndexes
-				? perpMarketIndexes
-				: envPerpMarketIndexes;
-			spotMarketIndexes = spotMarketIndexes
-				? spotMarketIndexes
-				: envSpotMarketIndexes;
-			oracleInfos = oracleInfos ? oracleInfos : envOracleInfos;
-		}
-
 		this.marketLookupTable = config.marketLookupTable;
 		if (config.env && !this.marketLookupTable) {
 			this.marketLookupTable = new PublicKey(
@@ -255,29 +253,36 @@ export class DriftClient {
 			);
 		}
 
+		const noMarketsAndOraclesSpecified =
+			config.perpMarketIndexes === undefined &&
+			config.spotMarketIndexes === undefined &&
+			config.oracleInfos === undefined;
 		if (config.accountSubscription?.type === 'polling') {
 			this.accountSubscriber = new PollingDriftClientAccountSubscriber(
 				this.program,
 				config.accountSubscription.accountLoader,
-				perpMarketIndexes ?? [],
-				spotMarketIndexes ?? [],
-				oracleInfos ?? []
+				config.perpMarketIndexes ?? [],
+				config.spotMarketIndexes ?? [],
+				config.oracleInfos ?? [],
+				noMarketsAndOraclesSpecified
 			);
 		} else {
 			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
 				this.program,
-				perpMarketIndexes ?? [],
-				spotMarketIndexes ?? [],
-				oracleInfos ?? []
+				config.perpMarketIndexes ?? [],
+				config.spotMarketIndexes ?? [],
+				config.oracleInfos ?? [],
+				noMarketsAndOraclesSpecified
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
-		this.txSender = new RetryTxSender(
-			this.provider,
-			config.txSenderConfig?.timeout,
-			config.txSenderConfig?.retrySleep,
-			config.txSenderConfig?.additionalConnections
-		);
+		this.txSender =
+			config.txSender ??
+			new RetryTxSender({
+				connection: this.connection,
+				wallet: this.wallet,
+				opts: this.opts,
+			});
 	}
 
 	public getUserMapKey(subAccountId: number, authority: PublicKey): string {
@@ -519,7 +524,7 @@ export class DriftClient {
 
 		this.skipLoadUsers = false;
 		// Update provider for txSender with new wallet details
-		this.txSender.provider = newProvider;
+		this.txSender.wallet = newWallet;
 		this.wallet = newWallet;
 		this.provider = newProvider;
 		this.program = newProgram;
@@ -563,7 +568,7 @@ export class DriftClient {
 				this.userStats = new UserStats({
 					driftClient: this,
 					userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
-					accountSubscription: this.userAccountSubscriptionConfig,
+					accountSubscription: this.userStatsAccountSubscriptionConfig,
 				});
 
 				await this.userStats.subscribe();
@@ -859,6 +864,43 @@ export class DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateUserMarginTradingEnabledIx(
+		marginTradingEnabled: boolean,
+		subAccountId = 0,
+		userAccountPublicKey?: PublicKey
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKeyToUse =
+			userAccountPublicKey ||
+			getUserAccountPublicKeySync(
+				this.program.programId,
+				this.wallet.publicKey,
+				subAccountId
+			);
+
+		await this.addUser(subAccountId, this.wallet.publicKey);
+
+		let remainingAccounts;
+		try {
+			remainingAccounts = this.getRemainingAccounts({
+				userAccounts: [this.getUserAccount(subAccountId)],
+			});
+		} catch (err) {
+			remainingAccounts = [];
+		}
+
+		return await this.program.instruction.updateUserMarginTradingEnabled(
+			subAccountId,
+			marginTradingEnabled,
+			{
+				accounts: {
+					user: userAccountPublicKeyToUse,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async updateUserMarginTradingEnabled(
 		marginTradingEnabled: boolean,
 		subAccountId = 0
@@ -914,14 +956,7 @@ export class DriftClient {
 	): Promise<ProgramAccount<UserAccount>[]> {
 		let filters = undefined;
 		if (!includeIdle) {
-			filters = [
-				{
-					memcmp: {
-						offset: 4350,
-						bytes: bs58.encode(Uint8Array.from([0])),
-					},
-				},
-			];
+			filters = [getNonIdleUserFilter()];
 		}
 		return (await this.program.account.user.all(
 			filters
@@ -1056,9 +1091,17 @@ export class DriftClient {
 		const userMapKey = this.getUserMapKey(subAccountId, authority);
 
 		if (!this.users.has(userMapKey)) {
-			throw new Error(`Clearing House has no user for user id ${userMapKey}`);
+			throw new Error(`DriftClient has no user for user id ${userMapKey}`);
 		}
 		return this.users.get(userMapKey);
+	}
+
+	public hasUser(subAccountId?: number, authority?: PublicKey): boolean {
+		subAccountId = subAccountId ?? this.activeSubAccountId;
+		authority = authority ?? this.authority;
+		const userMapKey = this.getUserMapKey(subAccountId, authority);
+
+		return this.users.has(userMapKey);
 	}
 
 	public getUsers(): User[] {
@@ -1195,6 +1238,29 @@ export class DriftClient {
 		return amount.mul(PRICE_PRECISION);
 	}
 
+	/**
+	 * Each drift instruction must include perp and sport market accounts in the ix remaining accounts.
+	 * Use this function to force a subset of markets to be included in the remaining accounts for every ix
+	 *
+	 * @param perpMarketIndexes
+	 * @param spotMarketIndexes
+	 */
+	public mustIncludeMarketsInIx({
+		perpMarketIndexes,
+		spotMarketIndexes,
+	}: {
+		perpMarketIndexes: number[];
+		spotMarketIndexes: number[];
+	}): void {
+		perpMarketIndexes.forEach((perpMarketIndex) => {
+			this.mustIncludePerpMarketIndexes.add(perpMarketIndex);
+		});
+
+		spotMarketIndexes.forEach((spotMarketIndex) => {
+			this.mustIncludeSpotMarketIndexes.add(spotMarketIndex);
+		});
+	}
+
 	getRemainingAccounts(params: RemainingAccountParams): AccountMeta[] {
 		const { oracleAccountMap, spotMarketAccountMap, perpMarketAccountMap } =
 			this.getRemainingAccountMapsForUsers(params.userAccounts);
@@ -1208,32 +1274,13 @@ export class DriftClient {
 				// if cache has more recent slot than user positions account slot, add market to remaining accounts
 				// otherwise remove from slot
 				if (slot > lastUserSlot) {
-					const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
-					perpMarketAccountMap.set(marketIndex, {
-						pubkey: perpMarketAccount.pubkey,
-						isSigner: false,
-						isWritable: false,
-					});
-					oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
-						pubkey: perpMarketAccount.amm.oracle,
-						isSigner: false,
-						isWritable: false,
-					});
-					const spotMarketAccount = this.getSpotMarketAccount(
-						perpMarketAccount.quoteSpotMarketIndex
+					this.addPerpMarketToRemainingAccountMaps(
+						marketIndex,
+						false,
+						oracleAccountMap,
+						spotMarketAccountMap,
+						perpMarketAccountMap
 					);
-					spotMarketAccountMap.set(perpMarketAccount.quoteSpotMarketIndex, {
-						pubkey: spotMarketAccount.pubkey,
-						isSigner: false,
-						isWritable: false,
-					});
-					if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-						oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-							pubkey: spotMarketAccount.oracle,
-							isSigner: false,
-							isWritable: false,
-						});
-					}
 				} else {
 					this.perpMarketLastSlotCache.delete(marketIndex);
 				}
@@ -1246,19 +1293,12 @@ export class DriftClient {
 				// if cache has more recent slot than user positions account slot, add market to remaining accounts
 				// otherwise remove from slot
 				if (slot > lastUserSlot) {
-					const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
-					spotMarketAccountMap.set(marketIndex, {
-						pubkey: spotMarketAccount.pubkey,
-						isSigner: false,
-						isWritable: false,
-					});
-					if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-						oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-							pubkey: spotMarketAccount.oracle,
-							isSigner: false,
-							isWritable: false,
-						});
-					}
+					this.addSpotMarketToRemainingAccountMaps(
+						marketIndex,
+						false,
+						oracleAccountMap,
+						spotMarketAccountMap
+					);
 				} else {
 					this.spotMarketLastSlotCache.delete(marketIndex);
 				}
@@ -1266,110 +1306,72 @@ export class DriftClient {
 		}
 
 		if (params.readablePerpMarketIndex !== undefined) {
-			const perpMarketAccount = this.getPerpMarketAccount(
+			const readablePerpMarketIndexes = Array.isArray(
 				params.readablePerpMarketIndex
-			);
-			perpMarketAccountMap.set(params.readablePerpMarketIndex, {
-				pubkey: perpMarketAccount.pubkey,
-				isSigner: false,
-				isWritable: false,
-			});
-			oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
-				pubkey: perpMarketAccount.amm.oracle,
-				isSigner: false,
-				isWritable: false,
-			});
-			const spotMarketAccount = this.getSpotMarketAccount(
-				perpMarketAccount.quoteSpotMarketIndex
-			);
-			spotMarketAccountMap.set(perpMarketAccount.quoteSpotMarketIndex, {
-				pubkey: spotMarketAccount.pubkey,
-				isSigner: false,
-				isWritable: false,
-			});
-			if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-				oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-					pubkey: spotMarketAccount.oracle,
-					isSigner: false,
-					isWritable: false,
-				});
+			)
+				? params.readablePerpMarketIndex
+				: [params.readablePerpMarketIndex];
+			for (const marketIndex of readablePerpMarketIndexes) {
+				this.addPerpMarketToRemainingAccountMaps(
+					marketIndex,
+					false,
+					oracleAccountMap,
+					spotMarketAccountMap,
+					perpMarketAccountMap
+				);
 			}
+		}
+
+		for (const perpMarketIndex of this.mustIncludePerpMarketIndexes.values()) {
+			this.addPerpMarketToRemainingAccountMaps(
+				perpMarketIndex,
+				false,
+				oracleAccountMap,
+				spotMarketAccountMap,
+				perpMarketAccountMap
+			);
 		}
 
 		if (params.readableSpotMarketIndexes !== undefined) {
 			for (const readableSpotMarketIndex of params.readableSpotMarketIndexes) {
-				const spotMarketAccount = this.getSpotMarketAccount(
-					readableSpotMarketIndex
+				this.addSpotMarketToRemainingAccountMaps(
+					readableSpotMarketIndex,
+					false,
+					oracleAccountMap,
+					spotMarketAccountMap
 				);
-				spotMarketAccountMap.set(readableSpotMarketIndex, {
-					pubkey: spotMarketAccount.pubkey,
-					isSigner: false,
-					isWritable: false,
-				});
-				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-						pubkey: spotMarketAccount.oracle,
-						isSigner: false,
-						isWritable: false,
-					});
-				}
 			}
+		}
+
+		for (const spotMarketIndex of this.mustIncludeSpotMarketIndexes.values()) {
+			this.addSpotMarketToRemainingAccountMaps(
+				spotMarketIndex,
+				false,
+				oracleAccountMap,
+				spotMarketAccountMap
+			);
 		}
 
 		if (params.writablePerpMarketIndexes !== undefined) {
 			for (const writablePerpMarketIndex of params.writablePerpMarketIndexes) {
-				const perpMarketAccount = this.getPerpMarketAccount(
-					writablePerpMarketIndex
+				this.addPerpMarketToRemainingAccountMaps(
+					writablePerpMarketIndex,
+					true,
+					oracleAccountMap,
+					spotMarketAccountMap,
+					perpMarketAccountMap
 				);
-				perpMarketAccountMap.set(writablePerpMarketIndex, {
-					pubkey: perpMarketAccount.pubkey,
-					isSigner: false,
-					isWritable: true,
-				});
-				oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
-					pubkey: perpMarketAccount.amm.oracle,
-					isSigner: false,
-					isWritable: false,
-				});
-				console.log(
-					'perpMarketAccount.quoteSpotMarketIndex:',
-					perpMarketAccount.quoteSpotMarketIndex
-				);
-				const spotMarketAccount = this.getSpotMarketAccount(
-					perpMarketAccount.quoteSpotMarketIndex
-				);
-				spotMarketAccountMap.set(perpMarketAccount.quoteSpotMarketIndex, {
-					pubkey: spotMarketAccount.pubkey,
-					isSigner: false,
-					isWritable: false,
-				});
-				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-						pubkey: spotMarketAccount.oracle,
-						isSigner: false,
-						isWritable: false,
-					});
-				}
 			}
 		}
 
 		if (params.writableSpotMarketIndexes !== undefined) {
 			for (const writableSpotMarketIndex of params.writableSpotMarketIndexes) {
-				const spotMarketAccount = this.getSpotMarketAccount(
-					writableSpotMarketIndex
+				this.addSpotMarketToRemainingAccountMaps(
+					writableSpotMarketIndex,
+					true,
+					oracleAccountMap,
+					spotMarketAccountMap
 				);
-				spotMarketAccountMap.set(spotMarketAccount.marketIndex, {
-					pubkey: spotMarketAccount.pubkey,
-					isSigner: false,
-					isWritable: true,
-				});
-				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-						pubkey: spotMarketAccount.oracle,
-						isSigner: false,
-						isWritable: false,
-					});
-				}
 			}
 		}
 
@@ -1378,6 +1380,53 @@ export class DriftClient {
 			...spotMarketAccountMap.values(),
 			...perpMarketAccountMap.values(),
 		];
+	}
+
+	addPerpMarketToRemainingAccountMaps(
+		marketIndex: number,
+		writable: boolean,
+		oracleAccountMap: Map<string, AccountMeta>,
+		spotMarketAccountMap: Map<number, AccountMeta>,
+		perpMarketAccountMap: Map<number, AccountMeta>
+	): void {
+		const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+		perpMarketAccountMap.set(marketIndex, {
+			pubkey: perpMarketAccount.pubkey,
+			isSigner: false,
+			isWritable: writable,
+		});
+		oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
+			pubkey: perpMarketAccount.amm.oracle,
+			isSigner: false,
+			isWritable: false,
+		});
+		this.addSpotMarketToRemainingAccountMaps(
+			perpMarketAccount.quoteSpotMarketIndex,
+			false,
+			oracleAccountMap,
+			spotMarketAccountMap
+		);
+	}
+
+	addSpotMarketToRemainingAccountMaps(
+		marketIndex: number,
+		writable: boolean,
+		oracleAccountMap: Map<string, AccountMeta>,
+		spotMarketAccountMap: Map<number, AccountMeta>
+	): void {
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+		spotMarketAccountMap.set(spotMarketAccount.marketIndex, {
+			pubkey: spotMarketAccount.pubkey,
+			isSigner: false,
+			isWritable: writable,
+		});
+		if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
+			oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+				pubkey: spotMarketAccount.oracle,
+				isSigner: false,
+				isWritable: false,
+			});
+		}
 	}
 
 	getRemainingAccountMapsForUsers(userAccounts: UserAccount[]): {
@@ -1392,73 +1441,35 @@ export class DriftClient {
 		for (const userAccount of userAccounts) {
 			for (const spotPosition of userAccount.spotPositions) {
 				if (!isSpotPositionAvailable(spotPosition)) {
-					const spotMarket = this.getSpotMarketAccount(
-						spotPosition.marketIndex
+					this.addSpotMarketToRemainingAccountMaps(
+						spotPosition.marketIndex,
+						false,
+						oracleAccountMap,
+						spotMarketAccountMap
 					);
-					spotMarketAccountMap.set(spotPosition.marketIndex, {
-						pubkey: spotMarket.pubkey,
-						isSigner: false,
-						isWritable: false,
-					});
-
-					if (!spotMarket.oracle.equals(PublicKey.default)) {
-						oracleAccountMap.set(spotMarket.oracle.toString(), {
-							pubkey: spotMarket.oracle,
-							isSigner: false,
-							isWritable: false,
-						});
-					}
 
 					if (
 						!spotPosition.openAsks.eq(ZERO) ||
 						!spotPosition.openBids.eq(ZERO)
 					) {
-						const quoteSpotMarket = this.getQuoteSpotMarketAccount();
-						spotMarketAccountMap.set(QUOTE_SPOT_MARKET_INDEX, {
-							pubkey: quoteSpotMarket.pubkey,
-							isSigner: false,
-							isWritable: false,
-						});
-						if (!quoteSpotMarket.oracle.equals(PublicKey.default)) {
-							oracleAccountMap.set(quoteSpotMarket.oracle.toString(), {
-								pubkey: quoteSpotMarket.oracle,
-								isSigner: false,
-								isWritable: false,
-							});
-						}
+						this.addSpotMarketToRemainingAccountMaps(
+							QUOTE_SPOT_MARKET_INDEX,
+							false,
+							oracleAccountMap,
+							spotMarketAccountMap
+						);
 					}
 				}
 			}
 			for (const position of userAccount.perpPositions) {
 				if (!positionIsAvailable(position)) {
-					const perpMarketAccount = this.getPerpMarketAccount(
-						position.marketIndex
+					this.addPerpMarketToRemainingAccountMaps(
+						position.marketIndex,
+						false,
+						oracleAccountMap,
+						spotMarketAccountMap,
+						perpMarketAccountMap
 					);
-					perpMarketAccountMap.set(position.marketIndex, {
-						pubkey: perpMarketAccount.pubkey,
-						isWritable: false,
-						isSigner: false,
-					});
-					oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
-						pubkey: perpMarketAccount.amm.oracle,
-						isWritable: false,
-						isSigner: false,
-					});
-					const spotMarketAccount = this.getSpotMarketAccount(
-						perpMarketAccount.quoteSpotMarketIndex
-					);
-					spotMarketAccountMap.set(perpMarketAccount.quoteSpotMarketIndex, {
-						pubkey: spotMarketAccount.pubkey,
-						isSigner: false,
-						isWritable: false,
-					});
-					if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-						oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-							pubkey: spotMarketAccount.oracle,
-							isSigner: false,
-							isWritable: false,
-						});
-					}
 				}
 			}
 		}
@@ -1662,7 +1673,7 @@ export class DriftClient {
 		}
 	}
 
-	private async getWrappedSolAccountCreationIxs(
+	public async getWrappedSolAccountCreationIxs(
 		amount: BN,
 		includeRent?: boolean
 	): Promise<{
@@ -1722,7 +1733,7 @@ export class DriftClient {
 	}
 
 	/**
-	 * Creates the Clearing House User account for a user, and deposits some initial collateral
+	 * Creates the User account for a user, and deposits some initial collateral
 	 * @param amount
 	 * @param userTokenAccount
 	 * @param marketIndex
@@ -2323,6 +2334,35 @@ export class DriftClient {
 		});
 	}
 
+	public getQuoteValuePerLpShare(marketIndex: number): BN {
+		const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+
+		const openBids = BN.max(
+			perpMarketAccount.amm.baseAssetReserve.sub(
+				perpMarketAccount.amm.minBaseAssetReserve
+			),
+			ZERO
+		);
+
+		const openAsks = BN.max(
+			perpMarketAccount.amm.maxBaseAssetReserve.sub(
+				perpMarketAccount.amm.baseAssetReserve
+			),
+			ZERO
+		);
+
+		const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
+
+		const maxOpenBidsAsks = BN.max(openBids, openAsks);
+		const quoteValuePerLpShare = maxOpenBidsAsks
+			.mul(oraclePriceData.price)
+			.mul(QUOTE_PRECISION)
+			.div(PRICE_PRECISION)
+			.div(perpMarketAccount.amm.sqrtK);
+
+		return quoteValuePerLpShare;
+	}
+
 	/**
 	 * @deprecated use {@link placePerpOrder} or {@link placeAndTakePerpOrder} instead
 	 */
@@ -2396,26 +2436,21 @@ export class DriftClient {
 			referrerInfo
 		);
 
-		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
-
 		const walletSupportsVersionedTxns =
 			//@ts-ignore
 			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
 
 		// use versioned transactions if there is a lookup table account and wallet is compatible
-		if (walletSupportsVersionedTxns && lookupTableAccount && useVersionedTx) {
-			const versionedMarketOrderTx =
-				await this.txSender.getVersionedTransaction(
-					[placePerpOrderIx].concat(bracketOrderIxs),
-					[lookupTableAccount],
-					[],
-					this.opts
-				);
-			const versionedFillTx = await this.txSender.getVersionedTransaction(
+		if (walletSupportsVersionedTxns && useVersionedTx) {
+			const versionedMarketOrderTx = await this.buildTransaction(
+				[placePerpOrderIx].concat(bracketOrderIxs),
+				txParams,
+				0
+			);
+			const versionedFillTx = await this.buildTransaction(
 				[fillPerpOrderIx],
-				[lookupTableAccount],
-				[],
-				this.opts
+				txParams,
+				0
 			);
 			const [signedVersionedMarketOrderTx, signedVersionedFillTx] =
 				await this.provider.wallet.signAllTransactions([
@@ -2793,32 +2828,65 @@ export class DriftClient {
 		placeOrderParams: OrderParams[],
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const tx = wrapInTx(
+		const ixs = [
 			await this.getCancelOrdersIx(
 				cancelOrderParams.marketType,
 				cancelOrderParams.marketIndex,
 				cancelOrderParams.direction
 			),
-			txParams?.computeUnits,
-			txParams?.computeUnitsPrice
-		);
-
-		for (const placeOrderParam of placeOrderParams) {
-			const marketType = placeOrderParam.marketType;
-			if (!marketType) {
-				throw new Error('marketType must be set on placeOrderParams');
-			}
-			let ix;
-			if (isVariant(marketType, 'perp')) {
-				ix = this.getPlacePerpOrderIx(placeOrderParam);
-			} else {
-				ix = this.getPlaceSpotOrderIx(placeOrderParam);
-			}
-			tx.add(ix);
-		}
-
+			await this.getPlaceOrdersIx(placeOrderParams),
+		];
+		const tx = await this.buildTransaction(ixs, txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
+	}
+
+	public async placeOrders(
+		params: OrderParams[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getPlaceOrdersIx(params),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getPlaceOrdersIx(
+		params: OrderParams[]
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const readablePerpMarketIndex: number[] = [];
+		const readableSpotMarketIndexes: number[] = [];
+		for (const param of params) {
+			if (isVariant(param.marketType, 'perp')) {
+				readablePerpMarketIndex.push(param.marketIndex);
+			} else {
+				readableSpotMarketIndexes.push(param.marketIndex);
+			}
+		}
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			readablePerpMarketIndex,
+			readableSpotMarketIndexes,
+			useMarketLastSlotCache: true,
+		});
+
+		return await this.program.instruction.placeOrders(params, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
 	}
 
 	public async fillPerpOrder(
@@ -3321,6 +3389,61 @@ export class DriftClient {
 		reduceOnly?: SwapReduceOnly;
 		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
+		const { ixs, lookupTables } = await this.getJupiterSwapIx({
+			jupiterClient,
+			outMarketIndex,
+			inMarketIndex,
+			outAssociatedTokenAccount,
+			inAssociatedTokenAccount,
+			amount,
+			slippageBps,
+			swapMode,
+			route,
+			reduceOnly,
+		});
+
+		const tx = (await this.buildTransaction(
+			ixs,
+			txParams,
+			0,
+			lookupTables
+		)) as VersionedTransaction;
+
+		const { txSig, slot } = await this.sendTransaction(tx);
+		this.spotMarketLastSlotCache.set(outMarketIndex, slot);
+		this.spotMarketLastSlotCache.set(inMarketIndex, slot);
+
+		return txSig;
+	}
+
+	public async getJupiterSwapIx({
+		jupiterClient,
+		outMarketIndex,
+		inMarketIndex,
+		outAssociatedTokenAccount,
+		inAssociatedTokenAccount,
+		amount,
+		slippageBps,
+		swapMode,
+		route,
+		reduceOnly,
+		userAccountPublicKey,
+	}: {
+		jupiterClient: JupiterClient;
+		outMarketIndex: number;
+		inMarketIndex: number;
+		outAssociatedTokenAccount?: PublicKey;
+		inAssociatedTokenAccount?: PublicKey;
+		amount: BN;
+		slippageBps?: number;
+		swapMode?: SwapMode;
+		route?: Route;
+		reduceOnly?: SwapReduceOnly;
+		userAccountPublicKey?: PublicKey;
+	}): Promise<{
+		ixs: TransactionInstruction[];
+		lookupTables: AddressLookupTableAccount[];
+	}> {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
@@ -3407,27 +3530,17 @@ export class DriftClient {
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 			reduceOnly,
+			userAccountPublicKey,
 		});
 
-		const instructions = [
+		const ixs = [
 			...preInstructions,
 			beginSwapIx,
 			...jupiterInstructions,
 			endSwapIx,
 		];
 
-		const tx = await this.buildTransaction(
-			instructions,
-			txParams,
-			0,
-			lookupTables
-		);
-
-		const { txSig, slot } = await this.sendTransaction(tx);
-		this.spotMarketLastSlotCache.set(outMarketIndex, slot);
-		this.spotMarketLastSlotCache.set(inMarketIndex, slot);
-
-		return txSig;
+		return { ixs, lookupTables };
 	}
 
 	/**
@@ -3439,6 +3552,8 @@ export class DriftClient {
 	 * @param inTokenAccount the token account to move the tokens being sold
 	 * @param outTokenAccount the token account to receive the tokens being bought
 	 * @param limitPrice the limit price of the swap
+	 * @param reduceOnly
+	 * @param userAccountPublicKey optional, specify a custom userAccountPublicKey to use instead of getting the current user account; can be helpful if the account is being created within the current tx
 	 */
 	public async getSwapIx({
 		outMarketIndex,
@@ -3448,6 +3563,7 @@ export class DriftClient {
 		outTokenAccount,
 		limitPrice,
 		reduceOnly,
+		userAccountPublicKey,
 	}: {
 		outMarketIndex: number;
 		inMarketIndex: number;
@@ -3456,14 +3572,17 @@ export class DriftClient {
 		outTokenAccount: PublicKey;
 		limitPrice?: BN;
 		reduceOnly?: SwapReduceOnly;
+		userAccountPublicKey?: PublicKey;
 	}): Promise<{
 		beginSwapIx: TransactionInstruction;
 		endSwapIx: TransactionInstruction;
 	}> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
+		const userAccountPublicKeyToUse =
+			userAccountPublicKey || (await this.getUserAccountPublicKey());
 
+		const userAccounts = this.hasUser() ? [this.getUserAccount()] : [];
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts,
 			writableSpotMarketIndexes: [outMarketIndex, inMarketIndex],
 		});
 
@@ -3477,7 +3596,7 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					user: userAccountPublicKey,
+					user: userAccountPublicKeyToUse,
 					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.authority,
 					outSpotMarketVault: outSpotMarket.vault,
@@ -3500,7 +3619,7 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					user: userAccountPublicKey,
+					user: userAccountPublicKeyToUse,
 					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.authority,
 					outSpotMarketVault: outSpotMarket.vault,
@@ -3516,6 +3635,66 @@ export class DriftClient {
 		);
 
 		return { beginSwapIx, endSwapIx };
+	}
+
+	public async stakeForMSOL({ amount }: { amount: BN }): Promise<TxSigAndSlot> {
+		const ixs = await this.getStakeForMSOLIx({ amount });
+		const tx = await this.buildTransaction(ixs);
+		return this.sendTransaction(tx);
+	}
+
+	public async getStakeForMSOLIx({
+		amount,
+		userAccountPublicKey,
+	}: {
+		amount: BN;
+		userAccountPublicKey?: PublicKey;
+	}): Promise<TransactionInstruction[]> {
+		const wSOLMint = this.getSpotMarketAccount(1).mint;
+		const mSOLAccount = await this.getAssociatedTokenAccount(2);
+		const wSOLAccount = await this.getAssociatedTokenAccount(1, false);
+
+		const wSOLAccountExists = await this.checkIfAccountExists(wSOLAccount);
+
+		const closeWSOLIx = createCloseAccountInstruction(
+			wSOLAccount,
+			this.wallet.publicKey,
+			this.wallet.publicKey
+		);
+
+		const createWSOLIx =
+			await this.createAssociatedTokenAccountIdempotentInstruction(
+				wSOLAccount,
+				this.wallet.publicKey,
+				this.wallet.publicKey,
+				wSOLMint
+			);
+
+		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
+			inMarketIndex: 1,
+			outMarketIndex: 2,
+			amountIn: amount,
+			inTokenAccount: wSOLAccount,
+			outTokenAccount: mSOLAccount,
+			userAccountPublicKey,
+		});
+
+		const program = getMarinadeFinanceProgram(this.provider);
+		const depositIx = await getMarinadeDepositIx({
+			program,
+			mSOLAccount: mSOLAccount,
+			transferFrom: this.wallet.publicKey,
+			amount,
+		});
+
+		const ixs = [];
+
+		if (!wSOLAccountExists) {
+			ixs.push(createWSOLIx);
+		}
+		ixs.push(beginSwapIx, closeWSOLIx, depositIx, createWSOLIx, endSwapIx);
+
+		return ixs;
 	}
 
 	public async triggerOrder(
@@ -3636,6 +3815,43 @@ export class DriftClient {
 		});
 
 		return await this.program.instruction.updateUserIdle({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				filler: fillerPublicKey,
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async updateUserOpenOrdersCount(
+		userAccountPublicKey: PublicKey,
+		user: UserAccount,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateUserOpenOrdersCountIx(userAccountPublicKey, user),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateUserOpenOrdersCountIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount
+	): Promise<TransactionInstruction> {
+		const fillerPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+		});
+
+		return await this.program.instruction.updateUserOpenOrdersCount({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				filler: fillerPublicKey,
@@ -4304,6 +4520,26 @@ export class DriftClient {
 		}[],
 		marketIndexes: number[]
 	): Promise<TransactionSignature> {
+		const ixs = await this.getSettlePNLsIxs(users, marketIndexes);
+		const tx = new Transaction()
+			.add(
+				ComputeBudgetProgram.setComputeUnitLimit({
+					units: 1_000_000,
+				})
+			)
+			.add(...ixs);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getSettlePNLsIxs(
+		users: {
+			settleeUserAccountPublicKey: PublicKey;
+			settleeUserAccount: UserAccount;
+		}[],
+		marketIndexes: number[]
+	): Promise<Array<TransactionInstruction>> {
 		const ixs = [];
 		for (const { settleeUserAccountPublicKey, settleeUserAccount } of users) {
 			for (const marketIndex of marketIndexes) {
@@ -4317,16 +4553,7 @@ export class DriftClient {
 			}
 		}
 
-		const tx = new Transaction()
-			.add(
-				ComputeBudgetProgram.setComputeUnitLimit({
-					units: 1_000_000,
-				})
-			)
-			.add(...ixs);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
+		return ixs;
 	}
 
 	public async settlePNL(
@@ -5337,7 +5564,8 @@ export class DriftClient {
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
 				additionalSigners,
-				opts
+				opts,
+				preSigned
 			);
 		}
 	}
@@ -5349,7 +5577,7 @@ export class DriftClient {
 		lookupTables?: AddressLookupTableAccount[]
 	): Promise<Transaction | VersionedTransaction> {
 		const allIx = [];
-		const computeUnits = txParams?.computeUnits ?? 600_000;
+		const computeUnits = txParams?.computeUnits ?? this.txParams.computeUnits;
 		if (computeUnits !== 200_000) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitLimit({
@@ -5357,7 +5585,8 @@ export class DriftClient {
 				})
 			);
 		}
-		const computeUnitsPrice = txParams?.computeUnitsPrice ?? 0;
+		const computeUnitsPrice =
+			txParams?.computeUnitsPrice ?? this.txParams.computeUnitsPrice;
 		if (computeUnitsPrice !== 0) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({

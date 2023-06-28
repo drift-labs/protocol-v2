@@ -4,10 +4,11 @@ import {
 	PublicKey,
 	TransactionVersion,
 } from '@solana/web3.js';
-import { IWallet } from './types';
+import { IWallet, TxParams } from './types';
 import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
+import { TxSender } from './tx/types';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -16,7 +17,7 @@ export type DriftClientConfig = {
 	programID?: PublicKey;
 	accountSubscription?: DriftClientSubscriptionConfig;
 	opts?: ConfirmOptions;
-	txSenderConfig?: TxSenderConfig;
+	txSender?: TxSender;
 	subAccountIds?: number[];
 	activeSubAccountId?: number;
 	perpMarketIndexes?: number[];
@@ -29,6 +30,7 @@ export type DriftClientConfig = {
 	authoritySubAccountMap?: Map<string, number[]>; // if passed this will override subAccountIds and includeDelegates
 	skipLoadUsers?: boolean; // if passed to constructor, no user accounts will be loaded. they will load if updateWallet is called afterwards.
 	txVersion?: TransactionVersion; // which tx version to use
+	txParams?: TxParams; // default tx params to use
 };
 
 export type DriftClientSubscriptionConfig =
@@ -39,10 +41,3 @@ export type DriftClientSubscriptionConfig =
 			type: 'polling';
 			accountLoader: BulkAccountLoader;
 	  };
-
-type TxSenderConfig = {
-	type: 'retry';
-	timeout?: number;
-	retrySleep?: number;
-	additionalConnections?: Connection[];
-};

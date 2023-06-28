@@ -97,8 +97,9 @@ pub fn calculate_if_shares_lost(
     let if_shares_lost = if amount > insurance_fund_stake.last_withdraw_request_value {
         let new_n_shares = vault_amount_to_if_shares(
             insurance_fund_stake.last_withdraw_request_value,
-            spot_market.insurance_fund.total_shares - n_shares,
-            insurance_fund_vault_balance - insurance_fund_stake.last_withdraw_request_value,
+            spot_market.insurance_fund.total_shares.safe_sub(n_shares)?,
+            insurance_fund_vault_balance
+                .safe_sub(insurance_fund_stake.last_withdraw_request_value)?,
         )?;
 
         validate!(

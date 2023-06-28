@@ -31,14 +31,14 @@ function mapTransactionResponseToLog(
 
 export async function fetchLogs(
 	connection: Connection,
-	programId: PublicKey,
+	address: PublicKey,
 	finality: Finality,
 	beforeTx?: TransactionSignature,
 	untilTx?: TransactionSignature,
 	limit?: number
 ): Promise<FetchLogsResponse> {
 	const signatures = await connection.getSignaturesForAddress(
-		programId,
+		address,
 		{
 			before: beforeTx,
 			until: untilTx,

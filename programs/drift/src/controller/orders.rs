@@ -22,7 +22,7 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::instructions::OrderParams;
+use crate::instructions::{OrderParams, PlaceOrderOptions};
 use crate::load_mut;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
 use crate::math::auction::calculate_auction_prices;
@@ -91,6 +91,7 @@ pub fn place_perp_order(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     params: OrderParams,
+    options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -107,15 +108,17 @@ pub fn place_perp_order(
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
-    expire_orders(
-        user,
-        &user_key,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        now,
-        slot,
-    )?;
+    if options.try_expire_orders {
+        expire_orders(
+            user,
+            &user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
+    }
 
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
@@ -266,6 +269,7 @@ pub fn place_perp_order(
         Err(err) => return Err(err),
     };
 
+    user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.perp_positions[position_index].open_orders += 1;
     if !new_order.must_be_triggered() {
@@ -290,17 +294,20 @@ pub fn place_perp_order(
         <= worst_case_base_asset_amount_before.unsigned_abs()
         && order_risk_reducing;
 
-    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let meets_initial_margin_requirement = meets_place_order_margin_requirement(
-        user,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        risk_decreasing,
-    )?;
+    // when orders are placed in bulk, only need to check margin on last place
+    if options.enforce_margin_check {
+        // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
+        let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            risk_decreasing,
+        )?;
 
-    if !meets_initial_margin_requirement {
-        return Err(ErrorCode::InvalidOrderForInitialMarginReq);
+        if !meets_initial_margin_requirement {
+            return Err(ErrorCode::InvalidOrderForInitialMarginReq);
+        }
     }
 
     if force_reduce_only && !risk_decreasing {
@@ -589,9 +596,6 @@ pub fn cancel_order(
 
     validate!(order_status == OrderStatus::Open, ErrorCode::OrderNotOpen)?;
 
-    // When save in the record, we want the status to be canceled
-    user.orders[order_index].status = OrderStatus::Canceled;
-
     let oracle = if is_perp_order {
         perp_market_map.get_ref(&order_market_index)?.amm.oracle
     } else {
@@ -626,6 +630,7 @@ pub fn cancel_order(
         emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
 
+    user.decrement_open_orders(user.orders[order_index].has_auction());
     if is_perp_order {
         // Decrement open orders for existing position
         let position_index = get_position_index(&user.perp_positions, order_market_index)?;
@@ -741,6 +746,7 @@ pub fn modify_order(
             oracle_map,
             clock,
             order_params,
+            PlaceOrderOptions::default(),
         )?;
     } else {
         place_spot_order(
@@ -751,6 +757,7 @@ pub fn modify_order(
             oracle_map,
             clock,
             order_params,
+            PlaceOrderOptions::default(),
         )?;
     }
 
@@ -1036,6 +1043,7 @@ pub fn fill_perp_order(
             filler_reward,
             false,
         )?;
+
         return Ok((0, true));
     }
 
@@ -1952,6 +1960,7 @@ pub fn fulfill_perp_order_with_amm(
 
     // Cant reset order until after its logged
     if user.orders[order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        user.decrement_open_orders(user.orders[order_index].has_auction());
         user.orders[order_index] = Order::default();
         let market_position = &mut user.perp_positions[position_index];
         market_position.open_orders -= 1;
@@ -2326,12 +2335,14 @@ pub fn fulfill_perp_order_with_match(
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
         taker.orders[taker_order_index] = Order::default();
         let market_position = &mut taker.perp_positions[taker_position_index];
         market_position.open_orders -= 1;
     }
 
     if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        maker.decrement_open_orders(false);
         maker.orders[maker_order_index] = Order::default();
         let market_position = &mut maker.perp_positions[maker_position_index];
         market_position.open_orders -= 1;
@@ -2779,6 +2790,7 @@ pub fn place_spot_order(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     params: OrderParams,
+    options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -2795,15 +2807,17 @@ pub fn place_spot_order(
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
-    expire_orders(
-        user,
-        &user_key,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        now,
-        slot,
-    )?;
+    if options.try_expire_orders {
+        expire_orders(
+            user,
+            &user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+        )?;
+    }
 
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
@@ -2965,6 +2979,7 @@ pub fn place_spot_order(
         spot_market.min_order_size,
     )?;
 
+    user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.spot_positions[spot_position_index].open_orders += 1;
     if !new_order.must_be_triggered() {
@@ -2986,23 +3001,25 @@ pub fn place_spot_order(
         <= worst_case_token_amount_before.unsigned_abs()
         && order_risk_decreasing;
 
-    let meets_initial_margin_requirement = meets_place_order_margin_requirement(
-        user,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        risk_decreasing,
-    )?;
+    if options.enforce_margin_check {
+        let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            risk_decreasing,
+        )?;
 
-    if !meets_initial_margin_requirement {
-        return Err(ErrorCode::InvalidOrderForInitialMarginReq);
+        if !meets_initial_margin_requirement {
+            return Err(ErrorCode::InvalidOrderForInitialMarginReq);
+        }
     }
+
+    validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
 
     if force_reduce_only && !risk_decreasing {
         return Err(ErrorCode::InvalidOrderNotRiskReducing);
     }
-
-    validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
 
     let (taker, taker_order, maker, maker_order) =
         get_taker_and_maker_for_order_record(&user_key, &new_order);
@@ -3911,11 +3928,13 @@ pub fn fulfill_spot_order_with_match(
 
     // Clear taker/maker order if completely filled
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
         taker.orders[taker_order_index] = Order::default();
         taker.spot_positions[taker_spot_position_index].open_orders -= 1;
     }
 
     if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        maker.decrement_open_orders(false);
         maker.orders[maker_order_index] = Order::default();
         maker.spot_positions[maker_spot_position_index].open_orders -= 1;
     }
@@ -4207,6 +4226,7 @@ pub fn fulfill_spot_order_with_external_market(
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
+        taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
         taker.orders[taker_order_index] = Order::default();
         taker
             .force_get_spot_position_mut(base_market.market_index)?
