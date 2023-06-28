@@ -21,6 +21,7 @@ import {
 	OrderRecord,
 	ZERO,
 	ContractTier,
+	SPOT_MARKET_BALANCE_PRECISION,
 } from '../../src';
 
 export const mockPerpPosition: PerpPosition = {
@@ -150,8 +151,8 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		amm: mockAMM,
 		numberOfUsersWithBase: 0,
 		numberOfUsers: 0,
-		marginRatioInitial: 0,
-		marginRatioMaintenance: 0,
+		marginRatioInitial: 2000,
+		marginRatioMaintenance: 1000,
 		nextFillRecordId: new BN(0),
 		pnlPool: {
 			scaledBalance: new BN(0),
@@ -256,7 +257,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		status: MarketStatus.ACTIVE,
 		assetTier: AssetTier.COLLATERAL,
 		name: [],
-		maxTokenDeposits: new BN(100),
+		maxTokenDeposits: new BN(1000000),
 		marketIndex: 0,
 		pubkey: PublicKey.default,
 		mint: DevnetSpotMarkets[0].mint,
@@ -282,8 +283,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		optimalUtilization: 0,
 		optimalBorrowRate: 0,
 		maxBorrowRate: 0,
-		cumulativeDepositInterest: new BN(0),
-		cumulativeBorrowInterest: new BN(0),
+		cumulativeDepositInterest: SPOT_MARKET_BALANCE_PRECISION,
+		cumulativeBorrowInterest: SPOT_MARKET_BALANCE_PRECISION,
 		totalSocialLoss: new BN(0),
 		totalQuoteSocialLoss: new BN(0),
 		depositBalance: new BN(0),

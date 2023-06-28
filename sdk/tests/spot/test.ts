@@ -3,14 +3,55 @@ import {
 	ZERO,
 	calculateSpotMarketBorrowCapacity,
 	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+	calculateSizePremiumLiabilityWeight,
 } from '../../src';
 import { mockSpotMarkets } from '../dlob/helpers';
+import * as _ from 'lodash';
 
 import { assert } from '../../src/assert/assert';
 
 describe('Spot Tests', () => {
+	it('size premium via imf factor', () => {
+		const maintLiabWgt = new BN(1.1 * 1e4);
+
+		const ans0 = calculateSizePremiumLiabilityWeight(
+			new BN(200000 * 1e9),
+			ZERO,
+			maintLiabWgt,
+			new BN(1e4)
+		);
+		assert(ans0.eq(maintLiabWgt));
+
+		const ans = calculateSizePremiumLiabilityWeight(
+			new BN(200000 * 1e9),
+			new BN(0.00055 * 1e6),
+			maintLiabWgt,
+			new BN(1e4)
+		);
+		assert(ans.eq(new BN('11259')));
+		assert(ans.gt(maintLiabWgt));
+
+		const ans2 = calculateSizePremiumLiabilityWeight(
+			new BN(10000 * 1e9),
+			new BN(0.003 * 1e6),
+			maintLiabWgt,
+			new BN(1e4)
+		);
+		assert(ans2.eq(new BN('11800')));
+		assert(ans.gt(maintLiabWgt));
+
+		const ans3 = calculateSizePremiumLiabilityWeight(
+			new BN(100000 * 1e9),
+			new BN(0.003 * 1e6),
+			maintLiabWgt,
+			new BN(1e4)
+		);
+		assert(ans3.eq(new BN('18286')));
+		assert(ans3.gt(maintLiabWgt));
+	});
+
 	it('base borrow capacity', () => {
-		const mockSpot = mockSpotMarkets[0];
+		const mockSpot = _.cloneDeep(mockSpotMarkets[0]);
 		mockSpot.maxBorrowRate = 1000000;
 		mockSpot.optimalBorrowRate = 100000;
 		mockSpot.optimalUtilization = 700000;
@@ -80,7 +121,7 @@ describe('Spot Tests', () => {
 	});
 
 	it('complex borrow capacity', () => {
-		const mockSpot = mockSpotMarkets[0];
+		const mockSpot = _.cloneDeep(mockSpotMarkets[0]);
 		mockSpot.maxBorrowRate = 1000000;
 		mockSpot.optimalBorrowRate = 70000;
 		mockSpot.optimalUtilization = 700000;
