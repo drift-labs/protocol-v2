@@ -64,6 +64,20 @@ pub fn settle_lp_position(
     position: &mut PerpPosition,
     market: &mut PerpMarket,
 ) -> DriftResult<(PositionDelta, i64)> {
+    if position.base_asset_amount > 0 {
+        validate!(
+            position.last_cumulative_funding_rate.cast::<i128>()?
+                == market.amm.cumulative_funding_rate_long,
+            ErrorCode::InvalidPerpPositionDetected
+        )?;
+    } else if position.base_asset_amount < 0 {
+        validate!(
+            position.last_cumulative_funding_rate.cast::<i128>()?
+                == market.amm.cumulative_funding_rate_short,
+            ErrorCode::InvalidPerpPositionDetected
+        )?;
+    }
+
     let mut lp_metrics: crate::math::lp::LPMetrics =
         calculate_settle_lp_metrics(&market.amm, position)?;
 

@@ -8,6 +8,7 @@ use crate::math::repeg::{
     calculate_fee_pool, calculate_peg_from_target_price, calculate_repeg_cost,
 };
 use crate::state::oracle::HistoricalOracleData;
+use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::{ContractTier, AMM};
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
 
