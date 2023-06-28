@@ -359,6 +359,7 @@ export class User {
 		);
 
 		position.remainderBaseAssetAmount += remainderBaa.toNumber();
+		console.log('remainderBaa', remainderBaa.toNumber());
 
 		if (
 			Math.abs(position.remainderBaseAssetAmount) >
@@ -386,25 +387,26 @@ export class User {
 			updateType = 'flip';
 		}
 
-		let newQuoteEntry;
-		let pnl;
-		if (updateType == 'open' || updateType == 'increase') {
-			newQuoteEntry = position.quoteEntryAmount.add(deltaQaa);
-			pnl = ZERO;
-		} else if (updateType == 'reduce' || updateType == 'close') {
-			newQuoteEntry = position.quoteEntryAmount.sub(
-				position.quoteEntryAmount
-					.mul(deltaBaa.abs())
-					.div(position.baseAssetAmount.abs())
-			);
-			pnl = position.quoteEntryAmount.sub(newQuoteEntry).add(deltaQaa);
-		} else {
-			newQuoteEntry = deltaQaa.sub(
-				deltaQaa.mul(position.baseAssetAmount.abs()).div(deltaBaa.abs())
-			);
-			pnl = position.quoteEntryAmount.add(deltaQaa.sub(newQuoteEntry));
-		}
-		position.quoteEntryAmount = newQuoteEntry;
+		// let newQuoteEntry;
+		// let pnl;
+		// if (updateType == 'open' || updateType == 'increase') {
+		// 	newQuoteEntry = position.quoteEntryAmount.add(deltaQaa);
+		// 	pnl = ZERO;
+		// } else if (updateType == 'reduce' || updateType == 'close') {
+		// 	newQuoteEntry = position.quoteEntryAmount.sub(
+		// 		position.quoteEntryAmount
+		// 			.mul(deltaBaa.abs())
+		// 			.div(position.baseAssetAmount.abs())
+		// 	);
+		// 	pnl = position.quoteEntryAmount.sub(newQuoteEntry).add(deltaQaa);
+		// } else {
+		// 	newQuoteEntry = deltaQaa.sub(
+		// 		deltaQaa.mul(position.baseAssetAmount.abs()).div(deltaBaa.abs())
+		// 	);
+		// 	pnl = position.quoteEntryAmount.add(deltaQaa.sub(newQuoteEntry));
+		// }
+		// position.quoteEntryAmount = newQuoteEntry;
+
 		position.baseAssetAmount = position.baseAssetAmount.add(standardizedBaa);
 		position.quoteAssetAmount = position.quoteAssetAmount.add(deltaQaa);
 
@@ -417,7 +419,7 @@ export class User {
 			position.lastCumulativeFundingRate = ZERO;
 		}
 
-		return [position, remainderBaa, pnl];
+		return [position, remainderBaa, ZERO];
 	}
 
 	/**
@@ -545,18 +547,28 @@ export class User {
 					market.quoteSpotMarketIndex
 				);
 
+				const lpPnlDelta = ZERO;
 				if (perpPosition.lpShares.gt(ZERO)) {
 					perpPosition = this.getPerpPositionWithLPSettle(
 						perpPosition.marketIndex
 					)[0];
 				}
 
+				console.log(
+					'perpPosition baa',
+					perpPosition.baseAssetAmount.toString()
+				);
+				console.log(
+					'perpPosition qaa',
+					perpPosition.quoteAssetAmount.toString()
+				);
+
 				let positionUnrealizedPnl = calculatePositionPNL(
 					market,
 					perpPosition,
 					withFunding,
 					oraclePriceData
-				);
+				).add(lpPnlDelta);
 
 				let quotePrice;
 				if (strict && positionUnrealizedPnl.gt(ZERO)) {
@@ -836,6 +848,7 @@ export class User {
 				now,
 				FIVE_MINUTE // 5MIN
 			);
+			console.log('estOracleTwap', estOracleTwap.toString());
 			liabilityValue = getStrictTokenValue(
 				tokenAmount,
 				spotMarketAccount.decimals,
@@ -863,6 +876,10 @@ export class User {
 
 			if (liquidationBuffer !== undefined) {
 				weight = weight.add(liquidationBuffer);
+				const additionalMargin = liabilityValue
+					.mul(liquidationBuffer)
+					.div(SPOT_MARKET_WEIGHT_PRECISION);
+				console.log('additionalMargin', additionalMargin.toString());
 			}
 
 			liabilityValue = liabilityValue
