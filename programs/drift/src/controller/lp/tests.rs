@@ -610,12 +610,12 @@ fn test_lp_margin_calc() {
 
     mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
 
-    market.amm.base_asset_amount_per_lp = 10;
-    market.amm.quote_asset_amount_per_lp = -10;
-    market.amm.base_asset_amount_with_unsettled_lp = -10;
-    market.amm.base_asset_amount_short = -10;
-    market.amm.cumulative_funding_rate_long = 169;
-    market.amm.cumulative_funding_rate_short = 169;
+    market.amm.base_asset_amount_per_lp = 100 * BASE_PRECISION_I128;
+    market.amm.quote_asset_amount_per_lp = -BASE_PRECISION_I128;
+    market.amm.base_asset_amount_with_unsettled_lp = -100 * BASE_PRECISION_I128;
+    market.amm.base_asset_amount_short = -100 * BASE_PRECISION_I128;
+    market.amm.cumulative_funding_rate_long = 169 * 100000000;
+    market.amm.cumulative_funding_rate_short = 169 * 100000000;
 
     settle_lp_position(&mut position, &mut market).unwrap();
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -639,7 +639,7 @@ fn test_lp_margin_calc() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            scaled_balance: 50 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 5000 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -669,20 +669,61 @@ fn test_lp_margin_calc() {
         has_sufficient_number_of_data_points: true,
     };
 
-    let (v1, v2, v3) = calculate_perp_position_value_and_pnl(
-        &user.perp_positions[0],
-        &market,
-        &oracle_price_data,
-        1000000,
-        1000000,
-        crate::math::margin::MarginRequirementType::Initial,
-        0,
-        false,
-        false,
-    )
-    .unwrap();
+    assert_eq!(market.amm.base_asset_amount_per_lp, 100000000000);
+    assert_eq!(market.amm.quote_asset_amount_per_lp, -1000000000);
+    assert_eq!(market.amm.cumulative_funding_rate_long, 16900000000);
+    assert_eq!(market.amm.cumulative_funding_rate_short, 16900000000);
 
-    assert_eq!(v1, 10000000);
-    assert_eq!(v2, 0);
-    assert_eq!(v3, 100000000);
+    assert_eq!(user.perp_positions[0].lp_shares, 1000000000);
+    assert_eq!(user.perp_positions[0].base_asset_amount, 1000000000);
+    assert_eq!(
+        user.perp_positions[0].last_base_asset_amount_per_lp,
+        100000000000
+    );
+    assert_eq!(
+        user.perp_positions[0].last_quote_asset_amount_per_lp,
+        -1000000000
+    );
+    assert_eq!(
+        user.perp_positions[0].last_cumulative_funding_rate,
+        16900000000
+    );
+
+    // increase markets so user has to settle lp
+    market.amm.base_asset_amount_per_lp *= 2;
+    market.amm.quote_asset_amount_per_lp *= 20;
+
+    // update funding so user has unsettled funding
+    market.amm.cumulative_funding_rate_long *= 2;
+    market.amm.cumulative_funding_rate_short *= 2;
+
+    let sim_user_pos = user.perp_positions[0]
+        .simulate_settled_lp_position(&market, oracle_price_data.price)
+        .unwrap();
+    assert_ne!(
+        sim_user_pos.base_asset_amount,
+        user.perp_positions[0].base_asset_amount
+    );
+    assert_eq!(sim_user_pos.base_asset_amount, 101000000000);
+    assert_eq!(sim_user_pos.quote_asset_amount, -20000000000);
+    assert_eq!(sim_user_pos.last_cumulative_funding_rate, 0);
+
+    // ensure margin calc doesnt incorrectly count funding rate (funding pnl MUST come before settling lp)
+    let (margin_requirement, weighted_unrealized_pnl, worse_case_base_asset_value) =
+        calculate_perp_position_value_and_pnl(
+            &user.perp_positions[0],
+            &market,
+            &oracle_price_data,
+            1000000,
+            1000000,
+            crate::math::margin::MarginRequirementType::Initial,
+            0,
+            false,
+            false,
+        )
+        .unwrap();
+
+    assert_eq!(margin_requirement, 1010000000); // $1010
+    assert_eq!(weighted_unrealized_pnl, -9916900000); // $-9900000000 upnl (+ -16900000 from old funding)
+    assert_eq!(worse_case_base_asset_value, 10100000000); //$10100
 }
