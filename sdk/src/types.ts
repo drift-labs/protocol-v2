@@ -660,7 +660,7 @@ export type SpotMarketAccount = {
 
 	orderStepSize: BN;
 	orderTickSize: BN;
-    minOrderSize: BN;
+	minOrderSize: BN;
 	maxPositionSize: BN;
 	nextFillRecordId: BN;
 	spotFeePool: PoolBalance;
