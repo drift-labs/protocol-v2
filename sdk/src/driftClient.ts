@@ -3418,6 +3418,7 @@ export class DriftClient {
 		amount,
 		slippageBps,
 		swapMode,
+		onlyDirectRoutes,
 		route,
 		reduceOnly,
 		userAccountPublicKey,
@@ -3430,6 +3431,7 @@ export class DriftClient {
 		amount: BN;
 		slippageBps?: number;
 		swapMode?: SwapMode;
+		onlyDirectRoutes?: boolean;
 		route?: Route;
 		reduceOnly?: SwapReduceOnly;
 		userAccountPublicKey?: PublicKey;
@@ -3447,6 +3449,7 @@ export class DriftClient {
 				amount,
 				slippageBps,
 				swapMode,
+				onlyDirectRoutes,
 			});
 
 			if (!routes || routes.length === 0) {

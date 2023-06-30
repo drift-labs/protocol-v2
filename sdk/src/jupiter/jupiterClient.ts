@@ -57,6 +57,7 @@ export class JupiterClient {
 	 * @param amount the amount of the input token
 	 * @param slippageBps the slippage tolerance in basis points
 	 * @param swapMode the swap mode (ExactIn or ExactOut)
+	 * @param onlyDirectRoutes whether to only return direct routes
 	 */
 	public async getRoutes({
 		inputMint,
@@ -64,12 +65,14 @@ export class JupiterClient {
 		amount,
 		slippageBps = 50,
 		swapMode = 'ExactIn',
+		onlyDirectRoutes = false,
 	}: {
 		inputMint: PublicKey;
 		outputMint: PublicKey;
 		amount: BN;
 		slippageBps?: number;
 		swapMode?: SwapMode;
+		onlyDirectRoutes?: boolean;
 	}): Promise<Route[]> {
 		const params = new URLSearchParams({
 			inputMint: inputMint.toString(),
@@ -77,6 +80,7 @@ export class JupiterClient {
 			amount: amount.toString(),
 			slippageBps: slippageBps.toString(),
 			swapMode,
+			onlyDirectRoutes: onlyDirectRoutes.toString(),
 		}).toString();
 
 		const { data: routes } = await (

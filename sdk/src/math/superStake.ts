@@ -20,6 +20,7 @@ export async function findBestSuperStakeIxs({
 	userAccountPublicKey,
 	marinadePrice,
 	forceMarinade,
+	onlyDirectRoutes,
 }: {
 	amount: BN;
 	jupiterClient: JupiterClient;
@@ -27,6 +28,7 @@ export async function findBestSuperStakeIxs({
 	marinadePrice?: number;
 	userAccountPublicKey?: PublicKey;
 	forceMarinade?: boolean;
+	onlyDirectRoutes?: boolean;
 }): Promise<{
 	ixs: TransactionInstruction[];
 	lookupTables: AddressLookupTableAccount[];
@@ -48,6 +50,7 @@ export async function findBestSuperStakeIxs({
 			inputMint: solMint,
 			outputMint: mSOLMint,
 			amount,
+			onlyDirectRoutes,
 		});
 
 		bestRoute = jupiterRoutes[0];
