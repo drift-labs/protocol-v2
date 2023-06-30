@@ -44,6 +44,7 @@ use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
+use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
@@ -211,7 +212,7 @@ pub fn handle_deposit(
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
 
-    let state = &ctx.accounts.state;
+    let state: &Box<Account<'_, State>> = &ctx.accounts.state;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -1833,6 +1834,41 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     Ok(())
 }
 
+#[access_control(
+    deposit_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_deposit_into_spot_market_revenue_pool(
+    ctx: Context<RevenuePoolDeposit>,
+    spot_market_index: u16,
+    amount: u64,
+) -> Result<()> {
+    if amount == 0 {
+        return Err(ErrorCode::InsufficientDeposit.into());
+    }
+
+    let clock = Clock::get()?;
+    let state: &Box<Account<'_, State>> = &ctx.accounts.state;
+    let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
+
+    controller::spot_balance::update_spot_balances(
+        amount.cast::<u128>()?,
+        &SpotBalanceType::Deposit,
+        &mut spot_market,
+        &mut spot_market.revenue_pool,
+        false,
+    )?;
+
+    controller::token::receive(
+        &ctx.accounts.token_program,
+        &ctx.accounts.user_token_account,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.authority,
+        amount,
+    )?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction(
     sub_account_id: u16,
@@ -1923,6 +1959,29 @@ pub struct Deposit<'info> {
         constraint = is_stats_for_user(&user, &user_stats)?
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
+        token::authority = authority
+    )]
+    pub user_token_account: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16,)]
+pub struct RevenuePoolDeposit<'info> {
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
     pub authority: Signer<'info>,
     #[account(
         mut,
