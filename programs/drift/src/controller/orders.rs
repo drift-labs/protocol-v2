@@ -1052,7 +1052,7 @@ pub fn fill_perp_order(
         return Ok(0);
     }
 
-    let (base_asset_amount, quote_asset_amount, _potentially_risk_increasing) = fulfill_perp_order(
+    let (base_asset_amount, quote_asset_amount) = fulfill_perp_order(
         user,
         order_index,
         &user_key,
@@ -1457,12 +1457,9 @@ fn fulfill_perp_order(
     slot: u64,
     min_auction_duration: u8,
     amm_is_available: bool,
-) -> DriftResult<(u64, u64, bool)> {
+) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
-    let user_position_index = get_position_index(&user.perp_positions, market_index)?;
-    let position_base_asset_amount_before =
-        user.perp_positions[user_position_index].base_asset_amount;
     let user_order_risk_decreasing =
         determine_if_user_order_is_risk_decreasing(user, market_index, user_order_index)?;
 
@@ -1483,7 +1480,7 @@ fn fulfill_perp_order(
     };
 
     if fulfillment_methods.is_empty() {
-        return Ok((0, 0, false));
+        return Ok((0, 0));
     }
 
     let mut base_asset_amount = 0_u64;
@@ -1647,13 +1644,7 @@ fn fulfill_perp_order(
         }
     }
 
-    let position_base_asset_amount_after =
-        user.perp_positions[user_position_index].base_asset_amount;
-    let risk_increasing = position_base_asset_amount_before == 0
-        || position_base_asset_amount_before.signum() != position_base_asset_amount_after.signum()
-        || position_base_asset_amount_before.abs() < position_base_asset_amount_after.abs();
-
-    Ok((base_asset_amount, quote_asset_amount, risk_increasing))
+    Ok((base_asset_amount, quote_asset_amount))
 }
 
 #[allow(clippy::type_complexity)]

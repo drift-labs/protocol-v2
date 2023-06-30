@@ -2636,7 +2636,7 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2879,7 +2879,7 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -3070,7 +3070,7 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -3274,7 +3274,7 @@ pub mod fulfill_order {
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
         let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -3438,7 +3438,7 @@ pub mod fulfill_order {
 
         let mut taker_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -3606,7 +3606,7 @@ pub mod fulfill_order {
     //
     //     let mut taker_stats = UserStats::default();
     //
-    //     let (base_asset_amount, _, _) = fulfill_perp_order(
+    //     let (base_asset_amount, _) = fulfill_perp_order(
     //         &mut taker,
     //         0,
     //         &taker_key,
@@ -3839,7 +3839,7 @@ pub mod fulfill_order {
 
         let taker_before = taker;
         let maker_before = maker;
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
