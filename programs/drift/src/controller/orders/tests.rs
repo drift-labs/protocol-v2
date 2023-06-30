@@ -5265,7 +5265,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -5364,7 +5364,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -5463,7 +5463,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -5562,7 +5562,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -5661,7 +5661,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -5798,7 +5798,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6307,7 +6307,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6404,7 +6404,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6501,7 +6501,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6598,7 +6598,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6695,7 +6695,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6792,7 +6792,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6889,7 +6889,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6986,7 +6986,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -7083,7 +7083,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
