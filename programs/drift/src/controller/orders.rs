@@ -853,7 +853,7 @@ pub fn fill_perp_order(
     makers_and_referrer_stats: &UserStatsMap,
     jit_maker_order_id: Option<u32>,
     clock: &Clock,
-) -> DriftResult<(u64, bool)> {
+) -> DriftResult<u64> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
 
@@ -909,7 +909,7 @@ pub fn fill_perp_order(
 
     if user.is_bankrupt() {
         msg!("user is bankrupt");
-        return Ok((0, false));
+        return Ok(0);
     }
 
     match validate_user_not_being_liquidated(
@@ -922,7 +922,7 @@ pub fn fill_perp_order(
         Ok(_) => {}
         Err(_) => {
             msg!("user is being liquidated");
-            return Ok((0, false));
+            return Ok(0);
         }
     }
 
@@ -1044,41 +1044,38 @@ pub fn fill_perp_order(
             false,
         )?;
 
-        return Ok((0, true));
+        return Ok(0);
     }
 
-    let (base_asset_amount, potentially_risk_increasing, mut updated_user_state) =
-        fulfill_perp_order(
-            user,
-            order_index,
-            &user_key,
-            user_stats,
-            makers_and_referrer,
-            makers_and_referrer_stats,
-            &maker_orders_info,
-            &mut filler.as_deref_mut(),
-            &filler_key,
-            &mut filler_stats.as_deref_mut(),
-            referrer_info,
-            spot_market_map,
-            perp_market_map,
-            oracle_map,
-            &state.perp_fee_structure,
-            reserve_price_before,
-            valid_oracle_price,
-            now,
-            slot,
-            state.min_perp_auction_duration,
-            amm_is_available,
-        )?;
+    let (base_asset_amount, _quote_asset_amount, potentially_risk_increasing) = fulfill_perp_order(
+        user,
+        order_index,
+        &user_key,
+        user_stats,
+        makers_and_referrer,
+        makers_and_referrer_stats,
+        &maker_orders_info,
+        &mut filler.as_deref_mut(),
+        &filler_key,
+        &mut filler_stats.as_deref_mut(),
+        referrer_info,
+        spot_market_map,
+        perp_market_map,
+        oracle_map,
+        &state.perp_fee_structure,
+        reserve_price_before,
+        valid_oracle_price,
+        now,
+        slot,
+        state.min_perp_auction_duration,
+        amm_is_available,
+    )?;
 
     let base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
     let should_cancel_reduce_only =
         should_cancel_reduce_only_order(&user.orders[order_index], base_asset_amount_after)?;
 
     if should_cancel_reduce_only {
-        updated_user_state = true;
-
         let filler_reward = {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
             pay_keeper_flat_reward_for_perps(
@@ -1108,8 +1105,8 @@ pub fn fill_perp_order(
         )?
     }
 
-    if !updated_user_state {
-        return Ok((base_asset_amount, updated_user_state));
+    if base_asset_amount == 0 {
+        return Ok(0);
     }
 
     {
@@ -1152,7 +1149,7 @@ pub fn fill_perp_order(
 
     user.update_last_active_slot(slot);
 
-    Ok((base_asset_amount, updated_user_state))
+    Ok(base_asset_amount)
 }
 
 pub fn validate_market_within_price_band(
@@ -1448,7 +1445,7 @@ fn fulfill_perp_order(
     slot: u64,
     min_auction_duration: u8,
     amm_is_available: bool,
-) -> DriftResult<(u64, bool, bool)> {
+) -> DriftResult<(u64, u64, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
     let user_position_index = get_position_index(&user.perp_positions, market_index)?;
@@ -1474,7 +1471,7 @@ fn fulfill_perp_order(
     };
 
     if fulfillment_methods.is_empty() {
-        return Ok((0, false, false));
+        return Ok((0, 0, false));
     }
 
     let mut base_asset_amount = 0_u64;
@@ -1636,9 +1633,7 @@ fn fulfill_perp_order(
         || position_base_asset_amount_before.signum() != position_base_asset_amount_after.signum()
         || position_base_asset_amount_before.abs() < position_base_asset_amount_after.abs();
 
-    let updated_user_state = base_asset_amount != 0;
-
-    Ok((base_asset_amount, risk_increasing, updated_user_state))
+    Ok((base_asset_amount, quote_asset_amount, risk_increasing))
 }
 
 #[allow(clippy::type_complexity)]
