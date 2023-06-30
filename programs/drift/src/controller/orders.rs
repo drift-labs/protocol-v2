@@ -3258,7 +3258,7 @@ pub fn fill_spot_order(
         return Ok(0);
     }
 
-    let (base_asset_amount, _updated_user_state) = fulfill_spot_order(
+    let (base_asset_amount, _quote_asset_amount) = fulfill_spot_order(
         user,
         order_index,
         &user_key,
@@ -3528,7 +3528,7 @@ fn fulfill_spot_order(
     slot: u64,
     fee_structure: &FeeStructure,
     fulfillment_params: &mut dyn SpotFulfillmentParams,
-) -> DriftResult<(u64, bool)> {
+) -> DriftResult<(u64, u64)> {
     let base_market_index = user.orders[user_order_index].market_index;
 
     let fulfillment_methods = determine_spot_fulfillment_methods(
@@ -3541,12 +3541,13 @@ fn fulfill_spot_order(
     let mut base_market = spot_market_map.get_ref_mut(&base_market_index)?;
 
     let mut base_asset_amount = 0_u64;
+    let mut quote_asset_amount = 0_u64;
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
             break;
         }
 
-        let base_filled = match fulfillment_method {
+        let (base_filled, quote_filled) = match fulfillment_method {
             SpotFulfillmentMethod::Match => fulfill_spot_order_with_match(
                 &mut base_market,
                 &mut quote_market,
@@ -3585,6 +3586,7 @@ fn fulfill_spot_order(
         };
 
         base_asset_amount = base_asset_amount.safe_add(base_filled)?;
+        quote_asset_amount = quote_asset_amount.safe_add(quote_filled)?;
     }
 
     let initial_margin_ratio = base_market.get_margin_ratio(&MarginRequirementType::Initial)?;
@@ -3638,7 +3640,7 @@ fn fulfill_spot_order(
         }
     }
 
-    Ok((base_asset_amount, base_asset_amount != 0))
+    Ok((base_asset_amount, quote_asset_amount))
 }
 
 pub fn fulfill_spot_order_with_match(
@@ -3659,12 +3661,12 @@ pub fn fulfill_spot_order_with_match(
     slot: u64,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-) -> DriftResult<u64> {
+) -> DriftResult<(u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
         &taker.orders[taker_order_index],
     ) {
-        return Ok(0_u64);
+        return Ok((0_u64, 0_u64));
     }
 
     let market_index = taker.orders[taker_order_index].market_index;
@@ -3677,7 +3679,7 @@ pub fn fulfill_spot_order_with_match(
     )? {
         Some(price) => price,
         None => {
-            return Ok(0_u64);
+            return Ok((0_u64, 0_u64));
         }
     };
 
@@ -3716,7 +3718,7 @@ pub fn fulfill_spot_order_with_match(
             maker_price,
             taker_price
         );
-        return Ok(0_u64);
+        return Ok((0_u64, 0_u64));
     }
 
     let (taker_max_base_asset_amount, taker_max_quote_asset_amount) =
@@ -3768,7 +3770,7 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     if base_asset_amount == 0 {
-        return Ok(0_u64);
+        return Ok((0_u64, 0_u64));
     }
 
     let base_precision = base_market.get_precision();
@@ -3988,7 +3990,7 @@ pub fn fulfill_spot_order_with_match(
         maker.spot_positions[maker_spot_position_index].open_orders -= 1;
     }
 
-    Ok(base_asset_amount)
+    Ok((base_asset_amount, quote_asset_amount))
 }
 
 pub fn fulfill_spot_order_with_external_market(
@@ -4006,7 +4008,7 @@ pub fn fulfill_spot_order_with_external_market(
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
     fulfillment_params: &mut dyn SpotFulfillmentParams,
-) -> DriftResult<u64> {
+) -> DriftResult<(u64, u64)> {
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
     let taker_price = taker.orders[taker_order_index].get_limit_price(
         Some(oracle_price),
@@ -4081,7 +4083,7 @@ pub fn fulfill_spot_order_with_external_market(
                     ask.safe_add(ask / 100)?
                 } else {
                     msg!("External market has no ask");
-                    return Ok(0);
+                    return Ok((0, 0));
                 }
             }
             PositionDirection::Short => {
@@ -4089,7 +4091,7 @@ pub fn fulfill_spot_order_with_external_market(
                     bid.safe_sub(bid / 100)?
                 } else {
                     msg!("External market has no bid");
-                    return Ok(0);
+                    return Ok((0, 0));
                 }
             }
         }
@@ -4111,7 +4113,7 @@ pub fn fulfill_spot_order_with_external_market(
     )?;
 
     if base_asset_amount_filled == 0 {
-        return Ok(0);
+        return Ok((0, 0));
     }
 
     update_spot_balances(
@@ -4282,7 +4284,7 @@ pub fn fulfill_spot_order_with_external_market(
             .open_orders -= 1;
     }
 
-    Ok(base_asset_amount_filled)
+    Ok((base_asset_amount_filled, quote_asset_amount_filled))
 }
 
 pub fn trigger_spot_order(
