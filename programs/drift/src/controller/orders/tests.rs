@@ -7121,6 +7121,7 @@ pub mod fulfill_spot_order {
         LAMPORTS_PER_SOL_I64, LAMPORTS_PER_SOL_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_fulfillment_params::TestFulfillmentParams;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -7333,12 +7334,14 @@ pub mod fulfill_spot_order {
             market_index: 1,
             deposit_balance: SPOT_BALANCE_PRECISION,
             oracle: oracle_price_key,
+            historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);
         let mut second_base_market = SpotMarket {
             market_index: 2,
             deposit_balance: SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(

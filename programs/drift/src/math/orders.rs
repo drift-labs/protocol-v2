@@ -401,6 +401,88 @@ pub fn limit_price_breaches_oracle_price_bands(
     }
 }
 
+pub fn validate_fill_price_within_price_bands(
+    fill_price: u64,
+    direction: PositionDirection,
+    oracle_price: i64,
+    oracle_twap_5min: i64,
+    margin_ratio_initial: u32,
+) -> DriftResult {
+    let oracle_price = oracle_price.unsigned_abs();
+    let oracle_twap_5min = oracle_twap_5min.unsigned_abs();
+
+    let max_oracle_diff = margin_ratio_initial.cast::<u128>()?;
+    let max_oracle_twap_diff = MARGIN_PRECISION_U128 / 2; // 50%
+
+    if direction == PositionDirection::Long {
+        if fill_price < oracle_price && fill_price < oracle_twap_5min {
+            return Ok(());
+        }
+
+        let percent_diff = fill_price
+            .saturating_sub(oracle_price)
+            .cast::<u128>()?
+            .safe_mul(MARGIN_PRECISION_U128)?
+            .safe_div(oracle_price.cast()?)?;
+
+        validate!(
+            percent_diff < max_oracle_diff,
+            ErrorCode::PriceBandsBreached,
+            "Fill Price Breaches Oracle Price Bands: {} >= {}",
+            fill_price,
+            oracle_price
+        )?;
+
+        let percent_diff = fill_price
+            .saturating_sub(oracle_twap_5min)
+            .cast::<u128>()?
+            .safe_mul(MARGIN_PRECISION_U128)?
+            .safe_div(oracle_twap_5min.cast()?)?;
+
+        validate!(
+            percent_diff < max_oracle_twap_diff,
+            ErrorCode::PriceBandsBreached,
+            "Fill Price Breaches Oracle TWAP Price Bands: {} >= {}",
+            fill_price,
+            oracle_twap_5min
+        )?;
+    } else {
+        if fill_price > oracle_price && fill_price > oracle_twap_5min {
+            return Ok(());
+        }
+
+        let percent_diff = oracle_price
+            .saturating_sub(fill_price)
+            .cast::<u128>()?
+            .safe_mul(MARGIN_PRECISION_U128)?
+            .safe_div(oracle_price.cast()?)?;
+
+        validate!(
+            percent_diff < max_oracle_diff,
+            ErrorCode::PriceBandsBreached,
+            "Fill Price Breaches Oracle Price Bands: {} <= {}",
+            fill_price,
+            oracle_price
+        )?;
+
+        let percent_diff = oracle_twap_5min
+            .saturating_sub(fill_price)
+            .cast::<u128>()?
+            .safe_mul(MARGIN_PRECISION_U128)?
+            .safe_div(oracle_twap_5min.cast()?)?;
+
+        validate!(
+            percent_diff < max_oracle_twap_diff,
+            ErrorCode::PriceBandsBreached,
+            "Fill Price Breaches Oracle TWAP Price Bands: {} <= {}",
+            fill_price,
+            oracle_twap_5min
+        )?;
+    }
+
+    Ok(())
+}
+
 pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> DriftResult<bool> {
     match order.trigger_condition {
         OrderTriggerCondition::Above => Ok(oracle_price > order.trigger_price),
@@ -502,11 +584,11 @@ pub fn validate_fill_price(
         quote_asset_amount
     };
 
-    let fill_price = rounded_quote_asset_amount
-        .cast::<u128>()?
-        .safe_mul(base_precision as u128)?
-        .safe_div(base_asset_amount.cast()?)?
-        .cast::<u64>()?;
+    let fill_price = calculate_fill_price(
+        rounded_quote_asset_amount,
+        base_asset_amount,
+        base_precision,
+    )?;
 
     if order_direction == PositionDirection::Long && fill_price > order_limit_price {
         msg!(
@@ -533,6 +615,18 @@ pub fn validate_fill_price(
     }
 
     Ok(())
+}
+
+pub fn calculate_fill_price(
+    quote_asset_amount: u64,
+    base_asset_amount: u64,
+    base_precision: u64,
+) -> DriftResult<u64> {
+    quote_asset_amount
+        .cast::<u128>()?
+        .safe_mul(base_precision as u128)?
+        .safe_div(base_asset_amount.cast()?)?
+        .cast::<u64>()
 }
 
 pub fn get_fallback_price(

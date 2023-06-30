@@ -868,8 +868,13 @@ pub fn fill_perp_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, market_index, order_market_type) =
-        get_struct_values!(user.orders[order_index], status, market_index, market_type);
+    let (order_status, market_index, order_market_type, order_direction) = get_struct_values!(
+        user.orders[order_index],
+        status,
+        market_index,
+        market_type,
+        direction
+    );
 
     validate!(
         order_market_type == MarketType::Perp,
@@ -927,10 +932,10 @@ pub fn fill_perp_order(
     }
 
     let reserve_price_before: u64;
-    let oracle_reserve_price_spread_pct_before: i64;
     let is_oracle_valid: bool;
     let oracle_validity: OracleValidity;
     let oracle_price: i64;
+    let oracle_twap_5min: i64;
     let mut amm_is_available = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
@@ -953,11 +958,11 @@ pub fn fill_perp_order(
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmm))?;
 
         reserve_price_before = market.amm.reserve_price()?;
-        oracle_reserve_price_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
-            &market.amm,
-            Some(reserve_price_before),
-        )?;
         oracle_price = oracle_price_data.price;
+        oracle_twap_5min = market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min;
     }
 
     // allow oracle price to be used to calculate limit price if it's valid or stale for amm
@@ -1047,7 +1052,7 @@ pub fn fill_perp_order(
         return Ok(0);
     }
 
-    let (base_asset_amount, _quote_asset_amount, potentially_risk_increasing) = fulfill_perp_order(
+    let (base_asset_amount, quote_asset_amount, _potentially_risk_increasing) = fulfill_perp_order(
         user,
         order_index,
         &user_key,
@@ -1070,6 +1075,19 @@ pub fn fill_perp_order(
         state.min_perp_auction_duration,
         amm_is_available,
     )?;
+
+    if base_asset_amount != 0 {
+        let fill_price =
+            calculate_fill_price(quote_asset_amount, base_asset_amount, BASE_PRECISION_U64)?;
+
+        validate_fill_price_within_price_bands(
+            fill_price,
+            order_direction,
+            oracle_price,
+            oracle_twap_5min,
+            perp_market_map.get_ref(&market_index)?.margin_ratio_initial,
+        )?;
+    }
 
     let base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
     let should_cancel_reduce_only =
@@ -1111,12 +1129,6 @@ pub fn fill_perp_order(
 
     {
         let market = perp_market_map.get_ref(&market_index)?;
-        validate_market_within_price_band(
-            &market,
-            state,
-            potentially_risk_increasing,
-            Some(oracle_reserve_price_spread_pct_before),
-        )?;
 
         let open_interest = market.get_open_interest();
         let max_open_interest = market.amm.max_open_interest;
@@ -1571,6 +1583,14 @@ fn fulfill_perp_order(
             .amm
             .update_volume_24h(fill_quote_asset_amount, user_order_direction, now)?;
     }
+
+    validate!(
+        (base_asset_amount > 0) == (quote_asset_amount > 0),
+        ErrorCode::DefaultError,
+        "invalid fill base = {} quote = {}",
+        base_asset_amount,
+        quote_asset_amount
+    )?;
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
     let taker_maintenance_margin_buffer = calculate_maintenance_buffer_ratio(
@@ -3084,8 +3104,13 @@ pub fn fill_spot_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, order_market_index, order_market_type) =
-        get_struct_values!(user.orders[order_index], status, market_index, market_type);
+    let (order_status, order_market_index, order_market_type, order_direction) = get_struct_values!(
+        user.orders[order_index],
+        status,
+        market_index,
+        market_type,
+        direction
+    );
 
     {
         let spot_market = spot_market_map.get_ref(&order_market_index)?;
@@ -3210,7 +3235,7 @@ pub fn fill_spot_order(
         return Ok(0);
     }
 
-    let (base_asset_amount, _quote_asset_amount) = fulfill_spot_order(
+    let (base_asset_amount, quote_asset_amount) = fulfill_spot_order(
         user,
         order_index,
         &user_key,
@@ -3230,6 +3255,27 @@ pub fn fill_spot_order(
         &state.spot_fee_structure,
         fulfillment_params,
     )?;
+
+    if base_asset_amount != 0 {
+        let spot_market = spot_market_map.get_ref(&order_market_index)?;
+        let fill_price = calculate_fill_price(
+            quote_asset_amount,
+            base_asset_amount,
+            spot_market.get_precision(),
+        )?;
+
+        let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
+        let oracle_twap_5min = spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min;
+        validate_fill_price_within_price_bands(
+            fill_price,
+            order_direction,
+            oracle_price,
+            oracle_twap_5min,
+            spot_market.get_margin_ratio(&MarginRequirementType::Initial)?,
+        )?;
+    }
 
     let is_open = user.orders[order_index].status == OrderStatus::Open;
     let is_reduce_only = user.orders[order_index].reduce_only;
