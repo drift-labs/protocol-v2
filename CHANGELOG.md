@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add additional withdraw/borrow guards around fast utilization changes (([#517](https://github.com/drift-labs/protocol-v2/pull/517)))
+
 ### Fixes
 
 ### Breaking
@@ -32,7 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - ts-sdk: remove user.getSpotTokenAmount as its a duplicate
 - ts-sdk: remove RetrySender dependency on Provider (([#497](https://github.com/drift-labs/protocol-v2/pull/497)))
-
 
 ## [2.31.0] - 2023-06-06
 
