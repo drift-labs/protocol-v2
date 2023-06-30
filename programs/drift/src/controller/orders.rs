@@ -3572,6 +3572,14 @@ fn fulfill_spot_order(
         quote_asset_amount = quote_asset_amount.safe_add(quote_filled)?;
     }
 
+    validate!(
+        (base_asset_amount > 0) == (quote_asset_amount > 0),
+        ErrorCode::DefaultError,
+        "invalid fill base = {} quote = {}",
+        base_asset_amount,
+        quote_asset_amount
+    )?;
+
     let initial_margin_ratio = base_market.get_margin_ratio(&MarginRequirementType::Initial)?;
     let maintenance_margin_ratio =
         base_market.get_margin_ratio(&MarginRequirementType::Maintenance)?;
