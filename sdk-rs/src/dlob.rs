@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 
 use anchor_lang::prelude::Pubkey;
@@ -273,6 +272,7 @@ pub struct Dlob {
     dlob_init: bool,
     perp_order_lists: HashMap<u16, NodeLists>, // market index -> list of orders
     spot_order_lists: HashMap<u16, NodeLists>, // market index -> list of orders
+    max_slot_for_resting_limit_orders: u64,
 }
 
 impl Dlob {
@@ -499,7 +499,13 @@ impl Dlob {
         Ok(())
     }
 
-    fn insert_order(&mut self, slot: u64, user: Pubkey, order: Order) -> Result<(), anyhow::Error> {
+    /// Insert an order into the DLOB
+    pub fn insert_order(
+        &mut self,
+        slot: u64,
+        user: Pubkey,
+        order: Order,
+    ) -> Result<(), anyhow::Error> {
         assert!(self.dlob_init, "must call load() first");
 
         match order.status {
@@ -549,6 +555,60 @@ impl Dlob {
 
         Ok(())
     }
+
+    fn update_resting_limit_orders(&mut self, slot: u64) {
+        if slot <= self.max_slot_for_resting_limit_orders {
+            return;
+        }
+
+        self.max_slot_for_resting_limit_orders = slot;
+
+        self.perp_order_lists.iter_mut().for_each(|(_, list)| {
+            list.taking_limit.bid.retain(|node| {
+                if !node.order().is_resting_limit_order(slot).unwrap() {
+                    list.resting_limit.bid.push(*node);
+                    return true;
+                } else {
+                    return false;
+                }
+            });
+            list.taking_limit.ask.retain(|node| {
+                if !node.order().is_resting_limit_order(slot).unwrap() {
+                    list.resting_limit.ask.push(*node);
+                    return true;
+                } else {
+                    return false;
+                }
+            });
+        });
+    }
+
+    pub fn get_taking_bids<'a>(
+        &'a mut self,
+        market_index: u16,
+        market_type: MarketType,
+        slot: u64,
+        oracle_price_data: OraclePriceData,
+    ) -> impl Iterator<Item = Box<dyn DlobNode>> + 'a {
+        self.update_resting_limit_orders(slot);
+
+        let mut order_list = match market_type {
+            MarketType::Perp => self.perp_order_lists.get(&market_index).unwrap(),
+            MarketType::Spot => self.spot_order_lists.get(&market_index).unwrap(),
+        };
+
+        // let bid_stream = stream::iter(list.market.bid.drain(..).map(Box::new));
+        // let taking_bid_stream = stream::iter(list.taking_limit.bid.drain(..).map(Box::new));
+
+        // merge the 2 iters
+        order_list
+            .market
+            .bid
+            .into_iter()
+            .merge_by(order_list.taking_limit.bid.iter(), |a, b| {
+                a.get_sort_value() > b.get_sort_value()
+            })
+    }
 }
 
 pub struct DlobBuilder {
@@ -582,6 +642,7 @@ impl DlobBuilder {
             dlob_init: false,
             perp_order_lists: HashMap::new(),
             spot_order_lists: HashMap::new(),
+            max_slot_for_resting_limit_orders: 0,
         })
     }
 }
