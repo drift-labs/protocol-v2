@@ -1473,9 +1473,10 @@ fn fulfill_perp_order(
             maker_orders_info,
             &market.amm,
             reserve_price_before,
-            Some(oracle_price),
+            oracle_price,
             amm_is_available,
             slot,
+            market.margin_ratio_initial,
             min_auction_duration,
         )?
     };
@@ -3533,6 +3534,32 @@ fn fulfill_spot_order(
 
     let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
     let mut base_market = spot_market_map.get_ref_mut(&base_market_index)?;
+
+    let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
+    let taker_price = user.orders[user_order_index].get_limit_price(
+        Some(oracle_price),
+        None,
+        slot,
+        base_market.order_tick_size,
+    )?;
+
+    if let Some(taker_price) = taker_price {
+        let may_breach_price_band = validate_fill_price_within_price_bands(
+            taker_price,
+            user.orders[user_order_index].direction,
+            oracle_price,
+            base_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
+            base_market.get_margin_ratio(&MarginRequirementType::Initial)?,
+        )
+        .is_err();
+
+        if may_breach_price_band {
+            msg!("Cant fill because taker price may breach price band");
+            return Ok((0, 0));
+        }
+    }
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;

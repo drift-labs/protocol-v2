@@ -2,9 +2,11 @@ use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::matching::do_orders_cross;
+use crate::math::orders::validate_fill_price_within_price_bands;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::perp_market::AMM;
 use crate::state::user::Order;
+use solana_program::msg;
 use solana_program::pubkey::Pubkey;
 
 #[cfg(test)]
@@ -15,19 +17,35 @@ pub fn determine_perp_fulfillment_methods(
     maker_orders_info: &[(Pubkey, usize, u64)],
     amm: &AMM,
     amm_reserve_price: u64,
-    valid_oracle_price: Option<i64>,
+    oracle_price: i64,
     amm_is_available: bool,
     slot: u64,
+    margin_ratio_initial: u32,
     min_auction_duration: u8,
 ) -> DriftResult<Vec<PerpFulfillmentMethod>> {
     let mut fulfillment_methods = Vec::with_capacity(8);
 
     let can_fill_with_amm = amm_is_available
-        && valid_oracle_price.is_some()
         && is_amm_available_liquidity_source(taker_order, min_auction_duration, slot)?;
 
     let taker_price =
-        taker_order.get_limit_price(valid_oracle_price, None, slot, amm.order_tick_size)?;
+        taker_order.get_limit_price(Some(oracle_price), None, slot, amm.order_tick_size)?;
+
+    if let Some(taker_price) = taker_price {
+        let may_breach_price_bands = validate_fill_price_within_price_bands(
+            taker_price,
+            taker_order.direction,
+            oracle_price,
+            amm.historical_oracle_data.last_oracle_price_twap_5min,
+            margin_ratio_initial,
+        )
+        .is_err();
+
+        if may_breach_price_bands {
+            msg!("Cant fill order as limit price may breach price bands");
+            return Ok(fulfillment_methods);
+        }
+    }
 
     let maker_direction = taker_order.direction.opposite();
 
