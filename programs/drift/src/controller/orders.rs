@@ -15,6 +15,7 @@ use crate::controller::position::{
 };
 use crate::controller::spot_balance::{
     transfer_spot_balance_to_revenue_pool, update_spot_balances,
+    update_spot_market_cumulative_interest,
 };
 use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
@@ -3147,6 +3148,16 @@ pub fn fill_spot_order(
             msg!("User is being liquidated");
             return Ok(0);
         }
+    }
+
+    {
+        let mut base_market = spot_market_map.get_ref_mut(&order_market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&base_market.oracle)?;
+        update_spot_market_cumulative_interest(&mut base_market, Some(oracle_price_data), now)?;
+
+        let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
+        let oracle_price_data = oracle_map.get_price_data(&quote_market.oracle)?;
+        update_spot_market_cumulative_interest(&mut quote_market, Some(oracle_price_data), now)?;
     }
 
     let is_filler_taker = user_key == filler_key;
