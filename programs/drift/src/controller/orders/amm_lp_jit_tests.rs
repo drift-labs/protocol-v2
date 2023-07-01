@@ -299,7 +299,7 @@ pub mod amm_lp_jit {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 6);
+        let mut oracle_price = get_pyth_price(21, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -333,9 +333,9 @@ pub mod amm_lp_jit {
                 long_spread: 20000,
                 short_spread: 20000,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price: (21 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (21 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (21 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -343,7 +343,7 @@ pub mod amm_lp_jit {
                 concentration_coef: CONCENTRATION_PRECISION + 1,
                 ..AMM::default()
             },
-            margin_ratio_initial: 10000,
+            margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Active,
             ..PerpMarket::default_test()
@@ -2410,7 +2410,7 @@ pub mod amm_lp_jit {
                 },
                 ..AMM::default()
             },
-            margin_ratio_initial: 10000,
+            margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
@@ -2690,7 +2690,7 @@ pub mod amm_lp_jit {
 
                 ..AMM::default()
             },
-            margin_ratio_initial: 10000,
+            margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()

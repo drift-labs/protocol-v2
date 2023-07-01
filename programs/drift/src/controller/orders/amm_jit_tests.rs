@@ -2400,7 +2400,7 @@ pub mod amm_jit {
                 },
                 ..AMM::default()
             },
-            margin_ratio_initial: 10000,
+            margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
@@ -2680,7 +2680,7 @@ pub mod amm_jit {
 
                 ..AMM::default()
             },
-            margin_ratio_initial: 10000,
+            margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()

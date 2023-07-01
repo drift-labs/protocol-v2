@@ -3655,7 +3655,6 @@ pub mod fulfill_order {
                 order_tick_size: 1,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: 100 * PRICE_PRECISION_I64,
-                    last_oracle_price_twap_5min: 100 * PRICE_PRECISION_I64,
                     ..HistoricalOracleData::default()
                 },
                 max_slippage_ratio: 50,
@@ -3682,7 +3681,6 @@ pub mod fulfill_order {
                 order_tick_size: 1,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: 20000 * PRICE_PRECISION_I64,
-                    last_oracle_price_twap_5min: 20000 * PRICE_PRECISION_I64,
                     ..HistoricalOracleData::default()
                 },
                 max_slippage_ratio: 50,
