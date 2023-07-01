@@ -1009,6 +1009,16 @@ pub fn fill_perp_order(
         slot,
     )?;
 
+    let oracle_too_divergent_with_twap_5min =
+        is_oracle_too_divergent_with_twap_5min(oracle_price, oracle_twap_5min)?;
+    if oracle_too_divergent_with_twap_5min {
+        // update filler last active so tx doesn't revert
+        if let Some(filler) = filler.as_deref_mut() {
+            filler.update_last_active_slot(slot);
+        }
+        return Ok(0);
+    }
+
     let should_expire_order = should_expire_order(user, order_index, now)?;
 
     let position_index =
@@ -3150,16 +3160,6 @@ pub fn fill_spot_order(
         }
     }
 
-    {
-        let mut base_market = spot_market_map.get_ref_mut(&order_market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&base_market.oracle)?;
-        update_spot_market_cumulative_interest(&mut base_market, Some(oracle_price_data), now)?;
-
-        let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
-        let oracle_price_data = oracle_map.get_price_data(&quote_market.oracle)?;
-        update_spot_market_cumulative_interest(&mut quote_market, Some(oracle_price_data), now)?;
-    }
-
     let is_filler_taker = user_key == filler_key;
     let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
@@ -3189,6 +3189,32 @@ pub fn fill_spot_order(
         now,
         slot,
     )?;
+
+    {
+        let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
+        let oracle_price_data = oracle_map.get_price_data(&quote_market.oracle)?;
+        update_spot_market_cumulative_interest(&mut quote_market, Some(oracle_price_data), now)?;
+
+        let mut base_market = spot_market_map.get_ref_mut(&order_market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&base_market.oracle)?;
+        update_spot_market_cumulative_interest(&mut base_market, Some(oracle_price_data), now)?;
+
+        let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
+            oracle_price_data.price,
+            base_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
+        )?;
+
+        if oracle_too_divergent_with_twap_5min {
+            // update filler last active so tx doesn't revert
+            if let Some(filler) = filler.as_mut() {
+                filler.update_last_active_slot(slot);
+            }
+
+            return Ok(0);
+        }
+    }
 
     let should_expire_order = should_expire_order(user, order_index, now)?;
 

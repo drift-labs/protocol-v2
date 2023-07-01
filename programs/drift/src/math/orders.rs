@@ -10,8 +10,8 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
 use crate::{
-    math, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PRICE_PRECISION_I128,
-    QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+    math, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION_U64,
+    PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -481,6 +481,31 @@ pub fn validate_fill_price_within_price_bands(
     }
 
     Ok(())
+}
+
+pub fn is_oracle_too_divergent_with_twap_5min(
+    oracle_price: i64,
+    oracle_twap_5min: i64,
+) -> DriftResult<bool> {
+    let precision = PERCENTAGE_PRECISION_U64.cast::<i64>()?;
+    let max_diff = precision / 2; // 50%
+
+    let percent_diff = oracle_price
+        .safe_sub(oracle_twap_5min)?
+        .abs()
+        .safe_mul(precision)?
+        .safe_div(oracle_twap_5min.abs())?;
+
+    let too_divergent = percent_diff >= max_diff;
+    if too_divergent {
+        msg!(
+            "Oracle Price Too Divergent from TWAP 5min. oracle: {} twap: {}",
+            oracle_price,
+            oracle_twap_5min
+        );
+    }
+
+    Ok(too_divergent)
 }
 
 pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> DriftResult<bool> {

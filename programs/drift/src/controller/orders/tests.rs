@@ -4401,6 +4401,7 @@ pub mod fill_order {
                 order_tick_size: 1,
                 max_base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
                 min_base_asset_reserve: 50 * AMM_RESERVE_PRECISION,
+                historical_oracle_data: HistoricalOracleData::default_price(PRICE_PRECISION_I64),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -7589,6 +7590,7 @@ pub mod fill_spot_order {
         LAMPORTS_PER_SOL_I64, LAMPORTS_PER_SOL_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_fulfillment_params::TestFulfillmentParams;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -7626,6 +7628,7 @@ pub mod fill_spot_order {
 
         let mut base_market = SpotMarket {
             deposit_balance: SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(PRICE_PRECISION_I64),
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);
@@ -9324,122 +9327,5 @@ pub mod get_maker_orders_info {
         .unwrap();
 
         assert_eq!(maker_order_price_and_indexes.len(), 64);
-    }
-}
-
-pub mod validate_fill_price_within_price_bands {
-    use crate::math::orders::validate_fill_price_within_price_bands;
-    use crate::{PositionDirection, MARGIN_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
-
-    #[test]
-    fn valid_long() {
-        let oracle_price = 100 * PRICE_PRECISION_I64;
-        let twap = oracle_price;
-        let fill_price = 105 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Long;
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-
-        assert!(validate_fill_price_within_price_bands(
-            fill_price,
-            direction,
-            oracle_price,
-            twap,
-            margin_ratio_initial,
-        )
-        .is_ok())
-    }
-
-    #[test]
-    fn valid_short() {
-        let oracle_price = 100 * PRICE_PRECISION_I64;
-        let twap = oracle_price;
-        let fill_price = 95 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Short;
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-
-        assert!(validate_fill_price_within_price_bands(
-            fill_price,
-            direction,
-            oracle_price,
-            twap,
-            margin_ratio_initial,
-        )
-        .is_ok())
-    }
-
-    #[test]
-    fn invalid_long_breaches_oracle() {
-        let oracle_price = 100 * PRICE_PRECISION_I64;
-        let twap = oracle_price;
-        // 11% greater than oracle price
-        let fill_price = 111 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Long;
-        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
-
-        assert!(validate_fill_price_within_price_bands(
-            fill_price,
-            direction,
-            oracle_price,
-            twap,
-            margin_ratio_initial,
-        )
-        .is_err())
-    }
-
-    #[test]
-    fn invalid_short_breaches_oracle() {
-        let oracle_price = 100 * PRICE_PRECISION_I64;
-        let twap = oracle_price;
-        // 11% less than oracle price
-        let fill_price = 89 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Short;
-        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
-
-        assert!(validate_fill_price_within_price_bands(
-            fill_price,
-            direction,
-            oracle_price,
-            twap,
-            margin_ratio_initial,
-        )
-        .is_err())
-    }
-
-    #[test]
-    fn invalid_long_breaches_oracle_twap() {
-        let oracle_price = 150 * PRICE_PRECISION_I64;
-        let twap = 100 * PRICE_PRECISION_I64;
-        // 50% greater than twap
-        let fill_price = 150 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Long;
-        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
-
-        assert!(validate_fill_price_within_price_bands(
-            fill_price,
-            direction,
-            oracle_price,
-            twap,
-            margin_ratio_initial,
-        )
-        .is_err())
-    }
-
-    #[test]
-    fn invalid_short_breaches_oracle_twap() {
-        let oracle_price = 50 * PRICE_PRECISION_I64;
-        let twap = 100 * PRICE_PRECISION_I64;
-        // 50% less than twap
-        let fill_price = 50 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Short;
-        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
-
-        assert!(validate_fill_price_within_price_bands(
-            fill_price,
-            direction,
-            oracle_price,
-            twap,
-            margin_ratio_initial,
-        )
-        .is_err())
     }
 }

@@ -2337,3 +2337,157 @@ mod calculate_max_perp_order_size {
         assert_eq!(max_order_size, 999999999000);
     }
 }
+
+pub mod validate_fill_price_within_price_bands {
+    use crate::math::orders::validate_fill_price_within_price_bands;
+    use crate::{PositionDirection, MARGIN_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+
+    #[test]
+    fn valid_long() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        let fill_price = 105 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Long;
+        let margin_ratio_initial = MARGIN_PRECISION / 10;
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+        )
+        .is_ok())
+    }
+
+    #[test]
+    fn valid_short() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        let fill_price = 95 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Short;
+        let margin_ratio_initial = MARGIN_PRECISION / 10;
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+        )
+        .is_ok())
+    }
+
+    #[test]
+    fn invalid_long_breaches_oracle() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        // 11% greater than oracle price
+        let fill_price = 111 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Long;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn invalid_short_breaches_oracle() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        // 11% less than oracle price
+        let fill_price = 89 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Short;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn invalid_long_breaches_oracle_twap() {
+        let oracle_price = 150 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        // 50% greater than twap
+        let fill_price = 150 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Long;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn invalid_short_breaches_oracle_twap() {
+        let oracle_price = 50 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        // 50% less than twap
+        let fill_price = 50 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Short;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+        )
+        .is_err())
+    }
+}
+
+pub mod is_oracle_too_divergent_with_twap_5min {
+    use crate::math::orders::is_oracle_too_divergent_with_twap_5min;
+    use crate::PRICE_PRECISION_I64;
+
+    #[test]
+    pub fn valid_above() {
+        let oracle_price = 149 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+
+        assert!(!is_oracle_too_divergent_with_twap_5min(oracle_price, twap,).unwrap())
+    }
+
+    #[test]
+    pub fn invalid_above() {
+        let oracle_price = 151 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+
+        assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap,).unwrap())
+    }
+
+    #[test]
+    pub fn valid_below() {
+        let oracle_price = 51 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+
+        assert!(!is_oracle_too_divergent_with_twap_5min(oracle_price, twap,).unwrap())
+    }
+
+    #[test]
+    pub fn invalid_below() {
+        let oracle_price = 49 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+
+        assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap,).unwrap())
+    }
+}
