@@ -311,10 +311,12 @@ impl PerpMarket {
             MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
         };
 
-        if matches!(
-            margin_type,
-            MarginRequirementType::Fill | MarginRequirementType::Initial
-        ) && self.unrealized_pnl_max_imbalance > 0
+        if margin_asset_weight > 0
+            && matches!(
+                margin_type,
+                MarginRequirementType::Fill | MarginRequirementType::Initial
+            )
+            && self.unrealized_pnl_max_imbalance > 0
         {
             let net_unsettled_pnl = amm::calculate_net_user_pnl(
                 &self.amm,
@@ -339,13 +341,17 @@ impl PerpMarket {
             // a larger imf factor -> lower asset weight
             match margin_type {
                 MarginRequirementType::Initial | MarginRequirementType::Fill => {
-                    calculate_size_discount_asset_weight(
-                        unrealized_pnl
-                            .unsigned_abs()
-                            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO)?,
-                        self.unrealized_pnl_imf_factor,
-                        margin_asset_weight,
-                    )?
+                    if margin_asset_weight > 0 {
+                        calculate_size_discount_asset_weight(
+                            unrealized_pnl
+                                .unsigned_abs()
+                                .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO)?,
+                            self.unrealized_pnl_imf_factor,
+                            margin_asset_weight,
+                        )?
+                    } else {
+                        0
+                    }
                 }
                 MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
             }
