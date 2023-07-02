@@ -2342,7 +2342,7 @@ pub fn fulfill_perp_order_with_match(
     }
 
     if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
-        maker.decrement_open_orders(false);
+        maker.decrement_open_orders(maker.orders[maker_order_index].has_auction());
         maker.orders[maker_order_index] = Order::default();
         let market_position = &mut maker.perp_positions[maker_position_index];
         market_position.open_orders -= 1;
@@ -3934,7 +3934,7 @@ pub fn fulfill_spot_order_with_match(
     }
 
     if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
-        maker.decrement_open_orders(false);
+        maker.decrement_open_orders(maker.orders[maker_order_index].has_auction());
         maker.orders[maker_order_index] = Order::default();
         maker.spot_positions[maker_spot_position_index].open_orders -= 1;
     }
