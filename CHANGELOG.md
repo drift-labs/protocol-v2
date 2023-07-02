@@ -11,8 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
-- program: fix decrement_open_orders for makers 
-- program: fix margin calculation of unrealized funding pnl for lps (([#513](https://github.com/drift-labs/protocol-v2/pull/513)))
+- program: fix decrement_open_orders for makers
 
 ### Breaking
 
@@ -23,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 ### Fixes
+
+- program: fix margin calculation of unrealized funding pnl for lps (([#513](https://github.com/drift-labs/protocol-v2/pull/513)))
 
 ### Breaking
 
