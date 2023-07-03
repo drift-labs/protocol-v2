@@ -1839,23 +1839,18 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
 )]
 pub fn handle_deposit_into_spot_market_revenue_pool(
     ctx: Context<RevenuePoolDeposit>,
-    spot_market_index: u16,
     amount: u64,
 ) -> Result<()> {
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
     }
 
-    let clock = Clock::get()?;
-    let state: &Box<Account<'_, State>> = &ctx.accounts.state;
     let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
 
-    controller::spot_balance::update_spot_balances(
+    controller::spot_balance::update_revenue_pool_balances(
         amount.cast::<u128>()?,
         &SpotBalanceType::Deposit,
         &mut spot_market,
-        &mut spot_market.revenue_pool,
-        false,
     )?;
 
     controller::token::receive(

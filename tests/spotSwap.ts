@@ -17,6 +17,8 @@ import {
 	EventSubscriber,
 	OracleSource,
 	OracleInfo,
+	getTokenAmount,
+	SpotBalanceType
 } from '../sdk/src';
 
 import {
@@ -37,6 +39,7 @@ import {
 	getSerumSignerPublicKey,
 	QUOTE_PRECISION,
 } from '../sdk';
+import { ZERO } from '@drift-labs/sdk';
 
 describe('spot swap', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -595,5 +598,35 @@ describe('spot swap', () => {
 			});
 		}
 		assert(failed);
+	});
+
+	it('donate to revenue pool for a great feature!', async () => {
+		const solSpotMarket = takerDriftClient.getSpotMarketAccount(1);
+
+		const solRevPool = getTokenAmount(
+			solSpotMarket.revenuePool.scaledBalance,
+			solSpotMarket,
+			SpotBalanceType.DEPOSIT
+		);
+		assert(solRevPool.eq(ZERO));
+		
+		const charity = new BN(1);
+		await takerDriftClient.depositIntoSpotMarketRevenuePool(
+			1,
+			charity,
+			takerWSOL
+			);
+		await takerDriftClient.fetchAccounts();
+		const solSpotMarketAfter = takerDriftClient.getSpotMarketAccount(1);
+
+		const solRevPoolAfter = getTokenAmount(
+			solSpotMarketAfter.revenuePool.scaledBalance,
+			solSpotMarketAfter,
+			SpotBalanceType.DEPOSIT
+		);
+		assert(solRevPoolAfter.gt(solRevPool));
+		assert(solRevPoolAfter.eq(charity));
+
+
 	});
 });

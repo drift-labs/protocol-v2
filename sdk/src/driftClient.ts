@@ -5487,6 +5487,33 @@ export class DriftClient {
 		);
 	}
 
+	public async depositIntoSpotMarketRevenuePool(
+		marketIndex: number,
+		amount: BN,
+		userTokenAccountPublicKey: PublicKey
+	): Promise<TransactionSignature> {
+		const spotMarket = await this.getSpotMarketAccount(marketIndex);
+		const tx = await this.program.transaction.depositIntoSpotMarketRevenuePool(
+			amount,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						marketIndex
+					),
+					userTokenAccount: userTokenAccountPublicKey,
+					authority: this.wallet.publicKey,
+					spotMarketVault: spotMarket.vault,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public getPerpMarketExtendedInfo(
 		marketIndex: number
 	): PerpMarketExtendedInfo {
