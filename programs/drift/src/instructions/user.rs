@@ -212,7 +212,7 @@ pub fn handle_deposit(
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
 
-    let state: &Box<Account<'_, State>> = &ctx.accounts.state;
+    let state = &ctx.accounts.state;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -1860,6 +1860,8 @@ pub fn handle_deposit_into_spot_market_revenue_pool(
         &ctx.accounts.authority,
         amount,
     )?;
+
+    spot_market.validate_max_token_deposits()?;
 
     Ok(())
 }

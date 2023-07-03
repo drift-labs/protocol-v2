@@ -18,7 +18,7 @@ import {
 	OracleSource,
 	OracleInfo,
 	getTokenAmount,
-	SpotBalanceType
+	SpotBalanceType,
 } from '../sdk/src';
 
 import {
@@ -609,13 +609,13 @@ describe('spot swap', () => {
 			SpotBalanceType.DEPOSIT
 		);
 		assert(solRevPool.eq(ZERO));
-		
+
 		const charity = new BN(1);
 		await takerDriftClient.depositIntoSpotMarketRevenuePool(
 			1,
 			charity,
 			takerWSOL
-			);
+		);
 		await takerDriftClient.fetchAccounts();
 		const solSpotMarketAfter = takerDriftClient.getSpotMarketAccount(1);
 
@@ -626,7 +626,5 @@ describe('spot swap', () => {
 		);
 		assert(solRevPoolAfter.gt(solRevPool));
 		assert(solRevPoolAfter.eq(charity));
-
-
 	});
 });
