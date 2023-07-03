@@ -15,6 +15,8 @@ pub fn calculate_min_deposit_token_amount(
     deposit_token_twap: u128,
     withdraw_guard_threshold: u128,
 ) -> DriftResult<u128> {
+    // minimum deposits permitted for an immediate withdraw
+    // minimum deposit amount lower of 75% of TWAP or withdrawal guard threshold below TWAP
     let min_deposit_token = deposit_token_twap
         .safe_sub((deposit_token_twap / 4).max(withdraw_guard_threshold.min(deposit_token_twap)))?;
 
@@ -26,11 +28,14 @@ pub fn calculate_max_borrow_token_amount(
     borrow_token_twap: u128,
     withdraw_guard_threshold: u128,
 ) -> DriftResult<u128> {
+    // maximum borrows permitted for an immediate withdraw
+    // allows at least up to the withdraw_guard_threshold
+    // and between ~15-80% utilization with friction on twap in 10% increments
     let max_borrow_token = withdraw_guard_threshold.max(
         (deposit_token_amount / 6)
             .max(borrow_token_twap.safe_add(deposit_token_amount / 10)?)
             .min(deposit_token_amount.safe_sub(deposit_token_amount / 5)?),
-    ); // between ~15-80% utilization with friction on twap
+    );
 
     Ok(max_borrow_token)
 }
@@ -40,7 +45,7 @@ pub fn check_user_exception_to_withdraw_limits(
     user: Option<&User>,
     token_amount_withdrawn: Option<u128>,
 ) -> DriftResult<bool> {
-    // allow a smaller user in QUOTE_SPOT_MARKET_INDEX to bypass and withdraw their principal
+    // allow a smaller user in a market to bypass and withdraw their principal
     let mut valid_user_withdraw = false;
     if let Some(user) = user {
         let spot_position = user.get_spot_position(spot_market.market_index)?;
@@ -85,6 +90,11 @@ pub fn calculate_token_utilization_limits(
     borrow_token_amount: u128,
     spot_market: &SpotMarket,
 ) -> DriftResult<(u128, u128)> {
+    // Calculates the allowable minimum deposit and maximum borrow amounts for immediate withdrawal based on market utilization.
+    // First, it determines a maximum withdrawal utilization from the market's target and historic utilization.
+    // Then, it deduces corresponding deposit/borrow amounts.
+    // Note: For deposit sizes below the guard threshold, withdrawals aren't blocked.
+
     let max_withdraw_utilization: u128 = spot_market.optimal_utilization.cast::<u128>()?.max(
         spot_market.utilization_twap.cast::<u128>()?.safe_add(
             SPOT_UTILIZATION_PRECISION
@@ -116,6 +126,8 @@ pub fn check_withdraw_limits(
     user: Option<&User>,
     token_amount_withdrawn: Option<u128>,
 ) -> DriftResult<bool> {
+    // calculates min/max deposit/borrow amounts permitted for immediate withdraw
+    // takes the stricter of absolute caps on level changes and utilization changes vs 24hr moving averrages
     let deposit_token_amount = get_token_amount(
         spot_market.deposit_balance,
         spot_market,
