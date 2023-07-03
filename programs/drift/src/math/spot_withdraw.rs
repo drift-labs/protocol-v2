@@ -191,6 +191,7 @@ pub fn check_withdraw_limits(
 pub fn get_max_withdraw_for_market_with_token_amount(
     spot_market: &SpotMarket,
     token_amount: i128,
+    is_pool_transfer: bool,
 ) -> DriftResult<u128> {
     let deposit_token_amount = get_token_amount(
         spot_market.deposit_balance,
@@ -198,34 +199,39 @@ pub fn get_max_withdraw_for_market_with_token_amount(
         &SpotBalanceType::Deposit,
     )?;
 
-    let mut max_withdraw_amount = 0_u128;
-    if token_amount > 0 {
-        let min_deposit_token = calculate_min_deposit_token_amount(
-            spot_market.deposit_token_twap.cast()?,
-            spot_market.withdraw_guard_threshold.cast()?,
-        )?;
-
-        let withdraw_limit = deposit_token_amount.saturating_sub(min_deposit_token);
-
-        let token_amount = token_amount.unsigned_abs();
-        if withdraw_limit <= token_amount {
-            return Ok(withdraw_limit);
-        }
-
-        max_withdraw_amount = token_amount;
-    }
-
     let borrow_token_amount = get_token_amount(
         spot_market.borrow_balance,
         spot_market,
         &SpotBalanceType::Borrow,
     )?;
 
-    let max_borrow_token = calculate_max_borrow_token_amount(
+    let (min_deposit_token_for_utilization, max_borrow_token_for_utilization) =
+        calculate_token_utilization_limits(deposit_token_amount, borrow_token_amount, spot_market)?;
+
+    let mut max_withdraw_amount = 0_u128;
+    if token_amount > 0 {
+        let min_deposit_token_for_twap = calculate_min_deposit_token_amount(
+            spot_market.deposit_token_twap.cast()?,
+            spot_market.withdraw_guard_threshold.cast()?,
+        )?;
+        let min_deposit_token = min_deposit_token_for_twap.max(min_deposit_token_for_utilization);
+        let withdraw_limit = deposit_token_amount.saturating_sub(min_deposit_token);
+
+        let token_amount = token_amount.unsigned_abs();
+        if withdraw_limit <= token_amount && !is_pool_transfer {
+            return Ok(withdraw_limit);
+        }
+
+        max_withdraw_amount = token_amount;
+    }
+
+    let max_borrow_token_for_twap = calculate_max_borrow_token_amount(
         deposit_token_amount,
         spot_market.borrow_token_twap.cast()?,
         spot_market.withdraw_guard_threshold.cast()?,
     )?;
+
+    let max_borrow_token = max_borrow_token_for_twap.min(max_borrow_token_for_utilization);
 
     let borrow_limit = max_borrow_token
         .saturating_sub(borrow_token_amount)
