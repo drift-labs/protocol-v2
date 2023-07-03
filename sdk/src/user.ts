@@ -2009,9 +2009,6 @@ export class User {
 		const inPrecision = new BN(10 ** inMarket.decimals);
 		const outPrecision = new BN(10 ** outMarket.decimals);
 
-		const outSaferThanIn =
-			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
-
 		const inSpotPosition =
 			this.getSpotPosition(inMarketIndex) ||
 			this.getEmptySpotPosition(inMarketIndex);
@@ -2054,17 +2051,19 @@ export class User {
 		let outSwap = ZERO;
 		const inTokenAmount = this.getTokenAmount(inMarketIndex);
 		if (freeCollateral.lt(ONE)) {
-			if (outSaferThanIn && inTokenAmount.gt(ZERO)) {
-				inSwap = inTokenAmount;
-				outSwap = calculateSwap(inSwap);
-			}
+			inSwap = inTokenAmount;
+			outSwap = calculateSwap(inSwap);
 		} else {
 			let minSwap = ZERO;
-			let maxSwap = freeCollateral
+			const inTokenFreeCollateral = freeCollateral
 				.mul(inPrecision)
 				.mul(SPOT_MARKET_WEIGHT_PRECISION)
 				.div(SPOT_MARKET_WEIGHT_PRECISION.div(new BN(100)))
 				.div(inOraclePrice); // just assume user can go 100x
+			let maxSwap = inTokenFreeCollateral.gt(inTokenAmount)
+				? inTokenFreeCollateral
+				: inTokenAmount;
+
 			inSwap = maxSwap.div(TWO);
 			const error = freeCollateral.div(new BN(10000));
 
