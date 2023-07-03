@@ -1454,8 +1454,8 @@ fn fulfill_perp_order(
     let user_position_index = get_position_index(&user.perp_positions, market_index)?;
     let position_base_asset_amount_before =
         user.perp_positions[user_position_index].base_asset_amount;
-    let user_order_risk_decreasing =
-        determine_if_user_order_is_risk_decreasing(user, market_index, user_order_index)?;
+    let user_order_position_decreasing =
+        determine_if_user_order_is_position_decreasing(user, market_index, user_order_index)?;
 
     let fulfillment_methods = {
         let market = perp_market_map.get_ref(&market_index)?;
@@ -1575,32 +1575,23 @@ fn fulfill_perp_order(
             .update_volume_24h(fill_quote_asset_amount, user_order_direction, now)?;
     }
 
-    let perp_market = perp_market_map.get_ref(&market_index)?;
-    let taker_maintenance_margin_buffer = calculate_maintenance_buffer_ratio(
-        perp_market.margin_ratio_initial,
-        perp_market.margin_ratio_maintenance,
-        user_order_risk_decreasing,
-    )?;
-    let maker_maintenance_margin_buffer = calculate_maintenance_buffer_ratio(
-        perp_market.margin_ratio_initial,
-        perp_market.margin_ratio_maintenance,
-        false,
-    )?;
-    drop(perp_market);
-
-    let (_, taker_total_collateral, taker_margin_requirement_plus_buffer, _) =
+    let (taker_margin_requirement, taker_total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
-            MarginRequirementType::Maintenance,
+            if user_order_position_decreasing {
+                MarginRequirementType::Maintenance
+            } else {
+                MarginRequirementType::Fill
+            },
             spot_market_map,
             oracle_map,
-            Some(taker_maintenance_margin_buffer.cast()?),
+            None,
         )?;
-    if taker_total_collateral < taker_margin_requirement_plus_buffer.cast()? {
+    if taker_total_collateral < taker_margin_requirement.cast()? {
         msg!(
-            "taker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
-            taker_margin_requirement_plus_buffer,
+            "taker breached fill requirements (margin requirement {}) (total_collateral {})",
+            taker_margin_requirement,
             taker_total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
@@ -1613,15 +1604,15 @@ fn fulfill_perp_order(
             calculate_margin_requirement_and_total_collateral(
                 &maker,
                 perp_market_map,
-                MarginRequirementType::Maintenance,
+                MarginRequirementType::Fill,
                 spot_market_map,
                 oracle_map,
-                Some(maker_maintenance_margin_buffer.cast()?),
+                None,
             )?;
 
         if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
             msg!(
-                "maker ({}) breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+                "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
                 maker_key,
                 maker_margin_requirement_plus_buffer,
                 maker_total_collateral
@@ -1665,7 +1656,7 @@ fn get_referrer<'a>(
     Ok((Some(referrer), Some(referrer_stats)))
 }
 
-fn determine_if_user_order_is_risk_decreasing(
+fn determine_if_user_order_is_position_decreasing(
     user: &User,
     market_index: u16,
     order_index: usize,
@@ -1673,26 +1664,12 @@ fn determine_if_user_order_is_risk_decreasing(
     let position_index = get_position_index(&user.perp_positions, market_index)?;
     let order_direction = user.orders[order_index].direction;
     let position_base_asset_amount_before = user.perp_positions[position_index].base_asset_amount;
-    is_order_risk_decreasing(
+    is_order_position_reducing(
         &order_direction,
         user.orders[order_index]
             .get_base_asset_amount_unfilled(Some(position_base_asset_amount_before))?,
         position_base_asset_amount_before.cast()?,
     )
-}
-
-fn calculate_maintenance_buffer_ratio(
-    initial_margin_ratio: u32,
-    maintenance_margin_ratio: u32,
-    order_is_risk_decreasing: bool,
-) -> DriftResult<u32> {
-    if order_is_risk_decreasing {
-        return Ok(0);
-    }
-
-    initial_margin_ratio
-        .safe_sub(maintenance_margin_ratio)?
-        .safe_div(2)
 }
 
 pub fn fulfill_perp_order_with_amm(
@@ -3538,51 +3515,44 @@ fn fulfill_spot_order(
         base_asset_amount = base_asset_amount.safe_add(base_filled)?;
     }
 
-    let initial_margin_ratio = base_market.get_margin_ratio(&MarginRequirementType::Initial)?;
-    let maintenance_margin_ratio =
-        base_market.get_margin_ratio(&MarginRequirementType::Maintenance)?;
-    let maintenance_margin_buffer = initial_margin_ratio
-        .safe_sub(maintenance_margin_ratio)?
-        .safe_div(2)?;
-
     drop(base_market);
     drop(quote_market);
 
-    let (_, taker_total_collateral, taker_margin_requirement_plus_buffer, _) =
+    let (taker_margin_requirement, taker_total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
-            MarginRequirementType::Maintenance,
+            MarginRequirementType::Fill,
             spot_market_map,
             oracle_map,
-            Some(maintenance_margin_buffer.cast()?),
+            None,
         )?;
 
-    if taker_total_collateral < taker_margin_requirement_plus_buffer.cast()? {
+    if taker_total_collateral < taker_margin_requirement.cast()? {
         msg!(
-            "taker breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
-            taker_margin_requirement_plus_buffer,
+            "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
+            taker_margin_requirement,
             taker_total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
     }
 
     if let Some(maker) = maker {
-        let (_, maker_total_collateral, maker_margin_requirement_plus_buffer, _) =
+        let (maker_margin_requirement, maker_total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 maker,
                 perp_market_map,
-                MarginRequirementType::Maintenance,
+                MarginRequirementType::Fill,
                 spot_market_map,
                 oracle_map,
-                Some(maintenance_margin_buffer.cast()?),
+                None,
             )?;
 
-        if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
+        if maker_total_collateral < maker_margin_requirement.cast()? {
             msg!(
-                "maker ({}) breached maintenance requirements (margin requirement plus buffer {}) (total_collateral {})",
+                "maker ({}) breached maintenance requirements (margin requirement {}) (total_collateral {})",
                 maker_key.safe_unwrap()?,
-                maker_margin_requirement_plus_buffer,
+                maker_margin_requirement,
                 maker_total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
