@@ -3418,6 +3418,7 @@ export class DriftClient {
 		amount,
 		slippageBps,
 		swapMode,
+		onlyDirectRoutes,
 		route,
 		reduceOnly,
 		userAccountPublicKey,
@@ -3430,6 +3431,7 @@ export class DriftClient {
 		amount: BN;
 		slippageBps?: number;
 		swapMode?: SwapMode;
+		onlyDirectRoutes?: boolean;
 		route?: Route;
 		reduceOnly?: SwapReduceOnly;
 		userAccountPublicKey?: PublicKey;
@@ -3447,6 +3449,7 @@ export class DriftClient {
 				amount,
 				slippageBps,
 				swapMode,
+				onlyDirectRoutes,
 			});
 
 			if (!routes || routes.length === 0) {
@@ -3594,7 +3597,7 @@ export class DriftClient {
 					state: await this.getStatePublicKey(),
 					user: userAccountPublicKeyToUse,
 					userStats: this.getUserStatsAccountPublicKey(),
-					authority: this.authority,
+					authority: this.wallet.publicKey,
 					outSpotMarketVault: outSpotMarket.vault,
 					inSpotMarketVault: inSpotMarket.vault,
 					inTokenAccount,
@@ -3617,7 +3620,7 @@ export class DriftClient {
 					state: await this.getStatePublicKey(),
 					user: userAccountPublicKeyToUse,
 					userStats: this.getUserStatsAccountPublicKey(),
-					authority: this.authority,
+					authority: this.wallet.publicKey,
 					outSpotMarketVault: outSpotMarket.vault,
 					inSpotMarketVault: inSpotMarket.vault,
 					inTokenAccount,
