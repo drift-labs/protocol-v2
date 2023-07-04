@@ -26,7 +26,7 @@ pub enum DlobNodeType {
     Trigger,
 }
 
-trait DlobNode: std::fmt::Debug {
+pub trait DlobNode: std::fmt::Debug {
     fn get_price(
         &self,
         oracle_price_data: OraclePriceData,
@@ -285,20 +285,122 @@ impl Dlob {
     }
 
     /// Loads on-chain accounts into the load drift client and assembles the , you should call this after builder.build()
-    pub fn load(&mut self) -> Result<(), anyhow::Error> {
-        self.account_subscriber.load()?;
-        self.init_dlob()?;
-        Ok(())
-    }
-
-    fn init_dlob(&mut self) -> Result<(), anyhow::Error> {
+    pub fn init(&mut self, slot: u64) -> Result<(), anyhow::Error> {
         if self.dlob_init {
             return Ok(());
         }
-
-        // TOOD: get all user orders and insert their orders
-
+        self.account_subscriber.load()?;
         self.dlob_init = true;
+
+        self.load(slot)?;
+
+        Ok(())
+    }
+
+    pub fn get_taking_bids(
+        &mut self,
+        market_index: u16,
+        market_type: MarketType,
+        slot: u64,
+    ) -> impl Iterator<Item = &Rc<dyn DlobNode>> {
+        assert!(self.dlob_init, "must call load() first");
+
+        self.ensure_market_index_in_list(market_type, market_index);
+
+        self.update_resting_limit_orders(slot);
+
+        let order_list = match market_type {
+            MarketType::Perp => self.perp_order_lists.get(&market_index).unwrap(),
+            MarketType::Spot => self.spot_order_lists.get(&market_index).unwrap(),
+        };
+
+        // merge the 2 iters
+        let mut taking_orders = order_list
+            .market
+            .bid
+            .iter()
+            .chain(order_list.taking_limit.bid.iter())
+            .collect::<Vec<&Rc<dyn DlobNode>>>();
+
+        taking_orders.sort_by(|a, b| a.get_sort_value().cmp(&b.get_sort_value()));
+
+        taking_orders.into_iter()
+    }
+
+    pub fn get_taking_asks(
+        &mut self,
+        market_index: u16,
+        market_type: MarketType,
+        slot: u64,
+    ) -> impl Iterator<Item = &Rc<dyn DlobNode>> {
+        assert!(self.dlob_init, "must call load() first");
+
+        self.ensure_market_index_in_list(market_type, market_index);
+
+        self.update_resting_limit_orders(slot);
+
+        let order_list = match market_type {
+            MarketType::Perp => self.perp_order_lists.get(&market_index).unwrap(),
+            MarketType::Spot => self.spot_order_lists.get(&market_index).unwrap(),
+        };
+
+        // merge the 2 iters
+        let mut taking_orders = order_list
+            .market
+            .ask
+            .iter()
+            .chain(order_list.taking_limit.ask.iter())
+            .collect::<Vec<&Rc<dyn DlobNode>>>();
+
+        // TODO, do need to reverse this?
+        taking_orders.sort_by(|a, b| a.get_sort_value().cmp(&b.get_sort_value()));
+
+        taking_orders.into_iter()
+    }
+
+    pub fn get_resting_limit_bids(
+        &mut self,
+        market_index: u16,
+        market_type: MarketType,
+        slot: u64,
+    ) -> impl Iterator<Item = &Rc<dyn DlobNode>> {
+        assert!(self.dlob_init, "must call load() first");
+
+        self.ensure_market_index_in_list(market_type, market_index);
+
+        self.update_resting_limit_orders(slot);
+
+        let order_list = match market_type {
+            MarketType::Perp => self.perp_order_lists.get(&market_index).unwrap(),
+            MarketType::Spot => self.spot_order_lists.get(&market_index).unwrap(),
+        };
+
+        // merge the 2 iters
+        let mut taking_orders = order_list
+            .market
+            .bid
+            .iter()
+            .chain(order_list.taking_limit.bid.iter())
+            .collect::<Vec<&Rc<dyn DlobNode>>>();
+
+        taking_orders.sort_by(|a, b| a.get_sort_value().cmp(&b.get_sort_value()));
+
+        taking_orders.into_iter()
+    }
+
+    pub fn load(&mut self, slot: u64) -> Result<(), anyhow::Error> {
+        self.perp_order_lists.clear();
+        self.spot_order_lists.clear();
+
+        for user in self.account_subscriber.get_all_users() {
+            for order in user.data.orders {
+                if let Err(e) = self.insert_order(slot, user.pubkey.unwrap(), order) {
+                    log::error!("Failed to insert order: {:?}", e);
+                    return Err(e);
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -514,8 +616,6 @@ impl Dlob {
         user: Pubkey,
         order: Order,
     ) -> Result<(), anyhow::Error> {
-        assert!(self.dlob_init, "must call load() first");
-
         match order.status {
             OrderStatus::Init => return Ok(()),
             _ => {}
@@ -617,33 +717,6 @@ impl Dlob {
             .unwrap();
         }
     }
-
-    pub fn get_taking_bids(
-        &mut self,
-        market_index: u16,
-        market_type: MarketType,
-        slot: u64,
-        _oracle_price_data: OraclePriceData,
-    ) -> impl Iterator<Item = &Rc<dyn DlobNode>> {
-        self.update_resting_limit_orders(slot);
-
-        let order_list = match market_type {
-            MarketType::Perp => self.perp_order_lists.get(&market_index).unwrap(),
-            MarketType::Spot => self.spot_order_lists.get(&market_index).unwrap(),
-        };
-
-        // merge the 2 iters
-        let mut taking_orders = order_list
-            .market
-            .bid
-            .iter()
-            .chain(order_list.taking_limit.bid.iter())
-            .collect::<Vec<&Rc<dyn DlobNode>>>();
-
-        taking_orders.sort_by(|a, b| a.get_sort_value().cmp(&b.get_sort_value()));
-
-        taking_orders.into_iter()
-    }
 }
 
 pub struct DlobBuilder {
@@ -667,7 +740,7 @@ impl DlobBuilder {
         self
     }
 
-    fn build(self) -> Result<Dlob, &'static str> {
+    pub fn build(self) -> Result<Dlob, &'static str> {
         if self.account_subscriber.is_none() {
             panic!("drift_client_account_subscriber must be set");
         }
@@ -697,7 +770,7 @@ mod tests {
             .build()
             .unwrap();
         let user = Pubkey::new_unique();
-        dlob.load().unwrap();
+        dlob.init(0).unwrap();
 
         let market_index = 0_u16;
 
@@ -799,7 +872,7 @@ mod tests {
             .build()
             .unwrap();
         let user = Pubkey::new_unique();
-        dlob.load().unwrap();
+        dlob.init(0).unwrap();
 
         let market_index = 0_u16;
 
@@ -897,7 +970,7 @@ mod tests {
             .build()
             .unwrap();
         let user = Pubkey::new_unique();
-        dlob.load().unwrap();
+        dlob.init(0).unwrap();
 
         let market_index = 0_u16;
 
@@ -1017,7 +1090,7 @@ mod tests {
             .build()
             .unwrap();
         let user = Pubkey::new_unique();
-        dlob.load().unwrap();
+        dlob.init(0).unwrap();
 
         let market_index = 0_u16;
 
@@ -1148,7 +1221,7 @@ mod tests {
                 .build()
                 .unwrap();
             let user = Pubkey::new_unique();
-            dlob.load().unwrap();
+            dlob.init(0).unwrap();
             dlob.ensure_market_index_in_list(market_type, market_index);
 
             for data in vec![

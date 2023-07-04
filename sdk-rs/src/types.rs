@@ -75,11 +75,11 @@ pub trait DriftClientAccountSubscriber {
             .get(&user_stats_pubkey)
             .map(|x| x.data)
     }
-    fn get_all_users(&self) -> Vec<User> {
+    fn get_all_users(&self) -> Vec<AccountDataWithSlot<User>> {
         self.get_user_accounts_map()
             .lock()
             .values()
-            .map(|x| x.data.clone())
+            .map(|x| x.clone())
             .collect()
     }
 
