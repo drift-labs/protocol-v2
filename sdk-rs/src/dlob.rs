@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use anchor_lang::prelude::Pubkey;
 use drift::{
@@ -17,6 +17,7 @@ pub enum SortDirection {
     Descending,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum DlobNodeType {
     TakingLimit,
     RestingLimit,
@@ -37,11 +38,10 @@ pub trait DlobNode {
     fn user(&self) -> Pubkey;
     fn get_sort_value(&self) -> i128;
     fn get_sort_direction(&self) -> SortDirection;
-    fn get_node_type() -> DlobNodeType
-    where
-        Self: Sized;
+    // fn get_node_type(&self) -> DlobNodeType;
 }
 
+#[derive(Copy, Clone)]
 pub struct TakingLimitOrderNode {
     user: Pubkey,
     order: Order,
@@ -73,11 +73,12 @@ impl DlobNode for TakingLimitOrderNode {
     fn user(&self) -> Pubkey {
         self.user
     }
-    fn get_node_type() -> DlobNodeType {
-        DlobNodeType::TakingLimit
-    }
+    // fn get_node_type(&self) -> DlobNodeType {
+    //     DlobNodeType::TakingLimit
+    // }
 }
 
+#[derive(Copy, Clone)]
 pub struct RestingLimitOrderNode {
     user: Pubkey,
     order: Order,
@@ -109,11 +110,12 @@ impl DlobNode for RestingLimitOrderNode {
     fn user(&self) -> Pubkey {
         self.user
     }
-    fn get_node_type() -> DlobNodeType {
-        DlobNodeType::RestingLimit
-    }
+    // fn get_node_type(&self) -> DlobNodeType {
+    //     DlobNodeType::RestingLimit
+    // }
 }
 
+#[derive(Copy, Clone)]
 pub struct FloatingLimitOrderNode {
     user: Pubkey,
     order: Order,
@@ -145,11 +147,12 @@ impl DlobNode for FloatingLimitOrderNode {
     fn user(&self) -> Pubkey {
         self.user
     }
-    fn get_node_type() -> DlobNodeType {
-        DlobNodeType::FloatingLimit
-    }
+    // fn get_node_type(&self) -> DlobNodeType {
+    //     DlobNodeType::FloatingLimit
+    // }
 }
 
+#[derive(Copy, Clone)]
 pub struct MarketOrderNode {
     user: Pubkey,
     order: Order,
@@ -181,11 +184,12 @@ impl DlobNode for MarketOrderNode {
     fn user(&self) -> Pubkey {
         self.user
     }
-    fn get_node_type() -> DlobNodeType {
-        DlobNodeType::Market
-    }
+    // fn get_node_type(&self) -> DlobNodeType {
+    //     DlobNodeType::Market
+    // }
 }
 
+#[derive(Copy, Clone)]
 pub struct TriggerOrderNode {
     user: Pubkey,
     order: Order,
@@ -217,19 +221,19 @@ impl DlobNode for TriggerOrderNode {
     fn user(&self) -> Pubkey {
         self.user
     }
-    fn get_node_type() -> DlobNodeType {
-        DlobNodeType::Trigger
-    }
+    // fn get_node_type(&self) -> DlobNodeType {
+    //     DlobNodeType::Trigger
+    // }
 }
 
 pub struct NormalNodeList {
-    ask: Vec<Box<dyn DlobNode>>,
-    bid: Vec<Box<dyn DlobNode>>,
+    ask: Vec<Rc<dyn DlobNode>>,
+    bid: Vec<Rc<dyn DlobNode>>,
 }
 
 pub struct TriggerNodeList {
-    above: Vec<Box<dyn DlobNode>>,
-    below: Vec<Box<dyn DlobNode>>,
+    above: Vec<Rc<dyn DlobNode>>,
+    below: Vec<Rc<dyn DlobNode>>,
 }
 
 pub struct NodeLists {
@@ -315,13 +319,17 @@ impl Dlob {
         };
     }
 
-    fn get_order_list_by_type<T: DlobNode>(&mut self, order: Order) -> &mut Vec<Box<dyn DlobNode>> {
+    fn get_order_list_by_type<T: DlobNode>(
+        &mut self,
+        node_type: DlobNodeType,
+        order: Order,
+    ) -> &mut Vec<Rc<dyn DlobNode>> {
         let order_lists = match order.market_type {
             MarketType::Perp => self.perp_order_lists.get_mut(&order.market_index).unwrap(),
             MarketType::Spot => self.spot_order_lists.get_mut(&order.market_index).unwrap(),
         };
 
-        match T::get_node_type() {
+        match node_type {
             DlobNodeType::TakingLimit => match order.direction {
                 PositionDirection::Long => &mut order_lists.taking_limit.bid,
                 PositionDirection::Short => &mut order_lists.taking_limit.ask,
@@ -343,21 +351,21 @@ impl Dlob {
                 OrderTriggerCondition::Below => &mut order_lists.trigger.below,
                 _ => panic!("Invalid trigger condition: {:?}", order.trigger_condition),
             },
-            _ => panic!("Invalid order type: {:?}", std::any::type_name::<T>()),
         }
     }
 
-    fn insert_order_by_type<T: DlobNode>(
+    fn insert_order_by_type<T: DlobNode + 'static>(
         &mut self,
+        node_type: DlobNodeType,
         user: Pubkey,
         order: Order,
     ) -> Result<(), anyhow::Error> {
-        let list = &mut self.get_order_list_by_type::<T>(order);
+        let list = &mut self.get_order_list_by_type::<T>(node_type, order);
 
-        match T::get_node_type() {
+        match node_type {
             DlobNodeType::TakingLimit => match order.direction {
                 PositionDirection::Long => {
-                    let new_node = Box::new(TakingLimitOrderNode {
+                    let new_node = Rc::new(TakingLimitOrderNode {
                         user,
                         order: order.clone(),
                         sort_direction: SortDirection::Descending,
@@ -371,7 +379,7 @@ impl Dlob {
                     list.insert(index, new_node);
                 }
                 PositionDirection::Short => {
-                    let new_node = Box::new(TakingLimitOrderNode {
+                    let new_node = Rc::new(TakingLimitOrderNode {
                         user,
                         order: order.clone(),
                         sort_direction: SortDirection::Ascending,
@@ -387,7 +395,7 @@ impl Dlob {
             },
             DlobNodeType::RestingLimit => match order.direction {
                 PositionDirection::Long => {
-                    let new_node = Box::new(RestingLimitOrderNode {
+                    let new_node = Rc::new(RestingLimitOrderNode {
                         user: user,
                         order: order.clone(),
                         sort_direction: SortDirection::Descending,
@@ -401,7 +409,7 @@ impl Dlob {
                     list.insert(index, new_node);
                 }
                 PositionDirection::Short => {
-                    let new_node = Box::new(RestingLimitOrderNode {
+                    let new_node = Rc::new(RestingLimitOrderNode {
                         user: user,
                         order: order.clone(),
                         sort_direction: SortDirection::Ascending,
@@ -417,7 +425,7 @@ impl Dlob {
             },
             DlobNodeType::FloatingLimit => match order.direction {
                 PositionDirection::Long => {
-                    let new_node = Box::new(FloatingLimitOrderNode {
+                    let new_node = Rc::new(FloatingLimitOrderNode {
                         user: user,
                         order: order.clone(),
                         sort_direction: SortDirection::Descending,
@@ -431,7 +439,7 @@ impl Dlob {
                     list.insert(index, new_node);
                 }
                 PositionDirection::Short => {
-                    let new_node = Box::new(FloatingLimitOrderNode {
+                    let new_node = Rc::new(FloatingLimitOrderNode {
                         user: user,
                         order: order.clone(),
                         sort_direction: SortDirection::Ascending,
@@ -446,7 +454,7 @@ impl Dlob {
                 }
             },
             DlobNodeType::Market => {
-                let new_node = Box::new(MarketOrderNode {
+                let new_node = Rc::new(MarketOrderNode {
                     user: user,
                     order: order.clone(),
                 });
@@ -460,7 +468,7 @@ impl Dlob {
             }
             DlobNodeType::Trigger => match order.trigger_condition {
                 OrderTriggerCondition::Above => {
-                    let new_node = Box::new(TriggerOrderNode {
+                    let new_node = Rc::new(TriggerOrderNode {
                         user: user,
                         order: order.clone(),
                         sort_direction: SortDirection::Ascending,
@@ -474,7 +482,7 @@ impl Dlob {
                     list.insert(index, new_node);
                 }
                 OrderTriggerCondition::Below => {
-                    let new_node = Box::new(TriggerOrderNode {
+                    let new_node = Rc::new(TriggerOrderNode {
                         user: user,
                         order: order.clone(),
                         sort_direction: SortDirection::Descending,
@@ -519,7 +527,6 @@ impl Dlob {
             | OrderType::TriggerLimit
             | OrderType::TriggerMarket
             | OrderType::Oracle => {}
-            _ => return Ok(()),
         };
 
         self.ensure_market_index_in_list(order.market_type, order.market_index);
@@ -530,23 +537,35 @@ impl Dlob {
         };
 
         if is_inactive_trigger {
-            self.insert_order_by_type::<TriggerOrderNode>(user, order)?;
+            self.insert_order_by_type::<TriggerOrderNode>(DlobNodeType::Trigger, user, order)?;
         } else {
             match order.order_type {
                 OrderType::Market | OrderType::TriggerMarket | OrderType::Oracle => {
-                    self.insert_order_by_type::<MarketOrderNode>(user, order)?;
+                    self.insert_order_by_type::<MarketOrderNode>(
+                        DlobNodeType::Market,
+                        user,
+                        order,
+                    )?;
                 }
                 _ => {
                     if order.oracle_price_offset != 0 {
-                        self.insert_order_by_type::<FloatingLimitOrderNode>(user, order)?;
+                        self.insert_order_by_type::<FloatingLimitOrderNode>(
+                            DlobNodeType::FloatingLimit,
+                            user,
+                            order,
+                        )?;
                     } else {
                         match order.is_resting_limit_order(slot).unwrap() {
-                            true => {
-                                self.insert_order_by_type::<RestingLimitOrderNode>(user, order)?
-                            }
-                            false => {
-                                self.insert_order_by_type::<TakingLimitOrderNode>(user, order)?
-                            }
+                            true => self.insert_order_by_type::<RestingLimitOrderNode>(
+                                DlobNodeType::RestingLimit,
+                                user,
+                                order,
+                            )?,
+                            false => self.insert_order_by_type::<TakingLimitOrderNode>(
+                                DlobNodeType::TakingLimit,
+                                user,
+                                order,
+                            )?,
                         };
                     }
                 }
@@ -566,7 +585,7 @@ impl Dlob {
         self.perp_order_lists.iter_mut().for_each(|(_, list)| {
             list.taking_limit.bid.retain(|node| {
                 if !node.order().is_resting_limit_order(slot).unwrap() {
-                    list.resting_limit.bid.push(*node);
+                    list.resting_limit.bid.push(node.clone());
                     return true;
                 } else {
                     return false;
@@ -574,7 +593,7 @@ impl Dlob {
             });
             list.taking_limit.ask.retain(|node| {
                 if !node.order().is_resting_limit_order(slot).unwrap() {
-                    list.resting_limit.ask.push(*node);
+                    list.resting_limit.ask.push(node.clone());
                     return true;
                 } else {
                     return false;
@@ -583,31 +602,31 @@ impl Dlob {
         });
     }
 
-    pub fn get_taking_bids<'a>(
-        &'a mut self,
+    pub fn get_taking_bids(
+        &mut self,
         market_index: u16,
         market_type: MarketType,
         slot: u64,
-        oracle_price_data: OraclePriceData,
-    ) -> impl Iterator<Item = Box<dyn DlobNode>> + 'a {
+        _oracle_price_data: OraclePriceData,
+    ) -> impl Iterator<Item = &Rc<dyn DlobNode>> {
         self.update_resting_limit_orders(slot);
 
-        let mut order_list = match market_type {
+        let order_list = match market_type {
             MarketType::Perp => self.perp_order_lists.get(&market_index).unwrap(),
             MarketType::Spot => self.spot_order_lists.get(&market_index).unwrap(),
         };
 
-        // let bid_stream = stream::iter(list.market.bid.drain(..).map(Box::new));
-        // let taking_bid_stream = stream::iter(list.taking_limit.bid.drain(..).map(Box::new));
-
         // merge the 2 iters
-        order_list
+        let mut taking_orders = order_list
             .market
             .bid
-            .into_iter()
-            .merge_by(order_list.taking_limit.bid.iter(), |a, b| {
-                a.get_sort_value() > b.get_sort_value()
-            })
+            .iter()
+            .chain(order_list.taking_limit.bid.iter())
+            .collect::<Vec<&Rc<dyn DlobNode>>>();
+
+        taking_orders.sort_by(|a, b| a.get_sort_value().cmp(&b.get_sort_value()));
+
+        taking_orders.into_iter()
     }
 }
 
