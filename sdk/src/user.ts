@@ -2066,11 +2066,7 @@ export class User {
 		} else {
 			let minSwap = ZERO;
 			let maxSwap = BN.max(
-				freeCollateral
-					.mul(inPrecision)
-					.mul(SPOT_MARKET_WEIGHT_PRECISION)
-					.div(SPOT_MARKET_WEIGHT_PRECISION.div(new BN(100)))
-					.div(inOraclePrice), // 100x current free collateral
+				freeCollateral.mul(inPrecision).mul(new BN(100)).div(inOraclePrice), // 100x current free collateral
 				inTokenAmount.abs().mul(new BN(10)) // 10x current position
 			);
 			inSwap = maxSwap.div(TWO);
