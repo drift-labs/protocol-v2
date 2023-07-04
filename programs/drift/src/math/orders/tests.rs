@@ -619,6 +619,7 @@ mod get_max_fill_amounts {
     fn selling_base_with_borrow_liquidity_greater_than_order() {
         let base_market = SpotMarket {
             deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 100 * SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let quote_market = SpotMarket::default_quote_market();
@@ -740,6 +741,8 @@ mod get_max_fill_amounts {
         let base_market = SpotMarket::default_base_market();
         let quote_market = SpotMarket {
             deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 100 * QUOTE_PRECISION_U64,
+
             ..SpotMarket::default_quote_market()
         };
 

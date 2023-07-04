@@ -17,7 +17,7 @@ pub fn calculate_min_deposit_token_amount(
 ) -> DriftResult<u128> {
     // minimum required deposit after withdrawal
     // minimum deposit amount lower of 75% of TWAP or withdrawal guard threshold below TWAP
-    // there are three scenarios, third is minimum deposit is 0 for high withdrawal guard threshold
+    // these are two of the three scenarios, third is minimum deposit is 0 for high withdrawal guard threshold
 
     let min_deposit_token = deposit_token_twap
         .safe_sub((deposit_token_twap / 4).max(withdraw_guard_threshold.min(deposit_token_twap)))?;
@@ -27,16 +27,20 @@ pub fn calculate_min_deposit_token_amount(
 
 pub fn calculate_max_borrow_token_amount(
     deposit_token_amount: u128,
+    deposit_token_twap: u128,
     borrow_token_twap: u128,
     withdraw_guard_threshold: u128,
 ) -> DriftResult<u128> {
     // maximum permitted borrows after withdrawal
     // allows at least up to the withdraw_guard_threshold
     // and between ~15-80% utilization with friction on twap in 10% increments
+
+    let lesser_deposit_amount = deposit_token_amount.min(deposit_token_twap);
+
     let max_borrow_token = withdraw_guard_threshold.max(
-        (deposit_token_amount / 6)
-            .max(borrow_token_twap.safe_add(deposit_token_amount / 10)?)
-            .min(deposit_token_amount.safe_sub(deposit_token_amount / 5)?),
+        (lesser_deposit_amount / 6)
+            .max(borrow_token_twap.safe_add(lesser_deposit_amount / 10)?)
+            .min(lesser_deposit_amount.safe_sub(lesser_deposit_amount / 5)?),
     );
 
     Ok(max_borrow_token)
@@ -143,6 +147,7 @@ pub fn check_withdraw_limits(
 
     let max_borrow_token_for_twap = calculate_max_borrow_token_amount(
         deposit_token_amount,
+        spot_market.deposit_token_twap.cast()?,
         spot_market.borrow_token_twap.cast()?,
         spot_market.withdraw_guard_threshold.cast()?,
     )?;
@@ -229,6 +234,7 @@ pub fn get_max_withdraw_for_market_with_token_amount(
 
     let max_borrow_token_for_twap = calculate_max_borrow_token_amount(
         deposit_token_amount,
+        spot_market.deposit_token_twap.cast()?,
         spot_market.borrow_token_twap.cast()?,
         spot_market.withdraw_guard_threshold.cast()?,
     )?;

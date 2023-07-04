@@ -109,6 +109,9 @@ fn test_daily_withdraw_limits() {
         maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
         deposit_balance: SPOT_BALANCE_PRECISION,
         borrow_balance: SPOT_BALANCE_PRECISION,
+        deposit_token_twap: (SPOT_BALANCE_PRECISION * 10) as u64,
+        borrow_token_twap: 0,
+
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
         status: MarketStatus::Active,
 
@@ -246,6 +249,7 @@ fn test_daily_withdraw_limits() {
         ..User::default()
     };
     sol_spot_market.deposit_balance = 50 * SPOT_BALANCE_PRECISION;
+    sol_spot_market.deposit_token_twap = (500 * SPOT_BALANCE_PRECISION) as u64;
 
     sol_spot_market.optimal_borrow_rate = SPOT_RATE_PRECISION_U32 / 5; //20% APR
     sol_spot_market.max_borrow_rate = SPOT_RATE_PRECISION_U32; //100% APR
@@ -323,7 +327,7 @@ fn test_daily_withdraw_limits() {
     assert_eq!(sol_spot_market.borrow_balance, 8000000002);
     assert_eq!(sol_spot_market.borrow_token_twap, 0);
     update_spot_market_cumulative_interest(&mut sol_spot_market, None, now + 3655 * 24).unwrap();
-    assert_eq!(sol_spot_market.deposit_token_twap, 500067287978);
+    assert_eq!(sol_spot_market.deposit_token_twap, 500072987867);
     assert_eq!(sol_spot_market.borrow_token_twap, 80072075950);
 
     update_spot_balances_and_cumulative_deposits_with_limits(
@@ -454,7 +458,9 @@ fn test_check_withdraw_limits() {
     let mdt = calculate_min_deposit_token_amount(QUOTE_PRECISION, 0).unwrap();
     assert_eq!(mdt, QUOTE_PRECISION - QUOTE_PRECISION / 4);
 
-    let mbt = calculate_max_borrow_token_amount(QUOTE_PRECISION, QUOTE_PRECISION / 2, 0).unwrap();
+    let mbt =
+        calculate_max_borrow_token_amount(QUOTE_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION / 2, 0)
+            .unwrap();
     assert_eq!(mbt, 600000);
 
     let valid_withdraw = check_withdraw_limits(&spot_market, Some(&user), Some(0)).unwrap();
@@ -523,6 +529,7 @@ fn test_check_withdraw_limits_below_optimal_utilization() {
         calculate_min_deposit_token_amount(sol_spot_market.deposit_token_twap as u128, 0).unwrap();
 
     let mbt_bor = calculate_max_borrow_token_amount(
+        deposit_tokens_1,
         deposit_tokens_1,
         sol_spot_market.borrow_token_twap as u128,
         0,
@@ -621,6 +628,7 @@ fn test_check_withdraw_limits_above_optimal_utilization() {
         calculate_min_deposit_token_amount(sol_spot_market.deposit_token_twap as u128, 0).unwrap();
 
     let mbt_bor = calculate_max_borrow_token_amount(
+        deposit_tokens_1,
         deposit_tokens_1,
         sol_spot_market.borrow_token_twap as u128,
         0,
@@ -732,7 +740,7 @@ fn check_fee_collection() {
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: SPOT_BALANCE_PRECISION,
         borrow_balance: 0,
-        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
+        deposit_token_twap: QUOTE_PRECISION_U64,
 
         optimal_utilization: SPOT_UTILIZATION_PRECISION_U32 / 2,
         optimal_borrow_rate: SPOT_RATE_PRECISION_U32 * 20,

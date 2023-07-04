@@ -6,7 +6,9 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_UTILIZATION_PRECISION, SPOT_WEIGHT_PRECISION_U128,
+};
 #[cfg(test)]
 use crate::math::constants::{PRICE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION};
 use crate::math::margin::{
@@ -388,6 +390,37 @@ impl SpotMarket {
         let unhealthy_utilization = 800000; // 80%
         let utilization: u64 = self.get_utilization()?.cast()?;
         Ok(self.utilization_twap <= unhealthy_utilization && utilization <= unhealthy_utilization)
+    }
+
+    pub fn calculate_borrow_rate(self, utilization: u128) -> DriftResult<u128> {
+        let borrow_rate = if utilization > self.optimal_utilization.cast()? {
+            let surplus_utilization = utilization.safe_sub(self.optimal_utilization.cast()?)?;
+
+            let borrow_rate_slope = self
+                .max_borrow_rate
+                .cast::<u128>()?
+                .safe_sub(self.optimal_borrow_rate.cast()?)?
+                .safe_mul(SPOT_UTILIZATION_PRECISION)?
+                .safe_div(SPOT_UTILIZATION_PRECISION.safe_sub(self.optimal_utilization.cast()?)?)?;
+
+            self.optimal_borrow_rate.cast::<u128>()?.safe_add(
+                surplus_utilization
+                    .safe_mul(borrow_rate_slope)?
+                    .safe_div(SPOT_UTILIZATION_PRECISION)?,
+            )?
+        } else {
+            let borrow_rate_slope = self
+                .optimal_borrow_rate
+                .cast::<u128>()?
+                .safe_mul(SPOT_UTILIZATION_PRECISION)?
+                .safe_div(self.optimal_utilization.cast()?)?;
+
+            utilization
+                .safe_mul(borrow_rate_slope)?
+                .safe_div(SPOT_UTILIZATION_PRECISION)?
+        };
+
+        Ok(borrow_rate)
     }
 }
 

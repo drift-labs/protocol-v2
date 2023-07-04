@@ -6484,10 +6484,13 @@ pub mod fulfill_spot_order_with_match {
 
         let mut base_market = SpotMarket {
             deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_token_twap: SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
             deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 101 * QUOTE_PRECISION_U64,
+
             ..SpotMarket::default_quote_market()
         };
 
@@ -6678,10 +6681,12 @@ pub mod fulfill_spot_order_with_match {
 
         let mut base_market = SpotMarket {
             deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_token_twap: SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
             deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 100 * QUOTE_PRECISION_U64,
             ..SpotMarket::default_quote_market()
         };
 
@@ -6775,10 +6780,12 @@ pub mod fulfill_spot_order_with_match {
 
         let mut base_market = SpotMarket {
             deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_token_twap: SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
             deposit_balance: 0,
+            deposit_token_twap: 0,
             ..SpotMarket::default_quote_market()
         };
 
@@ -6872,10 +6879,12 @@ pub mod fulfill_spot_order_with_match {
 
         let mut base_market = SpotMarket {
             deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_token_twap: SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
             deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 100 * QUOTE_PRECISION_U64,
             ..SpotMarket::default_quote_market()
         };
 
@@ -7066,10 +7075,12 @@ pub mod fulfill_spot_order_with_match {
 
         let mut base_market = SpotMarket {
             deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_token_twap: SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
             deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 101 * QUOTE_PRECISION_U64,
             ..SpotMarket::default_quote_market()
         };
 
