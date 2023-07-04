@@ -7,7 +7,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_UTILIZATION_PRECISION, SPOT_WEIGHT_PRECISION_U128,
+    AMM_RESERVE_PRECISION, MARGIN_PRECISION, PERCENTAGE_PRECISION, SPOT_UTILIZATION_PRECISION,
+    SPOT_WEIGHT_PRECISION_U128,
 };
 #[cfg(test)]
 use crate::math::constants::{PRICE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION};
@@ -392,8 +393,36 @@ impl SpotMarket {
         Ok(self.utilization_twap <= unhealthy_utilization && utilization <= unhealthy_utilization)
     }
 
+    pub fn calculate_borrow_rate_multiplier(self, utilization: u128) -> DriftResult<u128> {
+        let util_change = utilization
+            .cast::<i128>()?
+            .safe_sub(self.utilization_twap.cast::<i128>()?)?;
+
+        // clamp the change in utilization to between 0 and 20%
+        let clamp_divisor: u128 = 5;
+        let util_change_clamped = if util_change < 0 {
+            0
+        } else if util_change.unsigned_abs() > PERCENTAGE_PRECISION / clamp_divisor {
+            PERCENTAGE_PRECISION / clamp_divisor
+        } else {
+            util_change.unsigned_abs()
+        };
+
+        // calculate borrow rate multiplier (intended to be between 1 and 2)
+        // (represented as PERCENTAGE_PRECISION to 2*PERCENTAGE_PRECISION)
+        let multiplier: u128 =
+            PERCENTAGE_PRECISION.safe_add(util_change_clamped.safe_mul(clamp_divisor)?)?;
+
+        // Validate that the multiplier falls within the intended range
+        if !(PERCENTAGE_PRECISION..=2 * PERCENTAGE_PRECISION).contains(&multiplier) {
+            return Err(ErrorCode::InvalidSpotMarketState);
+        }
+
+        Ok(multiplier)
+    }
+
     pub fn calculate_borrow_rate(self, utilization: u128) -> DriftResult<u128> {
-        let borrow_rate = if utilization > self.optimal_utilization.cast()? {
+        let raw_borrow_rate = if utilization > self.optimal_utilization.cast()? {
             let surplus_utilization = utilization.safe_sub(self.optimal_utilization.cast()?)?;
 
             let borrow_rate_slope = self
@@ -419,6 +448,10 @@ impl SpotMarket {
                 .safe_mul(borrow_rate_slope)?
                 .safe_div(SPOT_UTILIZATION_PRECISION)?
         };
+
+        let borrow_rate = raw_borrow_rate
+            .safe_mul(self.calculate_borrow_rate_multiplier(utilization)?)?
+            .safe_div(PERCENTAGE_PRECISION)?;
 
         Ok(borrow_rate)
     }

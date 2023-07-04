@@ -133,35 +133,7 @@ pub fn calculate_accumulated_interest(
             deposit_interest: 0,
         });
     }
-
-    let borrow_rate = if utilization > spot_market.optimal_utilization.cast()? {
-        let surplus_utilization = utilization.safe_sub(spot_market.optimal_utilization.cast()?)?;
-
-        let borrow_rate_slope = spot_market
-            .max_borrow_rate
-            .cast::<u128>()?
-            .safe_sub(spot_market.optimal_borrow_rate.cast()?)?
-            .safe_mul(SPOT_UTILIZATION_PRECISION)?
-            .safe_div(
-                SPOT_UTILIZATION_PRECISION.safe_sub(spot_market.optimal_utilization.cast()?)?,
-            )?;
-
-        spot_market.optimal_borrow_rate.cast::<u128>()?.safe_add(
-            surplus_utilization
-                .safe_mul(borrow_rate_slope)?
-                .safe_div(SPOT_UTILIZATION_PRECISION)?,
-        )?
-    } else {
-        let borrow_rate_slope = spot_market
-            .optimal_borrow_rate
-            .cast::<u128>()?
-            .safe_mul(SPOT_UTILIZATION_PRECISION)?
-            .safe_div(spot_market.optimal_utilization.cast()?)?;
-
-        utilization
-            .safe_mul(borrow_rate_slope)?
-            .safe_div(SPOT_UTILIZATION_PRECISION)?
-    };
+    let borrow_rate = spot_market.calculate_borrow_rate(utilization)?;
 
     let time_since_last_update = now
         .cast::<u64>()
