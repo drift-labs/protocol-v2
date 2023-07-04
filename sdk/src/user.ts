@@ -2009,9 +2009,6 @@ export class User {
 		const inPrecision = new BN(10 ** inMarket.decimals);
 		const outPrecision = new BN(10 ** outMarket.decimals);
 
-		const outSaferThanIn =
-			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
-
 		const inSpotPosition =
 			this.getSpotPosition(inMarketIndex) ||
 			this.getEmptySpotPosition(inMarketIndex);
@@ -2053,6 +2050,14 @@ export class User {
 		let inSwap = ZERO;
 		let outSwap = ZERO;
 		const inTokenAmount = this.getTokenAmount(inMarketIndex);
+		const outTokenAmount = this.getTokenAmount(outMarketIndex);
+
+		const outSaferThanIn =
+			// selling asset to close borrow
+			(inTokenAmount.gt(ZERO) && outTokenAmount.lt(ZERO)) ||
+			// buying asset with higher initial asset weight
+			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
+
 		if (freeCollateral.lt(ONE)) {
 			if (outSaferThanIn && inTokenAmount.gt(ZERO)) {
 				inSwap = inTokenAmount;
