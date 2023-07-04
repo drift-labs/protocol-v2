@@ -9,6 +9,7 @@ test_files=(
   maxLeverageOrderParams.ts
   multipleMakerOrders.ts
   postOnlyAmmFulfillment.ts
+  imbalancePerpPnl.ts
   delistMarket.ts
   delistMarketLiq.ts
   triggerSpotOrder.ts
