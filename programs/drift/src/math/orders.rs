@@ -486,18 +486,17 @@ pub fn validate_fill_price_within_price_bands(
 pub fn is_oracle_too_divergent_with_twap_5min(
     oracle_price: i64,
     oracle_twap_5min: i64,
+    max_divergence: i64,
 ) -> DriftResult<bool> {
-    let precision = PERCENTAGE_PRECISION_U64.cast::<i64>()?;
-    let max_diff = precision / 2; // 50%
-
     let percent_diff = oracle_price
         .safe_sub(oracle_twap_5min)?
         .abs()
-        .safe_mul(precision)?
+        .safe_mul(PERCENTAGE_PRECISION_U64.cast::<i64>()?)?
         .safe_div(oracle_twap_5min.abs())?;
 
-    let too_divergent = percent_diff >= max_diff;
+    let too_divergent = percent_diff >= max_divergence;
     if too_divergent {
+        msg!("max divergence {}", max_divergence);
         msg!(
             "Oracle Price Too Divergent from TWAP 5min. oracle: {} twap: {}",
             oracle_price,

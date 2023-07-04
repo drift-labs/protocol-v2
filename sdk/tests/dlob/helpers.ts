@@ -511,8 +511,8 @@ export const mockStateAccount: StateAccount = {
 	liquidationDuration: 0,
 	oracleGuardRails: {
 		priceDivergence: {
-			markOracleDivergenceNumerator: new BN(0),
-			markOracleDivergenceDenominator: new BN(0),
+			markOraclePercentDivergence: new BN(0),
+			oracleTwap5MinPercentDivergence: new BN(0),
 		},
 		validity: {
 			slotsBeforeStaleForAmm: new BN(0),

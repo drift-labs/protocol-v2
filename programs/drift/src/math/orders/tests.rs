@@ -2457,37 +2457,45 @@ pub mod validate_fill_price_within_price_bands {
 
 pub mod is_oracle_too_divergent_with_twap_5min {
     use crate::math::orders::is_oracle_too_divergent_with_twap_5min;
-    use crate::PRICE_PRECISION_I64;
+    use crate::{PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64};
 
     #[test]
     pub fn valid_above() {
         let oracle_price = 149 * PRICE_PRECISION_I64;
         let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
 
-        assert!(!is_oracle_too_divergent_with_twap_5min(oracle_price, twap,).unwrap())
+        assert!(
+            !is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap()
+        )
     }
 
     #[test]
     pub fn invalid_above() {
         let oracle_price = 151 * PRICE_PRECISION_I64;
         let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
 
-        assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap,).unwrap())
+        assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap())
     }
 
     #[test]
     pub fn valid_below() {
         let oracle_price = 51 * PRICE_PRECISION_I64;
         let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
 
-        assert!(!is_oracle_too_divergent_with_twap_5min(oracle_price, twap,).unwrap())
+        assert!(
+            !is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap()
+        )
     }
 
     #[test]
     pub fn invalid_below() {
         let oracle_price = 49 * PRICE_PRECISION_I64;
         let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
 
-        assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap,).unwrap())
+        assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap())
     }
 }

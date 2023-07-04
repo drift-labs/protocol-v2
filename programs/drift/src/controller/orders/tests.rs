@@ -2365,7 +2365,6 @@ pub mod fulfill_order {
 
     use crate::controller::orders::{fulfill_perp_order, validate_market_within_price_band};
     use crate::controller::position::PositionDirection;
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::get_orders;
     use crate::math::constants::{
@@ -2379,13 +2378,12 @@ pub mod fulfill_order {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::state::{
-        OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails,
-    };
+    use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::state::user_map::{UserMap, UserStatsMap};
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
+    use crate::{create_account_info, PERCENTAGE_PRECISION_U64};
 
     use super::*;
 
@@ -2429,16 +2427,13 @@ pub mod fulfill_order {
 
         let mut state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -2457,7 +2452,7 @@ pub mod fulfill_order {
         state
             .oracle_guard_rails
             .price_divergence
-            .mark_oracle_divergence_numerator = 6;
+            .mark_oracle_percent_divergence = 6 * PERCENTAGE_PRECISION_U64 / 10;
         assert!(validate_market_within_price_band(&market, &state, true, None).unwrap());
 
         // twap_5min $20 and mark $100 breaches 60% divergence -> failure

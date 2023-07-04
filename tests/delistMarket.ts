@@ -34,7 +34,7 @@ import {
 	getOraclePriceData,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant } from '../sdk';
+import { BulkAccountLoader, isVariant, PERCENTAGE_PRECISION } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
@@ -305,8 +305,8 @@ describe('delist market', () => {
 		const marketIndex = 0;
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(10),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
+				oracleTwap5MinPercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -314,7 +314,6 @@ describe('delist market', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(100000000),
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);

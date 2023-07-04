@@ -1009,8 +1009,14 @@ pub fn fill_perp_order(
         slot,
     )?;
 
-    let oracle_too_divergent_with_twap_5min =
-        is_oracle_too_divergent_with_twap_5min(oracle_price, oracle_twap_5min)?;
+    let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
+        oracle_price,
+        oracle_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
     if oracle_too_divergent_with_twap_5min {
         // update filler last active so tx doesn't revert
         if let Some(filler) = filler.as_deref_mut() {
@@ -3181,6 +3187,10 @@ pub fn fill_spot_order(
             base_market
                 .historical_oracle_data
                 .last_oracle_price_twap_5min,
+            state
+                .oracle_guard_rails
+                .max_oracle_twap_5min_percent_divergence()
+                .cast()?,
         )?;
 
         if oracle_too_divergent_with_twap_5min {
