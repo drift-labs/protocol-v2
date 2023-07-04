@@ -261,6 +261,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		pubkey: PublicKey.default,
 		mint: DevnetSpotMarkets[0].mint,
 		vault: PublicKey.default,
+		minOrderSize: ZERO,
+		maxPositionSize: ZERO,
 		revenuePool: {
 			scaledBalance: new BN(0),
 			marketIndex: 0,
@@ -343,6 +345,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
+		minOrderSize: ZERO,
+		maxPositionSize: ZERO,
 		insuranceFund: {
 			vault: PublicKey.default,
 			totalShares: new BN(0),
@@ -421,6 +425,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
+		minOrderSize: ZERO,
+		maxPositionSize: ZERO,
 		insuranceFund: {
 			vault: PublicKey.default,
 			totalShares: new BN(0),
