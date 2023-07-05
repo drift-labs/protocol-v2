@@ -446,9 +446,14 @@ export function calculateTokenUtilizationLimits(
 		depositTokenAmount.sub(spotMarket.withdrawGuardThreshold)
 	);
 
-	const maxBorrowTokensForUtilization = maxWithdrawUtilization
+	let maxBorrowTokensForUtilization = maxWithdrawUtilization
 		.mul(depositTokenAmount)
 		.div(SPOT_MARKET_UTILIZATION_PRECISION);
+
+	maxBorrowTokensForUtilization = BN.max(
+		spotMarket.withdrawGuardThreshold,
+		maxBorrowTokensForUtilization
+	);
 
 	return {
 		minDepositTokensForUtilization,

@@ -117,9 +117,13 @@ pub fn calculate_token_utilization_limits(
     min_deposit_tokens_for_utilization = min_deposit_tokens_for_utilization
         .min(deposit_token_amount.saturating_sub(spot_market.withdraw_guard_threshold.cast()?));
 
-    let max_borrow_tokens_for_utilization = max_withdraw_utilization
+    let mut max_borrow_tokens_for_utilization = max_withdraw_utilization
         .safe_mul(deposit_token_amount)?
         .safe_div(SPOT_UTILIZATION_PRECISION)?;
+
+    // dont block borrows for sizes below guard threshold
+    max_borrow_tokens_for_utilization =
+        max_borrow_tokens_for_utilization.max(spot_market.withdraw_guard_threshold.cast()?);
 
     Ok((
         min_deposit_tokens_for_utilization,
