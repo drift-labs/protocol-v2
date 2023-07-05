@@ -10,8 +10,8 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
 use crate::{
-    math, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION_U64,
-    PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+    math, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -439,7 +439,7 @@ pub fn validate_fill_price_within_price_bands(
         let percent_diff = fill_price
             .saturating_sub(oracle_twap_5min)
             .cast::<u128>()?
-            .safe_mul(MARGIN_PRECISION_U128)?
+            .safe_mul(PERCENTAGE_PRECISION)?
             .safe_div(oracle_twap_5min.cast()?)?;
 
         validate!(
@@ -475,7 +475,7 @@ pub fn validate_fill_price_within_price_bands(
         let percent_diff = oracle_twap_5min
             .saturating_sub(fill_price)
             .cast::<u128>()?
-            .safe_mul(MARGIN_PRECISION_U128)?
+            .safe_mul(PERCENTAGE_PRECISION)?
             .safe_div(oracle_twap_5min.cast()?)?;
 
         validate!(

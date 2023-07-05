@@ -28,7 +28,7 @@ import {
 } from './testHelpers';
 import { MARGIN_PRECISION, OrderType, PostOnlyParams } from '../sdk';
 
-describe('multiple maker orders', () => {
+describe('oracle fill guardrails', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		commitment: 'confirmed',
 		preflightCommitment: 'confirmed',
@@ -222,12 +222,14 @@ describe('multiple maker orders', () => {
 
 		let error = false;
 		try {
-			await fillerDriftClient.fillPerpOrder(
+			const txSig = await fillerDriftClient.fillPerpOrder(
 				await takerDriftClient.getUserAccountPublicKey(),
 				takerDriftClient.getUserAccount(),
 				takerDriftClient.getOrder(1),
 				makerInfo
 			);
+
+			await printTxLogs(connection, txSig);
 		} catch (e) {
 			error = true;
 			assert(e.message.includes('0x1787'));

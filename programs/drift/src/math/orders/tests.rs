@@ -2340,7 +2340,10 @@ mod calculate_max_perp_order_size {
 
 pub mod validate_fill_price_within_price_bands {
     use crate::math::orders::validate_fill_price_within_price_bands;
-    use crate::{PositionDirection, MARGIN_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+    use crate::{
+        PositionDirection, MARGIN_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION_I64,
+        PRICE_PRECISION_U64,
+    };
 
     #[test]
     fn valid_long() {
@@ -2356,7 +2359,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
-            (MARGIN_PRECISION / 2) as u64,
+            (PERCENTAGE_PRECISION / 2) as u64,
         )
         .is_ok())
     }
@@ -2375,7 +2378,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
-            (MARGIN_PRECISION / 2) as u64,
+            (PERCENTAGE_PRECISION / 2) as u64,
         )
         .is_ok())
     }
@@ -2395,7 +2398,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
-            (MARGIN_PRECISION / 2) as u64,
+            (PERCENTAGE_PRECISION / 2) as u64,
         )
         .is_err())
     }
@@ -2415,7 +2418,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
-            (MARGIN_PRECISION / 2) as u64,
+            (PERCENTAGE_PRECISION / 2) as u64,
         )
         .is_err())
     }
@@ -2435,7 +2438,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
-            (MARGIN_PRECISION / 2) as u64,
+            (PERCENTAGE_PRECISION / 2) as u64,
         )
         .is_err())
     }
@@ -2455,7 +2458,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
-            (MARGIN_PRECISION / 2) as u64,
+            (PERCENTAGE_PRECISION / 2) as u64,
         )
         .is_err())
     }
