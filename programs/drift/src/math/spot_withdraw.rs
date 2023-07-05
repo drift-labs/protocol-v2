@@ -15,9 +15,9 @@ pub fn calculate_min_deposit_token_amount(
     deposit_token_twap: u128,
     withdraw_guard_threshold: u128,
 ) -> DriftResult<u128> {
-    // minimum required deposit after withdrawal
+    // minimum required deposit amount after withdrawal
     // minimum deposit amount lower of 75% of TWAP or withdrawal guard threshold below TWAP
-    // these are two of the three scenarios, third is minimum deposit is 0 for high withdrawal guard threshold
+    // for high withdrawal guard threshold, minimum deposit amount is 0
 
     let min_deposit_token = deposit_token_twap
         .safe_sub((deposit_token_twap / 4).max(withdraw_guard_threshold.min(deposit_token_twap)))?;
@@ -96,7 +96,7 @@ pub fn calculate_token_utilization_limits(
     borrow_token_amount: u128,
     spot_market: &SpotMarket,
 ) -> DriftResult<(u128, u128)> {
-    // Calculates the allowable minimum deposit and maximum borrow amounts for immediate withdrawal based on market utilization.
+    // Calculates the allowable minimum deposit and maximum borrow amounts after withdrawal based on market utilization.
     // First, it determines a maximum withdrawal utilization from the market's target and historic utilization.
     // Then, it deduces corresponding deposit/borrow amounts.
     // Note: For deposit sizes below the guard threshold, withdrawals aren't blocked.
