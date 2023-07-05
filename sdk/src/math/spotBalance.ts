@@ -432,7 +432,9 @@ export function calculateTokenUtilizationLimits(
 	const maxWithdrawUtilization = BN.max(
 		spotMarket.optimalUtilization,
 		spotMarket.utilizationTwap.add(
-			SPOT_MARKET_UTILIZATION_PRECISION.sub(spotMarket.utilizationTwap).div(2)
+			SPOT_MARKET_UTILIZATION_PRECISION.sub(spotMarket.utilizationTwap).div(
+				new BN(2)
+			)
 		)
 	);
 
