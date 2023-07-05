@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: only get quote spot market if user has quote position in validate_spot_margin_trading
 - program: fix decrement_open_orders for makers
 
 ### Breaking

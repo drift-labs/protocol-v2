@@ -872,10 +872,12 @@ pub fn validate_spot_margin_trading(
         }
     }
 
-    let quote_spot_market = spot_market_map.get_quote_spot_market()?;
-    let quote_token_amount = user
-        .get_quote_spot_position()
-        .get_signed_token_amount(&quote_spot_market)?;
+    let mut quote_token_amount = 0_i128;
+    let quote_spot_position = user.get_quote_spot_position();
+    if !quote_spot_position.is_available() {
+        let quote_spot_market = spot_market_map.get_quote_spot_market()?;
+        quote_token_amount = quote_spot_position.get_signed_token_amount(&quote_spot_market)?;
+    }
 
     // The user can have open bids if their value is less than existing quote token amount
     validate!(
