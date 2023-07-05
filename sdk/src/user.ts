@@ -2009,9 +2009,6 @@ export class User {
 		const inPrecision = new BN(10 ** inMarket.decimals);
 		const outPrecision = new BN(10 ** outMarket.decimals);
 
-		const outSaferThanIn =
-			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
-
 		const inSpotPosition =
 			this.getSpotPosition(inMarketIndex) ||
 			this.getEmptySpotPosition(inMarketIndex);
@@ -2053,6 +2050,14 @@ export class User {
 		let inSwap = ZERO;
 		let outSwap = ZERO;
 		const inTokenAmount = this.getTokenAmount(inMarketIndex);
+		const outTokenAmount = this.getTokenAmount(outMarketIndex);
+
+		const outSaferThanIn =
+			// selling asset to close borrow
+			(inTokenAmount.gt(ZERO) && outTokenAmount.lt(ZERO)) ||
+			// buying asset with higher initial asset weight
+			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
+
 		if (freeCollateral.lt(ONE)) {
 			if (outSaferThanIn && inTokenAmount.gt(ZERO)) {
 				inSwap = inTokenAmount;
@@ -2060,11 +2065,10 @@ export class User {
 			}
 		} else {
 			let minSwap = ZERO;
-			let maxSwap = freeCollateral
-				.mul(inPrecision)
-				.mul(SPOT_MARKET_WEIGHT_PRECISION)
-				.div(SPOT_MARKET_WEIGHT_PRECISION.div(new BN(100)))
-				.div(inOraclePrice); // just assume user can go 100x
+			let maxSwap = BN.max(
+				freeCollateral.mul(inPrecision).mul(new BN(100)).div(inOraclePrice), // 100x current free collateral
+				inTokenAmount.abs().mul(new BN(10)) // 10x current position
+			);
 			inSwap = maxSwap.div(TWO);
 			const error = freeCollateral.div(new BN(10000));
 

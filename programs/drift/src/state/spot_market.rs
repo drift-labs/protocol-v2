@@ -287,7 +287,9 @@ impl SpotMarket {
         };
 
         let default_asset_weight = match margin_requirement_type {
-            MarginRequirementType::Initial => self.initial_asset_weight,
+            MarginRequirementType::Initial | MarginRequirementType::Fill => {
+                self.initial_asset_weight
+            }
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };
 
@@ -317,6 +319,11 @@ impl SpotMarket {
 
         let default_liability_weight = match margin_requirement_type {
             MarginRequirementType::Initial => self.initial_liability_weight,
+            MarginRequirementType::Fill => {
+                self.initial_liability_weight
+                    .safe_add(self.maintenance_liability_weight)?
+                    / 2
+            }
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
 
@@ -339,6 +346,7 @@ impl SpotMarket {
     ) -> DriftResult<u32> {
         let liability_weight = match margin_requirement_type {
             MarginRequirementType::Initial => self.initial_liability_weight,
+            MarginRequirementType::Fill => return Err(ErrorCode::DefaultError),
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
         liability_weight.safe_sub(MARGIN_PRECISION)

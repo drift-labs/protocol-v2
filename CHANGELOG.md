@@ -10,8 +10,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: add additional withdraw/borrow guards around fast utilization changes (([#517](https://github.com/drift-labs/protocol-v2/pull/517)))
+- program: new margin type for when orders are being filled (([#518](https://github.com/drift-labs/protocol-v2/pull/518)))
 
 ### Fixes
+
+- program: fix decrement_open_orders for makers
+
+### Breaking
+
+## [2.33.0] - 2023-06-30
+
+## [Unreleased]
+
+### Features
+
+### Fixes
+
+- program: fix margin calculation of unrealized funding pnl for lps (([#513](https://github.com/drift-labs/protocol-v2/pull/513)))
 
 ### Breaking
 

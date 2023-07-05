@@ -39,6 +39,7 @@ mod tests;
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub enum MarginRequirementType {
     Initial,
+    Fill,
     Maintenance,
 }
 
