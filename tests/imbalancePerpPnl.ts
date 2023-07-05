@@ -47,7 +47,7 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, TWO } from '../sdk';
+import { BulkAccountLoader, PERCENTAGE_PRECISION, TWO } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -202,6 +202,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
+
+		const oracleGuardrails = driftClient.getStateAccount().oracleGuardRails;
+		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
+			12
+		).mul(PERCENTAGE_PRECISION);
+		await driftClient.updateOracleGuardRails(oracleGuardrails);
 
 		try {
 			await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
@@ -837,8 +843,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(12),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: new BN(12).mul(PERCENTAGE_PRECISION),
+				oracleTwap5MinPercentDivergence: new BN(100).mul(PERCENTAGE_PRECISION),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

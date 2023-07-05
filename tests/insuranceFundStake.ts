@@ -43,7 +43,7 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import { BulkAccountLoader, PERCENTAGE_PRECISION } from '../sdk';
 
 describe('insurance fund stake', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -884,8 +884,8 @@ describe('insurance fund stake', () => {
 		const prevTC = driftClientUser.getTotalCollateral();
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: PERCENTAGE_PRECISION,
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION,
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -893,7 +893,6 @@ describe('insurance fund stake', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(100000),
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);

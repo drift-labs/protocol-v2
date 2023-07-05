@@ -2365,7 +2365,6 @@ pub mod fulfill_order {
 
     use crate::controller::orders::{fulfill_perp_order, validate_market_within_price_band};
     use crate::controller::position::PositionDirection;
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::get_orders;
     use crate::math::constants::{
@@ -2379,13 +2378,12 @@ pub mod fulfill_order {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::state::{
-        OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails,
-    };
+    use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::state::user_map::{UserMap, UserStatsMap};
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
+    use crate::{create_account_info, PERCENTAGE_PRECISION_U64};
 
     use super::*;
 
@@ -2429,16 +2427,13 @@ pub mod fulfill_order {
 
         let mut state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -2457,7 +2452,7 @@ pub mod fulfill_order {
         state
             .oracle_guard_rails
             .price_divergence
-            .mark_oracle_divergence_numerator = 6;
+            .mark_oracle_percent_divergence = 6 * PERCENTAGE_PRECISION_U64 / 10;
         assert!(validate_market_within_price_band(&market, &state, true, None).unwrap());
 
         // twap_5min $20 and mark $100 breaches 60% divergence -> failure
@@ -2636,7 +2631,7 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2879,7 +2874,7 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -3070,7 +3065,7 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -3274,7 +3269,7 @@ pub mod fulfill_order {
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
         let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -3438,7 +3433,7 @@ pub mod fulfill_order {
 
         let mut taker_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -3606,7 +3601,7 @@ pub mod fulfill_order {
     //
     //     let mut taker_stats = UserStats::default();
     //
-    //     let (base_asset_amount, _, _) = fulfill_perp_order(
+    //     let (base_asset_amount, _) = fulfill_perp_order(
     //         &mut taker,
     //         0,
     //         &taker_key,
@@ -3839,7 +3834,7 @@ pub mod fulfill_order {
 
         let taker_before = taker;
         let maker_before = maker;
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -4155,7 +4150,7 @@ pub mod fill_order {
             ..State::default()
         };
 
-        let (base_asset_amount, _) = fill_perp_order(
+        let base_asset_amount = fill_perp_order(
             1,
             &state,
             &user_account_loader,
@@ -4362,7 +4357,7 @@ pub mod fill_order {
             ..State::default()
         };
 
-        let (base_asset_amount, _) = fill_perp_order(
+        let base_asset_amount = fill_perp_order(
             1,
             &state,
             &user_account_loader,
@@ -4401,6 +4396,7 @@ pub mod fill_order {
                 order_tick_size: 1,
                 max_base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
                 min_base_asset_reserve: 50 * AMM_RESERVE_PRECISION,
+                historical_oracle_data: HistoricalOracleData::default_price(PRICE_PRECISION_I64),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -4489,7 +4485,7 @@ pub mod fill_order {
             unix_timestamp: 11,
         };
 
-        let (base_asset_amount, _) = fill_perp_order(
+        let base_asset_amount = fill_perp_order(
             1,
             &state,
             &user_account_loader,
@@ -5265,7 +5261,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -5364,7 +5360,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -5463,7 +5459,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -5562,7 +5558,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -5661,7 +5657,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -5798,7 +5794,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6307,7 +6303,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_asset_amount = fulfill_spot_order_with_match(
+        let (base_asset_amount, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6404,7 +6400,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6501,7 +6497,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6598,7 +6594,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6695,7 +6691,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6792,7 +6788,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6889,7 +6885,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -6986,7 +6982,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -7083,7 +7079,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let base_filled = fulfill_spot_order_with_match(
+        let (base_filled, _) = fulfill_spot_order_with_match(
             &mut base_market,
             &mut quote_market,
             &mut taker,
@@ -7121,6 +7117,7 @@ pub mod fulfill_spot_order {
         LAMPORTS_PER_SOL_I64, LAMPORTS_PER_SOL_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_fulfillment_params::TestFulfillmentParams;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -7333,12 +7330,14 @@ pub mod fulfill_spot_order {
             market_index: 1,
             deposit_balance: SPOT_BALANCE_PRECISION,
             oracle: oracle_price_key,
+            historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);
         let mut second_base_market = SpotMarket {
             market_index: 2,
             deposit_balance: SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(
@@ -7586,6 +7585,7 @@ pub mod fill_spot_order {
         LAMPORTS_PER_SOL_I64, LAMPORTS_PER_SOL_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_fulfillment_params::TestFulfillmentParams;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -7623,6 +7623,7 @@ pub mod fill_spot_order {
 
         let mut base_market = SpotMarket {
             deposit_balance: SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(PRICE_PRECISION_I64),
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);

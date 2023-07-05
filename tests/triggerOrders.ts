@@ -31,6 +31,7 @@ import {
 	BulkAccountLoader,
 	convertToNumber,
 	OracleSource,
+	PERCENTAGE_PRECISION,
 	QUOTE_PRECISION,
 	ZERO,
 } from '../sdk';
@@ -107,8 +108,8 @@ describe('trigger orders', () => {
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(100),
-				markOracleDivergenceDenominator: new BN(10),
+				markOraclePercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
