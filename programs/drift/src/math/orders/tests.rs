@@ -2356,6 +2356,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
+            (MARGIN_PRECISION / 2) as u64,
         )
         .is_ok())
     }
@@ -2374,6 +2375,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
+            (MARGIN_PRECISION / 2) as u64,
         )
         .is_ok())
     }
@@ -2393,6 +2395,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
+            (MARGIN_PRECISION / 2) as u64,
         )
         .is_err())
     }
@@ -2412,6 +2415,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
+            (MARGIN_PRECISION / 2) as u64,
         )
         .is_err())
     }
@@ -2431,6 +2435,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
+            (MARGIN_PRECISION / 2) as u64,
         )
         .is_err())
     }
@@ -2450,6 +2455,7 @@ pub mod validate_fill_price_within_price_bands {
             oracle_price,
             twap,
             margin_ratio_initial,
+            (MARGIN_PRECISION / 2) as u64,
         )
         .is_err())
     }

@@ -1103,6 +1103,10 @@ pub fn fill_perp_order(
             oracle_price,
             oracle_twap_5min,
             perp_market_map.get_ref(&market_index)?.margin_ratio_initial,
+            state
+                .oracle_guard_rails
+                .price_divergence
+                .oracle_twap_5min_percent_divergence,
         )?;
     }
 
@@ -3289,6 +3293,10 @@ pub fn fill_spot_order(
             oracle_price,
             oracle_twap_5min,
             spot_market.get_margin_ratio(&MarginRequirementType::Initial)?,
+            state
+                .oracle_guard_rails
+                .price_divergence
+                .oracle_twap_5min_percent_divergence,
         )?;
     }
 
