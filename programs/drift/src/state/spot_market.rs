@@ -6,9 +6,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_UTILIZATION_PRECISION, SPOT_WEIGHT_PRECISION_U128,
-};
+use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
 #[cfg(test)]
 use crate::math::constants::{PRICE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION};
 use crate::math::margin::{
