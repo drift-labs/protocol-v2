@@ -1787,7 +1787,7 @@ export class User {
 		closeQuoteAmount: BN
 	): BN {
 		const currentPosition =
-			this.getPerpPosition(positionMarketIndex) ||
+			this.getPerpPositionWithLPSettle(positionMarketIndex)[0] ||
 			this.getEmptyPosition(positionMarketIndex);
 
 		const closeBaseAmount = currentPosition.baseAssetAmount
