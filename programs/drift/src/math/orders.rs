@@ -707,7 +707,7 @@ pub fn get_max_fill_amounts(
 fn get_max_fill_amounts_for_market(user: &User, market: &SpotMarket) -> DriftResult<u128> {
     let position_index = user.get_spot_position_index(market.market_index)?;
     let token_amount = user.spot_positions[position_index].get_signed_token_amount(market)?;
-    get_max_withdraw_for_market_with_token_amount(market, token_amount)
+    get_max_withdraw_for_market_with_token_amount(market, token_amount, false)
 }
 
 pub fn find_fallback_maker_order(

@@ -19,7 +19,8 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, MarginRequirementType,
 };
 use crate::math::spot_withdraw::{
-    calculate_max_borrow_token_amount, calculate_min_deposit_token, check_withdraw_limits,
+    calculate_max_borrow_token_amount, calculate_min_deposit_token_amount,
+    calculate_token_utilization_limits, check_withdraw_limits,
 };
 use crate::math::stats::calculate_weighted_average;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -108,6 +109,9 @@ fn test_daily_withdraw_limits() {
         maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
         deposit_balance: SPOT_BALANCE_PRECISION,
         borrow_balance: SPOT_BALANCE_PRECISION,
+        deposit_token_twap: (SPOT_BALANCE_PRECISION * 10) as u64,
+        borrow_token_twap: 0,
+
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
         status: MarketStatus::Active,
 
@@ -245,6 +249,7 @@ fn test_daily_withdraw_limits() {
         ..User::default()
     };
     sol_spot_market.deposit_balance = 50 * SPOT_BALANCE_PRECISION;
+    sol_spot_market.deposit_token_twap = (500 * SPOT_BALANCE_PRECISION) as u64;
 
     sol_spot_market.optimal_borrow_rate = SPOT_RATE_PRECISION_U32 / 5; //20% APR
     sol_spot_market.max_borrow_rate = SPOT_RATE_PRECISION_U32; //100% APR
@@ -322,7 +327,7 @@ fn test_daily_withdraw_limits() {
     assert_eq!(sol_spot_market.borrow_balance, 8000000002);
     assert_eq!(sol_spot_market.borrow_token_twap, 0);
     update_spot_market_cumulative_interest(&mut sol_spot_market, None, now + 3655 * 24).unwrap();
-    assert_eq!(sol_spot_market.deposit_token_twap, 500067287978);
+    assert_eq!(sol_spot_market.deposit_token_twap, 500072987867);
     assert_eq!(sol_spot_market.borrow_token_twap, 80072075950);
 
     update_spot_balances_and_cumulative_deposits_with_limits(
@@ -450,10 +455,12 @@ fn test_check_withdraw_limits() {
         ..User::default()
     };
 
-    let mdt = calculate_min_deposit_token(QUOTE_PRECISION, 0).unwrap();
+    let mdt = calculate_min_deposit_token_amount(QUOTE_PRECISION, 0).unwrap();
     assert_eq!(mdt, QUOTE_PRECISION - QUOTE_PRECISION / 4);
 
-    let mbt = calculate_max_borrow_token_amount(QUOTE_PRECISION, QUOTE_PRECISION / 2, 0).unwrap();
+    let mbt =
+        calculate_max_borrow_token_amount(QUOTE_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION / 2, 0)
+            .unwrap();
     assert_eq!(mbt, 600000);
 
     let valid_withdraw = check_withdraw_limits(&spot_market, Some(&user), Some(0)).unwrap();
@@ -465,6 +472,216 @@ fn test_check_withdraw_limits() {
 
     let valid_withdraw = check_withdraw_limits(&sol_spot_market, None, None).unwrap();
     assert!(!valid_withdraw);
+}
+
+#[test]
+fn test_check_withdraw_limits_below_optimal_utilization() {
+    // let oracle_price = get_pyth_price(20, 9);
+    let oracle_price_key =
+        Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+
+    let mut sol_spot_market = SpotMarket {
+        market_index: 1,
+        oracle_source: OracleSource::Pyth,
+        oracle: oracle_price_key,
+        cumulative_deposit_interest: 1020 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        cumulative_borrow_interest: 1222 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+
+        optimal_utilization: 700000,
+        optimal_borrow_rate: 60000,
+        max_borrow_rate: 1000000,
+
+        decimals: 9,
+        initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+        maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+        initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+        maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
+        deposit_balance: 200_000 * SPOT_BALANCE_PRECISION, // 200k sol
+        borrow_balance: 100_000 * SPOT_BALANCE_PRECISION,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+        deposit_token_twap: 204000000000000_u64,
+        borrow_token_twap: 122200000000000_u64,
+        utilization_twap: 100000, // 10% (so quickly moved!)
+        status: MarketStatus::Active,
+
+        ..SpotMarket::default()
+    };
+
+    assert_eq!(sol_spot_market.get_utilization().unwrap(), 599019);
+    assert!(
+        sol_spot_market.get_utilization().unwrap() < sol_spot_market.optimal_utilization as u128
+    ); // below optimal util
+
+    let deposit_tokens_1 = get_token_amount(
+        sol_spot_market.deposit_balance,
+        &sol_spot_market,
+        &SpotBalanceType::Deposit,
+    )
+    .unwrap();
+    let borrow_tokens_1 = get_token_amount(
+        sol_spot_market.borrow_balance,
+        &sol_spot_market,
+        &SpotBalanceType::Borrow,
+    )
+    .unwrap();
+
+    let mdt_dep: u128 =
+        calculate_min_deposit_token_amount(sol_spot_market.deposit_token_twap as u128, 0).unwrap();
+
+    let mbt_bor = calculate_max_borrow_token_amount(
+        deposit_tokens_1,
+        deposit_tokens_1,
+        sol_spot_market.borrow_token_twap as u128,
+        0,
+    )
+    .unwrap();
+
+    let (min_dep, max_bor) =
+        calculate_token_utilization_limits(deposit_tokens_1, borrow_tokens_1, &sol_spot_market)
+            .unwrap();
+
+    assert_eq!(deposit_tokens_1, 204000000000000);
+    assert_eq!(borrow_tokens_1, 122200000000000);
+
+    // utilization bands differ from others
+    assert_eq!(min_dep, 174571428571428); //174571.428571
+    assert_eq!(mdt_dep, 153000000000000);
+
+    assert_eq!(max_bor, 142800000000000);
+    assert_eq!(mbt_bor, 142600000000000);
+
+    let valid_withdraw = check_withdraw_limits(&sol_spot_market, None, None).unwrap();
+    assert_eq!(valid_withdraw, true);
+
+    // ensure it fails due to higher min_dep above
+    sol_spot_market.deposit_balance = 174571428571428 / 1020 * 1000;
+    sol_spot_market.utilization_twap = 100000;
+
+    let deposit_tokens_1 = get_token_amount(
+        sol_spot_market.deposit_balance,
+        &sol_spot_market,
+        &SpotBalanceType::Deposit,
+    )
+    .unwrap();
+    let (min_dep, max_bor) =
+        calculate_token_utilization_limits(deposit_tokens_1, borrow_tokens_1, &sol_spot_market)
+            .unwrap();
+    assert_eq!(min_dep, 174571428570660);
+    assert_eq!(max_bor, 122199999999462);
+
+    let valid_withdraw = check_withdraw_limits(&sol_spot_market, None, None).unwrap();
+    assert_eq!(valid_withdraw, false);
+}
+
+#[test]
+fn test_check_withdraw_limits_above_optimal_utilization() {
+    // let oracle_price = get_pyth_price(20, 9);
+    let oracle_price_key =
+        Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+
+    let mut sol_spot_market = SpotMarket {
+        market_index: 1,
+        oracle_source: OracleSource::Pyth,
+        oracle: oracle_price_key,
+        cumulative_deposit_interest: 1020 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        cumulative_borrow_interest: 1222 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+
+        optimal_utilization: 700000, // 70%
+        optimal_borrow_rate: 60000,  // 6%
+        max_borrow_rate: 1000000,    // 100%
+
+        decimals: 9,
+        initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+        maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+        initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+        maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
+        deposit_balance: 200_000 * SPOT_BALANCE_PRECISION, // 200k sol
+        borrow_balance: 140_000 * SPOT_BALANCE_PRECISION,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+        deposit_token_twap: 204000000000000_u64,
+        borrow_token_twap: 192200000000000_u64,
+        utilization_twap: 800000, // 80%
+        status: MarketStatus::Active,
+
+        ..SpotMarket::default()
+    };
+
+    assert_eq!(sol_spot_market.get_utilization().unwrap(), 838627);
+    assert!(
+        sol_spot_market.get_utilization().unwrap() > sol_spot_market.optimal_utilization as u128
+    ); // below optimal util
+
+    let deposit_tokens_1 = get_token_amount(
+        sol_spot_market.deposit_balance,
+        &sol_spot_market,
+        &SpotBalanceType::Deposit,
+    )
+    .unwrap();
+    let borrow_tokens_1 = get_token_amount(
+        sol_spot_market.borrow_balance,
+        &sol_spot_market,
+        &SpotBalanceType::Borrow,
+    )
+    .unwrap();
+
+    let mdt_dep: u128 =
+        calculate_min_deposit_token_amount(sol_spot_market.deposit_token_twap as u128, 0).unwrap();
+
+    let mbt_bor = calculate_max_borrow_token_amount(
+        deposit_tokens_1,
+        deposit_tokens_1,
+        sol_spot_market.borrow_token_twap as u128,
+        0,
+    )
+    .unwrap();
+
+    // 80% utilization means 90% (80% + 10/2%) is the max limit for these tokens
+    let (min_dep, max_bor) =
+        calculate_token_utilization_limits(deposit_tokens_1, borrow_tokens_1, &sol_spot_market)
+            .unwrap();
+
+    assert_eq!(deposit_tokens_1, 204000000000000);
+    assert_eq!(borrow_tokens_1, 171080000000000);
+
+    // utilization bands differ from others
+    assert_eq!(min_dep, 190088888888888); //174571.428571
+    assert_eq!(mdt_dep, 153000000000000);
+
+    assert_eq!(max_bor, 183600000000000);
+    assert_eq!(mbt_bor, 163200000000000);
+
+    // without passing a user, since borrows are above the built in limit of 80% will fail
+    let valid_withdraw = check_withdraw_limits(&sol_spot_market, None, None).unwrap();
+    assert_eq!(valid_withdraw, false);
+
+    // with mock user doing no borrowing, success!
+    let mut spot_positions = [SpotPosition::default(); 8];
+    spot_positions[0] = SpotPosition {
+        market_index: 0,
+        balance_type: SpotBalanceType::Deposit,
+        scaled_balance: SPOT_BALANCE_PRECISION_U64,
+        ..SpotPosition::default()
+    };
+    spot_positions[1] = SpotPosition {
+        market_index: 1,
+        balance_type: SpotBalanceType::Deposit,
+        scaled_balance: SPOT_BALANCE_PRECISION_U64,
+        ..SpotPosition::default()
+    };
+    let user = User {
+        orders: [Order::default(); 32],
+        perp_positions: [PerpPosition::default(); 8],
+        spot_positions,
+        ..User::default()
+    };
+
+    let valid_withdraw = check_withdraw_limits(&sol_spot_market, Some(&user), None).unwrap();
+    assert_eq!(valid_withdraw, true);
+
+    // now ensure it fails due to higher min_dep above
+    sol_spot_market.deposit_balance = min_dep / 1020 * 1000;
+    let valid_withdraw = check_withdraw_limits(&sol_spot_market, None, None).unwrap();
+    assert_eq!(valid_withdraw, false);
 }
 
 #[test]
@@ -523,7 +740,7 @@ fn check_fee_collection() {
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: SPOT_BALANCE_PRECISION,
         borrow_balance: 0,
-        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
+        deposit_token_twap: QUOTE_PRECISION_U64,
 
         optimal_utilization: SPOT_UTILIZATION_PRECISION_U32 / 2,
         optimal_borrow_rate: SPOT_RATE_PRECISION_U32 * 20,
