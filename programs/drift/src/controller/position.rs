@@ -78,7 +78,7 @@ pub fn get_position_index(user_positions: &PerpPositions, market_index: u16) -> 
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, PartialEq, Debug)]
 pub struct PositionDelta {
     pub quote_asset_amount: i64,
     pub base_asset_amount: i64,

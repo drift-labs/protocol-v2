@@ -5,6 +5,7 @@ fi
 
 test_files=(
   ammDistributionsValidate.ts
+  oracleFillPriceGuardrails.ts
   perpLpJit.ts
   spotSwap.ts
   maxLeverageOrderParams.ts

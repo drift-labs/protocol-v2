@@ -29,6 +29,7 @@ import {
 	BulkAccountLoader,
 	getMarketOrderParams,
 	MAX_LEVERAGE_ORDER_SIZE,
+	PERCENTAGE_PRECISION,
 } from '../sdk';
 
 describe('max leverage order params', () => {
@@ -125,8 +126,8 @@ describe('max leverage order params', () => {
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(10),
+				markOraclePercentDivergence: PERCENTAGE_PRECISION.div(new BN(10)),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION,
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

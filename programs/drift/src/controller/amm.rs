@@ -635,9 +635,8 @@ pub fn update_pool_balances(
 
         // dont settle negative pnl to spot borrows when utilization is high (> 80%)
         let max_withdraw_amount =
-            -get_max_withdraw_for_market_with_token_amount(spot_market, token_amount)?
+            -get_max_withdraw_for_market_with_token_amount(spot_market, token_amount, true)?
                 .cast::<i128>()?;
-
         max_withdraw_amount.max(user_unsettled_pnl)
     };
 

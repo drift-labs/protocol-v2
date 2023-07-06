@@ -660,6 +660,8 @@ export type SpotMarketAccount = {
 
 	orderStepSize: BN;
 	orderTickSize: BN;
+	minOrderSize: BN;
+	maxPositionSize: BN;
 	nextFillRecordId: BN;
 	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
@@ -1011,8 +1013,8 @@ export type OrderFillerRewardStructure = {
 
 export type OracleGuardRails = {
 	priceDivergence: {
-		markOracleDivergenceNumerator: BN;
-		markOracleDivergenceDenominator: BN;
+		markOraclePercentDivergence: BN;
+		oracleTwap5MinPercentDivergence: BN;
 	};
 	validity: {
 		slotsBeforeStaleForAmm: BN;

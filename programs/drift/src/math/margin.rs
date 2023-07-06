@@ -39,6 +39,7 @@ mod tests;
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub enum MarginRequirementType {
     Initial,
+    Fill,
     Maintenance,
 }
 
@@ -143,10 +144,22 @@ pub fn calculate_perp_position_value_and_pnl(
         oracle_price_data.price
     };
 
+    // the funding must be calculated before calculated the unrealized pnl w simulated lp position
+    let unrealized_funding = calculate_funding_payment(
+        if market_position.base_asset_amount > 0 {
+            market.amm.cumulative_funding_rate_long
+        } else {
+            market.amm.cumulative_funding_rate_short
+        },
+        market_position,
+    )?;
+
     let market_position = market_position.simulate_settled_lp_position(market, valuation_price)?;
 
-    let total_unrealized_pnl =
-        calculate_total_unrealized_perp_pnl(&market_position, market, valuation_price)?;
+    let (_, unrealized_pnl) =
+        calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
+
+    let total_unrealized_pnl = unrealized_pnl.safe_add(unrealized_funding.cast()?)?;
 
     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
 
@@ -210,26 +223,6 @@ pub fn calculate_perp_position_value_and_pnl(
         weighted_unrealized_pnl,
         worse_case_base_asset_value,
     ))
-}
-
-pub fn calculate_total_unrealized_perp_pnl(
-    market_position: &PerpPosition,
-    market: &PerpMarket,
-    valuation_price: i64,
-) -> DriftResult<i128> {
-    let unrealized_funding = calculate_funding_payment(
-        if market_position.base_asset_amount > 0 {
-            market.amm.cumulative_funding_rate_long
-        } else {
-            market.amm.cumulative_funding_rate_short
-        },
-        market_position,
-    )?;
-
-    let (_, unrealized_pnl) =
-        calculate_base_asset_value_and_pnl_with_oracle_price(market_position, valuation_price)?;
-
-    unrealized_pnl.safe_add(unrealized_funding.cast()?)
 }
 
 pub fn calculate_user_safest_position_tiers(
@@ -879,10 +872,12 @@ pub fn validate_spot_margin_trading(
         }
     }
 
-    let quote_spot_market = spot_market_map.get_quote_spot_market()?;
-    let quote_token_amount = user
-        .get_quote_spot_position()
-        .get_signed_token_amount(&quote_spot_market)?;
+    let mut quote_token_amount = 0_i128;
+    let quote_spot_position = user.get_quote_spot_position();
+    if !quote_spot_position.is_available() {
+        let quote_spot_market = spot_market_map.get_quote_spot_market()?;
+        quote_token_amount = quote_spot_position.get_signed_token_amount(&quote_spot_market)?;
+    }
 
     // The user can have open bids if their value is less than existing quote token amount
     validate!(
@@ -960,10 +955,24 @@ pub fn calculate_user_equity(
             oracle_price_data.price
         };
 
+        let unrealized_funding = calculate_funding_payment(
+            if market_position.base_asset_amount > 0 {
+                market.amm.cumulative_funding_rate_long
+            } else {
+                market.amm.cumulative_funding_rate_short
+            },
+            market_position,
+        )?;
+
         let market_position =
             market_position.simulate_settled_lp_position(market, valuation_price)?;
 
-        let pnl = calculate_total_unrealized_perp_pnl(&market_position, market, valuation_price)?;
+        let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
+            &market_position,
+            valuation_price,
+        )?;
+
+        let pnl = unrealized_pnl.safe_add(unrealized_funding.cast()?)?;
 
         let pnl_value = pnl
             .safe_mul(quote_oracle_price.cast()?)?

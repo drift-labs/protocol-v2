@@ -236,7 +236,7 @@ describe('phoenix spot market', () => {
 		assert(phoenixMarket.data.header.authority.equals(god.publicKey));
 		assert(phoenixMarket.data.traders.has(god.publicKey.toBase58()));
 
-		solOracle = await mockOracle(30);
+		solOracle = await mockOracle(100);
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
