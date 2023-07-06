@@ -656,7 +656,7 @@ pub fn meets_withdraw_margin_requirement(
         strict,
     )?;
 
-    if initial_margin_requirement > 0 {
+    if initial_margin_requirement > 0 || num_of_liabilities > 0 {
         validate!(
             oracles_valid,
             ErrorCode::InvalidOracle,
