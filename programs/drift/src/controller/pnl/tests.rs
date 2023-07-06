@@ -20,7 +20,7 @@ use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails};
+use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
 use crate::state::user::{PerpPosition, SpotPosition, User};
 use crate::test_utils::*;
 use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
@@ -32,16 +32,13 @@ pub fn user_no_position() {
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };
@@ -146,16 +143,13 @@ pub fn user_does_not_meet_maintenance_requirement() {
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };
@@ -266,16 +260,13 @@ pub fn user_unsettled_negative_pnl() {
     let slot = 0_u64;
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };
@@ -399,16 +390,13 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
     let slot = 0_u64;
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };
@@ -530,16 +518,13 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
     let slot = 0_u64;
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };
@@ -663,16 +648,13 @@ pub fn market_fee_pool_receives_portion() {
     let slot = 0;
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };
@@ -798,16 +780,13 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
     let slot = 0_u64;
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };
@@ -938,16 +917,13 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
     let slot = 0_u64;
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };
@@ -1072,16 +1048,13 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
     let slot = 0_u64;
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };
@@ -1203,16 +1176,13 @@ pub fn user_long_negative_unrealized_pnl() {
     let slot = 0_u64;
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };
@@ -1337,16 +1307,13 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
     let slot = 0_u64;
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };
@@ -1471,16 +1438,13 @@ pub fn user_short_negative_unrealized_pnl() {
     let slot = 0_u64;
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };

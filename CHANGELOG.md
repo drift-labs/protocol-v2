@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: add additional withdraw/borrow guards around fast utilization changes (([#517](https://github.com/drift-labs/protocol-v2/pull/517)))
 - program: new margin type for when orders are being filled (([#518](https://github.com/drift-labs/protocol-v2/pull/518)))
+- program: new fill price bands (([#516](https://github.com/drift-labs/protocol-v2/pull/516)))
 
 ### Fixes
 
+- program: only get quote spot market if user has quote position in validate_spot_margin_trading
 - program: fix decrement_open_orders for makers
 
 ### Breaking

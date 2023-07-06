@@ -6900,11 +6900,11 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "markOracleDivergenceNumerator",
+            "name": "markOraclePercentDivergence",
             "type": "u64"
           },
           {
-            "name": "markOracleDivergenceDenominator",
+            "name": "oracleTwap5minPercentDivergence",
             "type": "u64"
           }
         ]
