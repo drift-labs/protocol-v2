@@ -434,7 +434,7 @@ pub fn update_lp_market_position(
     .safe_mul(user_lp_shares.cast::<i128>()?)?
     .safe_div(total_lp_shares.cast::<i128>()?)?;
 
-    let per_lp_fee = if lp_fee > 0 {
+    let per_lp_fee: i128 = if lp_fee > 0 {
         lp_fee
             .safe_mul(AMM_RESERVE_PRECISION_I128)?
             .safe_div(user_lp_shares.cast::<i128>()?)?
@@ -442,11 +442,15 @@ pub fn update_lp_market_position(
         0
     };
 
-    // update per lp position
-    market.amm.quote_asset_amount_per_lp = market
+    // track total fee earned by lps (to attribute breakdown of IL)
+    market.amm.total_fee_earned_per_lp = market
         .amm
-        .quote_asset_amount_per_lp
-        .safe_add(per_lp_fee.cast()?)?;
+        .total_fee_earned_per_lp
+        .saturating_add(per_lp_fee.cast()?);
+
+    // update per lp position
+    market.amm.quote_asset_amount_per_lp =
+        market.amm.quote_asset_amount_per_lp.safe_add(per_lp_fee)?;
 
     market.amm.base_asset_amount_with_amm = market
         .amm
