@@ -1292,6 +1292,11 @@ pub fn handle_update_spot_market_cumulative_interest(
         )?;
     }
 
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
+
     Ok(())
 }
 
@@ -1640,6 +1645,11 @@ pub struct UpdateSpotMarketCumulativeInterest<'info> {
     pub spot_market: AccountLoader<'info, SpotMarket>,
     /// CHECK: checked in `update_spot_market_cumulative_interest` ix constraint
     pub oracle: AccountInfo<'info>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), spot_market.load()?.market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]
