@@ -252,7 +252,7 @@ pub fn get_max_withdraw_for_market_with_token_amount(
     max_withdraw_amount.safe_add(borrow_limit)
 }
 
-pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<u64> {
+pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<i64> {
     let depositors_amount: u64 = get_token_amount(
         spot_market.deposit_balance,
         spot_market,
@@ -266,13 +266,13 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<u64> {
     )?
     .cast()?;
 
-    validate!(
-        depositors_amount >= borrowers_amount,
-        ErrorCode::SpotMarketBalanceInvariantViolated,
-        "depositors_amount={} less than borrowers_amount={}",
-        depositors_amount,
-        borrowers_amount
-    )?;
+    // validate!(
+    //     depositors_amount >= borrowers_amount,
+    //     ErrorCode::SpotMarketBalanceInvariantViolated,
+    //     "depositors_amount={} less than borrowers_amount={}",
+    //     depositors_amount,
+    //     borrowers_amount
+    // )?;
 
     let revenue_amount: u64 = get_token_amount(
         spot_market.revenue_pool.scaled_balance,
@@ -281,7 +281,9 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<u64> {
     )?
     .cast()?;
 
-    let depositors_claim = depositors_amount - borrowers_amount;
+    let depositors_claim = depositors_amount
+        .cast::<i64>()?
+        .safe_sub(borrowers_amount.cast()?)?;
 
     validate!(
         revenue_amount <= depositors_amount,
@@ -299,11 +301,11 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<u64> {
 pub fn validate_spot_market_vault_amount(
     spot_market: &SpotMarket,
     vault_amount: u64,
-) -> DriftResult<u64> {
+) -> DriftResult<i64> {
     let depositors_claim = validate_spot_balances(spot_market)?;
 
     validate!(
-        vault_amount >= depositors_claim,
+        vault_amount.cast::<i64>()? >= depositors_claim,
         ErrorCode::SpotMarketVaultInvariantViolated,
         "spot market vault ={} holds less than remaining depositor claims = {}",
         vault_amount,
