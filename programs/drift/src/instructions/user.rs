@@ -2541,7 +2541,7 @@ pub fn handle_end_swap(
 
     out_spot_market.total_swap_fee = out_spot_market.total_swap_fee.saturating_add(fee);
 
-    let fee_value = get_token_value(fee.cast()?, out_spot_market.decimals, out_oracle_data.price)?;
+    let fee_value = get_token_value(fee.cast()?, out_spot_market.decimals, out_oracle_price)?;
 
     // update fees
     user.update_cumulative_spot_fees(-fee_value.cast()?)?;
@@ -2551,7 +2551,7 @@ pub fn handle_end_swap(
     let amount_out_value = get_token_value(
         amount_out.cast()?,
         out_spot_market.decimals,
-        out_oracle_data.price,
+        out_oracle_price,
     )?;
     user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
 
