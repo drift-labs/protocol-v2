@@ -1362,7 +1362,7 @@ export class User {
 				ZERO,
 				freeCollateral
 					.mul(MARGIN_PRECISION)
-					.div(marginRatio)
+					.div(new BN(marginRatio))
 					.mul(PRICE_PRECISION)
 					.div(marketPrice)
 			);
