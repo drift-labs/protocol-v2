@@ -2361,6 +2361,14 @@ pub fn handle_begin_swap(
                 ErrorCode::InvalidSwap,
                 "only allowed to pass in ixs to token or openbook or Jupiter v3 or v4 programs"
             )?;
+
+            for meta in ix.accounts.iter() {
+                validate!(
+                    meta.pubkey != crate::id(),
+                    ErrorCode::InvalidSwap,
+                    "instructions between begin and end must not be drift instructions"
+                )?;
+            }
         }
 
         index += 1;
