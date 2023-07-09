@@ -2582,7 +2582,7 @@ pub fn handle_end_swap(
     update_revenue_pool_balances(fee.cast()?, &SpotBalanceType::Deposit, &mut out_spot_market)?;
 
     let out_position_is_reduced = out_token_amount_before < 0
-        && out_token_amount_before.unsigned_abs() >= amount_out.cast()?;
+        && out_token_amount_before.unsigned_abs() >= amount_out_after_fee.cast()?;
 
     if !out_position_is_reduced {
         validate!(
