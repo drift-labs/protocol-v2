@@ -28,6 +28,7 @@ use crate::math::margin::{
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
+use crate::math::spot_swap;
 use crate::math::spot_swap::calculate_swap_price;
 use crate::math_error;
 use crate::print_error;
@@ -2462,6 +2463,10 @@ pub fn handle_end_swap(
         &mut user,
     )?;
 
+    let in_token_amount_after = user
+        .force_get_spot_position_mut(in_market_index)?
+        .get_signed_token_amount(&in_spot_market)?;
+
     let in_position_is_reduced =
         in_token_amount_before > 0 && in_token_amount_before.unsigned_abs() >= amount_in.cast()?;
 
@@ -2569,6 +2574,10 @@ pub fn handle_end_swap(
         Some(amount_out.cast()?),
     )?;
 
+    let out_token_amount_after = user
+        .force_get_spot_position_mut(out_market_index)?
+        .get_signed_token_amount(&out_spot_market)?;
+
     // update fees
     update_revenue_pool_balances(fee.cast()?, &SpotBalanceType::Deposit, &mut out_spot_market)?;
 
@@ -2600,17 +2609,19 @@ pub fn handle_end_swap(
 
     out_spot_market.validate_max_token_deposits()?;
 
-    let out_safer_than_in =
-        out_spot_market.maintenance_asset_weight > in_spot_market.maintenance_asset_weight;
+    let margin_type = spot_swap::select_margin_type_for_swap(
+        &in_spot_market,
+        &out_spot_market,
+        in_oracle_price,
+        out_oracle_price,
+        in_token_amount_before,
+        out_token_amount_before,
+        in_token_amount_after,
+        out_token_amount_after,
+    )?;
 
     drop(out_spot_market);
     drop(in_spot_market);
-
-    let margin_type = if in_position_is_reduced && out_safer_than_in {
-        MarginRequirementType::Maintenance
-    } else {
-        MarginRequirementType::Initial
-    };
 
     meets_withdraw_margin_requirement(
         &user,
