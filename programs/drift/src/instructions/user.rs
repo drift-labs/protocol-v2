@@ -2248,6 +2248,12 @@ pub fn handle_begin_swap(
     )?;
 
     validate!(
+        in_market_index != out_market_index,
+        ErrorCode::InvalidSwap,
+        "in and out market the same"
+    )?;
+
+    validate!(
         amount_in != 0,
         ErrorCode::InvalidSwap,
         "amount_out cannot be zero"
