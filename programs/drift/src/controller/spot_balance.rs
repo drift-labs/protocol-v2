@@ -252,7 +252,7 @@ pub fn update_spot_balances(
         }
     }
 
-    if let SpotBalanceType::Borrow = update_direction {
+    if force_round_up && update_direction == &SpotBalanceType::Borrow {
         let deposit_token_amount = get_token_amount(
             spot_market.deposit_balance,
             spot_market,
@@ -293,13 +293,15 @@ pub fn transfer_spot_balances(
         return Ok(());
     }
 
-    validate!(
-        spot_market.deposit_balance >= from_spot_balance.balance(),
-        ErrorCode::InvalidSpotMarketState,
-        "spot_market.deposit_balance={} lower than individual spot balance={}",
-        spot_market.deposit_balance,
-        from_spot_balance.balance()
-    )?;
+    if from_spot_balance.balance_type() == &SpotBalanceType::Deposit {
+        validate!(
+            spot_market.deposit_balance >= from_spot_balance.balance(),
+            ErrorCode::InvalidSpotMarketState,
+            "spot_market.deposit_balance={} lower than individual spot balance={}",
+            spot_market.deposit_balance,
+            from_spot_balance.balance()
+        )?;
+    }
 
     update_spot_balances(
         token_amount.unsigned_abs(),
