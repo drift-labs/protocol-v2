@@ -2144,6 +2144,7 @@ export class DriftClient {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				spotMarket: spotMarket.pubkey,
+				spotMarketVault: spotMarket.vault,
 				oracle: spotMarket.oracle,
 			},
 		});
