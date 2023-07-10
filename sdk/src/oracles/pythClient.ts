@@ -1,16 +1,27 @@
 import { parsePriceData } from '@pythnetwork/client';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { OracleClient, OraclePriceData } from './types';
-import { BN } from '@project-serum/anchor';
-import { ONE, PRICE_PRECISION, TEN } from '../constants/numericConstants';
+import { BN } from '@coral-xyz/anchor';
+import {
+	ONE,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	TEN,
+} from '../constants/numericConstants';
 
 export class PythClient implements OracleClient {
 	private connection: Connection;
 	private multiple: BN;
+	private stableCoin: boolean;
 
-	public constructor(connection: Connection, multiple = ONE) {
+	public constructor(
+		connection: Connection,
+		multiple = ONE,
+		stableCoin = false
+	) {
 		this.connection = connection;
 		this.multiple = multiple;
+		this.stableCoin = stableCoin;
 	}
 
 	public async getOraclePriceData(
@@ -22,18 +33,24 @@ export class PythClient implements OracleClient {
 
 	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
 		const priceData = parsePriceData(buffer);
+		const confidence = convertPythPrice(
+			priceData.confidence,
+			priceData.exponent,
+			this.multiple
+		);
+		let price = convertPythPrice(
+			priceData.aggregate.price,
+			priceData.exponent,
+			this.multiple
+		);
+		if (this.stableCoin) {
+			price = getStableCoinPrice(price, confidence);
+		}
+
 		return {
-			price: convertPythPrice(
-				priceData.aggregate.price,
-				priceData.exponent,
-				this.multiple
-			),
+			price,
 			slot: new BN(priceData.lastSlot.toString()),
-			confidence: convertPythPrice(
-				priceData.confidence,
-				priceData.exponent,
-				this.multiple
-			),
+			confidence,
 			twap: convertPythPrice(
 				priceData.twap.value,
 				priceData.exponent,
@@ -59,4 +76,13 @@ export function convertPythPrice(
 	return new BN(price * Math.pow(10, exponent))
 		.mul(PRICE_PRECISION)
 		.div(pythPrecision);
+}
+
+const fiveBPS = new BN(500);
+function getStableCoinPrice(price: BN, confidence: BN): BN {
+	if (price.sub(QUOTE_PRECISION).abs().lt(BN.min(confidence, fiveBPS))) {
+		return QUOTE_PRECISION;
+	} else {
+		return price;
+	}
 }

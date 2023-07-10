@@ -14,9 +14,10 @@ import {
 	TransactionInstruction,
 	AddressLookupTableAccount,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@project-serum/anchor';
+import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
+import { IWallet } from '../types';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_RETRY = 8000;
@@ -26,20 +27,34 @@ type ResolveReference = {
 };
 
 export class RetryTxSender implements TxSender {
-	provider: AnchorProvider;
+	connection: Connection;
+	wallet: IWallet;
+	opts: ConfirmOptions;
 	timeout: number;
 	retrySleep: number;
 	additionalConnections: Connection[];
+	timoutCount = 0;
 
-	public constructor(
-		provider: AnchorProvider,
-		timeout?: number,
-		retrySleep?: number,
-		additionalConnections = new Array<Connection>()
-	) {
-		this.provider = provider;
-		this.timeout = timeout ?? DEFAULT_TIMEOUT;
-		this.retrySleep = retrySleep ?? DEFAULT_RETRY;
+	public constructor({
+		connection,
+		wallet,
+		opts = AnchorProvider.defaultOptions(),
+		timeout = DEFAULT_TIMEOUT,
+		retrySleep = DEFAULT_RETRY,
+		additionalConnections = new Array<Connection>(),
+	}: {
+		connection: Connection;
+		wallet: IWallet;
+		opts?: ConfirmOptions;
+		timeout?: number;
+		retrySleep?: number;
+		additionalConnections?;
+	}) {
+		this.connection = connection;
+		this.wallet = wallet;
+		this.opts = opts;
+		this.timeout = timeout;
+		this.retrySleep = retrySleep;
 		this.additionalConnections = additionalConnections;
 	}
 
@@ -53,7 +68,7 @@ export class RetryTxSender implements TxSender {
 			additionalSigners = [];
 		}
 		if (opts === undefined) {
-			opts = this.provider.opts;
+			opts = this.opts;
 		}
 
 		const signedTx = preSigned
@@ -68,51 +83,77 @@ export class RetryTxSender implements TxSender {
 		additionalSigners: Array<Signer>,
 		opts: ConfirmOptions
 	): Promise<Transaction> {
-		tx.feePayer = this.provider.wallet.publicKey;
+		tx.feePayer = this.wallet.publicKey;
 		tx.recentBlockhash = (
-			await this.provider.connection.getRecentBlockhash(
-				opts.preflightCommitment
-			)
+			await this.connection.getRecentBlockhash(opts.preflightCommitment)
 		).blockhash;
 
-		const signedTx = await this.provider.wallet.signTransaction(tx);
 		additionalSigners
 			.filter((s): s is Signer => s !== undefined)
 			.forEach((kp) => {
-				signedTx.partialSign(kp);
+				tx.partialSign(kp);
 			});
+
+		const signedTx = await this.wallet.signTransaction(tx);
 
 		return signedTx;
 	}
 
-	async sendVersionedTransaction(
+	async getVersionedTransaction(
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions
-	): Promise<TxSigAndSlot> {
+	): Promise<VersionedTransaction> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
 		}
 		if (opts === undefined) {
-			opts = this.provider.opts;
+			opts = this.opts;
 		}
 
 		const message = new TransactionMessage({
-			payerKey: this.provider.wallet.publicKey,
+			payerKey: this.wallet.publicKey,
 			recentBlockhash: (
-				await this.provider.connection.getRecentBlockhash(
-					opts.preflightCommitment
-				)
+				await this.connection.getRecentBlockhash(opts.preflightCommitment)
 			).blockhash,
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
 
 		const tx = new VersionedTransaction(message);
-		// @ts-ignore
-		tx.sign(additionalSigners.concat(this.provider.wallet.payer));
 
-		return this.sendRawTransaction(tx.serialize(), opts);
+		return tx;
+	}
+
+	async sendVersionedTransaction(
+		tx: VersionedTransaction,
+		additionalSigners?: Array<Signer>,
+		opts?: ConfirmOptions,
+		preSigned?: boolean
+	): Promise<TxSigAndSlot> {
+		let signedTx;
+		if (preSigned) {
+			signedTx = tx;
+			// @ts-ignore
+		} else if (this.wallet.payer) {
+			// @ts-ignore
+			tx.sign((additionalSigners ?? []).concat(this.wallet.payer));
+			signedTx = tx;
+		} else {
+			additionalSigners
+				?.filter((s): s is Signer => s !== undefined)
+				.forEach((kp) => {
+					tx.sign([kp]);
+				});
+			// @ts-ignore
+			signedTx = await this.wallet.signTransaction(tx);
+		}
+
+		if (opts === undefined) {
+			opts = this.opts;
+		}
+
+		return this.sendRawTransaction(signedTx.serialize(), opts);
 	}
 
 	async sendRawTransaction(
@@ -123,10 +164,7 @@ export class RetryTxSender implements TxSender {
 
 		let txid: TransactionSignature;
 		try {
-			txid = await this.provider.connection.sendRawTransaction(
-				rawTransaction,
-				opts
-			);
+			txid = await this.connection.sendRawTransaction(rawTransaction, opts);
 			this.sendToAdditionalConnections(rawTransaction, opts);
 		} catch (e) {
 			console.error(e);
@@ -148,7 +186,7 @@ export class RetryTxSender implements TxSender {
 			while (!done && this.getTimestamp() - startTime < this.timeout) {
 				await this.sleep(resolveReference);
 				if (!done) {
-					this.provider.connection
+					this.connection
 						.sendRawTransaction(rawTransaction, opts)
 						.catch((e) => {
 							console.error(e);
@@ -187,13 +225,10 @@ export class RetryTxSender implements TxSender {
 		assert(decodedSignature.length === 64, 'signature has invalid length');
 
 		const start = Date.now();
-		const subscriptionCommitment = commitment || this.provider.opts.commitment;
+		const subscriptionCommitment = commitment || this.opts.commitment;
 
 		const subscriptionIds = new Array<number>();
-		const connections = [
-			this.provider.connection,
-			...this.additionalConnections,
-		];
+		const connections = [this.connection, ...this.additionalConnections];
 		let response: RpcResponseAndContext<SignatureResult> | null = null;
 		const promises = connections.map((connection, i) => {
 			let subscriptionId;
@@ -230,6 +265,7 @@ export class RetryTxSender implements TxSender {
 		}
 
 		if (response === null) {
+			this.timoutCount += 1;
 			const duration = (Date.now() - start) / 1000;
 			throw new Error(
 				`Transaction was not confirmed in ${duration.toFixed(
@@ -294,5 +330,9 @@ export class RetryTxSender implements TxSender {
 		if (!alreadyUsingConnection) {
 			this.additionalConnections.push(newConnection);
 		}
+	}
+
+	public getTimeoutCount(): number {
+		return this.timoutCount;
 	}
 }

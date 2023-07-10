@@ -1,11 +1,11 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import { TestClient, TokenFaucet } from '../sdk/src';
-import { BN } from '../sdk';
+import { BN, BulkAccountLoader } from '../sdk';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { getMint, getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
 
 describe('token faucet', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -21,18 +21,21 @@ describe('token faucet', () => {
 
 	let usdcMint: Keypair;
 
-	let token: Token;
-
 	const chProgram = anchor.workspace.Drift as Program;
 	let driftClient: TestClient;
 
 	const amount = new BN(10 * 10 ** 6);
 
 	before(async () => {
+		const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 		driftClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 
 		usdcMint = await mockUSDCMint(provider);
@@ -42,14 +45,6 @@ describe('token faucet', () => {
 			provider.wallet,
 			program.programId,
 			usdcMint.publicKey
-		);
-
-		token = new Token(
-			connection,
-			tokenFaucet.mint,
-			TOKEN_PROGRAM_ID,
-			// @ts-ignore
-			provider.wallet.payer
 		);
 	});
 
@@ -75,13 +70,16 @@ describe('token faucet', () => {
 		assert.ok(state.mintAuthority.equals(mintAuthority));
 		assert.ok(mintAuthorityNonce === state.mintAuthorityNonce);
 
-		const mintInfo = await token.getMintInfo();
+		const mintInfo = await getMint(connection, tokenFaucet.mint);
 		assert.ok(state.mintAuthority.equals(mintInfo.mintAuthority));
 	});
 
 	it('mint to user', async () => {
 		const keyPair = new Keypair();
-		let userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
+		let userTokenAccountInfo = await getOrCreateAssociatedTokenAccount(
+			connection,
+			keyPair,
+			tokenFaucet.mint,
 			keyPair.publicKey
 		);
 		try {
@@ -89,10 +87,13 @@ describe('token faucet', () => {
 		} catch (e) {
 			console.error(e);
 		}
-		userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
+		userTokenAccountInfo = await getOrCreateAssociatedTokenAccount(
+			connection,
+			keyPair,
+			tokenFaucet.mint,
 			keyPair.publicKey
 		);
-		assert.ok(userTokenAccountInfo.amount.eq(amount));
+		assert.ok(new BN(userTokenAccountInfo.amount).eq(amount));
 	});
 
 	it('initialize user for dev net', async () => {
@@ -114,7 +115,7 @@ describe('token faucet', () => {
 
 	it('transfer mint authority back', async () => {
 		await tokenFaucet.transferMintAuthority();
-		const mintInfo = await token.getMintInfo();
+		const mintInfo = await getMint(connection, tokenFaucet.mint);
 		assert.ok(provider.wallet.publicKey.equals(mintInfo.mintAuthority));
 	});
 });

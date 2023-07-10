@@ -1,4 +1,4 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import {
 	BN,
@@ -12,7 +12,7 @@ import {
 	BulkAccountLoader,
 } from '../sdk';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 import {
@@ -127,6 +127,7 @@ describe('prepeg', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -147,6 +148,7 @@ describe('prepeg', () => {
 			// init more markets
 			const thisUsd = mockOracles[i];
 			await driftClient.initializePerpMarket(
+				i,
 				thisUsd,
 				ammInitialBaseAssetAmount,
 				ammInitialQuoteAssetAmount,

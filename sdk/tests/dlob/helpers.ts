@@ -114,6 +114,7 @@ export const mockAMM: AMM = {
 	totalSocialLoss: new BN(0),
 	baseAssetAmountPerLp: new BN(0),
 	quoteAssetAmountPerLp: new BN(0),
+	targetBaseAssetAmountPerLp: 0,
 
 	quoteBreakEvenAmountLong: new BN(0),
 	quoteBreakEvenAmountShort: new BN(0),
@@ -172,6 +173,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 			quoteSettledInsurance: new BN(0),
 			quoteMaxInsurance: new BN(0),
 		},
+		quoteSpotMarketIndex: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -208,6 +210,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 			quoteSettledInsurance: new BN(0),
 			quoteMaxInsurance: new BN(0),
 		},
+		quoteSpotMarketIndex: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -244,6 +247,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 			quoteSettledInsurance: new BN(0),
 			quoteMaxInsurance: new BN(0),
 		},
+		quoteSpotMarketIndex: 0,
 	},
 ];
 
@@ -251,11 +255,14 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 	{
 		status: MarketStatus.ACTIVE,
 		assetTier: AssetTier.COLLATERAL,
+		name: [],
 		maxTokenDeposits: new BN(100),
 		marketIndex: 0,
 		pubkey: PublicKey.default,
 		mint: DevnetSpotMarkets[0].mint,
 		vault: PublicKey.default,
+		minOrderSize: ZERO,
+		maxPositionSize: ZERO,
 		revenuePool: {
 			scaledBalance: new BN(0),
 			marketIndex: 0,
@@ -305,6 +312,9 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
+		totalSwapFee: new BN(0),
+		flashLoanAmount: new BN(0),
+		flashLoanInitialTokenAmount: new BN(0),
 		oracleSource: OracleSource.PYTH,
 		historicalOracleData: {
 			lastOraclePrice: new BN(0),
@@ -325,6 +335,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 	{
 		status: MarketStatus.ACTIVE,
 		assetTier: AssetTier.CROSS,
+		name: [],
 		maxTokenDeposits: new BN(100),
 		marketIndex: 1,
 		pubkey: PublicKey.default,
@@ -334,6 +345,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
+		minOrderSize: ZERO,
+		maxPositionSize: ZERO,
 		insuranceFund: {
 			vault: PublicKey.default,
 			totalShares: new BN(0),
@@ -379,6 +392,9 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
+		totalSwapFee: new BN(0),
+		flashLoanAmount: new BN(0),
+		flashLoanInitialTokenAmount: new BN(0),
 		oracleSource: OracleSource.PYTH,
 		historicalOracleData: {
 			lastOraclePrice: new BN(0),
@@ -399,6 +415,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 	{
 		status: MarketStatus.ACTIVE,
 		assetTier: AssetTier.PROTECTED,
+		name: [],
 		maxTokenDeposits: new BN(100),
 		marketIndex: 2,
 		pubkey: PublicKey.default,
@@ -408,6 +425,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
+		minOrderSize: ZERO,
+		maxPositionSize: ZERO,
 		insuranceFund: {
 			vault: PublicKey.default,
 			totalShares: new BN(0),
@@ -453,6 +472,9 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
+		totalSwapFee: new BN(0),
+		flashLoanAmount: new BN(0),
+		flashLoanInitialTokenAmount: new BN(0),
 		oracleSource: OracleSource.PYTH,
 		historicalOracleData: {
 			lastOraclePrice: new BN(0),
@@ -489,8 +511,8 @@ export const mockStateAccount: StateAccount = {
 	liquidationDuration: 0,
 	oracleGuardRails: {
 		priceDivergence: {
-			markOracleDivergenceNumerator: new BN(0),
-			markOracleDivergenceDenominator: new BN(0),
+			markOraclePercentDivergence: new BN(0),
+			oracleTwap5MinPercentDivergence: new BN(0),
 		},
 		validity: {
 			slotsBeforeStaleForAmm: new BN(0),
@@ -567,7 +589,9 @@ export class MockUserMap implements UserMapInterface {
 		});
 	}
 
-	public async fetchAllUsers(): Promise<void> {}
+	public async subscribe(): Promise<void> {}
+
+	public async unsubscribe(): Promise<void> {}
 
 	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
 		const user = new User({

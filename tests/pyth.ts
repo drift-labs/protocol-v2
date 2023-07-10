@@ -1,4 +1,4 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
 import { BASE_PRECISION, BN, BulkAccountLoader } from '../sdk';
@@ -13,7 +13,7 @@ import {
 	initUserAccounts,
 	sleep,
 } from './testHelpers';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
 
@@ -275,6 +275,7 @@ describe('pyth-oracle', () => {
 		const marketIndex = 0;
 
 		await driftClient.initializePerpMarket(
+			0,
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -294,6 +295,7 @@ describe('pyth-oracle', () => {
 		const marketIndex = 1;
 
 		await driftClient.initializePerpMarket(
+			1,
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

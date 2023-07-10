@@ -5,7 +5,7 @@ import {
 } from './types';
 import { AccountSubscriber, NotSubscribedError } from './types';
 import { SpotMarketAccount, PerpMarketAccount, StateAccount } from '../types';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
@@ -19,6 +19,7 @@ import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import * as Buffer from 'buffer';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
+import { findAllMarketAndOracles } from '../config';
 
 export class WebSocketDriftClientAccountSubscriber
 	implements DriftClientAccountSubscriber
@@ -29,6 +30,8 @@ export class WebSocketDriftClientAccountSubscriber
 	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
 	oracleClientCache = new OracleClientCache();
+
+	shouldFindAllMarketsAndOracles: boolean;
 
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	stateAccountSubscriber?: AccountSubscriber<StateAccount>;
@@ -50,7 +53,8 @@ export class WebSocketDriftClientAccountSubscriber
 		program: Program,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
-		oracleInfos: OracleInfo[]
+		oracleInfos: OracleInfo[],
+		shouldFindAllMarketsAndOracles: boolean
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -58,6 +62,7 @@ export class WebSocketDriftClientAccountSubscriber
 		this.perpMarketIndexes = perpMarketIndexes;
 		this.spotMarketIndexes = spotMarketIndexes;
 		this.oracleInfos = oracleInfos;
+		this.shouldFindAllMarketsAndOracles = shouldFindAllMarketsAndOracles;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -74,6 +79,14 @@ export class WebSocketDriftClientAccountSubscriber
 		this.subscriptionPromise = new Promise((res) => {
 			this.subscriptionPromiseResolver = res;
 		});
+
+		if (this.shouldFindAllMarketsAndOracles) {
+			const { perpMarketIndexes, spotMarketIndexes, oracleInfos } =
+				await findAllMarketAndOracles(this.program);
+			this.perpMarketIndexes = perpMarketIndexes;
+			this.spotMarketIndexes = spotMarketIndexes;
+			this.oracleInfos = oracleInfos;
+		}
 
 		const statePublicKey = await getDriftStateAccountPublicKey(
 			this.program.programId

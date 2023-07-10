@@ -1,6 +1,6 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import { PublicKey, Keypair } from '@solana/web3.js';
 import {
 	Wallet,
@@ -47,7 +47,7 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, TWO } from '../sdk';
+import { BulkAccountLoader, PERCENTAGE_PRECISION, TWO } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -203,6 +203,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
 
+		const oracleGuardrails = driftClient.getStateAccount().oracleGuardRails;
+		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
+			12
+		).mul(PERCENTAGE_PRECISION);
+		await driftClient.updateOracleGuardRails(oracleGuardrails);
+
 		try {
 			await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 			await initializeSolSpotMarket(driftClient, solOracle);
@@ -214,6 +220,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const periodicity = new BN(0);
 
 		await driftClient.initializePerpMarket(
+			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -411,7 +418,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance00:', imbalance00.toString());
-		assert(imbalance00.eq(new BN(-9821952)));
+		assert(imbalance00.eq(new BN(-1009821952)));
 
 		const bank0Value1p5 = driftClientLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value1p5:', bank0Value1p5.toString());
@@ -566,7 +573,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			);
 
 			console.log('pnlimbalance:', imbalance.toString());
-			assert(imbalance.eq(new BN(44462178048))); //44k! :o
+			assert(imbalance.eq(new BN(43462178048))); //44k! :o
 
 			console.log(
 				'lastOraclePrice:',
@@ -607,7 +614,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.eq(new BN(44462178048))); //44k! :o
+		assert(imbalance.eq(new BN(43462178048))); //44k! :o
 
 		console.log(
 			'lastOraclePrice:',
@@ -686,7 +693,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.eq(new BN(44_462_178_048))); //44k still :o
+		assert(imbalance.eq(new BN(43462178048))); //44k still :o
 
 		assert(perpMarket.insuranceClaim.revenueWithdrawSinceLastSettle.eq(ZERO));
 		console.log('pnlimbalance:', imbalance.toString());
@@ -814,11 +821,11 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(ifStakeAccount.marketIndex === bankIndex);
 		assert(ifStakeAccount.authority.equals(provider.wallet.publicKey));
 
-		const txSig = await driftClient.addInsuranceFundStake(
-			bankIndex,
-			QUOTE_PRECISION.add(QUOTE_PRECISION.div(new BN(100))), // $1.01
-			userUSDCAccount.publicKey
-		);
+		const txSig = await driftClient.addInsuranceFundStake({
+			marketIndex: bankIndex,
+			amount: QUOTE_PRECISION.add(QUOTE_PRECISION.div(new BN(100))), // $1.01
+			collateralAccountPublicKey: userUSDCAccount.publicKey,
+		});
 		await printTxLogs(connection, txSig);
 
 		const market0 = driftClient.getPerpMarketAccount(marketIndex);
@@ -836,8 +843,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(12),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: new BN(12).mul(PERCENTAGE_PRECISION),
+				oracleTwap5MinPercentDivergence: new BN(100).mul(PERCENTAGE_PRECISION),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -883,8 +890,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.lt(new BN(44454544927 + 20000))); //44k still :o
-		assert(imbalance.gt(new BN(44454544927 - 20000))); //44k still :o
+		assert(imbalance.lt(new BN(43454561797 + 20000))); //44k still :o
+		assert(imbalance.gt(new BN(43454561797 - 20000))); //44k still :o
 
 		console.log(
 			'revenueWithdrawSinceLastSettle:',

@@ -1,37 +1,52 @@
 import { getOrderSignature, getVammNodeGenerator, NodeList } from './NodeList';
 import {
-	MarketType,
+	BASE_PRECISION,
 	BN,
 	calculateAskPrice,
 	calculateBidPrice,
-	DriftClient,
 	convertToNumber,
-	isOrderExpired,
-	isOneOfVariant,
-	isVariant,
-	getVariant,
-	Order,
-	PRICE_PRECISION,
-	SpotMarketAccount,
-	PerpMarketAccount,
-	OraclePriceData,
-	SlotSubscriber,
-	MarketTypeStr,
-	StateAccount,
-	mustBeTriggered,
-	isTriggered,
+	DLOBNode,
+	DLOBNodeType,
+	DriftClient,
 	getLimitPrice,
-	UserMap,
-	OrderRecord,
-	OrderActionRecord,
+	getVariant,
+	isFallbackAvailableLiquiditySource,
+	isOneOfVariant,
+	isOrderExpired,
 	isRestingLimitOrder,
 	isTakingOrder,
-	isFallbackAvailableLiquiditySource,
+	isTriggered,
+	isVariant,
+	MarketType,
+	MarketTypeStr,
+	mustBeTriggered,
+	OraclePriceData,
+	Order,
+	OrderActionRecord,
+	OrderRecord,
+	PerpMarketAccount,
+	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	SlotSubscriber,
+	SpotMarketAccount,
+	StateAccount,
+	TriggerOrderNode,
+	UserMap,
+	ZERO,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
-import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
 import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
 import { DLOBOrders } from './DLOBOrders';
+import {
+	createL2Levels,
+	getL2GeneratorFromDLOBNodes,
+	L2OrderBook,
+	L2OrderBookGenerator,
+	L3Level,
+	L3OrderBook,
+	mergeL2LevelGenerators,
+} from './orderBookLevels';
 
 export type MarketNodeLists = {
 	restingLimit: {
@@ -1148,6 +1163,7 @@ export class DLOB {
 		oraclePriceData: OraclePriceData,
 		fallbackBid?: BN
 	): Generator<DLOBNode> {
+		const isPerpMarket = isVariant(marketType, 'perp');
 		for (const node of this.getRestingLimitAsks(
 			marketIndex,
 			slot,
@@ -1155,6 +1171,7 @@ export class DLOB {
 			oraclePriceData
 		)) {
 			if (
+				isPerpMarket &&
 				fallbackBid &&
 				node.getPrice(oraclePriceData, slot).lte(fallbackBid)
 			) {
@@ -1213,6 +1230,7 @@ export class DLOB {
 		oraclePriceData: OraclePriceData,
 		fallbackAsk?: BN
 	): Generator<DLOBNode> {
+		const isPerpMarket = isVariant(marketType, 'perp');
 		for (const node of this.getRestingLimitBids(
 			marketIndex,
 			slot,
@@ -1220,6 +1238,7 @@ export class DLOB {
 			oraclePriceData
 		)) {
 			if (
+				isPerpMarket &&
 				fallbackAsk &&
 				node.getPrice(oraclePriceData, slot).gte(fallbackAsk)
 			) {
@@ -1683,6 +1702,226 @@ export class DLOB {
 			yield nodeLists.floatingLimit.ask;
 			yield nodeLists.trigger.above;
 			yield nodeLists.trigger.below;
+		}
+	}
+
+	/**
+	 * Get an L2 view of the order book for a given market.
+	 *
+	 * @param marketIndex
+	 * @param marketType
+	 * @param slot
+	 * @param oraclePriceData
+	 * @param depth how many levels of the order book to return
+	 * @param fallbackAsk best ask for fallback liquidity, only relevant for perps
+	 * @param fallbackBid best bid for fallback liquidity, only relevant for perps
+	 * @param fallbackL2Generators L2 generators for fallback liquidity e.g. vAMM {@link getVammL2Generator}, openbook {@link SerumSubscriber}
+	 */
+	public getL2({
+		marketIndex,
+		marketType,
+		slot,
+		oraclePriceData,
+		depth,
+		fallbackAsk,
+		fallbackBid,
+		fallbackL2Generators = [],
+	}: {
+		marketIndex: number;
+		marketType: MarketType;
+		slot: number;
+		oraclePriceData: OraclePriceData;
+		depth: number;
+		fallbackAsk?: BN;
+		fallbackBid?: BN;
+		fallbackL2Generators?: L2OrderBookGenerator[];
+	}): L2OrderBook {
+		const makerAskL2LevelGenerator = getL2GeneratorFromDLOBNodes(
+			this.getMakerLimitAsks(
+				marketIndex,
+				slot,
+				marketType,
+				oraclePriceData,
+				fallbackBid
+			),
+			oraclePriceData,
+			slot
+		);
+
+		const fallbackAskGenerators = fallbackL2Generators.map(
+			(fallbackL2Generator) => {
+				return fallbackL2Generator.getL2Asks();
+			}
+		);
+
+		const askL2LevelGenerator = mergeL2LevelGenerators(
+			[makerAskL2LevelGenerator, ...fallbackAskGenerators],
+			(a, b) => {
+				return a.price.lt(b.price);
+			}
+		);
+
+		const asks = createL2Levels(askL2LevelGenerator, depth);
+
+		const makerBidGenerator = getL2GeneratorFromDLOBNodes(
+			this.getMakerLimitBids(
+				marketIndex,
+				slot,
+				marketType,
+				oraclePriceData,
+				fallbackAsk
+			),
+			oraclePriceData,
+			slot
+		);
+
+		const fallbackBidGenerators = fallbackL2Generators.map((fallbackOrders) => {
+			return fallbackOrders.getL2Bids();
+		});
+
+		const bidL2LevelGenerator = mergeL2LevelGenerators(
+			[makerBidGenerator, ...fallbackBidGenerators],
+			(a, b) => {
+				return a.price.gt(b.price);
+			}
+		);
+
+		const bids = createL2Levels(bidL2LevelGenerator, depth);
+
+		return {
+			bids,
+			asks,
+		};
+	}
+
+	/**
+	 * Get an L3 view of the order book for a given market. Does not include fallback liquidity sources
+	 *
+	 * @param marketIndex
+	 * @param marketType
+	 * @param slot
+	 * @param oraclePriceData
+	 */
+	public getL3({
+		marketIndex,
+		marketType,
+		slot,
+		oraclePriceData,
+	}: {
+		marketIndex: number;
+		marketType: MarketType;
+		slot: number;
+		oraclePriceData: OraclePriceData;
+	}): L3OrderBook {
+		const bids: L3Level[] = [];
+		const asks: L3Level[] = [];
+
+		const restingAsks = this.getRestingLimitAsks(
+			marketIndex,
+			slot,
+			marketType,
+			oraclePriceData
+		);
+
+		for (const ask of restingAsks) {
+			asks.push({
+				price: ask.getPrice(oraclePriceData, slot),
+				size: ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled),
+				maker: ask.userAccount,
+				orderId: ask.order.orderId,
+			});
+		}
+
+		const restingBids = this.getRestingLimitBids(
+			marketIndex,
+			slot,
+			marketType,
+			oraclePriceData
+		);
+
+		for (const bid of restingBids) {
+			bids.push({
+				price: bid.getPrice(oraclePriceData, slot),
+				size: bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled),
+				maker: bid.userAccount,
+				orderId: bid.order.orderId,
+			});
+		}
+
+		return {
+			bids,
+			asks,
+		};
+	}
+
+	private estimateFillExactBaseAmountInForSide(
+		baseAmountIn: BN,
+		oraclePriceData: OraclePriceData,
+		slot: number,
+		dlobSide: Generator<DLOBNode>
+	): BN {
+		let runningSumQuote = ZERO;
+		let runningSumBase = ZERO;
+		for (const side of dlobSide) {
+			const price = side.getPrice(oraclePriceData, slot); //side.order.quoteAssetAmount.div(side.order.baseAssetAmount);
+			const baseAmountRemaining = side.order.baseAssetAmount.sub(
+				side.order.baseAssetAmountFilled
+			);
+			if (runningSumBase.add(baseAmountRemaining).gt(baseAmountIn)) {
+				const remainingBase = baseAmountIn.sub(runningSumBase);
+				runningSumBase = runningSumBase.add(remainingBase);
+				runningSumQuote = runningSumQuote.add(remainingBase.mul(price));
+				break;
+			} else {
+				runningSumBase = runningSumBase.add(baseAmountRemaining);
+				runningSumQuote = runningSumQuote.add(baseAmountRemaining.mul(price));
+			}
+		}
+
+		return runningSumQuote
+			.mul(QUOTE_PRECISION)
+			.div(BASE_PRECISION.mul(PRICE_PRECISION));
+	}
+
+	/**
+	 *
+	 * @param param.marketIndex the index of the market
+	 * @param param.marketType the type of the market
+	 * @param param.baseAmount the base amount in to estimate
+	 * @param param.orderDirection the direction of the trade
+	 * @param param.slot current slot for estimating dlob node price
+	 * @param param.oraclePriceData the oracle price data
+	 * @returns the estimated quote amount filled: QUOTE_PRECISION
+	 */
+	public estimateFillWithExactBaseAmount({
+		marketIndex,
+		marketType,
+		baseAmount,
+		orderDirection,
+		slot,
+		oraclePriceData,
+	}: {
+		marketIndex: number;
+		marketType: MarketType;
+		baseAmount: BN;
+		orderDirection: PositionDirection;
+		slot: number;
+		oraclePriceData: OraclePriceData;
+	}): BN {
+		if (isVariant(orderDirection, 'long')) {
+			return this.estimateFillExactBaseAmountInForSide(
+				baseAmount,
+				oraclePriceData,
+				slot,
+				this.getRestingLimitAsks(marketIndex, slot, marketType, oraclePriceData)
+			);
+		} else if (isVariant(orderDirection, 'short')) {
+			return this.estimateFillExactBaseAmountInForSide(
+				baseAmount,
+				oraclePriceData,
+				slot,
+				this.getRestingLimitBids(marketIndex, slot, marketType, oraclePriceData)
+			);
 		}
 	}
 }

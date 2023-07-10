@@ -17,7 +17,7 @@ mod tests;
 pub struct LPMetrics {
     pub base_asset_amount: i128,
     pub quote_asset_amount: i128,
-    pub remainder_base_asset_amount: i32,
+    pub remainder_base_asset_amount: i128,
 }
 
 pub fn calculate_settle_lp_metrics(amm: &AMM, position: &PerpPosition) -> DriftResult<LPMetrics> {

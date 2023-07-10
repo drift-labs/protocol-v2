@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import {
 	TestClient,
@@ -22,7 +22,6 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { BulkAccountLoader, ExchangeStatus } from '../sdk';
 
 describe('user order id', () => {
@@ -53,9 +52,6 @@ describe('user order id', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
-
-	let discountMint: Token;
-	let discountTokenAccount: AccountInfo;
 
 	const marketIndex = 0;
 	let solUsd;
@@ -104,6 +100,7 @@ describe('user order id', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -118,6 +115,7 @@ describe('user order id', () => {
 		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await driftClient.initializePerpMarket(
+			1,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -148,30 +146,6 @@ describe('user order id', () => {
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
 		await driftClientUser.subscribe();
-
-		discountMint = await Token.createMint(
-			connection,
-			// @ts-ignore
-			provider.wallet.payer,
-			provider.wallet.publicKey,
-			provider.wallet.publicKey,
-			6,
-			TOKEN_PROGRAM_ID
-		);
-
-		await driftClient.updateDiscountMint(discountMint.publicKey);
-
-		discountTokenAccount = await discountMint.getOrCreateAssociatedAccountInfo(
-			provider.wallet.publicKey
-		);
-
-		await discountMint.mintTo(
-			discountTokenAccount.address,
-			// @ts-ignore
-			provider.wallet.payer,
-			[],
-			1000 * 10 ** 6
-		);
 	});
 
 	after(async () => {

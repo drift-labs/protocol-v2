@@ -1,8 +1,15 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { BN, User, OracleSource, Wallet, BulkAccountLoader } from '../sdk';
+import {
+	BN,
+	User,
+	OracleSource,
+	Wallet,
+	BulkAccountLoader,
+	MARGIN_PRECISION,
+} from '../sdk';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import * as web3 from '@solana/web3.js';
 
@@ -147,6 +154,7 @@ describe('trading liquidity providing', () => {
 		);
 		// used for trading / taking on baa
 		await driftClient.initializePerpMarket(
+			0,
 			solusdc,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -161,8 +169,8 @@ describe('trading liquidity providing', () => {
 		);
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: new BN(1000000),
+				oracleTwap5MinPercentDivergence: new BN(1000000),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(10),
@@ -170,18 +178,23 @@ describe('trading liquidity providing', () => {
 				confidenceIntervalMaxSize: new BN(100),
 				tooVolatileRatio: new BN(100),
 			},
-			useForLiquidations: true,
 		};
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
 		// second market -- used for funding ..
 		await driftClient.initializePerpMarket(
+			1,
 			solusdc2,
 			stableAmmInitialBaseAssetReserve,
 			stableAmmInitialQuoteAssetReserve,
 			new BN(0)
 		);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await driftClient.updatePerpMarketMarginRatio(
+			0,
+			MARGIN_PRECISION.toNumber() / 2,
+			MARGIN_PRECISION.toNumber() / 4
+		);
 
 		[traderDriftClient, traderDriftClientUser] = await createNewUser(
 			chProgram,
@@ -232,7 +245,7 @@ describe('trading liquidity providing', () => {
 		assert(position.baseAssetAmount.gt(ZERO));
 
 		// settle says the lp would take on a short
-		const lpPosition = driftClientUser.getSettledLPPosition(0)[0];
+		const lpPosition = driftClientUser.getPerpPositionWithLPSettle(0)[0];
 		console.log(
 			'sdk settled lp position:',
 			lpPosition.baseAssetAmount.toString(),

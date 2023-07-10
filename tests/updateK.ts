@@ -1,4 +1,4 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import {
 	AMM_RESERVE_PRECISION,
@@ -9,7 +9,7 @@ import {
 } from '../sdk';
 
 import { Keypair } from '@solana/web3.js';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import {
 	TestClient,
 	PRICE_PRECISION,
@@ -97,6 +97,7 @@ describe('update k', () => {
 		});
 
 		await driftClient.initializePerpMarket(
+			0,
 			solUsdOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

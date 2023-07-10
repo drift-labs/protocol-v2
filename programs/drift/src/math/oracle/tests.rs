@@ -38,8 +38,8 @@ fn calculate_oracle_valid() {
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
+                mark_oracle_percent_divergence: 1,
+                oracle_twap_5min_percent_divergence: 10,
             },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,      // 5s

@@ -1,4 +1,4 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import {
 	BASE_PRECISION,
@@ -10,8 +10,7 @@ import {
 	BulkAccountLoader,
 } from '../sdk';
 
-import { Program } from '@project-serum/anchor';
-import { getTokenAccount } from '@project-serum/common';
+import { Program } from '@coral-xyz/anchor';
 
 import { PublicKey, TransactionSignature } from '@solana/web3.js';
 
@@ -34,6 +33,7 @@ import {
 	mintUSDCToUser,
 	printTxLogs,
 } from './testHelpers';
+import { getAccount } from '@solana/spl-token';
 
 describe('drift client', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -121,6 +121,7 @@ describe('drift client', () => {
 
 		const marketIndex = 0;
 		const txSig = await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -187,11 +188,11 @@ describe('drift client', () => {
 		);
 
 		// Check that drift collateral account has proper collateral
-		const quoteSpotVault = await getTokenAccount(
-			provider,
+		const quoteSpotVault = await getAccount(
+			connection,
 			driftClient.getQuoteSpotMarketAccount().vault
 		);
-		assert.ok(quoteSpotVault.amount.eq(usdcAmount));
+		assert.ok(new BN(quoteSpotVault.amount).eq(usdcAmount));
 
 		assert.ok(user.perpPositions.length == 8);
 		assert.ok(user.perpPositions[0].baseAssetAmount.toNumber() === 0);

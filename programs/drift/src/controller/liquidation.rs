@@ -48,9 +48,10 @@ use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
-    LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
-    LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction, OrderActionExplanation,
-    OrderActionRecord, OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord,
+    emit_stack, LPAction, LPRecord, LiquidateBorrowForPerpPnlRecord,
+    LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord, LiquidateSpotRecord, LiquidationRecord,
+    LiquidationType, OrderAction, OrderActionExplanation, OrderActionRecord, OrderRecord,
+    PerpBankruptcyRecord, SpotBankruptcyRecord,
 };
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
@@ -58,6 +59,7 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
+use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::validate;
 
@@ -199,12 +201,24 @@ pub fn liquidate_perp(
     // burning lp shares = removing open bids/asks
     let lp_shares = user.perp_positions[position_index].lp_shares;
     if lp_shares > 0 {
-        burn_lp_shares(
+        let (position_delta, pnl) = burn_lp_shares(
             &mut user.perp_positions[position_index],
             perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
             lp_shares,
             oracle_price,
         )?;
+
+        // emit LP record for shares removed
+        emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
+            ts: now,
+            action: LPAction::RemoveLiquidity,
+            user: *user_key,
+            n_shares: lp_shares,
+            market_index,
+            delta_base_asset_amount: position_delta.base_asset_amount,
+            delta_quote_asset_amount: position_delta.quote_asset_amount,
+            pnl,
+        })?;
     }
 
     // check if user exited liquidation territory
@@ -305,6 +319,8 @@ pub fn liquidate_perp(
     let market = perp_market_map.get_ref(&market_index)?;
     let liquidation_fee = market.liquidator_fee;
     let if_liquidation_fee = market.if_liquidation_fee;
+    let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
+    let quote_oracle_price = oracle_map.get_price_data(&quote_spot_market.oracle)?.price;
     let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount_ceil(
         calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
@@ -312,10 +328,12 @@ pub fn liquidate_perp(
             liquidation_fee,
             if_liquidation_fee,
             oracle_price,
+            quote_oracle_price,
         )?,
         market.amm.order_step_size,
     )?;
     drop(market);
+    drop(quote_spot_market);
 
     let max_pct_allowed = calculate_max_pct_to_liquidate(
         user,
@@ -1174,9 +1192,10 @@ pub fn liquidate_borrow_for_perp_pnl(
             "Perp position must have position pnl"
         )?;
 
-        let quote_price = oracle_map.quote_asset_price_data.price;
-
         let market = perp_market_map.get_ref(&perp_market_index)?;
+
+        let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
+        let quote_price = oracle_map.get_price_data(&quote_spot_market.oracle)?.price;
 
         let pnl_asset_weight =
             market.get_unrealized_asset_weight(pnl, MarginRequirementType::Maintenance)?;
@@ -1694,9 +1713,10 @@ pub fn liquidate_perp_pnl_for_deposit(
             "Perp position must have negative pnl"
         )?;
 
-        let quote_price = oracle_map.quote_asset_price_data.price;
-
         let market = perp_market_map.get_ref(&perp_market_index)?;
+
+        let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
+        let quote_price = oracle_map.get_price_data(&quote_spot_market.oracle)?.price;
 
         (
             unsettled_pnl.unsigned_abs(),

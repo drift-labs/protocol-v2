@@ -1,4 +1,4 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
 import {
@@ -19,7 +19,6 @@ import {
 	PRICE_PRECISION,
 	FUNDING_RATE_BUFFER_PRECISION,
 	PEG_PRECISION,
-	TestClient,
 	User,
 	PositionDirection,
 	QUOTE_PRECISION,
@@ -32,7 +31,7 @@ import {
 	isVariant,
 } from '../sdk/src';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from '../sdk';
@@ -183,6 +182,7 @@ async function updateFundingRateHelper(
 }
 
 async function cappedSymFundingScenario(
+	rollingMarketNum: number,
 	driftClient: TestClient,
 	userAccount: User,
 	driftClient2: TestClient,
@@ -197,6 +197,7 @@ async function cappedSymFundingScenario(
 	const periodicity = new BN(0);
 
 	await driftClient.initializePerpMarket(
+		rollingMarketNum,
 		priceFeedAddress,
 		kSqrt,
 		kSqrt,
@@ -546,6 +547,7 @@ describe('capped funding', () => {
 			totalFee,
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
+			rollingMarketNum - 1,
 			driftClient,
 			userAccount,
 			driftClient2,
@@ -604,6 +606,7 @@ describe('capped funding', () => {
 			totalFee,
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
+			rollingMarketNum - 1,
 			driftClient,
 			userAccount,
 			driftClient2,
@@ -663,6 +666,7 @@ describe('capped funding', () => {
 			totalFee,
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
+			rollingMarketNum - 1,
 			driftClient,
 			userAccount,
 			driftClient2,
@@ -720,6 +724,7 @@ describe('capped funding', () => {
 			totalFee,
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
+			rollingMarketNum - 1,
 			driftClient,
 			userAccount,
 			driftClient2,
@@ -781,6 +786,7 @@ describe('capped funding', () => {
 			totalFee,
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
+			rollingMarketNum - 1,
 			driftClient,
 			userAccount,
 			driftClient2,
@@ -880,6 +886,7 @@ describe('capped funding', () => {
 			totalFee,
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
+			rollingMarketNum - 1,
 			driftClient,
 			userAccount,
 			driftClient2,
@@ -975,6 +982,7 @@ describe('capped funding', () => {
 			totalFee,
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
+			rollingMarketNum - 1,
 			driftClient,
 			userAccount,
 			driftClient2,
@@ -1036,6 +1044,7 @@ describe('capped funding', () => {
 			totalFee,
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
+			rollingMarketNum - 1,
 			driftClient,
 			userAccount,
 			driftClient2,
@@ -1098,6 +1107,7 @@ describe('capped funding', () => {
 			totalFee,
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
+			rollingMarketNum - 1,
 			driftClient,
 			userAccount,
 			driftClient2,

@@ -6,17 +6,20 @@ use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISI
 use crate::math::safe_math::SafeMath;
 
 use crate::math::safe_unwrap::SafeUnwrap;
-use switchboard_v2::decimal::SwitchboardDecimal;
 
 #[cfg(test)]
 mod tests;
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct HistoricalOracleData {
+    /// precision: PRICE_PRECISION
     pub last_oracle_price: i64,
+    /// precision: PRICE_PRECISION
     pub last_oracle_conf: u64,
     pub last_oracle_delay: i64,
+    /// precision: PRICE_PRECISION
     pub last_oracle_price_twap: i64,
+    /// precision: PRICE_PRECISION
     pub last_oracle_price_twap_5min: i64,
     pub last_oracle_price_twap_ts: i64,
 }
@@ -59,9 +62,13 @@ impl HistoricalOracleData {
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct HistoricalIndexData {
+    /// precision: PRICE_PRECISION
     pub last_index_bid_price: u64,
+    /// precision: PRICE_PRECISION
     pub last_index_ask_price: u64,
+    /// precision: PRICE_PRECISION
     pub last_index_price_twap: u64,
+    /// precision: PRICE_PRECISION
     pub last_index_price_twap_5min: u64,
     pub last_index_price_twap_ts: i64,
 }
@@ -96,6 +103,7 @@ pub enum OracleSource {
     QuoteAsset,
     Pyth1K,
     Pyth1M,
+    PythStableCoin,
 }
 
 impl Default for OracleSource {
@@ -133,6 +141,7 @@ pub fn get_oracle_price(
         OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot, 1),
         OracleSource::Pyth1K => get_pyth_price(price_oracle, clock_slot, 1000),
         OracleSource::Pyth1M => get_pyth_price(price_oracle, clock_slot, 1000000),
+        OracleSource::PythStableCoin => get_pyth_stable_coin_price(price_oracle, clock_slot),
         OracleSource::Switchboard => {
             msg!("Switchboard oracle not yet supported");
             Err(crate::error::ErrorCode::InvalidOracle)
@@ -201,6 +210,23 @@ pub fn get_pyth_price(
     })
 }
 
+pub fn get_pyth_stable_coin_price(
+    price_oracle: &AccountInfo,
+    clock_slot: u64,
+) -> DriftResult<OraclePriceData> {
+    let mut oracle_price_data = get_pyth_price(price_oracle, clock_slot, 1)?;
+
+    let price = oracle_price_data.price;
+    let confidence = oracle_price_data.confidence;
+    let five_bps = 500_i64;
+
+    if price.safe_sub(PRICE_PRECISION_I64)?.abs() <= five_bps.min(confidence.cast()?) {
+        oracle_price_data.price = PRICE_PRECISION_I64;
+    }
+
+    Ok(oracle_price_data)
+}
+
 // pub fn get_switchboard_price(
 //     _price_oracle: &AccountInfo,
 //     _clock_slot: u64,
@@ -241,20 +267,3 @@ pub fn get_pyth_price(
 //         has_sufficient_number_of_data_points,
 //     })
 // }
-
-#[allow(dead_code)]
-/// Given a decimal number represented as a mantissa (the digits) plus an
-/// original_precision (10.pow(some number of decimals)), scale the
-/// mantissa/digits to make sense with a new_precision.
-fn convert_switchboard_decimal(switchboard_decimal: &SwitchboardDecimal) -> DriftResult<i128> {
-    let switchboard_precision = 10_u128.pow(switchboard_decimal.scale);
-    if switchboard_precision > PRICE_PRECISION {
-        switchboard_decimal
-            .mantissa
-            .safe_div((switchboard_precision / PRICE_PRECISION) as i128)
-    } else {
-        switchboard_decimal
-            .mantissa
-            .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
-    }
-}

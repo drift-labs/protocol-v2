@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { Keypair } from '@solana/web3.js';
 
@@ -106,6 +106,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await fillerDriftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

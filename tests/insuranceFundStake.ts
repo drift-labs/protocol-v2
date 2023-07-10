@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { PublicKey, Keypair } from '@solana/web3.js';
 
@@ -43,7 +43,7 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import { BulkAccountLoader, PERCENTAGE_PRECISION } from '../sdk';
 
 describe('insurance fund stake', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -123,6 +123,7 @@ describe('insurance fund stake', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		await driftClient.initializePerpMarket(
+			0,
 			solOracle,
 			AMM_RESERVE_PRECISION,
 			AMM_RESERVE_PRECISION,
@@ -183,11 +184,11 @@ describe('insurance fund stake', () => {
 		);
 
 		try {
-			const txSig = await driftClient.addInsuranceFundStake(
-				marketIndex,
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+			const txSig = await driftClient.addInsuranceFundStake({
+				marketIndex: marketIndex,
+				amount: usdcAmount,
+				collateralAccountPublicKey: userUSDCAccount.publicKey,
+			});
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -699,11 +700,11 @@ describe('insurance fund stake', () => {
 		assert(usdcbalance.value.amount == '999999999999');
 
 		try {
-			const txSig = await driftClient.addInsuranceFundStake(
+			const txSig = await driftClient.addInsuranceFundStake({
 				marketIndex,
-				new BN(usdcbalance.value.amount),
-				userUSDCAccount.publicKey
-			);
+				amount: new BN(usdcbalance.value.amount),
+				collateralAccountPublicKey: userUSDCAccount.publicKey,
+			});
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -883,8 +884,8 @@ describe('insurance fund stake', () => {
 		const prevTC = driftClientUser.getTotalCollateral();
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: PERCENTAGE_PRECISION,
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION,
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -892,7 +893,6 @@ describe('insurance fund stake', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(100000),
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);

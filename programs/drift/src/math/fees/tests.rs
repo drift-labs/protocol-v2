@@ -248,7 +248,7 @@ mod calculate_fee_for_order_fulfill_against_amm {
 
 mod calculate_fee_for_fulfillment_with_serum {
     use crate::math::constants::QUOTE_PRECISION_U64;
-    use crate::math::fees::{calculate_fee_for_fulfillment_with_serum, SerumFillFees};
+    use crate::math::fees::{calculate_fee_for_fulfillment_with_external_market, ExternalFillFees};
     use crate::state::state::FeeStructure;
     use crate::state::user::UserStats;
 
@@ -265,12 +265,12 @@ mod calculate_fee_for_fulfillment_with_serum {
         let taker_stats = UserStats::default();
         let fee_structure = FeeStructure::test_default();
 
-        let SerumFillFees {
+        let ExternalFillFees {
             user_fee,
             fee_to_market,
             fee_pool_delta,
             filler_reward,
-        } = calculate_fee_for_fulfillment_with_serum(
+        } = calculate_fee_for_fulfillment_with_external_market(
             &taker_stats,
             quote_asset_amount,
             &fee_structure,
@@ -302,12 +302,12 @@ mod calculate_fee_for_fulfillment_with_serum {
         let taker_stats = UserStats::default();
         let fee_structure = FeeStructure::test_default();
 
-        let SerumFillFees {
+        let ExternalFillFees {
             user_fee,
             fee_to_market,
             fee_pool_delta,
             filler_reward,
-        } = calculate_fee_for_fulfillment_with_serum(
+        } = calculate_fee_for_fulfillment_with_external_market(
             &taker_stats,
             quote_asset_amount,
             &fee_structure,
@@ -340,12 +340,12 @@ mod calculate_fee_for_fulfillment_with_serum {
         let mut fee_structure = FeeStructure::test_default();
         fee_structure.fee_tiers[0].fee_numerator = 4;
 
-        let SerumFillFees {
+        let ExternalFillFees {
             user_fee,
             fee_to_market,
             fee_pool_delta,
             filler_reward,
-        } = calculate_fee_for_fulfillment_with_serum(
+        } = calculate_fee_for_fulfillment_with_external_market(
             &user_stats,
             quote_asset_amount,
             &fee_structure,
@@ -378,12 +378,12 @@ mod calculate_fee_for_fulfillment_with_serum {
         let mut fee_structure = FeeStructure::test_default();
         fee_structure.fee_tiers[0].fee_numerator = 4;
 
-        let SerumFillFees {
+        let ExternalFillFees {
             user_fee,
             fee_to_market,
             fee_pool_delta,
             filler_reward,
-        } = calculate_fee_for_fulfillment_with_serum(
+        } = calculate_fee_for_fulfillment_with_external_market(
             &user_stats,
             quote_asset_amount,
             &fee_structure,

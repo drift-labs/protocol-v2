@@ -1,4 +1,4 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import {
 	BASE_PRECISION,
@@ -11,7 +11,7 @@ import {
 	PositionDirection,
 } from '../sdk/src';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { Keypair } from '@solana/web3.js';
 
@@ -87,6 +87,7 @@ describe('round in favor', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await primaryDriftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

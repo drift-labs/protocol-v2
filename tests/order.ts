@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
 
@@ -151,6 +151,7 @@ describe('orders', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -164,6 +165,7 @@ describe('orders', () => {
 		);
 
 		await driftClient.initializePerpMarket(
+			1,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -178,6 +180,7 @@ describe('orders', () => {
 		);
 
 		await driftClient.initializePerpMarket(
+			2,
 			ethUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -413,7 +416,7 @@ describe('orders', () => {
 					settleeUserAccount: fillerDriftClient.getUserAccount(),
 				},
 			],
-			marketIndex
+			[marketIndex]
 		);
 
 		await driftClient.fetchAccounts();
@@ -553,7 +556,7 @@ describe('orders', () => {
 					settleeUserAccount: fillerDriftClient.getUserAccount(),
 				},
 			],
-			marketIndex
+			[marketIndex]
 		);
 
 		await driftClient.fetchAccounts();
@@ -1373,8 +1376,8 @@ describe('orders', () => {
 	it('PlaceAndTake LONG Order 100% filled', async () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: new BN(1000000),
+				oracleTwap5MinPercentDivergence: new BN(1000000),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

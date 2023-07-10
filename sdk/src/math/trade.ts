@@ -4,7 +4,7 @@ import {
 	PositionDirection,
 	SpotMarketAccount,
 } from '../types';
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 import { assert } from '../assert/assert';
 import {
 	PRICE_PRECISION,
@@ -34,6 +34,7 @@ import { OraclePriceData } from '../oracles/types';
 import { DLOB } from '../dlob/DLOB';
 import { PublicKey } from '@solana/web3.js';
 import { Orderbook } from '@project-serum/serum';
+import { L2OrderBook } from '../dlob/orderBookLevels';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
@@ -862,6 +863,93 @@ export function calculateEstimatedSpotEntryPrice(
 
 				serumLimitOrder = serumLimitOrders.shift();
 			}
+		}
+	}
+
+	const entryPrice = cumulativeQuoteFilled
+		.mul(basePrecision)
+		.div(cumulativeBaseFilled);
+
+	const priceImpact = entryPrice
+		.sub(bestPrice)
+		.mul(PRICE_PRECISION)
+		.div(bestPrice)
+		.abs();
+
+	return {
+		entryPrice,
+		priceImpact,
+		bestPrice,
+		worstPrice,
+		baseFilled: cumulativeBaseFilled,
+		quoteFilled: cumulativeQuoteFilled,
+	};
+}
+
+export function calculateEstimatedEntryPriceWithL2(
+	assetType: AssetType,
+	amount: BN,
+	direction: PositionDirection,
+	basePrecision: BN,
+	l2: L2OrderBook
+): {
+	entryPrice: BN;
+	priceImpact: BN;
+	bestPrice: BN;
+	worstPrice: BN;
+	baseFilled: BN;
+	quoteFilled: BN;
+} {
+	const takerIsLong = isVariant(direction, 'long');
+
+	let cumulativeBaseFilled = ZERO;
+	let cumulativeQuoteFilled = ZERO;
+
+	const levels = [...(takerIsLong ? l2.asks : l2.bids)];
+	let nextLevel = levels.shift();
+
+	let bestPrice;
+	let worstPrice;
+	if (nextLevel) {
+		bestPrice = nextLevel.price;
+		worstPrice = nextLevel.price;
+	} else {
+		bestPrice = takerIsLong ? BN_MAX : ZERO;
+		worstPrice = bestPrice;
+	}
+
+	if (assetType === 'base') {
+		while (!cumulativeBaseFilled.eq(amount) && nextLevel) {
+			const price = nextLevel.price;
+			const size = nextLevel.size;
+
+			worstPrice = price;
+
+			const baseFilled = BN.min(size, amount.sub(cumulativeBaseFilled));
+			const quoteFilled = baseFilled.mul(price).div(basePrecision);
+
+			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+			nextLevel = levels.shift();
+		}
+	} else {
+		while (!cumulativeQuoteFilled.eq(amount) && nextLevel) {
+			const price = nextLevel.price;
+			const size = nextLevel.size;
+
+			worstPrice = price;
+
+			const quoteFilled = BN.min(
+				size.mul(price).div(basePrecision),
+				amount.sub(cumulativeQuoteFilled)
+			);
+			const baseFilled = quoteFilled.mul(basePrecision).div(price);
+
+			cumulativeBaseFilled = cumulativeBaseFilled.add(baseFilled);
+			cumulativeQuoteFilled = cumulativeQuoteFilled.add(quoteFilled);
+
+			nextLevel = levels.shift();
 		}
 	}
 

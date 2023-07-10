@@ -593,7 +593,7 @@ mod get_claimable_pnl {
     }
 }
 
-mod get_worst_case_token_amounts {
+mod get_worst_case_token_amount {
     use crate::math::constants::{
         PRICE_PRECISION_I64, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -629,12 +629,12 @@ mod get_worst_case_token_amounts {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
+        let (worst_case_token_amount, worst_case_orders_value) = spot_position
+            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 10_i128.pow(9));
-        assert_eq!(worst_case_quote_token_amount, -100 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_orders_value, -100 * QUOTE_PRECISION_I128);
     }
 
     #[test]
@@ -664,12 +664,12 @@ mod get_worst_case_token_amounts {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
+        let (worst_case_token_amount, worst_case_orders_value) = spot_position
+            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
-        assert_eq!(worst_case_quote_token_amount, 100 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_orders_value, 100 * QUOTE_PRECISION_I128);
     }
 
     #[test]
@@ -699,12 +699,12 @@ mod get_worst_case_token_amounts {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
+        let (worst_case_token_amount, worst_case_orders_value) = spot_position
+            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 2 * 10_i128.pow(9));
-        assert_eq!(worst_case_quote_token_amount, 0);
+        assert_eq!(worst_case_orders_value, 0);
     }
 
     #[test]
@@ -734,12 +734,12 @@ mod get_worst_case_token_amounts {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
+        let (worst_case_token_amount, worst_case_orders_value) = spot_position
+            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
-        assert_eq!(worst_case_quote_token_amount, 200 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_orders_value, 200 * QUOTE_PRECISION_I128);
     }
 
     #[test]
@@ -769,12 +769,12 @@ mod get_worst_case_token_amounts {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
+        let (worst_case_token_amount, worst_case_orders_value) = spot_position
+            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
-        assert_eq!(worst_case_quote_token_amount, -100 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_orders_value, -100 * QUOTE_PRECISION_I128);
     }
 
     #[test]
@@ -805,12 +805,12 @@ mod get_worst_case_token_amounts {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
+        let (worst_case_token_amount, worst_case_orders_value) = spot_position
+            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -2 * 10_i128.pow(9));
-        assert_eq!(worst_case_quote_token_amount, 0);
+        assert_eq!(worst_case_orders_value, 0);
     }
 
     #[test]
@@ -841,12 +841,12 @@ mod get_worst_case_token_amounts {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
+        let (worst_case_token_amount, worst_case_orders_value) = spot_position
+            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
-        assert_eq!(worst_case_quote_token_amount, -500 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_orders_value, -500 * QUOTE_PRECISION_I128);
     }
 
     #[test]
@@ -877,12 +877,12 @@ mod get_worst_case_token_amounts {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
-            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None, None)
+        let (worst_case_token_amount, worst_case_orders_value) = spot_position
+            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -3 * 10_i128.pow(9));
-        assert_eq!(worst_case_quote_token_amount, 100 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_orders_value, 100 * QUOTE_PRECISION_I128);
     }
 }
 
@@ -1014,5 +1014,42 @@ mod get_base_asset_amount_unfilled {
         };
 
         assert_eq!(order.get_base_asset_amount_unfilled(Some(6)).unwrap(), 5)
+    }
+}
+
+mod open_orders {
+    use crate::state::user::User;
+
+    #[test]
+    fn test() {
+        let mut user = User::default();
+
+        user.increment_open_orders(false);
+
+        assert_eq!(user.open_orders, 1);
+        assert!(user.has_open_order);
+        assert_eq!(user.open_auctions, 0);
+        assert!(!user.has_open_auction);
+
+        user.increment_open_orders(true);
+
+        assert_eq!(user.open_orders, 2);
+        assert!(user.has_open_order);
+        assert_eq!(user.open_auctions, 1);
+        assert!(user.has_open_auction);
+
+        user.decrement_open_orders(false);
+
+        assert_eq!(user.open_orders, 1);
+        assert!(user.has_open_order);
+        assert_eq!(user.open_auctions, 1);
+        assert!(user.has_open_auction);
+
+        user.decrement_open_orders(true);
+
+        assert_eq!(user.open_orders, 0);
+        assert!(!user.has_open_order);
+        assert_eq!(user.open_auctions, 0);
+        assert!(!user.has_open_auction);
     }
 }

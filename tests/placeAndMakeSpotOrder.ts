@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
@@ -27,7 +27,7 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, PostOnlyParams } from '../sdk';
+import { BulkAccountLoader, MARGIN_PRECISION, PostOnlyParams } from '../sdk';
 
 describe('place and make spot order', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -88,6 +88,13 @@ describe('place and make spot order', () => {
 		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(makerDriftClient, solUsd);
 		await makerDriftClient.updatePerpAuctionDuration(new BN(0));
+		await makerDriftClient.updateSpotMarketMarginWeights(
+			1,
+			MARGIN_PRECISION.toNumber() * 0.75,
+			MARGIN_PRECISION.toNumber() * 0.8,
+			MARGIN_PRECISION.toNumber() * 1.25,
+			MARGIN_PRECISION.toNumber() * 1.2
+		);
 
 		await makerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,

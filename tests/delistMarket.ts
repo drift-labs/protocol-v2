@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
@@ -34,7 +34,7 @@ import {
 	getOraclePriceData,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant } from '../sdk';
+import { BulkAccountLoader, isVariant, PERCENTAGE_PRECISION } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
@@ -158,6 +158,7 @@ describe('delist market', () => {
 		const periodicity = new BN(0);
 
 		await driftClient.initializePerpMarket(
+			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -169,7 +170,7 @@ describe('delist market', () => {
 		// await driftClient.updatePerpMarketCurveUpdateIntensity(new BN(0), 100);
 		await driftClient.updatePerpMarketStepSizeAndTickSize(
 			0,
-			new BN(1),
+			new BN(10),
 			new BN(1)
 		);
 		await driftClient.updatePerpMarketMinOrderSize(0, new BN(1));
@@ -304,8 +305,8 @@ describe('delist market', () => {
 		const marketIndex = 0;
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(10),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
+				oracleTwap5MinPercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -313,7 +314,6 @@ describe('delist market', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(100000000),
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
@@ -354,7 +354,12 @@ describe('delist market', () => {
 			marketIndex,
 			perpMarket.amm.sqrtK.mul(new BN(9912345)).div(new BN(10012345))
 		);
-		await liquidatorDriftClient.closePosition(marketIndex);
+
+		console.log(
+			'liquidatorDriftClient perps:',
+			liquidatorDriftClient.getUserAccount().perpPositions[0]
+		);
+		// await liquidatorDriftClient.closePosition(marketIndex);
 
 		// sol tanks 90%
 		await driftClient.moveAmmToPrice(
@@ -363,6 +368,7 @@ describe('delist market', () => {
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 43.1337 / 10, solOracle);
 	});
+	// return 0;
 
 	it('put market in reduce only mode', async () => {
 		const marketIndex = 0;
@@ -614,18 +620,32 @@ describe('delist market', () => {
 			'totalExchangeFee:',
 			marketAfter.amm.totalExchangeFee.toString()
 		);
-		assert(marketAfter.amm.feePool.scaledBalance.eq(new BN(21567000)));
+		assert(marketAfter.amm.feePool.scaledBalance.eq(new BN(64700000)));
+
 		// assert(marketAfter.amm.totalExchangeFee.eq(new BN(43134)));
 		assert(marketAfter.amm.totalExchangeFee.eq(new BN(129401)));
 	});
 
 	it('put settle market pools to revenue pool', async () => {
 		const marketIndex = 0;
+		const marketBefore = driftClient.getPerpMarketAccount(marketIndex);
+		const userCostBasisBefore = marketBefore.amm.quoteAssetAmount;
+
+		console.log('userCostBasisBefore:', userCostBasisBefore.toString());
+		assert(userCostBasisBefore.eq(new BN(-1))); // from LP burn
+
+		await liquidatorDriftClient.settlePNL(
+			await liquidatorDriftClient.getUserAccountPublicKey(),
+			liquidatorDriftClient.getUserAccount(),
+			marketIndex
+		);
+
+		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const userCostBasis = market.amm.quoteAssetAmount;
-
 		console.log('userCostBasis:', userCostBasis.toString());
-		assert(userCostBasis.eq(ZERO));
+		assert(userCostBasis.eq(ZERO)); // ready to settle expiration
+
 		try {
 			await driftClient.settleExpiredMarketPoolsToRevenuePool(marketIndex);
 		} catch (e) {

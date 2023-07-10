@@ -532,11 +532,16 @@ mod get_max_fill_amounts {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{Order, SpotPosition, User};
     use crate::test_utils::get_orders;
+    use crate::LAMPORTS_PER_SOL_U64;
     use anchor_spl::token::spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
 
     #[test]
     fn fully_collateralized_selling_base() {
-        let base_market = SpotMarket::default_base_market();
+        let base_market = SpotMarket {
+            deposit_balance: 4 * 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 4 * 100 * LAMPORTS_PER_SOL_U64,
+            ..SpotMarket::default_base_market()
+        };
         let quote_market = SpotMarket::default_quote_market();
 
         let mut spot_positions = [SpotPosition::default(); 8];
@@ -614,6 +619,7 @@ mod get_max_fill_amounts {
     fn selling_base_with_borrow_liquidity_greater_than_order() {
         let base_market = SpotMarket {
             deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 100 * SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let quote_market = SpotMarket::default_quote_market();
@@ -653,7 +659,11 @@ mod get_max_fill_amounts {
     #[test]
     fn fully_collateralized_selling_quote() {
         let base_market = SpotMarket::default_base_market();
-        let quote_market = SpotMarket::default_quote_market();
+        let quote_market = SpotMarket {
+            deposit_balance: 4 * 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 4 * 100 * QUOTE_PRECISION_U64,
+            ..SpotMarket::default_quote_market()
+        };
 
         let mut spot_positions = [SpotPosition::default(); 8];
         spot_positions[0] = SpotPosition {
@@ -731,6 +741,8 @@ mod get_max_fill_amounts {
         let base_market = SpotMarket::default_base_market();
         let quote_market = SpotMarket {
             deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 100 * QUOTE_PRECISION_U64,
+
             ..SpotMarket::default_quote_market()
         };
 
@@ -1480,6 +1492,7 @@ mod calculate_max_spot_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1585,6 +1598,7 @@ mod calculate_max_spot_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1674,6 +1688,7 @@ mod calculate_max_spot_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1779,6 +1794,7 @@ mod calculate_max_spot_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -1866,7 +1882,7 @@ mod calculate_max_perp_order_size {
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
-    use crate::{create_account_info, PositionDirection};
+    use crate::{create_account_info, PositionDirection, PRICE_PRECISION_I64};
     use crate::{
         create_anchor_account_info, MarketStatus, AMM_RESERVE_PRECISION, PEG_PRECISION,
         PRICE_PRECISION,
@@ -1933,6 +1949,11 @@ mod calculate_max_perp_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -2049,6 +2070,11 @@ mod calculate_max_perp_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -2149,6 +2175,11 @@ mod calculate_max_perp_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -2265,6 +2296,11 @@ mod calculate_max_perp_order_size {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -2302,5 +2338,176 @@ mod calculate_max_perp_order_size {
         .unwrap();
 
         assert_eq!(max_order_size, 999999999000);
+    }
+}
+
+pub mod validate_fill_price_within_price_bands {
+    use crate::math::orders::validate_fill_price_within_price_bands;
+    use crate::{
+        PositionDirection, MARGIN_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION_I64,
+        PRICE_PRECISION_U64,
+    };
+
+    #[test]
+    fn valid_long() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        let fill_price = 105 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Long;
+        let margin_ratio_initial = MARGIN_PRECISION / 10;
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_ok())
+    }
+
+    #[test]
+    fn valid_short() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        let fill_price = 95 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Short;
+        let margin_ratio_initial = MARGIN_PRECISION / 10;
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_ok())
+    }
+
+    #[test]
+    fn invalid_long_breaches_oracle() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        // 11% greater than oracle price
+        let fill_price = 111 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Long;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn invalid_short_breaches_oracle() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        // 11% less than oracle price
+        let fill_price = 89 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Short;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn invalid_long_breaches_oracle_twap() {
+        let oracle_price = 150 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        // 50% greater than twap
+        let fill_price = 150 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Long;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn invalid_short_breaches_oracle_twap() {
+        let oracle_price = 50 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        // 50% less than twap
+        let fill_price = 50 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Short;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_err())
+    }
+}
+
+pub mod is_oracle_too_divergent_with_twap_5min {
+    use crate::math::orders::is_oracle_too_divergent_with_twap_5min;
+    use crate::{PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64};
+
+    #[test]
+    pub fn valid_above() {
+        let oracle_price = 149 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
+
+        assert!(
+            !is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap()
+        )
+    }
+
+    #[test]
+    pub fn invalid_above() {
+        let oracle_price = 151 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
+
+        assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap())
+    }
+
+    #[test]
+    pub fn valid_below() {
+        let oracle_price = 51 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
+
+        assert!(
+            !is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap()
+        )
+    }
+
+    #[test]
+    pub fn invalid_below() {
+        let oracle_price = 49 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
+
+        assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap())
     }
 }

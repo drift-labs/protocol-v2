@@ -45,9 +45,7 @@ pub mod delisting_test {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::state::{
-        OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails,
-    };
+    use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
@@ -122,16 +120,13 @@ pub mod delisting_test {
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -246,16 +241,13 @@ pub mod delisting_test {
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -358,16 +350,13 @@ pub mod delisting_test {
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -474,16 +463,13 @@ pub mod delisting_test {
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -590,16 +576,13 @@ pub mod delisting_test {
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -707,6 +690,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -747,16 +731,13 @@ pub mod delisting_test {
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -924,6 +905,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -964,16 +946,13 @@ pub mod delisting_test {
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -1144,6 +1123,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1184,16 +1164,13 @@ pub mod delisting_test {
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -1348,6 +1325,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 300000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1465,16 +1443,13 @@ pub mod delisting_test {
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -1771,6 +1746,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1874,16 +1850,13 @@ pub mod delisting_test {
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             ..State::default()
         };
@@ -2150,6 +2123,7 @@ pub mod delisting_test {
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 40000 * SPOT_BALANCE_PRECISION,
             borrow_balance: 100 * SPOT_BALANCE_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -2264,16 +2238,13 @@ pub mod delisting_test {
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
                 validity: ValidityGuardRails {
                     slots_before_stale_for_amm: 10,     // 5s
                     slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
+                ..OracleGuardRails::default()
             },
             initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
             liquidation_duration: 150,
@@ -2348,8 +2319,11 @@ pub mod delisting_test {
                 &shorter.perp_positions[0],
                 &market,
                 oracle_price_data,
+                QUOTE_PRECISION_I64,
+                QUOTE_PRECISION_I64,
                 MarginRequirementType::Initial,
                 0,
+                false,
                 false,
             )
             .unwrap();
@@ -2426,8 +2400,11 @@ pub mod delisting_test {
                         &shorter.perp_positions[0],
                         &market,
                         oracle_price_data,
+                        QUOTE_PRECISION_I64,
+                        QUOTE_PRECISION_I64,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();
@@ -2511,8 +2488,11 @@ pub mod delisting_test {
                         &shorter.perp_positions[0],
                         &market,
                         oracle_price_data,
+                        QUOTE_PRECISION_I64,
+                        QUOTE_PRECISION_I64,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();
@@ -2600,8 +2580,11 @@ pub mod delisting_test {
                         &shorter.perp_positions[0],
                         &market,
                         oracle_price_data,
+                        QUOTE_PRECISION_I64,
+                        QUOTE_PRECISION_I64,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();

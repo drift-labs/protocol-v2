@@ -9,7 +9,7 @@ import {
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { AccountInfo } from '@solana/spl-token';
+import { Account } from '@solana/spl-token';
 import { OracleInfo, OraclePriceData } from '..';
 
 export interface AccountSubscriber<T> {
@@ -18,7 +18,7 @@ export interface AccountSubscriber<T> {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	setData(userAccount: T): void;
+	setData(userAccount: T, slot?: number): void;
 }
 
 export class NotSubscribedError extends Error {
@@ -59,6 +59,8 @@ export interface DriftClientAccountSubscriber {
 	getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined;
+
+	updateAccountLoaderPollingFrequency?: (pollingFrequency: number) => void;
 }
 
 export interface UserAccountEvents {
@@ -73,13 +75,14 @@ export interface UserAccountSubscriber {
 
 	subscribe(userAccount?: UserAccount): Promise<boolean>;
 	fetch(): Promise<void>;
+	updateData(userAccount: UserAccount, slot: number): void;
 	unsubscribe(): Promise<void>;
 
 	getUserAccountAndSlot(): DataAndSlot<UserAccount>;
 }
 
 export interface TokenAccountEvents {
-	tokenAccountUpdate: (payload: AccountInfo) => void;
+	tokenAccountUpdate: (payload: Account) => void;
 	update: void;
 	error: (e: Error) => void;
 }
@@ -92,7 +95,7 @@ export interface TokenAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getTokenAccountAndSlot(): DataAndSlot<AccountInfo>;
+	getTokenAccountAndSlot(): DataAndSlot<Account>;
 }
 
 export interface OracleEvents {

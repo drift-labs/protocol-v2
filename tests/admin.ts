@@ -1,5 +1,5 @@
-import * as anchor from '@project-serum/anchor';
-import { Program } from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
+import { Program } from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
 import {
@@ -66,6 +66,7 @@ describe('admin', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			new BN(1000),
 			new BN(1000),
@@ -153,8 +154,8 @@ describe('admin', () => {
 	it('Update oracle guard rails', async () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: new BN(1000000),
+				oracleTwap5MinPercentDivergence: new BN(1000000),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(1),

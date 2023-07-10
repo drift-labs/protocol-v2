@@ -1,6 +1,6 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import {
 	QUOTE_SPOT_MARKET_INDEX,
@@ -100,6 +100,7 @@ describe('user delegate', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		await driftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -150,6 +151,7 @@ describe('user delegate', () => {
 				},
 			],
 			authority: provider.wallet.publicKey,
+			includeDelegates: true,
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,

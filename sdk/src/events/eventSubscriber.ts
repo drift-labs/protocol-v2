@@ -1,5 +1,5 @@
-import { Connection, TransactionSignature } from '@solana/web3.js';
-import { Program } from '@project-serum/anchor';
+import { Connection, PublicKey, TransactionSignature } from '@solana/web3.js';
+import { Program } from '@coral-xyz/anchor';
 import {
 	DefaultEventSubscriptionOptions,
 	EventSubscriptionOptions,
@@ -19,6 +19,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { getSortFn } from './sort';
 
 export class EventSubscriber {
+	private address: PublicKey;
 	private eventListMap: Map<EventType, EventList<EventType>>;
 	private txEventCache: TxEventCache;
 	private awaitTxPromises = new Map<string, Promise<void>>();
@@ -35,6 +36,7 @@ export class EventSubscriber {
 		private options: EventSubscriptionOptions = DefaultEventSubscriptionOptions
 	) {
 		this.options = Object.assign({}, DefaultEventSubscriptionOptions, options);
+		this.address = this.options.address ?? program.programId;
 		this.txEventCache = new TxEventCache(this.options.maxTx);
 		this.eventListMap = new Map<EventType, EventList<EventType>>();
 		for (const eventType of this.options.eventTypes) {
@@ -52,13 +54,13 @@ export class EventSubscriber {
 		if (this.options.logProviderConfig.type === 'websocket') {
 			this.logProvider = new WebSocketLogProvider(
 				this.connection,
-				this.program.programId,
+				this.address,
 				this.options.commitment
 			);
 		} else {
 			this.logProvider = new PollingLogProvider(
 				this.connection,
-				this.program.programId,
+				this.address,
 				options.commitment,
 				this.options.logProviderConfig.frequency
 			);
@@ -134,7 +136,7 @@ export class EventSubscriber {
 		while (txFetched < this.options.maxTx) {
 			const response = await fetchLogs(
 				this.connection,
-				this.program.programId,
+				this.address,
 				this.options.commitment === 'finalized' ? 'finalized' : 'confirmed',
 				beforeTx,
 				untilTx
@@ -164,7 +166,11 @@ export class EventSubscriber {
 	): WrappedEvents {
 		const records = [];
 		// @ts-ignore
-		this.program._events._eventParser.parseLogs(logs, (event) => {
+		const eventGenerator = this.program._events._eventParser.parseLogs(
+			logs,
+			false
+		);
+		for (const event of eventGenerator) {
 			const expectRecordType = this.eventListMap.has(event.name);
 			if (expectRecordType) {
 				event.data.txSig = txSig;
@@ -172,7 +178,7 @@ export class EventSubscriber {
 				event.data.eventType = event.name;
 				records.push(event.data);
 			}
-		});
+		}
 		return records;
 	}
 

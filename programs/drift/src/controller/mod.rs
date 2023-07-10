@@ -8,7 +8,6 @@ pub mod pda;
 pub mod pnl;
 pub mod position;
 pub mod repeg;
-pub mod serum;
 pub mod spot_balance;
 pub mod spot_position;
 pub mod token;

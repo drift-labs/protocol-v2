@@ -12,6 +12,7 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
+use crate::math::spot_swap::calculate_swap_price;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -30,6 +31,7 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     liquidation_fee: u32,
     if_liquidation_fee: u32,
     oracle_price: i64,
+    quote_oracle_price: i64,
 ) -> DriftResult<u64> {
     let margin_ratio = margin_ratio.safe_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)?;
 
@@ -42,6 +44,8 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
         .safe_div(
             oracle_price
                 .cast::<u128>()?
+                .safe_mul(quote_oracle_price.cast()?)?
+                .safe_div(PRICE_PRECISION)?
                 .safe_mul(margin_ratio.safe_sub(liquidation_fee)?.cast()?)?
                 .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
                 .safe_sub(
@@ -308,17 +312,18 @@ pub fn validate_transfer_satisfies_limit_price(
         None => return Ok(()),
     };
 
-    let transfer_price = asset_transfer
-        .safe_mul(PRICE_PRECISION)?
-        .safe_div(10_u128.pow(asset_decimals))?
-        .safe_mul(10_u128.pow(liability_decimals))?
-        .safe_div(liability_transfer)?;
+    let swap_price = calculate_swap_price(
+        asset_transfer,
+        liability_transfer,
+        asset_decimals,
+        liability_decimals,
+    )?;
 
     validate!(
-        transfer_price >= limit_price.cast()?,
+        swap_price >= limit_price.cast()?,
         ErrorCode::LiquidationDoesntSatisfyLimitPrice,
         "transfer price transfer_price ({}/1000000) < limit price ({}/1000000)",
-        transfer_price,
+        swap_price,
         limit_price
     )
 }
@@ -340,7 +345,7 @@ pub fn calculate_max_pct_to_liquidate(
     initial_pct_to_liquidate: u128,
     liquidation_duration: u128,
 ) -> DriftResult<u128> {
-    let slots_elapsed = slot.safe_sub(user.liquidation_start_slot)?;
+    let slots_elapsed = slot.safe_sub(user.last_active_slot)?;
 
     let pct_freeable = slots_elapsed
         .cast::<u128>()?

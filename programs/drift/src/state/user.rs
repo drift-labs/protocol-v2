@@ -7,14 +7,19 @@ use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT,
     PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
-use crate::math::orders::standardize_price;
-use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
+use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
+use crate::math::orders::{standardize_base_asset_amount, standardize_price};
+use crate::math::position::{
+    calculate_base_asset_value_and_pnl_with_oracle_price,
+    calculate_base_asset_value_with_oracle_price,
+};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math::stats::calculate_rolling_sum;
 use crate::math_error;
 use crate::safe_increment;
 use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
 use crate::validate;
@@ -49,30 +54,68 @@ impl Size for User {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct User {
+    /// The owner/authority of the account
     pub authority: Pubkey,
+    /// An addresses that can control the account on the authority's behalf. Has limited power, cant withdraw
     pub delegate: Pubkey,
+    /// Encoded display name e.g. "toly"
     pub name: [u8; 32],
+    /// The user's spot positions
     pub spot_positions: [SpotPosition; 8],
+    /// The user's perp positions
     pub perp_positions: [PerpPosition; 8],
+    /// The user's orders
     pub orders: [Order; 32],
+    /// The last time the user added perp lp positions
     pub last_add_perp_lp_shares_ts: i64,
+    /// The total values of deposits the user has made
+    /// precision: QUOTE_PRECISION
     pub total_deposits: u64,
+    /// The total values of withdrawals the user has made
+    /// precision: QUOTE_PRECISION
     pub total_withdraws: u64,
+    /// The total socialized loss the users has incurred upon the protocol
+    /// precision: QUOTE_PRECISION
     pub total_social_loss: u64,
-    // Fees (taker fees, maker rebate, referrer reward, filler reward) and pnl for perps
+    /// Fees (taker fees, maker rebate, referrer reward, filler reward) and pnl for perps
+    /// precision: QUOTE_PRECISION
     pub settled_perp_pnl: i64,
-    // Fees (taker fees, maker rebate, filler reward) for spot
+    /// Fees (taker fees, maker rebate, filler reward) for spot
+    /// precision: QUOTE_PRECISION
     pub cumulative_spot_fees: i64,
+    /// Cumulative funding paid/received for perps
+    /// precision: QUOTE_PRECISION
     pub cumulative_perp_funding: i64,
+    /// The amount of margin freed during liquidation. Used to force the liquidation to occur over a period of time
+    /// Defaults to zero when not being liquidated
+    /// precision: QUOTE_PRECISION
     pub liquidation_margin_freed: u64,
-    pub liquidation_start_slot: u64,
+    /// The last slot a user was active. Used to determine if a user is idle
+    pub last_active_slot: u64,
+    /// Every user order has an order id. This is the next order id to be used
     pub next_order_id: u32,
+    /// Custom max initial margin ratio for the user
     pub max_margin_ratio: u32,
+    /// The next liquidation id to be used for user
     pub next_liquidation_id: u16,
+    /// The sub account id for this user
     pub sub_account_id: u16,
+    /// Whether the user is active, being liquidated or bankrupt
     pub status: UserStatus,
+    /// Whether the user has enabled margin trading
     pub is_margin_trading_enabled: bool,
-    pub padding: [u8; 26],
+    /// User is idle if they haven't interacted with the protocol in 1 week and they have no orders, perp positions or borrows
+    /// Off-chain keeper bots can ignore users that are idle
+    pub idle: bool,
+    /// number of open orders
+    pub open_orders: u8,
+    /// Whether or not user has open order
+    pub has_open_order: bool,
+    /// number of open orders with auction
+    pub open_auctions: u8,
+    /// Whether or not user has open order with auction
+    pub has_open_auction: bool,
+    pub padding: [u8; 21],
 }
 
 impl User {
@@ -189,6 +232,15 @@ impl User {
             .ok_or(ErrorCode::OrderDoesNotExist)
     }
 
+    pub fn get_order_index_by_user_order_id(&self, user_order_id: u8) -> DriftResult<usize> {
+        self.orders
+            .iter()
+            .position(|order| {
+                order.user_order_id == user_order_id && order.status == OrderStatus::Open
+            })
+            .ok_or(ErrorCode::OrderDoesNotExist)
+    }
+
     pub fn get_order(&self, order_id: u32) -> Option<&Order> {
         self.orders.iter().find(|order| order.order_id == order_id)
     }
@@ -256,14 +308,13 @@ impl User {
 
         self.status = UserStatus::BeingLiquidated;
         self.liquidation_margin_freed = 0;
-        self.liquidation_start_slot = slot;
+        self.last_active_slot = slot;
         Ok(get_then_update_id!(self, next_liquidation_id))
     }
 
     pub fn exit_liquidation(&mut self) {
         self.status = UserStatus::Active;
         self.liquidation_margin_freed = 0;
-        self.liquidation_start_slot = 0;
     }
 
     pub fn enter_bankruptcy(&mut self) {
@@ -273,12 +324,36 @@ impl User {
     pub fn exit_bankruptcy(&mut self) {
         self.status = UserStatus::Active;
         self.liquidation_margin_freed = 0;
-        self.liquidation_start_slot = 0;
     }
 
     pub fn increment_margin_freed(&mut self, margin_free: u64) -> DriftResult {
         self.liquidation_margin_freed = self.liquidation_margin_freed.safe_add(margin_free)?;
         Ok(())
+    }
+
+    pub fn update_last_active_slot(&mut self, slot: u64) {
+        if !self.is_being_liquidated() {
+            self.last_active_slot = slot;
+        }
+        self.idle = false;
+    }
+
+    pub fn increment_open_orders(&mut self, is_auction: bool) {
+        self.open_orders = self.open_orders.saturating_add(1);
+        self.has_open_order = self.open_orders > 0;
+        if is_auction {
+            self.open_auctions = self.open_auctions.saturating_add(1);
+            self.has_open_auction = self.open_auctions > 0;
+        }
+    }
+
+    pub fn decrement_open_orders(&mut self, is_auction: bool) {
+        self.open_orders = self.open_orders.saturating_sub(1);
+        self.has_open_order = self.open_orders > 0;
+        if is_auction {
+            self.open_auctions = self.open_auctions.saturating_sub(1);
+            self.has_open_auction = self.open_auctions > 0;
+        }
     }
 }
 
@@ -286,11 +361,23 @@ impl User {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct UserFees {
+    /// Total taker fee paid
+    /// precision: QUOTE_PRECISION
     pub total_fee_paid: u64,
+    /// Total maker fee rebate
+    /// precision: QUOTE_PRECISION
     pub total_fee_rebate: u64,
+    /// Total discount from holding token
+    /// precision: QUOTE_PRECISION
     pub total_token_discount: u64,
+    /// Total discount from being referred
+    /// precision: QUOTE_PRECISION
     pub total_referee_discount: u64,
+    /// Total reward to referrer
+    /// precision: QUOTE_PRECISION
     pub total_referrer_reward: u64,
+    /// Total reward to referrer this epoch
+    /// precision: QUOTE_PRECISION
     pub current_epoch_referrer_reward: u64,
 }
 
@@ -298,12 +385,24 @@ pub struct UserFees {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct SpotPosition {
+    /// The scaled balance of the position. To get the token amount, multiply by the cumulative deposit/borrow
+    /// interest of corresponding market.
+    /// precision: SPOT_BALANCE_PRECISION
     pub scaled_balance: u64,
+    /// How many spot bids the user has open
+    /// precision: token mint precision
     pub open_bids: i64,
+    /// How many spot asks the user has open
+    /// precision: token mint precision
     pub open_asks: i64,
+    /// The cumulative deposits/borrows a user has made into a market
+    /// precision: token mint precision
     pub cumulative_deposits: i64,
+    /// The market index of the corresponding spot market
     pub market_index: u16,
+    /// Whether the position is deposit or borrow
     pub balance_type: SpotBalanceType,
+    /// Number of open orders
     pub open_orders: u8,
     pub padding: [u8; 4],
 }
@@ -363,7 +462,7 @@ impl SpotPosition {
         )
     }
 
-    pub fn get_worst_case_token_amounts(
+    pub fn get_worst_case_token_amount(
         &self,
         spot_market: &SpotMarket,
         oracle_price_data: &OraclePriceData,
@@ -385,13 +484,13 @@ impl SpotPosition {
         };
 
         if token_amount_all_bids_fill.abs() > token_amount_all_asks_fill.abs() {
-            let worst_case_quote_token_amount =
+            let worst_case_orders_value =
                 get_token_value(-self.open_bids as i128, spot_market.decimals, oracle_price)?;
-            Ok((token_amount_all_bids_fill, worst_case_quote_token_amount))
+            Ok((token_amount_all_bids_fill, worst_case_orders_value))
         } else {
-            let worst_case_quote_token_amount =
+            let worst_case_orders_value =
                 get_token_value(-self.open_asks as i128, spot_market.decimals, oracle_price)?;
-            Ok((token_amount_all_asks_fill, worst_case_quote_token_amount))
+            Ok((token_amount_all_asks_fill, worst_case_orders_value))
         }
     }
 }
@@ -400,19 +499,52 @@ impl SpotPosition {
 #[derive(Default, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct PerpPosition {
+    /// The perp market's last cumulative funding rate. Used to calculate the funding payment owed to user
+    /// precision: FUNDING_RATE_PRECISION
     pub last_cumulative_funding_rate: i64,
+    /// the size of the users perp position
+    /// precision: BASE_PRECISION
     pub base_asset_amount: i64,
+    /// Used to calculate the users pnl. Upon entry, is equal to base_asset_amount * avg entry price - fees
+    /// Updated when the user open/closes position or settles pnl. Includes fees/funding
+    /// precision: QUOTE_PRECISION
     pub quote_asset_amount: i64,
+    /// The amount of quote the user would need to exit their position at to break even
+    /// Updated when the user open/closes position or settles pnl. Includes fees/funding
+    /// precision: QUOTE_PRECISION
     pub quote_break_even_amount: i64,
+    /// The amount quote the user entered the position with. Equal to base asset amount * avg entry price
+    /// Updated when the user open/closes position. Excludes fees/funding
+    /// precision: QUOTE_PRECISION
     pub quote_entry_amount: i64,
+    /// The amount of open bids the user has in this perp market
+    /// precision: BASE_PRECISION
     pub open_bids: i64,
+    /// The amount of open asks the user has in this perp market
+    /// precision: BASE_PRECISION
     pub open_asks: i64,
+    /// The amount of pnl settled in this market since opening the position
+    /// precision: QUOTE_PRECISION
     pub settled_pnl: i64,
+    /// The number of lp (liquidity provider) shares the user has in this perp market
+    /// LP shares allow users to provide liquidity via the AMM
+    /// precision: BASE_PRECISION
     pub lp_shares: u64,
+    /// The last base asset amount per lp the amm had
+    /// Used to settle the users lp position
+    /// precision: BASE_PRECISION
     pub last_base_asset_amount_per_lp: i64,
+    /// The last quote asset amount per lp the amm had
+    /// Used to settle the users lp position
+    /// precision: QUOTE_PRECISION
     pub last_quote_asset_amount_per_lp: i64,
+    /// Settling LP position can lead to a small amount of base asset being left over smaller than step size
+    /// This records that remainder so it can be settled later on
+    /// precision: BASE_PRECISION
     pub remainder_base_asset_amount: i32,
+    /// The market index for the perp market
     pub market_index: u16,
+    /// The number of open orders
     pub open_orders: u8,
     pub padding: [u8; 1],
 }
@@ -445,6 +577,54 @@ impl PerpPosition {
 
     pub fn is_lp(&self) -> bool {
         self.lp_shares > 0
+    }
+
+    pub fn simulate_settled_lp_position(
+        &self,
+        market: &PerpMarket,
+        valuation_price: i64,
+    ) -> DriftResult<PerpPosition> {
+        if !self.is_lp() {
+            return Ok(*self);
+        }
+
+        // compute lp metrics
+        let lp_metrics = calculate_settle_lp_metrics(&market.amm, self)?;
+
+        // compute settled position
+        let base_asset_amount = self
+            .base_asset_amount
+            .safe_add(lp_metrics.base_asset_amount.cast()?)?;
+
+        let mut quote_asset_amount = self
+            .quote_asset_amount
+            .safe_add(lp_metrics.quote_asset_amount.cast()?)?;
+
+        // dust position in baa/qaa
+        if lp_metrics.remainder_base_asset_amount != 0 {
+            let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(
+                lp_metrics.remainder_base_asset_amount.cast()?,
+                valuation_price,
+            )?
+            .safe_add(1)?;
+
+            quote_asset_amount = quote_asset_amount.safe_sub(dust_base_asset_value.cast()?)?;
+        }
+
+        let (lp_bids, lp_asks) = calculate_lp_open_bids_asks(self, market)?;
+
+        let open_bids = self.open_bids.safe_add(lp_bids)?;
+
+        let open_asks = self.open_asks.safe_add(lp_asks)?;
+
+        Ok(PerpPosition {
+            base_asset_amount,
+            quote_asset_amount,
+            open_asks,
+            open_bids,
+            // todo double check: this is ok because no other values are used in the future computations
+            ..PerpPosition::default()
+        })
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {
@@ -529,28 +709,62 @@ pub type PerpPositions = [PerpPosition; 8];
 #[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub struct Order {
+    /// The slot the order was placed
     pub slot: u64,
+    /// The limit price for the order (can be 0 for market orders)
+    /// For orders with an auction, this price isn't used until the auction is complete
+    /// precision: PRICE_PRECISION
     pub price: u64,
+    /// The size of the order
+    /// precision for perps: BASE_PRECISION
+    /// precision for spot: token mint precision
     pub base_asset_amount: u64,
+    /// The amount of the order filled
+    /// precision for perps: BASE_PRECISION
+    /// precision for spot: token mint precision
     pub base_asset_amount_filled: u64,
+    /// The amount of quote filled for the order
+    /// precision: QUOTE_PRECISION
     pub quote_asset_amount_filled: u64,
+    /// At what price the order will be triggered. Only relevant for trigger orders
+    /// precision: PRICE_PRECISION
     pub trigger_price: u64,
+    /// The start price for the auction. Only relevant for market/oracle orders
+    /// precision: PRICE_PRECISION
     pub auction_start_price: i64,
+    /// The end price for the auction. Only relevant for market/oracle orders
+    /// precision: PRICE_PRECISION
     pub auction_end_price: i64,
+    /// The time when the order will expire
     pub max_ts: i64,
+    /// If set, the order limit price is the oracle price + this offset
+    /// precision: PRICE_PRECISION
     pub oracle_price_offset: i32,
+    /// The id for the order. Each users has their own order id space
     pub order_id: u32,
+    /// The perp/spot market index
     pub market_index: u16,
+    /// Whether the order is open or unused
     pub status: OrderStatus,
+    /// The type of order
     pub order_type: OrderType,
+    /// Whether market is spot or perp
     pub market_type: MarketType,
+    /// User generated order id. Can make it easier to place/cancel orders
     pub user_order_id: u8,
+    /// What the users position was when the order was placed
     pub existing_position_direction: PositionDirection,
+    /// Whether the user is going long or short. LONG = bid, SHORT = ask
     pub direction: PositionDirection,
+    /// Whether the order is allowed to only reduce position size
     pub reduce_only: bool,
+    /// Whether the order must be a maker
     pub post_only: bool,
+    /// Whether the order must be canceled the same slot it is placed
     pub immediate_or_cancel: bool,
+    /// Whether the order is triggered above or below the trigger price. Only relevant for trigger orders
     pub trigger_condition: OrderTriggerCondition,
+    /// How many slots the auction lasts
     pub auction_duration: u8,
     pub padding: [u8; 3],
 }
@@ -701,6 +915,19 @@ impl Order {
         }
     }
 
+    /// Stardardizes the base asset amount unfilled to the nearest step size
+    /// Particularly important for spot positions where existing position can be dust
+    pub fn get_standardized_base_asset_amount_unfilled(
+        &self,
+        existing_position: Option<i64>,
+        step_size: u64,
+    ) -> DriftResult<u64> {
+        standardize_base_asset_amount(
+            self.get_base_asset_amount_unfilled(existing_position)?,
+            step_size,
+        )
+    }
+
     pub fn must_be_triggered(&self) -> bool {
         matches!(
             self.order_type,
@@ -783,9 +1010,13 @@ impl Default for Order {
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
 pub enum OrderStatus {
+    /// The order is not in use
     Init,
+    /// Order is open
     Open,
+    /// Order has been filled
     Filled,
+    /// Order has been canceled
     Canceled,
 }
 
@@ -795,6 +1026,7 @@ pub enum OrderType {
     Limit,
     TriggerMarket,
     TriggerLimit,
+    /// Market order where the auction prices are oracle offsets
     Oracle,
 }
 
@@ -834,23 +1066,41 @@ impl Default for MarketType {
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct UserStats {
+    /// The authority for all of a users sub accounts
     pub authority: Pubkey,
+    /// The address that referred this user
     pub referrer: Pubkey,
+    /// Stats on the fees paid by the user
     pub fees: UserFees,
 
+    /// The timestamp of the next epoch
+    /// Epoch is used to limit referrer rewards earned in single epoch
     pub next_epoch_ts: i64,
 
-    // volume track
+    /// Rolling 30day maker volume for user
+    /// precision: QUOTE_PRECISION
     pub maker_volume_30d: u64,
+    /// Rolling 30day taker volume for user
+    /// precision: QUOTE_PRECISION
     pub taker_volume_30d: u64,
+    /// Rolling 30day filler volume for user
+    /// precision: QUOTE_PRECISION
     pub filler_volume_30d: u64,
+    /// last time the maker volume was updated
     pub last_maker_volume_30d_ts: i64,
+    /// last time the taker volume was updated
     pub last_taker_volume_30d_ts: i64,
+    /// last time the filler volume was updated
     pub last_filler_volume_30d_ts: i64,
 
+    /// The amount of tokens staked in the quote spot markets if
     pub if_staked_quote_asset_amount: u64,
+    /// The current number of sub accounts
     pub number_of_sub_accounts: u16,
+    /// The number of sub accounts created. Can be greater than the number of sub accounts if user
+    /// has deleted sub accounts
     pub number_of_sub_accounts_created: u16,
+    /// Whether the user is a referrer. Sub account 0 can not be deleted if user is a referrer
     pub is_referrer: bool,
     pub padding: [u8; 51],
 }

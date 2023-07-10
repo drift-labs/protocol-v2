@@ -1,5 +1,5 @@
-import * as anchor from '@project-serum/anchor';
-import { Program } from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
+import { Program } from '@coral-xyz/anchor';
 import {
 	createPriceFeed,
 	setFeedPrice,
@@ -99,6 +99,7 @@ describe('User Account', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await driftClient.initializePerpMarket(
+			0,
 			solUsdOracle,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

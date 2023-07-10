@@ -1,4 +1,4 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import {
 	BN,
@@ -17,9 +17,10 @@ import {
 	OracleGuardRails,
 	BASE_PRECISION,
 	BulkAccountLoader,
+	PERCENTAGE_PRECISION,
 } from '../sdk';
 import { Keypair } from '@solana/web3.js';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import {
 	User,
@@ -214,6 +215,7 @@ describe('repeg and spread amm', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		// BTC
 		await driftClient.initializePerpMarket(
+			0,
 			btcUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -258,8 +260,8 @@ describe('repeg and spread amm', () => {
 	it('BTC market massive spread', async () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: PERCENTAGE_PRECISION,
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION,
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

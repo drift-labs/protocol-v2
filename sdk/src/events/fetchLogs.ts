@@ -1,4 +1,4 @@
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import {
 	Connection,
 	Finality,
@@ -31,14 +31,14 @@ function mapTransactionResponseToLog(
 
 export async function fetchLogs(
 	connection: Connection,
-	programId: PublicKey,
+	address: PublicKey,
 	finality: Finality,
 	beforeTx?: TransactionSignature,
 	untilTx?: TransactionSignature,
 	limit?: number
 ): Promise<FetchLogsResponse> {
 	const signatures = await connection.getSignaturesForAddress(
-		programId,
+		address,
 		{
 			before: beforeTx,
 			until: untilTx,
@@ -120,12 +120,16 @@ export class LogParser {
 	public parseEventsFromLogs(event: Log): WrappedEvents {
 		const records: WrappedEvents = [];
 		// @ts-ignore
-		this.program._events._eventParser.parseLogs(event.logs, (eventLog) => {
+		const eventGenerator = this.program._events._eventParser.parseLogs(
+			event.logs,
+			false
+		);
+		for (const eventLog of eventGenerator) {
 			eventLog.data.txSig = event.txSig;
 			eventLog.data.slot = event.slot;
 			eventLog.data.eventType = eventLog.name;
 			records.push(eventLog.data);
-		});
+		}
 		return records;
 	}
 }

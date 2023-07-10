@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import * as web3 from '@solana/web3.js';
 
@@ -217,6 +217,7 @@ describe('liquidity providing', () => {
 		);
 		// used for trading / taking on baa
 		await driftClient.initializePerpMarket(
+			0,
 			solusdc,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -227,8 +228,8 @@ describe('liquidity providing', () => {
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: new BN(1000000),
+				oracleTwap5MinPercentDivergence: new BN(1000000),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(10),
@@ -247,6 +248,7 @@ describe('liquidity providing', () => {
 
 		// second market -- used for funding ..
 		await driftClient.initializePerpMarket(
+			1,
 			solusdc2,
 			stableAmmInitialBaseAssetReserve,
 			stableAmmInitialQuoteAssetReserve,
@@ -358,7 +360,7 @@ describe('liquidity providing', () => {
 
 		const newInitMarginReq = driftClientUser.getInitialMarginRequirement();
 		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
-		assert(newInitMarginReq.eq(new BN(8283999)));
+		assert(newInitMarginReq.eq(new BN(8284008)));
 
 		// ensure margin calcs didnt modify user position
 		const _position = driftClientUser.getPerpPosition(0);
@@ -617,7 +619,7 @@ describe('liquidity providing', () => {
 		);
 
 		const [settledLPPosition, _, sdkPnl] =
-			driftClientUser.getSettledLPPosition(0);
+			driftClientUser.getPerpPositionWithLPSettle(0);
 
 		console.log('settling...');
 		try {
@@ -1204,7 +1206,7 @@ describe('liquidity providing', () => {
 		);
 
 		await driftClientUser.fetchAccounts();
-		const sdkPnl = driftClientUser.getSettledLPPosition(0)[2];
+		const sdkPnl = driftClientUser.getPerpPositionWithLPSettle(0)[2];
 
 		console.log('settling...');
 		try {
@@ -1479,7 +1481,7 @@ describe('liquidity providing', () => {
 			new BN(0)
 		);
 
-		const [settledPosition, result, _] = driftClientUser.getSettledLPPosition(
+		const [settledPosition, result, _] = driftClientUser.getPerpPositionWithLPSettle(
 			new BN(0)
 		);
 

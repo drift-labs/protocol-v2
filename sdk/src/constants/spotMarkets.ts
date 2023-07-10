@@ -6,6 +6,7 @@ import {
 	LAMPORTS_EXP,
 	LAMPORTS_PRECISION,
 	SIX,
+	NINE,
 } from './numericConstants';
 
 export type SpotMarketConfig = {
@@ -17,6 +18,7 @@ export type SpotMarketConfig = {
 	precision: BN;
 	precisionExp: BN;
 	serumMarket?: PublicKey;
+	phoenixMarket?: PublicKey;
 };
 
 export const WRAPPED_SOL_MINT = new PublicKey(
@@ -27,8 +29,8 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'USDC',
 		marketIndex: 0,
-		oracle: PublicKey.default,
-		oracleSource: OracleSource.QUOTE_ASSET,
+		oracle: new PublicKey('5SSkXsEKQepHHAewytPVwdej4epN1nxgLVM84L4KXgy7'),
+		oracleSource: OracleSource.PYTH_STABLE_COIN,
 		mint: new PublicKey('8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
@@ -42,6 +44,9 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		precision: LAMPORTS_PRECISION,
 		precisionExp: LAMPORTS_EXP,
 		serumMarket: new PublicKey('8N37SsnTu8RYxtjrV9SStjkkwVhmU8aCWhLvwduAPEKW'),
+		phoenixMarket: new PublicKey(
+			'78ehDnHgbkFxqXZwdFxa8HK7saX58GymeX2wNGdkqYLp'
+		),
 	},
 	{
 		symbol: 'BTC',
@@ -59,8 +64,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'USDC',
 		marketIndex: 0,
-		oracle: PublicKey.default,
-		oracleSource: OracleSource.QUOTE_ASSET,
+		oracle: new PublicKey('Gnt27xtC473ZT2Mw5u8wZ68Z3gULkSTb5DuxJy7eJotD'),
+		oracleSource: OracleSource.PYTH_STABLE_COIN,
 		mint: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
 		precision: QUOTE_PRECISION,
 		precisionExp: QUOTE_PRECISION_EXP,
@@ -74,6 +79,19 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: LAMPORTS_PRECISION,
 		precisionExp: LAMPORTS_EXP,
 		serumMarket: new PublicKey('8BnEgHoWFysVcuFFX7QztDmzuH8r5ZFvyP3sYwn1XTh6'),
+		phoenixMarket: new PublicKey(
+			'4DoNfFBfF7UokCC2FQzriy7yHK6DY6NVdYpuekQ5pRgg'
+		),
+	},
+	{
+		symbol: 'mSOL',
+		marketIndex: 2,
+		oracle: new PublicKey('E4v1BBgoso9s64TQvmyownAVJbhbEPGyzA3qn4n46qj9'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		serumMarket: new PublicKey('9Lyhks5bQQxb9EyyX55NtgKQzpM4WK7JCmeaWuQ5MoXD'),
 	},
 ];
 

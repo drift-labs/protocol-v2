@@ -1,5 +1,5 @@
-import * as anchor from '@project-serum/anchor';
-import { Program } from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
+import { Program } from '@coral-xyz/anchor';
 import { Keypair } from '@solana/web3.js';
 import { BN } from '../sdk';
 import {
@@ -208,6 +208,8 @@ describe('AMM Curve', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		const kSqrtNorm = normAssetAmount(kSqrt, initialSOLPriceBN);
 		await driftClient.initializePerpMarket(
+			0,
+
 			solUsdOracle,
 			kSqrtNorm,
 			kSqrtNorm,

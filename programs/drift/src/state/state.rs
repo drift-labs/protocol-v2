@@ -7,6 +7,7 @@ use crate::math::constants::{
 };
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
+use crate::PERCENTAGE_PRECISION_U64;
 
 #[account]
 #[derive(Default)]
@@ -87,10 +88,7 @@ pub struct OracleGuardRails {
 impl Default for OracleGuardRails {
     fn default() -> Self {
         OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
+            price_divergence: PriceDivergenceGuardRails::default(),
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,       // ~5 seconds
                 slots_before_stale_for_margin: 120,   // ~60 seconds
@@ -101,10 +99,27 @@ impl Default for OracleGuardRails {
     }
 }
 
-#[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Default)]
+impl OracleGuardRails {
+    pub fn max_oracle_twap_5min_percent_divergence(&self) -> u64 {
+        self.price_divergence
+            .oracle_twap_5min_percent_divergence
+            .max(PERCENTAGE_PRECISION_U64 / 2)
+    }
+}
+
+#[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct PriceDivergenceGuardRails {
-    pub mark_oracle_divergence_numerator: u64,
-    pub mark_oracle_divergence_denominator: u64,
+    pub mark_oracle_percent_divergence: u64,
+    pub oracle_twap_5min_percent_divergence: u64,
+}
+
+impl Default for PriceDivergenceGuardRails {
+    fn default() -> Self {
+        PriceDivergenceGuardRails {
+            mark_oracle_percent_divergence: PERCENTAGE_PRECISION_U64 / 10,
+            oracle_twap_5min_percent_divergence: PERCENTAGE_PRECISION_U64 / 2,
+        }
+    }
 }
 
 #[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Default)]

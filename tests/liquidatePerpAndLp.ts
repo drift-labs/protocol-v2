@@ -1,4 +1,4 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import {
 	BASE_PRECISION,
 	BN,
@@ -19,7 +19,7 @@ import {
 } from '../sdk/src';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { Keypair } from '@solana/web3.js';
 
@@ -32,7 +32,7 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import { BulkAccountLoader, PERCENTAGE_PRECISION } from '../sdk';
 
 describe('liquidate perp and lp', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -111,6 +111,8 @@ describe('liquidate perp and lp', () => {
 		const periodicity = new BN(0);
 
 		await driftClient.initializePerpMarket(
+			0,
+
 			oracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -290,8 +292,8 @@ describe('liquidate perp and lp', () => {
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(10),
+				markOraclePercentDivergence: PERCENTAGE_PRECISION,
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.div(new BN(10)),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -299,7 +301,6 @@ describe('liquidate perp and lp', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(11), // allow 11x change
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
@@ -312,6 +313,9 @@ describe('liquidate perp and lp', () => {
 		);
 
 		await printTxLogs(connection, txSig);
+
+		const lpEvent = eventSubscriber.getEventsArray('LPRecord')[0];
+		assert(lpEvent.nShares.eq(nLpShares));
 
 		for (let i = 0; i < 32; i++) {
 			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));

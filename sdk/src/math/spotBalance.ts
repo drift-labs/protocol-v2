@@ -4,7 +4,7 @@ import {
 	isVariant,
 	MarginCategory,
 } from '../types';
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 import {
 	SPOT_MARKET_UTILIZATION_PRECISION,
 	ONE,
@@ -23,6 +23,15 @@ import { OraclePriceData } from '../oracles/types';
 import { PERCENTAGE_PRECISION } from '../constants/numericConstants';
 import { divCeil } from './utils';
 
+/**
+ * Calculates the balance of a given token amount including any accumulated interest. This
+ * is the same as `SpotPosition.scaledBalance`.
+ *
+ * @param {BN} tokenAmount - the amount of tokens
+ * @param {SpotMarketAccount} spotMarket - the spot market account
+ * @param {SpotBalanceType} balanceType - the balance type ('deposit' or 'borrow')
+ * @return {BN} the calculated balance, scaled by `SPOT_MARKET_BALANCE_PRECISION`
+ */
 export function getBalance(
 	tokenAmount: BN,
 	spotMarket: SpotMarketAccount,
@@ -43,6 +52,14 @@ export function getBalance(
 	return balance;
 }
 
+/**
+ * Calculates the spot token amount including any accumulated interest.
+ *
+ * @param {BN} balanceAmount - The balance amount, typically from `SpotPosition.scaledBalance`
+ * @param {SpotMarketAccount} spotMarket - The spot market account details
+ * @param {SpotBalanceType} balanceType - The balance type to be used for calculation
+ * @returns {BN} The calculated token amount, scaled by `SpotMarketConfig.precision`
+ */
 export function getTokenAmount(
 	balanceAmount: BN,
 	spotMarket: SpotMarketAccount,
@@ -62,6 +79,13 @@ export function getTokenAmount(
 	}
 }
 
+/**
+ * Returns the signed (positive for deposit,negative for borrow) token amount based on the balance type.
+ *
+ * @param {BN} tokenAmount - The token amount to convert (from `getTokenAmount`)
+ * @param {SpotBalanceType} balanceType - The balance type to determine the sign of the token amount.
+ * @returns {BN} - The signed token amount, scaled by `SpotMarketConfig.precision`
+ */
 export function getSignedTokenAmount(
 	tokenAmount: BN,
 	balanceType: SpotBalanceType
@@ -73,6 +97,15 @@ export function getSignedTokenAmount(
 	}
 }
 
+/**
+ * Calculates the value of a given token amount using the worst of the provided oracle price and its TWAP.
+ *
+ * @param {BN} tokenAmount - The amount of tokens to calculate the value for (from `getTokenAmount`)
+ * @param {number} spotDecimals - The number of decimals in the token.
+ * @param {OraclePriceData} oraclePriceData - The oracle price data (typically a token/USD oracle).
+ * @param {BN} oraclePriceTwap - The Time-Weighted Average Price of the oracle.
+ * @return {BN} The calculated value of the given token amount, scaled by `PRICE_PRECISION`
+ */
 export function getStrictTokenValue(
 	tokenAmount: BN,
 	spotDecimals: number,
@@ -95,6 +128,14 @@ export function getStrictTokenValue(
 	return tokenAmount.mul(price).div(precisionDecrease);
 }
 
+/**
+ * Calculates the value of a given token amount in relation to an oracle price data
+ *
+ * @param {BN} tokenAmount - The amount of tokens to calculate the value for (from `getTokenAmount`)
+ * @param {number} spotDecimals - The number of decimal places of the token.
+ * @param {OraclePriceData} oraclePriceData - The oracle price data (typically a token/USD oracle).
+ * @return {BN} The value of the token based on the oracle, scaled by `PRICE_PRECISION`
+ */
 export function getTokenValue(
 	tokenAmount: BN,
 	spotDecimals: number,
@@ -195,17 +236,26 @@ export function calculateLiabilityWeight(
 	return liabilityWeight;
 }
 
-export function calculateUtilization(bank: SpotMarketAccount): BN {
-	const tokenDepositAmount = getTokenAmount(
+export function calculateUtilization(
+	bank: SpotMarketAccount,
+	delta = ZERO
+): BN {
+	let tokenDepositAmount = getTokenAmount(
 		bank.depositBalance,
 		bank,
 		SpotBalanceType.DEPOSIT
 	);
-	const tokenBorrowAmount = getTokenAmount(
+	let tokenBorrowAmount = getTokenAmount(
 		bank.borrowBalance,
 		bank,
 		SpotBalanceType.BORROW
 	);
+
+	if (delta.gt(ZERO)) {
+		tokenDepositAmount = tokenDepositAmount.add(delta);
+	} else if (delta.lt(ZERO)) {
+		tokenBorrowAmount = tokenBorrowAmount.add(delta.abs());
+	}
 
 	let utilization: BN;
 	if (tokenBorrowAmount.eq(ZERO) && tokenDepositAmount.eq(ZERO)) {
@@ -221,9 +271,80 @@ export function calculateUtilization(bank: SpotMarketAccount): BN {
 	return utilization;
 }
 
-export function calculateInterestRate(bank: SpotMarketAccount): BN {
-	const utilization = calculateUtilization(bank);
+/**
+ * calculates max borrow amount where rate would stay below targetBorrowRate
+ * @param spotMarketAccount
+ * @param targetBorrowRate
+ * @returns : Precision: TOKEN DECIMALS
+ */
+export function calculateSpotMarketBorrowCapacity(
+	spotMarketAccount: SpotMarketAccount,
+	targetBorrowRate: BN
+): { totalCapacity: BN; remainingCapacity: BN } {
+	const currentBorrowRate = calculateBorrowRate(spotMarketAccount);
 
+	const tokenDepositAmount = getTokenAmount(
+		spotMarketAccount.depositBalance,
+		spotMarketAccount,
+		SpotBalanceType.DEPOSIT
+	);
+
+	const tokenBorrowAmount = getTokenAmount(
+		spotMarketAccount.borrowBalance,
+		spotMarketAccount,
+		SpotBalanceType.BORROW
+	);
+
+	let targetUtilization;
+	// target utilization past mid point
+	if (targetBorrowRate.gte(new BN(spotMarketAccount.optimalBorrowRate))) {
+		const borrowRateSlope = new BN(
+			spotMarketAccount.maxBorrowRate - spotMarketAccount.optimalBorrowRate
+		)
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(
+				SPOT_MARKET_UTILIZATION_PRECISION.sub(
+					new BN(spotMarketAccount.optimalUtilization)
+				)
+			);
+
+		const surplusTargetUtilization = targetBorrowRate
+			.sub(new BN(spotMarketAccount.optimalBorrowRate))
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(borrowRateSlope);
+
+		targetUtilization = surplusTargetUtilization.add(
+			new BN(spotMarketAccount.optimalUtilization)
+		);
+	} else {
+		const borrowRateSlope = new BN(spotMarketAccount.optimalBorrowRate)
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(new BN(spotMarketAccount.optimalUtilization));
+
+		targetUtilization = targetBorrowRate
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(borrowRateSlope);
+	}
+
+	const totalCapacity = tokenDepositAmount
+		.mul(targetUtilization)
+		.div(SPOT_MARKET_UTILIZATION_PRECISION);
+
+	let remainingCapacity;
+	if (currentBorrowRate.gte(targetBorrowRate)) {
+		remainingCapacity = ZERO;
+	} else {
+		remainingCapacity = BN.max(ZERO, totalCapacity.sub(tokenBorrowAmount));
+	}
+
+	return { totalCapacity, remainingCapacity };
+}
+
+export function calculateInterestRate(
+	bank: SpotMarketAccount,
+	delta = ZERO
+): BN {
+	const utilization = calculateUtilization(bank, delta);
 	let interestRate: BN;
 	if (utilization.gt(new BN(bank.optimalUtilization))) {
 		const surplusUtilization = utilization.sub(new BN(bank.optimalUtilization));
@@ -241,9 +362,7 @@ export function calculateInterestRate(bank: SpotMarketAccount): BN {
 	} else {
 		const borrowRateSlope = new BN(bank.optimalBorrowRate)
 			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-			.div(
-				SPOT_MARKET_UTILIZATION_PRECISION.sub(new BN(bank.optimalUtilization))
-			);
+			.div(new BN(bank.optimalUtilization));
 
 		interestRate = utilization
 			.mul(borrowRateSlope)
@@ -297,6 +416,53 @@ export function calculateInterestAccumulated(
 	return { borrowInterest, depositInterest };
 }
 
+export function calculateTokenUtilizationLimits(
+	depositTokenAmount: BN,
+	borrowTokenAmount: BN,
+	spotMarket: SpotMarketAccount
+): {
+	minDepositTokensForUtilization: BN;
+	maxBorrowTokensForUtilization: BN;
+} {
+	// Calculates the allowable minimum deposit and maximum borrow amounts for immediate withdrawal based on market utilization.
+	// First, it determines a maximum withdrawal utilization from the market's target and historic utilization.
+	// Then, it deduces corresponding deposit/borrow amounts.
+	// Note: For deposit sizes below the guard threshold, withdrawals aren't blocked.
+
+	const maxWithdrawUtilization = BN.max(
+		spotMarket.optimalUtilization,
+		spotMarket.utilizationTwap.add(
+			SPOT_MARKET_UTILIZATION_PRECISION.sub(spotMarket.utilizationTwap).div(
+				new BN(2)
+			)
+		)
+	);
+
+	let minDepositTokensForUtilization = borrowTokenAmount
+		.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+		.div(maxWithdrawUtilization);
+
+	// don't block withdraws for deposit sizes below guard threshold
+	minDepositTokensForUtilization = BN.min(
+		minDepositTokensForUtilization,
+		depositTokenAmount.sub(spotMarket.withdrawGuardThreshold)
+	);
+
+	let maxBorrowTokensForUtilization = maxWithdrawUtilization
+		.mul(depositTokenAmount)
+		.div(SPOT_MARKET_UTILIZATION_PRECISION);
+
+	maxBorrowTokensForUtilization = BN.max(
+		spotMarket.withdrawGuardThreshold,
+		maxBorrowTokensForUtilization
+	);
+
+	return {
+		minDepositTokensForUtilization,
+		maxBorrowTokensForUtilization,
+	};
+}
+
 export function calculateWithdrawLimit(
 	spotMarket: SpotMarketAccount,
 	now: BN
@@ -332,25 +498,46 @@ export function calculateWithdrawLimit(
 		.add(marketDepositTokenAmount.mul(sinceLast))
 		.div(sinceLast.add(sinceStart));
 
-	const maxBorrowTokens = BN.max(
+	const lesserDepositAmount = BN.min(
+		marketDepositTokenAmount,
+		depositTokenTwapLive
+	);
+	const maxBorrowTokensTwap = BN.max(
 		spotMarket.withdrawGuardThreshold,
 		BN.min(
 			BN.max(
 				marketDepositTokenAmount.div(new BN(6)),
-				borrowTokenTwapLive.add(marketDepositTokenAmount.div(new BN(10)))
+				borrowTokenTwapLive.add(lesserDepositAmount.div(new BN(10)))
 			),
-			marketDepositTokenAmount.sub(marketDepositTokenAmount.div(new BN(5)))
+			lesserDepositAmount.sub(lesserDepositAmount.div(new BN(5)))
 		)
 	); // between ~15-80% utilization with friction on twap
 
-	const minDepositTokens = depositTokenTwapLive.sub(
+	const minDepositTokensTwap = depositTokenTwapLive.sub(
 		BN.max(
-			depositTokenTwapLive.div(new BN(5)),
+			depositTokenTwapLive.div(new BN(4)),
 			BN.min(spotMarket.withdrawGuardThreshold, depositTokenTwapLive)
 		)
 	);
 
-	let withdrawLimit = BN.max(
+	const { minDepositTokensForUtilization, maxBorrowTokensForUtilization } =
+		calculateTokenUtilizationLimits(
+			marketDepositTokenAmount,
+			marketBorrowTokenAmount,
+			spotMarket
+		);
+
+	const minDepositTokens = BN.max(
+		minDepositTokensForUtilization,
+		minDepositTokensTwap
+	);
+
+	const maxBorrowTokens = BN.min(
+		maxBorrowTokensForUtilization,
+		maxBorrowTokensTwap
+	);
+
+	const withdrawLimit = BN.max(
 		marketDepositTokenAmount.sub(minDepositTokens),
 		ZERO
 	);
@@ -358,16 +545,8 @@ export function calculateWithdrawLimit(
 	let borrowLimit = maxBorrowTokens.sub(marketBorrowTokenAmount);
 	borrowLimit = BN.min(
 		borrowLimit,
-		marketDepositTokenAmount.sub(minDepositTokens)
-	);
-	borrowLimit = BN.min(
-		borrowLimit,
 		marketDepositTokenAmount.sub(marketBorrowTokenAmount)
 	);
-
-	if (borrowLimit.eq(ZERO)) {
-		withdrawLimit = ZERO;
-	}
 
 	if (withdrawLimit.eq(ZERO)) {
 		borrowLimit = ZERO;

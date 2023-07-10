@@ -4,7 +4,7 @@ import { OracleClient } from '../oracles/types';
 import { PythClient } from '../oracles/pythClient';
 // import { SwitchboardClient } from '../oracles/switchboardClient';
 import { QuoteAssetOracleClient } from '../oracles/quoteAssetOracleClient';
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 
 export function getOracleClient(
 	oracleSource: OracleSource,
@@ -20,6 +20,10 @@ export function getOracleClient(
 
 	if (isVariant(oracleSource, 'pyth1M')) {
 		return new PythClient(connection, new BN(1000000));
+	}
+
+	if (isVariant(oracleSource, 'pythStableCoin')) {
+		return new PythClient(connection, undefined, true);
 	}
 
 	// if (isVariant(oracleSource, 'switchboard')) {

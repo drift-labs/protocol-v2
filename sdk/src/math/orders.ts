@@ -8,7 +8,7 @@ import {
 	PositionDirection,
 } from '../types';
 import { ZERO, TWO } from '../constants/numericConstants';
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { getAuctionPrice, isAuctionComplete } from './auction';
 import {
@@ -122,6 +122,28 @@ export function standardizeBaseAssetAmount(
 ): BN {
 	const remainder = baseAssetAmount.mod(stepSize);
 	return baseAssetAmount.sub(remainder);
+}
+
+export function standardizePrice(
+	price: BN,
+	tickSize: BN,
+	direction: PositionDirection
+): BN {
+	if (price.eq(ZERO)) {
+		console.log('price is zero');
+		return price;
+	}
+
+	const remainder = price.mod(tickSize);
+	if (remainder.eq(ZERO)) {
+		return price;
+	}
+
+	if (isVariant(direction, 'long')) {
+		return price.sub(remainder);
+	} else {
+		return price.add(tickSize).sub(remainder);
+	}
 }
 
 export function getLimitPrice(

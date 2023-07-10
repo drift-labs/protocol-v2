@@ -14,8 +14,8 @@ import {
 	SpotFulfillmentConfigStatus,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
-import { BN } from '@project-serum/anchor';
-import * as anchor from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import {
 	getDriftStateAccountPublicKeyAndNonce,
 	getSpotMarketPublicKey,
@@ -24,6 +24,7 @@ import {
 	getInsuranceFundVaultPublicKey,
 	getSerumOpenOrdersPublicKey,
 	getSerumFulfillmentConfigPublicKey,
+	getPhoenixFulfillmentConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -31,6 +32,7 @@ import { DriftClient } from './driftClient';
 import { PEG_PRECISION } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
+import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 
 export class AdminClient extends DriftClient {
 	public async initialize(
@@ -181,7 +183,40 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async initializePhoenixFulfillmentConfig(
+		marketIndex: number,
+		phoenixMarket: PublicKey
+	): Promise<TransactionSignature> {
+		const phoenixFulfillmentConfig = getPhoenixFulfillmentConfigPublicKey(
+			this.program.programId,
+			phoenixMarket
+		);
+
+		const tx =
+			await this.program.transaction.initializePhoenixFulfillmentConfig(
+				marketIndex,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
+						quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
+						driftSigner: this.getSignerPublicKey(),
+						phoenixMarket: phoenixMarket,
+						phoenixProgram: PHOENIX_PROGRAM_ID,
+						rent: SYSVAR_RENT_PUBKEY,
+						systemProgram: anchor.web3.SystemProgram.programId,
+						phoenixFulfillmentConfig,
+					},
+				}
+			);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async initializePerpMarket(
+		marketIndex: number,
 		priceOracle: PublicKey,
 		baseAssetReserve: BN,
 		quoteAssetReserve: BN,
@@ -203,6 +238,7 @@ export class AdminClient extends DriftClient {
 		const nameBuffer = encodeName(name);
 		const initializeMarketTx =
 			await this.program.transaction.initializePerpMarket(
+				marketIndex,
 				baseAssetReserve,
 				quoteAssetReserve,
 				periodicity,
@@ -239,6 +275,32 @@ export class AdminClient extends DriftClient {
 			source: oracleSource,
 			publicKey: priceOracle,
 		});
+
+		return txSig;
+	}
+
+	public async deleteInitializedPerpMarket(
+		marketIndex: number
+	): Promise<TransactionSignature> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		const deleteInitializeMarketTx =
+			await this.program.transaction.deleteInitializedPerpMarket(marketIndex, {
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					perpMarket: perpMarketPublicKey,
+				},
+			});
+
+		const { txSig } = await this.sendTransaction(
+			deleteInitializeMarketTx,
+			[],
+			this.opts
+		);
 
 		return txSig;
 	}
@@ -469,6 +531,25 @@ export class AdminClient extends DriftClient {
 
 		return await this.program.rpc.updatePerpMarketCurveUpdateIntensity(
 			curveUpdateIntensity,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+	}
+
+	public async updatePerpMarketTargetBaseAssetAmountPerLp(
+		perpMarketIndex: number,
+		targetBaseAssetAmountPerLP: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketTargetBaseAssetAmountPerLp(
+			targetBaseAssetAmountPerLP,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

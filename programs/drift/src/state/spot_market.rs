@@ -4,74 +4,170 @@ use std::fmt::{Display, Formatter};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::error::DriftResult;
-use crate::instructions::SpotFulfillmentType;
-#[cfg(test)]
-use crate::math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION;
+use crate::error::{DriftResult, ErrorCode};
+use crate::math::casting::Cast;
 use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
+#[cfg(test)]
+use crate::math::constants::{PRICE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_balance::{calculate_utilization, get_token_amount};
 
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
+use crate::validate;
 
 #[account(zero_copy)]
 #[derive(PartialEq, Eq, Debug)]
 #[repr(C)]
 pub struct SpotMarket {
+    /// The address of the spot market. It is a pda of the market index
     pub pubkey: Pubkey,
+    /// The oracle used to price the markets deposits/borrows
     pub oracle: Pubkey,
+    /// The token mint of the market
     pub mint: Pubkey,
+    /// The vault used to store the market's deposits
+    /// The amount in the vault should be equal to or greater than deposits - borrows
     pub vault: Pubkey,
-    pub name: [u8; 32], // 256 bits
+    /// The encoded display name fo the market e.g. SOL
+    pub name: [u8; 32],
     pub historical_oracle_data: HistoricalOracleData,
     pub historical_index_data: HistoricalIndexData,
-    pub revenue_pool: PoolBalance,  // in base asset
-    pub spot_fee_pool: PoolBalance, // in quote asset
+    /// Revenue the protocol has collected in this markets token
+    /// e.g. for SOL-PERP, funds can be settled in usdc and will flow into the USDC revenue pool
+    pub revenue_pool: PoolBalance, // in base asset
+    /// The fees collected from swaps between this market and the quote market
+    /// Is settled to the quote markets revenue pool
+    pub spot_fee_pool: PoolBalance,
+    /// Details on the insurance fund covering bankruptcies in this markets token
+    /// Covers bankruptcies for borrows with this markets token and perps settling in this markets token
     pub insurance_fund: InsuranceFund,
+    /// The total spot fees collected for this market
+    /// precision: QUOTE_PRECISION
     pub total_spot_fee: u128,
+    /// The sum of the scaled balances for deposits across users and pool balances
+    /// To convert to the deposit token amount, multiply by the cumulative deposit interest
+    /// precision: SPOT_BALANCE_PRECISION
     pub deposit_balance: u128,
+    /// The sum of the scaled balances for borrows across users and pool balances
+    /// To convert to the borrow token amount, multiply by the cumulative borrow interest
+    /// precision: SPOT_BALANCE_PRECISION   
     pub borrow_balance: u128,
+    /// The cumulative interest earned by depositors
+    /// Used to calculate the deposit token amount from the deposit balance
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
     pub cumulative_deposit_interest: u128,
+    /// The cumulative interest earned by borrowers
+    /// Used to calculate the borrow token amount from the borrow balance
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
     pub cumulative_borrow_interest: u128,
+    /// The total socialized loss from borrows, in the mint's token
+    /// precision: token mint precision
     pub total_social_loss: u128,
+    /// The total socialized loss from borrows, in the quote market's token
+    /// preicision: QUOTE_PRECISION
     pub total_quote_social_loss: u128,
-    pub withdraw_guard_threshold: u64, // no withdraw limits/guards when deposits below this threshold
+    /// no withdraw limits/guards when deposits below this threshold
+    /// precision: token mint precision
+    pub withdraw_guard_threshold: u64,
+    /// The max amount of token deposits in this market
+    /// 0 if there is no limit
+    /// precision: token mint precision
     pub max_token_deposits: u64,
-    pub deposit_token_twap: u64, // 24 hour twap
-    pub borrow_token_twap: u64,  // 24 hour twap
-    pub utilization_twap: u64,   // 24 hour twap
+    /// 24hr average of deposit token amount
+    /// precision: token mint precision
+    pub deposit_token_twap: u64,
+    /// 24hr average of borrow token amount
+    /// precision: token mint precision
+    pub borrow_token_twap: u64,
+    /// 24hr average of utilization
+    /// which is borrow amount over token amount
+    /// precision: SPOT_UTILIZATION_PRECISION
+    pub utilization_twap: u64,
+    /// Last time the cumulative deposit and borrow interest was updated
     pub last_interest_ts: u64,
+    /// Last time the deposit/borrow/utilization averages were updated
     pub last_twap_ts: u64,
-    pub expiry_ts: i64, // iff market in reduce only mode
+    /// The time the market is set to expire. Only set if market is in reduce only mode
+    pub expiry_ts: i64,
+    /// Spot orders must be a multiple of the step size
+    /// precision: token mint precision
     pub order_step_size: u64,
+    /// Spot orders must be a multiple of the tick size
+    /// precision: PRICE_PRECISION
     pub order_tick_size: u64,
+    /// The minimum order size
+    /// precision: token mint precision
     pub min_order_size: u64,
+    /// The maximum spot position size
+    /// if the limit is 0, there is no limit
+    /// precision: token mint precision
     pub max_position_size: u64,
+    /// Every spot trade has a fill record id. This is the next id to use
     pub next_fill_record_id: u64,
+    /// Every deposit has a deposit record id. This is the next id to use
     pub next_deposit_record_id: u64,
+    /// The initial asset weight used to calculate a deposits contribution to a users initial total collateral
+    /// e.g. if the asset weight is .8, $100 of deposits contributes $80 to the users initial total collateral
+    /// precision: SPOT_WEIGHT_PRECISION
     pub initial_asset_weight: u32,
+    /// The maintenance asset weight used to calculate a deposits contribution to a users maintenance total collateral
+    /// e.g. if the asset weight is .9, $100 of deposits contributes $90 to the users maintenance total collateral
+    /// precision: SPOT_WEIGHT_PRECISION
     pub maintenance_asset_weight: u32,
+    /// The initial liability weight used to calculate a borrows contribution to a users initial margin requirement
+    /// e.g. if the liability weight is .9, $100 of borrows contributes $90 to the users initial margin requirement
+    /// precision: SPOT_WEIGHT_PRECISION
     pub initial_liability_weight: u32,
+    /// The maintenance liability weight used to calculate a borrows contribution to a users maintenance margin requirement
+    /// e.g. if the liability weight is .8, $100 of borrows contributes $80 to the users maintenance margin requirement
+    /// precision: SPOT_WEIGHT_PRECISION
     pub maintenance_liability_weight: u32,
+    /// The initial margin fraction factor. Used to increase liability weight/decrease asset weight for large positions
+    /// precision: MARGIN_PRECISION
     pub imf_factor: u32,
+    /// The fee the liquidator is paid for taking over borrow/deposit
+    /// precision: LIQUIDATOR_FEE_PRECISION
     pub liquidator_fee: u32,
-    pub if_liquidation_fee: u32, // percentage of liquidation transfer for total insurance
-    pub optimal_utilization: u32, //
+    /// The fee the insurance fund receives from liquidation
+    /// precision: LIQUIDATOR_FEE_PRECISION
+    pub if_liquidation_fee: u32,
+    /// The optimal utilization rate for this market.
+    /// Used to determine the markets borrow rate
+    /// precision: SPOT_UTILIZATION_PRECISION
+    pub optimal_utilization: u32,
+    /// The borrow rate for this market when the market has optimal utilization
+    /// precision: SPOT_RATE_PRECISION
     pub optimal_borrow_rate: u32,
+    /// The borrow rate for this market when the market has 1000 utilization
+    /// precision: SPOT_RATE_PRECISION
     pub max_borrow_rate: u32,
+    /// The market's token mint's decimals. To from decimals to a precision, 10^decimals
     pub decimals: u32,
     pub market_index: u16,
+    /// Whether or not spot trading is enabled
     pub orders_enabled: bool,
     pub oracle_source: OracleSource,
     pub status: MarketStatus,
+    /// The asset tier affects how a deposit can be used as collateral and the priority for a borrow being liquidated
     pub asset_tier: AssetTier,
-    pub padding: [u8; 86],
+    pub padding1: [u8; 6],
+    /// For swaps, the amount of token loaned out in the begin_swap ix
+    /// precision: token mint precision
+    pub flash_loan_amount: u64,
+    /// For swaps, the amount in the users token account in the begin_swap ix
+    /// Used to calculate how much of the token left the system in end_swap ix
+    /// precision: token mint precision
+    pub flash_loan_initial_token_amount: u64,
+    /// The total fees received from swaps
+    /// precision: token mint precision
+    pub total_swap_fee: u64,
+    pub padding: [u8; 56],
 }
 
 impl Default for SpotMarket {
@@ -124,7 +220,11 @@ impl Default for SpotMarket {
             oracle_source: OracleSource::default(),
             status: MarketStatus::default(),
             asset_tier: AssetTier::default(),
-            padding: [0; 86],
+            padding1: [0; 6],
+            flash_loan_amount: 0,
+            flash_loan_initial_token_amount: 0,
+            total_swap_fee: 0,
+            padding: [0; 56],
         }
     }
 }
@@ -147,8 +247,18 @@ impl SpotMarket {
         Ok(status_ok && not_expired)
     }
 
-    pub fn is_reduce_only(&self) -> DriftResult<bool> {
-        Ok(self.status == MarketStatus::ReduceOnly)
+    pub fn is_reduce_only(&self) -> bool {
+        self.status == MarketStatus::ReduceOnly
+    }
+
+    pub fn fills_enabled(&self) -> bool {
+        matches!(
+            self.status,
+            MarketStatus::Active
+                | MarketStatus::FundingPaused
+                | MarketStatus::ReduceOnly
+                | MarketStatus::WithdrawPaused
+        )
     }
 
     pub fn get_sanitize_clamp_denominator(&self) -> DriftResult<Option<i64>> {
@@ -175,7 +285,9 @@ impl SpotMarket {
         };
 
         let default_asset_weight = match margin_requirement_type {
-            MarginRequirementType::Initial => self.initial_asset_weight,
+            MarginRequirementType::Initial | MarginRequirementType::Fill => {
+                self.initial_asset_weight
+            }
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };
 
@@ -205,6 +317,11 @@ impl SpotMarket {
 
         let default_liability_weight = match margin_requirement_type {
             MarginRequirementType::Initial => self.initial_liability_weight,
+            MarginRequirementType::Fill => {
+                self.initial_liability_weight
+                    .safe_add(self.maintenance_liability_weight)?
+                    / 2
+            }
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
 
@@ -227,9 +344,29 @@ impl SpotMarket {
     ) -> DriftResult<u32> {
         let liability_weight = match margin_requirement_type {
             MarginRequirementType::Initial => self.initial_liability_weight,
+            MarginRequirementType::Fill => return Err(ErrorCode::DefaultError),
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
         liability_weight.safe_sub(MARGIN_PRECISION)
+    }
+
+    pub fn get_deposits(&self) -> DriftResult<u128> {
+        get_token_amount(self.deposit_balance, self, &SpotBalanceType::Deposit)
+    }
+
+    pub fn validate_max_token_deposits(&self) -> DriftResult {
+        let deposits = self.get_deposits()?;
+        let max_token_deposits = self.max_token_deposits.cast::<u128>()?;
+
+        validate!(
+            max_token_deposits == 0 || deposits <= max_token_deposits,
+            ErrorCode::MaxDeposit,
+            "max token amount ({}) < deposits ({})",
+            max_token_deposits,
+            deposits,
+        )?;
+
+        Ok(())
     }
 
     pub fn get_available_deposits(&self) -> DriftResult<u128> {
@@ -244,6 +381,21 @@ impl SpotMarket {
 
     pub fn get_precision(self) -> u64 {
         10_u64.pow(self.decimals)
+    }
+
+    pub fn get_utilization(self) -> DriftResult<u128> {
+        let deposit_token_amount =
+            get_token_amount(self.deposit_balance, &self, &SpotBalanceType::Deposit)?;
+
+        let borrow_token_amount =
+            get_token_amount(self.borrow_balance, &self, &SpotBalanceType::Borrow)?;
+        calculate_utilization(deposit_token_amount, borrow_token_amount)
+    }
+
+    pub fn is_healthy_utilization(self) -> DriftResult<bool> {
+        let unhealthy_utilization = 800000; // 80%
+        let utilization: u64 = self.get_utilization()?.cast()?;
+        Ok(self.utilization_twap <= unhealthy_utilization && utilization <= unhealthy_utilization)
     }
 }
 
@@ -277,6 +429,11 @@ impl SpotMarket {
             maintenance_asset_weight: 10000,
             order_tick_size: 1,
             status: MarketStatus::Active,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         }
     }
@@ -317,31 +474,6 @@ pub trait SpotBalance {
     fn update_balance_type(&mut self, balance_type: SpotBalanceType) -> DriftResult;
 }
 
-#[account(zero_copy)]
-#[derive(Default, PartialEq, Eq, Debug)]
-#[repr(C)]
-pub struct SerumV3FulfillmentConfig {
-    pub pubkey: Pubkey,
-    pub serum_program_id: Pubkey,
-    pub serum_market: Pubkey,
-    pub serum_request_queue: Pubkey,
-    pub serum_event_queue: Pubkey,
-    pub serum_bids: Pubkey,
-    pub serum_asks: Pubkey,
-    pub serum_base_vault: Pubkey,
-    pub serum_quote_vault: Pubkey,
-    pub serum_open_orders: Pubkey,
-    pub serum_signer_nonce: u64,
-    pub market_index: u16,
-    pub fulfillment_type: SpotFulfillmentType,
-    pub status: SpotFulfillmentConfigStatus,
-    pub padding: [u8; 4],
-}
-
-impl Size for SerumV3FulfillmentConfig {
-    const SIZE: usize = 344;
-}
-
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum SpotFulfillmentConfigStatus {
     Enabled,
@@ -356,11 +488,16 @@ impl Default for SpotFulfillmentConfigStatus {
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub enum AssetTier {
-    Collateral, // full priviledge
-    Protected,  // collateral, but no borrow
-    Cross,      // not collateral, allow multi-borrow
-    Isolated,   // not collateral, only single borrow
-    Unlisted,   // no priviledge
+    /// full priviledge
+    Collateral,
+    /// collateral, but no borrow
+    Protected,
+    /// not collateral, allow multi-borrow
+    Cross,
+    /// not collateral, only single borrow
+    Isolated,
+    /// no privilege
+    Unlisted,
 }
 
 impl Default for AssetTier {

@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
@@ -29,6 +29,7 @@ import {
 	BulkAccountLoader,
 	getMarketOrderParams,
 	MAX_LEVERAGE_ORDER_SIZE,
+	PERCENTAGE_PRECISION,
 } from '../sdk';
 
 describe('max leverage order params', () => {
@@ -110,6 +111,7 @@ describe('max leverage order params', () => {
 		const periodicity = new BN(0);
 
 		await driftClient.initializePerpMarket(
+			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -124,8 +126,8 @@ describe('max leverage order params', () => {
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(10),
+				markOraclePercentDivergence: PERCENTAGE_PRECISION.div(new BN(10)),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION,
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -192,7 +194,7 @@ describe('max leverage order params', () => {
 		);
 
 		let leverage = driftClient.getUser().getLeverage().toNumber() / 10000;
-		assert(leverage === 4.995);
+		assert(leverage === 4.9949);
 
 		await driftClient.cancelOrderByUserId(1);
 
@@ -207,7 +209,7 @@ describe('max leverage order params', () => {
 		);
 
 		leverage = driftClient.getUser().getLeverage().toNumber() / 10000;
-		assert(leverage === 4.995);
+		assert(leverage === 4.9949);
 
 		await driftClient.cancelOrderByUserId(1);
 	});

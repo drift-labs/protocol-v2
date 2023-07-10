@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { Keypair } from '@solana/web3.js';
 
@@ -9,7 +9,6 @@ import {
 	TestClient,
 	BN,
 	PRICE_PRECISION,
-	TestClient,
 	PositionDirection,
 	User,
 	Wallet,
@@ -32,6 +31,7 @@ import {
 	BulkAccountLoader,
 	convertToNumber,
 	OracleSource,
+	PERCENTAGE_PRECISION,
 	QUOTE_PRECISION,
 	ZERO,
 } from '../sdk';
@@ -108,8 +108,8 @@ describe('trigger orders', () => {
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(100),
-				markOracleDivergenceDenominator: new BN(10),
+				markOraclePercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -124,6 +124,7 @@ describe('trigger orders', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await fillerDriftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

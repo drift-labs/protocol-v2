@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
@@ -31,7 +31,12 @@ import {
 	initializeSolSpotMarket,
 	printTxLogs,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant, QUOTE_PRECISION } from '../sdk';
+import {
+	BulkAccountLoader,
+	isVariant,
+	PERCENTAGE_PRECISION,
+	QUOTE_PRECISION,
+} from '../sdk';
 
 describe('liquidate perp pnl for deposit', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -118,6 +123,7 @@ describe('liquidate perp pnl for deposit', () => {
 		const periodicity = new BN(0);
 
 		await driftClient.initializePerpMarket(
+			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -131,8 +137,8 @@ describe('liquidate perp pnl for deposit', () => {
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(100),
-				markOracleDivergenceDenominator: new BN(10),
+				markOraclePercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
+				oracleTwap5MinPercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

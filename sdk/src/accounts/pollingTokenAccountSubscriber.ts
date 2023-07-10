@@ -4,12 +4,12 @@ import {
 	TokenAccountEvents,
 	TokenAccountSubscriber,
 } from './types';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './bulkAccountLoader';
-import { AccountInfo } from '@solana/spl-token';
+import { Account } from '@solana/spl-token';
 import { parseTokenAccount } from '../token';
 
 export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
@@ -22,7 +22,7 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 	callbackId?: string;
 	errorCallbackId?: string;
 
-	tokenAccountAndSlot?: DataAndSlot<AccountInfo>;
+	tokenAccountAndSlot?: DataAndSlot<Account>;
 
 	public constructor(publicKey: PublicKey, accountLoader: BulkAccountLoader) {
 		this.isSubscribed = false;
@@ -61,7 +61,7 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		this.callbackId = await this.accountLoader.addAccount(
 			this.publicKey,
 			(buffer, slot: number) => {
-				const tokenAccount = parseTokenAccount(buffer);
+				const tokenAccount = parseTokenAccount(buffer, this.publicKey);
 				this.tokenAccountAndSlot = { data: tokenAccount, slot };
 				// @ts-ignore
 				this.eventEmitter.emit('tokenAccountUpdate', tokenAccount);
@@ -79,7 +79,10 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		const { buffer, slot } = this.accountLoader.getBufferAndSlot(
 			this.publicKey
 		);
-		this.tokenAccountAndSlot = { data: parseTokenAccount(buffer), slot };
+		this.tokenAccountAndSlot = {
+			data: parseTokenAccount(buffer, this.publicKey),
+			slot,
+		};
 	}
 
 	async unsubscribe(): Promise<void> {
@@ -104,7 +107,7 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		}
 	}
 
-	public getTokenAccountAndSlot(): DataAndSlot<AccountInfo> {
+	public getTokenAccountAndSlot(): DataAndSlot<Account> {
 		this.assertIsSubscribed();
 		return this.tokenAccountAndSlot;
 	}

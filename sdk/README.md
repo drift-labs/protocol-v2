@@ -5,7 +5,7 @@
 
   <p>
     <a href="https://www.npmjs.com/package/@drift-labs/sdk"><img alt="SDK npm package" src="https://img.shields.io/npm/v/@drift-labs/sdk" /></a>
-    <a href="https://drift-labs.github.io/protocol-v1/sdk/"><img alt="Docs" src="https://img.shields.io/badge/docs-tutorials-blueviolet" /></a>
+    <a href="https://drift-labs.github.io/protocol-v2/sdk/"><img alt="Docs" src="https://img.shields.io/badge/docs-tutorials-blueviolet" /></a>
     <a href="https://discord.com/channels/849494028176588802/878700556904980500"><img alt="Discord Chat" src="https://img.shields.io/discord/889577356681945098?color=blueviolet" /></a>
     <a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/github/license/project-serum/anchor?color=blueviolet" /></a>
   </p>
@@ -53,6 +53,7 @@ The Drift SDK uses some common precisions, which are available as constants to i
 | PEG_PRECISION         | 10^6  |
 | PRICE_PRECISION       | 10^6  |
 | AMM_RESERVE_PRECISION | 10^9  |
+| BASE_PRECISION        | 10^9  |
 
 **Important Note for BigNum division**
 
@@ -76,7 +77,7 @@ convertToNumber(new BN(10500), new BN(1000)); // = 10.5
 ### Setting up an account and making a trade
 
 ```typescript
-import { AnchorProvider, BN } from '@project-serum/anchor';
+import { AnchorProvider, BN } from '@coral-xyz/anchor';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
@@ -238,7 +239,7 @@ main();
 
 ## License
 
-Drift Protocol v1 is licensed under [Apache 2.0](./LICENSE).
+Drift Protocol v2 is licensed under [Apache 2.0](./LICENSE).
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in Drift SDK by you, as defined in the Apache-2.0 license, shall be

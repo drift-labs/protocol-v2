@@ -20,10 +20,13 @@ import {
 	isMarketOrder,
 	isLimitOrder,
 	ZERO,
+	convertToNumber,
+	QUOTE_PRECISION,
+	isVariant,
+	TWO
 } from '../../src';
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
-import { isVariant, TWO } from '../../lib';
 import { DLOBOrdersCoder } from '../../src/dlob/DLOBOrders';
 
 function insertOrderToDLOB(
@@ -134,16 +137,11 @@ function printOrderNode(
 	slot: number | undefined
 ) {
 	console.log(
-		` . vAMMNode? ${node.isVammNode()},\t${
-			node.order ? getVariant(node.order?.orderType) : '~'
-		} ${node.order ? getVariant(node.order?.direction) : '~'}\t, slot: ${
-			node.order?.slot.toString() || '~'
-		}, orderId: ${node.order?.orderId.toString() || '~'},\tnode.getPrice: ${
-			oracle ? node.getPrice(oracle, slot!) : '~'
-		}, node.price: ${node.order?.price.toString() || '~'}, priceOffset: ${
-			node.order?.oraclePriceOffset.toString() || '~'
-		} quantity: ${node.order?.baseAssetAmountFilled.toString() || '~'}/${
-			node.order?.baseAssetAmount.toString() || '~'
+		` . vAMMNode? ${node.isVammNode()},\t${node.order ? getVariant(node.order?.orderType) : '~'
+		} ${node.order ? getVariant(node.order?.direction) : '~'}\t, slot: ${node.order?.slot.toString() || '~'
+		}, orderId: ${node.order?.orderId.toString() || '~'},\tnode.getPrice: ${oracle ? node.getPrice(oracle, slot!) : '~'
+		}, node.price: ${node.order?.price.toString() || '~'}, priceOffset: ${node.order?.oraclePriceOffset.toString() || '~'
+		} quantity: ${node.order?.baseAssetAmountFilled.toString() || '~'}/${node.order?.baseAssetAmount.toString() || '~'
 		}`
 	);
 }
@@ -190,8 +188,7 @@ function printBookState(
 
 function printCrossedNodes(n: NodeToFill, slot: number) {
 	console.log(
-		`Cross Found, takerExists: ${n.node.order !== undefined}, makerExists: ${
-			n.makerNodes !== undefined
+		`Cross Found, takerExists: ${n.node.order !== undefined}, makerExists: ${n.makerNodes !== undefined
 		}`
 	);
 	console.log(
@@ -213,10 +210,8 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 		console.log(
 			`  orderId: ${o.orderId}, ${getVariant(o.orderType)}, ${getVariant(
 				o.direction
-			)},\texpired: ${isOrderExpired(o, slot)}, postOnly: ${
-				o.postOnly
-			}, reduceOnly: ${
-				o.reduceOnly
+			)},\texpired: ${isOrderExpired(o, slot)}, postOnly: ${o.postOnly
+			}, reduceOnly: ${o.reduceOnly
 			}, price: ${o.price.toString()}, priceOffset: ${o.oraclePriceOffset.toString()}, baseAmtFileld: ${o.baseAssetAmountFilled.toString()}/${o.baseAssetAmount.toString()}`
 		);
 	};
@@ -621,9 +616,9 @@ describe('DLOB Tests', () => {
 		);
 
 		expect(takingBids.length).to.equal(3);
-		expect(takingBids[0].order.orderId).to.equal(1);
-		expect(takingBids[1].order.orderId).to.equal(2);
-		expect(takingBids[2].order.orderId).to.equal(3);
+		expect(takingBids[0].order!.orderId).to.equal(1);
+		expect(takingBids[1].order!.orderId).to.equal(2);
+		expect(takingBids[2].order!.orderId).to.equal(3);
 
 		let restingBids = Array.from(
 			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
@@ -638,15 +633,15 @@ describe('DLOB Tests', () => {
 		);
 
 		expect(takingBids.length).to.equal(2);
-		expect(takingBids[0].order.orderId).to.equal(2);
-		expect(takingBids[1].order.orderId).to.equal(3);
+		expect(takingBids[0].order!.orderId).to.equal(2);
+		expect(takingBids[1].order!.orderId).to.equal(3);
 
 		restingBids = Array.from(
 			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
 		);
 
 		expect(restingBids.length).to.equal(1);
-		expect(restingBids[0].order.orderId).to.equal(1);
+		expect(restingBids[0].order!.orderId).to.equal(1);
 
 		slot += 11;
 
@@ -655,15 +650,15 @@ describe('DLOB Tests', () => {
 		);
 
 		expect(takingBids.length).to.equal(1);
-		expect(takingBids[0].order.orderId).to.equal(3);
+		expect(takingBids[0].order!.orderId).to.equal(3);
 
 		restingBids = Array.from(
 			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
 		);
 
 		expect(restingBids.length).to.equal(2);
-		expect(restingBids[0].order.orderId).to.equal(2);
-		expect(restingBids[1].order.orderId).to.equal(1);
+		expect(restingBids[0].order!.orderId).to.equal(2);
+		expect(restingBids[1].order!.orderId).to.equal(1);
 
 		slot += 11;
 
@@ -678,9 +673,9 @@ describe('DLOB Tests', () => {
 		);
 
 		expect(restingBids.length).to.equal(3);
-		expect(restingBids[0].order.orderId).to.equal(3);
-		expect(restingBids[1].order.orderId).to.equal(2);
-		expect(restingBids[2].order.orderId).to.equal(1);
+		expect(restingBids[0].order!.orderId).to.equal(3);
+		expect(restingBids[1].order!.orderId).to.equal(2);
+		expect(restingBids[2].order!.orderId).to.equal(1);
 	});
 
 	it('DLOB update resting limit orders asks', () => {
@@ -751,9 +746,9 @@ describe('DLOB Tests', () => {
 		);
 
 		expect(takingBids.length).to.equal(3);
-		expect(takingBids[0].order.orderId).to.equal(1);
-		expect(takingBids[1].order.orderId).to.equal(2);
-		expect(takingBids[2].order.orderId).to.equal(3);
+		expect(takingBids[0].order!.orderId).to.equal(1);
+		expect(takingBids[1].order!.orderId).to.equal(2);
+		expect(takingBids[2].order!.orderId).to.equal(3);
 
 		let restingBids = Array.from(
 			dlob.getRestingLimitAsks(marketIndex, slot, marketType, oracle)
@@ -768,15 +763,15 @@ describe('DLOB Tests', () => {
 		);
 
 		expect(takingBids.length).to.equal(2);
-		expect(takingBids[0].order.orderId).to.equal(2);
-		expect(takingBids[1].order.orderId).to.equal(3);
+		expect(takingBids[0].order!.orderId).to.equal(2);
+		expect(takingBids[1].order!.orderId).to.equal(3);
 
 		restingBids = Array.from(
 			dlob.getRestingLimitAsks(marketIndex, slot, marketType, oracle)
 		);
 
 		expect(restingBids.length).to.equal(1);
-		expect(restingBids[0].order.orderId).to.equal(1);
+		expect(restingBids[0].order!.orderId).to.equal(1);
 
 		slot += 11;
 
@@ -785,15 +780,15 @@ describe('DLOB Tests', () => {
 		);
 
 		expect(takingBids.length).to.equal(1);
-		expect(takingBids[0].order.orderId).to.equal(3);
+		expect(takingBids[0].order!.orderId).to.equal(3);
 
 		restingBids = Array.from(
 			dlob.getRestingLimitAsks(marketIndex, slot, marketType, oracle)
 		);
 
 		expect(restingBids.length).to.equal(2);
-		expect(restingBids[0].order.orderId).to.equal(2);
-		expect(restingBids[1].order.orderId).to.equal(1);
+		expect(restingBids[0].order!.orderId).to.equal(2);
+		expect(restingBids[1].order!.orderId).to.equal(1);
 
 		slot += 11;
 
@@ -808,9 +803,9 @@ describe('DLOB Tests', () => {
 		);
 
 		expect(restingBids.length).to.equal(3);
-		expect(restingBids[0].order.orderId).to.equal(3);
-		expect(restingBids[1].order.orderId).to.equal(2);
-		expect(restingBids[2].order.orderId).to.equal(1);
+		expect(restingBids[0].order!.orderId).to.equal(3);
+		expect(restingBids[1].order!.orderId).to.equal(2);
+		expect(restingBids[2].order!.orderId).to.equal(1);
 	});
 });
 
@@ -5710,5 +5705,189 @@ describe('DLOB Spot Tests', () => {
 		// check that the nodes have no makers
 		expect(nodesToFillAfter[0].makerNodes.length).to.equal(0);
 		expect(nodesToFillAfter[1].makerNodes.length).to.equal(0);
+	});
+
+	it('DLOB estimateFillExactBaseAmount spot buy', () => {
+		const vAsk = new BN(20790000);
+		const vBid = new BN(20580000);
+
+		let slot = 1;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		const user0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user2 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+		const marketType = MarketType.SPOT;
+
+		const b1 = BASE_PRECISION;
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			marketType,
+			1, // orderId
+			marketIndex,
+			new BN(20690000), // price
+			b1, // quantity
+			PositionDirection.SHORT,
+			vAsk,
+			vBid,
+			new BN(1)
+		);
+		const b2 = new BN(2).mul(BASE_PRECISION);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			marketType,
+			2, // orderId
+			marketIndex,
+			new BN(20700000), // price
+			b2, // quantity
+			PositionDirection.SHORT,
+			vAsk,
+			vBid,
+			new BN(1)
+		);
+		const b3 = new BN(3).mul(BASE_PRECISION);
+		insertOrderToDLOB(
+			dlob,
+			user2.publicKey,
+			OrderType.LIMIT,
+			marketType,
+			3, // orderId
+			marketIndex,
+			new BN(20710000), // price
+			b3, // quantity
+			PositionDirection.SHORT,
+			vAsk,
+			vBid,
+			new BN(1)
+		);
+
+		slot += 11;
+
+		const restingAsks = Array.from(
+			dlob.getRestingLimitAsks(marketIndex, slot, marketType, oracle)
+		);
+
+		expect(restingAsks.length).to.equal(3);
+
+		const baseAmount = new BN(4).mul(BASE_PRECISION);
+		const out = dlob.estimateFillWithExactBaseAmount({
+			marketIndex,
+			marketType,
+			baseAmount,
+			orderDirection: PositionDirection.LONG,
+			slot,
+			oraclePriceData: oracle,
+		});
+		const quoteAmtOut = convertToNumber(
+			out,
+			QUOTE_PRECISION
+		);
+
+		// 1 * 20.69 + 2 * 20.70 + 1 * 20.71 = 82.8
+		expect(quoteAmtOut === 82.8).to.be.true;
+	});
+
+	it('DLOB estimateFillExactBaseAmount spot sell', () => {
+		const vAsk = new BN(20790000);
+		const vBid = new BN(20580000);
+
+		let slot = 1;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		const user0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user2 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+		const marketType = MarketType.SPOT;
+
+		const b1 = BASE_PRECISION;
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			marketType,
+			1, // orderId
+			marketIndex,
+			new BN(20690000), // price
+			b1, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(1)
+		);
+		const b2 = new BN(2).mul(BASE_PRECISION);
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			marketType,
+			2, // orderId
+			marketIndex,
+			new BN(20680000), // price
+			b2, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(1)
+		);
+		const b3 = new BN(3).mul(BASE_PRECISION);
+		insertOrderToDLOB(
+			dlob,
+			user2.publicKey,
+			OrderType.LIMIT,
+			marketType,
+			3, // orderId
+			marketIndex,
+			new BN(20670000), // price
+			b3, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(1)
+		);
+
+		slot += 11;
+
+		const restingBids = Array.from(
+			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
+		);
+
+		expect(restingBids.length).to.equal(3);
+
+		const baseAmount = new BN(4).mul(BASE_PRECISION);
+		const out = dlob.estimateFillWithExactBaseAmount({
+			marketIndex,
+			marketType,
+			baseAmount,
+			orderDirection: PositionDirection.SHORT,
+			slot,
+			oraclePriceData: oracle,
+		});
+		const quoteAmtOut = convertToNumber(
+			out,
+			QUOTE_PRECISION
+		);
+
+		// 1 * 20.69 + 2 * 20.68 + 1 * 20.67 = 82.72
+		expect(quoteAmtOut === 82.72).to.be.true;
 	});
 });

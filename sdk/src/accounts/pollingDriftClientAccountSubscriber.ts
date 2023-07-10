@@ -6,7 +6,7 @@ import {
 	NotSubscribedError,
 	OraclesToPoll,
 } from './types';
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
@@ -26,6 +26,7 @@ import { PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
+import { findAllMarketAndOracles } from '../config';
 
 export class PollingDriftClientAccountSubscriber
 	implements DriftClientAccountSubscriber
@@ -36,6 +37,8 @@ export class PollingDriftClientAccountSubscriber
 	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
 	oracleClientCache = new OracleClientCache();
+
+	shouldFindAllMarketsAndOracles: boolean;
 
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 
@@ -59,7 +62,8 @@ export class PollingDriftClientAccountSubscriber
 		accountLoader: BulkAccountLoader,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
-		oracleInfos: OracleInfo[]
+		oracleInfos: OracleInfo[],
+		shouldFindAllMarketsAndOracles: boolean
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -68,6 +72,7 @@ export class PollingDriftClientAccountSubscriber
 		this.perpMarketIndexes = perpMarketIndexes;
 		this.spotMarketIndexes = spotMarketIndexes;
 		this.oracleInfos = oracleInfos;
+		this.shouldFindAllMarketsAndOracles = shouldFindAllMarketsAndOracles;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -84,6 +89,14 @@ export class PollingDriftClientAccountSubscriber
 		this.subscriptionPromise = new Promise((res) => {
 			this.subscriptionPromiseResolver = res;
 		});
+
+		if (this.shouldFindAllMarketsAndOracles) {
+			const { perpMarketIndexes, spotMarketIndexes, oracleInfos } =
+				await findAllMarketAndOracles(this.program);
+			this.perpMarketIndexes = perpMarketIndexes;
+			this.spotMarketIndexes = spotMarketIndexes;
+			this.oracleInfos = oracleInfos;
+		}
 
 		await this.updateAccountsToPoll();
 		await this.updateOraclesToPoll();
@@ -434,5 +447,9 @@ export class PollingDriftClientAccountSubscriber
 		}
 
 		return this.oracles.get(oraclePublicKey.toString());
+	}
+
+	public updateAccountLoaderPollingFrequency(pollingFrequency: number): void {
+		this.accountLoader.updatePollingFrequency(pollingFrequency);
 	}
 }

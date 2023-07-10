@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import {
 	TestClient,
@@ -99,6 +99,7 @@ describe('multiple maker orders', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await fillerDriftClient.initializePerpMarket(
+			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -113,6 +114,7 @@ describe('multiple maker orders', () => {
 		);
 
 		await fillerDriftClient.initializePerpMarket(
+			1,
 			dogUsd,
 			ammInitialBaseAssetReserve.div(new BN(100000)),
 			ammInitialQuoteAssetReserve.div(new BN(100000)),

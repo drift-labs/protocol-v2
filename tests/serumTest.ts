@@ -1,7 +1,7 @@
-import * as anchor from '@project-serum/anchor';
+import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@project-serum/anchor';
+import { Program } from '@coral-xyz/anchor';
 
 import { PublicKey, Transaction } from '@solana/web3.js';
 const serumHelper = require('./serumHelper');
@@ -85,7 +85,7 @@ describe('serum spot market', () => {
 			solAmount
 		);
 
-		solOracle = await mockOracle(30);
+		solOracle = await mockOracle(100);
 
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1];

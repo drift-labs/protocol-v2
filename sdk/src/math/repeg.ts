@@ -1,4 +1,4 @@
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 import { assert } from '../assert/assert';
 import {
 	PRICE_PRECISION,

@@ -1,4 +1,4 @@
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 import {
 	isVariant,
 	MarginCategory,
@@ -9,10 +9,14 @@ import { calculateAssetWeight, calculateLiabilityWeight } from './spotBalance';
 import { MARGIN_PRECISION } from '../constants/numericConstants';
 
 export function castNumberToSpotPrecision(
-	value: number,
+	value: number | BN,
 	spotMarket: SpotMarketAccount
 ): BN {
-	return new BN(value * Math.pow(10, spotMarket.decimals));
+	if (typeof value === 'number') {
+		return new BN(value * Math.pow(10, spotMarket.decimals));
+	} else {
+		return value.mul(new BN(Math.pow(10, spotMarket.decimals)));
+	}
 }
 
 export function calculateSpotMarketMarginRatio(

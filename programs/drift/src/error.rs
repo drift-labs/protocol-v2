@@ -289,10 +289,10 @@ pub enum ErrorCode {
     InvalidSerumOpenOrders,
     #[msg("FailedSerumCPI")]
     FailedSerumCPI,
-    #[msg("FailedToFillOnSerum")]
-    FailedToFillOnSerum,
-    #[msg("InvalidSerumFulfillmentConfig")]
-    InvalidSerumFulfillmentConfig,
+    #[msg("FailedToFillOnExternalMarket")]
+    FailedToFillOnExternalMarket,
+    #[msg("InvalidFulfillmentConfig")]
+    InvalidFulfillmentConfig,
     #[msg("InvalidFeeStructure")]
     InvalidFeeStructure,
     #[msg("Insufficient IF shares")]
@@ -481,6 +481,34 @@ pub enum ErrorCode {
     UserStatsNotFound,
     #[msg("UnableToLoadUserStatsAccount")]
     UnableToLoadUserStatsAccount,
+    #[msg("User Not Inactive")]
+    UserNotInactive,
+    #[msg("RevertFill")]
+    RevertFill,
+    #[msg("Invalid MarketAccount for Deletion")]
+    InvalidMarketAccountforDeletion,
+    #[msg("Invalid Spot Fulfillment Params")]
+    InvalidSpotFulfillmentParams,
+    #[msg("Failed to Get Mint")]
+    FailedToGetMint,
+    #[msg("FailedPhoenixCPI")]
+    FailedPhoenixCPI,
+    #[msg("FailedToDeserializePhoenixMarket")]
+    FailedToDeserializePhoenixMarket,
+    #[msg("InvalidPricePrecision")]
+    InvalidPricePrecision,
+    #[msg("InvalidPhoenixProgram")]
+    InvalidPhoenixProgram,
+    #[msg("InvalidPhoenixMarket")]
+    InvalidPhoenixMarket,
+    #[msg("InvalidSwap")]
+    InvalidSwap,
+    #[msg("SwapLimitPriceBreached")]
+    SwapLimitPriceBreached,
+    #[msg("SpotMarketReduceOnly")]
+    SpotMarketReduceOnly,
+    #[msg("FundingWasNotUpdated")]
+    FundingWasNotUpdated,
 }
 
 #[macro_export]
