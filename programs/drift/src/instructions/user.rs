@@ -2365,7 +2365,7 @@ pub fn handle_begin_swap(
             validate!(
                 whitelisted_programs.contains(&ix.program_id),
                 ErrorCode::InvalidSwap,
-                "only allowed to pass in ixs to token or openbook or Jupiter v3 or v4 programs"
+                "only allowed to pass in ixs to token, marinade, openbook, Jupiter v3 or v4 programs"
             )?;
 
             for meta in ix.accounts.iter() {
