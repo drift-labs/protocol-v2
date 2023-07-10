@@ -28,6 +28,7 @@ use crate::math::margin::{
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
+use crate::math::spot_swap;
 use crate::math::spot_swap::calculate_swap_price;
 use crate::math_error;
 use crate::print_error;
@@ -2247,6 +2248,12 @@ pub fn handle_begin_swap(
     )?;
 
     validate!(
+        in_market_index != out_market_index,
+        ErrorCode::InvalidSwap,
+        "in and out market the same"
+    )?;
+
+    validate!(
         amount_in != 0,
         ErrorCode::InvalidSwap,
         "amount_out cannot be zero"
@@ -2344,6 +2351,23 @@ pub fn handle_begin_swap(
                 ErrorCode::InvalidSwap,
                 "the in_token_account passed to SwapBegin and End must match"
             )?;
+
+            validate!(
+                ctx.remaining_accounts.len() == ix.accounts.len() - 11,
+                ErrorCode::InvalidSwap,
+                "begin and end ix must have the same number of accounts"
+            )?;
+
+            for i in 11..ix.accounts.len() {
+                validate!(
+                    *ctx.remaining_accounts[i - 11].key == ix.accounts[i].pubkey,
+                    ErrorCode::InvalidSwap,
+                    "begin and end ix must have the same accounts. {}th account mismatch. begin: {}, end: {}",
+                    i,
+                    ctx.remaining_accounts[i - 11].key,
+                    ix.accounts[i].pubkey
+                )?;
+            }
         } else {
             let mut whitelisted_programs = vec![
                 serum_program::id(),
@@ -2358,8 +2382,16 @@ pub fn handle_begin_swap(
             validate!(
                 whitelisted_programs.contains(&ix.program_id),
                 ErrorCode::InvalidSwap,
-                "only allowed to pass in ixs to token or openbook or Jupiter v3 or v4 programs"
+                "only allowed to pass in ixs to token, marinade, openbook, Jupiter v3 or v4 programs"
             )?;
+
+            for meta in ix.accounts.iter() {
+                validate!(
+                    meta.pubkey != crate::id(),
+                    ErrorCode::InvalidSwap,
+                    "instructions between begin and end must not be drift instructions"
+                )?;
+            }
         }
 
         index += 1;
@@ -2462,6 +2494,10 @@ pub fn handle_end_swap(
         &mut user,
     )?;
 
+    let in_token_amount_after = user
+        .force_get_spot_position_mut(in_market_index)?
+        .get_signed_token_amount(&in_spot_market)?;
+
     let in_position_is_reduced =
         in_token_amount_before > 0 && in_token_amount_before.unsigned_abs() >= amount_in.cast()?;
 
@@ -2536,7 +2572,7 @@ pub fn handle_end_swap(
 
     out_spot_market.total_swap_fee = out_spot_market.total_swap_fee.saturating_add(fee);
 
-    let fee_value = get_token_value(fee.cast()?, out_spot_market.decimals, out_oracle_data.price)?;
+    let fee_value = get_token_value(fee.cast()?, out_spot_market.decimals, out_oracle_price)?;
 
     // update fees
     user.update_cumulative_spot_fees(-fee_value.cast()?)?;
@@ -2546,7 +2582,7 @@ pub fn handle_end_swap(
     let amount_out_value = get_token_value(
         amount_out.cast()?,
         out_spot_market.decimals,
-        out_oracle_data.price,
+        out_oracle_price,
     )?;
     user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
 
@@ -2569,11 +2605,15 @@ pub fn handle_end_swap(
         Some(amount_out.cast()?),
     )?;
 
+    let out_token_amount_after = user
+        .force_get_spot_position_mut(out_market_index)?
+        .get_signed_token_amount(&out_spot_market)?;
+
     // update fees
     update_revenue_pool_balances(fee.cast()?, &SpotBalanceType::Deposit, &mut out_spot_market)?;
 
     let out_position_is_reduced = out_token_amount_before < 0
-        && out_token_amount_before.unsigned_abs() >= amount_out.cast()?;
+        && out_token_amount_before.unsigned_abs() >= amount_out_after_fee.cast()?;
 
     if !out_position_is_reduced {
         validate!(
@@ -2600,17 +2640,19 @@ pub fn handle_end_swap(
 
     out_spot_market.validate_max_token_deposits()?;
 
-    let out_safer_than_in =
-        out_spot_market.maintenance_asset_weight > in_spot_market.maintenance_asset_weight;
+    let margin_type = spot_swap::select_margin_type_for_swap(
+        &in_spot_market,
+        &out_spot_market,
+        in_oracle_price,
+        out_oracle_price,
+        in_token_amount_before,
+        out_token_amount_before,
+        in_token_amount_after,
+        out_token_amount_after,
+    )?;
 
     drop(out_spot_market);
     drop(in_spot_market);
-
-    let margin_type = if in_position_is_reduced && out_safer_than_in {
-        MarginRequirementType::Maintenance
-    } else {
-        MarginRequirementType::Initial
-    };
 
     meets_withdraw_margin_requirement(
         &user,

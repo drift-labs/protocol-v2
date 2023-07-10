@@ -1921,6 +1921,11 @@
           "name": "oracle",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": []
