@@ -2351,6 +2351,23 @@ pub fn handle_begin_swap(
                 ErrorCode::InvalidSwap,
                 "the in_token_account passed to SwapBegin and End must match"
             )?;
+
+            validate!(
+                ctx.remaining_accounts.len() == ix.accounts.len() - 11,
+                ErrorCode::InvalidSwap,
+                "begin and end ix must have the same number of accounts"
+            )?;
+
+            for i in 11..ix.accounts.len() {
+                validate!(
+                    *ctx.remaining_accounts[i - 11].key == ix.accounts[i].pubkey,
+                    ErrorCode::InvalidSwap,
+                    "begin and end ix must have the same accounts. {}th account mismatch. begin: {}, end: {}",
+                    i,
+                    ctx.remaining_accounts[i - 11].key,
+                    ix.accounts[i].pubkey
+                )?;
+            }
         } else {
             let mut whitelisted_programs = vec![
                 serum_program::id(),
