@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: tweaks for setting init asset weight to 0 (([#523](https://github.com/drift-labs/protocol-v2/pull/523)))
 - program: check oracles valid in meets_withdraw_margin_requirement if number_of_liabilities > 0
 - program: only get quote spot market if user has quote position in validate_spot_margin_trading
 - program: fix decrement_open_orders for makers
