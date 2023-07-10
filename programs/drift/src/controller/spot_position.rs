@@ -93,8 +93,9 @@ pub fn update_spot_balances_and_cumulative_deposits(
         }
     }
 
-    if spot_position.balance_type == SpotBalanceType::Borrow
-        && spot_market.asset_tier == AssetTier::Protected
+    if spot_market.asset_tier == AssetTier::Protected
+        && spot_position.balance_type == SpotBalanceType::Borrow
+        && update_direction == &SpotBalanceType::Borrow
     {
         msg!(
             "Spot Market {} has Protected status and cannot be borrowed",
