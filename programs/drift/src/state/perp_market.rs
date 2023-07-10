@@ -630,7 +630,9 @@ pub struct AMM {
     /// the target value for `base_asset_amount_per_lp`, used during AMM JIT with LP split
     /// precision: BASE_PRECISION
     pub target_base_asset_amount_per_lp: i32,
-    pub padding: [u8; 44],
+    pub padding1: u32,
+    pub total_fee_earned_per_lp: u64,
+    pub padding: [u8; 32],
 }
 
 impl Default for AMM {
@@ -712,7 +714,9 @@ impl Default for AMM {
             oracle_source: OracleSource::default(),
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
-            padding: [0; 44],
+            padding1: 0,
+            total_fee_earned_per_lp: 0,
+            padding: [0; 32],
         }
     }
 }
