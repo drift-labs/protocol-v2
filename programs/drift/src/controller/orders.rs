@@ -363,14 +363,14 @@ pub fn place_perp_order(
         maker_order,
         oracle_map.get_price_data(&market.amm.oracle)?.price,
     )?;
-    emit!(order_action_record);
+    emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     let order_record = OrderRecord {
         ts: now,
         user: user_key,
         order: user.orders[new_order_index],
     };
-    emit!(order_record);
+    emit_stack::<_, { OrderRecord::SIZE }>(order_record)?;
 
     user.update_last_active_slot(slot);
 
@@ -3048,14 +3048,14 @@ pub fn place_spot_order(
         maker_order,
         oracle_price_data.price,
     )?;
-    emit!(order_action_record);
+    emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     let order_record = OrderRecord {
         ts: now,
         user: user_key,
         order: user.orders[new_order_index],
     };
-    emit!(order_record);
+    emit_stack::<_, { OrderRecord::SIZE }>(order_record)?;
 
     user.update_last_active_slot(slot);
 
