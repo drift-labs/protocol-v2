@@ -6824,11 +6824,19 @@
             "type": "i32"
           },
           {
+            "name": "padding1",
+            "type": "u32"
+          },
+          {
+            "name": "totalFeeEarnedPerLp",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                44
+                32
               ]
             }
           }
