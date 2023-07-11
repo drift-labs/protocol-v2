@@ -930,18 +930,8 @@ export class DLOB {
 		}
 
 		// All bids/asks that can expire
-		const bidGenerators = [
-			nodeLists.takingLimit.bid.getGenerator(),
-			nodeLists.restingLimit.bid.getGenerator(),
-			nodeLists.floatingLimit.bid.getGenerator(),
-			nodeLists.market.bid.getGenerator(),
-		];
-		const askGenerators = [
-			nodeLists.takingLimit.ask.getGenerator(),
-			nodeLists.restingLimit.ask.getGenerator(),
-			nodeLists.floatingLimit.ask.getGenerator(),
-			nodeLists.market.ask.getGenerator(),
-		];
+		const bidGenerators = [nodeLists.market.bid.getGenerator()];
+		const askGenerators = [nodeLists.market.ask.getGenerator()];
 
 		for (const bidGenerator of bidGenerators) {
 			for (const bid of bidGenerator) {

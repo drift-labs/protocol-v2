@@ -26,7 +26,7 @@ use crate::error::ErrorCode;
 use crate::instructions::{OrderParams, PlaceOrderOptions};
 use crate::load_mut;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
-use crate::math::auction::calculate_auction_prices;
+use crate::math::auction::{calculate_auction_prices, is_amm_available_liquidity_source};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
@@ -1023,6 +1023,16 @@ pub fn fill_perp_order(
             filler.update_last_active_slot(slot);
         }
         return Ok(0);
+    }
+
+    {
+        let order = &user.orders[order_index];
+        let amm_available =
+            is_amm_available_liquidity_source(order, state.min_perp_auction_duration, slot)?;
+        if order.is_limit_order() && !amm_available && makers_and_referrer.0.is_empty() {
+            msg!("invalid fill. order is limit order, amm is not available and no makers present");
+            return Err(ErrorCode::ImpossibleFill);
+        }
     }
 
     let should_expire_order = should_expire_order(user, order_index, now)?;
