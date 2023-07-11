@@ -194,7 +194,7 @@ jobs:
       - name: Install Solana Verify
         run: |
           cargo install solana-verify
-          solana-verify
+          solana-verify --version
 
       - name: Verifiable Build
         run: |
