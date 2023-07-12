@@ -279,6 +279,11 @@ impl PerpMarket {
 
         let default_margin_ratio = match margin_type {
             MarginRequirementType::Initial => self.margin_ratio_initial,
+            MarginRequirementType::Fill => {
+                self.margin_ratio_initial
+                    .safe_add(self.margin_ratio_maintenance)?
+                    / 2
+            }
             MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
         };
 
@@ -294,29 +299,25 @@ impl PerpMarket {
         Ok(margin_ratio)
     }
 
-    pub fn get_initial_leverage_ratio(&self, margin_type: MarginRequirementType) -> u128 {
-        match margin_type {
-            MarginRequirementType::Initial => {
-                MARGIN_PRECISION_U128 * MARGIN_PRECISION_U128 / self.margin_ratio_initial as u128
-            }
-            MarginRequirementType::Maintenance => {
-                MARGIN_PRECISION_U128 * MARGIN_PRECISION_U128
-                    / self.margin_ratio_maintenance as u128
-            }
-        }
-    }
-
     pub fn get_unrealized_asset_weight(
         &self,
         unrealized_pnl: i128,
         margin_type: MarginRequirementType,
     ) -> DriftResult<u32> {
         let mut margin_asset_weight = match margin_type {
-            MarginRequirementType::Initial => self.unrealized_pnl_initial_asset_weight,
+            MarginRequirementType::Initial | MarginRequirementType::Fill => {
+                self.unrealized_pnl_initial_asset_weight
+            }
             MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
         };
 
-        if margin_type == MarginRequirementType::Initial && self.unrealized_pnl_max_imbalance > 0 {
+        if margin_asset_weight > 0
+            && matches!(
+                margin_type,
+                MarginRequirementType::Fill | MarginRequirementType::Initial
+            )
+            && self.unrealized_pnl_max_imbalance > 0
+        {
             let net_unsettled_pnl = amm::calculate_net_user_pnl(
                 &self.amm,
                 self.amm.historical_oracle_data.last_oracle_price,
@@ -339,13 +340,19 @@ impl PerpMarket {
 
             // a larger imf factor -> lower asset weight
             match margin_type {
-                MarginRequirementType::Initial => calculate_size_discount_asset_weight(
-                    unrealized_pnl
-                        .unsigned_abs()
-                        .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO)?,
-                    self.unrealized_pnl_imf_factor,
-                    margin_asset_weight,
-                )?,
+                MarginRequirementType::Initial | MarginRequirementType::Fill => {
+                    if margin_asset_weight > 0 {
+                        calculate_size_discount_asset_weight(
+                            unrealized_pnl
+                                .unsigned_abs()
+                                .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO)?,
+                            self.unrealized_pnl_imf_factor,
+                            margin_asset_weight,
+                        )?
+                    } else {
+                        0
+                    }
+                }
                 MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
             }
         } else {
@@ -623,7 +630,9 @@ pub struct AMM {
     /// the target value for `base_asset_amount_per_lp`, used during AMM JIT with LP split
     /// precision: BASE_PRECISION
     pub target_base_asset_amount_per_lp: i32,
-    pub padding: [u8; 44],
+    pub padding1: u32,
+    pub total_fee_earned_per_lp: u64,
+    pub padding: [u8; 32],
 }
 
 impl Default for AMM {
@@ -705,7 +714,9 @@ impl Default for AMM {
             oracle_source: OracleSource::default(),
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
-            padding: [0; 44],
+            padding1: 0,
+            total_fee_earned_per_lp: 0,
+            padding: [0; 32],
         }
     }
 }

@@ -1,6 +1,13 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { BN, User, OracleSource, Wallet, BulkAccountLoader } from '../sdk';
+import {
+	BN,
+	User,
+	OracleSource,
+	Wallet,
+	BulkAccountLoader,
+	MARGIN_PRECISION,
+} from '../sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
@@ -162,8 +169,8 @@ describe('trading liquidity providing', () => {
 		);
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: new BN(1000000),
+				oracleTwap5MinPercentDivergence: new BN(1000000),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(10),
@@ -171,7 +178,6 @@ describe('trading liquidity providing', () => {
 				confidenceIntervalMaxSize: new BN(100),
 				tooVolatileRatio: new BN(100),
 			},
-			useForLiquidations: true,
 		};
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
@@ -184,6 +190,11 @@ describe('trading liquidity providing', () => {
 			new BN(0)
 		);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await driftClient.updatePerpMarketMarginRatio(
+			0,
+			MARGIN_PRECISION.toNumber() / 2,
+			MARGIN_PRECISION.toNumber() / 4
+		);
 
 		[traderDriftClient, traderDriftClientUser] = await createNewUser(
 			chProgram,

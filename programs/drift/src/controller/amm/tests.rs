@@ -336,6 +336,7 @@ fn update_pool_balances_test_high_util_borrow() {
     // 100% util
     spot_market.deposit_balance = 10_u128.pow(19_u32);
     spot_market.borrow_balance = 10_u128.pow(19_u32);
+    spot_market.deposit_token_twap = 10_u64.pow(16_u32);
 
     // would lead to a borrow
     let mut spot_position = SpotPosition::default();
@@ -428,6 +429,7 @@ fn update_pool_balances_test() {
         ..SpotMarket::default()
     };
     spot_market.deposit_balance = 10_u128.pow(19_u32);
+    spot_market.deposit_token_twap = 10_u64.pow(16_u32);
 
     let spot_position = SpotPosition::default();
 
@@ -1525,6 +1527,7 @@ mod revenue_pool_transfer_tests {
         };
         let mut spot_market = SpotMarket {
             deposit_balance: 20020 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 20020 * QUOTE_PRECISION_U64,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             revenue_pool: PoolBalance {
@@ -1641,6 +1644,7 @@ mod revenue_pool_transfer_tests {
         };
         let mut spot_market = SpotMarket {
             deposit_balance: 20020000 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 20020000 * QUOTE_PRECISION_U64,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             revenue_pool: PoolBalance {

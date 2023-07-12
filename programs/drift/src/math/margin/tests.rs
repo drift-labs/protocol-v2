@@ -6,19 +6,16 @@ mod test {
     use crate::controller::amm::SwapDirection;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
-        QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_IMF_PRECISION,
+        QUOTE_PRECISION_I64, SPOT_IMF_PRECISION,
     };
-    use crate::math::margin::{
-        calculate_perp_position_value_and_pnl, calculate_spot_position_value, MarginRequirementType,
-    };
+    use crate::math::margin::{calculate_perp_position_value_and_pnl, MarginRequirementType};
     use crate::math::position::{
         calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
     };
     use crate::state::oracle::OraclePriceData;
     use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
-    use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
-    use crate::state::user::{PerpPosition, SpotPosition, User};
+    use crate::state::spot_market::{AssetTier, SpotMarket};
+    use crate::state::user::PerpPosition;
 
     #[test]
     fn asset_tier_checks() {
@@ -139,107 +136,7 @@ mod test {
     }
 
     #[test]
-    fn negative_margin_user_test() {
-        let spot_market = SpotMarket {
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 6,
-            ..SpotMarket::default()
-        };
-
-        let spot_position = SpotPosition {
-            balance_type: SpotBalanceType::Deposit,
-            scaled_balance: SPOT_BALANCE_PRECISION_U64,
-            ..SpotPosition::default()
-        };
-
-        let mut user = User { ..User::default() };
-
-        let market_position = PerpPosition {
-            market_index: 0,
-            quote_asset_amount: -2 * QUOTE_PRECISION_I64,
-            ..PerpPosition::default()
-        };
-
-        user.spot_positions[0] = spot_position;
-        user.perp_positions[0] = market_position;
-
-        let market = PerpMarket {
-            market_index: 0,
-            amm: AMM {
-                base_asset_reserve: 5122950819670000,
-                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-                sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 22_100_000,
-                base_asset_amount_with_amm: -(122950819670000_i128),
-                ..AMM::default()
-            },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_pnl_initial_asset_weight: 10000,
-            unrealized_pnl_maintenance_asset_weight: 10000,
-            ..PerpMarket::default()
-        };
-
-        // btc
-        let oracle_price_data = OraclePriceData {
-            price: (22050 * PRICE_PRECISION) as i64,
-            confidence: 0,
-            delay: 2,
-            has_sufficient_number_of_data_points: true,
-        };
-
-        let (_, unrealized_pnl, _) = calculate_perp_position_value_and_pnl(
-            &market_position,
-            &market,
-            &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
-            MarginRequirementType::Initial,
-            0,
-            false,
-            false,
-        )
-        .unwrap();
-
-        let quote_asset_oracle_price_data = OraclePriceData {
-            price: PRICE_PRECISION as i64,
-            confidence: 1,
-            delay: 0,
-            has_sufficient_number_of_data_points: true,
-        };
-
-        let total_collateral = calculate_spot_position_value(
-            &spot_position,
-            &spot_market,
-            &quote_asset_oracle_price_data,
-            MarginRequirementType::Initial,
-        )
-        .unwrap();
-
-        let total_collateral_i128 = (total_collateral as i128) + unrealized_pnl;
-
-        assert_eq!(total_collateral_i128, -(2 * QUOTE_PRECISION as i128));
-    }
-
-    #[test]
     fn calculate_user_equity_value_tests() {
-        let _user = User { ..User::default() };
-
-        let spot_position = SpotPosition {
-            balance_type: SpotBalanceType::Deposit,
-            scaled_balance: SPOT_BALANCE_PRECISION_U64,
-            ..SpotPosition::default()
-        };
-
-        let spot_market = SpotMarket {
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 6,
-            ..SpotMarket::default()
-        };
-
         let mut market = PerpMarket {
             market_index: 0,
             amm: AMM {
@@ -280,19 +177,6 @@ mod test {
         };
 
         let margin_requirement_type = MarginRequirementType::Initial;
-        let quote_asset_oracle_price_data = OraclePriceData {
-            price: PRICE_PRECISION as i64,
-            confidence: 1,
-            delay: 0,
-            has_sufficient_number_of_data_points: true,
-        };
-        let _bqv = calculate_spot_position_value(
-            &spot_position,
-            &spot_market,
-            &quote_asset_oracle_price_data,
-            margin_requirement_type,
-        )
-        .unwrap();
 
         let position_unrealized_pnl =
             calculate_position_pnl(&market_position, &market.amm, false).unwrap();

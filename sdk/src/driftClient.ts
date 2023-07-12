@@ -2144,6 +2144,7 @@ export class DriftClient {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				spotMarket: spotMarket.pubkey,
+				spotMarketVault: spotMarket.vault,
 				oracle: spotMarket.oracle,
 			},
 		});
@@ -3352,9 +3353,11 @@ export class DriftClient {
 	 * @param inMarketIndex the market index of the token you're selling
 	 * @param outAssociatedTokenAccount the token account to receive the token being sold on jupiter
 	 * @param inAssociatedTokenAccount the token account to
-	 * @param amount the amount of the token to sell
+	 * @param amount the amount of TokenIn, regardless of swapMode
 	 * @param slippageBps the max slippage passed to jupiter api
+	 * @param swapMode jupiter swapMode (ExactIn or ExactOut), default is ExactIn
 	 * @param route the jupiter route to use for the swap
+	 * @param reduceOnly specify if In or Out token on the drift account must reduceOnly, checked at end of swap
 	 * @param txParams
 	 */
 	public async swap({
@@ -3418,6 +3421,7 @@ export class DriftClient {
 		amount,
 		slippageBps,
 		swapMode,
+		onlyDirectRoutes,
 		route,
 		reduceOnly,
 		userAccountPublicKey,
@@ -3430,6 +3434,7 @@ export class DriftClient {
 		amount: BN;
 		slippageBps?: number;
 		swapMode?: SwapMode;
+		onlyDirectRoutes?: boolean;
 		route?: Route;
 		reduceOnly?: SwapReduceOnly;
 		userAccountPublicKey?: PublicKey;
@@ -3447,6 +3452,7 @@ export class DriftClient {
 				amount,
 				slippageBps,
 				swapMode,
+				onlyDirectRoutes,
 			});
 
 			if (!routes || routes.length === 0) {

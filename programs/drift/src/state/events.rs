@@ -140,6 +140,10 @@ pub struct OrderRecord {
     pub order: Order,
 }
 
+impl Size for OrderRecord {
+    const SIZE: usize = 192;
+}
+
 #[event]
 pub struct OrderActionRecord {
     pub ts: i64,

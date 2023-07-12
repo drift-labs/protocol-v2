@@ -75,6 +75,7 @@ export class DLOBSubscriber {
 		marketType,
 		depth = 10,
 		includeVamm = false,
+		numVammOrders,
 		fallbackL2Generators = [],
 	}: {
 		marketName?: string;
@@ -82,6 +83,7 @@ export class DLOBSubscriber {
 		marketType?: MarketType;
 		depth?: number;
 		includeVamm?: boolean;
+		numVammOrders?: number;
 		fallbackL2Generators?: L2OrderBookGenerator[];
 	}): L2OrderBook {
 		if (marketName) {
@@ -122,7 +124,7 @@ export class DLOBSubscriber {
 				getVammL2Generator({
 					marketAccount: this.driftClient.getPerpMarketAccount(marketIndex),
 					oraclePriceData,
-					numOrders: depth,
+					numOrders: numVammOrders ?? depth,
 				}),
 			];
 		}

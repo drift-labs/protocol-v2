@@ -1,5 +1,5 @@
 {
-  "version": "2.33.0",
+  "version": "2.34.0",
   "name": "drift",
   "instructions": [
     {
@@ -1919,6 +1919,11 @@
         },
         {
           "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
           "isMut": false,
           "isSigner": false
         }
@@ -6860,11 +6865,19 @@
             "type": "i32"
           },
           {
+            "name": "padding1",
+            "type": "u32"
+          },
+          {
+            "name": "totalFeeEarnedPerLp",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                44
+                32
               ]
             }
           }
@@ -6941,11 +6954,11 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "markOracleDivergenceNumerator",
+            "name": "markOraclePercentDivergence",
             "type": "u64"
           },
           {
-            "name": "markOracleDivergenceDenominator",
+            "name": "oracleTwap5minPercentDivergence",
             "type": "u64"
           }
         ]
@@ -7677,6 +7690,9 @@
         "variants": [
           {
             "name": "Initial"
+          },
+          {
+            "name": "Fill"
           },
           {
             "name": "Maintenance"
