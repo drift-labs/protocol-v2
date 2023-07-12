@@ -777,6 +777,10 @@ pub fn calculate_max_withdrawable_amount(
 
     let spot_market = &mut spot_market_map.get_ref(&market_index)?;
 
+    if spot_market.initial_asset_weight == 0 {
+        return Ok(u64::MAX);
+    }
+
     if num_of_liabilities == 0 {
         // user has small dust deposit and no liabilities
         // so return early with user tokens amount
