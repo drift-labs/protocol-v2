@@ -189,6 +189,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Solana Verify Build
-        uses: drift-labs/solana-verify-action@v0.2.0
+        uses: drift-labs/solana-verify-action@v0.3.0
         with:
           library-name: drift
