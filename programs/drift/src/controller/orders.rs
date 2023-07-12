@@ -53,6 +53,7 @@ use crate::{get_then_update_id, ModifyOrderPolicy};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::math::spot_swap::select_margin_type_for_swap;
 use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
@@ -3547,6 +3548,7 @@ fn fulfill_spot_order(
     fulfillment_params: &mut dyn SpotFulfillmentParams,
 ) -> DriftResult<(u64, u64)> {
     let base_market_index = user.orders[user_order_index].market_index;
+    let order_direction = user.orders[user_order_index].direction;
 
     let fulfillment_methods = determine_spot_fulfillment_methods(
         &user.orders[user_order_index],
@@ -3556,6 +3558,13 @@ fn fulfill_spot_order(
 
     let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
     let mut base_market = spot_market_map.get_ref_mut(&base_market_index)?;
+
+    let quote_token_amount_before = user
+        .get_quote_spot_position()
+        .get_signed_token_amount(&quote_market)?;
+    let base_token_amount_before = user
+        .force_get_spot_position_mut(base_market_index)?
+        .get_signed_token_amount(&base_market)?;
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
@@ -3614,6 +3623,42 @@ fn fulfill_spot_order(
         quote_asset_amount
     )?;
 
+    let quote_token_amount_after = user
+        .get_quote_spot_position()
+        .get_signed_token_amount(&quote_market)?;
+    let base_token_amount_after = user
+        .force_get_spot_position_mut(base_market_index)?
+        .get_signed_token_amount(&base_market)?;
+
+    let quote_price = oracle_map.get_price_data(&quote_market.oracle)?.price;
+    let base_price = oracle_map.get_price_data(&base_market.oracle)?.price;
+
+    let margin_type = if order_direction == PositionDirection::Long {
+        // sell quote, buy base
+        select_margin_type_for_swap(
+            &quote_market,
+            &base_market,
+            quote_price,
+            base_price,
+            quote_token_amount_before,
+            base_token_amount_before,
+            quote_token_amount_after,
+            base_token_amount_after,
+        )?
+    } else {
+        // sell base, buy quote
+        select_margin_type_for_swap(
+            &base_market,
+            &quote_market,
+            base_price,
+            quote_price,
+            base_token_amount_before,
+            quote_token_amount_before,
+            base_token_amount_after,
+            quote_token_amount_after,
+        )?
+    };
+
     drop(base_market);
     drop(quote_market);
 
@@ -3621,7 +3666,7 @@ fn fulfill_spot_order(
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
-            MarginRequirementType::Fill,
+            margin_type,
             spot_market_map,
             oracle_map,
             None,
