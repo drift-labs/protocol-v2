@@ -2072,6 +2072,7 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     let mut total_quote_asset_amount = 0_u64;
+    let mut total_base_asset_amount = 0_u64;
 
     let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
         market,
@@ -2085,28 +2086,30 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     if jit_base_asset_amount > 0 {
-        let (_, quote_asset_amount_filled_by_amm) = fulfill_perp_order_with_amm(
-            taker,
-            taker_stats,
-            taker_order_index,
-            market,
-            oracle_map,
-            reserve_price_before,
-            now,
-            slot,
-            valid_oracle_price,
-            taker_key,
-            filler_key,
-            filler,
-            filler_stats,
-            &mut None,
-            &mut None,
-            fee_structure,
-            Some(jit_base_asset_amount),
-            Some(maker_price), // match the makers price
-            amm_liquidity_split,
-        )?;
+        let (base_asset_amount_filled_by_amm, quote_asset_amount_filled_by_amm) =
+            fulfill_perp_order_with_amm(
+                taker,
+                taker_stats,
+                taker_order_index,
+                market,
+                oracle_map,
+                reserve_price_before,
+                now,
+                slot,
+                valid_oracle_price,
+                taker_key,
+                filler_key,
+                filler,
+                filler_stats,
+                &mut None,
+                &mut None,
+                fee_structure,
+                Some(jit_base_asset_amount),
+                Some(maker_price), // match the makers price
+                amm_liquidity_split,
+            )?;
 
+        total_base_asset_amount = base_asset_amount_filled_by_amm;
         total_quote_asset_amount = quote_asset_amount_filled_by_amm
     }
 
@@ -2143,6 +2146,7 @@ pub fn fulfill_perp_order_with_match(
         false,
     )?;
 
+    total_base_asset_amount = total_base_asset_amount.safe_add(base_asset_amount_fulfilled)?;
     total_quote_asset_amount = total_quote_asset_amount.safe_add(quote_asset_amount)?;
 
     let maker_position_index = get_position_index(
@@ -2351,7 +2355,7 @@ pub fn fulfill_perp_order_with_match(
         market_position.open_orders -= 1;
     }
 
-    Ok((base_asset_amount, total_quote_asset_amount))
+    Ok((total_base_asset_amount, total_quote_asset_amount))
 }
 
 pub fn update_order_after_fill(
