@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.34.1] - 2023-07-12
+
+## [Unreleased]
+
+### Features
+
+### Fixes
+
 - program: include amm jit in base used to calculate price band (([#536](https://github.com/drift-labs/protocol-v2/pull/536)))
 
 ### Breaking
