@@ -22,10 +22,11 @@ import {
 	ZERO,
 	convertToNumber,
 	QUOTE_PRECISION,
+	isVariant,
+	TWO
 } from '../../src';
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
-import { isVariant, TWO } from '../../lib';
 import { DLOBOrdersCoder } from '../../src/dlob/DLOBOrders';
 
 function insertOrderToDLOB(

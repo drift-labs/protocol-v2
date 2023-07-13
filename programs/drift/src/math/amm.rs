@@ -8,11 +8,10 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
-    CONCENTRATION_PRECISION, DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR,
-    ONE_MINUTE, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_TO_PEG_PRECISION_RATIO,
-    QUOTE_PRECISION_I64,
+    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
+    DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR, ONE_MINUTE,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
+    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION_I64,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
@@ -20,7 +19,7 @@ use crate::math::stats::{calculate_new_twap, calculate_rolling_sum, calculate_we
 use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::AMM;
 use crate::state::state::PriceDivergenceGuardRails;
-use crate::validate;
+use crate::{validate, PERCENTAGE_PRECISION_U64};
 
 use super::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
@@ -734,16 +733,8 @@ pub fn is_oracle_mark_too_divergent(
     oracle_guard_rails: &PriceDivergenceGuardRails,
 ) -> DriftResult<bool> {
     let max_divergence = oracle_guard_rails
-        .mark_oracle_divergence_numerator
-        .cast::<u128>()?
-        .safe_mul(BID_ASK_SPREAD_PRECISION_U128)?
-        .safe_div(
-            oracle_guard_rails
-                .mark_oracle_divergence_denominator
-                .cast()?,
-        )?
-        .cast::<u64>()?;
-
+        .mark_oracle_percent_divergence
+        .max(PERCENTAGE_PRECISION_U64 / 10);
     Ok(price_spread_pct.unsigned_abs() > max_divergence)
 }
 

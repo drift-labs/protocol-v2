@@ -27,7 +27,6 @@ import {
 	MakerInfo,
 	TakerInfo,
 	OptionalOrderParams,
-	DefaultOrderParams,
 	OrderType,
 	ReferrerInfo,
 	MarketType,
@@ -118,6 +117,7 @@ import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
 import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
+import { getOrderParams } from './orderParams';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -2144,6 +2144,7 @@ export class DriftClient {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				spotMarket: spotMarket.pubkey,
+				spotMarketVault: spotMarket.vault,
 				oracle: spotMarket.oracle,
 			},
 		});
@@ -2522,19 +2523,10 @@ export class DriftClient {
 		return txSig;
 	}
 
-	getOrderParams(
-		optionalOrderParams: OptionalOrderParams,
-		marketType: MarketType
-	): OrderParams {
-		return Object.assign({}, DefaultOrderParams, optionalOrderParams, {
-			marketType,
-		});
-	}
-
 	public async getPlacePerpOrderIx(
 		orderParams: OptionalOrderParams
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -2863,6 +2855,9 @@ export class DriftClient {
 		const readablePerpMarketIndex: number[] = [];
 		const readableSpotMarketIndexes: number[] = [];
 		for (const param of params) {
+			if (!param.marketType) {
+				throw new Error('must set param.marketType');
+			}
 			if (isVariant(param.marketType, 'perp')) {
 				readablePerpMarketIndex.push(param.marketIndex);
 			} else {
@@ -3028,7 +3023,7 @@ export class DriftClient {
 	public async getPlaceSpotOrderIx(
 		orderParams: OptionalOrderParams
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -3424,6 +3419,7 @@ export class DriftClient {
 		amount,
 		slippageBps,
 		swapMode,
+		onlyDirectRoutes,
 		route,
 		reduceOnly,
 		userAccountPublicKey,
@@ -3436,6 +3432,7 @@ export class DriftClient {
 		amount: BN;
 		slippageBps?: number;
 		swapMode?: SwapMode;
+		onlyDirectRoutes?: boolean;
 		route?: Route;
 		reduceOnly?: SwapReduceOnly;
 		userAccountPublicKey?: PublicKey;
@@ -3453,6 +3450,7 @@ export class DriftClient {
 				amount,
 				slippageBps,
 				swapMode,
+				onlyDirectRoutes,
 			});
 
 			if (!routes || routes.length === 0) {
@@ -3579,7 +3577,10 @@ export class DriftClient {
 		const userAccountPublicKeyToUse =
 			userAccountPublicKey || (await this.getUserAccountPublicKey());
 
-		const userAccounts = this.hasUser() ? [this.getUserAccount()] : [];
+		const userAccounts = [];
+		if (this.hasUser() && this.getUser().getUserAccountAndSlot()) {
+			userAccounts.push(this.getUser().getUserAccountAndSlot()!.data);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts,
 			writableSpotMarketIndexes: [outMarketIndex, inMarketIndex],
@@ -3597,7 +3598,7 @@ export class DriftClient {
 					state: await this.getStatePublicKey(),
 					user: userAccountPublicKeyToUse,
 					userStats: this.getUserStatsAccountPublicKey(),
-					authority: this.authority,
+					authority: this.wallet.publicKey,
 					outSpotMarketVault: outSpotMarket.vault,
 					inSpotMarketVault: inSpotMarket.vault,
 					inTokenAccount,
@@ -3620,7 +3621,7 @@ export class DriftClient {
 					state: await this.getStatePublicKey(),
 					user: userAccountPublicKeyToUse,
 					userStats: this.getUserStatsAccountPublicKey(),
-					authority: this.authority,
+					authority: this.wallet.publicKey,
 					outSpotMarketVault: outSpotMarket.vault,
 					inSpotMarketVault: inSpotMarket.vault,
 					inTokenAccount,
@@ -3888,7 +3889,7 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -3984,7 +3985,7 @@ export class DriftClient {
 		takerInfo: TakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -4056,7 +4057,7 @@ export class DriftClient {
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -4154,7 +4155,7 @@ export class DriftClient {
 		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 

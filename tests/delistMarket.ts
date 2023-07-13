@@ -34,7 +34,7 @@ import {
 	getOraclePriceData,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant } from '../sdk';
+import { BulkAccountLoader, isVariant, PERCENTAGE_PRECISION } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
@@ -170,7 +170,7 @@ describe('delist market', () => {
 		// await driftClient.updatePerpMarketCurveUpdateIntensity(new BN(0), 100);
 		await driftClient.updatePerpMarketStepSizeAndTickSize(
 			0,
-			new BN(1),
+			new BN(10),
 			new BN(1)
 		);
 		await driftClient.updatePerpMarketMinOrderSize(0, new BN(1));
@@ -305,8 +305,8 @@ describe('delist market', () => {
 		const marketIndex = 0;
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(10),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
+				oracleTwap5MinPercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -314,7 +314,6 @@ describe('delist market', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(100000000),
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
@@ -355,7 +354,12 @@ describe('delist market', () => {
 			marketIndex,
 			perpMarket.amm.sqrtK.mul(new BN(9912345)).div(new BN(10012345))
 		);
-		await liquidatorDriftClient.closePosition(marketIndex);
+
+		console.log(
+			'liquidatorDriftClient perps:',
+			liquidatorDriftClient.getUserAccount().perpPositions[0]
+		);
+		// await liquidatorDriftClient.closePosition(marketIndex);
 
 		// sol tanks 90%
 		await driftClient.moveAmmToPrice(
@@ -364,6 +368,7 @@ describe('delist market', () => {
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 43.1337 / 10, solOracle);
 	});
+	// return 0;
 
 	it('put market in reduce only mode', async () => {
 		const marketIndex = 0;
@@ -623,11 +628,24 @@ describe('delist market', () => {
 
 	it('put settle market pools to revenue pool', async () => {
 		const marketIndex = 0;
+		const marketBefore = driftClient.getPerpMarketAccount(marketIndex);
+		const userCostBasisBefore = marketBefore.amm.quoteAssetAmount;
+
+		console.log('userCostBasisBefore:', userCostBasisBefore.toString());
+		assert(userCostBasisBefore.eq(new BN(-1))); // from LP burn
+
+		await liquidatorDriftClient.settlePNL(
+			await liquidatorDriftClient.getUserAccountPublicKey(),
+			liquidatorDriftClient.getUserAccount(),
+			marketIndex
+		);
+
+		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const userCostBasis = market.amm.quoteAssetAmount;
-
 		console.log('userCostBasis:', userCostBasis.toString());
-		assert(userCostBasis.eq(ZERO));
+		assert(userCostBasis.eq(ZERO)); // ready to settle expiration
+
 		try {
 			await driftClient.settleExpiredMarketPoolsToRevenuePool(marketIndex);
 		} catch (e) {

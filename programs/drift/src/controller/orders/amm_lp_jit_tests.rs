@@ -1511,7 +1511,7 @@ pub mod amm_lp_jit {
         let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -1726,7 +1726,7 @@ pub mod amm_lp_jit {
         assert_eq!(market.amm.total_mm_fee, 0);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2122,7 +2122,7 @@ pub mod amm_lp_jit {
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
         // fulfill with match
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2323,7 +2323,7 @@ pub mod amm_lp_jit {
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
         // fulfill with match
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -3086,7 +3086,7 @@ pub mod amm_lp_jit {
         assert_eq!(taker.perp_positions[0].open_orders, 1);
 
         // fulfill with match
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,

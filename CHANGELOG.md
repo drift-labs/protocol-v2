@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add additional withdraw/borrow guards around fast utilization changes (([#517](https://github.com/drift-labs/protocol-v2/pull/517)))
+- program: new margin type for when orders are being filled (([#518](https://github.com/drift-labs/protocol-v2/pull/518)))
+- program: new fill price bands (([#516](https://github.com/drift-labs/protocol-v2/pull/516)))
+
+### Fixes
+
+- program: add vault invariant to update_spot_market_cumulative_interest ix (([#524](https://github.com/drift-labs/protocol-v2/pull/524)))
+- program: check oracles valid in meets_withdraw_margin_requirement if number_of_liabilities > 0
+- program: only get quote spot market if user has quote position in validate_spot_margin_trading
+- program: fix decrement_open_orders for makers
+
+### Breaking
+
+## [2.33.0] - 2023-06-30
+
+## [Unreleased]
+
+### Features
+
+### Fixes
+
+- program: fix margin calculation of unrealized funding pnl for lps (([#513](https://github.com/drift-labs/protocol-v2/pull/513)))
+
+### Breaking
+
+## [2.32.0] - 2023-06-23
+
+### Features
+
+- ts-sdk: add getMaxSwapAmount (([#488](https://github.com/drift-labs/protocol-v2/pull/488)))
 - program: add bulk place orders ix (([#499](https://github.com/drift-labs/protocol-v2/pull/499)))
 - ts-sdk: add stakeForMSOL to driftClient (([#500](https://github.com/drift-labs/protocol-v2/pull/500)))
 - ts-sdk: driftClient accepts default txParams (([#496](https://github.com/drift-labs/protocol-v2/pull/496)))
@@ -21,8 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- ts-sdk: remove user.getSpotTokenAmount as its a duplicate
 - ts-sdk: remove RetrySender dependency on Provider (([#497](https://github.com/drift-labs/protocol-v2/pull/497)))
-
 
 ## [2.31.0] - 2023-06-06
 

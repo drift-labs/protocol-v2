@@ -1,5 +1,5 @@
 {
-  "version": "2.31.1-beta.21",
+  "version": "2.33.0",
   "name": "drift",
   "instructions": [
     {
@@ -6900,11 +6900,11 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "markOracleDivergenceNumerator",
+            "name": "markOraclePercentDivergence",
             "type": "u64"
           },
           {
-            "name": "markOracleDivergenceDenominator",
+            "name": "oracleTwap5minPercentDivergence",
             "type": "u64"
           }
         ]
@@ -7636,6 +7636,9 @@
         "variants": [
           {
             "name": "Initial"
+          },
+          {
+            "name": "Fill"
           },
           {
             "name": "Maintenance"
