@@ -147,13 +147,44 @@ export class User {
 		return this.accountSubscriber.getUserAccountAndSlot();
 	}
 
+	public getPerpPositionForUserAccount(
+		userAccount: UserAccount,
+		marketIndex: number
+	): PerpPosition | undefined {
+		return userAccount.perpPositions.find(
+			(position) => position.marketIndex === marketIndex
+		);
+	}
+
 	/**
 	 * Gets the user's current position for a given perp market. If the user has no position returns undefined
 	 * @param marketIndex
 	 * @returns userPerpPosition
 	 */
 	public getPerpPosition(marketIndex: number): PerpPosition | undefined {
-		return this.getUserAccount().perpPositions.find(
+		const userAccount = this.getUserAccount();
+		return this.getPerpPositionForUserAccount(userAccount, marketIndex);
+	}
+
+	public getPerpPositionAndSlot(
+		marketIndex: number
+	): DataAndSlot<PerpPosition | undefined> {
+		const userAccount = this.getUserAccountAndSlot();
+		const perpPosition = this.getPerpPositionForUserAccount(
+			userAccount.data,
+			marketIndex
+		);
+		return {
+			data: perpPosition,
+			slot: userAccount.slot,
+		};
+	}
+
+	public getSpotPositionForUserAccount(
+		userAccount: UserAccount,
+		marketIndex: number
+	): SpotPosition | undefined {
+		return userAccount.spotPositions.find(
 			(position) => position.marketIndex === marketIndex
 		);
 	}
@@ -164,9 +195,22 @@ export class User {
 	 * @returns userSpotPosition
 	 */
 	public getSpotPosition(marketIndex: number): SpotPosition | undefined {
-		return this.getUserAccount().spotPositions.find(
-			(position) => position.marketIndex === marketIndex
+		const userAccount = this.getUserAccount();
+		return this.getSpotPositionForUserAccount(userAccount, marketIndex);
+	}
+
+	public getSpotPositionAndSlot(
+		marketIndex: number
+	): DataAndSlot<SpotPosition | undefined> {
+		const userAccount = this.getUserAccountAndSlot();
+		const spotPosition = this.getSpotPositionForUserAccount(
+			userAccount.data,
+			marketIndex
 		);
+		return {
+			data: spotPosition,
+			slot: userAccount.slot,
+		};
 	}
 
 	getEmptySpotPosition(marketIndex: number): SpotPosition {
@@ -227,13 +271,37 @@ export class User {
 		return clonedPosition;
 	}
 
+	public getOrderForUserAccount(
+		userAccount: UserAccount,
+		orderId: number
+	): Order | undefined {
+		return userAccount.orders.find((order) => order.orderId === orderId);
+	}
+
 	/**
 	 * @param orderId
 	 * @returns Order
 	 */
 	public getOrder(orderId: number): Order | undefined {
-		return this.getUserAccount().orders.find(
-			(order) => order.orderId === orderId
+		const userAccount = this.getUserAccount();
+		return this.getOrderForUserAccount(userAccount, orderId);
+	}
+
+	public getOrderAndSlot(orderId: number): DataAndSlot<Order | undefined> {
+		const userAccount = this.getUserAccountAndSlot();
+		const order = this.getOrderForUserAccount(userAccount.data, orderId);
+		return {
+			data: order,
+			slot: userAccount.slot,
+		};
+	}
+
+	public getOrderByUserIdForUserAccount(
+		userAccount: UserAccount,
+		userOrderId: number
+	): Order | undefined {
+		return userAccount.orders.find(
+			(order) => order.userOrderId === userOrderId
 		);
 	}
 
@@ -242,15 +310,42 @@ export class User {
 	 * @returns Order
 	 */
 	public getOrderByUserOrderId(userOrderId: number): Order | undefined {
-		return this.getUserAccount().orders.find(
-			(order) => order.userOrderId === userOrderId
+		const userAccount = this.getUserAccount();
+		return this.getOrderByUserIdForUserAccount(userAccount, userOrderId);
+	}
+
+	public getOrderByUserOrderIdAndSlot(
+		userOrderId: number
+	): DataAndSlot<Order | undefined> {
+		const userAccount = this.getUserAccountAndSlot();
+		const order = this.getOrderByUserIdForUserAccount(
+			userAccount.data,
+			userOrderId
+		);
+		return {
+			data: order,
+			slot: userAccount.slot,
+		};
+	}
+
+	public getOpenOrdersForUserAccount(userAccount?: UserAccount): Order[] {
+		return userAccount?.orders.filter((order) =>
+			isVariant(order.status, 'open')
 		);
 	}
 
 	public getOpenOrders(): Order[] {
-		return this.getUserAccount()?.orders.filter((order) =>
-			isVariant(order.status, 'open')
-		);
+		const userAccount = this.getUserAccount();
+		return this.getOpenOrdersForUserAccount(userAccount);
+	}
+
+	public getOpenOrdersAndSlot(): DataAndSlot<Order[]> {
+		const userAccount = this.getUserAccountAndSlot();
+		const openOrders = this.getOpenOrdersForUserAccount(userAccount.data);
+		return {
+			data: openOrders,
+			slot: userAccount.slot,
+		};
 	}
 
 	public getUserAccountPublicKey(): PublicKey {
@@ -502,8 +597,10 @@ export class User {
 		return this.getMarginRequirement('Maintenance', liquidationBuffer);
 	}
 
-	public getActivePerpPositions(): PerpPosition[] {
-		return this.getUserAccount().perpPositions.filter(
+	public getActivePerpPositionsForUserAccount(
+		userAccount: UserAccount
+	): PerpPosition[] {
+		return userAccount.perpPositions.filter(
 			(pos) =>
 				!pos.baseAssetAmount.eq(ZERO) ||
 				!pos.quoteAssetAmount.eq(ZERO) ||
@@ -512,10 +609,42 @@ export class User {
 		);
 	}
 
-	public getActiveSpotPositions(): SpotPosition[] {
-		return this.getUserAccount().spotPositions.filter(
+	public getActivePerpPositions(): PerpPosition[] {
+		const userAccount = this.getUserAccount();
+		return this.getActivePerpPositionsForUserAccount(userAccount);
+	}
+	public getActivePerpPositionsAndSlot(): DataAndSlot<PerpPosition[]> {
+		const userAccount = this.getUserAccountAndSlot();
+		const positions = this.getActivePerpPositionsForUserAccount(
+			userAccount.data
+		);
+		return {
+			data: positions,
+			slot: userAccount.slot,
+		};
+	}
+
+	public getActiveSpotPositionsForUserAccount(
+		userAccount: UserAccount
+	): SpotPosition[] {
+		return userAccount.spotPositions.filter(
 			(pos) => !isSpotPositionAvailable(pos)
 		);
+	}
+
+	public getActiveSpotPositions(): SpotPosition[] {
+		const userAccount = this.getUserAccount();
+		return this.getActiveSpotPositionsForUserAccount(userAccount);
+	}
+	public getActiveSpotPositionsAndSlot(): DataAndSlot<SpotPosition[]> {
+		const userAccount = this.getUserAccountAndSlot();
+		const positions = this.getActiveSpotPositionsForUserAccount(
+			userAccount.data
+		);
+		return {
+			data: positions,
+			slot: userAccount.slot,
+		};
 	}
 
 	/**

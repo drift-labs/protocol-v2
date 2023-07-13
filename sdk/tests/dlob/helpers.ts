@@ -57,6 +57,7 @@ export const mockAMM: AMM = {
 	lastMarkPriceTwap: new BN(0),
 	lastMarkPriceTwap5Min: new BN(0),
 	lastMarkPriceTwapTs: new BN(0),
+	totalFeeEarnedPerLp: new BN(0),
 	historicalOracleData: {
 		lastOraclePrice: new BN(0),
 		lastOracleConf: new BN(0),

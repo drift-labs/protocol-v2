@@ -1,5 +1,5 @@
 {
-  "version": "2.33.0",
+  "version": "2.34.0",
   "name": "drift",
   "instructions": [
     {
@@ -1919,6 +1919,11 @@
         },
         {
           "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
           "isMut": false,
           "isSigner": false
         }
@@ -6819,11 +6824,19 @@
             "type": "i32"
           },
           {
+            "name": "padding1",
+            "type": "u32"
+          },
+          {
+            "name": "totalFeeEarnedPerLp",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                44
+                32
               ]
             }
           }
