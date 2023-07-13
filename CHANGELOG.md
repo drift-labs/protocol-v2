@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 ### Fixes
-- program: improve bid/ask twap update for infrequent trading ([#345](https://github.com/drift-labs/protocol-v2/pull/345))
-- sdk: improve 
+- program: improve bid/ask twap update for infrequent trading ([#529](https://github.com/drift-labs/protocol-v2/pull/345))
+- sdk: simplify, mirror contract, and write tests for predicting funding rate function ([#529](https://github.com/drift-labs/protocol-v2/pull/529))
 
 ### Breaking
 
