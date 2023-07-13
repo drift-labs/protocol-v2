@@ -213,8 +213,7 @@ pub fn update_mark_twap(
         .last_oracle_price_twap_ts
         .safe_sub(amm.last_mark_price_twap_ts)?;
 
-    crate::dlog!(last_valid_trade_since_oracle_twap_update);
-    // if an delayed more than 10th of funding period, shrink toward oracle_twap
+    // if an delayed more than ONE_MINUTE or 60th of funding period, shrink toward oracle_twap
     let (last_bid_price_twap, last_ask_price_twap) = if last_valid_trade_since_oracle_twap_update
         > amm.funding_period.safe_div(60)?.max(ONE_MINUTE.cast()?)
     {
