@@ -1044,7 +1044,9 @@ pub fn fill_perp_order(
         should_cancel_reduce_only_order(&user.orders[order_index], existing_base_asset_amount)?;
 
     if should_expire_order || should_cancel_reduce_only {
-        let filler_reward = {
+        let filler_reward = if should_expire_order && user.orders[order_index].is_limit_order() {
+            0
+        } else {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
             pay_keeper_flat_reward_for_perps(
                 user,
@@ -3216,6 +3218,10 @@ pub fn fill_spot_order(
         }
     }
 
+    if !fulfillment_params.is_external() && maker.is_none() {
+        return Err(ErrorCode::ImpossibleFill);
+    }
+
     let should_expire_order = should_expire_order(user, order_index, now)?;
 
     let should_cancel_reduce_only = if user.orders[order_index].reduce_only {
@@ -3230,7 +3236,9 @@ pub fn fill_spot_order(
     };
 
     if should_expire_order || should_cancel_reduce_only {
-        let filler_reward = {
+        let filler_reward = if should_expire_order && user.orders[order_index].is_limit_order() {
+            0
+        } else {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
                 user,
