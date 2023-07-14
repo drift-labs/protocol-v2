@@ -930,6 +930,7 @@ export class DLOB {
 		}
 
 		// All bids/asks that can expire
+		// dont try to expire limit orders with tif as its inefficient use of blockspace
 		const bidGenerators = [nodeLists.market.bid.getGenerator()];
 		const askGenerators = [nodeLists.market.ask.getGenerator()];
 

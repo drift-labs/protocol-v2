@@ -5,7 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### Breaking
+
 ## [Unreleased]
+
+### Features
+### Fixes
+- program: if taker increases free colalteral, check maintenance health ([#538](https://github.com/drift-labs/protocol-v2/pull/345))
+- program: improve bid/ask twap update for infrequent trading ([#529](https://github.com/drift-labs/protocol-v2/pull/345))
+- sdk: simplify, mirror contract, and write tests for predicting funding rate function ([#529](https://github.com/drift-labs/protocol-v2/pull/529))
+
+### Breaking
+
+## [2.34.0] - 2023-07-11
+
+### Features
+
+### Fixes
+
+- program: include amm jit in base used to calculate price band (([#536](https://github.com/drift-labs/protocol-v2/pull/536)))
+
+### Breaking
+
+## [2.34.0] - 2023-07-11
 
 ### Features
 
@@ -17,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: use emit_stack for place orders (([#533](https://github.com/drift-labs/protocol-v2/pull/533)))
 - program: tweaks for setting init asset weight to 0 (([#523](https://github.com/drift-labs/protocol-v2/pull/523)))
 - program: add vault invariant to update_spot_market_cumulative_interest ix (([#524](https://github.com/drift-labs/protocol-v2/pull/524)))
 - program: check oracles valid in meets_withdraw_margin_requirement if number_of_liabilities > 0
@@ -26,8 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Breaking
 
 ## [2.33.0] - 2023-06-30
-
-## [Unreleased]
 
 ### Features
 

@@ -2147,7 +2147,7 @@ pub mod amm_lp_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2); // auctions not over so no amm fill
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 * 3 / 4); // auctions not over so no amm fill
 
         let maker = makers_and_referrers.get_ref_mut(&maker_key).unwrap();
         let maker_position = &maker.perp_positions[0];
@@ -2348,7 +2348,7 @@ pub mod amm_lp_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2); // auctions not over so no amm fill
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 * 3 / 4); // auctions not over so no amm fill
 
         let market_after = market_map.get_ref(&0).unwrap();
 

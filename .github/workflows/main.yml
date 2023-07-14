@@ -184,3 +184,24 @@ jobs:
         run: npm publish --access=public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  verified-build:
+    name: Build Verifiable Artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Solana Verify
+        run: |
+          cargo install solana-verify
+          solana-verify --version
+
+      - name: Verifiable Build
+        run: |
+          solana-verify build --library-name drift
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: target/deploy/drift.so

@@ -709,6 +709,7 @@ export type AMM = {
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
+	totalFeeEarnedPerLp: BN;
 	userLpShares: BN;
 	baseAssetAmountWithUnsettledLp: BN;
 	orderStepSize: BN;
