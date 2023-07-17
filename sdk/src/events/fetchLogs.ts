@@ -104,7 +104,6 @@ export async function fetchTransactionLogs(
 			args,
 		});
 	}
-	console.log(requests);
 
 	const rpcResponses: any | null = await promiseTimeout(
 		// @ts-ignore
