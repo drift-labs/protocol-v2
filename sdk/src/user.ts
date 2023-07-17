@@ -319,7 +319,7 @@ export class User {
 	public getPerpPositionWithLPSettle(
 		marketIndex: number,
 		originalPosition?: PerpPosition,
-		withWeightMarginCategory = undefined
+		burnLpShares = false
 	): [PerpPosition, BN, BN] {
 		originalPosition =
 			originalPosition ??
@@ -378,7 +378,7 @@ export class User {
 		}
 
 		let dustBaseAssetValue = ZERO;
-		if (withWeightMarginCategory && position.remainderBaseAssetAmount != 0) {
+		if (burnLpShares && position.remainderBaseAssetAmount != 0) {
 			const oraclePriceData = this.driftClient.getOracleDataForPerpMarket(
 				position.marketIndex
 			);
@@ -592,7 +592,7 @@ export class User {
 					perpPosition = this.getPerpPositionWithLPSettle(
 						perpPosition.marketIndex,
 						undefined,
-						withWeightMarginCategory
+						!!withWeightMarginCategory
 					)[0];
 				}
 
@@ -1088,7 +1088,7 @@ export class User {
 					perpPosition = this.getPerpPositionWithLPSettle(
 						market.marketIndex,
 						this.getClonedPosition(perpPosition),
-						marginCategory
+						!!marginCategory
 					)[0];
 				}
 
@@ -1614,7 +1614,7 @@ export class User {
 			const perpPosition = this.getPerpPositionWithLPSettle(
 				perpMarketWithSameOracle.marketIndex,
 				undefined,
-				'Maintenance'
+				true
 			)[0];
 			if (perpPosition) {
 				const freeCollateralDeltaForPerp =
@@ -1668,11 +1668,8 @@ export class User {
 
 		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 		const currentPerpPosition =
-			this.getPerpPositionWithLPSettle(
-				marketIndex,
-				undefined,
-				'Maintenance'
-			)[0] || this.getEmptyPosition(marketIndex);
+			this.getPerpPositionWithLPSettle(marketIndex, undefined, true)[0] ||
+			this.getEmptyPosition(marketIndex);
 
 		let freeCollateralDelta = this.calculateFreeCollateralDeltaForPerp(
 			market,
@@ -1830,7 +1827,7 @@ export class User {
 			this.getPerpPositionWithLPSettle(
 				positionMarketIndex,
 				undefined,
-				'Maintenance'
+				true
 			)[0] || this.getEmptyPosition(positionMarketIndex);
 
 		const closeBaseAmount = currentPosition.baseAssetAmount
@@ -1872,11 +1869,8 @@ export class User {
 		tradeSide: PositionDirection
 	): BN {
 		const currentPosition =
-			this.getPerpPositionWithLPSettle(
-				targetMarketIndex,
-				undefined,
-				'Initial'
-			)[0] || this.getEmptyPosition(targetMarketIndex);
+			this.getPerpPositionWithLPSettle(targetMarketIndex, undefined, true)[0] ||
+			this.getEmptyPosition(targetMarketIndex);
 
 		const targetSide = isVariant(tradeSide, 'short') ? 'short' : 'long';
 
@@ -2858,7 +2852,7 @@ export class User {
 			this.getPerpPositionWithLPSettle(
 				marketToIgnore,
 				undefined,
-				marginCategory
+				!!marginCategory
 			)[0] || this.getEmptyPosition(marketToIgnore);
 
 		const oracleData = this.getOracleDataForPerpMarket(marketToIgnore);
