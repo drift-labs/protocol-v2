@@ -108,6 +108,10 @@ pub mod drift {
         handle_cancel_orders(ctx, market_type, market_index, direction)
     }
 
+    pub fn cancel_orders_by_ids(ctx: Context<CancelOrder>, order_ids: Vec<u32>) -> Result<()> {
+        handle_cancel_orders_by_ids(ctx, order_ids)
+    }
+
     pub fn modify_order(
         ctx: Context<CancelOrder>,
         order_id: Option<u32>,
