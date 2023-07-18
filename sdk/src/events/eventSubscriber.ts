@@ -17,6 +17,7 @@ import { WebSocketLogProvider } from './webSocketLogProvider';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { getSortFn } from './sort';
+import { parseLogs } from './parse';
 
 export class EventSubscriber {
 	private address: PublicKey;
@@ -166,11 +167,9 @@ export class EventSubscriber {
 	): WrappedEvents {
 		const records = [];
 		// @ts-ignore
-		const eventGenerator = this.program._events._eventParser.parseLogs(
-			logs,
-			false
-		);
-		for (const event of eventGenerator) {
+		const events = parseLogs(this.program, slot, logs);
+		for (const event of events) {
+			// @ts-ignore
 			const expectRecordType = this.eventListMap.has(event.name);
 			if (expectRecordType) {
 				event.data.txSig = txSig;

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: add post only slide for perps ([#541](https://github.com/drift-labs/protocol-v2/pull/541))
+- program: allow up to 10000 users
 
 ### Fixes
 - program: if taker increases free colalteral, check maintenance health ([#538](https://github.com/drift-labs/protocol-v2/pull/538))
