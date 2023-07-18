@@ -345,9 +345,9 @@ fn calc_delayed_mark_twap_tests() {
         base_spread: 655,  //base spread is .065%,
         max_spread: 65535, //base spread is 6.5%
         mark_std: PRICE_PRECISION as u64,
-        last_bid_price_twap: 22799 * PRICE_PRECISION as u64,
-        last_ask_price_twap: 22801 * PRICE_PRECISION as u64,
-        last_mark_price_twap: 22800 * PRICE_PRECISION as u64,
+        last_bid_price_twap: 21999 * PRICE_PRECISION as u64,
+        last_ask_price_twap: 22001 * PRICE_PRECISION as u64,
+        last_mark_price_twap: 22000 * PRICE_PRECISION as u64,
         last_mark_price_twap_ts: prev - 3600,
         historical_oracle_data: HistoricalOracleData {
             last_oracle_price: 22850 * PRICE_PRECISION as i64,
@@ -355,6 +355,7 @@ fn calc_delayed_mark_twap_tests() {
             last_oracle_price_twap_ts: prev,
             ..HistoricalOracleData::default()
         },
+        funding_period: 3600,
         ..AMM::default()
     };
     let px = 22850 * PRICE_PRECISION as i64;
@@ -362,13 +363,13 @@ fn calc_delayed_mark_twap_tests() {
     let trade_direction = PositionDirection::Long;
     update_mark_twap(&mut amm, now, Some(px as u64), Some(trade_direction), None).unwrap();
 
-    assert_eq!(amm.last_bid_price_twap, 22899972411);
-    assert_eq!(amm.last_mark_price_twap, 22899972684);
-    assert_eq!(amm.last_ask_price_twap, 22899972958);
+    assert_eq!(amm.last_bid_price_twap, 22850013657);
+    assert_eq!(amm.last_mark_price_twap, 22850013657);
+    assert_eq!(amm.last_ask_price_twap, 22850013657);
 
     assert_eq!(
         amm.last_mark_price_twap as i64 - amm.historical_oracle_data.last_oracle_price_twap,
-        -27316
+        -49986343
     );
 }
 
@@ -617,18 +618,16 @@ fn update_mark_twap_tests() {
     let new_bid_twap = amm.last_bid_price_twap;
     let new_ask_twap = amm.last_ask_price_twap;
 
-    assert_eq!(new_bid_twap, 39_987_834);
-    assert_eq!(new_ask_twap, 40_006_767);
+    assert_eq!(new_bid_twap, 39_989_389);
+    assert_eq!(new_ask_twap, 40_000_790);
     assert!(new_bid_twap < new_ask_twap);
     assert_eq!((new_bid_twap + new_ask_twap) / 2, new_mark_twap);
-    // TODO fails here
+
     assert_eq!(new_oracle_twap, 39_998_518);
-    assert_eq!(new_mark_twap, 39_997_300);
-    assert_eq!(new_bid_twap, 39_987_834); // ema from prev twap
-    assert_eq!(new_ask_twap, 40_006_767); // ema from prev twap
+    assert_eq!(new_mark_twap, 39995089);
 
     assert!((new_oracle_twap as u64) >= new_mark_twap); // funding in favor of maker
-    assert_eq!(amm.mark_std, 26906);
+    assert_eq!(amm.mark_std, 24467);
     assert_eq!(amm.oracle_std, 7238);
 }
 

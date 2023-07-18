@@ -5,7 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### Breaking
+
 ## [Unreleased]
+
+### Features
+
+- program: allow up to 10000 users
+
+### Fixes
+- program: if taker increases free colalteral, check maintenance health ([#538](https://github.com/drift-labs/protocol-v2/pull/345))
+- program: improve bid/ask twap update for infrequent trading ([#529](https://github.com/drift-labs/protocol-v2/pull/345))
+- sdk: simplify, mirror contract, and write tests for predicting funding rate function ([#529](https://github.com/drift-labs/protocol-v2/pull/529))
+
+### Breaking
+
+## [2.34.0] - 2023-07-11
 
 ### Features
 
@@ -37,8 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Breaking
 
 ## [2.33.0] - 2023-06-30
-
-## [Unreleased]
 
 ### Features
 
