@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add cancel orders by ids ([#540](https://github.com/drift-labs/protocol-v2/pull/540))
 - program: add post only slide for perps ([#541](https://github.com/drift-labs/protocol-v2/pull/541))
 - program: allow up to 10000 users
 
