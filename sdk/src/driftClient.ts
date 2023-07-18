@@ -1782,8 +1782,13 @@ export class DriftClient {
 
 		const authority = this.wallet.publicKey;
 
+		const isFromSubaccount =
+			fromSubAccountId !== null &&
+			fromSubAccountId !== undefined &&
+			!isNaN(fromSubAccountId);
+
 		const createWSOLTokenAccount =
-			isSolMarket && userTokenAccount.equals(authority);
+			isSolMarket && userTokenAccount.equals(authority) && !isFromSubaccount;
 
 		if (createWSOLTokenAccount) {
 			const {
@@ -1801,22 +1806,21 @@ export class DriftClient {
 			signers.forEach((signer) => additionalSigners.push(signer));
 		}
 
-		const depositCollateralIx =
-			fromSubAccountId != null
-				? await this.getTransferDepositIx(
-						amount,
-						marketIndex,
-						fromSubAccountId,
-						subAccountId
-				  )
-				: await this.getDepositInstruction(
-						amount,
-						marketIndex,
-						userTokenAccount,
-						subAccountId,
-						false,
-						false
-				  );
+		const depositCollateralIx = isFromSubaccount
+			? await this.getTransferDepositIx(
+					amount,
+					marketIndex,
+					fromSubAccountId,
+					subAccountId
+			  )
+			: await this.getDepositInstruction(
+					amount,
+					marketIndex,
+					userTokenAccount,
+					subAccountId,
+					false,
+					false
+			  );
 
 		if (subAccountId === 0) {
 			if (

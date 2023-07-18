@@ -132,7 +132,7 @@ pub fn handle_initialize_user(
     safe_increment!(state.number_of_sub_accounts, 1);
 
     validate!(
-        state.number_of_sub_accounts <= 7500,
+        state.number_of_sub_accounts <= 10000,
         ErrorCode::MaxNumberOfUsers
     )?;
 
@@ -749,6 +749,7 @@ pub enum PostOnlyParam {
     None,
     MustPostOnly, // Tx fails if order can't be post only
     TryPostOnly,  // Tx succeeds and order not placed if can't be post only
+    Slide,        // Modify price to be post only if can't be post only
 }
 
 impl Default for PostOnlyParam {
