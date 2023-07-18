@@ -2511,3 +2511,123 @@ pub mod is_oracle_too_divergent_with_twap_5min {
         assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap())
     }
 }
+
+pub mod get_price_for_perp_order {
+    use crate::math::orders::get_price_for_perp_order;
+
+    use crate::state::perp_market::AMM;
+    use crate::{PositionDirection, PostOnlyParam, BID_ASK_SPREAD_PRECISION_U128};
+    use crate::{AMM_RESERVE_PRECISION, PEG_PRECISION};
+
+    #[test]
+    fn bid_crosses_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            short_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_bid_price = amm.bid_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_bid_price, 99000000); // $99
+
+        let ask = 98900000; // $98.9
+        let direction = PositionDirection::Short;
+
+        let limit_price =
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 99100000); // $99.1
+
+        let ask = amm_bid_price;
+        let limit_price =
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 99100000); // $99.1
+    }
+
+    #[test]
+    fn bid_doesnt_cross_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            short_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_bid_price = amm.bid_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_bid_price, 99000000); // $99
+
+        let ask = 99900000; // $99.9
+        let direction = PositionDirection::Short;
+
+        let limit_price =
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, ask); // $99.1
+    }
+
+    #[test]
+    fn ask_crosses_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            long_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_ask_price = amm.ask_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_ask_price, 101000000); // $101
+
+        let bid = 101100000; // $101.1
+        let direction = PositionDirection::Long;
+
+        let limit_price =
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 100900000); // $100.9
+
+        let bid = amm_ask_price;
+        let limit_price =
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 100900000); // $100.9
+    }
+
+    #[test]
+    fn ask_doesnt_cross_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            long_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_ask_price = amm.ask_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_ask_price, 101000000); // $101
+
+        let bid = 100100000; // $100.1
+        let direction = PositionDirection::Long;
+
+        let limit_price =
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, bid); // $100.1
+    }
+}

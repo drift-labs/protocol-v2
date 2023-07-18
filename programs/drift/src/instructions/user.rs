@@ -749,6 +749,7 @@ pub enum PostOnlyParam {
     None,
     MustPostOnly, // Tx fails if order can't be post only
     TryPostOnly,  // Tx succeeds and order not placed if can't be post only
+    Slide,        // Modify price to be post only if can't be post only
 }
 
 impl Default for PostOnlyParam {

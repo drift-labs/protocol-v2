@@ -230,7 +230,12 @@ pub fn place_perp_order(
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
-        price: standardize_price(params.price, market.amm.order_tick_size, params.direction)?,
+        price: get_price_for_perp_order(
+            params.price,
+            params.direction,
+            params.post_only,
+            &market.amm,
+        )?,
         existing_position_direction,
         base_asset_amount: order_base_asset_amount,
         base_asset_amount_filled: 0,

@@ -10,7 +10,7 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
 use crate::{
-    math, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
+    math, PostOnlyParam, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
     PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
 };
 
@@ -25,7 +25,7 @@ use crate::math::spot_withdraw::get_max_withdraw_for_market_with_token_amount;
 use crate::math_error;
 use crate::print_error;
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -255,19 +255,33 @@ pub fn standardize_price_i64(
     }
 }
 
-#[cfg(test)]
-mod test2 {
-    use crate::controller::position::PositionDirection;
-    use crate::math::orders::standardize_price_i64;
+pub fn get_price_for_perp_order(
+    price: u64,
+    direction: PositionDirection,
+    post_only: PostOnlyParam,
+    amm: &AMM,
+) -> DriftResult<u64> {
+    let mut limit_price = standardize_price(price, amm.order_tick_size, direction)?;
 
-    #[test]
-    fn test() {
-        let price = -1001_i64;
-
-        let result = standardize_price_i64(price, 100, PositionDirection::Long).unwrap();
-
-        println!("result {}", result);
+    if post_only == PostOnlyParam::Slide {
+        let reserve_price = amm.reserve_price()?;
+        match direction {
+            PositionDirection::Long => {
+                let amm_ask = amm.ask_price(reserve_price)?;
+                if limit_price >= amm_ask {
+                    limit_price = amm_ask.safe_sub(amm.order_tick_size)?;
+                }
+            }
+            PositionDirection::Short => {
+                let amm_bid = amm.bid_price(reserve_price)?;
+                if limit_price <= amm_bid {
+                    limit_price = amm_bid.safe_add(amm.order_tick_size)?;
+                }
+            }
+        }
     }
+
+    Ok(limit_price)
 }
 
 pub fn get_position_delta_for_fill(
