@@ -636,6 +636,10 @@ describe('test function when spot market at >= 100% util', () => {
 		});
 		await takerDriftClientUser.subscribe();
 
+		const firstUserSpot = await takerDriftClientUser.getSpotPosition(0);
+		console.log('takerDriftClientUser spot 0:', firstUserSpot);
+		assert(isVariant(firstUserSpot.balanceType, 'borrow'));
+
 		await firstUserDriftClient.placePerpOrder(takerOrderParams);
 		await takerDriftClientUser.fetchAccounts();
 		const order = takerDriftClientUser.getOrderByUserOrderId(1);
@@ -659,6 +663,11 @@ describe('test function when spot market at >= 100% util', () => {
 		);
 		assert(takerPos.baseAssetAmount.eq(ZERO));
 
+		const secondUserSpot = (await secondUserDriftClient.getUserAccount())
+			.spotPositions[0];
+		console.log('secondUserDriftClient spot 0:', secondUserSpot);
+		assert(isVariant(secondUserSpot.balanceType, 'deposit'));
+
 		const txSig = await secondUserDriftClient.placeAndMakePerpOrder(
 			makerOrderParams,
 			{
@@ -680,6 +689,7 @@ describe('test function when spot market at >= 100% util', () => {
 		);
 		assert(takerPos2.baseAssetAmount.gt(ZERO));
 
+		//ensure that borrow cant borrow more to settle pnl
 		await setFeedPrice(anchor.workspace.Pyth, 31, solOracle);
 		await firstUserDriftClient.fetchAccounts();
 		await secondUserDriftClient.fetchAccounts();
@@ -697,5 +707,24 @@ describe('test function when spot market at >= 100% util', () => {
 			marketIndex
 		);
 		await printTxLogs(connection, settleTx2);
+
+		//allow that deposit to settle negative pnl for borrow
+		await setFeedPrice(anchor.workspace.Pyth, 28, solOracle);
+		await firstUserDriftClient.fetchAccounts();
+		await secondUserDriftClient.fetchAccounts();
+
+		const settleTx1Good = await firstUserDriftClient.settlePNL(
+			await firstUserDriftClient.getUserAccountPublicKey(),
+			firstUserDriftClient.getUserAccount(),
+			marketIndex
+		);
+		await printTxLogs(connection, settleTx1Good);
+
+		const settleTx2Good = await firstUserDriftClient.settlePNL(
+			await secondUserDriftClient.getUserAccountPublicKey(),
+			secondUserDriftClient.getUserAccount(),
+			marketIndex
+		);
+		await printTxLogs(connection, settleTx2Good);
 	});
 });

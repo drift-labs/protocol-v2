@@ -637,6 +637,8 @@ pub fn update_pool_balances(
         let max_withdraw_amount =
             -get_max_withdraw_for_market_with_token_amount(spot_market, token_amount, false)?
                 .cast::<i128>()?;
+
+        crate::dlog!(max_withdraw_amount, token_amount);
         max_withdraw_amount.max(user_unsettled_pnl)
     };
 

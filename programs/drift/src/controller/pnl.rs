@@ -131,6 +131,7 @@ pub fn settle_pnl(
     )?;
     crate::dlog!(
         net_user_pnl,
+        pnl_pool_token_amount,
         max_pnl_pool_excess,
         user_unsettled_pnl,
         pnl_to_settle_with_user
