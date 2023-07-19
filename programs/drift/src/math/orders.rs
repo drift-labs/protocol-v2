@@ -301,13 +301,26 @@ pub fn should_cancel_market_order_after_fill(
         && is_auction_complete(order.slot, order.auction_duration, slot)?)
 }
 
-pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> DriftResult<bool> {
+pub fn should_expire_order(
+    user: &User,
+    user_order_index: usize,
+    now: i64,
+    enforce_buffer: bool,
+) -> DriftResult<bool> {
     let order = &user.orders[user_order_index];
     if order.status != OrderStatus::Open || order.max_ts == 0 || order.must_be_triggered() {
         return Ok(false);
     }
 
-    Ok(now > order.max_ts)
+    // 15s before fillers can force an order to expire using fill_perp_order/fill_spot_order
+    // this is to avoid fillers spamming to cancel orders limit orders w tif
+    let max_ts = if enforce_buffer && order.is_limit_order() {
+        order.max_ts.safe_add(15)?
+    } else {
+        order.max_ts
+    };
+
+    Ok(now > max_ts)
 }
 
 pub fn should_cancel_reduce_only_order(

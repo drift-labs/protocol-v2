@@ -1036,7 +1036,7 @@ pub fn fill_perp_order(
         }
     }
 
-    let should_expire_order = should_expire_order(user, order_index, now)?;
+    let should_expire_order = should_expire_order(user, order_index, now, true)?;
 
     let position_index =
         get_position_index(&user.perp_positions, user.orders[order_index].market_index)?;
@@ -1045,9 +1045,7 @@ pub fn fill_perp_order(
         should_cancel_reduce_only_order(&user.orders[order_index], existing_base_asset_amount)?;
 
     if should_expire_order || should_cancel_reduce_only {
-        let filler_reward = if should_expire_order && user.orders[order_index].is_limit_order() {
-            0
-        } else {
+        let filler_reward = {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
             pay_keeper_flat_reward_for_perps(
                 user,
@@ -1342,7 +1340,7 @@ fn get_maker_orders_info(
                 )?
             };
 
-            let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
+            let should_expire_order = should_expire_order(&maker, maker_order_index, now, false)?;
 
             let existing_base_asset_amount = maker
                 .get_perp_position(maker.orders[maker_order_index].market_index)?
@@ -3223,11 +3221,7 @@ pub fn fill_spot_order(
         }
     }
 
-    if !fulfillment_params.is_external() && maker.is_none() {
-        return Err(ErrorCode::ImpossibleFill);
-    }
-
-    let should_expire_order = should_expire_order(user, order_index, now)?;
+    let should_expire_order = should_expire_order(user, order_index, now, true)?;
 
     let should_cancel_reduce_only = if user.orders[order_index].reduce_only {
         let market_index = user.orders[order_index].market_index;
@@ -3241,9 +3235,7 @@ pub fn fill_spot_order(
     };
 
     if should_expire_order || should_cancel_reduce_only {
-        let filler_reward = if should_expire_order && user.orders[order_index].is_limit_order() {
-            0
-        } else {
+        let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
                 user,
@@ -3485,7 +3477,7 @@ fn get_spot_maker_order<'a>(
         )?
     };
 
-    let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
+    let should_expire_order = should_expire_order(&maker, maker_order_index, now, false)?;
 
     let should_cancel_reduce_only_order = if maker.orders[maker_order_index].reduce_only {
         let spot_position_index =
@@ -4560,7 +4552,7 @@ pub fn expire_orders(
     slot: u64,
 ) -> DriftResult {
     for order_index in 0..user.orders.len() {
-        if !should_expire_order(user, order_index, now)? {
+        if !should_expire_order(user, order_index, now, false)? {
             continue;
         }
 
