@@ -1511,7 +1511,7 @@ pub mod amm_lp_jit {
         let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -1726,7 +1726,7 @@ pub mod amm_lp_jit {
         assert_eq!(market.amm.total_mm_fee, 0);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2122,7 +2122,7 @@ pub mod amm_lp_jit {
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
         // fulfill with match
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2147,7 +2147,7 @@ pub mod amm_lp_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2); // auctions not over so no amm fill
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 * 3 / 4); // auctions not over so no amm fill
 
         let maker = makers_and_referrers.get_ref_mut(&maker_key).unwrap();
         let maker_position = &maker.perp_positions[0];
@@ -2323,7 +2323,7 @@ pub mod amm_lp_jit {
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
         // fulfill with match
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2348,7 +2348,7 @@ pub mod amm_lp_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2); // auctions not over so no amm fill
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 * 3 / 4); // auctions not over so no amm fill
 
         let market_after = market_map.get_ref(&0).unwrap();
 
@@ -3086,7 +3086,7 @@ pub mod amm_lp_jit {
         assert_eq!(taker.perp_positions[0].open_orders, 1);
 
         // fulfill with match
-        let (base_asset_amount, _, _) = fulfill_perp_order(
+        let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,

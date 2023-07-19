@@ -17,6 +17,7 @@ import {
 	OracleGuardRails,
 	BASE_PRECISION,
 	BulkAccountLoader,
+	PERCENTAGE_PRECISION,
 } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@coral-xyz/anchor';
@@ -259,8 +260,8 @@ describe('repeg and spread amm', () => {
 	it('BTC market massive spread', async () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
-				markOracleDivergenceNumerator: new BN(1),
-				markOracleDivergenceDenominator: new BN(1),
+				markOraclePercentDivergence: PERCENTAGE_PRECISION,
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION,
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

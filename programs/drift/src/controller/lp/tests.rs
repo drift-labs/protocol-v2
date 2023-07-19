@@ -25,7 +25,7 @@ use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails};
+use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
 use crate::state::user::{SpotPosition, User};
 use crate::test_utils::*;
 use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
@@ -517,16 +517,13 @@ pub fn test_lp_settle_pnl() {
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
-            price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
-            },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
                 slots_before_stale_for_margin: 120, // 60s
                 confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
+            ..OracleGuardRails::default()
         },
         ..State::default()
     };

@@ -8,11 +8,10 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
-    CONCENTRATION_PRECISION, DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR,
-    ONE_MINUTE, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_TO_PEG_PRECISION_RATIO,
-    QUOTE_PRECISION_I64,
+    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
+    DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR, ONE_MINUTE,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
+    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION_I64,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
@@ -20,7 +19,7 @@ use crate::math::stats::{calculate_new_twap, calculate_rolling_sum, calculate_we
 use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::AMM;
 use crate::state::state::PriceDivergenceGuardRails;
-use crate::validate;
+use crate::{validate, PERCENTAGE_PRECISION_U64};
 
 use super::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
@@ -190,7 +189,7 @@ pub fn update_mark_twap(
         best_ask_estimate,
     )?;
 
-    let (mut bid_price_capped_update, mut ask_price_capped_update) = (
+    let (bid_price_capped_update, ask_price_capped_update) = (
         sanitize_new_price(
             bid_price.cast()?,
             amm.last_bid_price_twap.cast()?,
@@ -213,48 +212,50 @@ pub fn update_mark_twap(
         .last_oracle_price_twap_ts
         .safe_sub(amm.last_mark_price_twap_ts)?;
 
-    // if an delayed more than 10th of funding period, shrink toward oracle_twap
-    (bid_price_capped_update, ask_price_capped_update) =
-        if last_valid_trade_since_oracle_twap_update
-            > amm.funding_period.safe_div(60)?.max(ONE_MINUTE.cast()?)
-        {
-            msg!(
-                "correcting mark twap update (oracle previously invalid for {:?} seconds)",
-                last_valid_trade_since_oracle_twap_update
-            );
+    // if an delayed more than ONE_MINUTE or 60th of funding period, shrink toward oracle_twap
+    let (last_bid_price_twap, last_ask_price_twap) = if last_valid_trade_since_oracle_twap_update
+        > amm.funding_period.safe_div(60)?.max(ONE_MINUTE.cast()?)
+    {
+        msg!(
+            "correcting mark twap update (oracle previously invalid for {:?} seconds)",
+            last_valid_trade_since_oracle_twap_update
+        );
 
-            let from_start_valid = max(
-                0,
-                amm.funding_period
-                    .safe_sub(last_valid_trade_since_oracle_twap_update)?,
-            );
-            (
-                calculate_weighted_average(
-                    amm.historical_oracle_data
-                        .last_oracle_price_twap
-                        .cast::<i64>()?,
-                    bid_price_capped_update,
-                    last_valid_trade_since_oracle_twap_update,
-                    from_start_valid,
-                )?,
-                calculate_weighted_average(
-                    amm.historical_oracle_data
-                        .last_oracle_price_twap
-                        .cast::<i64>()?,
-                    ask_price_capped_update,
-                    last_valid_trade_since_oracle_twap_update,
-                    from_start_valid,
-                )?,
-            )
-        } else {
-            (bid_price_capped_update, ask_price_capped_update)
-        };
+        let from_start_valid = max(
+            0,
+            amm.funding_period
+                .safe_sub(last_valid_trade_since_oracle_twap_update)?,
+        );
+        (
+            calculate_weighted_average(
+                amm.historical_oracle_data
+                    .last_oracle_price_twap
+                    .cast::<i64>()?,
+                amm.last_bid_price_twap.cast()?,
+                last_valid_trade_since_oracle_twap_update,
+                from_start_valid,
+            )?,
+            calculate_weighted_average(
+                amm.historical_oracle_data
+                    .last_oracle_price_twap
+                    .cast::<i64>()?,
+                amm.last_ask_price_twap.cast()?,
+                last_valid_trade_since_oracle_twap_update,
+                from_start_valid,
+            )?,
+        )
+    } else {
+        (
+            amm.last_bid_price_twap.cast()?,
+            amm.last_ask_price_twap.cast()?,
+        )
+    };
 
     // update bid and ask twaps
     let bid_twap = calculate_new_twap(
         bid_price_capped_update,
         now,
-        amm.last_bid_price_twap.cast()?,
+        last_bid_price_twap,
         amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;
@@ -263,7 +264,7 @@ pub fn update_mark_twap(
     let ask_twap = calculate_new_twap(
         ask_price_capped_update,
         now,
-        amm.last_ask_price_twap.cast()?,
+        last_ask_price_twap,
         amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;
@@ -732,16 +733,8 @@ pub fn is_oracle_mark_too_divergent(
     oracle_guard_rails: &PriceDivergenceGuardRails,
 ) -> DriftResult<bool> {
     let max_divergence = oracle_guard_rails
-        .mark_oracle_divergence_numerator
-        .cast::<u128>()?
-        .safe_mul(BID_ASK_SPREAD_PRECISION_U128)?
-        .safe_div(
-            oracle_guard_rails
-                .mark_oracle_divergence_denominator
-                .cast()?,
-        )?
-        .cast::<u64>()?;
-
+        .mark_oracle_percent_divergence
+        .max(PERCENTAGE_PRECISION_U64 / 10);
     Ok(price_spread_pct.unsigned_abs() > max_divergence)
 }
 

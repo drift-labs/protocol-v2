@@ -1782,8 +1782,13 @@ export class DriftClient {
 
 		const authority = this.wallet.publicKey;
 
+		const isFromSubaccount =
+			fromSubAccountId !== null &&
+			fromSubAccountId !== undefined &&
+			!isNaN(fromSubAccountId);
+
 		const createWSOLTokenAccount =
-			isSolMarket && userTokenAccount.equals(authority);
+			isSolMarket && userTokenAccount.equals(authority) && !isFromSubaccount;
 
 		if (createWSOLTokenAccount) {
 			const {
@@ -1801,22 +1806,21 @@ export class DriftClient {
 			signers.forEach((signer) => additionalSigners.push(signer));
 		}
 
-		const depositCollateralIx =
-			fromSubAccountId != null
-				? await this.getTransferDepositIx(
-						amount,
-						marketIndex,
-						fromSubAccountId,
-						subAccountId
-				  )
-				: await this.getDepositInstruction(
-						amount,
-						marketIndex,
-						userTokenAccount,
-						subAccountId,
-						false,
-						false
-				  );
+		const depositCollateralIx = isFromSubaccount
+			? await this.getTransferDepositIx(
+					amount,
+					marketIndex,
+					fromSubAccountId,
+					subAccountId
+			  )
+			: await this.getDepositInstruction(
+					amount,
+					marketIndex,
+					userTokenAccount,
+					subAccountId,
+					false,
+					false
+			  );
 
 		if (subAccountId === 0) {
 			if (
@@ -2144,6 +2148,7 @@ export class DriftClient {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				spotMarket: spotMarket.pubkey,
+				spotMarketVault: spotMarket.vault,
 				oracle: spotMarket.oracle,
 			},
 		});
@@ -2753,6 +2758,41 @@ export class DriftClient {
 		});
 	}
 
+	public async cancelOrdersByIds(
+		orderIds?: number[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getCancelOrdersByIdsIx(orderIds),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getCancelOrdersByIdsIx(
+		orderIds?: number[]
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			useMarketLastSlotCache: true,
+		});
+
+		return await this.program.instruction.cancelOrdersByIds(orderIds, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async cancelOrders(
 		marketType?: MarketType,
 		marketIndex?: number,
@@ -3352,9 +3392,11 @@ export class DriftClient {
 	 * @param inMarketIndex the market index of the token you're selling
 	 * @param outAssociatedTokenAccount the token account to receive the token being sold on jupiter
 	 * @param inAssociatedTokenAccount the token account to
-	 * @param amount the amount of the token to sell
+	 * @param amount the amount of TokenIn, regardless of swapMode
 	 * @param slippageBps the max slippage passed to jupiter api
+	 * @param swapMode jupiter swapMode (ExactIn or ExactOut), default is ExactIn
 	 * @param route the jupiter route to use for the swap
+	 * @param reduceOnly specify if In or Out token on the drift account must reduceOnly, checked at end of swap
 	 * @param txParams
 	 */
 	public async swap({

@@ -709,6 +709,7 @@ export type AMM = {
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
+	totalFeeEarnedPerLp: BN;
 	userLpShares: BN;
 	baseAssetAmountWithUnsettledLp: BN;
 	orderStepSize: BN;
@@ -898,6 +899,7 @@ export class PostOnlyParams {
 	static readonly NONE = { none: {} };
 	static readonly MUST_POST_ONLY = { mustPostOnly: {} }; // Tx fails if order can't be post only
 	static readonly TRY_POST_ONLY = { tryPostOnly: {} }; // Tx succeeds and order not placed if can't be post only
+	static readonly SLIDE = { slide: {} }; // Modify price to be post only if can't be post only
 }
 
 export type NecessaryOrderParams = {
@@ -1013,8 +1015,8 @@ export type OrderFillerRewardStructure = {
 
 export type OracleGuardRails = {
 	priceDivergence: {
-		markOracleDivergenceNumerator: BN;
-		markOracleDivergenceDenominator: BN;
+		markOraclePercentDivergence: BN;
+		oracleTwap5MinPercentDivergence: BN;
 	};
 	validity: {
 		slotsBeforeStaleForAmm: BN;

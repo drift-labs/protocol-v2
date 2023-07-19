@@ -16,18 +16,16 @@ use crate::math::casting::Cast;
 use crate::math::funding::calculate_funding_payment;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
-use crate::math::spot_balance::{
-    get_balance_value_and_token_amount, get_strict_token_value, get_token_value,
-};
+use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 
 use crate::math::safe_math::SafeMath;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{ContractTier, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
+use crate::state::spot_market::{AssetTier, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::{PerpPosition, SpotPosition, User};
+use crate::state::user::{PerpPosition, User};
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min, Ordering};
@@ -96,35 +94,6 @@ pub fn calculate_size_discount_asset_weight(
     let min_asset_weight = min(asset_weight, size_discount_asset_weight);
 
     Ok(min_asset_weight)
-}
-
-pub fn calculate_spot_position_value(
-    spot_position: &SpotPosition,
-    spot_market: &SpotMarket,
-    oracle_price_data: &OraclePriceData,
-    margin_requirement_type: MarginRequirementType,
-) -> DriftResult<u128> {
-    let (balance_value, token_amount) =
-        get_balance_value_and_token_amount(spot_position, spot_market, oracle_price_data)?;
-
-    let balance_equity_value = match spot_position.balance_type {
-        SpotBalanceType::Deposit => balance_value
-            .safe_mul(
-                spot_market
-                    .get_asset_weight(token_amount, &margin_requirement_type)?
-                    .cast()?,
-            )?
-            .safe_div(SPOT_WEIGHT_PRECISION_U128)?,
-        SpotBalanceType::Borrow => balance_value
-            .safe_mul(
-                spot_market
-                    .get_liability_weight(token_amount, &margin_requirement_type)?
-                    .cast()?,
-            )?
-            .safe_div(SPOT_WEIGHT_PRECISION_U128)?,
-    };
-
-    Ok(balance_equity_value)
 }
 
 pub fn calculate_perp_position_value_and_pnl(
@@ -656,7 +625,7 @@ pub fn meets_withdraw_margin_requirement(
         strict,
     )?;
 
-    if initial_margin_requirement > 0 {
+    if initial_margin_requirement > 0 || num_of_liabilities > 0 {
         validate!(
             oracles_valid,
             ErrorCode::InvalidOracle,
@@ -808,6 +777,10 @@ pub fn calculate_max_withdrawable_amount(
 
     let spot_market = &mut spot_market_map.get_ref(&market_index)?;
 
+    if spot_market.initial_asset_weight == 0 {
+        return Ok(u64::MAX);
+    }
+
     if num_of_liabilities == 0 {
         // user has small dust deposit and no liabilities
         // so return early with user tokens amount
@@ -872,10 +845,12 @@ pub fn validate_spot_margin_trading(
         }
     }
 
-    let quote_spot_market = spot_market_map.get_quote_spot_market()?;
-    let quote_token_amount = user
-        .get_quote_spot_position()
-        .get_signed_token_amount(&quote_spot_market)?;
+    let mut quote_token_amount = 0_i128;
+    let quote_spot_position = user.get_quote_spot_position();
+    if !quote_spot_position.is_available() {
+        let quote_spot_market = spot_market_map.get_quote_spot_market()?;
+        quote_token_amount = quote_spot_position.get_signed_token_amount(&quote_spot_market)?;
+    }
 
     // The user can have open bids if their value is less than existing quote token amount
     validate!(

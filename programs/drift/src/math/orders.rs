@@ -10,8 +10,8 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
 use crate::{
-    math, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PRICE_PRECISION_I128,
-    QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+    math, PostOnlyParam, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -25,7 +25,7 @@ use crate::math::spot_withdraw::get_max_withdraw_for_market_with_token_amount;
 use crate::math_error;
 use crate::print_error;
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -255,19 +255,33 @@ pub fn standardize_price_i64(
     }
 }
 
-#[cfg(test)]
-mod test2 {
-    use crate::controller::position::PositionDirection;
-    use crate::math::orders::standardize_price_i64;
+pub fn get_price_for_perp_order(
+    price: u64,
+    direction: PositionDirection,
+    post_only: PostOnlyParam,
+    amm: &AMM,
+) -> DriftResult<u64> {
+    let mut limit_price = standardize_price(price, amm.order_tick_size, direction)?;
 
-    #[test]
-    fn test() {
-        let price = -1001_i64;
-
-        let result = standardize_price_i64(price, 100, PositionDirection::Long).unwrap();
-
-        println!("result {}", result);
+    if post_only == PostOnlyParam::Slide {
+        let reserve_price = amm.reserve_price()?;
+        match direction {
+            PositionDirection::Long => {
+                let amm_ask = amm.ask_price(reserve_price)?;
+                if limit_price >= amm_ask {
+                    limit_price = amm_ask.safe_sub(amm.order_tick_size)?;
+                }
+            }
+            PositionDirection::Short => {
+                let amm_bid = amm.bid_price(reserve_price)?;
+                if limit_price <= amm_bid {
+                    limit_price = amm_bid.safe_add(amm.order_tick_size)?;
+                }
+            }
+        }
     }
+
+    Ok(limit_price)
 }
 
 pub fn get_position_delta_for_fill(
@@ -401,6 +415,121 @@ pub fn limit_price_breaches_oracle_price_bands(
     }
 }
 
+pub fn validate_fill_price_within_price_bands(
+    fill_price: u64,
+    direction: PositionDirection,
+    oracle_price: i64,
+    oracle_twap_5min: i64,
+    margin_ratio_initial: u32,
+    oracle_twap_5min_percent_divergence: u64,
+) -> DriftResult {
+    let oracle_price = oracle_price.unsigned_abs();
+    let oracle_twap_5min = oracle_twap_5min.unsigned_abs();
+
+    let max_oracle_diff = margin_ratio_initial.cast::<u128>()?;
+    let max_oracle_twap_diff = oracle_twap_5min_percent_divergence.cast::<u128>()?; // 50%
+
+    if direction == PositionDirection::Long {
+        if fill_price < oracle_price && fill_price < oracle_twap_5min {
+            return Ok(());
+        }
+
+        let percent_diff: u128 = fill_price
+            .saturating_sub(oracle_price)
+            .cast::<u128>()?
+            .safe_mul(MARGIN_PRECISION_U128)?
+            .safe_div(oracle_price.cast()?)?;
+
+        validate!(
+            percent_diff < max_oracle_diff,
+            ErrorCode::PriceBandsBreached,
+            "Fill Price Breaches Oracle Price Bands: {} % <= {} % (fill: {} >= oracle: {})",
+            max_oracle_diff,
+            percent_diff,
+            fill_price,
+            oracle_price
+        )?;
+
+        let percent_diff = fill_price
+            .saturating_sub(oracle_twap_5min)
+            .cast::<u128>()?
+            .safe_mul(PERCENTAGE_PRECISION)?
+            .safe_div(oracle_twap_5min.cast()?)?;
+
+        validate!(
+            percent_diff < max_oracle_twap_diff,
+            ErrorCode::PriceBandsBreached,
+            "Fill Price Breaches Oracle TWAP Price Bands:  {} % <= {} % (fill: {} >= twap: {})",
+            max_oracle_twap_diff,
+            percent_diff,
+            fill_price,
+            oracle_twap_5min
+        )?;
+    } else {
+        if fill_price > oracle_price && fill_price > oracle_twap_5min {
+            return Ok(());
+        }
+
+        let percent_diff: u128 = oracle_price
+            .saturating_sub(fill_price)
+            .cast::<u128>()?
+            .safe_mul(MARGIN_PRECISION_U128)?
+            .safe_div(oracle_price.cast()?)?;
+
+        validate!(
+            percent_diff < max_oracle_diff,
+            ErrorCode::PriceBandsBreached,
+            "Fill Price Breaches Oracle Price Bands: {} % <= {} % (fill: {} <= oracle: {})",
+            max_oracle_diff,
+            percent_diff,
+            fill_price,
+            oracle_price
+        )?;
+
+        let percent_diff = oracle_twap_5min
+            .saturating_sub(fill_price)
+            .cast::<u128>()?
+            .safe_mul(PERCENTAGE_PRECISION)?
+            .safe_div(oracle_twap_5min.cast()?)?;
+
+        validate!(
+            percent_diff < max_oracle_twap_diff,
+            ErrorCode::PriceBandsBreached,
+            "Fill Price Breaches Oracle TWAP Price Bands:  {} % <= {} % (fill: {} <= twap: {})",
+            max_oracle_twap_diff,
+            percent_diff,
+            fill_price,
+            oracle_twap_5min
+        )?;
+    }
+
+    Ok(())
+}
+
+pub fn is_oracle_too_divergent_with_twap_5min(
+    oracle_price: i64,
+    oracle_twap_5min: i64,
+    max_divergence: i64,
+) -> DriftResult<bool> {
+    let percent_diff = oracle_price
+        .safe_sub(oracle_twap_5min)?
+        .abs()
+        .safe_mul(PERCENTAGE_PRECISION_U64.cast::<i64>()?)?
+        .safe_div(oracle_twap_5min.abs())?;
+
+    let too_divergent = percent_diff >= max_divergence;
+    if too_divergent {
+        msg!("max divergence {}", max_divergence);
+        msg!(
+            "Oracle Price Too Divergent from TWAP 5min. oracle: {} twap: {}",
+            oracle_price,
+            oracle_twap_5min
+        );
+    }
+
+    Ok(too_divergent)
+}
+
 pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> DriftResult<bool> {
     match order.trigger_condition {
         OrderTriggerCondition::Above => Ok(oracle_price > order.trigger_price),
@@ -502,11 +631,11 @@ pub fn validate_fill_price(
         quote_asset_amount
     };
 
-    let fill_price = rounded_quote_asset_amount
-        .cast::<u128>()?
-        .safe_mul(base_precision as u128)?
-        .safe_div(base_asset_amount.cast()?)?
-        .cast::<u64>()?;
+    let fill_price = calculate_fill_price(
+        rounded_quote_asset_amount,
+        base_asset_amount,
+        base_precision,
+    )?;
 
     if order_direction == PositionDirection::Long && fill_price > order_limit_price {
         msg!(
@@ -533,6 +662,18 @@ pub fn validate_fill_price(
     }
 
     Ok(())
+}
+
+pub fn calculate_fill_price(
+    quote_asset_amount: u64,
+    base_asset_amount: u64,
+    base_precision: u64,
+) -> DriftResult<u64> {
+    quote_asset_amount
+        .cast::<u128>()?
+        .safe_mul(base_precision as u128)?
+        .safe_div(base_asset_amount.cast()?)?
+        .cast::<u64>()
 }
 
 pub fn get_fallback_price(
@@ -580,7 +721,7 @@ pub fn get_max_fill_amounts(
 fn get_max_fill_amounts_for_market(user: &User, market: &SpotMarket) -> DriftResult<u128> {
     let position_index = user.get_spot_position_index(market.market_index)?;
     let token_amount = user.spot_positions[position_index].get_signed_token_amount(market)?;
-    get_max_withdraw_for_market_with_token_amount(market, token_amount)
+    get_max_withdraw_for_market_with_token_amount(market, token_amount, false)
 }
 
 pub fn find_fallback_maker_order(

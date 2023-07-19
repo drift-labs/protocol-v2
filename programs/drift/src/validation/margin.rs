@@ -100,6 +100,14 @@ pub fn validate_margin_weights(
         )?;
 
         validate!(
+            initial_asset_weight + initial_liability_weight == SPOT_WEIGHT_PRECISION * 2,
+            ErrorCode::InvalidSpotMarketInitialization,
+            "initial_asset_weight + initial_liability_weight must be 2. initial_asset_weight={}, initial_liability_weight={}",
+            initial_asset_weight,
+            initial_liability_weight
+        )?;
+
+        validate!(
             initial_liability_weight >= maintenance_liability_weight
                 && maintenance_liability_weight > SPOT_WEIGHT_PRECISION,
             ErrorCode::InvalidSpotMarketInitialization,

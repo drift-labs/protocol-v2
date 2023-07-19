@@ -52,8 +52,8 @@ pub fn update_amm_test() {
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
+                mark_oracle_percent_divergence: 1,
+                oracle_twap_5min_percent_divergence: 10,
             },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,     // 5s
@@ -194,8 +194,8 @@ pub fn update_amm_test_bad_oracle() {
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
+                mark_oracle_percent_divergence: 1,
+                oracle_twap_5min_percent_divergence: 10,
             },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,      // 5s
@@ -240,8 +240,8 @@ pub fn update_amm_larg_conf_test() {
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
+                mark_oracle_percent_divergence: 1,
+                oracle_twap_5min_percent_divergence: 10,
             },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,      // 5s
@@ -371,8 +371,8 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1,
-                mark_oracle_divergence_denominator: 10,
+                mark_oracle_percent_divergence: 1,
+                oracle_twap_5min_percent_divergence: 10,
             },
             validity: ValidityGuardRails {
                 slots_before_stale_for_amm: 10,      // 5s

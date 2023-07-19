@@ -7,6 +7,7 @@ import {
 	ONE,
 	ZERO,
 	FIVE_MINUTE,
+	PERCENTAGE_PRECISION,
 } from '../constants/numericConstants';
 import { BN, HistoricalOracleData, PerpMarketAccount } from '../index';
 import { assert } from '../assert/assert';
@@ -78,13 +79,12 @@ export function isOracleTooDivergent(
 	const oracleSpread = oracleTwap5min.sub(oraclePriceData.price);
 	const oracleSpreadPct = oracleSpread.mul(PRICE_PRECISION).div(oracleTwap5min);
 
-	const tooDivergent = oracleSpreadPct
-		.abs()
-		.gte(
-			BID_ASK_SPREAD_PRECISION.mul(
-				oracleGuardRails.priceDivergence.markOracleDivergenceNumerator
-			).div(oracleGuardRails.priceDivergence.markOracleDivergenceDenominator)
-		);
+	const maxDivergence = BN.max(
+		oracleGuardRails.priceDivergence.markOraclePercentDivergence,
+		PERCENTAGE_PRECISION.div(new BN(10))
+	);
+
+	const tooDivergent = oracleSpreadPct.abs().gte(maxDivergence);
 
 	return tooDivergent;
 }

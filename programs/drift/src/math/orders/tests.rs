@@ -619,6 +619,7 @@ mod get_max_fill_amounts {
     fn selling_base_with_borrow_liquidity_greater_than_order() {
         let base_market = SpotMarket {
             deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 100 * SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let quote_market = SpotMarket::default_quote_market();
@@ -740,6 +741,8 @@ mod get_max_fill_amounts {
         let base_market = SpotMarket::default_base_market();
         let quote_market = SpotMarket {
             deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 100 * QUOTE_PRECISION_U64,
+
             ..SpotMarket::default_quote_market()
         };
 
@@ -2335,5 +2338,296 @@ mod calculate_max_perp_order_size {
         .unwrap();
 
         assert_eq!(max_order_size, 999999999000);
+    }
+}
+
+pub mod validate_fill_price_within_price_bands {
+    use crate::math::orders::validate_fill_price_within_price_bands;
+    use crate::{
+        PositionDirection, MARGIN_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION_I64,
+        PRICE_PRECISION_U64,
+    };
+
+    #[test]
+    fn valid_long() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        let fill_price = 105 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Long;
+        let margin_ratio_initial = MARGIN_PRECISION / 10;
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_ok())
+    }
+
+    #[test]
+    fn valid_short() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        let fill_price = 95 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Short;
+        let margin_ratio_initial = MARGIN_PRECISION / 10;
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_ok())
+    }
+
+    #[test]
+    fn invalid_long_breaches_oracle() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        // 11% greater than oracle price
+        let fill_price = 111 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Long;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn invalid_short_breaches_oracle() {
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let twap = oracle_price;
+        // 11% less than oracle price
+        let fill_price = 89 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Short;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn invalid_long_breaches_oracle_twap() {
+        let oracle_price = 150 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        // 50% greater than twap
+        let fill_price = 150 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Long;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn invalid_short_breaches_oracle_twap() {
+        let oracle_price = 50 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        // 50% less than twap
+        let fill_price = 50 * PRICE_PRECISION_U64;
+        let direction = PositionDirection::Short;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+        )
+        .is_err())
+    }
+}
+
+pub mod is_oracle_too_divergent_with_twap_5min {
+    use crate::math::orders::is_oracle_too_divergent_with_twap_5min;
+    use crate::{PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64};
+
+    #[test]
+    pub fn valid_above() {
+        let oracle_price = 149 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
+
+        assert!(
+            !is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap()
+        )
+    }
+
+    #[test]
+    pub fn invalid_above() {
+        let oracle_price = 151 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
+
+        assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap())
+    }
+
+    #[test]
+    pub fn valid_below() {
+        let oracle_price = 51 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
+
+        assert!(
+            !is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap()
+        )
+    }
+
+    #[test]
+    pub fn invalid_below() {
+        let oracle_price = 49 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
+
+        assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap())
+    }
+}
+
+pub mod get_price_for_perp_order {
+    use crate::math::orders::get_price_for_perp_order;
+
+    use crate::state::perp_market::AMM;
+    use crate::{PositionDirection, PostOnlyParam, BID_ASK_SPREAD_PRECISION_U128};
+    use crate::{AMM_RESERVE_PRECISION, PEG_PRECISION};
+
+    #[test]
+    fn bid_crosses_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            short_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_bid_price = amm.bid_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_bid_price, 99000000); // $99
+
+        let ask = 98900000; // $98.9
+        let direction = PositionDirection::Short;
+
+        let limit_price =
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 99100000); // $99.1
+
+        let ask = amm_bid_price;
+        let limit_price =
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 99100000); // $99.1
+    }
+
+    #[test]
+    fn bid_doesnt_cross_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            short_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_bid_price = amm.bid_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_bid_price, 99000000); // $99
+
+        let ask = 99900000; // $99.9
+        let direction = PositionDirection::Short;
+
+        let limit_price =
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, ask); // $99.1
+    }
+
+    #[test]
+    fn ask_crosses_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            long_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_ask_price = amm.ask_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_ask_price, 101000000); // $101
+
+        let bid = 101100000; // $101.1
+        let direction = PositionDirection::Long;
+
+        let limit_price =
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 100900000); // $100.9
+
+        let bid = amm_ask_price;
+        let limit_price =
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 100900000); // $100.9
+    }
+
+    #[test]
+    fn ask_doesnt_cross_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            long_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_ask_price = amm.ask_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_ask_price, 101000000); // $101
+
+        let bid = 100100000; // $100.1
+        let direction = PositionDirection::Long;
+
+        let limit_price =
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, bid); // $100.1
     }
 }

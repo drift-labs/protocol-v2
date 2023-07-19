@@ -85,7 +85,7 @@ describe('serum spot market', () => {
 			solAmount
 		);
 
-		solOracle = await mockOracle(30);
+		solOracle = await mockOracle(100);
 
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1];
