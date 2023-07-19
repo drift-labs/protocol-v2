@@ -477,7 +477,7 @@ export class User {
 			const oraclePriceData = this.driftClient.getOracleDataForPerpMarket(
 				position.marketIndex
 			);
-			dustBaseAssetValue = BN.abs(position.remainderBaseAssetAmount)
+			dustBaseAssetValue = new BN(Math.abs(position.remainderBaseAssetAmount))
 				.mul(oraclePriceData.price)
 				.div(AMM_RESERVE_PRECISION)
 				.add(ONE);
