@@ -4,10 +4,107 @@ import {
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
 	ZERO,
+	ONE,
 } from '../constants/numericConstants';
 import { PerpMarketAccount, isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import { calculateBidAskPrice } from './amm';
+import { calculateLiveOracleTwap } from './oracles';
+
+function calculateLiveMarkTwap(
+	market: PerpMarketAccount,
+	oraclePriceData?: OraclePriceData,
+	markPrice?: BN,
+	now?: BN,
+	period = new BN(3600)
+): BN {
+	now = now || new BN((Date.now() / 1000).toFixed(0));
+
+	const lastMarkTwapWithMantissa = market.amm.lastMarkPriceTwap;
+	const lastMarkPriceTwapTs = market.amm.lastMarkPriceTwapTs;
+
+	const timeSinceLastMarkChange = now.sub(lastMarkPriceTwapTs);
+	const markTwapTimeSinceLastUpdate = BN.max(
+		period,
+		BN.max(ZERO, period.sub(timeSinceLastMarkChange))
+	);
+
+	if (!markPrice) {
+		const [bid, ask] = calculateBidAskPrice(market.amm, oraclePriceData);
+		markPrice = bid.add(ask).div(new BN(2));
+	}
+
+	const markTwapWithMantissa = markTwapTimeSinceLastUpdate
+		.mul(lastMarkTwapWithMantissa)
+		.add(timeSinceLastMarkChange.mul(markPrice))
+		.div(timeSinceLastMarkChange.add(markTwapTimeSinceLastUpdate));
+
+	return markTwapWithMantissa;
+}
+
+function shrinkStaleTwaps(
+	market: PerpMarketAccount,
+	markTwapWithMantissa: BN,
+	oracleTwapWithMantissa: BN,
+	now?: BN
+) {
+	now = now || new BN((Date.now() / 1000).toFixed(0));
+	let newMarkTwap = markTwapWithMantissa;
+	let newOracleTwap = oracleTwapWithMantissa;
+	if (
+		market.amm.lastMarkPriceTwapTs.gt(
+			market.amm.historicalOracleData.lastOraclePriceTwapTs
+		)
+	) {
+		// shrink oracle based on invalid intervals
+		const oracleInvalidDuration = BN.max(
+			ZERO,
+			market.amm.lastMarkPriceTwapTs.sub(
+				market.amm.historicalOracleData.lastOraclePriceTwapTs
+			)
+		);
+		const timeSinceLastOracleTwapUpdate = now.sub(
+			market.amm.historicalOracleData.lastOraclePriceTwapTs
+		);
+		const oracleTwapTimeSinceLastUpdate = BN.max(
+			ONE,
+			BN.min(
+				market.amm.fundingPeriod,
+				BN.max(ONE, market.amm.fundingPeriod.sub(timeSinceLastOracleTwapUpdate))
+			)
+		);
+		newOracleTwap = oracleTwapTimeSinceLastUpdate
+			.mul(oracleTwapWithMantissa)
+			.add(oracleInvalidDuration.mul(markTwapWithMantissa))
+			.div(oracleTwapTimeSinceLastUpdate.add(oracleInvalidDuration));
+	} else if (
+		market.amm.lastMarkPriceTwapTs.lt(
+			market.amm.historicalOracleData.lastOraclePriceTwapTs
+		)
+	) {
+		// shrink mark to oracle twap over tradless intervals
+		const tradelessDuration = BN.max(
+			ZERO,
+			market.amm.historicalOracleData.lastOraclePriceTwapTs.sub(
+				market.amm.lastMarkPriceTwapTs
+			)
+		);
+		const timeSinceLastMarkTwapUpdate = now.sub(market.amm.lastMarkPriceTwapTs);
+		const markTwapTimeSinceLastUpdate = BN.max(
+			ONE,
+			BN.min(
+				market.amm.fundingPeriod,
+				BN.max(ONE, market.amm.fundingPeriod.sub(timeSinceLastMarkTwapUpdate))
+			)
+		);
+		newMarkTwap = markTwapTimeSinceLastUpdate
+			.mul(markTwapWithMantissa)
+			.add(tradelessDuration.mul(oracleTwapWithMantissa))
+			.div(markTwapTimeSinceLastUpdate.add(tradelessDuration));
+	}
+
+	return [newMarkTwap, newOracleTwap];
+}
 
 /**
  *
@@ -19,110 +116,65 @@ import { calculateBidAskPrice } from './amm';
 export async function calculateAllEstimatedFundingRate(
 	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
-	periodAdjustment: BN = new BN(1),
+	markPrice?: BN,
 	now?: BN
 ): Promise<[BN, BN, BN, BN, BN]> {
-	// periodAdjustment
-	// 	1: hourly
-	//  24: daily
-	//  24 * 365.25: annualized
-	const secondsInHour = new BN(3600);
-	const hoursInDay = new BN(24);
-	const ONE = new BN(1);
-
 	if (isVariant(market.status, 'uninitialized')) {
 		return [ZERO, ZERO, ZERO, ZERO, ZERO];
 	}
 
-	const payFreq = new BN(market.amm.fundingPeriod);
-
 	// todo: sufficiently differs from blockchain timestamp?
 	now = now || new BN((Date.now() / 1000).toFixed(0));
-	const timeSinceLastUpdate = now.sub(market.amm.lastFundingRateTs);
 
-	// calculate real-time mark twap
-	const lastMarkTwapWithMantissa = market.amm.lastMarkPriceTwap;
-	const lastMarkPriceTwapTs = market.amm.lastMarkPriceTwapTs;
-
-	const timeSinceLastMarkChange = now.sub(lastMarkPriceTwapTs);
-	const markTwapTimeSinceLastUpdate = BN.max(
-		secondsInHour,
-		BN.max(ZERO, secondsInHour.sub(timeSinceLastMarkChange))
+	// calculate real-time mark and oracle twap
+	const liveMarkTwap = calculateLiveMarkTwap(
+		market,
+		oraclePriceData,
+		markPrice,
+		now,
+		market.amm.fundingPeriod
 	);
-	const [bid, ask] = calculateBidAskPrice(market.amm, oraclePriceData);
-	const baseAssetPriceWithMantissa = bid.add(ask).div(new BN(2));
-
-	const markTwapWithMantissa = markTwapTimeSinceLastUpdate
-		.mul(lastMarkTwapWithMantissa)
-		.add(timeSinceLastMarkChange.mul(baseAssetPriceWithMantissa))
-		.div(timeSinceLastMarkChange.add(markTwapTimeSinceLastUpdate));
-
-	// calculate real-time (predicted) oracle twap
-	// note: oracle twap depends on `when the chord is struck` (market is trade)
-	const lastOracleTwapWithMantissa =
-		market.amm.historicalOracleData.lastOraclePriceTwap;
-	const lastOraclePriceTwapTs =
-		market.amm.historicalOracleData.lastOraclePriceTwapTs;
-
-	const oracleInvalidDuration = BN.max(
-		ZERO,
-		lastMarkPriceTwapTs.sub(lastOraclePriceTwapTs)
+	const liveOracleTwap = calculateLiveOracleTwap(
+		market.amm.historicalOracleData,
+		oraclePriceData,
+		now,
+		market.amm.fundingPeriod
+	);
+	const [markTwap, oracleTwap] = shrinkStaleTwaps(
+		market,
+		liveMarkTwap,
+		liveOracleTwap,
+		now
 	);
 
-	const timeSinceLastOracleTwapUpdate = now.sub(lastOraclePriceTwapTs);
-	const oracleTwapTimeSinceLastUpdate = BN.max(
-		ONE,
-		BN.min(
-			secondsInHour,
-			BN.max(ONE, secondsInHour.sub(timeSinceLastOracleTwapUpdate))
-		)
-	);
-	let oracleTwapWithMantissa = lastOracleTwapWithMantissa;
+	// if(!markTwap.eq(liveMarkTwap)){
+	// 	console.log('shrink mark:', liveMarkTwap.toString(), '->', markTwap.toString());
+	// }
 
-	// if passing live oracle data, improve predicted calc estimate
-	if (oraclePriceData) {
-		const oraclePrice = oraclePriceData.price;
+	// if(!oracleTwap.eq(liveOracleTwap)){
+	// 	console.log('shrink orac:', liveOracleTwap.toString(), '->', oracleTwap.toString());
+	// }
 
-		const oracleLiveVsTwap = oraclePrice
-			.sub(lastOracleTwapWithMantissa)
-			.abs()
-			.mul(PRICE_PRECISION)
-			.mul(new BN(100))
-			.div(lastOracleTwapWithMantissa);
-
-		// verify pyth live input is within 20% of last twap for live update
-		if (oracleLiveVsTwap.lte(PRICE_PRECISION.mul(new BN(20)))) {
-			oracleTwapWithMantissa = oracleTwapTimeSinceLastUpdate
-				.mul(lastOracleTwapWithMantissa)
-				.add(timeSinceLastMarkChange.mul(oraclePrice))
-				.div(timeSinceLastMarkChange.add(oracleTwapTimeSinceLastUpdate));
-		}
-	}
-
-	const shrunkLastOracleTwapwithMantissa = oracleTwapTimeSinceLastUpdate
-		.mul(oracleTwapWithMantissa)
-		.add(oracleInvalidDuration.mul(lastMarkTwapWithMantissa))
-		.div(oracleTwapTimeSinceLastUpdate.add(oracleInvalidDuration));
-
-	const twapSpread = markTwapWithMantissa.sub(shrunkLastOracleTwapwithMantissa);
-
+	const twapSpread = markTwap.sub(oracleTwap);
 	const twapSpreadPct = twapSpread
 		.mul(PRICE_PRECISION)
 		.mul(new BN(100))
-		.div(shrunkLastOracleTwapwithMantissa);
+		.div(oracleTwap);
+
+	const secondsInHour = new BN(3600);
+	const hoursInDay = new BN(24);
+	const timeSinceLastUpdate = now.sub(market.amm.lastFundingRateTs);
 
 	const lowerboundEst = twapSpreadPct
-		.mul(payFreq)
+		.mul(market.amm.fundingPeriod)
 		.mul(BN.min(secondsInHour, timeSinceLastUpdate))
-		.mul(periodAdjustment)
 		.div(secondsInHour)
 		.div(secondsInHour)
 		.div(hoursInDay);
 
-	const interpEst = twapSpreadPct.mul(periodAdjustment).div(hoursInDay);
+	const interpEst = twapSpreadPct.div(hoursInDay);
 
 	const interpRateQuote = twapSpreadPct
-		.mul(periodAdjustment)
 		.div(hoursInDay)
 		.div(PRICE_PRECISION.div(QUOTE_PRECISION));
 
@@ -140,13 +192,7 @@ export async function calculateAllEstimatedFundingRate(
 		largerSide = market.amm.baseAssetAmountLong.abs();
 		smallerSide = market.amm.baseAssetAmountShort.abs();
 		if (twapSpread.gt(new BN(0))) {
-			return [
-				markTwapWithMantissa,
-				oracleTwapWithMantissa,
-				lowerboundEst,
-				interpEst,
-				interpEst,
-			];
+			return [markTwap, oracleTwap, lowerboundEst, interpEst, interpEst];
 		}
 	} else if (
 		market.amm.baseAssetAmountLong.lt(market.amm.baseAssetAmountShort.abs())
@@ -154,22 +200,10 @@ export async function calculateAllEstimatedFundingRate(
 		largerSide = market.amm.baseAssetAmountShort.abs();
 		smallerSide = market.amm.baseAssetAmountLong.abs();
 		if (twapSpread.lt(new BN(0))) {
-			return [
-				markTwapWithMantissa,
-				oracleTwapWithMantissa,
-				lowerboundEst,
-				interpEst,
-				interpEst,
-			];
+			return [markTwap, oracleTwap, lowerboundEst, interpEst, interpEst];
 		}
 	} else {
-		return [
-			markTwapWithMantissa,
-			oracleTwapWithMantissa,
-			lowerboundEst,
-			interpEst,
-			interpEst,
-		];
+		return [markTwap, oracleTwap, lowerboundEst, interpEst, interpEst];
 	}
 
 	if (largerSide.gt(ZERO)) {
@@ -183,8 +217,7 @@ export async function calculateAllEstimatedFundingRate(
 		cappedAltEst = cappedAltEst
 			.mul(PRICE_PRECISION)
 			.mul(new BN(100))
-			.div(oracleTwapWithMantissa)
-			.mul(periodAdjustment);
+			.div(oracleTwap);
 
 		if (cappedAltEst.abs().gte(interpEst.abs())) {
 			cappedAltEst = interpEst;
@@ -193,44 +226,7 @@ export async function calculateAllEstimatedFundingRate(
 		cappedAltEst = interpEst;
 	}
 
-	return [
-		markTwapWithMantissa,
-		oracleTwapWithMantissa,
-		lowerboundEst,
-		cappedAltEst,
-		interpEst,
-	];
-}
-
-/**
- *
- * @param market
- * @param oraclePriceData
- * @param periodAdjustment
- * @param estimationMethod
- * @returns Estimated funding rate. : Precision //TODO-PRECISION
- */
-export async function calculateEstimatedFundingRate(
-	market: PerpMarketAccount,
-	oraclePriceData?: OraclePriceData,
-	periodAdjustment: BN = new BN(1),
-	estimationMethod?: 'interpolated' | 'lowerbound' | 'capped'
-): Promise<BN> {
-	const [_1, _2, lowerboundEst, cappedAltEst, interpEst] =
-		await calculateAllEstimatedFundingRate(
-			market,
-			oraclePriceData,
-			periodAdjustment
-		);
-
-	if (estimationMethod == 'lowerbound') {
-		//assuming remaining funding period has no gap
-		return lowerboundEst;
-	} else if (estimationMethod == 'capped') {
-		return cappedAltEst;
-	} else {
-		return interpEst;
-	}
+	return [markTwap, oracleTwap, lowerboundEst, cappedAltEst, interpEst];
 }
 
 /**
@@ -243,13 +239,15 @@ export async function calculateEstimatedFundingRate(
 export async function calculateLongShortFundingRate(
 	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
-	periodAdjustment: BN = new BN(1)
+	markPrice?: BN,
+	now?: BN
 ): Promise<[BN, BN]> {
 	const [_1, _2, _, cappedAltEst, interpEst] =
 		await calculateAllEstimatedFundingRate(
 			market,
 			oraclePriceData,
-			periodAdjustment
+			markPrice,
+			now
 		);
 
 	if (market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort)) {
@@ -273,13 +271,15 @@ export async function calculateLongShortFundingRate(
 export async function calculateLongShortFundingRateAndLiveTwaps(
 	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
-	periodAdjustment: BN = new BN(1)
+	markPrice?: BN,
+	now?: BN
 ): Promise<[BN, BN, BN, BN]> {
 	const [markTwapLive, oracleTwapLive, _2, cappedAltEst, interpEst] =
 		await calculateAllEstimatedFundingRate(
 			market,
 			oraclePriceData,
-			periodAdjustment
+			markPrice,
+			now
 		);
 
 	if (
