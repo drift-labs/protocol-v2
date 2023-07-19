@@ -931,12 +931,22 @@ export class DLOB {
 
 		// All bids/asks that can expire
 		// dont try to expire limit orders with tif as its inefficient use of blockspace
-		const bidGenerators = [nodeLists.market.bid.getGenerator()];
-		const askGenerators = [nodeLists.market.ask.getGenerator()];
+		const bidGenerators = [
+			nodeLists.takingLimit.bid.getGenerator(),
+			nodeLists.restingLimit.bid.getGenerator(),
+			nodeLists.floatingLimit.bid.getGenerator(),
+			nodeLists.market.bid.getGenerator(),
+		];
+		const askGenerators = [
+			nodeLists.takingLimit.ask.getGenerator(),
+			nodeLists.restingLimit.ask.getGenerator(),
+			nodeLists.floatingLimit.ask.getGenerator(),
+			nodeLists.market.ask.getGenerator(),
+		];
 
 		for (const bidGenerator of bidGenerators) {
 			for (const bid of bidGenerator) {
-				if (isOrderExpired(bid.order, ts)) {
+				if (isOrderExpired(bid.order, ts, true)) {
 					nodesToFill.push({
 						node: bid,
 						makerNodes: [],
@@ -947,7 +957,7 @@ export class DLOB {
 
 		for (const askGenerator of askGenerators) {
 			for (const ask of askGenerator) {
-				if (isOrderExpired(ask.order, ts)) {
+				if (isOrderExpired(ask.order, ts, true)) {
 					nodesToFill.push({
 						node: ask,
 						makerNodes: [],
