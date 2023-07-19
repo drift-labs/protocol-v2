@@ -5,14 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-### Breaking
-
 ## [Unreleased]
 
 ### Features
+
 ### Fixes
-- program: if taker increases free colalteral, check maintenance health ([#538](https://github.com/drift-labs/protocol-v2/pull/345))
-- program: improve bid/ask twap update for infrequent trading ([#529](https://github.com/drift-labs/protocol-v2/pull/345))
+
+- ts-sdk: fix abs for dustBaseAssetValue in getPerpPositionWithLPSettle (#543)
+
+### Breaking
+
+- ts-sdk: account for lp shares in liq price ([#522](https://github.com/drift-labs/protocol-v2/pull/522))
+- ts-sdk: getPerpPositionWithLPSettle has flag to account for burn lp share ([#522](https://github.com/drift-labs/protocol-v2/pull/522))
+
+## [2.35.0] - 2023-07-18
+
+### Features
+
+- program: add cancel orders by ids ([#540](https://github.com/drift-labs/protocol-v2/pull/540))
+- program: add post only slide for perps ([#541](https://github.com/drift-labs/protocol-v2/pull/541))
+- program: allow up to 10000 users
+
+### Fixes
+- program: if taker increases free colalteral, check maintenance health ([#538](https://github.com/drift-labs/protocol-v2/pull/538))
+- program: improve bid/ask twap update for infrequent trading ([#529](https://github.com/drift-labs/protocol-v2/pull/529))
 - sdk: simplify, mirror contract, and write tests for predicting funding rate function ([#529](https://github.com/drift-labs/protocol-v2/pull/529))
 
 ### Breaking

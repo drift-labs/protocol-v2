@@ -1,5 +1,5 @@
 {
-  "version": "2.34.0",
+  "version": "2.35.0",
   "name": "drift",
   "instructions": [
     {
@@ -424,6 +424,34 @@
             "option": {
               "defined": "PositionDirection"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "cancelOrdersByIds",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "orderIds",
+          "type": {
+            "vec": "u32"
           }
         }
       ]
