@@ -19,6 +19,11 @@ import {
 	OracleInfo,
 	getTokenAmount,
 	SpotBalanceType,
+	ZERO,
+	BulkAccountLoader,
+	fetchUserStatsAccount,
+	getSerumSignerPublicKey,
+	QUOTE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -33,14 +38,6 @@ import {
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
-import {
-	BulkAccountLoader,
-	fetchUserStatsAccount,
-	getSerumSignerPublicKey,
-	QUOTE_PRECISION,
-} from '../sdk';
-import { ZERO } from '@drift-labs/sdk';
-
 describe('spot swap', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		commitment: 'confirmed',

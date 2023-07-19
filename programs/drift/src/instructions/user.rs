@@ -1863,6 +1863,11 @@ pub fn handle_deposit_into_spot_market_revenue_pool(
     )?;
 
     spot_market.validate_max_token_deposits()?;
+    ctx.accounts.spot_market_vault.reload()?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
 
     Ok(())
 }
@@ -1974,7 +1979,6 @@ pub struct Deposit<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u16,)]
 pub struct RevenuePoolDeposit<'info> {
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
@@ -1983,7 +1987,7 @@ pub struct RevenuePoolDeposit<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
-        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        seeds = [b"spot_market_vault".as_ref(), spot_market.load()?.market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub spot_market_vault: Box<Account<'info, TokenAccount>>,
