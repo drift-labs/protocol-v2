@@ -4239,12 +4239,14 @@ pub fn fulfill_spot_order_with_external_market(
         "Fill on external spot market lead to unexpected to update direction"
     )?;
 
+    let base_update_direction =
+        taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base);
     update_spot_balances_and_cumulative_deposits(
         base_asset_amount_filled.cast()?,
-        &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
+        &base_update_direction,
         base_market,
         taker.force_get_spot_position_mut(base_market.market_index)?,
-        false,
+        base_update_direction == SpotBalanceType::Borrow,
         None,
     )?;
 
@@ -4255,12 +4257,14 @@ pub fn fulfill_spot_order_with_external_market(
         "Fill on external market lead to unexpected to update direction"
     )?;
 
+    let quote_update_direction =
+        taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote);
     update_spot_balances_and_cumulative_deposits(
         quote_spot_position_delta.cast()?,
-        &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
+        &quote_update_direction,
         quote_market,
         taker.get_quote_spot_position_mut(),
-        false,
+        quote_update_direction == SpotBalanceType::Borrow,
         Some(quote_asset_amount_filled.cast()?),
     )?;
 
