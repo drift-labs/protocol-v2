@@ -1,5 +1,5 @@
 use crate::error::{DriftResult, ErrorCode};
-use crate::ids::{bonk_oracle, pepe_oracle, pyth_program, usdc_oracle};
+use crate::ids::{bonk_oracle, pepe_oracle, pyth_program, usdc_oracle, usdt_oracle_mainnet};
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
@@ -168,7 +168,7 @@ impl<'a> OracleMap<'a> {
 
                 let oracle_source = if pubkey == bonk_oracle::id() || pubkey == pepe_oracle::id() {
                     OracleSource::Pyth1M
-                } else if pubkey == usdc_oracle::id() {
+                } else if pubkey == usdc_oracle::id() || pubkey == usdt_oracle_mainnet::id() {
                     OracleSource::PythStableCoin
                 } else {
                     OracleSource::Pyth
@@ -219,7 +219,7 @@ impl<'a> OracleMap<'a> {
             let pubkey = account_info.key();
             let oracle_source = if pubkey == bonk_oracle::id() || pubkey == pepe_oracle::id() {
                 OracleSource::Pyth1M
-            } else if pubkey == usdc_oracle::id() {
+            } else if pubkey == usdc_oracle::id() || pubkey == usdt_oracle_mainnet::id() {
                 OracleSource::PythStableCoin
             } else {
                 OracleSource::Pyth

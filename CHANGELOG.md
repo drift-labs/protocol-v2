@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: usdt oracle uses pyth stablecoin oracle source
+
 ### Fixes
 
 - ts-sdk: fix abs for dustBaseAssetValue in getPerpPositionWithLPSettle (#543)
