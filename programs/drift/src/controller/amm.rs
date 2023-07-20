@@ -497,6 +497,14 @@ pub fn update_pool_balances(
 
     let mut fraction_for_amm = 100;
 
+    let pnl_pool_token_amount1 = get_token_amount(
+        market.pnl_pool.scaled_balance,
+        spot_market,
+        market.pnl_pool.balance_type(),
+    )?
+    .cast()?;
+    crate::dlog!(pnl_pool_token_amount1);
+
     let amm_target_max_fee_pool_token_amount = market
         .amm
         .total_fee_minus_distributions
@@ -519,6 +527,13 @@ pub fn update_pool_balances(
 
         fraction_for_amm = 0;
     }
+
+    let pnl_pool_token_amount2 = get_token_amount(
+        market.pnl_pool.scaled_balance,
+        spot_market,
+        market.pnl_pool.balance_type(),
+    )?;
+    crate::dlog!(pnl_pool_token_amount2);
 
     {
         let amm_target_min_fee_pool_token_amount = get_total_fee_lower_bound(market)?
@@ -621,6 +636,14 @@ pub fn update_pool_balances(
         }
     }
 
+    let pnl_pool_token_amount3 = get_token_amount(
+        market.pnl_pool.scaled_balance,
+        spot_market,
+        market.pnl_pool.balance_type(),
+    )?
+    .cast()?;
+    crate::dlog!(pnl_pool_token_amount3);
+
     // market pnl pool pays (what it can to) user_unsettled_pnl and pnl_to_settle_to_amm
     let pnl_pool_token_amount = get_token_amount(
         market.pnl_pool.balance(),
@@ -641,6 +664,8 @@ pub fn update_pool_balances(
         crate::dlog!(max_withdraw_amount, token_amount);
         max_withdraw_amount.max(user_unsettled_pnl)
     };
+    msg!("hihi doing pnl_to_settle_with_user");
+    crate::dlog!(pnl_to_settle_with_user, user_unsettled_pnl, pnl_pool_token_amount);
 
     let pnl_fraction_for_amm = if fraction_for_amm > 0 && pnl_to_settle_with_user < 0 {
         let pnl_fraction_for_amm = pnl_to_settle_with_user.safe_div(fraction_for_amm)?;

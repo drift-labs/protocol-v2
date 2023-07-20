@@ -622,7 +622,7 @@ describe('test function when spot market at >= 100% util', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 			price: new BN(34).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(31).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(30.01 * PRICE_PRECISION.toNumber()),
 			auctionEndPrice: new BN(32).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
@@ -649,7 +649,7 @@ describe('test function when spot market at >= 100% util', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(31).mul(PRICE_PRECISION),
+			price: new BN(30.001 * PRICE_PRECISION.toNumber()),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
@@ -690,9 +690,18 @@ describe('test function when spot market at >= 100% util', () => {
 		assert(takerPos2.baseAssetAmount.gt(ZERO));
 
 		//ensure that borrow cant borrow more to settle pnl
-		await setFeedPrice(anchor.workspace.Pyth, 31, solOracle);
+		console.log('set pyth price to 32.99');
+		await setFeedPrice(anchor.workspace.Pyth, 32.99, solOracle);
 		await firstUserDriftClient.fetchAccounts();
 		await secondUserDriftClient.fetchAccounts();
+
+		// settle losing short maker (who has usdc deposit) first
+		const settleTx2 = await firstUserDriftClient.settlePNL(
+			await secondUserDriftClient.getUserAccountPublicKey(),
+			secondUserDriftClient.getUserAccount(),
+			marketIndex
+		);
+		await printTxLogs(connection, settleTx2);
 
 		const settleTx1 = await firstUserDriftClient.settlePNL(
 			await firstUserDriftClient.getUserAccountPublicKey(),
@@ -701,15 +710,9 @@ describe('test function when spot market at >= 100% util', () => {
 		);
 		await printTxLogs(connection, settleTx1);
 
-		const settleTx2 = await firstUserDriftClient.settlePNL(
-			await secondUserDriftClient.getUserAccountPublicKey(),
-			secondUserDriftClient.getUserAccount(),
-			marketIndex
-		);
-		await printTxLogs(connection, settleTx2);
-
 		//allow that deposit to settle negative pnl for borrow
-		await setFeedPrice(anchor.workspace.Pyth, 28, solOracle);
+		console.log('set pyth price to 27.4');
+		await setFeedPrice(anchor.workspace.Pyth, 27.4, solOracle);
 		await firstUserDriftClient.fetchAccounts();
 		await secondUserDriftClient.fetchAccounts();
 

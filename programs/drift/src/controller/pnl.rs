@@ -62,7 +62,7 @@ pub fn settle_pnl(
     crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
 
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-
+    crate::dlog!(oracle_price);
     drop(market);
 
     let position_index = get_position_index(&user.perp_positions, market_index)?;

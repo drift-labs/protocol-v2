@@ -685,7 +685,7 @@ impl PerpPosition {
     pub fn get_claimable_pnl(&self, oracle_price: i64, pnl_pool_excess: i128) -> DriftResult<i128> {
         let (_, unrealized_pnl) =
             calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
-
+        crate::dlog!(unrealized_pnl);
         if unrealized_pnl > 0 {
             // this limits the amount of positive pnl that can be settled to be the amount of positive pnl
             // realized by reducing/closing position
@@ -695,6 +695,8 @@ impl PerpPosition {
                 .safe_sub(self.quote_entry_amount.cast()?)
                 .map(|delta| delta.max(0))?
                 .safe_add(pnl_pool_excess.max(0))?;
+            crate::dlog!(max_positive_pnl, self.quote_entry_amount, self
+                .quote_asset_amount);
 
             Ok(unrealized_pnl.min(max_positive_pnl))
         } else {
