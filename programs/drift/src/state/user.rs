@@ -5,11 +5,10 @@ use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PRICE_PRECISION_I128, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_SPOT_MARKET_INDEX,
-    THIRTY_DAY,
+    PRICE_PRECISION_I128, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
+    QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
-use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{standardize_base_asset_amount, standardize_price};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -573,17 +572,18 @@ impl PerpPosition {
 
     pub fn margin_requirement_for_lp_shares(
         &self,
-        margin_type: MarginRequirementType,
         order_step_size: u64,
         valuation_price: i64,
     ) -> DriftResult<u128> {
-        if !self.is_lp() || margin_type != MarginRequirementType::Initial {
+        if !self.is_lp() {
             return Ok(0);
         }
-        order_step_size
-            .cast::<u128>()?
-            .safe_mul(valuation_price.cast()?)?
-            .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
+        Ok(QUOTE_PRECISION.max(
+            order_step_size
+                .cast::<u128>()?
+                .safe_mul(valuation_price.cast()?)?
+                .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)?,
+        ))
     }
 
     pub fn margin_requirement_for_open_orders(&self) -> DriftResult<u128> {
@@ -660,7 +660,6 @@ impl PerpPosition {
             quote_asset_amount,
             open_asks,
             open_bids,
-            // remainder_base_asset_amount: new_remainder_base_asset_amount.cast()?,
             // todo double check: this is ok because no other values are used in the future computations
             ..PerpPosition::default()
         })
