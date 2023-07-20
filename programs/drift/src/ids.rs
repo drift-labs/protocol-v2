@@ -61,3 +61,8 @@ pub mod marinade_mainnet {
     use solana_program::declare_id;
     declare_id!("MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD");
 }
+
+pub mod usdt_oracle_mainnet {
+    use solana_program::declare_id;
+    declare_id!("3vxLXJqLqF3JG5TCbYycbKWRBbCJQLxQmBGCkyqEEefL");
+}
