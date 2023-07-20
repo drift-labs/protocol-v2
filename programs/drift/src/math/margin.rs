@@ -162,8 +162,13 @@ pub fn calculate_perp_position_value_and_pnl(
     };
 
     // add small margin requirement for every open order
-    margin_requirement =
-        margin_requirement.safe_add(market_position.margin_requirement_for_open_orders()?)?;
+    margin_requirement = margin_requirement
+        .safe_add(market_position.margin_requirement_for_open_orders()?)?
+        .safe_add(market_position.margin_requirement_for_lp_shares(
+            margin_requirement_type,
+            market.amm.order_step_size,
+            valuation_price,
+        )?)?;
 
     let unrealized_asset_weight =
         market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
