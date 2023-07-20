@@ -103,9 +103,7 @@ pub fn calculate_token_utilization_limits(
 
     let max_withdraw_utilization: u128 = spot_market.optimal_utilization.cast::<u128>()?.max(
         spot_market.utilization_twap.cast::<u128>()?.safe_add(
-            SPOT_UTILIZATION_PRECISION
-                .safe_sub(spot_market.utilization_twap.cast()?)?
-                .safe_div(2)?,
+            SPOT_UTILIZATION_PRECISION.saturating_sub(spot_market.utilization_twap.cast()?) / 2,
         )?,
     );
 
@@ -202,7 +200,7 @@ pub fn check_withdraw_limits(
 pub fn get_max_withdraw_for_market_with_token_amount(
     spot_market: &SpotMarket,
     token_amount: i128,
-    is_pool_transfer: bool,
+    is_leaving_drift: bool,
 ) -> DriftResult<u128> {
     let deposit_token_amount = get_token_amount(
         spot_market.deposit_balance,
@@ -216,8 +214,13 @@ pub fn get_max_withdraw_for_market_with_token_amount(
         &SpotBalanceType::Borrow,
     )?;
 
-    let (min_deposit_token_for_utilization, max_borrow_token_for_utilization) =
-        calculate_token_utilization_limits(deposit_token_amount, borrow_token_amount, spot_market)?;
+    // if leaving drift, need to consider utilization limits
+    let (min_deposit_token_for_utilization, max_borrow_token_for_utilization) = if is_leaving_drift
+    {
+        calculate_token_utilization_limits(deposit_token_amount, borrow_token_amount, spot_market)?
+    } else {
+        (0, u128::MAX)
+    };
 
     let mut max_withdraw_amount = 0_u128;
     if token_amount > 0 {
@@ -229,7 +232,7 @@ pub fn get_max_withdraw_for_market_with_token_amount(
         let withdraw_limit = deposit_token_amount.saturating_sub(min_deposit_token);
 
         let token_amount = token_amount.unsigned_abs();
-        if withdraw_limit <= token_amount && !is_pool_transfer {
+        if withdraw_limit <= token_amount && is_leaving_drift {
             return Ok(withdraw_limit);
         }
 

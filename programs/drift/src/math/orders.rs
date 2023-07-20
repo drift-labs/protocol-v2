@@ -687,16 +687,19 @@ pub fn get_max_fill_amounts(
     user_order_index: usize,
     base_market: &SpotMarket,
     quote_market: &SpotMarket,
+    is_drift_leaving: bool,
 ) -> DriftResult<(Option<u64>, Option<u64>)> {
     let direction: PositionDirection = user.orders[user_order_index].direction;
     match direction {
         PositionDirection::Long => {
-            let max_quote = get_max_fill_amounts_for_market(user, quote_market)?.cast::<u64>()?;
+            let max_quote = get_max_fill_amounts_for_market(user, quote_market, is_drift_leaving)?
+                .cast::<u64>()?;
             Ok((None, Some(max_quote)))
         }
         PositionDirection::Short => {
             let max_base = standardize_base_asset_amount(
-                get_max_fill_amounts_for_market(user, base_market)?.cast::<u64>()?,
+                get_max_fill_amounts_for_market(user, base_market, is_drift_leaving)?
+                    .cast::<u64>()?,
                 base_market.order_step_size,
             )?;
             Ok((Some(max_base), None))
@@ -704,10 +707,14 @@ pub fn get_max_fill_amounts(
     }
 }
 
-fn get_max_fill_amounts_for_market(user: &User, market: &SpotMarket) -> DriftResult<u128> {
+fn get_max_fill_amounts_for_market(
+    user: &User,
+    market: &SpotMarket,
+    is_leaving_drift: bool,
+) -> DriftResult<u128> {
     let position_index = user.get_spot_position_index(market.market_index)?;
     let token_amount = user.spot_positions[position_index].get_signed_token_amount(market)?;
-    get_max_withdraw_for_market_with_token_amount(market, token_amount, false)
+    get_max_withdraw_for_market_with_token_amount(market, token_amount, is_leaving_drift)
 }
 
 pub fn find_fallback_maker_order(
