@@ -6,6 +6,7 @@ import {
 	LAMPORTS_EXP,
 	LAMPORTS_PRECISION,
 	SIX,
+	EIGHT,
 	NINE,
 } from './numericConstants';
 
@@ -92,6 +93,36 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
 		serumMarket: new PublicKey('9Lyhks5bQQxb9EyyX55NtgKQzpM4WK7JCmeaWuQ5MoXD'),
+	},
+	{
+		symbol: 'wBTC',
+		marketIndex: 3,
+		oracle: new PublicKey('GVXRSBjFk6e6J3NbVPXohDJetcTjaeeuykUpbQF8UoMU'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh'),
+		precision: new BN(10).pow(EIGHT),
+		precisionExp: EIGHT,
+		serumMarket: new PublicKey('3BAKsQd3RuhZKES2DGysMhjBdwjZYKYmxRqnSMtZ4KSN'),
+	},
+	{
+		symbol: 'wETH',
+		marketIndex: 4,
+		oracle: new PublicKey('JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs'),
+		precision: new BN(10).pow(EIGHT),
+		precisionExp: EIGHT,
+		serumMarket: new PublicKey('BbJgE7HZMaDp5NTYvRh5jZSkQPVDTU8ubPFtpogUkEj4'),
+	},
+	{
+		symbol: 'USDT',
+		marketIndex: 5,
+		oracle: new PublicKey('3vxLXJqLqF3JG5TCbYycbKWRBbCJQLxQmBGCkyqEEefL'),
+		oracleSource: OracleSource.PYTH_STABLE_COIN,
+		mint: new PublicKey('Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'),
+		precision: QUOTE_PRECISION,
+		precisionExp: QUOTE_PRECISION_EXP,
+		serumMarket: new PublicKey('B2na8Awyd7cpC59iEU43FagJAPLigr3AP3s38KM982bu'),
 	},
 ];
 
