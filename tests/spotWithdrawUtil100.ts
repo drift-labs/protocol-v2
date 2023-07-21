@@ -162,6 +162,7 @@ describe('test function when spot market at >= 100% util', () => {
 		assert(spotMarket.optimalUtilization === optimalUtilization);
 		assert(spotMarket.optimalBorrowRate === optimalRate);
 		assert(spotMarket.maxBorrowRate === maxRate);
+		assert(spotMarket.decimals === 6);
 		assert(
 			spotMarket.cumulativeBorrowInterest.eq(
 				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
@@ -247,6 +248,7 @@ describe('test function when spot market at >= 100% util', () => {
 		assert(spotMarket.optimalUtilization === optimalUtilization);
 		assert(spotMarket.optimalBorrowRate === optimalRate);
 		assert(spotMarket.maxBorrowRate === maxRate);
+		assert(spotMarket.decimals === 9);
 		assert(
 			spotMarket.cumulativeBorrowInterest.eq(
 				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
@@ -290,7 +292,7 @@ describe('test function when spot market at >= 100% util', () => {
 				provider,
 				usdcMint,
 				chProgram,
-				usdcAmount,
+				largeUsdcAmount,
 				marketIndexes,
 				spotMarketIndexes,
 				oracleInfos,
@@ -343,7 +345,7 @@ describe('test function when spot market at >= 100% util', () => {
 			usdcMint,
 			chProgram,
 			solAmount.mul(new BN(1000)),
-			ZERO,
+			largeUsdcAmount,
 			marketIndexes,
 			spotMarketIndexes,
 			oracleInfos,
@@ -435,16 +437,6 @@ describe('test function when spot market at >= 100% util', () => {
 			secondUserDriftClient.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'borrow'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
-
-		const actualAmountWithdrawn = new BN(
-			(
-				await provider.connection.getTokenAccountBalance(
-					secondUserDriftClientUSDCAccount
-				)
-			).value.amount
-		);
-
-		assert(withdrawAmount.eq(actualAmountWithdrawn));
 
 		assert(
 			secondUserDriftClient.getUserAccount().totalWithdraws.eq(withdrawAmount)
@@ -568,6 +560,12 @@ describe('test function when spot market at >= 100% util', () => {
 		});
 		await takerDriftClientUser.subscribe();
 
+		const takerUSDCBefore = takerDriftClientUser.getTokenAmount(0);
+		const takerSOLBefore = takerDriftClientUser.getTokenAmount(1);
+
+		const makerUSDCBefore = secondUserDriftClient.getUser().getTokenAmount(0);
+		const makerSOLBefore = secondUserDriftClient.getUser().getTokenAmount(1);
+
 		const baseAssetAmount = BASE_PRECISION;
 		const takerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -606,6 +604,47 @@ describe('test function when spot market at >= 100% util', () => {
 		);
 
 		await printTxLogs(connection, txSig2);
+		await firstUserDriftClient.fetchAccounts();
+		await takerDriftClientUser.fetchAccounts();
+		await secondUserDriftClient.fetchAccounts();
+
+		const takerUSDCAfter = takerDriftClientUser.getTokenAmount(0);
+		const takerSOLAfter = takerDriftClientUser.getTokenAmount(1);
+
+		const makerUSDCAfter = secondUserDriftClient.getUser().getTokenAmount(0);
+		const makerSOLAfter = secondUserDriftClient.getUser().getTokenAmount(1);
+
+		console.log(
+			'taker usdc:',
+			takerUSDCBefore.toString(),
+			'->',
+			takerUSDCAfter.toString()
+		);
+		console.log(
+			'taker sol:',
+			takerSOLBefore.toString(),
+			'->',
+			takerSOLAfter.toString()
+		);
+
+		console.log(
+			'maker usdc:',
+			makerUSDCBefore.toString(),
+			'->',
+			makerUSDCAfter.toString()
+		);
+		console.log(
+			'maker sol:',
+			makerSOLBefore.toString(),
+			'->',
+			makerSOLAfter.toString()
+		);
+
+		assert(makerUSDCBefore.lt(ZERO));
+		assert(makerUSDCAfter.gt(ZERO));
+		assert(takerSOLBefore.eq(ZERO));
+		assert(takerSOLAfter.gt(ZERO));
+
 		await takerDriftClientUser.unsubscribe();
 	});
 
@@ -638,6 +677,10 @@ describe('test function when spot market at >= 100% util', () => {
 
 		const firstUserSpot = await takerDriftClientUser.getSpotPosition(0);
 		console.log('takerDriftClientUser spot 0:', firstUserSpot);
+		console.log(
+			'taker token amount:',
+			takerDriftClientUser.getTokenAmount(0).toString()
+		);
 		assert(isVariant(firstUserSpot.balanceType, 'borrow'));
 
 		await firstUserDriftClient.placePerpOrder(takerOrderParams);
@@ -667,6 +710,10 @@ describe('test function when spot market at >= 100% util', () => {
 			.spotPositions[0];
 		console.log('secondUserDriftClient spot 0:', secondUserSpot);
 		assert(isVariant(secondUserSpot.balanceType, 'deposit'));
+		console.log(
+			'maker token amount:',
+			secondUserDriftClient.getUser().getTokenAmount(0).toString()
+		);
 
 		const txSig = await secondUserDriftClient.placeAndMakePerpOrder(
 			makerOrderParams,
@@ -689,6 +736,12 @@ describe('test function when spot market at >= 100% util', () => {
 		);
 		assert(takerPos2.baseAssetAmount.gt(ZERO));
 
+		const takerUSDCBefore = takerDriftClientUser.getTokenAmount(0);
+		// const takerSOLBefore = takerDriftClientUser.getTokenAmount(1);
+
+		const makerUSDCBefore = secondUserDriftClient.getUser().getTokenAmount(0);
+		// const makerSOLBefore = secondUserDriftClient.getUser().getTokenAmount(1);
+
 		//ensure that borrow cant borrow more to settle pnl
 		console.log('set pyth price to 32.99');
 		await setFeedPrice(anchor.workspace.Pyth, 32.99, solOracle);
@@ -709,6 +762,23 @@ describe('test function when spot market at >= 100% util', () => {
 			marketIndex
 		);
 		await printTxLogs(connection, settleTx1);
+		await secondUserDriftClient.fetchAccounts();
+
+		const takerUSDCAfter = takerDriftClientUser.getTokenAmount(0);
+		// const takerSOLAfter = takerDriftClientUser.getTokenAmount(1);
+
+		const makerUSDCAfter = secondUserDriftClient.getUser().getTokenAmount(0);
+		const solPerpMarketAfter = secondUserDriftClient.getPerpMarketAccount(0);
+		console.log(
+			'solPerpMarketAfter.pnlPool.scaledBalance:',
+			solPerpMarketAfter.pnlPool.scaledBalance
+		);
+		assert(solPerpMarketAfter.pnlPool.scaledBalance.eq(ZERO));
+		// const makerSOLAfter = secondUserDriftClient.getUser().getTokenAmount(1);
+
+		assert(makerUSDCBefore.gt(makerUSDCAfter));
+		assert(makerUSDCAfter.eq(ZERO));
+		assert(takerUSDCBefore.lte(takerUSDCAfter)); //todo
 
 		//allow that deposit to settle negative pnl for borrow
 		console.log('set pyth price to 27.4');

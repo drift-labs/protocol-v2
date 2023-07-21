@@ -501,8 +501,7 @@ pub fn update_pool_balances(
         market.pnl_pool.scaled_balance,
         spot_market,
         market.pnl_pool.balance_type(),
-    )?
-    .cast()?;
+    )?;
     crate::dlog!(pnl_pool_token_amount1);
 
     let amm_target_max_fee_pool_token_amount = market
@@ -552,10 +551,13 @@ pub fn update_pool_balances(
                 spot_market,
                 market.pnl_pool.balance_type(),
             )?;
+            crate::dlog!(pnl_pool_token_amount);
 
             let pnl_pool_removal = amm_target_min_fee_pool_token_amount
                 .safe_sub(amm_fee_pool_token_amount)?
                 .min(pnl_pool_token_amount);
+
+            crate::dlog!(pnl_pool_removal, amm_target_min_fee_pool_token_amount, amm_fee_pool_token_amount, pnl_pool_token_amount);
 
             if pnl_pool_removal > 0 {
                 transfer_spot_balances(
@@ -566,6 +568,13 @@ pub fn update_pool_balances(
                 )?;
             }
         }
+
+        let pnl_pool_token_amount22 = get_token_amount(
+            market.pnl_pool.scaled_balance,
+            spot_market,
+            market.pnl_pool.balance_type(),
+        )?;
+        crate::dlog!(pnl_pool_token_amount22);
 
         let amm_fee_pool_token_amount_after = get_token_amount(
             market.amm.fee_pool.balance(),
@@ -640,8 +649,7 @@ pub fn update_pool_balances(
         market.pnl_pool.scaled_balance,
         spot_market,
         market.pnl_pool.balance_type(),
-    )?
-    .cast()?;
+    )?;
     crate::dlog!(pnl_pool_token_amount3);
 
     // market pnl pool pays (what it can to) user_unsettled_pnl and pnl_to_settle_to_amm
