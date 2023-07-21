@@ -7610,6 +7610,9 @@
           },
           {
             "name": "TryPostOnly"
+          },
+          {
+            "name": "Slide"
           }
         ]
       }
