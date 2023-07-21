@@ -1186,6 +1186,34 @@ pub fn handle_update_funding_rate(
 }
 
 #[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+    funding_not_paused(&ctx.accounts.state)
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let clock_slot = clock.slot;
+    let state = &ctx.accounts.state;
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock_slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.amm.oracle)?;
+    controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let (makers, makers_stats) = load_user_maps(remaining_accounts_iter)?;
+
+    // do stuff
+
+    Ok(())
+}
+
+#[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_settle_revenue_to_insurance_fund(
@@ -1665,6 +1693,26 @@ pub struct UpdateFundingRate<'info> {
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `update_funding_rate` ix constraint
     pub oracle: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePerpBidAskTwap<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    /// CHECK: checked in `update_funding_rate` ix constraint
+    pub oracle: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]

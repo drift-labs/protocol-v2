@@ -416,6 +416,10 @@ pub mod drift {
         handle_update_funding_rate(ctx, market_index)
     }
 
+    pub fn update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Result<()> {
+        handle_update_perp_bid_ask_twap(ctx)
+    }
+
     pub fn update_spot_market_cumulative_interest(
         ctx: Context<UpdateSpotMarketCumulativeInterest>,
     ) -> Result<()> {
