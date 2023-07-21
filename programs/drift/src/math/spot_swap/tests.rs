@@ -30,6 +30,7 @@ mod test {
             sol_before,
             usdc_after,
             sol_after,
+            MarginRequirementType::Initial,
         )
         .unwrap();
 
@@ -61,6 +62,7 @@ mod test {
             sol_before,
             usdc_after,
             sol_after,
+            MarginRequirementType::Initial,
         )
         .unwrap();
 
@@ -91,6 +93,7 @@ mod test {
             sol_before,
             usdc_after,
             sol_after,
+            MarginRequirementType::Initial,
         )
         .unwrap();
 
@@ -121,6 +124,7 @@ mod test {
             sol_before,
             usdc_after,
             sol_after,
+            MarginRequirementType::Initial,
         )
         .unwrap();
 
