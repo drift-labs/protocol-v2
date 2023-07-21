@@ -1290,6 +1290,19 @@ export class User {
 						baseAssetValue = baseAssetValue.add(
 							new BN(perpPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
 						);
+
+						if (perpPosition.lpShares.gt(ZERO)) {
+							baseAssetValue = baseAssetValue.add(
+								BN.max(
+									QUOTE_PRECISION,
+									valuationPrice
+										.mul(market.amm.orderStepSize)
+										.mul(QUOTE_PRECISION)
+										.div(AMM_RESERVE_PRECISION)
+										.div(PRICE_PRECISION)
+								)
+							);
+						}
 					}
 				}
 
