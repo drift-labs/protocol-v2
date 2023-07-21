@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.35.2] - 2023-07-20
+
+### Features
+
+### Fixes
+
 - program: add a fixed buffer margin requirement for lp_shares ([#546](https://github.com/drift-labs/protocol-v2/pull/546))
 - program: use fill margin type in fulfill_spot_order
 
