@@ -5618,8 +5618,9 @@ export class DriftClient {
 	getMarketIndexAndType(
 		name: string
 	): { marketIndex: number; marketType: MarketType } | undefined {
+		name = name.toUpperCase();
 		for (const perpMarketAccount of this.getPerpMarketAccounts()) {
-			if (decodeName(perpMarketAccount.name) === name) {
+			if (decodeName(perpMarketAccount.name).toUpperCase() === name) {
 				return {
 					marketIndex: perpMarketAccount.marketIndex,
 					marketType: MarketType.PERP,
@@ -5628,7 +5629,7 @@ export class DriftClient {
 		}
 
 		for (const spotMarketAccount of this.getSpotMarketAccounts()) {
-			if (decodeName(spotMarketAccount.name) === name) {
+			if (decodeName(spotMarketAccount.name).toUpperCase() === name) {
 				return {
 					marketIndex: spotMarketAccount.marketIndex,
 					marketType: MarketType.SPOT,
