@@ -3649,6 +3649,7 @@ fn fulfill_spot_order(
             base_token_amount_before,
             quote_token_amount_after,
             base_token_amount_after,
+            MarginRequirementType::Fill,
         )?
     } else {
         // sell base, buy quote
@@ -3661,6 +3662,7 @@ fn fulfill_spot_order(
             quote_token_amount_before,
             base_token_amount_after,
             quote_token_amount_after,
+            MarginRequirementType::Fill,
         )?
     };
 
