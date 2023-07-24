@@ -660,6 +660,7 @@ impl PerpPosition {
             quote_asset_amount,
             open_asks,
             open_bids,
+            lp_shares: self.lp_shares,
             // todo double check: this is ok because no other values are used in the future computations
             ..PerpPosition::default()
         })
