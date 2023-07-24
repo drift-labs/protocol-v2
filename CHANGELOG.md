@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.35.3] - 2023-07-20
+
+### Features
+
+### Fixes
+
+- program: fix simulate_settled_lp_position
+
+### Breaking
+
+## [2.35.1] - 2023-07-20
+
 ## [2.35.2] - 2023-07-20
 
 ### Features
