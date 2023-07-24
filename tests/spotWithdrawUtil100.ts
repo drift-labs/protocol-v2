@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 import { setFeedPrice } from './testHelpers';
-import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import {
 	PositionDirection,
 	User,
@@ -30,14 +30,11 @@ import {
 	SPOT_MARKET_BALANCE_PRECISION,
 	PRICE_PRECISION,
 	BulkAccountLoader,
-	PERCENTAGE_PRECISION,
 } from '../sdk/src';
 
 import {
 	createUserWithUSDCAccount,
 	createUserWithUSDCAndWSOLAccount,
-	getTokenAmountAsBN,
-	mintUSDCToUser,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -48,7 +45,6 @@ import {
 	getBalance,
 	calculateInterestAccumulated,
 	calculateUtilization,
-	getTokenAmount,
 } from '../sdk/src/math/spotBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
 

@@ -477,7 +477,7 @@ export class User {
 			const oraclePriceData = this.driftClient.getOracleDataForPerpMarket(
 				position.marketIndex
 			);
-			dustBaseAssetValue = BN.abs(position.remainderBaseAssetAmount)
+			dustBaseAssetValue = new BN(Math.abs(position.remainderBaseAssetAmount))
 				.mul(oraclePriceData.price)
 				.div(AMM_RESERVE_PRECISION)
 				.add(ONE);
@@ -1290,6 +1290,19 @@ export class User {
 						baseAssetValue = baseAssetValue.add(
 							new BN(perpPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
 						);
+
+						if (perpPosition.lpShares.gt(ZERO)) {
+							baseAssetValue = baseAssetValue.add(
+								BN.max(
+									QUOTE_PRECISION,
+									valuationPrice
+										.mul(market.amm.orderStepSize)
+										.mul(QUOTE_PRECISION)
+										.div(AMM_RESERVE_PRECISION)
+										.div(PRICE_PRECISION)
+								)
+							);
+						}
 					}
 				}
 

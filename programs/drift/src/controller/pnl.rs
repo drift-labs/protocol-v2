@@ -62,7 +62,6 @@ pub fn settle_pnl(
     crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
 
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-    crate::dlog!(oracle_price);
     drop(market);
 
     let position_index = get_position_index(&user.perp_positions, market_index)?;
@@ -129,13 +128,6 @@ pub fn settle_pnl(
         user_unsettled_pnl,
         now,
     )?;
-    crate::dlog!(
-        net_user_pnl,
-        pnl_pool_token_amount,
-        max_pnl_pool_excess,
-        user_unsettled_pnl,
-        pnl_to_settle_with_user
-    );
     if user_unsettled_pnl == 0 {
         msg!("User has no unsettled pnl for market {}", market_index);
         return Ok(());

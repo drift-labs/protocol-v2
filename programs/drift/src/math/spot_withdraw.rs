@@ -269,14 +269,6 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<i64> {
     )?
     .cast()?;
 
-    // validate!(
-    //     depositors_amount >= borrowers_amount,
-    //     ErrorCode::SpotMarketBalanceInvariantViolated,
-    //     "depositors_amount={} less than borrowers_amount={}",
-    //     depositors_amount,
-    //     borrowers_amount
-    // )?;
-
     let revenue_amount: u64 = get_token_amount(
         spot_market.revenue_pool.scaled_balance,
         spot_market,
