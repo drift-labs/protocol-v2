@@ -421,7 +421,7 @@ mod should_expire_order {
 
         let now = 100;
 
-        let is_expired = should_expire_order(&user, 0, now, false).unwrap();
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
 
         assert!(!is_expired);
     }
@@ -440,7 +440,7 @@ mod should_expire_order {
 
         let now = 100;
 
-        let is_expired = should_expire_order(&user, 0, now, false).unwrap();
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
 
         assert!(!is_expired);
     }
@@ -459,7 +459,7 @@ mod should_expire_order {
 
         let now = 100;
 
-        let is_expired = should_expire_order(&user, 0, now, false).unwrap();
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
 
         assert!(is_expired);
     }
@@ -478,7 +478,7 @@ mod should_expire_order {
 
         let now = 100;
 
-        let is_expired = should_expire_order(&user, 0, now, false).unwrap();
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
 
         assert!(!is_expired);
     }
@@ -497,7 +497,7 @@ mod should_expire_order {
 
         let now = 100;
 
-        let is_expired = should_expire_order(&user, 0, now, false).unwrap();
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
 
         assert!(!is_expired);
     }
@@ -516,7 +516,7 @@ mod should_expire_order {
 
         let now = 100;
 
-        let is_expired = should_expire_order(&user, 0, now, false).unwrap();
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
 
         assert!(!is_expired);
     }

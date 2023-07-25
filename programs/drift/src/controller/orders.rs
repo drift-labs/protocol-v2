@@ -1031,17 +1031,20 @@ pub fn fill_perp_order(
         return Ok(0);
     }
 
+    let amm_available = is_amm_available_liquidity_source(
+        &user.orders[order_index],
+        state.min_perp_auction_duration,
+        slot,
+    )?;
+    if !amm_available
+        && makers_and_referrer.0.is_empty()
+        && user.orders[order_index].is_limit_order()
     {
-        let order = &user.orders[order_index];
-        let amm_available =
-            is_amm_available_liquidity_source(order, state.min_perp_auction_duration, slot)?;
-        if order.is_limit_order() && !amm_available && makers_and_referrer.0.is_empty() {
-            msg!("invalid fill. order is limit order, amm is not available and no makers present");
-            return Err(ErrorCode::ImpossibleFill);
-        }
+        msg!("invalid fill. order is limit order, amm is not available and no makers present");
+        return Err(ErrorCode::ImpossibleFill);
     }
 
-    let should_expire_order = should_expire_order(user, order_index, now, true)?;
+    let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
 
     let position_index =
         get_position_index(&user.perp_positions, user.orders[order_index].market_index)?;
@@ -1345,7 +1348,7 @@ fn get_maker_orders_info(
                 )?
             };
 
-            let should_expire_order = should_expire_order(&maker, maker_order_index, now, false)?;
+            let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
 
             let existing_base_asset_amount = maker
                 .get_perp_position(maker.orders[maker_order_index].market_index)?
@@ -3226,7 +3229,7 @@ pub fn fill_spot_order(
         }
     }
 
-    let should_expire_order = should_expire_order(user, order_index, now, true)?;
+    let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
 
     let should_cancel_reduce_only = if user.orders[order_index].reduce_only {
         let market_index = user.orders[order_index].market_index;
@@ -3482,7 +3485,7 @@ fn get_spot_maker_order<'a>(
         )?
     };
 
-    let should_expire_order = should_expire_order(&maker, maker_order_index, now, false)?;
+    let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
 
     let should_cancel_reduce_only_order = if maker.orders[maker_order_index].reduce_only {
         let spot_position_index =
@@ -4559,7 +4562,7 @@ pub fn expire_orders(
     slot: u64,
 ) -> DriftResult {
     for order_index in 0..user.orders.len() {
-        if !should_expire_order(user, order_index, now, false)? {
+        if !should_expire_order(user, order_index, now)? {
             continue;
         }
 
