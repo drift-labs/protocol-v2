@@ -7,11 +7,12 @@ use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_amm_available_liquidity;
-use crate::math::auction::is_auction_complete;
+use crate::math::auction::{is_amm_available_liquidity_source, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::{
-    math, PostOnlyParam, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+    math, PostOnlyParam, State, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT,
+    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+    SPOT_WEIGHT_PRECISION,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -301,6 +302,29 @@ pub fn get_position_delta_for_fill(
     })
 }
 
+#[inline(always)]
+pub fn validate_perp_fill_possible(
+    state: &State,
+    user: &User,
+    order_index: usize,
+    slot: u64,
+    num_makers: usize,
+) -> DriftResult {
+    let amm_available = is_amm_available_liquidity_source(
+        &user.orders[order_index],
+        state.min_perp_auction_duration,
+        slot,
+    )?;
+
+    if !amm_available && num_makers == 0 && user.orders[order_index].is_limit_order() {
+        msg!("invalid fill. order is limit order, amm is not available and no makers present");
+        return Err(ErrorCode::ImpossibleFill);
+    }
+
+    Ok(())
+}
+
+#[inline(always)]
 pub fn should_cancel_market_order_after_fill(
     user: &User,
     user_order_index: usize,
@@ -315,6 +339,7 @@ pub fn should_cancel_market_order_after_fill(
         && is_auction_complete(order.slot, order.auction_duration, slot)?)
 }
 
+#[inline(always)]
 pub fn should_expire_order_before_fill(
     user: &User,
     order_index: usize,
@@ -332,6 +357,7 @@ pub fn should_expire_order_before_fill(
     Ok(should_order_be_expired)
 }
 
+#[inline(always)]
 pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> DriftResult<bool> {
     let order = &user.orders[user_order_index];
     if order.status != OrderStatus::Open || order.max_ts == 0 || order.must_be_triggered() {
