@@ -1490,12 +1490,14 @@ export class User {
 	/**
 	 * calculates max allowable leverage exceeding hitting requirement category
 	 * for large sizes where imf factor activates, result is a lower bound
-	 * @params category {Initial, Maintenance}
+	 * @param marginCategory {Initial, Maintenance}
+	 * @param isLp if calculating max leveraging for adding lp, need to add buffer
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getMaxLeverageForPerp(
 		perpMarketIndex: number,
-		marginCategory: MarginCategory = 'Initial'
+		marginCategory: MarginCategory = 'Initial',
+		isLp = false
 	): BN {
 		const market = this.driftClient.getPerpMarketAccount(perpMarketIndex);
 		const marketPrice =
@@ -1514,7 +1516,11 @@ export class User {
 
 		const totalLiabilityValue = perpLiabilityValue.add(spotLiabilityValue);
 
-		const freeCollateral = this.getFreeCollateral();
+		const lpBuffer = isLp
+			? marketPrice.mul(market.amm.orderStepSize).div(AMM_RESERVE_PRECISION)
+			: ZERO;
+
+		const freeCollateral = this.getFreeCollateral().sub(lpBuffer);
 
 		let rawMarginRatio;
 
