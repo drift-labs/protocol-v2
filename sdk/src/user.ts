@@ -558,7 +558,7 @@ export class User {
 	 * calculates Buying Power = free collateral / initial margin ratio
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getPerpBuyingPower(marketIndex: number): BN {
+	public getPerpBuyingPower(marketIndex: number, collateralBuffer = ZERO): BN {
 		const perpPosition = this.getPerpPositionWithLPSettle(
 			marketIndex,
 			undefined,
@@ -568,7 +568,7 @@ export class User {
 			? calculateWorstCaseBaseAssetAmount(perpPosition)
 			: ZERO;
 
-		const freeCollateral = this.getFreeCollateral();
+		const freeCollateral = this.getFreeCollateral().sub(collateralBuffer);
 
 		return this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 			marketIndex,
@@ -1490,12 +1490,14 @@ export class User {
 	/**
 	 * calculates max allowable leverage exceeding hitting requirement category
 	 * for large sizes where imf factor activates, result is a lower bound
-	 * @params category {Initial, Maintenance}
+	 * @param marginCategory {Initial, Maintenance}
+	 * @param isLp if calculating max leveraging for adding lp, need to add buffer
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getMaxLeverageForPerp(
 		perpMarketIndex: number,
-		marginCategory: MarginCategory = 'Initial'
+		marginCategory: MarginCategory = 'Initial',
+		isLp = false
 	): BN {
 		const market = this.driftClient.getPerpMarketAccount(perpMarketIndex);
 		const marketPrice =
@@ -1514,7 +1516,11 @@ export class User {
 
 		const totalLiabilityValue = perpLiabilityValue.add(spotLiabilityValue);
 
-		const freeCollateral = this.getFreeCollateral();
+		const lpBuffer = isLp
+			? marketPrice.mul(market.amm.orderStepSize).div(AMM_RESERVE_PRECISION)
+			: ZERO;
+
+		const freeCollateral = this.getFreeCollateral().sub(lpBuffer);
 
 		let rawMarginRatio;
 
@@ -2059,7 +2065,8 @@ export class User {
 	 */
 	public getMaxTradeSizeUSDCForPerp(
 		targetMarketIndex: number,
-		tradeSide: PositionDirection
+		tradeSide: PositionDirection,
+		isLp = false
 	): BN {
 		const currentPosition =
 			this.getPerpPositionWithLPSettle(targetMarketIndex, undefined, true)[0] ||
@@ -2077,12 +2084,21 @@ export class User {
 
 		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 
+		const marketAccount =
+			this.driftClient.getPerpMarketAccount(targetMarketIndex);
+
+		const lpBuffer = isLp
+			? oracleData.price
+					.mul(marketAccount.amm.orderStepSize)
+					.div(AMM_RESERVE_PRECISION)
+			: ZERO;
+
 		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
 		const oppositeSizeValueUSDC = targetingSameSide
 			? ZERO
 			: this.getPerpPositionValue(targetMarketIndex, oracleData);
 
-		let maxPositionSize = this.getPerpBuyingPower(targetMarketIndex);
+		let maxPositionSize = this.getPerpBuyingPower(targetMarketIndex, lpBuffer);
 		if (maxPositionSize.gte(ZERO)) {
 			if (oppositeSizeValueUSDC.eq(ZERO)) {
 				// case 1 : Regular trade where current total position less than max, and no opposite position to account for
