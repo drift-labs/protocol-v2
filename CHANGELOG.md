@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.36.0] - 2023-07-26
+
+### Features
+
 - program: usdt oracle uses pyth stablecoin oracle source
 
 ### Fixes
