@@ -3326,7 +3326,7 @@ pub fn fill_spot_order(
         let base_market = spot_market_map.get_ref(&market_index)?;
         let quote_market = spot_market_map.get_quote_spot_market()?;
         let (max_base_asset_amount, max_quote_asset_amount) =
-            get_max_fill_amounts(user, order_index, &base_market, &quote_market, true)?;
+            get_max_fill_amounts(user, order_index, &base_market, &quote_market, false)?;
         max_base_asset_amount == Some(0) || max_quote_asset_amount == Some(0)
     } else {
         false
@@ -4098,7 +4098,7 @@ pub fn fulfill_spot_order_with_external_market(
     let taker_order_slot = taker.orders[taker_order_index].slot;
 
     let (max_base_asset_amount, max_quote_asset_amount) =
-        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market, false)?;
+        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market, true)?;
 
     let taker_base_asset_amount =
         taker_base_asset_amount.min(max_base_asset_amount.unwrap_or(u64::MAX));
