@@ -204,7 +204,7 @@ pub fn update_spot_balances(
     update_direction: &SpotBalanceType,
     spot_market: &mut SpotMarket,
     spot_balance: &mut dyn SpotBalance,
-    withdraw_leaves_drift: bool,
+    is_leaving_drift: bool,
 ) -> DriftResult {
     let increase_user_existing_balance = update_direction == spot_balance.balance_type();
     if increase_user_existing_balance {
@@ -224,8 +224,8 @@ pub fn update_spot_balances(
         if reduce_user_existing_balance {
             // determine how much to reduce balance based on size of current token amount
             let (token_delta, balance_delta) = if current_token_amount > token_amount {
-                let round_up = withdraw_leaves_drift
-                    || spot_balance.balance_type() == &SpotBalanceType::Borrow;
+                let round_up =
+                    is_leaving_drift || spot_balance.balance_type() == &SpotBalanceType::Borrow;
                 let balance_delta = get_spot_balance(
                     token_amount,
                     spot_market,
@@ -252,7 +252,7 @@ pub fn update_spot_balances(
         }
     }
 
-    if withdraw_leaves_drift && update_direction == &SpotBalanceType::Borrow {
+    if is_leaving_drift && update_direction == &SpotBalanceType::Borrow {
         let deposit_token_amount = get_token_amount(
             spot_market.deposit_balance,
             spot_market,
