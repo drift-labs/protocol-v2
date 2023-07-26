@@ -162,7 +162,7 @@ export function calculateClaimablePnl(
  *
  * @param market
  * @param PerpPosition
- * @returns // TODO-PRECISION
+ * @returns // QUOTE_PRECISION
  */
 export function calculatePositionFundingPNL(
 	market: PerpMarketAccount,

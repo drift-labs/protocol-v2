@@ -189,7 +189,7 @@ pub fn update_mark_twap(
         best_ask_estimate,
     )?;
 
-    let (mut bid_price_capped_update, mut ask_price_capped_update) = (
+    let (bid_price_capped_update, ask_price_capped_update) = (
         sanitize_new_price(
             bid_price.cast()?,
             amm.last_bid_price_twap.cast()?,
@@ -212,48 +212,50 @@ pub fn update_mark_twap(
         .last_oracle_price_twap_ts
         .safe_sub(amm.last_mark_price_twap_ts)?;
 
-    // if an delayed more than 10th of funding period, shrink toward oracle_twap
-    (bid_price_capped_update, ask_price_capped_update) =
-        if last_valid_trade_since_oracle_twap_update
-            > amm.funding_period.safe_div(60)?.max(ONE_MINUTE.cast()?)
-        {
-            msg!(
-                "correcting mark twap update (oracle previously invalid for {:?} seconds)",
-                last_valid_trade_since_oracle_twap_update
-            );
+    // if an delayed more than ONE_MINUTE or 60th of funding period, shrink toward oracle_twap
+    let (last_bid_price_twap, last_ask_price_twap) = if last_valid_trade_since_oracle_twap_update
+        > amm.funding_period.safe_div(60)?.max(ONE_MINUTE.cast()?)
+    {
+        msg!(
+            "correcting mark twap update (oracle previously invalid for {:?} seconds)",
+            last_valid_trade_since_oracle_twap_update
+        );
 
-            let from_start_valid = max(
-                0,
-                amm.funding_period
-                    .safe_sub(last_valid_trade_since_oracle_twap_update)?,
-            );
-            (
-                calculate_weighted_average(
-                    amm.historical_oracle_data
-                        .last_oracle_price_twap
-                        .cast::<i64>()?,
-                    bid_price_capped_update,
-                    last_valid_trade_since_oracle_twap_update,
-                    from_start_valid,
-                )?,
-                calculate_weighted_average(
-                    amm.historical_oracle_data
-                        .last_oracle_price_twap
-                        .cast::<i64>()?,
-                    ask_price_capped_update,
-                    last_valid_trade_since_oracle_twap_update,
-                    from_start_valid,
-                )?,
-            )
-        } else {
-            (bid_price_capped_update, ask_price_capped_update)
-        };
+        let from_start_valid = max(
+            0,
+            amm.funding_period
+                .safe_sub(last_valid_trade_since_oracle_twap_update)?,
+        );
+        (
+            calculate_weighted_average(
+                amm.historical_oracle_data
+                    .last_oracle_price_twap
+                    .cast::<i64>()?,
+                amm.last_bid_price_twap.cast()?,
+                last_valid_trade_since_oracle_twap_update,
+                from_start_valid,
+            )?,
+            calculate_weighted_average(
+                amm.historical_oracle_data
+                    .last_oracle_price_twap
+                    .cast::<i64>()?,
+                amm.last_ask_price_twap.cast()?,
+                last_valid_trade_since_oracle_twap_update,
+                from_start_valid,
+            )?,
+        )
+    } else {
+        (
+            amm.last_bid_price_twap.cast()?,
+            amm.last_ask_price_twap.cast()?,
+        )
+    };
 
     // update bid and ask twaps
     let bid_twap = calculate_new_twap(
         bid_price_capped_update,
         now,
-        amm.last_bid_price_twap.cast()?,
+        last_bid_price_twap,
         amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;
@@ -262,7 +264,7 @@ pub fn update_mark_twap(
     let ask_twap = calculate_new_twap(
         ask_price_capped_update,
         now,
-        amm.last_ask_price_twap.cast()?,
+        last_ask_price_twap,
         amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;

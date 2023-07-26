@@ -1,5 +1,5 @@
 {
-  "version": "2.33.0",
+  "version": "2.35.0",
   "name": "drift",
   "instructions": [
     {
@@ -424,6 +424,34 @@
             "option": {
               "defined": "PositionDirection"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "cancelOrdersByIds",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "orderIds",
+          "type": {
+            "vec": "u32"
           }
         }
       ]
@@ -1919,6 +1947,11 @@
         },
         {
           "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
           "isMut": false,
           "isSigner": false
         }
@@ -6823,6 +6856,10 @@
             "type": "u32"
           },
           {
+            "name": "totalFeeEarnedPerLp",
+            "type": "u64"
+          },
+          {
             "name": "netUnsettledFundingPnl",
             "type": "i64"
           },
@@ -6831,7 +6868,7 @@
             "type": {
               "array": [
                 "u8",
-                32
+                24
               ]
             }
           }
@@ -7577,6 +7614,9 @@
           },
           {
             "name": "TryPostOnly"
+          },
+          {
+            "name": "Slide"
           }
         ]
       }

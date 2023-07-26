@@ -9,20 +9,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: usdt oracle uses pyth stablecoin oracle source
+
+### Fixes
+
+- ts-sdk: fix abs for dustBaseAssetValue in getPerpPositionWithLPSettle ([#543](https://github.com/drift-labs/protocol-v2/pull/543))
+- program: add a fixed buffer margin requirement for lp_shares ([#546](https://github.com/drift-labs/protocol-v2/pull/546))
+- program: use fill margin type in fulfill_spot_order
+
+### Breaking
+
+- ts-sdk: account for lp shares in liq price ([#522](https://github.com/drift-labs/protocol-v2/pull/522))
+- ts-sdk: getPerpPositionWithLPSettle has flag to account for burn lp share ([#522](https://github.com/drift-labs/protocol-v2/pull/522))
+
+## [2.35.0] - 2023-07-18
+
+### Features
+
+- program: add cancel orders by ids ([#540](https://github.com/drift-labs/protocol-v2/pull/540))
+- program: add post only slide for perps ([#541](https://github.com/drift-labs/protocol-v2/pull/541))
+- program: allow up to 10000 users
+
+### Fixes
+
+- program: if taker increases free colalteral, check maintenance health ([#538](https://github.com/drift-labs/protocol-v2/pull/538))
+- program: improve bid/ask twap update for infrequent trading ([#529](https://github.com/drift-labs/protocol-v2/pull/529))
+- sdk: simplify, mirror contract, and write tests for predicting funding rate function ([#529](https://github.com/drift-labs/protocol-v2/pull/529))
+
+### Breaking
+
+## [2.34.0] - 2023-07-11
+
+### Features
+
+### Fixes
+
+- program: include amm jit in base used to calculate price band (([#536](https://github.com/drift-labs/protocol-v2/pull/536)))
+
+### Breaking
+
+## [2.34.0] - 2023-07-11
+
+### Features
+
+- program: safety improvements for swaps (([#528](https://github.com/drift-labs/protocol-v2/pull/528)))
+- program: track `total_fee_earned_per_lp` on amm (([#526](https://github.com/drift-labs/protocol-v2/pull/526)))
 - program: add additional withdraw/borrow guards around fast utilization changes (([#517](https://github.com/drift-labs/protocol-v2/pull/517)))
 - program: new margin type for when orders are being filled (([#518](https://github.com/drift-labs/protocol-v2/pull/518)))
 - program: new fill price bands (([#516](https://github.com/drift-labs/protocol-v2/pull/516)))
 
 ### Fixes
 
+- program: use emit_stack for place orders (([#533](https://github.com/drift-labs/protocol-v2/pull/533)))
+- program: tweaks for setting init asset weight to 0 (([#523](https://github.com/drift-labs/protocol-v2/pull/523)))
+- program: add vault invariant to update_spot_market_cumulative_interest ix (([#524](https://github.com/drift-labs/protocol-v2/pull/524)))
+- program: check oracles valid in meets_withdraw_margin_requirement if number_of_liabilities > 0
 - program: only get quote spot market if user has quote position in validate_spot_margin_trading
 - program: fix decrement_open_orders for makers
 
 ### Breaking
 
 ## [2.33.0] - 2023-06-30
-
-## [Unreleased]
 
 ### Features
 

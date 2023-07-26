@@ -430,7 +430,7 @@ export function calculateTokenUtilizationLimits(
 	// Note: For deposit sizes below the guard threshold, withdrawals aren't blocked.
 
 	const maxWithdrawUtilization = BN.max(
-		spotMarket.optimalUtilization,
+		new BN(spotMarket.optimalUtilization),
 		spotMarket.utilizationTwap.add(
 			SPOT_MARKET_UTILIZATION_PRECISION.sub(spotMarket.utilizationTwap).div(
 				new BN(2)

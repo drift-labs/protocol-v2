@@ -5,7 +5,8 @@ use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
+    PRICE_PRECISION_I128, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
+    QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::orders::{standardize_base_asset_amount, standardize_price};
@@ -569,6 +570,22 @@ impl PerpPosition {
         self.open_orders != 0 || self.open_bids != 0 || self.open_asks != 0
     }
 
+    pub fn margin_requirement_for_lp_shares(
+        &self,
+        order_step_size: u64,
+        valuation_price: i64,
+    ) -> DriftResult<u128> {
+        if !self.is_lp() {
+            return Ok(0);
+        }
+        Ok(QUOTE_PRECISION.max(
+            order_step_size
+                .cast::<u128>()?
+                .safe_mul(valuation_price.cast()?)?
+                .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)?,
+        ))
+    }
+
     pub fn margin_requirement_for_open_orders(&self) -> DriftResult<u128> {
         self.open_orders
             .cast::<u128>()?
@@ -589,7 +606,7 @@ impl PerpPosition {
         }
 
         // compute lp metrics
-        let lp_metrics = calculate_settle_lp_metrics(&market.amm, self)?;
+        let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, self)?;
 
         // compute settled position
         let base_asset_amount = self
@@ -600,10 +617,31 @@ impl PerpPosition {
             .quote_asset_amount
             .safe_add(lp_metrics.quote_asset_amount.cast()?)?;
 
+        let mut new_remainder_base_asset_amount =
+            self.remainder_base_asset_amount
+                .cast::<i64>()?
+                .safe_add(lp_metrics.remainder_base_asset_amount.cast()?)?;
+
+        if new_remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size {
+            let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
+                crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+                    new_remainder_base_asset_amount.cast()?,
+                    market.amm.order_step_size.cast()?,
+                )?;
+
+            lp_metrics.base_asset_amount = lp_metrics
+                .base_asset_amount
+                .safe_add(standardized_remainder_base_asset_amount)?;
+
+            new_remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
+        } else {
+            new_remainder_base_asset_amount = new_remainder_base_asset_amount.cast()?;
+        }
+
         // dust position in baa/qaa
-        if lp_metrics.remainder_base_asset_amount != 0 {
+        if new_remainder_base_asset_amount != 0 {
             let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(
-                lp_metrics.remainder_base_asset_amount.cast()?,
+                new_remainder_base_asset_amount.cast()?,
                 valuation_price,
             )?
             .safe_add(1)?;
@@ -622,6 +660,7 @@ impl PerpPosition {
             quote_asset_amount,
             open_asks,
             open_bids,
+            lp_shares: self.lp_shares,
             // todo double check: this is ok because no other values are used in the future computations
             ..PerpPosition::default()
         })

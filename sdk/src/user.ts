@@ -147,13 +147,44 @@ export class User {
 		return this.accountSubscriber.getUserAccountAndSlot();
 	}
 
+	public getPerpPositionForUserAccount(
+		userAccount: UserAccount,
+		marketIndex: number
+	): PerpPosition | undefined {
+		return userAccount.perpPositions.find(
+			(position) => position.marketIndex === marketIndex
+		);
+	}
+
 	/**
 	 * Gets the user's current position for a given perp market. If the user has no position returns undefined
 	 * @param marketIndex
 	 * @returns userPerpPosition
 	 */
 	public getPerpPosition(marketIndex: number): PerpPosition | undefined {
-		return this.getUserAccount().perpPositions.find(
+		const userAccount = this.getUserAccount();
+		return this.getPerpPositionForUserAccount(userAccount, marketIndex);
+	}
+
+	public getPerpPositionAndSlot(
+		marketIndex: number
+	): DataAndSlot<PerpPosition | undefined> {
+		const userAccount = this.getUserAccountAndSlot();
+		const perpPosition = this.getPerpPositionForUserAccount(
+			userAccount.data,
+			marketIndex
+		);
+		return {
+			data: perpPosition,
+			slot: userAccount.slot,
+		};
+	}
+
+	public getSpotPositionForUserAccount(
+		userAccount: UserAccount,
+		marketIndex: number
+	): SpotPosition | undefined {
+		return userAccount.spotPositions.find(
 			(position) => position.marketIndex === marketIndex
 		);
 	}
@@ -164,9 +195,22 @@ export class User {
 	 * @returns userSpotPosition
 	 */
 	public getSpotPosition(marketIndex: number): SpotPosition | undefined {
-		return this.getUserAccount().spotPositions.find(
-			(position) => position.marketIndex === marketIndex
+		const userAccount = this.getUserAccount();
+		return this.getSpotPositionForUserAccount(userAccount, marketIndex);
+	}
+
+	public getSpotPositionAndSlot(
+		marketIndex: number
+	): DataAndSlot<SpotPosition | undefined> {
+		const userAccount = this.getUserAccountAndSlot();
+		const spotPosition = this.getSpotPositionForUserAccount(
+			userAccount.data,
+			marketIndex
 		);
+		return {
+			data: spotPosition,
+			slot: userAccount.slot,
+		};
 	}
 
 	getEmptySpotPosition(marketIndex: number): SpotPosition {
@@ -227,13 +271,37 @@ export class User {
 		return clonedPosition;
 	}
 
+	public getOrderForUserAccount(
+		userAccount: UserAccount,
+		orderId: number
+	): Order | undefined {
+		return userAccount.orders.find((order) => order.orderId === orderId);
+	}
+
 	/**
 	 * @param orderId
 	 * @returns Order
 	 */
 	public getOrder(orderId: number): Order | undefined {
-		return this.getUserAccount().orders.find(
-			(order) => order.orderId === orderId
+		const userAccount = this.getUserAccount();
+		return this.getOrderForUserAccount(userAccount, orderId);
+	}
+
+	public getOrderAndSlot(orderId: number): DataAndSlot<Order | undefined> {
+		const userAccount = this.getUserAccountAndSlot();
+		const order = this.getOrderForUserAccount(userAccount.data, orderId);
+		return {
+			data: order,
+			slot: userAccount.slot,
+		};
+	}
+
+	public getOrderByUserIdForUserAccount(
+		userAccount: UserAccount,
+		userOrderId: number
+	): Order | undefined {
+		return userAccount.orders.find(
+			(order) => order.userOrderId === userOrderId
 		);
 	}
 
@@ -242,15 +310,42 @@ export class User {
 	 * @returns Order
 	 */
 	public getOrderByUserOrderId(userOrderId: number): Order | undefined {
-		return this.getUserAccount().orders.find(
-			(order) => order.userOrderId === userOrderId
+		const userAccount = this.getUserAccount();
+		return this.getOrderByUserIdForUserAccount(userAccount, userOrderId);
+	}
+
+	public getOrderByUserOrderIdAndSlot(
+		userOrderId: number
+	): DataAndSlot<Order | undefined> {
+		const userAccount = this.getUserAccountAndSlot();
+		const order = this.getOrderByUserIdForUserAccount(
+			userAccount.data,
+			userOrderId
+		);
+		return {
+			data: order,
+			slot: userAccount.slot,
+		};
+	}
+
+	public getOpenOrdersForUserAccount(userAccount?: UserAccount): Order[] {
+		return userAccount?.orders.filter((order) =>
+			isVariant(order.status, 'open')
 		);
 	}
 
 	public getOpenOrders(): Order[] {
-		return this.getUserAccount()?.orders.filter((order) =>
-			isVariant(order.status, 'open')
-		);
+		const userAccount = this.getUserAccount();
+		return this.getOpenOrdersForUserAccount(userAccount);
+	}
+
+	public getOpenOrdersAndSlot(): DataAndSlot<Order[]> {
+		const userAccount = this.getUserAccountAndSlot();
+		const openOrders = this.getOpenOrdersForUserAccount(userAccount.data);
+		return {
+			data: openOrders,
+			slot: userAccount.slot,
+		};
 	}
 
 	public getUserAccountPublicKey(): PublicKey {
@@ -318,7 +413,8 @@ export class User {
 	 */
 	public getPerpPositionWithLPSettle(
 		marketIndex: number,
-		originalPosition?: PerpPosition
+		originalPosition?: PerpPosition,
+		burnLpShares = false
 	): [PerpPosition, BN, BN] {
 		originalPosition =
 			originalPosition ??
@@ -333,6 +429,9 @@ export class User {
 
 		const market = this.driftClient.getPerpMarketAccount(position.marketIndex);
 		const nShares = position.lpShares;
+
+		// incorp unsettled funding on pre settled position
+		const quoteFundingPnl = calculatePositionFundingPNL(market, position);
 
 		const deltaBaa = market.amm.baseAssetAmountPerLp
 			.sub(position.lastBaseAssetAmountPerLp)
@@ -373,6 +472,17 @@ export class User {
 			position.remainderBaseAssetAmount = newRemainderBaa.toNumber();
 		}
 
+		let dustBaseAssetValue = ZERO;
+		if (burnLpShares && position.remainderBaseAssetAmount != 0) {
+			const oraclePriceData = this.driftClient.getOracleDataForPerpMarket(
+				position.marketIndex
+			);
+			dustBaseAssetValue = new BN(Math.abs(position.remainderBaseAssetAmount))
+				.mul(oraclePriceData.price)
+				.div(AMM_RESERVE_PRECISION)
+				.add(ONE);
+		}
+
 		let updateType;
 		if (position.baseAssetAmount.eq(ZERO)) {
 			updateType = 'open';
@@ -406,8 +516,32 @@ export class User {
 		}
 		position.quoteEntryAmount = newQuoteEntry;
 		position.baseAssetAmount = position.baseAssetAmount.add(standardizedBaa);
-		position.quoteAssetAmount = position.quoteAssetAmount.add(deltaQaa);
+		position.quoteAssetAmount = position.quoteAssetAmount
+			.add(deltaQaa)
+			.add(quoteFundingPnl)
+			.sub(dustBaseAssetValue);
+		position.quoteBreakEvenAmount = position.quoteBreakEvenAmount
+			.add(deltaQaa)
+			.add(quoteFundingPnl)
+			.sub(dustBaseAssetValue);
 
+		// update open bids/asks
+		const [marketOpenBids, marketOpenAsks] = calculateMarketOpenBidAsk(
+			market.amm.baseAssetReserve,
+			market.amm.minBaseAssetReserve,
+			market.amm.maxBaseAssetReserve,
+			market.amm.orderStepSize
+		);
+		const lpOpenBids = marketOpenBids
+			.mul(position.lpShares)
+			.div(market.amm.sqrtK);
+		const lpOpenAsks = marketOpenAsks
+			.mul(position.lpShares)
+			.div(market.amm.sqrtK);
+		position.openBids = lpOpenBids.add(position.openBids);
+		position.openAsks = lpOpenAsks.add(position.openAsks);
+
+		// eliminate counting funding on settled position
 		if (position.baseAssetAmount.gt(ZERO)) {
 			position.lastCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
 		} else if (position.baseAssetAmount.lt(ZERO)) {
@@ -425,7 +559,11 @@ export class User {
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getPerpBuyingPower(marketIndex: number): BN {
-		const perpPosition = this.getPerpPosition(marketIndex);
+		const perpPosition = this.getPerpPositionWithLPSettle(
+			marketIndex,
+			undefined,
+			true
+		)[0];
 		const worstCaseBaseAssetAmount = perpPosition
 			? calculateWorstCaseBaseAssetAmount(perpPosition)
 			: ZERO;
@@ -502,8 +640,10 @@ export class User {
 		return this.getMarginRequirement('Maintenance', liquidationBuffer);
 	}
 
-	public getActivePerpPositions(): PerpPosition[] {
-		return this.getUserAccount().perpPositions.filter(
+	public getActivePerpPositionsForUserAccount(
+		userAccount: UserAccount
+	): PerpPosition[] {
+		return userAccount.perpPositions.filter(
 			(pos) =>
 				!pos.baseAssetAmount.eq(ZERO) ||
 				!pos.quoteAssetAmount.eq(ZERO) ||
@@ -512,10 +652,42 @@ export class User {
 		);
 	}
 
-	public getActiveSpotPositions(): SpotPosition[] {
-		return this.getUserAccount().spotPositions.filter(
+	public getActivePerpPositions(): PerpPosition[] {
+		const userAccount = this.getUserAccount();
+		return this.getActivePerpPositionsForUserAccount(userAccount);
+	}
+	public getActivePerpPositionsAndSlot(): DataAndSlot<PerpPosition[]> {
+		const userAccount = this.getUserAccountAndSlot();
+		const positions = this.getActivePerpPositionsForUserAccount(
+			userAccount.data
+		);
+		return {
+			data: positions,
+			slot: userAccount.slot,
+		};
+	}
+
+	public getActiveSpotPositionsForUserAccount(
+		userAccount: UserAccount
+	): SpotPosition[] {
+		return userAccount.spotPositions.filter(
 			(pos) => !isSpotPositionAvailable(pos)
 		);
+	}
+
+	public getActiveSpotPositions(): SpotPosition[] {
+		const userAccount = this.getUserAccount();
+		return this.getActiveSpotPositionsForUserAccount(userAccount);
+	}
+	public getActiveSpotPositionsAndSlot(): DataAndSlot<SpotPosition[]> {
+		const userAccount = this.getUserAccountAndSlot();
+		const positions = this.getActiveSpotPositionsForUserAccount(
+			userAccount.data
+		);
+		return {
+			data: positions,
+			slot: userAccount.slot,
+		};
 	}
 
 	/**
@@ -547,7 +719,9 @@ export class User {
 
 				if (perpPosition.lpShares.gt(ZERO)) {
 					perpPosition = this.getPerpPositionWithLPSettle(
-						perpPosition.marketIndex
+						perpPosition.marketIndex,
+						undefined,
+						!!withWeightMarginCategory
 					)[0];
 				}
 
@@ -1039,23 +1213,12 @@ export class User {
 				);
 
 				if (perpPosition.lpShares.gt(ZERO)) {
-					// is an lp
-					// clone so we dont mutate the position
-					perpPosition = this.getClonedPosition(perpPosition);
-
-					// settle position
-					const [settledPosition, dustBaa, _] =
-						this.getPerpPositionWithLPSettle(market.marketIndex);
-					perpPosition.baseAssetAmount =
-						settledPosition.baseAssetAmount.add(dustBaa);
-					perpPosition.quoteAssetAmount = settledPosition.quoteAssetAmount;
-
-					const [totalOpenBids, totalOpenAsks] = this.getPerpBidAsks(
-						market.marketIndex
-					);
-
-					perpPosition.openAsks = totalOpenAsks;
-					perpPosition.openBids = totalOpenBids;
+					// is an lp, clone so we dont mutate the position
+					perpPosition = this.getPerpPositionWithLPSettle(
+						market.marketIndex,
+						this.getClonedPosition(perpPosition),
+						!!marginCategory
+					)[0];
 				}
 
 				let valuationPrice = this.getOracleDataForPerpMarket(
@@ -1127,6 +1290,19 @@ export class User {
 						baseAssetValue = baseAssetValue.add(
 							new BN(perpPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
 						);
+
+						if (perpPosition.lpShares.gt(ZERO)) {
+							baseAssetValue = baseAssetValue.add(
+								BN.max(
+									QUOTE_PRECISION,
+									valuationPrice
+										.mul(market.amm.orderStepSize)
+										.mul(QUOTE_PRECISION)
+										.div(AMM_RESERVE_PRECISION)
+										.div(PRICE_PRECISION)
+								)
+							);
+						}
 					}
 				}
 
@@ -1313,14 +1489,17 @@ export class User {
 
 	/**
 	 * calculates max allowable leverage exceeding hitting requirement category
+	 * for large sizes where imf factor activates, result is a lower bound
 	 * @params category {Initial, Maintenance}
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getMaxLeverageForPerp(
 		perpMarketIndex: number,
-		category: MarginCategory = 'Initial'
+		marginCategory: MarginCategory = 'Initial'
 	): BN {
 		const market = this.driftClient.getPerpMarketAccount(perpMarketIndex);
+		const marketPrice =
+			this.driftClient.getOracleDataForPerpMarket(perpMarketIndex).price;
 
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
 			this.getLeverageComponents();
@@ -1335,12 +1514,60 @@ export class User {
 
 		const totalLiabilityValue = perpLiabilityValue.add(spotLiabilityValue);
 
-		const marginRatio = calculateMarketMarginRatio(
-			market,
-			ZERO, // todo
-			category
-		);
 		const freeCollateral = this.getFreeCollateral();
+
+		let rawMarginRatio;
+
+		switch (marginCategory) {
+			case 'Initial':
+				rawMarginRatio = market.marginRatioInitial;
+				break;
+			case 'Maintenance':
+				rawMarginRatio = market.marginRatioMaintenance;
+				break;
+			default:
+				rawMarginRatio = market.marginRatioInitial;
+				break;
+		}
+
+		// absolute max fesible size (upper bound)
+		const maxSize = BN.max(
+			ZERO,
+			freeCollateral
+				.mul(MARGIN_PRECISION)
+				.div(new BN(rawMarginRatio))
+				.mul(PRICE_PRECISION)
+				.div(marketPrice)
+		);
+
+		// margin ratio incorporting upper bound on size
+		let marginRatio = calculateMarketMarginRatio(
+			market,
+			maxSize,
+			marginCategory
+		);
+
+		// use more fesible size since imf factor activated
+		let attempts = 0;
+		while (marginRatio > rawMarginRatio + 1e-4 && attempts < 10) {
+			// more fesible size (upper bound)
+			const targetSize = BN.max(
+				ZERO,
+				freeCollateral
+					.mul(MARGIN_PRECISION)
+					.div(new BN(marginRatio))
+					.mul(PRICE_PRECISION)
+					.div(marketPrice)
+			);
+
+			// margin ratio incorporting more fesible target size
+			marginRatio = calculateMarketMarginRatio(
+				market,
+				targetSize,
+				marginCategory
+			);
+			attempts += 1;
+		}
 
 		// how much more liabilities can be opened w remaining free collateral
 		const additionalLiabilities = freeCollateral
@@ -1577,9 +1804,11 @@ export class User {
 			.getPerpMarketAccounts()
 			.find((market) => market.amm.oracle.equals(oracle));
 		if (perpMarketWithSameOracle) {
-			const perpPosition = this.getPerpPosition(
-				perpMarketWithSameOracle.marketIndex
-			);
+			const perpPosition = this.getPerpPositionWithLPSettle(
+				perpMarketWithSameOracle.marketIndex,
+				undefined,
+				true
+			)[0];
 			if (perpPosition) {
 				const freeCollateralDeltaForPerp =
 					this.calculateFreeCollateralDeltaForPerp(
@@ -1632,7 +1861,8 @@ export class User {
 
 		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 		const currentPerpPosition =
-			this.getPerpPosition(marketIndex) || this.getEmptyPosition(marketIndex);
+			this.getPerpPositionWithLPSettle(marketIndex, undefined, true)[0] ||
+			this.getEmptyPosition(marketIndex);
 
 		let freeCollateralDelta = this.calculateFreeCollateralDeltaForPerp(
 			market,
@@ -1787,8 +2017,11 @@ export class User {
 		closeQuoteAmount: BN
 	): BN {
 		const currentPosition =
-			this.getPerpPosition(positionMarketIndex) ||
-			this.getEmptyPosition(positionMarketIndex);
+			this.getPerpPositionWithLPSettle(
+				positionMarketIndex,
+				undefined,
+				true
+			)[0] || this.getEmptyPosition(positionMarketIndex);
 
 		const closeBaseAmount = currentPosition.baseAssetAmount
 			.mul(closeQuoteAmount)
@@ -1829,7 +2062,7 @@ export class User {
 		tradeSide: PositionDirection
 	): BN {
 		const currentPosition =
-			this.getPerpPosition(targetMarketIndex) ||
+			this.getPerpPositionWithLPSettle(targetMarketIndex, undefined, true)[0] ||
 			this.getEmptyPosition(targetMarketIndex);
 
 		const targetSide = isVariant(tradeSide, 'short') ? 'short' : 'long';
@@ -2523,7 +2756,7 @@ export class User {
 		}
 
 		const currentPosition =
-			this.getPerpPosition(targetMarketIndex) ||
+			this.getPerpPositionWithLPSettle(targetMarketIndex)[0] ||
 			this.getEmptyPosition(targetMarketIndex);
 
 		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
@@ -2809,8 +3042,11 @@ export class User {
 		includeOpenOrders?: boolean
 	): BN {
 		const currentPerpPosition =
-			this.getPerpPosition(marketToIgnore) ||
-			this.getEmptyPosition(marketToIgnore);
+			this.getPerpPositionWithLPSettle(
+				marketToIgnore,
+				undefined,
+				!!marginCategory
+			)[0] || this.getEmptyPosition(marketToIgnore);
 
 		const oracleData = this.getOracleDataForPerpMarket(marketToIgnore);
 

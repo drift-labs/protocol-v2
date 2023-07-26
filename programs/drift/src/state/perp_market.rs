@@ -664,8 +664,9 @@ pub struct AMM {
     /// precision: BASE_PRECISION
     pub target_base_asset_amount_per_lp: i32,
     pub padding1: u32,
+    pub total_fee_earned_per_lp: u64,
     pub net_unsettled_funding_pnl: i64,
-    pub padding: [u8; 32],
+    pub padding: [u8; 24],
 }
 
 impl Default for AMM {
@@ -748,8 +749,9 @@ impl Default for AMM {
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
             padding1: 0,
+            total_fee_earned_per_lp: 0,
             net_unsettled_funding_pnl: 0,
-            padding: [0; 32],
+            padding: [0; 24],
         }
     }
 }

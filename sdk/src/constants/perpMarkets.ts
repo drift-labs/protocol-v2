@@ -144,6 +144,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1687201081000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'XRP',
+		category: ['Payments'],
+		symbol: 'XRP-PERP',
+		baseAssetSymbol: 'XRP',
+		marketIndex: 13,
+		oracle: new PublicKey('DuG45Td6dgJBe64Ebymb1WjBys16L1VTQdoAURdsviqN'),
+		launchTs: 1689270550000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -275,6 +285,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 12,
 		oracle: new PublicKey('CYGfrBJB9HgLf9iZyN4aH5HvUAi2htQ4MjPxeXMf4Egn'),
 		launchTs: 1687201081000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'XRP',
+		category: ['Payments'],
+		symbol: 'XRP-PERP',
+		baseAssetSymbol: 'XRP',
+		marketIndex: 13,
+		oracle: new PublicKey('Guffb8DAAxNH6kdoawYjPXTbwUhjmveh8R4LM6uEqRV1'),
+		launchTs: 1689270550000,
 		oracleSource: OracleSource.PYTH,
 	},
 ];
