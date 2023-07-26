@@ -701,18 +701,18 @@ pub fn get_max_fill_amounts(
     user_order_index: usize,
     base_market: &SpotMarket,
     quote_market: &SpotMarket,
-    is_drift_leaving: bool,
+    is_leaving_drift: bool,
 ) -> DriftResult<(Option<u64>, Option<u64>)> {
     let direction: PositionDirection = user.orders[user_order_index].direction;
     match direction {
         PositionDirection::Long => {
-            let max_quote = get_max_fill_amounts_for_market(user, quote_market, is_drift_leaving)?
+            let max_quote = get_max_fill_amounts_for_market(user, quote_market, is_leaving_drift)?
                 .cast::<u64>()?;
             Ok((None, Some(max_quote)))
         }
         PositionDirection::Short => {
             let max_base = standardize_base_asset_amount(
-                get_max_fill_amounts_for_market(user, base_market, is_drift_leaving)?
+                get_max_fill_amounts_for_market(user, base_market, is_leaving_drift)?
                     .cast::<u64>()?,
                 base_market.order_step_size,
             )?;
