@@ -9,6 +9,7 @@ use crate::instructions::optional_accounts::{
 use crate::load_mut;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
+use crate::math::orders::find_best_bid_and_ask_from_users;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
@@ -1194,21 +1195,19 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
-    let clock_slot = clock.slot;
+    let slot = clock.slot;
     let state = &ctx.accounts.state;
-    let mut oracle_map = OracleMap::load_one(
-        &ctx.accounts.oracle,
-        clock_slot,
-        Some(state.oracle_guard_rails),
-    )?;
+    let mut oracle_map =
+        OracleMap::load_one(&ctx.accounts.oracle, slot, Some(state.oracle_guard_rails))?;
 
     let oracle_price_data = oracle_map.get_price_data(&perp_market.amm.oracle)?;
-    controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
+    controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, slot)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let (makers, makers_stats) = load_user_maps(remaining_accounts_iter)?;
+    let (makers, _) = load_user_maps(remaining_accounts_iter)?;
 
-    // do stuff
+    let (best_bid, best_ask) =
+        find_best_bid_and_ask_from_users(&perp_market, oracle_price_data, &makers, slot, now)?;
 
     Ok(())
 }

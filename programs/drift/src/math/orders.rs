@@ -10,8 +10,9 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
 use crate::{
-    math, PostOnlyParam, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+    load, math, PostOnlyParam, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT,
+    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+    SPOT_WEIGHT_PRECISION,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -24,6 +25,7 @@ use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 use crate::math::spot_withdraw::get_max_withdraw_for_market_with_token_amount;
 use crate::math_error;
 use crate::print_error;
+use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
@@ -32,6 +34,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{
     MarketType, Order, OrderStatus, OrderTriggerCondition, PerpPosition, User,
 };
+use crate::state::user_map::UserMap;
 use crate::validate;
 
 #[cfg(test)]
@@ -1136,4 +1139,61 @@ fn calculate_free_collateral_delta_for_spot(
             .get_liability_weight(worst_case_token_amount, &MarginRequirementType::Initial)?
             .sub(SPOT_WEIGHT_PRECISION)
     })
+}
+
+pub fn find_best_bid_and_ask_from_users(
+    perp_market: &PerpMarket,
+    oracle_price_date: &OraclePriceData,
+    users: &UserMap,
+    slot: u64,
+    now: i64,
+) -> DriftResult<(Option<u64>, Option<u64>)> {
+    let mut best_bid: Option<u64> = None;
+    let mut best_ask: Option<u64> = None;
+
+    let market_index = perp_market.market_index;
+    let tick_size = perp_market.amm.order_tick_size;
+    let oracle_price = Some(oracle_price_date.price);
+
+    for (_, account_loader) in &users.0 {
+        let user = load!(account_loader)?;
+
+        for (_, order) in user.orders.iter().enumerate() {
+            if order.status != OrderStatus::Open {
+                continue;
+            }
+
+            if order.market_type != MarketType::Perp || order.market_index != market_index {
+                continue;
+            }
+
+            // if order is not limit order or must be triggered and not triggered, skip
+            if !order.is_limit_order() || (order.must_be_triggered() && !order.triggered()) {
+                continue;
+            }
+
+            if !order.is_resting_limit_order(slot)? {
+                continue;
+            }
+
+            if now > order.max_ts {
+                continue;
+            }
+
+            let limit_price = order.force_get_limit_price(oracle_price, None, slot, tick_size)?;
+
+            match order.direction {
+                PositionDirection::Long => {
+                    best_bid =
+                        Some(best_bid.map_or(limit_price, |best_bid| limit_price.max(best_bid)))
+                }
+                PositionDirection::Short => {
+                    best_ask =
+                        Some(best_ask.map_or(limit_price, |best_ask| limit_price.min(best_ask)))
+                }
+            }
+        }
+    }
+
+    Ok((best_bid, best_ask))
 }
