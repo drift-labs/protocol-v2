@@ -10605,6 +10605,11 @@
       "code": 6251,
       "name": "FundingWasNotUpdated",
       "msg": "FundingWasNotUpdated"
+    },
+    {
+      "code": 6252,
+      "name": "ImpossibleFill",
+      "msg": "ImpossibleFill"
     }
   ]
 }

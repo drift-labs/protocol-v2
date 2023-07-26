@@ -1207,7 +1207,16 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     let (makers, _) = load_user_maps(remaining_accounts_iter)?;
 
     let (best_bid, best_ask) =
-        find_best_bid_and_ask_from_users(&perp_market, oracle_price_data, &makers, slot, now)?;
+        find_best_bid_and_ask_from_users(perp_market, oracle_price_data, &makers, slot, now)?;
+
+    math::amm::update_mark_twap_crank(
+        &mut perp_market.amm,
+        now,
+        oracle_price_data,
+        best_bid,
+        best_ask,
+        None,
+    )?;
 
     Ok(())
 }
