@@ -1197,7 +1197,7 @@ pub fn find_best_bid_and_ask_from_users(
     let tick_size = perp_market.amm.order_tick_size;
     let oracle_price = Some(oracle_price_date.price);
 
-    for (_, account_loader) in &users.0 {
+    for account_loader in users.0.values() {
         let user = load!(account_loader)?;
 
         for (_, order) in user.orders.iter().enumerate() {

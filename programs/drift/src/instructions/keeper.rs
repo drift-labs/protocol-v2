@@ -1209,13 +1209,14 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     let (best_bid, best_ask) =
         find_best_bid_and_ask_from_users(perp_market, oracle_price_data, &makers, slot, now)?;
 
+    let sanitize_clamp_denominator = perp_market.get_sanitize_clamp_denominator()?;
     math::amm::update_mark_twap_crank(
         &mut perp_market.amm,
         now,
         oracle_price_data,
         best_bid,
         best_ask,
-        None,
+        sanitize_clamp_denominator,
     )?;
 
     Ok(())
