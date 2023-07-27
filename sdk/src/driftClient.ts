@@ -1439,7 +1439,9 @@ export class DriftClient {
 
 		for (const userAccount of userAccounts) {
 			for (const spotPosition of userAccount.spotPositions) {
-				if (!isSpotPositionAvailable(spotPosition)) {
+				const hasSpotOpenOrders =
+					!spotPosition.openAsks.eq(ZERO) || !spotPosition.openBids.eq(ZERO);
+				if (!isSpotPositionAvailable(spotPosition) || hasSpotOpenOrders) {
 					this.addSpotMarketToRemainingAccountMaps(
 						spotPosition.marketIndex,
 						false,
@@ -1447,10 +1449,7 @@ export class DriftClient {
 						spotMarketAccountMap
 					);
 
-					if (
-						!spotPosition.openAsks.eq(ZERO) ||
-						!spotPosition.openBids.eq(ZERO)
-					) {
+					if (hasSpotOpenOrders) {
 						this.addSpotMarketToRemainingAccountMaps(
 							QUOTE_SPOT_MARKET_INDEX,
 							false,
