@@ -380,7 +380,7 @@ pub fn handle_withdraw(
 ) -> anchor_lang::Result<()> {
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
-    let user_stats = &load!(ctx.accounts.user_stats)?;
+    let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -511,13 +511,16 @@ pub fn handle_withdraw(
         amount,
     )?;
 
-    if user.qualifies_for_withdraw_fee(user_stats) {
+    if user.qualifies_for_withdraw_fee(&user_stats) {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
         let one_cent = QUOTE_PRECISION / 100;
         let fee = one_cent
             .safe_mul(spot_market.get_precision().cast()?)?
             .safe_mul(oracle_price.unsigned_abs().cast()?)?;
+
+        user.update_cumulative_spot_fees(-fee.cast()?)?;
+        user_stats.increment_total_fees(fee.cast()?)?;
 
         msg!("Charging withdraw fee of {}", fee);
 
