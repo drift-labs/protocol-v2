@@ -9,7 +9,7 @@ use crate::instructions::optional_accounts::{
 use crate::load_mut;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
-use crate::math::orders::find_best_bid_and_ask_from_users;
+use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
@@ -1206,16 +1206,19 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let (makers, _) = load_user_maps(remaining_accounts_iter)?;
 
-    let (best_bid, best_ask) =
-        find_best_bid_and_ask_from_users(perp_market, oracle_price_data, &makers, slot, now)?;
+    let depth = perp_market.amm.min_order_size * 100;
+    let (bids, asks) =
+        find_bids_and_asks_from_users(perp_market, oracle_price_data, &makers, slot, now)?;
+    let estimated_bid = estimate_price_from_side(bids, depth)?;
+    let estimated_ask = estimate_price_from_side(asks, depth)?;
 
     let sanitize_clamp_denominator = perp_market.get_sanitize_clamp_denominator()?;
     math::amm::update_mark_twap_crank(
         &mut perp_market.amm,
         now,
         oracle_price_data,
-        best_bid,
-        best_ask,
+        estimated_bid,
+        estimated_ask,
         sanitize_clamp_denominator,
     )?;
 

@@ -10,9 +10,9 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::{is_amm_available_liquidity_source, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::{
-    load, math, PostOnlyParam, State, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
-    SPOT_WEIGHT_PRECISION,
+    load, math, PostOnlyParam, State, BASE_PRECISION_I128, BASE_PRECISION_U64,
+    OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64,
+    PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -1183,19 +1183,50 @@ fn calculate_free_collateral_delta_for_spot(
     })
 }
 
-pub fn find_best_bid_and_ask_from_users(
+pub struct Level {
+    pub price: u64,
+    pub base_asset_amount: u64,
+}
+
+pub type Side = Vec<Level>;
+
+pub fn find_bids_and_asks_from_users(
     perp_market: &PerpMarket,
     oracle_price_date: &OraclePriceData,
     users: &UserMap,
     slot: u64,
     now: i64,
-) -> DriftResult<(Option<u64>, Option<u64>)> {
-    let mut best_bid: Option<u64> = None;
-    let mut best_ask: Option<u64> = None;
+) -> DriftResult<(Side, Side)> {
+    let mut bids: Side = Vec::with_capacity(8);
+    let mut asks: Side = Vec::with_capacity(8);
 
     let market_index = perp_market.market_index;
     let tick_size = perp_market.amm.order_tick_size;
     let oracle_price = Some(oracle_price_date.price);
+
+    let mut insert_order = |base_asset_amount: u64, price: u64, direction: PositionDirection| {
+        let orders = match direction {
+            PositionDirection::Long => &mut bids,
+            PositionDirection::Short => &mut asks,
+        };
+        let index = match orders.binary_search_by(|level| match direction {
+            PositionDirection::Long => price.cmp(&level.price),
+            PositionDirection::Short => level.price.cmp(&price),
+        }) {
+            Ok(index) => index,
+            Err(index) => index,
+        };
+
+        if index < orders.capacity() {
+            orders.insert(
+                index,
+                Level {
+                    price,
+                    base_asset_amount,
+                },
+            );
+        }
+    };
 
     for account_loader in users.0.values() {
         let user = load!(account_loader)?;
@@ -1222,20 +1253,44 @@ pub fn find_best_bid_and_ask_from_users(
                 continue;
             }
 
+            let existing_position = user.get_perp_position(market_index)?.base_asset_amount;
+            let base_amount = order.get_base_asset_amount_unfilled(Some(existing_position))?;
             let limit_price = order.force_get_limit_price(oracle_price, None, slot, tick_size)?;
 
-            match order.direction {
-                PositionDirection::Long => {
-                    best_bid =
-                        Some(best_bid.map_or(limit_price, |best_bid| limit_price.max(best_bid)))
-                }
-                PositionDirection::Short => {
-                    best_ask =
-                        Some(best_ask.map_or(limit_price, |best_ask| limit_price.min(best_ask)))
-                }
-            }
+            insert_order(base_amount, limit_price, order.direction);
         }
     }
 
-    Ok((best_bid, best_ask))
+    Ok((bids, asks))
+}
+
+pub fn estimate_price_from_side(side: Side, depth: u64) -> DriftResult<Option<u64>> {
+    let mut depth_remaining = depth;
+    let mut cumulative_base = 0_u64;
+    let mut cumulative_quote = 0_u64;
+
+    for level in side {
+        let base_delta = level.base_asset_amount.min(depth_remaining);
+        let quote_delta = level.price.safe_mul(base_delta)?;
+
+        cumulative_base = cumulative_base.safe_add(base_delta)?;
+        depth_remaining = depth_remaining.safe_sub(base_delta)?;
+        cumulative_quote = cumulative_quote.safe_add(quote_delta)?;
+
+        if depth_remaining == 0 {
+            break;
+        }
+    }
+
+    let price = if depth == 0 {
+        Some(
+            cumulative_quote
+                .safe_mul(BASE_PRECISION_U64)?
+                .safe_div(cumulative_base)?,
+        )
+    } else {
+        None
+    };
+
+    Ok(price)
 }
