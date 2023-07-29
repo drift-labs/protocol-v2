@@ -1183,6 +1183,7 @@ fn calculate_free_collateral_delta_for_spot(
     })
 }
 
+#[derive(Eq, PartialEq, Debug)]
 pub struct Level {
     pub price: u64,
     pub base_asset_amount: u64,
@@ -1197,8 +1198,8 @@ pub fn find_bids_and_asks_from_users(
     slot: u64,
     now: i64,
 ) -> DriftResult<(Side, Side)> {
-    let mut bids: Side = Vec::with_capacity(8);
-    let mut asks: Side = Vec::with_capacity(8);
+    let mut bids: Side = Vec::with_capacity(16);
+    let mut asks: Side = Vec::with_capacity(16);
 
     let market_index = perp_market.market_index;
     let tick_size = perp_market.amm.order_tick_size;
@@ -1249,7 +1250,7 @@ pub fn find_bids_and_asks_from_users(
                 continue;
             }
 
-            if now > order.max_ts {
+            if now > order.max_ts && order.max_ts != 0 {
                 continue;
             }
 

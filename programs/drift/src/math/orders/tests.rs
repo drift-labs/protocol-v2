@@ -2678,3 +2678,95 @@ pub mod estimate_price_from_side {
         assert_eq!(price, None);
     }
 }
+
+pub mod find_bids_and_asks_from_users {
+    use solana_program::pubkey::Pubkey;
+
+    use crate::controller::position::PositionDirection;
+    use crate::create_anchor_account_info;
+    use crate::math::constants::{BASE_PRECISION_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+    use crate::math::orders::{find_bids_and_asks_from_users, Level};
+    use crate::state::oracle::OraclePriceData;
+    use crate::state::perp_market::PerpMarket;
+    use crate::state::user::{Order, OrderStatus, OrderType, PerpPosition, User};
+    use crate::state::user_map::UserMap;
+    use crate::test_utils::*;
+    use crate::test_utils::{create_account_info, get_positions};
+    use crate::MarketType;
+    use anchor_lang::Owner;
+
+    #[test]
+    fn test() {
+        let market = PerpMarket::default_test();
+
+        let oracle_price_data = OraclePriceData {
+            price: 100 * PRICE_PRECISION_I64,
+            ..OraclePriceData::default()
+        };
+
+        let mut maker_orders = [Order::default(); 32];
+        for (i, order) in maker_orders.iter_mut().enumerate().take(16) {
+            *order = Order {
+                status: OrderStatus::Open,
+                market_index: 0,
+                market_type: MarketType::Perp,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                price: (80 + i) as u64 * PRICE_PRECISION_U64,
+                post_only: true,
+                ..Order::default()
+            };
+        }
+
+        for (i, order) in maker_orders.iter_mut().enumerate().skip(16) {
+            *order = Order {
+                status: OrderStatus::Open,
+                market_index: 0,
+                market_type: MarketType::Perp,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                price: (120 - i) as u64 * PRICE_PRECISION_U64,
+                post_only: true,
+                ..Order::default()
+            };
+        }
+
+        let mut maker = User {
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 32,
+                ..PerpPosition::default()
+            }),
+            orders: maker_orders,
+            ..User::default()
+        };
+        let maker_key = Pubkey::default();
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let (bids, asks) =
+            find_bids_and_asks_from_users(&market, &oracle_price_data, &makers_and_referrers, 0, 0)
+                .unwrap();
+
+        let mut expected_bids = vec![];
+        for i in 0..16 {
+            expected_bids.push(Level {
+                price: (95 - i) as u64 * PRICE_PRECISION_U64,
+                base_asset_amount: BASE_PRECISION_U64,
+            })
+        }
+        assert_eq!(bids, expected_bids);
+
+        let mut expected_asks = vec![];
+        for i in 0..16 {
+            expected_asks.push(Level {
+                price: (89 + i) as u64 * PRICE_PRECISION_U64,
+                base_asset_amount: BASE_PRECISION_U64,
+            })
+        }
+        assert_eq!(asks, expected_asks);
+    }
+}
