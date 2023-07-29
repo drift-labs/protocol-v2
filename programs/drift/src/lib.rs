@@ -304,6 +304,13 @@ pub mod drift {
         handle_update_user_open_orders_count(ctx)
     }
 
+    pub fn admin_disable_update_perp_bid_ask_twap(
+        ctx: Context<AdminDisableBidAskTwapUpdate>,
+        disable: bool,
+    ) -> Result<()> {
+        handle_admin_disable_update_perp_bid_ask_twap(ctx, disable)
+    }
+
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         handle_settle_pnl(ctx, market_index)
     }

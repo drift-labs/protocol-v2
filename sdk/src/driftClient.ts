@@ -5113,8 +5113,7 @@ export class DriftClient {
 					perpMarket: perpMarket.pubkey,
 					oracle: perpMarket.amm.oracle,
 					authority: this.wallet.publicKey,
-					user: await this.getUserAccountPublicKey(),
-					userStats: this.getUserStatsAccountPublicKey(),
+					keeperStats: this.getUserStatsAccountPublicKey(),
 				},
 				remainingAccounts,
 			}

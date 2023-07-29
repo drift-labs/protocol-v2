@@ -511,6 +511,8 @@ pub enum ErrorCode {
     FundingWasNotUpdated,
     #[msg("ImpossibleFill")]
     ImpossibleFill,
+    #[msg("CantUpdatePerpBidAskTwap")]
+    CantUpdatePerpBidAskTwap,
 }
 
 #[macro_export]

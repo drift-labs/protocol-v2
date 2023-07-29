@@ -6,7 +6,6 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, load_maps, AccountMaps,
 };
-use crate::load_mut;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
@@ -32,6 +31,7 @@ use crate::state::user_map::load_user_maps;
 use crate::validate;
 use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math};
+use crate::{load_mut, QUOTE_PRECISION_U64};
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -1200,6 +1200,22 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     let mut oracle_map =
         OracleMap::load_one(&ctx.accounts.oracle, slot, Some(state.oracle_guard_rails))?;
 
+    let keeper_stats = load!(ctx.accounts.keeper_stats)?;
+    validate!(
+        !keeper_stats.disable_update_perp_bid_ask_twap,
+        ErrorCode::CantUpdatePerpBidAskTwap,
+        "Keeper stats disable_update_perp_bid_ask_twap is true"
+    )?;
+
+    let min_if_stake = 1000 * QUOTE_PRECISION_U64;
+    validate!(
+        keeper_stats.if_staked_quote_asset_amount >= min_if_stake,
+        ErrorCode::CantUpdatePerpBidAskTwap,
+        "Keeper doesnt have min if stake. stake = {} min if stake = {}",
+        keeper_stats.if_staked_quote_asset_amount,
+        min_if_stake
+    )?;
+
     let oracle_price_data = oracle_map.get_price_data(&perp_market.amm.oracle)?;
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, slot)?;
 
@@ -1714,16 +1730,7 @@ pub struct UpdatePerpBidAskTwap<'info> {
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `update_funding_rate` ix constraint
     pub oracle: AccountInfo<'info>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&user, &user_stats)?
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
+    pub keeper_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
 }
 
