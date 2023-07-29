@@ -2752,21 +2752,23 @@ pub mod find_bids_and_asks_from_users {
                 .unwrap();
 
         let mut expected_bids = vec![];
-        for i in 0..16 {
+        for i in 0..8 {
             expected_bids.push(Level {
                 price: (95 - i) as u64 * PRICE_PRECISION_U64,
                 base_asset_amount: BASE_PRECISION_U64,
             })
         }
         assert_eq!(bids, expected_bids);
+        assert_eq!(bids.capacity(), 8);
 
         let mut expected_asks = vec![];
-        for i in 0..16 {
+        for i in 0..8 {
             expected_asks.push(Level {
                 price: (89 + i) as u64 * PRICE_PRECISION_U64,
                 base_asset_amount: BASE_PRECISION_U64,
             })
         }
         assert_eq!(asks, expected_asks);
+        assert_eq!(asks.capacity(), 8);
     }
 }
