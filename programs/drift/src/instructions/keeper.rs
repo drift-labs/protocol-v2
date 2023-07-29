@@ -1209,8 +1209,8 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     let depth = perp_market.amm.min_order_size * 100;
     let (bids, asks) =
         find_bids_and_asks_from_users(perp_market, oracle_price_data, &makers, slot, now)?;
-    let estimated_bid = estimate_price_from_side(bids, depth)?;
-    let estimated_ask = estimate_price_from_side(asks, depth)?;
+    let estimated_bid = estimate_price_from_side(&bids, depth)?;
+    let estimated_ask = estimate_price_from_side(&asks, depth)?;
 
     let sanitize_clamp_denominator = perp_market.get_sanitize_clamp_denominator()?;
     math::amm::update_mark_twap_crank(

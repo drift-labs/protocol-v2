@@ -10,9 +10,9 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::{is_amm_available_liquidity_source, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::{
-    load, math, PostOnlyParam, State, BASE_PRECISION_I128, BASE_PRECISION_U64,
-    OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64,
-    PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+    load, math, PostOnlyParam, State, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT,
+    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+    SPOT_WEIGHT_PRECISION,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -1264,14 +1264,14 @@ pub fn find_bids_and_asks_from_users(
     Ok((bids, asks))
 }
 
-pub fn estimate_price_from_side(side: Side, depth: u64) -> DriftResult<Option<u64>> {
+pub fn estimate_price_from_side(side: &Side, depth: u64) -> DriftResult<Option<u64>> {
     let mut depth_remaining = depth;
     let mut cumulative_base = 0_u64;
-    let mut cumulative_quote = 0_u64;
+    let mut cumulative_quote = 0_u128;
 
     for level in side {
         let base_delta = level.base_asset_amount.min(depth_remaining);
-        let quote_delta = level.price.safe_mul(base_delta)?;
+        let quote_delta = level.price.cast::<u128>()?.safe_mul(base_delta.cast()?)?;
 
         cumulative_base = cumulative_base.safe_add(base_delta)?;
         depth_remaining = depth_remaining.safe_sub(base_delta)?;
@@ -1282,11 +1282,11 @@ pub fn estimate_price_from_side(side: Side, depth: u64) -> DriftResult<Option<u6
         }
     }
 
-    let price = if depth == 0 {
+    let price = if depth_remaining == 0 {
         Some(
             cumulative_quote
-                .safe_mul(BASE_PRECISION_U64)?
-                .safe_div(cumulative_base)?,
+                .safe_div(cumulative_base.cast()?)?
+                .cast::<u64>()?,
         )
     } else {
         None

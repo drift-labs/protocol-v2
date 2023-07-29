@@ -2631,3 +2631,50 @@ pub mod get_price_for_perp_order {
         assert_eq!(limit_price, bid); // $100.1
     }
 }
+
+pub mod estimate_price_from_side {
+    use crate::math::orders::{estimate_price_from_side, Level, Side};
+    use crate::{BASE_PRECISION_U64, PRICE_PRECISION_U64};
+
+    #[test]
+    fn ask() {
+        let mut asks: Side = vec![];
+        for i in 0..11 {
+            asks.push(Level {
+                price: (100 - i) * PRICE_PRECISION_U64,
+                base_asset_amount: 100 * BASE_PRECISION_U64,
+            })
+        }
+
+        let depth = 1100 * BASE_PRECISION_U64;
+        let price = estimate_price_from_side(&asks, depth).unwrap();
+
+        assert_eq!(price, Some(95000000));
+
+        let depth = 1101 * BASE_PRECISION_U64;
+        let price = estimate_price_from_side(&asks, depth).unwrap();
+
+        assert_eq!(price, None);
+    }
+
+    #[test]
+    fn bids() {
+        let mut bids: Side = vec![];
+        for i in 0..11 {
+            bids.push(Level {
+                price: (90 + i) * PRICE_PRECISION_U64,
+                base_asset_amount: 100 * BASE_PRECISION_U64,
+            })
+        }
+
+        let depth = 1100 * BASE_PRECISION_U64;
+        let price = estimate_price_from_side(&bids, depth).unwrap();
+
+        assert_eq!(price, Some(95000000));
+
+        let depth = 1101 * BASE_PRECISION_U64;
+        let price = estimate_price_from_side(&bids, depth).unwrap();
+
+        assert_eq!(price, None);
+    }
+}
