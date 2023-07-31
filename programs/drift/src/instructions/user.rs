@@ -512,25 +512,23 @@ pub fn handle_withdraw(
     )?;
 
     if user.qualifies_for_withdraw_fee(&user_stats) {
-        let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-
         let fee_quote = QUOTE_PRECISION / 2000;
         let fee = fee_quote
             .safe_mul(spot_market.get_precision().cast()?)?
-            .safe_mul(oracle_price.unsigned_abs().cast()?)?;
+            .safe_div(oracle_price.unsigned_abs().cast()?)?;
 
         user.update_cumulative_spot_fees(-fee.cast()?)?;
         user_stats.increment_total_fees(fee.cast()?)?;
 
         msg!("Charging withdraw fee of {}", fee);
 
-        update_revenue_pool_balances(fee, &SpotBalanceType::Deposit, spot_market)?;
+        update_revenue_pool_balances(fee, &SpotBalanceType::Deposit, &mut spot_market)?;
 
         let position_index = user.force_get_spot_position_index(market_index)?;
         update_spot_balances_and_cumulative_deposits(
             fee,
             &SpotBalanceType::Borrow,
-            spot_market,
+            &mut spot_market,
             &mut user.spot_positions[position_index],
             false,
             Some(0), // to make fee show in cumulative deposits
