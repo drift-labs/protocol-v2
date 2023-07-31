@@ -357,12 +357,11 @@ impl User {
     }
 
     pub fn qualifies_for_withdraw_fee(&self, user_stats: &UserStats) -> bool {
-        // let min_total_withdraws = 10_000_000 * QUOTE_PRECISION_U64; // $10M
-        //
-        // // if total withdraws are greater than $10M and user has paid more than %.01 of it in fees
-        // self.total_withdraws >= min_total_withdraws
-        //     && self.total_withdraws / user_stats.fees.total_fee_paid.max(1) > 10_000
-        return true;
+        let min_total_withdraws = 10_000_000 * QUOTE_PRECISION_U64; // $10M
+
+        // if total withdraws are greater than $10M and user has paid more than %.01 of it in fees
+        self.total_withdraws >= min_total_withdraws
+            && self.total_withdraws / user_stats.fees.total_fee_paid.max(1) > 10_000
     }
 }
 
