@@ -1,6 +1,5 @@
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
-use crate::get_then_update_id;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -24,6 +23,7 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
 use crate::validate;
+use crate::{get_then_update_id, QUOTE_PRECISION_U64};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
@@ -355,6 +355,14 @@ impl User {
             self.open_auctions = self.open_auctions.saturating_sub(1);
             self.has_open_auction = self.open_auctions > 0;
         }
+    }
+
+    pub fn qualifies_for_withdraw_fee(&self, user_stats: &UserStats) -> bool {
+        let min_total_withdraws = 10_000_000 * QUOTE_PRECISION_U64; // $10M
+
+        // if total withdraws are greater than $10M and user has paid more than %.01 of it in fees
+        self.total_withdraws >= min_total_withdraws
+            && self.total_withdraws / user_stats.fees.total_fee_paid.max(1) > 10_000
     }
 }
 
