@@ -6,9 +6,9 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, load_maps, AccountMaps,
 };
-use crate::load_mut;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
+use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
@@ -31,6 +31,7 @@ use crate::state::user_map::load_user_maps;
 use crate::validate;
 use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math};
+use crate::{load_mut, QUOTE_PRECISION_U64};
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -1186,6 +1187,82 @@ pub fn handle_update_funding_rate(
 }
 
 #[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+    funding_not_paused(&ctx.accounts.state)
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+    let state = &ctx.accounts.state;
+    let mut oracle_map =
+        OracleMap::load_one(&ctx.accounts.oracle, slot, Some(state.oracle_guard_rails))?;
+
+    let keeper_stats = load!(ctx.accounts.keeper_stats)?;
+    validate!(
+        !keeper_stats.disable_update_perp_bid_ask_twap,
+        ErrorCode::CantUpdatePerpBidAskTwap,
+        "Keeper stats disable_update_perp_bid_ask_twap is true"
+    )?;
+
+    let min_if_stake = 1000 * QUOTE_PRECISION_U64;
+    validate!(
+        keeper_stats.if_staked_quote_asset_amount >= min_if_stake,
+        ErrorCode::CantUpdatePerpBidAskTwap,
+        "Keeper doesnt have min if stake. stake = {} min if stake = {}",
+        keeper_stats.if_staked_quote_asset_amount,
+        min_if_stake
+    )?;
+
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.amm.oracle)?;
+    controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, slot)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let (makers, _) = load_user_maps(remaining_accounts_iter)?;
+
+    let depth = perp_market.get_market_depth_for_funding_rate()?;
+
+    let (bids, asks) =
+        find_bids_and_asks_from_users(perp_market, oracle_price_data, &makers, slot, now)?;
+    let estimated_bid = estimate_price_from_side(&bids, depth)?;
+    let estimated_ask = estimate_price_from_side(&asks, depth)?;
+
+    msg!(
+        "estimated_bid = {:?} estimated_ask = {:?}",
+        estimated_bid,
+        estimated_ask
+    );
+
+    msg!(
+        "before amm ask twap = {} bid twap = {} ts = {}",
+        perp_market.amm.last_bid_price_twap,
+        perp_market.amm.last_ask_price_twap,
+        perp_market.amm.last_mark_price_twap_ts
+    );
+
+    let sanitize_clamp_denominator = perp_market.get_sanitize_clamp_denominator()?;
+    math::amm::update_mark_twap_crank(
+        &mut perp_market.amm,
+        now,
+        oracle_price_data,
+        estimated_bid,
+        estimated_ask,
+        sanitize_clamp_denominator,
+    )?;
+
+    msg!(
+        "after amm ask twap = {} bid twap = {} ts = {}",
+        perp_market.amm.last_bid_price_twap,
+        perp_market.amm.last_ask_price_twap,
+        perp_market.amm.last_mark_price_twap_ts
+    );
+
+    Ok(())
+}
+
+#[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_settle_revenue_to_insurance_fund(
@@ -1665,6 +1742,17 @@ pub struct UpdateFundingRate<'info> {
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `update_funding_rate` ix constraint
     pub oracle: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePerpBidAskTwap<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    /// CHECK: checked in `update_funding_rate` ix constraint
+    pub oracle: AccountInfo<'info>,
+    pub keeper_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]

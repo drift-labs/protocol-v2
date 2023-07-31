@@ -9,8 +9,8 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 
-use crate::validation;
 use crate::{validate, PRICE_PRECISION_I128};
+use crate::{validation, PRICE_PRECISION_I64};
 
 use crate::math::casting::Cast;
 use crate::math::funding::calculate_funding_payment;
@@ -180,11 +180,18 @@ pub fn calculate_perp_position_value_and_pnl(
         quote_oracle_price
     };
 
-    let mut weighted_unrealized_pnl = total_unrealized_pnl
-        .safe_mul(quote_price.cast()?)?
-        .safe_div(PRICE_PRECISION_I128)?
-        .safe_mul(unrealized_asset_weight.cast()?)?
-        .safe_div(SPOT_WEIGHT_PRECISION.cast()?)?;
+    let mut weighted_unrealized_pnl = total_unrealized_pnl;
+
+    if unrealized_asset_weight != SPOT_WEIGHT_PRECISION {
+        weighted_unrealized_pnl = weighted_unrealized_pnl
+            .safe_mul(unrealized_asset_weight.cast()?)?
+            .safe_div(SPOT_WEIGHT_PRECISION.cast()?)?;
+    }
+    if quote_price != PRICE_PRECISION_I64 {
+        weighted_unrealized_pnl = weighted_unrealized_pnl
+            .safe_mul(quote_price.cast()?)?
+            .safe_div(PRICE_PRECISION_I128)?;
+    }
 
     if with_bounds && margin_requirement_type == MarginRequirementType::Initial {
         // safety guard for dangerously configured perp market

@@ -26,6 +26,7 @@ test_files=(
   liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
   liquidatePerpAndLp.ts
+  liquidateMaxLps.ts
   order.ts
   spotDepositWithdraw.ts
   spotWithdrawUtil100.ts

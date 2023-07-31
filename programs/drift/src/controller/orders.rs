@@ -258,13 +258,7 @@ pub fn place_perp_order(
         padding: [0; 3],
     };
 
-    let valid_oracle_price = get_valid_oracle_price(
-        oracle_map.get_price_data(&market.amm.oracle)?,
-        market,
-        &new_order,
-        &state.oracle_guard_rails.validity,
-    )?;
-
+    let valid_oracle_price = Some(oracle_map.get_price_data(&market.amm.oracle)?.price);
     match validate_order(&new_order, market, valid_oracle_price, slot) {
         Ok(()) => {}
         Err(ErrorCode::PlacePostOnlyLimitFailure)
@@ -1785,7 +1779,7 @@ pub fn fulfill_perp_order_with_amm(
     };
 
     let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
-    amm::update_mark_twap(
+    amm::update_mark_twap_from_estimates(
         &mut market.amm,
         now,
         Some(market_side_price),
@@ -2071,7 +2065,7 @@ pub fn fulfill_perp_order_with_match(
     }
 
     let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
-    amm::update_mark_twap(
+    amm::update_mark_twap_from_estimates(
         &mut market.amm,
         now,
         Some(maker_price),
@@ -2382,36 +2376,6 @@ pub fn update_order_after_fill(
     }
 
     Ok(())
-}
-
-fn get_valid_oracle_price(
-    oracle_price_data: &OraclePriceData,
-    market: &PerpMarket,
-    order: &Order,
-    validity_guardrails: &ValidityGuardRails,
-) -> DriftResult<Option<i64>> {
-    let price = {
-        let oracle_validity = oracle::oracle_validity(
-            market.amm.historical_oracle_data.last_oracle_price_twap,
-            oracle_price_data,
-            validity_guardrails,
-        )?;
-
-        let is_oracle_valid =
-            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmm))?;
-
-        if is_oracle_valid {
-            Some(oracle_price_data.price)
-        } else if order.has_oracle_price_offset() {
-            msg!("Invalid oracle for order with oracle price offset");
-            return Err(print_error!(ErrorCode::InvalidOracle)());
-        } else {
-            msg!("Oracle is invalid");
-            None
-        }
-    };
-
-    Ok(price)
 }
 
 #[allow(clippy::type_complexity)]
@@ -2982,15 +2946,9 @@ pub fn place_spot_order(
         padding: [0; 3],
     };
 
-    let valid_oracle_price = Some(oracle_price_data.price);
     validate_spot_order(
         &new_order,
-        valid_oracle_price,
-        slot,
         spot_market.order_step_size,
-        spot_market.order_tick_size,
-        spot_market.get_margin_ratio(&MarginRequirementType::Initial)?,
-        spot_market.get_margin_ratio(&MarginRequirementType::Maintenance)?,
         spot_market.min_order_size,
     )?;
 
