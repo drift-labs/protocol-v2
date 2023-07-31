@@ -7,11 +7,12 @@ use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_amm_available_liquidity;
-use crate::math::auction::is_auction_complete;
+use crate::math::auction::{is_amm_available_liquidity_source, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::{
-    math, PostOnlyParam, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+    load, math, PostOnlyParam, State, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT,
+    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+    SPOT_WEIGHT_PRECISION,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -24,6 +25,7 @@ use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 use crate::math::spot_withdraw::get_max_withdraw_for_market_with_token_amount;
 use crate::math_error;
 use crate::print_error;
+use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
@@ -32,6 +34,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{
     MarketType, Order, OrderStatus, OrderTriggerCondition, PerpPosition, User,
 };
+use crate::state::user_map::UserMap;
 use crate::validate;
 
 #[cfg(test)]
@@ -301,6 +304,29 @@ pub fn get_position_delta_for_fill(
     })
 }
 
+#[inline(always)]
+pub fn validate_perp_fill_possible(
+    state: &State,
+    user: &User,
+    order_index: usize,
+    slot: u64,
+    num_makers: usize,
+) -> DriftResult {
+    let amm_available = is_amm_available_liquidity_source(
+        &user.orders[order_index],
+        state.min_perp_auction_duration,
+        slot,
+    )?;
+
+    if !amm_available && num_makers == 0 && user.orders[order_index].is_limit_order() {
+        msg!("invalid fill. order is limit order, amm is not available and no makers present");
+        return Err(ErrorCode::ImpossibleFill);
+    }
+
+    Ok(())
+}
+
+#[inline(always)]
 pub fn should_cancel_market_order_after_fill(
     user: &User,
     user_order_index: usize,
@@ -315,6 +341,25 @@ pub fn should_cancel_market_order_after_fill(
         && is_auction_complete(order.slot, order.auction_duration, slot)?)
 }
 
+#[inline(always)]
+pub fn should_expire_order_before_fill(
+    user: &User,
+    order_index: usize,
+    now: i64,
+) -> DriftResult<bool> {
+    let should_order_be_expired = should_expire_order(user, order_index, now)?;
+    if should_order_be_expired && user.orders[order_index].is_limit_order() {
+        let now_plus_buffer = now.safe_add(15)?;
+        if !should_expire_order(user, order_index, now_plus_buffer)? {
+            msg!("invalid fill. cant force expire limit order until 15s after max_ts. max ts {}, now {}, now plus buffer {}", user.orders[order_index].max_ts, now, now_plus_buffer);
+            return Err(ErrorCode::ImpossibleFill);
+        }
+    }
+
+    Ok(should_order_be_expired)
+}
+
+#[inline(always)]
 pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> DriftResult<bool> {
     let order = &user.orders[user_order_index];
     if order.status != OrderStatus::Open || order.max_ts == 0 || order.must_be_triggered() {
@@ -701,16 +746,19 @@ pub fn get_max_fill_amounts(
     user_order_index: usize,
     base_market: &SpotMarket,
     quote_market: &SpotMarket,
+    is_leaving_drift: bool,
 ) -> DriftResult<(Option<u64>, Option<u64>)> {
     let direction: PositionDirection = user.orders[user_order_index].direction;
     match direction {
         PositionDirection::Long => {
-            let max_quote = get_max_fill_amounts_for_market(user, quote_market)?.cast::<u64>()?;
+            let max_quote = get_max_fill_amounts_for_market(user, quote_market, is_leaving_drift)?
+                .cast::<u64>()?;
             Ok((None, Some(max_quote)))
         }
         PositionDirection::Short => {
             let max_base = standardize_base_asset_amount(
-                get_max_fill_amounts_for_market(user, base_market)?.cast::<u64>()?,
+                get_max_fill_amounts_for_market(user, base_market, is_leaving_drift)?
+                    .cast::<u64>()?,
                 base_market.order_step_size,
             )?;
             Ok((Some(max_base), None))
@@ -718,10 +766,14 @@ pub fn get_max_fill_amounts(
     }
 }
 
-fn get_max_fill_amounts_for_market(user: &User, market: &SpotMarket) -> DriftResult<u128> {
+fn get_max_fill_amounts_for_market(
+    user: &User,
+    market: &SpotMarket,
+    is_leaving_drift: bool,
+) -> DriftResult<u128> {
     let position_index = user.get_spot_position_index(market.market_index)?;
     let token_amount = user.spot_positions[position_index].get_signed_token_amount(market)?;
-    get_max_withdraw_for_market_with_token_amount(market, token_amount, false)
+    get_max_withdraw_for_market_with_token_amount(market, token_amount, is_leaving_drift)
 }
 
 pub fn find_fallback_maker_order(
@@ -1136,4 +1188,121 @@ fn calculate_free_collateral_delta_for_spot(
             .get_liability_weight(worst_case_token_amount, &MarginRequirementType::Initial)?
             .sub(SPOT_WEIGHT_PRECISION)
     })
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub struct Level {
+    pub price: u64,
+    pub base_asset_amount: u64,
+}
+
+pub type Side = Vec<Level>;
+
+pub fn find_bids_and_asks_from_users(
+    perp_market: &PerpMarket,
+    oracle_price_date: &OraclePriceData,
+    users: &UserMap,
+    slot: u64,
+    now: i64,
+) -> DriftResult<(Side, Side)> {
+    let mut bids: Side = Vec::with_capacity(8);
+    let mut asks: Side = Vec::with_capacity(8);
+
+    let market_index = perp_market.market_index;
+    let tick_size = perp_market.amm.order_tick_size;
+    let oracle_price = Some(oracle_price_date.price);
+
+    let mut insert_order = |base_asset_amount: u64, price: u64, direction: PositionDirection| {
+        let orders = match direction {
+            PositionDirection::Long => &mut bids,
+            PositionDirection::Short => &mut asks,
+        };
+        let index = match orders.binary_search_by(|level| match direction {
+            PositionDirection::Long => price.cmp(&level.price),
+            PositionDirection::Short => level.price.cmp(&price),
+        }) {
+            Ok(index) => index,
+            Err(index) => index,
+        };
+
+        if index < orders.capacity() {
+            if orders.len() == orders.capacity() {
+                orders.pop();
+            }
+
+            orders.insert(
+                index,
+                Level {
+                    price,
+                    base_asset_amount,
+                },
+            );
+        }
+    };
+
+    for account_loader in users.0.values() {
+        let user = load!(account_loader)?;
+
+        for (_, order) in user.orders.iter().enumerate() {
+            if order.status != OrderStatus::Open {
+                continue;
+            }
+
+            if order.market_type != MarketType::Perp || order.market_index != market_index {
+                continue;
+            }
+
+            // if order is not limit order or must be triggered and not triggered, skip
+            if !order.is_limit_order() || (order.must_be_triggered() && !order.triggered()) {
+                continue;
+            }
+
+            if !order.is_resting_limit_order(slot)? {
+                continue;
+            }
+
+            if now > order.max_ts && order.max_ts != 0 {
+                continue;
+            }
+
+            let existing_position = user.get_perp_position(market_index)?.base_asset_amount;
+            let base_amount = order.get_base_asset_amount_unfilled(Some(existing_position))?;
+            let limit_price = order.force_get_limit_price(oracle_price, None, slot, tick_size)?;
+
+            insert_order(base_amount, limit_price, order.direction);
+        }
+    }
+
+    Ok((bids, asks))
+}
+
+pub fn estimate_price_from_side(side: &Side, depth: u64) -> DriftResult<Option<u64>> {
+    let mut depth_remaining = depth;
+    let mut cumulative_base = 0_u64;
+    let mut cumulative_quote = 0_u128;
+
+    for level in side {
+        let base_delta = level.base_asset_amount.min(depth_remaining);
+        let quote_delta = level.price.cast::<u128>()?.safe_mul(base_delta.cast()?)?;
+
+        cumulative_base = cumulative_base.safe_add(base_delta)?;
+        depth_remaining = depth_remaining.safe_sub(base_delta)?;
+        cumulative_quote = cumulative_quote.safe_add(quote_delta)?;
+
+        if depth_remaining == 0 {
+            break;
+        }
+    }
+
+    let price = if depth_remaining == 0 {
+        Some(
+            cumulative_quote
+                .safe_div(cumulative_base.cast()?)?
+                .cast::<u64>()?,
+        )
+    } else {
+        None
+    };
+
+    Ok(price)
 }

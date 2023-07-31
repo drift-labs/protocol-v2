@@ -509,6 +509,10 @@ pub enum ErrorCode {
     SpotMarketReduceOnly,
     #[msg("FundingWasNotUpdated")]
     FundingWasNotUpdated,
+    #[msg("ImpossibleFill")]
+    ImpossibleFill,
+    #[msg("CantUpdatePerpBidAskTwap")]
+    CantUpdatePerpBidAskTwap,
 }
 
 #[macro_export]

@@ -66,7 +66,7 @@ pub fn update_spot_balances_and_cumulative_deposits(
     update_direction: &SpotBalanceType,
     spot_market: &mut SpotMarket,
     spot_position: &mut SpotPosition,
-    force_round_up: bool,
+    is_leaving_drift: bool,
     cumulative_deposit_delta: Option<u128>,
 ) -> DriftResult {
     update_spot_balances(
@@ -74,7 +74,7 @@ pub fn update_spot_balances_and_cumulative_deposits(
         update_direction,
         spot_market,
         spot_position,
-        force_round_up,
+        is_leaving_drift,
     )?;
 
     let cumulative_deposit_delta = cumulative_deposit_delta.unwrap_or(token_amount);

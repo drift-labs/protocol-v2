@@ -555,7 +555,7 @@ pub fn settle_revenue_to_insurance_fund(
     )?;
 
     let depositors_claim =
-        validate_spot_market_vault_amount(spot_market, spot_market_vault_amount)?.cast::<u128>()?;
+        validate_spot_market_vault_amount(spot_market, spot_market_vault_amount)?;
 
     let mut token_amount = get_token_amount(
         spot_market.revenue_pool.scaled_balance,
@@ -563,9 +563,9 @@ pub fn settle_revenue_to_insurance_fund(
         &SpotBalanceType::Deposit,
     )?;
 
-    if depositors_claim < token_amount {
+    if depositors_claim < token_amount.cast()? {
         // only allow half of withdraw available when utilization is high
-        token_amount = depositors_claim.safe_div(2)?;
+        token_amount = depositors_claim.max(0).cast::<u128>()?.safe_div(2)?;
     }
 
     if spot_market.insurance_fund.user_shares > 0 {

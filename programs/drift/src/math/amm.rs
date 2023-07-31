@@ -122,13 +122,53 @@ pub fn _calculate_market_open_bids_asks(
     Ok((max_bids, max_asks))
 }
 
-pub fn update_mark_twap(
+pub fn update_mark_twap_crank(
     amm: &mut AMM,
     now: i64,
+    oracle_price_data: &OraclePriceData,
+    best_dlob_bid_price: Option<u64>,
+    best_dlob_ask_price: Option<u64>,
+    sanitize_clamp: Option<i64>,
+) -> DriftResult {
+    let amm_reserve_price = amm.reserve_price()?;
+    let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
+
+    let mut best_bid_price = match best_dlob_bid_price {
+        Some(best_dlob_bid_price) => best_dlob_bid_price.max(amm_bid_price),
+        None => amm_bid_price,
+    };
+
+    let mut best_ask_price = match best_dlob_ask_price {
+        Some(best_dlob_ask_price) => best_dlob_ask_price.min(amm_ask_price),
+        None => amm_ask_price,
+    };
+
+    // handle crossing bid/ask
+    if best_bid_price > best_ask_price {
+        if best_bid_price >= oracle_price_data.price.cast()? {
+            best_bid_price = best_ask_price;
+        } else {
+            best_ask_price = best_bid_price;
+        }
+    }
+
+    update_mark_twap(
+        amm,
+        now,
+        best_bid_price,
+        best_ask_price,
+        None,
+        sanitize_clamp,
+    )?;
+
+    Ok(())
+}
+
+pub fn estimate_best_bid_ask_price(
+    amm: &mut AMM,
     precomputed_trade_price: Option<u64>,
     direction: Option<PositionDirection>,
-    sanitize_clamp: Option<i64>,
-) -> DriftResult<u64> {
+) -> DriftResult<(u64, u64)> {
     let base_spread_u64 = amm.base_spread.cast::<u64>()?;
     let last_oracle_price_u64 = amm.historical_oracle_data.last_oracle_price.cast::<u64>()?;
 
@@ -189,6 +229,17 @@ pub fn update_mark_twap(
         best_ask_estimate,
     )?;
 
+    Ok((bid_price, ask_price))
+}
+
+pub fn update_mark_twap(
+    amm: &mut AMM,
+    now: i64,
+    bid_price: u64,
+    ask_price: u64,
+    precomputed_trade_price: Option<u64>,
+    sanitize_clamp: Option<i64>,
+) -> DriftResult<u64> {
     let (bid_price_capped_update, ask_price_capped_update) = (
         sanitize_new_price(
             bid_price.cast()?,
@@ -274,6 +325,10 @@ pub fn update_mark_twap(
     let mid_twap = bid_twap.safe_add(ask_twap)? / 2;
 
     // update std stat
+    let trade_price: u64 = match precomputed_trade_price {
+        Some(trade_price) => trade_price,
+        None => bid_price.safe_add(ask_price)?.safe_div(2)?,
+    };
     update_amm_mark_std(amm, now, trade_price, amm.last_mark_price_twap)?;
 
     amm.last_mark_price_twap = mid_twap.cast()?;
@@ -292,6 +347,25 @@ pub fn update_mark_twap(
     amm.last_mark_price_twap_ts = now;
 
     mid_twap.cast()
+}
+
+pub fn update_mark_twap_from_estimates(
+    amm: &mut AMM,
+    now: i64,
+    precomputed_trade_price: Option<u64>,
+    direction: Option<PositionDirection>,
+    sanitize_clamp: Option<i64>,
+) -> DriftResult<u64> {
+    let (bid_price, ask_price) =
+        estimate_best_bid_ask_price(amm, precomputed_trade_price, direction)?;
+    update_mark_twap(
+        amm,
+        now,
+        bid_price,
+        ask_price,
+        precomputed_trade_price,
+        sanitize_clamp,
+    )
 }
 
 pub fn sanitize_new_price(

@@ -46,6 +46,7 @@ use crate::state::spot_market::{
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
+use crate::state::user::UserStats;
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
@@ -2187,6 +2188,15 @@ pub fn handle_admin_remove_insurance_fund_stake(
     Ok(())
 }
 
+pub fn handle_admin_disable_update_perp_bid_ask_twap(
+    ctx: Context<AdminDisableBidAskTwapUpdate>,
+    disable: bool,
+) -> Result<()> {
+    let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
+    user_stats.disable_update_perp_bid_ask_twap = disable;
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -2570,4 +2580,15 @@ pub struct AdminRemoveInsuranceFundStake<'info> {
     )]
     pub admin_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct AdminDisableBidAskTwapUpdate<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }

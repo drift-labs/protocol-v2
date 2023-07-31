@@ -1,5 +1,5 @@
 {
-  "version": "2.35.0",
+  "version": "2.36.0",
   "name": "drift",
   "instructions": [
     {
@@ -1931,6 +1931,42 @@
           "type": "u16"
         }
       ]
+    },
+    {
+      "name": "updatePerpBidAskTwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "updateSpotMarketCumulativeInterest",
@@ -10569,6 +10605,11 @@
       "code": 6251,
       "name": "FundingWasNotUpdated",
       "msg": "FundingWasNotUpdated"
+    },
+    {
+      "code": 6252,
+      "name": "ImpossibleFill",
+      "msg": "ImpossibleFill"
     }
   ]
 }

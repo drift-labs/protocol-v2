@@ -2708,6 +2708,7 @@ pub fn handle_end_swap(
         out_token_amount_before,
         in_token_amount_after,
         out_token_amount_after,
+        MarginRequirementType::Initial,
     )?;
 
     drop(out_spot_market);
