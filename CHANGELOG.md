@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: new update_perp_bid_ask_twap ix ([#548](https://github.com/drift-labs/protocol-v2/pull/548))
 - program: dont check price bands for place order ([#556](https://github.com/drift-labs/protocol-v2/pull/556))
 
 ### Fixes

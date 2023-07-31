@@ -369,6 +369,20 @@ impl PerpMarket {
             .max(self.amm.base_asset_amount_short.abs())
             .unsigned_abs()
     }
+
+    pub fn get_market_depth_for_funding_rate(&self) -> DriftResult<u64> {
+        // base amount used on user orders for funding calculation
+
+        let open_interest = self.get_open_interest();
+
+        let depth = self
+            .amm
+            .min_order_size
+            .safe_mul(1000)?
+            .max(open_interest.safe_div(500)?.cast::<u64>()?);
+
+        Ok(depth)
+    }
 }
 
 #[cfg(test)]

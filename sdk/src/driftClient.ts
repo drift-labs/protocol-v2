@@ -5073,6 +5073,57 @@ export class DriftClient {
 		});
 	}
 
+	public async updatePerpBidAskTwap(
+		perpMarketIndex: number,
+		makers: [PublicKey, PublicKey][],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdatePerpBidAskTwapIx(perpMarketIndex, makers),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdatePerpBidAskTwapIx(
+		perpMarketIndex: number,
+		makers: [PublicKey, PublicKey][]
+	): Promise<TransactionInstruction> {
+		const perpMarket = this.getPerpMarketAccount(perpMarketIndex);
+
+		const remainingAccounts = [];
+		for (const [maker, makerStats] of makers) {
+			remainingAccounts.push({
+				pubkey: maker,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: makerStats,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
+		return await this.program.instruction.updatePerpBidAskTwap(
+			perpMarketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarket.pubkey,
+					oracle: perpMarket.amm.oracle,
+					authority: this.wallet.publicKey,
+					keeperStats: this.getUserStatsAccountPublicKey(),
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async settleFundingPayment(
 		userAccountPublicKey: PublicKey,
 		txParams?: TxParams

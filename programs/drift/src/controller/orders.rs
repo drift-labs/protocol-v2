@@ -1779,7 +1779,7 @@ pub fn fulfill_perp_order_with_amm(
     };
 
     let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
-    amm::update_mark_twap(
+    amm::update_mark_twap_from_estimates(
         &mut market.amm,
         now,
         Some(market_side_price),
@@ -2065,7 +2065,7 @@ pub fn fulfill_perp_order_with_match(
     }
 
     let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
-    amm::update_mark_twap(
+    amm::update_mark_twap_from_estimates(
         &mut market.amm,
         now,
         Some(maker_price),

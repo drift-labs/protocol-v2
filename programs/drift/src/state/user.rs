@@ -1141,7 +1141,8 @@ pub struct UserStats {
     pub number_of_sub_accounts_created: u16,
     /// Whether the user is a referrer. Sub account 0 can not be deleted if user is a referrer
     pub is_referrer: bool,
-    pub padding: [u8; 51],
+    pub disable_update_perp_bid_ask_twap: bool,
+    pub padding: [u8; 50],
 }
 
 impl Default for UserStats {
@@ -1161,7 +1162,8 @@ impl Default for UserStats {
             number_of_sub_accounts: 0,
             number_of_sub_accounts_created: 0,
             is_referrer: false,
-            padding: [0; 51],
+            disable_update_perp_bid_ask_twap: false,
+            padding: [0; 50],
         }
     }
 }
