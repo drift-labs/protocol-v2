@@ -1229,6 +1229,19 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     let estimated_bid = estimate_price_from_side(&bids, depth)?;
     let estimated_ask = estimate_price_from_side(&asks, depth)?;
 
+    msg!(
+        "estimated_bid = {:?} estimated_ask = {:?}",
+        estimated_bid,
+        estimated_ask
+    );
+
+    msg!(
+        "before amm ask twap = {} bid twap = {} ts = {}",
+        perp_market.amm.last_bid_price_twap,
+        perp_market.amm.last_ask_price_twap,
+        perp_market.amm.last_mark_price_twap_ts
+    );
+
     let sanitize_clamp_denominator = perp_market.get_sanitize_clamp_denominator()?;
     math::amm::update_mark_twap_crank(
         &mut perp_market.amm,
@@ -1238,6 +1251,13 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
         estimated_ask,
         sanitize_clamp_denominator,
     )?;
+
+    msg!(
+        "after amm ask twap = {} bid twap = {} ts = {}",
+        perp_market.amm.last_bid_price_twap,
+        perp_market.amm.last_ask_price_twap,
+        perp_market.amm.last_mark_price_twap_ts
+    );
 
     Ok(())
 }
