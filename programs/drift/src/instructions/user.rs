@@ -514,8 +514,8 @@ pub fn handle_withdraw(
     if user.qualifies_for_withdraw_fee(&user_stats) {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
-        let one_cent = QUOTE_PRECISION / 100;
-        let fee = one_cent
+        let fee_quote = QUOTE_PRECISION / 2000;
+        let fee = fee_quote
             .safe_mul(spot_market.get_precision().cast()?)?
             .safe_mul(oracle_price.unsigned_abs().cast()?)?;
 
