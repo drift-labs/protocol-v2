@@ -5080,7 +5080,7 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getUpdatePerpBidAskTwap(perpMarketIndex, makers),
+				await this.getUpdatePerpBidAskTwapIx(perpMarketIndex, makers),
 				txParams
 			),
 			[],
@@ -5089,7 +5089,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getUpdatePerpBidAskTwap(
+	public async getUpdatePerpBidAskTwapIx(
 		perpMarketIndex: number,
 		makers: [PublicKey, PublicKey][]
 	): Promise<TransactionInstruction> {
