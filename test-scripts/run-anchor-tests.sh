@@ -29,6 +29,7 @@ test_files=(
   liquidateMaxLps.ts
   order.ts
   spotDepositWithdraw.ts
+  spotWithdrawUtil100.ts
   prepegMarketOrderBaseAssetAmount.ts
   updateAMM.ts
   repegAndSpread.ts

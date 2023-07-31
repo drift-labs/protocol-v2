@@ -3286,7 +3286,7 @@ pub fn fill_spot_order(
         let base_market = spot_market_map.get_ref(&market_index)?;
         let quote_market = spot_market_map.get_quote_spot_market()?;
         let (max_base_asset_amount, max_quote_asset_amount) =
-            get_max_fill_amounts(user, order_index, &base_market, &quote_market)?;
+            get_max_fill_amounts(user, order_index, &base_market, &quote_market, false)?;
         max_base_asset_amount == Some(0) || max_quote_asset_amount == Some(0)
     } else {
         false
@@ -3752,7 +3752,7 @@ pub fn fulfill_spot_order_with_match(
     }
 
     let (taker_max_base_asset_amount, taker_max_quote_asset_amount) =
-        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market)?;
+        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market, false)?;
 
     let taker_base_asset_amount =
         if let Some(taker_max_quote_asset_amount) = taker_max_quote_asset_amount {
@@ -3772,7 +3772,7 @@ pub fn fulfill_spot_order_with_match(
         };
 
     let (maker_max_base_asset_amount, maker_max_quote_asset_amount) =
-        get_max_fill_amounts(maker, maker_order_index, base_market, quote_market)?;
+        get_max_fill_amounts(maker, maker_order_index, base_market, quote_market, false)?;
 
     let maker_base_asset_amount =
         if let Some(maker_max_quote_asset_amount) = maker_max_quote_asset_amount {
@@ -4058,7 +4058,7 @@ pub fn fulfill_spot_order_with_external_market(
     let taker_order_slot = taker.orders[taker_order_index].slot;
 
     let (max_base_asset_amount, max_quote_asset_amount) =
-        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market)?;
+        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market, true)?;
 
     let taker_base_asset_amount =
         taker_base_asset_amount.min(max_base_asset_amount.unwrap_or(u64::MAX));
@@ -4206,12 +4206,14 @@ pub fn fulfill_spot_order_with_external_market(
         "Fill on external spot market lead to unexpected to update direction"
     )?;
 
+    let base_update_direction =
+        taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base);
     update_spot_balances_and_cumulative_deposits(
         base_asset_amount_filled.cast()?,
-        &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
+        &base_update_direction,
         base_market,
         taker.force_get_spot_position_mut(base_market.market_index)?,
-        false,
+        base_update_direction == SpotBalanceType::Borrow,
         None,
     )?;
 
@@ -4222,12 +4224,14 @@ pub fn fulfill_spot_order_with_external_market(
         "Fill on external market lead to unexpected to update direction"
     )?;
 
+    let quote_update_direction =
+        taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote);
     update_spot_balances_and_cumulative_deposits(
         quote_spot_position_delta.cast()?,
-        &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
+        &quote_update_direction,
         quote_market,
         taker.get_quote_spot_position_mut(),
-        false,
+        quote_update_direction == SpotBalanceType::Borrow,
         Some(quote_asset_amount_filled.cast()?),
     )?;
 

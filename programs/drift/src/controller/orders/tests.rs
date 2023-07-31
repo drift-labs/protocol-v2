@@ -4680,9 +4680,11 @@ pub mod fulfill_spot_order_with_match {
         LAMPORTS_PER_SOL_I64, LAMPORTS_PER_SOL_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
         QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
+    use crate::math::spot_balance::calculate_utilization;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{MarketType, Order, OrderType, SpotPosition, User, UserStats};
     use crate::test_utils::get_orders;
+    use crate::SPOT_UTILIZATION_PRECISION;
 
     use super::*;
 
@@ -7112,6 +7114,148 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         assert_eq!(base_filled, 166666666);
+    }
+
+    #[test]
+    fn max_utilization() {
+        let mut taker_spot_positions = [SpotPosition::default(); 8];
+        taker_spot_positions[0] = SpotPosition {
+            market_index: 0,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        taker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            open_orders: 1,
+            open_bids: LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                slot: 0,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: taker_spot_positions,
+            ..User::default()
+        };
+
+        let mut maker_spot_positions = [SpotPosition::default(); 8];
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
+            open_orders: 1,
+            open_asks: -LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 1,
+                post_only: true,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+
+        let mut base_market = SpotMarket {
+            deposit_balance: SPOT_BALANCE_PRECISION,
+            borrow_balance: SPOT_BALANCE_PRECISION,
+            utilization_twap: SPOT_UTILIZATION_PRECISION as u64,
+            ..SpotMarket::default_base_market()
+        };
+        let mut quote_market = SpotMarket {
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            borrow_balance: 101 * SPOT_BALANCE_PRECISION,
+            utilization_twap: SPOT_UTILIZATION_PRECISION as u64,
+            ..SpotMarket::default_quote_market()
+        };
+
+        let base_utilization = calculate_utilization(
+            base_market.get_deposits().unwrap(),
+            base_market.get_borrows().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(base_utilization, SPOT_UTILIZATION_PRECISION);
+
+        let quote_utilization = calculate_utilization(
+            base_market.get_deposits().unwrap(),
+            base_market.get_borrows().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(quote_utilization, SPOT_UTILIZATION_PRECISION);
+
+        let now = 1_i64;
+        let slot = 1_u64;
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        fulfill_spot_order_with_match(
+            &mut base_market,
+            &mut quote_market,
+            &mut taker,
+            &mut taker_stats,
+            0,
+            &taker_key,
+            &mut maker,
+            &mut Some(&mut maker_stats),
+            0,
+            &maker_key,
+            None,
+            None,
+            &filler_key,
+            now,
+            slot,
+            &mut get_oracle_map(),
+            &fee_structure,
+        )
+        .unwrap();
+
+        let taker_quote_position = taker.spot_positions[0];
+        assert_eq!(taker_quote_position.scaled_balance, 950000000);
+
+        let taker_base_position = taker.spot_positions[1];
+        assert_eq!(
+            taker_base_position.scaled_balance,
+            SPOT_BALANCE_PRECISION_U64
+        );
+        assert_eq!(taker_base_position.open_bids, 0);
+        assert_eq!(taker_base_position.open_orders, 0);
+
+        let base_utilization = calculate_utilization(
+            base_market.get_deposits().unwrap(),
+            base_market.get_borrows().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(base_utilization, SPOT_UTILIZATION_PRECISION);
+
+        let quote_utilization = calculate_utilization(
+            base_market.get_deposits().unwrap(),
+            base_market.get_borrows().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(quote_utilization, SPOT_UTILIZATION_PRECISION);
     }
 }
 

@@ -204,7 +204,7 @@ pub fn update_spot_balances(
     update_direction: &SpotBalanceType,
     spot_market: &mut SpotMarket,
     spot_balance: &mut dyn SpotBalance,
-    force_round_up: bool,
+    is_leaving_drift: bool,
 ) -> DriftResult {
     let increase_user_existing_balance = update_direction == spot_balance.balance_type();
     if increase_user_existing_balance {
@@ -225,7 +225,7 @@ pub fn update_spot_balances(
             // determine how much to reduce balance based on size of current token amount
             let (token_delta, balance_delta) = if current_token_amount > token_amount {
                 let round_up =
-                    force_round_up || spot_balance.balance_type() == &SpotBalanceType::Borrow;
+                    is_leaving_drift || spot_balance.balance_type() == &SpotBalanceType::Borrow;
                 let balance_delta = get_spot_balance(
                     token_amount,
                     spot_market,
@@ -252,7 +252,7 @@ pub fn update_spot_balances(
         }
     }
 
-    if let SpotBalanceType::Borrow = update_direction {
+    if is_leaving_drift && update_direction == &SpotBalanceType::Borrow {
         let deposit_token_amount = get_token_amount(
             spot_market.deposit_balance,
             spot_market,
@@ -293,13 +293,15 @@ pub fn transfer_spot_balances(
         return Ok(());
     }
 
-    validate!(
-        spot_market.deposit_balance >= from_spot_balance.balance(),
-        ErrorCode::InvalidSpotMarketState,
-        "spot_market.deposit_balance={} lower than individual spot balance={}",
-        spot_market.deposit_balance,
-        from_spot_balance.balance()
-    )?;
+    if from_spot_balance.balance_type() == &SpotBalanceType::Deposit {
+        validate!(
+            spot_market.deposit_balance >= from_spot_balance.balance(),
+            ErrorCode::InvalidSpotMarketState,
+            "spot_market.deposit_balance={} lower than individual spot balance={}",
+            spot_market.deposit_balance,
+            from_spot_balance.balance()
+        )?;
+    }
 
     update_spot_balances(
         token_amount.unsigned_abs(),
