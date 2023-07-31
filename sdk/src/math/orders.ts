@@ -279,7 +279,11 @@ function isSameDirection(
 	);
 }
 
-export function isOrderExpired(order: Order, ts: number): boolean {
+export function isOrderExpired(
+	order: Order,
+	ts: number,
+	enforceBuffer = false
+): boolean {
 	if (
 		mustBeTriggered(order) ||
 		!isVariant(order.status, 'open') ||
@@ -288,7 +292,14 @@ export function isOrderExpired(order: Order, ts: number): boolean {
 		return false;
 	}
 
-	return new BN(ts).gt(order.maxTs);
+	let maxTs;
+	if (enforceBuffer && isLimitOrder(order)) {
+		maxTs = order.maxTs.addn(15);
+	} else {
+		maxTs = order.maxTs;
+	}
+
+	return new BN(ts).gt(maxTs);
 }
 
 export function isMarketOrder(order: Order): boolean {

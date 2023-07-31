@@ -1,5 +1,5 @@
 {
-  "version": "2.35.0",
+  "version": "2.36.0",
   "name": "drift",
   "instructions": [
     {
@@ -10569,6 +10569,11 @@
       "code": 6251,
       "name": "FundingWasNotUpdated",
       "msg": "FundingWasNotUpdated"
+    },
+    {
+      "code": 6252,
+      "name": "ImpossibleFill",
+      "msg": "ImpossibleFill"
     }
   ]
 }

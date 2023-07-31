@@ -1568,16 +1568,16 @@ export class DriftClient {
 			isSolMarket && associatedTokenAccount.equals(signerAuthority);
 
 		if (createWSOLTokenAccount) {
-			const { ixs, signers, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(amount, true);
+			const { ixs, pubkey } = await this.getWrappedSolAccountCreationIxs(
+				amount,
+				true
+			);
 
 			associatedTokenAccount = pubkey;
 
 			ixs.forEach((ix) => {
 				tx.add(ix);
 			});
-
-			signers.forEach((signer) => additionalSigners.push(signer));
 		}
 
 		const depositCollateralIx = await this.getDepositInstruction(
@@ -1677,15 +1677,26 @@ export class DriftClient {
 		includeRent?: boolean
 	): Promise<{
 		ixs: anchor.web3.TransactionInstruction[];
+		/** @deprecated - this array is always going to be empty, in the current implementation */
 		signers: Signer[];
 		pubkey: PublicKey;
 	}> {
-		const wrappedSolAccount = new Keypair();
+		const authority = this.wallet.publicKey;
+
+		// Generate a random seed for wrappedSolAccount.
+		const seed = Keypair.generate().publicKey.toBase58().slice(0, 32);
+
+		// Calculate a publicKey that will be controlled by the authority.
+		const wrappedSolAccount = await PublicKey.createWithSeed(
+			authority,
+			seed,
+			TOKEN_PROGRAM_ID
+		);
 
 		const result = {
 			ixs: [],
 			signers: [],
-			pubkey: wrappedSolAccount.publicKey,
+			pubkey: wrappedSolAccount,
 		};
 
 		const rentSpaceLamports = new BN(LAMPORTS_PER_SOL / 100);
@@ -1694,12 +1705,12 @@ export class DriftClient {
 			? amount.add(rentSpaceLamports)
 			: rentSpaceLamports;
 
-		const authority = this.wallet.publicKey;
-
 		result.ixs.push(
-			SystemProgram.createAccount({
+			SystemProgram.createAccountWithSeed({
 				fromPubkey: authority,
-				newAccountPubkey: wrappedSolAccount.publicKey,
+				basePubkey: authority,
+				seed,
+				newAccountPubkey: wrappedSolAccount,
 				lamports: lamports.toNumber(),
 				space: 165,
 				programId: TOKEN_PROGRAM_ID,
@@ -1708,13 +1719,11 @@ export class DriftClient {
 
 		result.ixs.push(
 			createInitializeAccountInstruction(
-				wrappedSolAccount.publicKey,
+				wrappedSolAccount,
 				WRAPPED_SOL_MINT,
 				authority
 			)
 		);
-
-		result.signers.push(wrappedSolAccount);
 
 		return result;
 	}
@@ -1791,19 +1800,14 @@ export class DriftClient {
 			isSolMarket && userTokenAccount.equals(authority) && !isFromSubaccount;
 
 		if (createWSOLTokenAccount) {
-			const {
-				ixs: startIxs,
-				signers,
-				pubkey,
-			} = await this.getWrappedSolAccountCreationIxs(amount, true);
+			const { ixs: startIxs, pubkey } =
+				await this.getWrappedSolAccountCreationIxs(amount, true);
 
 			userTokenAccount = pubkey;
 
 			startIxs.forEach((ix) => {
 				tx.add(ix);
 			});
-
-			signers.forEach((signer) => additionalSigners.push(signer));
 		}
 
 		const depositCollateralIx = isFromSubaccount
@@ -1935,16 +1939,16 @@ export class DriftClient {
 			isSolMarket && associatedTokenAddress.equals(authority);
 
 		if (createWSOLTokenAccount) {
-			const { ixs, signers, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(amount, false);
+			const { ixs, pubkey } = await this.getWrappedSolAccountCreationIxs(
+				amount,
+				false
+			);
 
 			associatedTokenAddress = pubkey;
 
 			ixs.forEach((ix) => {
 				tx.add(ix);
 			});
-
-			signers.forEach((signer) => additionalSigners.push(signer));
 		} else {
 			const accountExists = await this.checkIfAccountExists(
 				associatedTokenAddress
@@ -5251,14 +5255,14 @@ export class DriftClient {
 		let tokenAccount;
 
 		if (createWSOLTokenAccount) {
-			const { ixs, signers, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(amount, true);
+			const { ixs, pubkey } = await this.getWrappedSolAccountCreationIxs(
+				amount,
+				true
+			);
 			tokenAccount = pubkey;
 			ixs.forEach((ix) => {
 				tx.add(ix);
 			});
-
-			signers.forEach((signer) => additionalSigners.push(signer));
 		} else {
 			tokenAccount = collateralAccountPublicKey;
 		}
@@ -5400,14 +5404,14 @@ export class DriftClient {
 		let tokenAccount;
 
 		if (createWSOLTokenAccount) {
-			const { ixs, signers, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(ZERO, true);
+			const { ixs, pubkey } = await this.getWrappedSolAccountCreationIxs(
+				ZERO,
+				true
+			);
 			tokenAccount = pubkey;
 			ixs.forEach((ix) => {
 				tx.add(ix);
 			});
-
-			signers.forEach((signer) => additionalSigners.push(signer));
 		} else {
 			tokenAccount = collateralAccountPublicKey;
 		}

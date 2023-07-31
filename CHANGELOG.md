@@ -9,13 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.36.0] - 2023-07-26
+
+### Features
+
 - program: usdt oracle uses pyth stablecoin oracle source
 
 ### Fixes
 
+- program: add buffer before limit tif can be expired ([#551](https://github.com/drift-labs/protocol-v2/pull/530))
 - ts-sdk: fix abs for dustBaseAssetValue in getPerpPositionWithLPSettle ([#543](https://github.com/drift-labs/protocol-v2/pull/543))
 - program: add a fixed buffer margin requirement for lp_shares ([#546](https://github.com/drift-labs/protocol-v2/pull/546))
 - program: use fill margin type in fulfill_spot_order
+- ts-sdk: add buffer to max leverage for LP contributions
 
 ### Breaking
 
