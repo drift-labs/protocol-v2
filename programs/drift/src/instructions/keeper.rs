@@ -1222,7 +1222,8 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let (makers, _) = load_user_maps(remaining_accounts_iter)?;
 
-    let depth = perp_market.amm.min_order_size * 100;
+    let depth = perp_market.get_market_depth_for_funding_rate()?;
+
     let (bids, asks) =
         find_bids_and_asks_from_users(perp_market, oracle_price_data, &makers, slot, now)?;
     let estimated_bid = estimate_price_from_side(&bids, depth)?;
