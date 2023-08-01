@@ -93,8 +93,6 @@ describe('large Spot Withdraw Fee', () => {
 		await admin.unsubscribe();
 		await eventSubscriber.unsubscribe();
 		await firstUserDriftClient.unsubscribe();
-		// await secondUserDriftClient.unsubscribe();
-		// await thirdUserDriftClient.unsubscribe();
 	});
 
 	it('Initialize USDC Market', async () => {
@@ -186,14 +184,8 @@ describe('large Spot Withdraw Fee', () => {
 		);
 		assert(vaultAmount.eq(largeUsdcAmount));
 
-		// const expectedBalance = getBalance(
-		// 	largeUsdcAmount,
-		// 	spotMarket,
-		// 	SpotBalanceType.DEPOSIT
-		// );
 		const spotPosition = firstUserDriftClient.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
-		// assert(spotPosition.scaledBalance.eq(expectedBalance));
 
 		assert(
 			firstUserDriftClient.getUserAccount().totalDeposits.eq(largeUsdcAmount)
