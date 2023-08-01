@@ -1974,7 +1974,11 @@ export class User {
 		}
 
 		if (!orderBaseAssetAmount.eq(ZERO)) {
-			freeCollateralDelta = freeCollateralDelta.sub(marginRatioQuotePrecision);
+			freeCollateralDelta = freeCollateralDelta.sub(
+				marginRatioQuotePrecision
+					.mul(orderBaseAssetAmount.abs())
+					.div(BASE_PRECISION)
+			);
 		}
 
 		return freeCollateralDelta;
