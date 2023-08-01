@@ -625,6 +625,13 @@ pub mod drift {
         handle_deposit_into_perp_market_fee_pool(ctx, amount)
     }
 
+    pub fn deposit_into_spot_market_revenue_pool(
+        ctx: Context<RevenuePoolDeposit>,
+        amount: u64,
+    ) -> Result<()> {
+        handle_deposit_into_spot_market_revenue_pool(ctx, amount)
+    }
+
     pub fn repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128) -> Result<()> {
         handle_repeg_amm_curve(ctx, new_peg_candidate)
     }

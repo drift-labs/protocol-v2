@@ -17,6 +17,13 @@ import {
 	EventSubscriber,
 	OracleSource,
 	OracleInfo,
+	getTokenAmount,
+	SpotBalanceType,
+	ZERO,
+	BulkAccountLoader,
+	fetchUserStatsAccount,
+	getSerumSignerPublicKey,
+	QUOTE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -31,13 +38,6 @@ import {
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
-import {
-	BulkAccountLoader,
-	fetchUserStatsAccount,
-	getSerumSignerPublicKey,
-	QUOTE_PRECISION,
-} from '../sdk';
-
 describe('spot swap', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		commitment: 'confirmed',
@@ -595,5 +595,33 @@ describe('spot swap', () => {
 			});
 		}
 		assert(failed);
+	});
+
+	it('donate to revenue pool for a great feature!', async () => {
+		const solSpotMarket = takerDriftClient.getSpotMarketAccount(1);
+
+		const solRevPool = getTokenAmount(
+			solSpotMarket.revenuePool.scaledBalance,
+			solSpotMarket,
+			SpotBalanceType.DEPOSIT
+		);
+		assert(solRevPool.eq(ZERO));
+
+		const charity = new BN(1);
+		await takerDriftClient.depositIntoSpotMarketRevenuePool(
+			1,
+			charity,
+			takerWSOL
+		);
+		await takerDriftClient.fetchAccounts();
+		const solSpotMarketAfter = takerDriftClient.getSpotMarketAccount(1);
+
+		const solRevPoolAfter = getTokenAmount(
+			solSpotMarketAfter.revenuePool.scaledBalance,
+			solSpotMarketAfter,
+			SpotBalanceType.DEPOSIT
+		);
+		assert(solRevPoolAfter.gt(solRevPool));
+		assert(solRevPoolAfter.eq(charity));
 	});
 });
