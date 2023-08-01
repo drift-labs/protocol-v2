@@ -1488,6 +1488,24 @@ export class User {
 	}
 
 	/**
+	 * Calculates the all time P&L of the user.
+	 *
+	 * Net withdraws + Net spot market value + Net unrealized P&L -
+	 */
+	getTotalAllTimePnl(): BN {
+		const netBankValue = this.getNetSpotMarketValue();
+		const unrealizedPnl = this.getUnrealizedPNL(true, undefined, undefined);
+
+		const netUsdValue = netBankValue.add(unrealizedPnl);
+		const totalDeposits = this.getUserAccount().totalDeposits;
+		const totalWithdraws = this.getUserAccount().totalWithdraws;
+
+		const totalPnl = netUsdValue.add(totalWithdraws).sub(totalDeposits);
+
+		return totalPnl;
+	}
+
+	/**
 	 * calculates max allowable leverage exceeding hitting requirement category
 	 * for large sizes where imf factor activates, result is a lower bound
 	 * @param marginCategory {Initial, Maintenance}
