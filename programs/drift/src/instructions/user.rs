@@ -418,7 +418,7 @@ pub fn handle_withdraw(
 
         let position_index = user.force_get_spot_position_index(market_index)?;
 
-        let amount = if reduce_only {
+        let mut amount = if reduce_only {
             validate!(
                 user.spot_positions[position_index].balance_type == SpotBalanceType::Deposit,
                 ErrorCode::ReduceOnlyWithdrawIncreasedRisk
@@ -446,6 +446,11 @@ pub fn handle_withdraw(
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+        if user.qualifies_for_withdraw_fee(&user_stats) {
+            let fee = charge_withdraw_fee(spot_market, oracle_price, user, &mut user_stats)?;
+            amount = amount.safe_sub(fee.cast()?)?;
+        }
 
         user.increment_total_withdraws(
             amount,
@@ -510,10 +515,6 @@ pub fn handle_withdraw(
         state.signer_nonce,
         amount,
     )?;
-
-    if user.qualifies_for_withdraw_fee(&user_stats) {
-        charge_withdraw_fee(&mut spot_market, oracle_price, user, &mut user_stats)?;
-    }
 
     // reload the spot market vault balance so it's up-to-date
     ctx.accounts.spot_market_vault.reload()?;

@@ -208,7 +208,7 @@ pub fn charge_withdraw_fee(
     oracle_price: i64,
     user: &mut User,
     user_stats: &mut UserStats,
-) -> DriftResult {
+) -> DriftResult<u128> {
     let fee_quote = QUOTE_PRECISION / 2000;
     let fee = fee_quote
         .safe_mul(spot_market.get_precision().cast()?)?
@@ -231,5 +231,5 @@ pub fn charge_withdraw_fee(
         Some(0), // to make fee show in cumulative deposits
     )?;
 
-    Ok(())
+    Ok(fee)
 }
