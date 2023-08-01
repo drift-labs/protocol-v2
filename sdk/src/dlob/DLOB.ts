@@ -1925,4 +1925,42 @@ export class DLOB {
 			);
 		}
 	}
+
+	public getBestMakers({
+		marketIndex,
+		marketType,
+		direction,
+		slot,
+		oraclePriceData,
+		numMakers,
+	}: {
+		marketIndex: number;
+		marketType: MarketType;
+		direction: PositionDirection;
+		slot: number;
+		oraclePriceData: OraclePriceData;
+		numMakers: number;
+	}): PublicKey[] {
+		const makers = new Map<string, PublicKey>();
+		const generator = isVariant(direction, 'long')
+			? this.getRestingLimitBids(marketIndex, slot, marketType, oraclePriceData)
+			: this.getRestingLimitAsks(
+					marketIndex,
+					slot,
+					marketType,
+					oraclePriceData
+			  );
+
+		for (const node of generator) {
+			if (!makers.has(node.userAccount.toString())) {
+				makers.set(node.userAccount.toString(), node.userAccount);
+			}
+
+			if (makers.size === numMakers) {
+				break;
+			}
+		}
+
+		return Array.from(makers.values());
+	}
 }
