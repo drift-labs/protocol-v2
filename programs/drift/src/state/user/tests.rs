@@ -1053,3 +1053,61 @@ mod open_orders {
         assert!(!user.has_open_auction);
     }
 }
+
+mod qualifies_for_withdraw_fee {
+    use crate::state::user::{User, UserFees, UserStats};
+    use crate::QUOTE_PRECISION_U64;
+
+    #[test]
+    fn test() {
+        let user = User::default();
+        let user_stats = UserStats::default();
+
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+
+        assert!(!qualifies);
+
+        let user = User {
+            total_withdraws: 9_999_999 * QUOTE_PRECISION_U64,
+            ..User::default()
+        };
+
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+
+        assert!(!qualifies);
+
+        let user = User {
+            total_withdraws: 10_000_000 * QUOTE_PRECISION_U64,
+            ..User::default()
+        };
+
+        let user_stats = UserStats {
+            fees: UserFees {
+                total_fee_paid: 1_000 * QUOTE_PRECISION_U64,
+                ..UserFees::default()
+            },
+            ..UserStats::default()
+        };
+
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+
+        assert!(!qualifies);
+
+        let user = User {
+            total_withdraws: 10_000_000 * QUOTE_PRECISION_U64,
+            ..User::default()
+        };
+
+        let user_stats = UserStats {
+            fees: UserFees {
+                total_fee_paid: 999 * QUOTE_PRECISION_U64,
+                ..UserFees::default()
+            },
+            ..UserStats::default()
+        };
+
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+
+        assert!(qualifies);
+    }
+}

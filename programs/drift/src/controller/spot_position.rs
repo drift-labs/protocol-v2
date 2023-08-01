@@ -1,18 +1,18 @@
 use solana_program::msg;
 
 use crate::controller::position::PositionDirection;
-use crate::controller::spot_balance::update_spot_balances;
+use crate::controller::spot_balance::{update_revenue_pool_balances, update_spot_balances};
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::check_withdraw_limits;
-use crate::math_error;
 use crate::safe_decrement;
 use crate::safe_increment;
 use crate::state::perp_market::MarketStatus;
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
-use crate::state::user::{SpotPosition, User};
+use crate::state::user::{SpotPosition, User, UserStats};
+use crate::{math_error, QUOTE_PRECISION};
 
 use crate::validate;
 
@@ -201,4 +201,35 @@ pub fn transfer_spot_position_deposit(
     }
 
     Ok(())
+}
+
+pub fn charge_withdraw_fee(
+    spot_market: &mut SpotMarket,
+    oracle_price: i64,
+    user: &mut User,
+    user_stats: &mut UserStats,
+) -> DriftResult<u128> {
+    let fee_quote = QUOTE_PRECISION / 2000;
+    let fee = fee_quote
+        .safe_mul(spot_market.get_precision().cast()?)?
+        .safe_div(oracle_price.unsigned_abs().cast()?)?;
+
+    user.update_cumulative_spot_fees(-fee.cast()?)?;
+    user_stats.increment_total_fees(fee.cast()?)?;
+
+    msg!("Charging withdraw fee of {}", fee);
+
+    update_revenue_pool_balances(fee, &SpotBalanceType::Deposit, spot_market)?;
+
+    let position_index = user.force_get_spot_position_index(spot_market.market_index)?;
+    update_spot_balances_and_cumulative_deposits(
+        fee,
+        &SpotBalanceType::Borrow,
+        spot_market,
+        &mut user.spot_positions[position_index],
+        false,
+        Some(0), // to make fee show in cumulative deposits
+    )?;
+
+    Ok(fee)
 }

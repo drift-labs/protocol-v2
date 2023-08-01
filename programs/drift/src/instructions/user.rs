@@ -6,10 +6,11 @@ use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
 use crate::controller::spot_position::{
-    update_spot_balances_and_cumulative_deposits,
+    charge_withdraw_fee, update_spot_balances_and_cumulative_deposits,
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
+use crate::get_then_update_id;
 use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, marinade_mainnet, serum_program};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
@@ -57,7 +58,6 @@ use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
-use crate::{get_then_update_id, QUOTE_PRECISION};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -418,7 +418,7 @@ pub fn handle_withdraw(
 
         let position_index = user.force_get_spot_position_index(market_index)?;
 
-        let amount = if reduce_only {
+        let mut amount = if reduce_only {
             validate!(
                 user.spot_positions[position_index].balance_type == SpotBalanceType::Deposit,
                 ErrorCode::ReduceOnlyWithdrawIncreasedRisk
@@ -446,6 +446,12 @@ pub fn handle_withdraw(
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+        if user.qualifies_for_withdraw_fee(&user_stats) {
+            let fee =
+                charge_withdraw_fee(spot_market, oracle_price_data.price, user, &mut user_stats)?;
+            amount = amount.safe_sub(fee.cast()?)?;
+        }
 
         user.increment_total_withdraws(
             amount,
@@ -510,30 +516,6 @@ pub fn handle_withdraw(
         state.signer_nonce,
         amount,
     )?;
-
-    if user.qualifies_for_withdraw_fee(&user_stats) {
-        let fee_quote = QUOTE_PRECISION / 2000;
-        let fee = fee_quote
-            .safe_mul(spot_market.get_precision().cast()?)?
-            .safe_div(oracle_price.unsigned_abs().cast()?)?;
-
-        user.update_cumulative_spot_fees(-fee.cast()?)?;
-        user_stats.increment_total_fees(fee.cast()?)?;
-
-        msg!("Charging withdraw fee of {}", fee);
-
-        update_revenue_pool_balances(fee, &SpotBalanceType::Deposit, &mut spot_market)?;
-
-        let position_index = user.force_get_spot_position_index(market_index)?;
-        update_spot_balances_and_cumulative_deposits(
-            fee,
-            &SpotBalanceType::Borrow,
-            &mut spot_market,
-            &mut user.spot_positions[position_index],
-            false,
-            Some(0), // to make fee show in cumulative deposits
-        )?;
-    }
 
     // reload the spot market vault balance so it's up-to-date
     ctx.accounts.spot_market_vault.reload()?;
