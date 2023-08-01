@@ -82,7 +82,8 @@ fn fill_order(ctx: Context<FillOrder>, order_id: u32, market_index: u16) -> Resu
         Some(state.oracle_guard_rails),
     )?;
 
-    let (makers_and_referrer, makers_and_referrer_stats) = load_user_maps(remaining_accounts_iter)?;
+    let (makers_and_referrer, makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter, true)?;
 
     controller::repeg::update_amm(
         market_index,
@@ -1220,7 +1221,7 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, slot)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let (makers, _) = load_user_maps(remaining_accounts_iter)?;
+    let (makers, _) = load_user_maps(remaining_accounts_iter, false)?;
 
     let depth = perp_market.get_market_depth_for_funding_rate()?;
 

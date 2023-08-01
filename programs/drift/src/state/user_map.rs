@@ -275,6 +275,7 @@ impl<'a> UserStatsMap<'a> {
 
 pub fn load_user_maps<'a>(
     account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+    must_be_writable: bool,
 ) -> DriftResult<(UserMap<'a>, UserStatsMap<'a>)> {
     let mut user_map = UserMap::empty();
     let mut user_stats_map = UserStatsMap::empty();
@@ -301,7 +302,7 @@ pub fn load_user_maps<'a>(
         let user_account_info = account_info_iter.next().safe_unwrap()?;
 
         let is_writable = user_account_info.is_writable;
-        if !is_writable {
+        if !is_writable && must_be_writable {
             return Err(ErrorCode::UserWrongMutability);
         }
 

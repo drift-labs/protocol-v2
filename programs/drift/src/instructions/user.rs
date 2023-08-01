@@ -1168,7 +1168,8 @@ pub fn handle_place_and_take_perp_order<'info>(
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
-    let (makers_and_referrer, makers_and_referrer_stats) = load_user_maps(remaining_accounts_iter)?;
+    let (makers_and_referrer, makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter, true)?;
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
@@ -1287,7 +1288,7 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
     };
 
     let (mut makers_and_referrer, mut makers_and_referrer_stats) =
-        load_user_maps(remaining_accounts_iter)?;
+        load_user_maps(remaining_accounts_iter, true)?;
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
