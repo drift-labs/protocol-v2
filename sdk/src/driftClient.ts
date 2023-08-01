@@ -5109,19 +5109,16 @@ export class DriftClient {
 			});
 		}
 
-		return await this.program.instruction.updatePerpBidAskTwap(
-			perpMarketIndex,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					perpMarket: perpMarket.pubkey,
-					oracle: perpMarket.amm.oracle,
-					authority: this.wallet.publicKey,
-					keeperStats: this.getUserStatsAccountPublicKey(),
-				},
-				remainingAccounts,
-			}
-		);
+		return await this.program.instruction.updatePerpBidAskTwap({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				perpMarket: perpMarket.pubkey,
+				oracle: perpMarket.amm.oracle,
+				authority: this.wallet.publicKey,
+				keeperStats: this.getUserStatsAccountPublicKey(),
+			},
+			remainingAccounts,
+		});
 	}
 
 	public async settleFundingPayment(
