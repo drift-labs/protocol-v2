@@ -1890,7 +1890,7 @@ pub fn handle_deposit_into_spot_market_revenue_pool(
     let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
 
     validate!(
-        spot_market.is_active()?,
+        spot_market.is_active(Clock::get()?.unix_timestamp)?,
         ErrorCode::DefaultError,
         "spot market {} not active",
         spot_market.market_index
