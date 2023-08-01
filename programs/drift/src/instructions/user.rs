@@ -6,10 +6,11 @@ use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
 use crate::controller::spot_position::{
-    update_spot_balances_and_cumulative_deposits,
+    charge_withdraw_fee, update_spot_balances_and_cumulative_deposits,
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
+use crate::get_then_update_id;
 use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, marinade_mainnet, serum_program};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
@@ -57,7 +58,6 @@ use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
-use crate::{get_then_update_id, QUOTE_PRECISION};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -512,27 +512,7 @@ pub fn handle_withdraw(
     )?;
 
     if user.qualifies_for_withdraw_fee(&user_stats) {
-        let fee_quote = QUOTE_PRECISION / 2000;
-        let fee = fee_quote
-            .safe_mul(spot_market.get_precision().cast()?)?
-            .safe_div(oracle_price.unsigned_abs().cast()?)?;
-
-        user.update_cumulative_spot_fees(-fee.cast()?)?;
-        user_stats.increment_total_fees(fee.cast()?)?;
-
-        msg!("Charging withdraw fee of {}", fee);
-
-        update_revenue_pool_balances(fee, &SpotBalanceType::Deposit, &mut spot_market)?;
-
-        let position_index = user.force_get_spot_position_index(market_index)?;
-        update_spot_balances_and_cumulative_deposits(
-            fee,
-            &SpotBalanceType::Borrow,
-            &mut spot_market,
-            &mut user.spot_positions[position_index],
-            false,
-            Some(0), // to make fee show in cumulative deposits
-        )?;
+        charge_withdraw_fee(&mut spot_market, oracle_price, user, &mut user_stats)?;
     }
 
     // reload the spot market vault balance so it's up-to-date

@@ -139,3 +139,44 @@ mod update_spot_position_balance {
         .is_err());
     }
 }
+
+mod charge_withdraw_fee {
+    use crate::controller::spot_position::charge_withdraw_fee;
+    use crate::math::constants::SPOT_BALANCE_PRECISION_U64;
+    use crate::state::spot_market::SpotMarket;
+    use crate::state::user::{SpotPosition, User, UserStats};
+    use crate::test_utils::get_spot_positions;
+    use crate::QUOTE_PRECISION_I64;
+
+    #[test]
+    fn deposit() {
+        let mut user = User {
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                scaled_balance: SPOT_BALANCE_PRECISION_U64,
+                cumulative_deposits: QUOTE_PRECISION_I64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+        let mut user_stats = UserStats::default();
+        let mut spot_market = SpotMarket::default_quote_market();
+
+        let oracle_price = QUOTE_PRECISION_I64;
+
+        charge_withdraw_fee(&mut spot_market, oracle_price, &mut user, &mut user_stats).unwrap();
+
+        let token_amount = user
+            .get_spot_position(0)
+            .unwrap()
+            .get_token_amount(&spot_market)
+            .unwrap();
+
+        let cumulative_deposits = user.get_spot_position(0).unwrap().cumulative_deposits;
+
+        assert_eq!(token_amount, 999500);
+        assert_eq!(cumulative_deposits, QUOTE_PRECISION_I64);
+        assert_eq!(user_stats.fees.total_fee_paid, 500);
+        assert_eq!(user.cumulative_spot_fees, -500);
+    }
+}
