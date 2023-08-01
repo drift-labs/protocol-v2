@@ -143,7 +143,8 @@ mod update_spot_position_balance {
 mod charge_withdraw_fee {
     use crate::controller::spot_position::charge_withdraw_fee;
     use crate::math::constants::SPOT_BALANCE_PRECISION_U64;
-    use crate::state::spot_market::SpotMarket;
+    use crate::math::spot_balance::get_token_amount;
+    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{SpotPosition, User, UserStats};
     use crate::test_utils::get_spot_positions;
     use crate::QUOTE_PRECISION_I64;
@@ -178,5 +179,14 @@ mod charge_withdraw_fee {
         assert_eq!(cumulative_deposits, QUOTE_PRECISION_I64);
         assert_eq!(user_stats.fees.total_fee_paid, 500);
         assert_eq!(user.cumulative_spot_fees, -500);
+
+        let revenue_pool_amount = get_token_amount(
+            spot_market.revenue_pool.scaled_balance,
+            &spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        assert_eq!(revenue_pool_amount, 500);
     }
 }
