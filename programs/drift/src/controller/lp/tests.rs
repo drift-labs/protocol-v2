@@ -16,7 +16,8 @@ use crate::math::constants::{
     SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::margin::{
-    calculate_perp_position_value_and_pnl, meets_maintenance_margin_requirement,
+    calculate_margin_requirement_and_total_collateral, calculate_perp_position_value_and_pnl,
+    meets_maintenance_margin_requirement, MarginRequirementType,
 };
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -445,7 +446,7 @@ pub fn test_lp_settle_pnl() {
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 2 * BASE_PRECISION_U64,
+            order_step_size: 2 * BASE_PRECISION_U64 / 100,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             base_asset_amount_long: BASE_PRECISION_I128,
@@ -528,6 +529,20 @@ pub fn test_lp_settle_pnl() {
         ..State::default()
     };
 
+    let (margin_requirement1, total_collateral1, _, _) =
+        calculate_margin_requirement_and_total_collateral(
+            &user,
+            &market_map,
+            MarginRequirementType::Initial,
+            &spot_market_map,
+            &mut oracle_map,
+            None,
+        )
+        .unwrap();
+
+    assert_eq!(total_collateral1, 49999988);
+    assert_eq!(margin_requirement1, 2099020); // $2+ for margin req
+
     let result = settle_pnl(
         0,
         &mut user,
@@ -576,7 +591,7 @@ fn test_lp_margin_calc() {
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 2 * BASE_PRECISION_U64,
+            order_step_size: 2 * BASE_PRECISION_U64 / 100,
             quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             base_asset_amount_long: BASE_PRECISION_I128,
@@ -720,7 +735,7 @@ fn test_lp_margin_calc() {
         )
         .unwrap();
 
-    assert_eq!(margin_requirement, 1010000000); // $1010
+    assert_eq!(margin_requirement, 1012000000); // $1010 + $2 mr for lp_shares
     assert_eq!(weighted_unrealized_pnl, -9916900000); // $-9900000000 upnl (+ -16900000 from old funding)
     assert_eq!(worse_case_base_asset_value, 10100000000); //$10100
 }

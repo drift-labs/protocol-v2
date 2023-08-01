@@ -361,7 +361,8 @@ fn calc_delayed_mark_twap_tests() {
     let px = 22850 * PRICE_PRECISION as i64;
     amm.peg_multiplier = px as u128;
     let trade_direction = PositionDirection::Long;
-    update_mark_twap(&mut amm, now, Some(px as u64), Some(trade_direction), None).unwrap();
+    update_mark_twap_from_estimates(&mut amm, now, Some(px as u64), Some(trade_direction), None)
+        .unwrap();
 
     assert_eq!(amm.last_bid_price_twap, 22850013657);
     assert_eq!(amm.last_mark_price_twap, 22850013657);
@@ -413,7 +414,8 @@ fn calc_mark_std_tests() {
         }
         amm.peg_multiplier = px as u128;
         let trade_direction = PositionDirection::Long;
-        update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
+        update_mark_twap_from_estimates(&mut amm, now, Some(px), Some(trade_direction), None)
+            .unwrap();
     }
     assert_eq!(now, 1656689519);
     assert_eq!(px, 39397);
@@ -441,7 +443,8 @@ fn calc_mark_std_tests() {
             assert!(amm_ask_price >= px);
 
             let trade_direction = PositionDirection::Long;
-            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
+            update_mark_twap_from_estimates(&mut amm, now, Some(px), Some(trade_direction), None)
+                .unwrap();
         }
         if now % 189 == 0 {
             px = 31_883_651; //31.88
@@ -455,7 +458,8 @@ fn calc_mark_std_tests() {
             assert!(amm_ask_price >= px);
 
             let trade_direction = PositionDirection::Short;
-            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
+            update_mark_twap_from_estimates(&mut amm, now, Some(px), Some(trade_direction), None)
+                .unwrap();
         }
     }
     assert_eq!(now, 1656696720);
@@ -473,7 +477,8 @@ fn calc_mark_std_tests() {
 
             amm.historical_oracle_data.last_oracle_price = (px - 1000000) as i64;
             let trade_direction = PositionDirection::Long;
-            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
+            update_mark_twap_from_estimates(&mut amm, now, Some(px), Some(trade_direction), None)
+                .unwrap();
         }
         if now % 2 == 0 {
             px = 31_883_651; //31.88
@@ -481,7 +486,8 @@ fn calc_mark_std_tests() {
 
             amm.historical_oracle_data.last_oracle_price = (px + 1000000) as i64;
             let trade_direction = PositionDirection::Short;
-            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
+            update_mark_twap_from_estimates(&mut amm, now, Some(px), Some(trade_direction), None)
+                .unwrap();
 
             let mark_twap = amm.last_mark_price_twap;
 
@@ -543,7 +549,7 @@ fn update_mark_twap_tests() {
     let trade_direction = PositionDirection::Long;
 
     let old_mark_twap = amm.last_mark_price_twap;
-    let new_mark_twap = update_mark_twap(
+    let new_mark_twap = update_mark_twap_from_estimates(
         &mut amm,
         now,
         Some(trade_price),
@@ -563,7 +569,7 @@ fn update_mark_twap_tests() {
     while now < 3600 {
         now += 1;
         update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
-        update_mark_twap(
+        update_mark_twap_from_estimates(
             &mut amm,
             now,
             Some(trade_price),
@@ -601,7 +607,7 @@ fn update_mark_twap_tests() {
         now += 1;
         update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
         if now % 200 == 0 {
-            update_mark_twap(
+            update_mark_twap_from_estimates(
                 &mut amm,
                 now,
                 Some(trade_price_2),

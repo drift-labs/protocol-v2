@@ -1,5 +1,5 @@
 {
-  "version": "2.34.0",
+  "version": "2.36.0",
   "name": "drift",
   "instructions": [
     {
@@ -424,6 +424,34 @@
             "option": {
               "defined": "PositionDirection"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "cancelOrdersByIds",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "orderIds",
+          "type": {
+            "vec": "u32"
           }
         }
       ]
@@ -1362,6 +1390,32 @@
       "args": []
     },
     {
+      "name": "adminDisableUpdatePerpBidAskTwap",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "disable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "settlePnl",
       "accounts": [
         {
@@ -1903,6 +1957,37 @@
           "type": "u16"
         }
       ]
+    },
+    {
+      "name": "updatePerpBidAskTwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "keeperStats",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "updateSpotMarketCumulativeInterest",
@@ -5691,11 +5776,15 @@
             "type": "bool"
           },
           {
+            "name": "disableUpdatePerpBidAskTwap",
+            "type": "bool"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                51
+                50
               ]
             }
           }
@@ -7623,6 +7712,9 @@
           },
           {
             "name": "TryPostOnly"
+          },
+          {
+            "name": "Slide"
           }
         ]
       }
@@ -10579,6 +10671,16 @@
       "code": 6251,
       "name": "FundingWasNotUpdated",
       "msg": "FundingWasNotUpdated"
+    },
+    {
+      "code": 6252,
+      "name": "ImpossibleFill",
+      "msg": "ImpossibleFill"
+    },
+    {
+      "code": 6253,
+      "name": "CantUpdatePerpBidAskTwap",
+      "msg": "CantUpdatePerpBidAskTwap"
     }
   ]
 }

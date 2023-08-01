@@ -230,7 +230,12 @@ pub fn place_perp_order(
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
-        price: standardize_price(params.price, market.amm.order_tick_size, params.direction)?,
+        price: get_price_for_perp_order(
+            params.price,
+            params.direction,
+            params.post_only,
+            &market.amm,
+        )?,
         existing_position_direction,
         base_asset_amount: order_base_asset_amount,
         base_asset_amount_filled: 0,
@@ -253,13 +258,7 @@ pub fn place_perp_order(
         padding: [0; 3],
     };
 
-    let valid_oracle_price = get_valid_oracle_price(
-        oracle_map.get_price_data(&market.amm.oracle)?,
-        market,
-        &new_order,
-        &state.oracle_guard_rails.validity,
-    )?;
-
+    let valid_oracle_price = Some(oracle_map.get_price_data(&market.amm.oracle)?.price);
     match validate_order(&new_order, market, valid_oracle_price, slot) {
         Ok(()) => {}
         Err(ErrorCode::PlacePostOnlyLimitFailure)
@@ -1026,7 +1025,9 @@ pub fn fill_perp_order(
         return Ok(0);
     }
 
-    let should_expire_order = should_expire_order(user, order_index, now)?;
+    validate_perp_fill_possible(state, user, order_index, slot, makers_and_referrer.0.len())?;
+
+    let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
 
     let position_index =
         get_position_index(&user.perp_positions, user.orders[order_index].market_index)?;
@@ -1778,7 +1779,7 @@ pub fn fulfill_perp_order_with_amm(
     };
 
     let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
-    amm::update_mark_twap(
+    amm::update_mark_twap_from_estimates(
         &mut market.amm,
         now,
         Some(market_side_price),
@@ -2064,7 +2065,7 @@ pub fn fulfill_perp_order_with_match(
     }
 
     let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
-    amm::update_mark_twap(
+    amm::update_mark_twap_from_estimates(
         &mut market.amm,
         now,
         Some(maker_price),
@@ -2375,36 +2376,6 @@ pub fn update_order_after_fill(
     }
 
     Ok(())
-}
-
-fn get_valid_oracle_price(
-    oracle_price_data: &OraclePriceData,
-    market: &PerpMarket,
-    order: &Order,
-    validity_guardrails: &ValidityGuardRails,
-) -> DriftResult<Option<i64>> {
-    let price = {
-        let oracle_validity = oracle::oracle_validity(
-            market.amm.historical_oracle_data.last_oracle_price_twap,
-            oracle_price_data,
-            validity_guardrails,
-        )?;
-
-        let is_oracle_valid =
-            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmm))?;
-
-        if is_oracle_valid {
-            Some(oracle_price_data.price)
-        } else if order.has_oracle_price_offset() {
-            msg!("Invalid oracle for order with oracle price offset");
-            return Err(print_error!(ErrorCode::InvalidOracle)());
-        } else {
-            msg!("Oracle is invalid");
-            None
-        }
-    };
-
-    Ok(price)
 }
 
 #[allow(clippy::type_complexity)]
@@ -2975,15 +2946,9 @@ pub fn place_spot_order(
         padding: [0; 3],
     };
 
-    let valid_oracle_price = Some(oracle_price_data.price);
     validate_spot_order(
         &new_order,
-        valid_oracle_price,
-        slot,
         spot_market.order_step_size,
-        spot_market.order_tick_size,
-        spot_market.get_margin_ratio(&MarginRequirementType::Initial)?,
-        spot_market.get_margin_ratio(&MarginRequirementType::Maintenance)?,
         spot_market.min_order_size,
     )?;
 
@@ -3211,7 +3176,7 @@ pub fn fill_spot_order(
         }
     }
 
-    let should_expire_order = should_expire_order(user, order_index, now)?;
+    let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
 
     let should_cancel_reduce_only = if user.orders[order_index].reduce_only {
         let market_index = user.orders[order_index].market_index;
@@ -3321,7 +3286,7 @@ pub fn fill_spot_order(
         let base_market = spot_market_map.get_ref(&market_index)?;
         let quote_market = spot_market_map.get_quote_spot_market()?;
         let (max_base_asset_amount, max_quote_asset_amount) =
-            get_max_fill_amounts(user, order_index, &base_market, &quote_market)?;
+            get_max_fill_amounts(user, order_index, &base_market, &quote_market, false)?;
         max_base_asset_amount == Some(0) || max_quote_asset_amount == Some(0)
     } else {
         false
@@ -3644,6 +3609,7 @@ fn fulfill_spot_order(
             base_token_amount_before,
             quote_token_amount_after,
             base_token_amount_after,
+            MarginRequirementType::Fill,
         )?
     } else {
         // sell base, buy quote
@@ -3656,6 +3622,7 @@ fn fulfill_spot_order(
             quote_token_amount_before,
             base_token_amount_after,
             quote_token_amount_after,
+            MarginRequirementType::Fill,
         )?
     };
 
@@ -3785,7 +3752,7 @@ pub fn fulfill_spot_order_with_match(
     }
 
     let (taker_max_base_asset_amount, taker_max_quote_asset_amount) =
-        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market)?;
+        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market, false)?;
 
     let taker_base_asset_amount =
         if let Some(taker_max_quote_asset_amount) = taker_max_quote_asset_amount {
@@ -3805,7 +3772,7 @@ pub fn fulfill_spot_order_with_match(
         };
 
     let (maker_max_base_asset_amount, maker_max_quote_asset_amount) =
-        get_max_fill_amounts(maker, maker_order_index, base_market, quote_market)?;
+        get_max_fill_amounts(maker, maker_order_index, base_market, quote_market, false)?;
 
     let maker_base_asset_amount =
         if let Some(maker_max_quote_asset_amount) = maker_max_quote_asset_amount {
@@ -4091,7 +4058,7 @@ pub fn fulfill_spot_order_with_external_market(
     let taker_order_slot = taker.orders[taker_order_index].slot;
 
     let (max_base_asset_amount, max_quote_asset_amount) =
-        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market)?;
+        get_max_fill_amounts(taker, taker_order_index, base_market, quote_market, true)?;
 
     let taker_base_asset_amount =
         taker_base_asset_amount.min(max_base_asset_amount.unwrap_or(u64::MAX));
@@ -4239,12 +4206,14 @@ pub fn fulfill_spot_order_with_external_market(
         "Fill on external spot market lead to unexpected to update direction"
     )?;
 
+    let base_update_direction =
+        taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base);
     update_spot_balances_and_cumulative_deposits(
         base_asset_amount_filled.cast()?,
-        &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
+        &base_update_direction,
         base_market,
         taker.force_get_spot_position_mut(base_market.market_index)?,
-        false,
+        base_update_direction == SpotBalanceType::Borrow,
         None,
     )?;
 
@@ -4255,12 +4224,14 @@ pub fn fulfill_spot_order_with_external_market(
         "Fill on external market lead to unexpected to update direction"
     )?;
 
+    let quote_update_direction =
+        taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote);
     update_spot_balances_and_cumulative_deposits(
         quote_spot_position_delta.cast()?,
-        &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
+        &quote_update_direction,
         quote_market,
         taker.get_quote_spot_position_mut(),
-        false,
+        quote_update_direction == SpotBalanceType::Borrow,
         Some(quote_asset_amount_filled.cast()?),
     )?;
 

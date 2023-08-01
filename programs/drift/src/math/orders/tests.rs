@@ -571,7 +571,7 @@ mod get_max_fill_amounts {
         };
 
         let (max_base, max_quote) =
-            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market, true).unwrap();
 
         assert_eq!(max_base, Some(100 * LAMPORTS_PER_SOL));
         assert_eq!(max_quote, None);
@@ -609,7 +609,7 @@ mod get_max_fill_amounts {
         };
 
         let (max_base, max_quote) =
-            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market, true).unwrap();
 
         assert_eq!(max_base, Some(0));
         assert_eq!(max_quote, None);
@@ -650,7 +650,7 @@ mod get_max_fill_amounts {
         };
 
         let (max_base, max_quote) =
-            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market, true).unwrap();
 
         assert_eq!(max_base, Some(16666666666));
         assert_eq!(max_quote, None);
@@ -692,7 +692,7 @@ mod get_max_fill_amounts {
         };
 
         let (max_base, max_quote) =
-            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market, true).unwrap();
 
         assert_eq!(max_base, None);
         assert_eq!(max_quote, Some(100 * QUOTE_PRECISION_U64));
@@ -730,7 +730,7 @@ mod get_max_fill_amounts {
         };
 
         let (max_base, max_quote) =
-            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market, true).unwrap();
 
         assert_eq!(max_base, None);
         assert_eq!(max_quote, Some(0));
@@ -772,7 +772,7 @@ mod get_max_fill_amounts {
         };
 
         let (max_base, max_quote) =
-            get_max_fill_amounts(&user, 0, &base_market, &quote_market).unwrap();
+            get_max_fill_amounts(&user, 0, &base_market, &quote_market, true).unwrap();
 
         assert_eq!(max_base, None);
         assert_eq!(max_quote, Some(16666666));
@@ -2509,5 +2509,264 @@ pub mod is_oracle_too_divergent_with_twap_5min {
         let max_divergence = PERCENTAGE_PRECISION_U64 as i64 / 2;
 
         assert!(is_oracle_too_divergent_with_twap_5min(oracle_price, twap, max_divergence).unwrap())
+    }
+}
+
+pub mod get_price_for_perp_order {
+    use crate::math::orders::get_price_for_perp_order;
+
+    use crate::state::perp_market::AMM;
+    use crate::{PositionDirection, PostOnlyParam, BID_ASK_SPREAD_PRECISION_U128};
+    use crate::{AMM_RESERVE_PRECISION, PEG_PRECISION};
+
+    #[test]
+    fn bid_crosses_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            short_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_bid_price = amm.bid_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_bid_price, 99000000); // $99
+
+        let ask = 98900000; // $98.9
+        let direction = PositionDirection::Short;
+
+        let limit_price =
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 99100000); // $99.1
+
+        let ask = amm_bid_price;
+        let limit_price =
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 99100000); // $99.1
+    }
+
+    #[test]
+    fn bid_doesnt_cross_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            short_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_bid_price = amm.bid_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_bid_price, 99000000); // $99
+
+        let ask = 99900000; // $99.9
+        let direction = PositionDirection::Short;
+
+        let limit_price =
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, ask); // $99.1
+    }
+
+    #[test]
+    fn ask_crosses_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            long_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_ask_price = amm.ask_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_ask_price, 101000000); // $101
+
+        let bid = 101100000; // $101.1
+        let direction = PositionDirection::Long;
+
+        let limit_price =
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 100900000); // $100.9
+
+        let bid = amm_ask_price;
+        let limit_price =
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, 100900000); // $100.9
+    }
+
+    #[test]
+    fn ask_doesnt_cross_vamm_ask() {
+        let amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            order_tick_size: 100000,
+            long_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
+            ..AMM::default()
+        };
+
+        let amm_reserve_price = amm.reserve_price().unwrap();
+        let amm_ask_price = amm.ask_price(amm_reserve_price).unwrap();
+
+        assert_eq!(amm_ask_price, 101000000); // $101
+
+        let bid = 100100000; // $100.1
+        let direction = PositionDirection::Long;
+
+        let limit_price =
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+
+        assert_eq!(limit_price, bid); // $100.1
+    }
+}
+
+pub mod estimate_price_from_side {
+    use crate::math::orders::{estimate_price_from_side, Level, Side};
+    use crate::{BASE_PRECISION_U64, PRICE_PRECISION_U64};
+
+    #[test]
+    fn ask() {
+        let mut asks: Side = vec![];
+        for i in 0..11 {
+            asks.push(Level {
+                price: (100 - i) * PRICE_PRECISION_U64,
+                base_asset_amount: 100 * BASE_PRECISION_U64,
+            })
+        }
+
+        let depth = 1100 * BASE_PRECISION_U64;
+        let price = estimate_price_from_side(&asks, depth).unwrap();
+
+        assert_eq!(price, Some(95000000));
+
+        let depth = 1101 * BASE_PRECISION_U64;
+        let price = estimate_price_from_side(&asks, depth).unwrap();
+
+        assert_eq!(price, None);
+    }
+
+    #[test]
+    fn bids() {
+        let mut bids: Side = vec![];
+        for i in 0..11 {
+            bids.push(Level {
+                price: (90 + i) * PRICE_PRECISION_U64,
+                base_asset_amount: 100 * BASE_PRECISION_U64,
+            })
+        }
+
+        let depth = 1100 * BASE_PRECISION_U64;
+        let price = estimate_price_from_side(&bids, depth).unwrap();
+
+        assert_eq!(price, Some(95000000));
+
+        let depth = 1101 * BASE_PRECISION_U64;
+        let price = estimate_price_from_side(&bids, depth).unwrap();
+
+        assert_eq!(price, None);
+    }
+}
+
+pub mod find_bids_and_asks_from_users {
+    use solana_program::pubkey::Pubkey;
+
+    use crate::controller::position::PositionDirection;
+    use crate::create_anchor_account_info;
+    use crate::math::constants::{BASE_PRECISION_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+    use crate::math::orders::{find_bids_and_asks_from_users, Level};
+    use crate::state::oracle::OraclePriceData;
+    use crate::state::perp_market::PerpMarket;
+    use crate::state::user::{Order, OrderStatus, OrderType, PerpPosition, User};
+    use crate::state::user_map::UserMap;
+    use crate::test_utils::*;
+    use crate::test_utils::{create_account_info, get_positions};
+    use crate::MarketType;
+    use anchor_lang::Owner;
+
+    #[test]
+    fn test() {
+        let market = PerpMarket::default_test();
+
+        let oracle_price_data = OraclePriceData {
+            price: 100 * PRICE_PRECISION_I64,
+            ..OraclePriceData::default()
+        };
+
+        let mut maker_orders = [Order::default(); 32];
+        for (i, order) in maker_orders.iter_mut().enumerate().take(16) {
+            *order = Order {
+                status: OrderStatus::Open,
+                market_index: 0,
+                market_type: MarketType::Perp,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                price: (80 + i) as u64 * PRICE_PRECISION_U64,
+                post_only: true,
+                ..Order::default()
+            };
+        }
+
+        for (i, order) in maker_orders.iter_mut().enumerate().skip(16) {
+            *order = Order {
+                status: OrderStatus::Open,
+                market_index: 0,
+                market_type: MarketType::Perp,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                price: (120 - i) as u64 * PRICE_PRECISION_U64,
+                post_only: true,
+                ..Order::default()
+            };
+        }
+
+        let mut maker = User {
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 32,
+                ..PerpPosition::default()
+            }),
+            orders: maker_orders,
+            ..User::default()
+        };
+        let maker_key = Pubkey::default();
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let (bids, asks) =
+            find_bids_and_asks_from_users(&market, &oracle_price_data, &makers_and_referrers, 0, 0)
+                .unwrap();
+
+        let mut expected_bids = vec![];
+        for i in 0..16 {
+            expected_bids.push(Level {
+                price: (95 - i) as u64 * PRICE_PRECISION_U64,
+                base_asset_amount: BASE_PRECISION_U64,
+            })
+        }
+        assert_eq!(bids, expected_bids);
+
+        let mut expected_asks = vec![];
+        for i in 0..16 {
+            expected_asks.push(Level {
+                price: (89 + i) as u64 * PRICE_PRECISION_U64,
+                base_asset_amount: BASE_PRECISION_U64,
+            })
+        }
+        assert_eq!(asks, expected_asks);
     }
 }

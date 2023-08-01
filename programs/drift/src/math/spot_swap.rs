@@ -31,6 +31,7 @@ pub fn select_margin_type_for_swap(
     out_token_amount_before: i128,
     in_token_amount_after: i128,
     out_token_amount_after: i128,
+    strict_margin_type: MarginRequirementType,
 ) -> DriftResult<MarginRequirementType> {
     let calculate_free_collateral_contribution =
         |market: &SpotMarket, price: i64, token_amount: i128| {
@@ -74,7 +75,7 @@ pub fn select_margin_type_for_swap(
     let margin_type = if free_collateral_contribution_after > free_collateral_contribution_before {
         MarginRequirementType::Maintenance
     } else {
-        MarginRequirementType::Initial
+        strict_margin_type
     };
 
     Ok(margin_type)

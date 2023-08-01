@@ -436,7 +436,7 @@ describe('phoenix spot market', () => {
 			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(99900000)));
+		assert(quoteTokenAmount.eq(new BN(99899999)));
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.scaledBalance,
@@ -595,7 +595,7 @@ describe('phoenix spot market', () => {
 			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(199800000)));
+		assert(quoteTokenAmount.eq(new BN(199799999)));
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.scaledBalance,

@@ -5,17 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-### Breaking
-
 ## [Unreleased]
 
 ### Features
 
+- program: make users w excessive withdraws pay fees ([#547](https://github.com/drift-labs/protocol-v2/pull/547))
+- program: allow settle pnl and spot fills via match when utilization is 100% ([#525](https://github.com/drift-labs/protocol-v2/pull/525)) 
+- program: new update_perp_bid_ask_twap ix ([#548](https://github.com/drift-labs/protocol-v2/pull/548))
+- program: dont check price bands for place order ([#556](https://github.com/drift-labs/protocol-v2/pull/556))
+
+### Fixes
+
+### Breaking
+
+## [2.36.0] - 2023-07-26
+
+### Features
+
+- program: usdt oracle uses pyth stablecoin oracle source
+
+### Fixes
+
+- program: add buffer before limit tif can be expired ([#551](https://github.com/drift-labs/protocol-v2/pull/551))
+- ts-sdk: fix abs for dustBaseAssetValue in getPerpPositionWithLPSettle ([#543](https://github.com/drift-labs/protocol-v2/pull/543))
+- program: add a fixed buffer margin requirement for lp_shares ([#546](https://github.com/drift-labs/protocol-v2/pull/546))
+- program: use fill margin type in fulfill_spot_order
+- ts-sdk: add buffer to max leverage for LP contributions
+
+### Breaking
+
+- ts-sdk: account for lp shares in liq price ([#522](https://github.com/drift-labs/protocol-v2/pull/522))
+- ts-sdk: getPerpPositionWithLPSettle has flag to account for burn lp share ([#522](https://github.com/drift-labs/protocol-v2/pull/522))
+
+## [2.35.0] - 2023-07-18
+
+### Features
+
+- program: add cancel orders by ids ([#540](https://github.com/drift-labs/protocol-v2/pull/540))
+- program: add post only slide for perps ([#541](https://github.com/drift-labs/protocol-v2/pull/541))
 - program: allow up to 10000 users
 
 ### Fixes
-- program: if taker increases free colalteral, check maintenance health ([#538](https://github.com/drift-labs/protocol-v2/pull/345))
-- program: improve bid/ask twap update for infrequent trading ([#529](https://github.com/drift-labs/protocol-v2/pull/345))
+
+- program: if taker increases free colalteral, check maintenance health ([#538](https://github.com/drift-labs/protocol-v2/pull/538))
+- program: improve bid/ask twap update for infrequent trading ([#529](https://github.com/drift-labs/protocol-v2/pull/529))
 - sdk: simplify, mirror contract, and write tests for predicting funding rate function ([#529](https://github.com/drift-labs/protocol-v2/pull/529))
 
 ### Breaking

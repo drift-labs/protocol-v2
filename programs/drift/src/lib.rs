@@ -108,6 +108,10 @@ pub mod drift {
         handle_cancel_orders(ctx, market_type, market_index, direction)
     }
 
+    pub fn cancel_orders_by_ids(ctx: Context<CancelOrder>, order_ids: Vec<u32>) -> Result<()> {
+        handle_cancel_orders_by_ids(ctx, order_ids)
+    }
+
     pub fn modify_order(
         ctx: Context<CancelOrder>,
         order_id: Option<u32>,
@@ -300,6 +304,13 @@ pub mod drift {
         handle_update_user_open_orders_count(ctx)
     }
 
+    pub fn admin_disable_update_perp_bid_ask_twap(
+        ctx: Context<AdminDisableBidAskTwapUpdate>,
+        disable: bool,
+    ) -> Result<()> {
+        handle_admin_disable_update_perp_bid_ask_twap(ctx, disable)
+    }
+
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         handle_settle_pnl(ctx, market_index)
     }
@@ -410,6 +421,10 @@ pub mod drift {
 
     pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u16) -> Result<()> {
         handle_update_funding_rate(ctx, market_index)
+    }
+
+    pub fn update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Result<()> {
+        handle_update_perp_bid_ask_twap(ctx)
     }
 
     pub fn update_spot_market_cumulative_interest(

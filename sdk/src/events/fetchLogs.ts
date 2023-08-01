@@ -8,6 +8,7 @@ import {
 	VersionedTransactionResponse,
 } from '@solana/web3.js';
 import { WrappedEvents } from './types';
+import { promiseTimeout } from '../util/promiseTimeout';
 
 type Log = { txSig: TransactionSignature; slot: number; logs: string[] };
 type FetchLogsResponse = {
@@ -61,23 +62,14 @@ export async function fetchLogs(
 
 	const chunkedSignatures = chunk(filteredSignatures, 100);
 
-	const config = { commitment: finality, maxSupportedTransactionVersion: 0 };
-
 	const transactionLogs = (
 		await Promise.all(
 			chunkedSignatures.map(async (chunk) => {
-				const transactions = await connection.getTransactions(
+				return await fetchTransactionLogs(
+					connection,
 					chunk.map((confirmedSignature) => confirmedSignature.signature),
-					//@ts-ignore
-					config
+					finality
 				);
-
-				return transactions.reduce((logs, transaction) => {
-					if (transaction) {
-						logs.push(mapTransactionResponseToLog(transaction));
-					}
-					return logs;
-				}, new Array<Log>());
 			})
 		)
 	).flat();
@@ -93,6 +85,45 @@ export async function fetchLogs(
 		mostRecentSlot: mostRecent.slot,
 		mostRecentBlockTime: mostRecent.blockTime,
 	};
+}
+
+export async function fetchTransactionLogs(
+	connection: Connection,
+	signatures: TransactionSignature[],
+	finality: Finality
+): Promise<Log[]> {
+	const requests = new Array<{ methodName: string; args: any }>();
+	for (const signature of signatures) {
+		const args = [
+			signature,
+			{ commitment: finality, maxSupportedTransactionVersion: 0 },
+		];
+
+		requests.push({
+			methodName: 'getTransaction',
+			args,
+		});
+	}
+
+	const rpcResponses: any | null = await promiseTimeout(
+		// @ts-ignore
+		connection._rpcBatchRequest(requests),
+		10 * 1000 // 10 second timeout
+	);
+
+	if (rpcResponses === null) {
+		return Promise.reject('RPC request timed out fetching transactions');
+	}
+
+	const logs = new Array<Log>();
+	for (const i in rpcResponses) {
+		const rpcResponse = rpcResponses[i];
+		if (rpcResponse.result) {
+			logs.push(mapTransactionResponseToLog(rpcResponse.result));
+		}
+	}
+
+	return logs;
 }
 
 function chunk<T>(array: readonly T[], size: number): T[][] {

@@ -6,7 +6,7 @@ use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
 use crate::controller::spot_position::{
-    update_spot_balances_and_cumulative_deposits,
+    charge_withdraw_fee, update_spot_balances_and_cumulative_deposits,
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
@@ -381,6 +381,7 @@ pub fn handle_withdraw(
 ) -> anchor_lang::Result<()> {
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
+    let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -418,7 +419,7 @@ pub fn handle_withdraw(
 
         let position_index = user.force_get_spot_position_index(market_index)?;
 
-        let amount = if reduce_only {
+        let mut amount = if reduce_only {
             validate!(
                 user.spot_positions[position_index].balance_type == SpotBalanceType::Deposit,
                 ErrorCode::ReduceOnlyWithdrawIncreasedRisk
@@ -446,6 +447,12 @@ pub fn handle_withdraw(
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+        if user.qualifies_for_withdraw_fee(&user_stats) {
+            let fee =
+                charge_withdraw_fee(spot_market, oracle_price_data.price, user, &mut user_stats)?;
+            amount = amount.safe_sub(fee.cast()?)?;
+        }
 
         user.increment_total_withdraws(
             amount,
@@ -750,6 +757,7 @@ pub enum PostOnlyParam {
     None,
     MustPostOnly, // Tx fails if order can't be post only
     TryPostOnly,  // Tx succeeds and order not placed if can't be post only
+    Slide,        // Modify price to be post only if can't be post only
 }
 
 impl Default for PostOnlyParam {
@@ -873,6 +881,39 @@ pub fn handle_cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: 
         &mut oracle_map,
         clock,
     )?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_cancel_orders_by_ids(ctx: Context<CancelOrder>, order_ids: Vec<u32>) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    for order_id in order_ids {
+        controller::orders::cancel_order_by_order_id(
+            order_id,
+            &ctx.accounts.user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            clock,
+        )?;
+    }
 
     Ok(())
 }
@@ -2716,6 +2757,7 @@ pub fn handle_end_swap(
         out_token_amount_before,
         in_token_amount_after,
         out_token_amount_after,
+        MarginRequirementType::Initial,
     )?;
 
     drop(out_spot_market);

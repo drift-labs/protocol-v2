@@ -289,7 +289,7 @@ describe('serum spot market', () => {
 			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(99900000)));
+		assert(quoteTokenAmount.eq(new BN(99899999)));
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.scaledBalance,
@@ -397,7 +397,7 @@ describe('serum spot market', () => {
 			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(199800000)));
+		assert(quoteTokenAmount.eq(new BN(199799999)));
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.scaledBalance,
@@ -508,7 +508,7 @@ describe('serum spot market', () => {
 			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(99700000))); // paid ~$.30
+		assert(quoteTokenAmount.eq(new BN(99699999))); // paid ~$.30
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.scaledBalance,
@@ -602,7 +602,7 @@ describe('serum spot market', () => {
 			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(199600000))); // paid ~$.40
+		assert(quoteTokenAmount.eq(new BN(199599999))); // paid ~$.40
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.scaledBalance,
