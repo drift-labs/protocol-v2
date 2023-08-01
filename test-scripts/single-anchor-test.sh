@@ -4,7 +4,7 @@ if [ "$1" != "--skip-build" ]
     cp target/idl/drift.json sdk/src/idl/
 fi
 
-test_files=(liquidityProvider.ts)
+test_files=(spotLargeWithdrawFee.ts)
 # test_files=(tradingLP.ts)
 
 for test_file in ${test_files[@]}; do

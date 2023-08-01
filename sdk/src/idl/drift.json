@@ -1390,6 +1390,32 @@
       "args": []
     },
     {
+      "name": "adminDisableUpdatePerpBidAskTwap",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "disable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "settlePnl",
       "accounts": [
         {
@@ -1951,13 +1977,8 @@
           "isSigner": false
         },
         {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
+          "name": "keeperStats",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -5714,11 +5735,15 @@
             "type": "bool"
           },
           {
+            "name": "disableUpdatePerpBidAskTwap",
+            "type": "bool"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                51
+                50
               ]
             }
           }
@@ -10610,6 +10635,11 @@
       "code": 6252,
       "name": "ImpossibleFill",
       "msg": "ImpossibleFill"
+    },
+    {
+      "code": 6253,
+      "name": "CantUpdatePerpBidAskTwap",
+      "msg": "CantUpdatePerpBidAskTwap"
     }
   ]
 }
