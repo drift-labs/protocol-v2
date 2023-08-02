@@ -795,5 +795,7 @@ describe('test function when spot market at >= 100% util', () => {
 			marketIndex
 		);
 		await printTxLogs(connection, settleTx2Good);
+
+		await takerDriftClientUser.unsubscribe();
 	});
 });
