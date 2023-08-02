@@ -168,6 +168,7 @@ export class EventSubscriber {
 		const records = [];
 		// @ts-ignore
 		const events = parseLogs(this.program, slot, logs);
+		let runningEventIndex = 0;
 		for (const event of events) {
 			// @ts-ignore
 			const expectRecordType = this.eventListMap.has(event.name);
@@ -175,8 +176,10 @@ export class EventSubscriber {
 				event.data.txSig = txSig;
 				event.data.slot = slot;
 				event.data.eventType = event.name;
+				event.data.txSigIndex = runningEventIndex;
 				records.push(event.data);
 			}
+			runningEventIndex++;
 		}
 		return records;
 	}
