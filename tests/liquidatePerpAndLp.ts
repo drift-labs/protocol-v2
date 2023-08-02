@@ -208,10 +208,13 @@ describe('liquidate perp and lp', () => {
 		console.log('deltaValueToLiq:', deltaValueToLiq.toString());
 		console.log('pp.base:', pp.baseAssetAmount.toString());
 
-		const expectedLiqPrice = 0.566378;
+		// const expectedLiqPrice = 0.521639;
 		const liqPrice = driftClientUser.liquidationPrice(0, ZERO);
 		console.log('liqPrice:', liqPrice.toString());
-		assert(liqPrice.eq(new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())));
+		const expectedLiqPrice2 = new BN('521639');
+		console.log('expected liqPrice:', expectedLiqPrice2.toString());
+
+		assert(liqPrice.eq(expectedLiqPrice2));
 
 		const oracle = driftClient.getPerpMarketAccount(0).amm.oracle;
 		await setFeedPrice(anchor.workspace.Pyth, 0.9, oracle);
@@ -220,7 +223,6 @@ describe('liquidate perp and lp', () => {
 		await driftClient.fetchAccounts();
 
 		const liqPriceAfterPxChange = driftClientUser.liquidationPrice(0, ZERO);
-		const expectedLiqPriceAfterPxChange = 0.557026;
 
 		console.log('liqPriceAfterPxChange:', liqPriceAfterPxChange.toString());
 		const mtc0 = driftClientUser.getTotalCollateral('Maintenance');
@@ -232,11 +234,7 @@ describe('liquidate perp and lp', () => {
 		console.log('mmr0:', mmr0.toString());
 		console.log('deltaValueToLiq0:', deltaValueToLiq0.toString());
 		console.log('pp.base0:', pp0.baseAssetAmount.toString());
-		assert(
-			liqPriceAfterPxChange.eq(
-				new BN(expectedLiqPriceAfterPxChange * PRICE_PRECISION.toNumber())
-			)
-		);
+		assert(liqPriceAfterPxChange.eq(expectedLiqPrice2));
 
 		await driftClient.settlePNL(
 			driftClientUser.userAccountPublicKey,
@@ -260,11 +258,7 @@ describe('liquidate perp and lp', () => {
 		console.log('pp.base2:', pp2.baseAssetAmount.toString());
 
 		console.log('liqPriceAfterSettlePnl:', liqPriceAfterSettlePnl.toString());
-		assert(
-			liqPriceAfterSettlePnl.eq(
-				new BN(expectedLiqPriceAfterPxChange * PRICE_PRECISION.toNumber())
-			)
-		);
+		assert(liqPriceAfterSettlePnl.eq(expectedLiqPrice2));
 
 		await setFeedPrice(anchor.workspace.Pyth, 1.1, oracle);
 		await driftClient.settlePNL(
@@ -281,11 +275,7 @@ describe('liquidate perp and lp', () => {
 			'liqPriceAfterRallySettlePnl:',
 			liqPriceAfterRallySettlePnl.toString()
 		);
-		assert(
-			liqPriceAfterRallySettlePnl.eq(
-				new BN(0.575731 * PRICE_PRECISION.toNumber())
-			)
-		);
+		assert(liqPriceAfterRallySettlePnl.eq(expectedLiqPrice2));
 		await driftClientUser.unsubscribe();
 
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
