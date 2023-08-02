@@ -481,7 +481,9 @@ pub fn handle_withdraw(
 
     validate_spot_margin_trading(user, &spot_market_map, &mut oracle_map)?;
 
-    user.status = UserStatus::Active;
+    if user.is_being_liquidated() {
+        user.status = UserStatus::Active;
+    }
 
     user.update_last_active_slot(slot);
 
@@ -635,7 +637,9 @@ pub fn handle_transfer_deposit(
 
     validate_spot_margin_trading(from_user, &spot_market_map, &mut oracle_map)?;
 
-    from_user.status = UserStatus::Active;
+    if from_user.is_being_liquidated() {
+        from_user.status = UserStatus::Active;
+    }
 
     from_user.update_last_active_slot(slot);
 
@@ -1863,6 +1867,32 @@ pub fn handle_update_user_delegate(
     Ok(())
 }
 
+pub fn handle_update_user_reduce_only(
+    ctx: Context<UpdateUser>,
+    _sub_account_id: u16,
+    reduce_only: bool,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    if reduce_only {
+        validate!(
+            user.status == UserStatus::Active,
+            ErrorCode::UserReduceOnly,
+            "user status needs to be active to enter reduce only"
+        )?;
+        user.status = UserStatus::ReduceOnly;
+    } else {
+        validate!(
+            user.status == UserStatus::ReduceOnly,
+            ErrorCode::UserReduceOnly,
+            "user status needs to be reduce only to exit reduce only"
+        )?;
+        user.status = UserStatus::Active;
+    }
+
+    Ok(())
+}
+
 pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     let user = &load!(ctx.accounts.user)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
@@ -2630,6 +2660,13 @@ pub fn handle_end_swap(
         validate!(
             user.is_margin_trading_enabled,
             ErrorCode::MarginTradingDisabled,
+            "swap lead to increase in liability for in market {}",
+            in_market_index
+        )?;
+
+        validate!(
+            !user.is_reduce_only(),
+            ErrorCode::UserReduceOnly,
             "swap lead to increase in liability for in market {}",
             in_market_index
         )?;

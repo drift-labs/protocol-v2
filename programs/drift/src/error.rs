@@ -513,6 +513,8 @@ pub enum ErrorCode {
     ImpossibleFill,
     #[msg("CantUpdatePerpBidAskTwap")]
     CantUpdatePerpBidAskTwap,
+    #[msg("UserReduceOnly")]
+    UserReduceOnly,
 }
 
 #[macro_export]

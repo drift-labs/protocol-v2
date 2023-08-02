@@ -261,6 +261,14 @@ pub mod drift {
         handle_update_user_delegate(ctx, _sub_account_id, delegate)
     }
 
+    pub fn update_user_reduce_only(
+        ctx: Context<UpdateUser>,
+        _sub_account_id: u16,
+        reduce_only: bool,
+    ) -> Result<()> {
+        handle_update_user_reduce_only(ctx, _sub_account_id, reduce_only)
+    }
+
     pub fn delete_user(ctx: Context<DeleteUser>) -> Result<()> {
         handle_delete_user(ctx)
     }

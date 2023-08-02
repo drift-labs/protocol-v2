@@ -38,6 +38,7 @@ pub enum UserStatus {
     Active,
     BeingLiquidated,
     Bankrupt,
+    ReduceOnly,
 }
 
 impl Default for UserStatus {
@@ -129,6 +130,10 @@ impl User {
 
     pub fn is_bankrupt(&self) -> bool {
         self.status == UserStatus::Bankrupt
+    }
+
+    pub fn is_reduce_only(&self) -> bool {
+        self.status == UserStatus::ReduceOnly
     }
 
     pub fn get_spot_position_index(&self, market_index: u16) -> DriftResult<usize> {
