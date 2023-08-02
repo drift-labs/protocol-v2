@@ -342,7 +342,7 @@ pub fn load_user_maps<'a>(
         }
 
         let is_writable = user_stats_account_info.is_writable;
-        if !is_writable {
+        if !is_writable && must_be_writable {
             return Err(ErrorCode::UserStatsWrongMutability);
         }
 
