@@ -2029,9 +2029,9 @@ pub struct Deposit<'info> {
 
 #[derive(Accounts)]
 pub struct RevenuePoolDeposit<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
-    pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub authority: Signer<'info>,
     #[account(
