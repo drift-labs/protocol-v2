@@ -286,7 +286,18 @@ impl SpotMarket {
 
         let default_asset_weight = match margin_requirement_type {
             MarginRequirementType::Initial | MarginRequirementType::Fill => {
-                self.initial_asset_weight
+                let deposit_token_amount =
+                    get_token_amount(self.deposit_balance, self, &SpotBalanceType::Deposit)?;
+                let max_token_amount_u128 = self.max_token_deposits.cast::<u128>()?;
+                if max_token_amount_u128 != 0 && deposit_token_amount > max_token_amount_u128 / 2 {
+                    (self.initial_asset_weight / 2)
+                        .cast::<u128>()?
+                        .safe_mul(max_token_amount_u128)?
+                        .safe_div(deposit_token_amount)?
+                        .cast::<u32>()?
+                } else {
+                    self.initial_asset_weight
+                }
             }
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };
