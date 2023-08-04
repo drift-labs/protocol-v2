@@ -403,20 +403,22 @@ pub fn update_lp_market_position(
         total_lp_shares,
     )?;
 
-    let per_lp_delta_quote = get_proportion_i128(
+    let mut per_lp_delta_quote = get_proportion_i128(
         delta.quote_asset_amount.cast()?,
         AMM_RESERVE_PRECISION,
         total_lp_shares,
     )?;
 
+    // user position delta is short => lp position delta is long
+    if per_lp_delta_base < 0 {
+        // add one => lp subtract 1
+        per_lp_delta_quote = per_lp_delta_quote.safe_add(1)?;
+    }
+
     let lp_delta_base =
         get_proportion_i128(per_lp_delta_base, user_lp_shares, AMM_RESERVE_PRECISION)?;
-    let mut lp_delta_quote =
+    let lp_delta_quote =
         get_proportion_i128(per_lp_delta_quote, user_lp_shares, AMM_RESERVE_PRECISION)?;
-
-    if lp_delta_base > 0 {
-        lp_delta_quote = lp_delta_quote.safe_sub(1)?;
-    }
 
     market.amm.base_asset_amount_per_lp = market
         .amm

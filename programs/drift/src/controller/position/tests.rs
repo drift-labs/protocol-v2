@@ -82,7 +82,7 @@ fn amm_split_large_k() {
     update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
 
     assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054756);
-    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535655);
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535654);
 
     // long order for $230
     let delta = PositionDelta {
@@ -93,7 +93,7 @@ fn amm_split_large_k() {
     update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
 
     assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574055043);
-    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535661);
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535660);
 
     assert_eq!(
         (perp_market.amm.sqrt_k as i128) * (og_baapl - perp_market.amm.base_asset_amount_per_lp)
@@ -104,16 +104,42 @@ fn amm_split_large_k() {
     assert_eq!(
         (perp_market.amm.sqrt_k as i128) * (og_qaapl - perp_market.amm.quote_asset_amount_per_lp)
             / QUOTE_PRECISION_I128,
-        -208594350041
+        -173828625034
     );
     assert_eq!(
         (perp_market.amm.sqrt_k as i128)
             * (og_qaapl - perp_market.amm.quote_asset_amount_per_lp - 1)
             / QUOTE_PRECISION_I128,
-        -243360075047
+        -208594350041
     );
-    // assert_eq!(208594350041/9977763076, 20);
-    // assert_eq!(243360075047/9977763076 > 23, true); // ensure rounding in favor
+    // assert_eq!(243360075047/9977763076 < 23, true); // ensure rounding in favor
+
+    // long order for $230
+    let delta = PositionDelta {
+        base_asset_amount: -BASE_PRECISION_I64 * 10,
+        quote_asset_amount: 230000000,
+    };
+
+    let og_baapl = perp_market.amm.base_asset_amount_per_lp;
+    let og_qaapl = perp_market.amm.quote_asset_amount_per_lp;
+
+    update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
+
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054756);
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535653);
+
+    assert_eq!(
+        (perp_market.amm.sqrt_k as i128) * (og_baapl - perp_market.amm.base_asset_amount_per_lp)
+            / AMM_RESERVE_PRECISION_I128,
+        -9977763076
+    );
+    // assert_eq!((perp_market.amm.sqrt_k as i128) * (og_baapl-perp_market.amm.base_asset_amount_per_lp) / AMM_RESERVE_PRECISION_I128, 104297175);
+    assert_eq!(
+        (perp_market.amm.sqrt_k as i128) * (og_qaapl - perp_market.amm.quote_asset_amount_per_lp)
+            / QUOTE_PRECISION_I128,
+        243360075047
+    );
+    // assert_eq!(243360075047/9977763076 < 23, true); // ensure rounding in favor
 }
 
 #[test]
