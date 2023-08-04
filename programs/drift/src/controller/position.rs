@@ -411,8 +411,12 @@ pub fn update_lp_market_position(
 
     let lp_delta_base =
         get_proportion_i128(per_lp_delta_base, user_lp_shares, AMM_RESERVE_PRECISION)?;
-    let lp_delta_quote =
+    let mut lp_delta_quote =
         get_proportion_i128(per_lp_delta_quote, user_lp_shares, AMM_RESERVE_PRECISION)?;
+
+    if lp_delta_base > 0 {
+        lp_delta_quote = lp_delta_quote.safe_sub(1)?;
+    }
 
     market.amm.base_asset_amount_per_lp = market
         .amm

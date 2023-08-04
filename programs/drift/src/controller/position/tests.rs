@@ -2,13 +2,12 @@ use crate::controller::position::{
     update_lp_market_position, update_position_and_market, PositionDelta,
 };
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64,
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64, QUOTE_PRECISION_I128,
 };
 use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket, AMM};
 use crate::state::user::PerpPosition;
 use crate::test_utils::create_account_info;
 use anchor_lang::prelude::AccountLoader;
-use solana_program::msg;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 
@@ -53,9 +52,68 @@ fn amm_split_large_k() {
 
     let perp_market_loader: AccountLoader<PerpMarket> =
         AccountLoader::try_from(&perp_market_account_info).unwrap();
-    let perp_market = perp_market_loader.load().unwrap();
+    let mut perp_market = perp_market_loader.load_mut().unwrap();
 
-    msg!("perp_market: {:?}", perp_market);
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054756);
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535655);
+
+    let og_baapl = perp_market.amm.base_asset_amount_per_lp;
+    let og_qaapl = perp_market.amm.quote_asset_amount_per_lp;
+
+    // msg!("perp_market: {:?}", perp_market);
+
+    // min long order for $2.3
+    let delta = PositionDelta {
+        base_asset_amount: BASE_PRECISION_I64 / 10,
+        quote_asset_amount: -2300000,
+    };
+
+    update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
+
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054758);
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535655);
+
+    // min short order for $2.3
+    let delta = PositionDelta {
+        base_asset_amount: -BASE_PRECISION_I64 / 10,
+        quote_asset_amount: 2300000,
+    };
+
+    update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
+
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054756);
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535655);
+
+    // long order for $230
+    let delta = PositionDelta {
+        base_asset_amount: BASE_PRECISION_I64 * 10,
+        quote_asset_amount: -230000000,
+    };
+
+    update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
+
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574055043);
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535661);
+
+    assert_eq!(
+        (perp_market.amm.sqrt_k as i128) * (og_baapl - perp_market.amm.base_asset_amount_per_lp)
+            / AMM_RESERVE_PRECISION_I128,
+        9977763076
+    );
+    // assert_eq!((perp_market.amm.sqrt_k as i128) * (og_baapl-perp_market.amm.base_asset_amount_per_lp) / AMM_RESERVE_PRECISION_I128, 104297175);
+    assert_eq!(
+        (perp_market.amm.sqrt_k as i128) * (og_qaapl - perp_market.amm.quote_asset_amount_per_lp)
+            / QUOTE_PRECISION_I128,
+        -208594350041
+    );
+    assert_eq!(
+        (perp_market.amm.sqrt_k as i128)
+            * (og_qaapl - perp_market.amm.quote_asset_amount_per_lp - 1)
+            / QUOTE_PRECISION_I128,
+        -243360075047
+    );
+    // assert_eq!(208594350041/9977763076, 20);
+    // assert_eq!(243360075047/9977763076 > 23, true); // ensure rounding in favor
 }
 
 #[test]
