@@ -555,7 +555,7 @@ pub struct PerpPosition {
     pub market_index: u16,
     /// The number of open orders
     pub open_orders: u8,
-    pub padding: [u8; 1],
+    pub per_lp_base: u8,
 }
 
 impl PerpPosition {

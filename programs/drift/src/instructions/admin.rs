@@ -718,7 +718,9 @@ pub fn handle_initialize_perp_market(
 
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
+            per_lp_base: 0,
             padding1: 0,
+            padding2: 0,
             total_fee_earned_per_lp: 0,
             padding: [0; 32],
         },
