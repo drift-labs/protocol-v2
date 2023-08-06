@@ -61,6 +61,7 @@ export * from './serum/serumSubscriber';
 export * from './serum/serumFulfillmentConfigMap';
 export * from './phoenix/phoenixSubscriber';
 export * from './phoenix/phoenixFulfillmentConfigMap';
+export * from './tx/fastSingleTxSender';
 export * from './tx/retryTxSender';
 export * from './tx/types';
 export * from './util/computeUnits';
