@@ -26,6 +26,99 @@ use anchor_lang::prelude::Account;
 #[cfg(test)]
 mod tests;
 
+pub fn apply_lp_rebase_to_perp_market(
+    perp_market: &mut PerpMarket,
+    expo_diff: i8,
+) -> DriftResult<()> {
+    if expo_diff == 0 {
+        return Ok(());
+    }
+
+    perp_market.amm.per_lp_base = perp_market.amm.per_lp_base.safe_add(expo_diff)?;
+    let rebase_divisor: i128 = 10_i128.pow(expo_diff.abs().cast()?);
+
+    if expo_diff > 0 {
+        perp_market.amm.base_asset_amount_per_lp = perp_market
+            .amm
+            .base_asset_amount_per_lp
+            .safe_mul(rebase_divisor)?;
+
+        perp_market.amm.quote_asset_amount_per_lp = perp_market
+            .amm
+            .quote_asset_amount_per_lp
+            .safe_mul(rebase_divisor)?;
+
+        perp_market.amm.target_base_asset_amount_per_lp = perp_market
+            .amm
+            .target_base_asset_amount_per_lp
+            .safe_mul(rebase_divisor.cast()?)?;
+
+        perp_market.amm.total_fee_earned_per_lp = perp_market
+            .amm
+            .total_fee_earned_per_lp
+            .safe_mul(rebase_divisor.cast()?)?;
+    } else {
+        perp_market.amm.base_asset_amount_per_lp = perp_market
+            .amm
+            .base_asset_amount_per_lp
+            .safe_div(rebase_divisor)?;
+
+        perp_market.amm.quote_asset_amount_per_lp = perp_market
+            .amm
+            .quote_asset_amount_per_lp
+            .safe_div(rebase_divisor)?;
+
+        perp_market.amm.target_base_asset_amount_per_lp = perp_market
+            .amm
+            .target_base_asset_amount_per_lp
+            .safe_div(rebase_divisor.cast()?)?;
+
+        perp_market.amm.total_fee_earned_per_lp = perp_market
+            .amm
+            .total_fee_earned_per_lp
+            .safe_div(rebase_divisor.cast()?)?;
+    }
+
+    msg!(
+        "rebasing perp market {} per_lp_base. expo_diff={}",
+        expo_diff,
+        perp_market.market_index
+    );
+
+    Ok(())
+}
+
+pub fn apply_lp_rebase_to_perp_position(
+    perp_market: &PerpMarket,
+    perp_position: &mut PerpPosition,
+) -> DriftResult<()> {
+    let expo_diff = perp_market
+        .amm
+        .per_lp_base
+        .safe_sub(perp_position.per_lp_base)?;
+
+    if expo_diff > 0 {
+        perp_position.per_lp_base = perp_market.amm.per_lp_base;
+
+        let rebase_divisor: i64 = 10_i64.pow(expo_diff.cast()?);
+
+        perp_position.last_base_asset_amount_per_lp = perp_position
+            .last_base_asset_amount_per_lp
+            .safe_mul(rebase_divisor)?;
+        perp_position.last_quote_asset_amount_per_lp = perp_position
+            .last_quote_asset_amount_per_lp
+            .safe_mul(rebase_divisor)?;
+
+        msg!(
+            "rebasing perp market {} per_lp_base. expo_diff={}",
+            expo_diff,
+            perp_market.market_index
+        );
+    }
+
+    Ok(())
+}
+
 pub fn mint_lp_shares(
     position: &mut PerpPosition,
     market: &mut PerpMarket,

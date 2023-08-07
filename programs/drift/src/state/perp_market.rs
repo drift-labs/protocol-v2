@@ -645,7 +645,7 @@ pub struct AMM {
     /// precision: BASE_PRECISION
     pub target_base_asset_amount_per_lp: i32,
     /// expo for unit of per_lp, base 10 (if per_lp_base=X, then per_lp unit is 10^X)
-    pub per_lp_base: u8,
+    pub per_lp_base: i8,
     pub padding1: u8,
     pub padding2: u16,
     pub total_fee_earned_per_lp: u64,

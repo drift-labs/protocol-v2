@@ -1844,6 +1844,28 @@ pub fn handle_update_perp_market_target_base_asset_amount_per_lp(
     Ok(())
 }
 
+pub fn handle_update_perp_market_per_lp_base(
+    ctx: Context<AdminUpdatePerpMarket>,
+    per_lp_base: i8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    validate! {
+        (perp_market.amm.per_lp_base - per_lp_base) < 5,
+        ErrorCode::DefaultError,
+        "invalid per_lp_base update, difference >= 5",
+    }
+    let old_per_lp_base = perp_market.amm.per_lp_base;
+    perp_market.amm.per_lp_base = per_lp_base;
+    msg!(
+        "updated perp_market per_lp_base {} -> {}",
+        old_per_lp_base,
+        per_lp_base
+    );
+
+    Ok(())
+}
+
 pub fn handle_update_lp_cooldown_time(
     ctx: Context<AdminUpdateState>,
     lp_cooldown_time: u64,
