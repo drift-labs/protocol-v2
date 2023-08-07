@@ -77,6 +77,8 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Install yarn
         run: yarn
+      - name: Print prettier version
+        run: npx prettier --version
       - name: Run prettier
         run: yarn prettify
   yarn-lint:
