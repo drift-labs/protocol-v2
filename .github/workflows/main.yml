@@ -80,14 +80,7 @@ jobs:
       - name: Print prettier version
         run: npx prettier --version
       - name: Run prettier
-        run: yarn prettify:fix
-      - name: Push prettify changes
-        run: |
-          git config user.name "GitHub Actions Prettier"
-          git config user.email actions@github.com
-          git add .
-          git commit -am "Prettify changes"
-          git push
+        run: yarn prettify
   yarn-lint:
     runs-on: ubuntu-latest
     steps:
