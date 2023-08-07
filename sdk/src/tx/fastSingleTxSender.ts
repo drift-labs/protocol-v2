@@ -15,13 +15,14 @@ import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
 
 const DEFAULT_TIMEOUT = 35000;
-const DEFAULT_BLOCKHASH_REFRESH = 2500;
+const DEFAULT_BLOCKHASH_REFRESH = 10000;
 
 export class FastSingleTxSender extends BaseTxSender {
 	connection: Connection;
 	wallet: IWallet;
 	opts: ConfirmOptions;
 	timeout: number;
+	blockhashRefreshInterval: number;
 	additionalConnections: Connection[];
 	timoutCount = 0;
 	recentBlockhash: string;
@@ -31,12 +32,14 @@ export class FastSingleTxSender extends BaseTxSender {
 		wallet,
 		opts = AnchorProvider.defaultOptions(),
 		timeout = DEFAULT_TIMEOUT,
+		blockhashRefreshInterval = DEFAULT_BLOCKHASH_REFRESH,
 		additionalConnections = new Array<Connection>(),
 	}: {
 		connection: Connection;
 		wallet: IWallet;
 		opts?: ConfirmOptions;
 		timeout?: number;
+		blockhashRefreshInterval?: number;
 		additionalConnections?;
 	}) {
 		super({ connection, wallet, opts, timeout, additionalConnections });
@@ -44,6 +47,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		this.wallet = wallet;
 		this.opts = opts;
 		this.timeout = timeout;
+		this.blockhashRefreshInterval = blockhashRefreshInterval;
 		this.additionalConnections = additionalConnections;
 		this.startBlockhashRefreshLoop();
 	}
@@ -53,7 +57,7 @@ export class FastSingleTxSender extends BaseTxSender {
 			this.recentBlockhash = (
 				await this.connection.getLatestBlockhash(this.opts)
 			).blockhash;
-		}, DEFAULT_BLOCKHASH_REFRESH);
+		}, this.blockhashRefreshInterval);
 	}
 
 	async prepareTx(
