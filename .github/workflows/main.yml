@@ -79,10 +79,15 @@ jobs:
         run: yarn
       - name: Print prettier version
         run: npx prettier --version
-      - name: Print differences
-        run: npx prettier --list-different './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'
       - name: Run prettier
-        run: yarn prettify
+        run: yarn prettify:fix
+      - name: Push prettify changes
+        run: |
+          git config user.name "GitHub Actions Prettier"
+          git config user.email actions@github.com
+          git add .
+          git commit -am "Prettify changes"
+          git push
   yarn-lint:
     runs-on: ubuntu-latest
     steps:
