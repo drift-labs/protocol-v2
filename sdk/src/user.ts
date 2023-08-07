@@ -1196,6 +1196,138 @@ export class User {
 		return health;
 	}
 
+	calculateWeightedPerpPositionValue(
+		perpPosition: PerpPosition,
+		marginCategory?: MarginCategory,
+		liquidationBuffer?: BN,
+		includeOpenOrders?: boolean,
+		strict = false
+	): BN {
+		const market = this.driftClient.getPerpMarketAccount(
+			perpPosition.marketIndex
+		);
+
+		if (perpPosition.lpShares.gt(ZERO)) {
+			// is an lp, clone so we dont mutate the position
+			perpPosition = this.getPerpPositionWithLPSettle(
+				market.marketIndex,
+				this.getClonedPosition(perpPosition),
+				!!marginCategory
+			)[0];
+		}
+
+		let valuationPrice = this.getOracleDataForPerpMarket(
+			market.marketIndex
+		).price;
+
+		if (isVariant(market.status, 'settlement')) {
+			valuationPrice = market.expiryPrice;
+		}
+
+		const baseAssetAmount = includeOpenOrders
+			? calculateWorstCaseBaseAssetAmount(perpPosition)
+			: perpPosition.baseAssetAmount;
+
+		let baseAssetValue = baseAssetAmount
+			.abs()
+			.mul(valuationPrice)
+			.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(PRICE_PRECISION));
+
+		if (marginCategory) {
+			let marginRatio = new BN(
+				calculateMarketMarginRatio(
+					market,
+					baseAssetAmount.abs(),
+					marginCategory
+				)
+			);
+
+			if (marginCategory === 'Initial') {
+				marginRatio = BN.max(
+					marginRatio,
+					new BN(this.getUserAccount().maxMarginRatio)
+				);
+			}
+
+			if (liquidationBuffer !== undefined) {
+				marginRatio = marginRatio.add(liquidationBuffer);
+			}
+
+			if (isVariant(market.status, 'settlement')) {
+				marginRatio = ZERO;
+			}
+
+			const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
+				market.quoteSpotMarketIndex
+			);
+			const quoteOraclePriceData = this.driftClient.getOraclePriceDataAndSlot(
+				quoteSpotMarket.oracle
+			).data;
+
+			let quotePrice;
+			if (strict) {
+				quotePrice = BN.max(
+					quoteOraclePriceData.price,
+					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+				);
+			} else {
+				quotePrice = quoteOraclePriceData.price;
+			}
+
+			baseAssetValue = baseAssetValue
+				.mul(quotePrice)
+				.div(PRICE_PRECISION)
+				.mul(marginRatio)
+				.div(MARGIN_PRECISION);
+
+			if (includeOpenOrders) {
+				baseAssetValue = baseAssetValue.add(
+					new BN(perpPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
+				);
+
+				if (perpPosition.lpShares.gt(ZERO)) {
+					baseAssetValue = baseAssetValue.add(
+						BN.max(
+							QUOTE_PRECISION,
+							valuationPrice
+								.mul(market.amm.orderStepSize)
+								.mul(QUOTE_PRECISION)
+								.div(AMM_RESERVE_PRECISION)
+								.div(PRICE_PRECISION)
+						)
+					);
+				}
+			}
+		}
+
+		return baseAssetValue;
+	}
+
+	/**
+	 * calculates position value of a single perp market in margin system
+	 * @returns : Precision QUOTE_PRECISION
+	 */
+	public getPerpMarketLiabilityValue(
+		marketIndex: number,
+		marginCategory?: MarginCategory,
+		liquidationBuffer?: BN,
+		includeOpenOrders?: boolean,
+		strict = false
+	): BN {
+		const perpPosition = this.getPerpPosition(marketIndex);
+		if (!perpPosition) {
+			return ZERO;
+		} else {
+			return this.calculateWeightedPerpPositionValue(
+				perpPosition,
+				marginCategory,
+				liquidationBuffer,
+				includeOpenOrders,
+				strict
+			);
+		}
+	}
+
 	/**
 	 * calculates sum of position value across all positions in margin system
 	 * @returns : Precision QUOTE_PRECISION
@@ -1208,104 +1340,13 @@ export class User {
 	): BN {
 		return this.getActivePerpPositions().reduce(
 			(totalPerpValue, perpPosition) => {
-				const market = this.driftClient.getPerpMarketAccount(
-					perpPosition.marketIndex
+				const baseAssetValue = this.calculateWeightedPerpPositionValue(
+					perpPosition,
+					marginCategory,
+					liquidationBuffer,
+					includeOpenOrders,
+					strict
 				);
-
-				if (perpPosition.lpShares.gt(ZERO)) {
-					// is an lp, clone so we dont mutate the position
-					perpPosition = this.getPerpPositionWithLPSettle(
-						market.marketIndex,
-						this.getClonedPosition(perpPosition),
-						!!marginCategory
-					)[0];
-				}
-
-				let valuationPrice = this.getOracleDataForPerpMarket(
-					market.marketIndex
-				).price;
-
-				if (isVariant(market.status, 'settlement')) {
-					valuationPrice = market.expiryPrice;
-				}
-
-				const baseAssetAmount = includeOpenOrders
-					? calculateWorstCaseBaseAssetAmount(perpPosition)
-					: perpPosition.baseAssetAmount;
-
-				let baseAssetValue = baseAssetAmount
-					.abs()
-					.mul(valuationPrice)
-					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(PRICE_PRECISION));
-
-				if (marginCategory) {
-					let marginRatio = new BN(
-						calculateMarketMarginRatio(
-							market,
-							baseAssetAmount.abs(),
-							marginCategory
-						)
-					);
-
-					if (marginCategory === 'Initial') {
-						marginRatio = BN.max(
-							marginRatio,
-							new BN(this.getUserAccount().maxMarginRatio)
-						);
-					}
-
-					if (liquidationBuffer !== undefined) {
-						marginRatio = marginRatio.add(liquidationBuffer);
-					}
-
-					if (isVariant(market.status, 'settlement')) {
-						marginRatio = ZERO;
-					}
-
-					const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
-						market.quoteSpotMarketIndex
-					);
-					const quoteOraclePriceData =
-						this.driftClient.getOraclePriceDataAndSlot(
-							quoteSpotMarket.oracle
-						).data;
-
-					let quotePrice;
-					if (strict) {
-						quotePrice = BN.max(
-							quoteOraclePriceData.price,
-							quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
-						);
-					} else {
-						quotePrice = quoteOraclePriceData.price;
-					}
-
-					baseAssetValue = baseAssetValue
-						.mul(quotePrice)
-						.div(PRICE_PRECISION)
-						.mul(marginRatio)
-						.div(MARGIN_PRECISION);
-
-					if (includeOpenOrders) {
-						baseAssetValue = baseAssetValue.add(
-							new BN(perpPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
-						);
-
-						if (perpPosition.lpShares.gt(ZERO)) {
-							baseAssetValue = baseAssetValue.add(
-								BN.max(
-									QUOTE_PRECISION,
-									valuationPrice
-										.mul(market.amm.orderStepSize)
-										.mul(QUOTE_PRECISION)
-										.div(AMM_RESERVE_PRECISION)
-										.div(PRICE_PRECISION)
-								)
-							);
-						}
-					}
-				}
-
 				return totalPerpValue.add(baseAssetValue);
 			},
 			ZERO
