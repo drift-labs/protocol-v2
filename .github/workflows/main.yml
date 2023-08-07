@@ -80,7 +80,7 @@ jobs:
       - name: Print prettier version
         run: npx prettier --version
       - name: Print differences
-        run: npx prettier --check --list-different './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'
+        run: npx prettier --list-different './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'
       - name: Run prettier
         run: yarn prettify
   yarn-lint:
