@@ -1873,23 +1873,7 @@ pub fn handle_update_user_reduce_only(
     reduce_only: bool,
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
-
-    if reduce_only {
-        validate!(
-            user.status == UserStatus::Active,
-            ErrorCode::UserReduceOnly,
-            "user status needs to be active to enter reduce only"
-        )?;
-        user.status = UserStatus::ReduceOnly;
-    } else {
-        validate!(
-            user.status == UserStatus::ReduceOnly,
-            ErrorCode::UserReduceOnly,
-            "user status needs to be reduce only to exit reduce only"
-        )?;
-        user.status = UserStatus::Active;
-    }
-
+    user.update_reduce_only_status(reduce_only)?;
     Ok(())
 }
 

@@ -369,6 +369,25 @@ impl User {
         self.total_withdraws >= min_total_withdraws
             && self.total_withdraws / user_stats.fees.total_fee_paid.max(1) > 10_000
     }
+
+    pub fn update_reduce_only_status(&mut self, reduce_only: bool) -> DriftResult {
+        if reduce_only {
+            validate!(
+                self.status == UserStatus::Active,
+                ErrorCode::UserReduceOnly,
+                "user status needs to be active to enter reduce only"
+            )?;
+            self.status = UserStatus::ReduceOnly;
+        } else {
+            validate!(
+                self.status == UserStatus::ReduceOnly,
+                ErrorCode::UserReduceOnly,
+                "user status needs to be reduce only to exit reduce only"
+            )?;
+            self.status = UserStatus::Active;
+        }
+        Ok(())
+    }
 }
 
 #[zero_copy]
