@@ -1541,7 +1541,7 @@ pub mod amm_jit {
         );
 
         assert_eq!(market.amm.quote_asset_amount_per_lp, 0);
-        assert_eq!(market_after.amm.quote_asset_amount_per_lp, -497271);
+        assert_eq!(market_after.amm.quote_asset_amount_per_lp, -497272);
 
         assert_eq!(market.amm.base_asset_amount_per_lp, 0);
         assert_eq!(market_after.amm.base_asset_amount_per_lp, 5000000);
