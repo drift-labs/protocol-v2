@@ -160,7 +160,7 @@ export class LogParser {
 			eventLog.data.txSig = event.txSig;
 			eventLog.data.slot = event.slot;
 			eventLog.data.eventType = eventLog.name;
-			eventLog.data.txSigIndex = runningEventIndex;
+			//eventLog.data.txSigIndex = runningEventIndex;
 			records.push(eventLog.data);
 			runningEventIndex++;
 		}
