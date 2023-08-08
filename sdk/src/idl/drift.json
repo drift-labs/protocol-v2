@@ -1,5 +1,5 @@
 {
-  "version": "2.36.0",
+  "version": "2.37.0",
   "name": "drift",
   "instructions": [
     {
@@ -2968,13 +2968,13 @@
       "name": "depositIntoSpotMarketRevenuePool",
       "accounts": [
         {
-          "name": "spotMarket",
-          "isMut": true,
+          "name": "state",
+          "isMut": false,
           "isSigner": false
         },
         {
-          "name": "state",
-          "isMut": false,
+          "name": "spotMarket",
+          "isMut": true,
           "isSigner": false
         },
         {

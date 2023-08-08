@@ -494,11 +494,11 @@ describe('liquidity providing', () => {
 			'=> net baa:',
 			driftClient.getPerpMarketAccount(0).amm.baseAssetAmountWithAmm.toString()
 		);
-		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN(-1233600)));
+		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN(-1233700)));
 		// assert(user.perpPositions[0].unsettledPnl.eq(new BN(900)));
 		// remainder goes into the last
 		assert(user.perpPositions[0].lastBaseAssetAmountPerLp.eq(new BN(12500000)));
-		assert(user.perpPositions[0].lastQuoteAssetAmountPerLp.eq(new BN(-12336)));
+		assert(user.perpPositions[0].lastQuoteAssetAmountPerLp.eq(new BN(-12337)));
 
 		market = await driftClient.getPerpMarketAccount(0);
 		console.log(
@@ -506,7 +506,7 @@ describe('liquidity providing', () => {
 			market.amm.baseAssetAmountPerLp.toString()
 		);
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN(12500000)));
-		assert(market.amm.quoteAssetAmountPerLp.eq(new BN(-12336)));
+		assert(market.amm.quoteAssetAmountPerLp.eq(new BN(-12337)));
 
 		// remove
 		console.log('removing liquidity...');
@@ -934,7 +934,7 @@ describe('liquidity providing', () => {
 		console.log(user.perpPositions[0].baseAssetAmount.toString());
 		console.log(user.perpPositions[0].quoteAssetAmount.toString());
 		assert(user.perpPositions[0].baseAssetAmount.eq(new BN('10000000000'))); // lp is long
-		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN(-9550785)));
+		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN(-9550985)));
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
@@ -1020,7 +1020,7 @@ describe('liquidity providing', () => {
 
 		assert(lpTokenAmount.eq(ZERO));
 		assert(user.perpPositions[0].baseAssetAmount.eq(new BN('-10000000000'))); // lp is short
-		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN('11940740')));
+		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN('11940540')));
 		assert(user.perpPositions[0].quoteEntryAmount.eq(new BN('11139500')));
 
 		console.log('closing trader...');
@@ -1125,7 +1125,7 @@ describe('liquidity providing', () => {
 		const baa = user.perpPositions[0].baseAssetAmount;
 		const qaa = user.perpPositions[0].quoteAssetAmount;
 		assert(baa.eq(new BN(10000000000)));
-		assert(qaa.eq(new BN(-6860362)));
+		assert(qaa.eq(new BN(-6860662)));
 
 		console.log('removing the other half of liquidity');
 		await driftClient.removePerpLpShares(market.marketIndex, otherHalfShares);

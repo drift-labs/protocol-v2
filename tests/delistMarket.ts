@@ -632,7 +632,7 @@ describe('delist market', () => {
 		const userCostBasisBefore = marketBefore.amm.quoteAssetAmount;
 
 		console.log('userCostBasisBefore:', userCostBasisBefore.toString());
-		assert(userCostBasisBefore.eq(new BN(-1))); // from LP burn
+		assert(userCostBasisBefore.eq(new BN(-2))); // from LP burn
 
 		await liquidatorDriftClient.settlePNL(
 			await liquidatorDriftClient.getUserAccountPublicKey(),

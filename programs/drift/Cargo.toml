@@ -1,6 +1,6 @@
 [package]
 name = "drift"
-version = "2.36.0"
+version = "2.37.0"
 description = "Created with Anchor"
 edition = "2018"
 
@@ -38,3 +38,4 @@ solana-security-txt = "1.1.0"
 [dev-dependencies]
 bytes = "1.2.0"
 pyth = { path = "../pyth", features = ["no-entrypoint"]}
+base64 = "0.13.0"

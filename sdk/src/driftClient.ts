@@ -5595,10 +5595,10 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					spotMarket: spotMarket.vault,
-					userTokenAccount: userTokenAccountPublicKey,
+					spotMarket: spotMarket.pubkey,
 					authority: this.wallet.publicKey,
 					spotMarketVault: spotMarket.vault,
+					userTokenAccount: userTokenAccountPublicKey,
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 			}
