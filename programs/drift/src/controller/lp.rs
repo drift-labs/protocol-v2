@@ -171,6 +171,8 @@ pub fn settle_lp_position(
         )?;
     }
 
+    apply_lp_rebase_to_perp_position(market, position)?;
+
     let mut lp_metrics: crate::math::lp::LPMetrics =
         calculate_settle_lp_metrics(&market.amm, position)?;
 
