@@ -1850,11 +1850,11 @@ pub fn handle_update_perp_market_per_lp_base(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
-    validate! {
-        (perp_market.amm.per_lp_base - per_lp_base) < 5,
-        ErrorCode::DefaultError,
-        "invalid per_lp_base update, difference >= 5",
-    }
+    // validate! {
+    //     (perp_market.amm.per_lp_base - per_lp_base) < 5,
+    //     ErrorCode::DefaultError,
+    //     "invalid per_lp_base update, difference >= 5",
+    // }
     let old_per_lp_base = perp_market.amm.per_lp_base;
     perp_market.amm.per_lp_base = per_lp_base;
     msg!(
