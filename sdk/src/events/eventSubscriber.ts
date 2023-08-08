@@ -176,7 +176,7 @@ export class EventSubscriber {
 				event.data.txSig = txSig;
 				event.data.slot = slot;
 				event.data.eventType = event.name;
-				event.data.txSigIndex = runningEventIndex;
+				//event.data.txSigIndex = runningEventIndex;
 				records.push(event.data);
 			}
 			runningEventIndex++;
