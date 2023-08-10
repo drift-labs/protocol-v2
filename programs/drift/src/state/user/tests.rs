@@ -1111,3 +1111,47 @@ mod qualifies_for_withdraw_fee {
         assert!(qualifies);
     }
 }
+
+mod update_reduce_only_status {
+    use crate::state::user::{User, UserStatus};
+
+    #[test]
+    fn test() {
+        let mut bankrupt_user = User {
+            status: UserStatus::Bankrupt,
+            ..User::default()
+        };
+
+        let result = bankrupt_user.update_reduce_only_status(true);
+        assert!(result.is_err());
+        let result = bankrupt_user.update_reduce_only_status(false);
+        assert!(result.is_err());
+
+        let mut liquidated_user = User {
+            status: UserStatus::BeingLiquidated,
+            ..User::default()
+        };
+        let result = liquidated_user.update_reduce_only_status(true);
+        assert!(result.is_err());
+        let result = liquidated_user.update_reduce_only_status(false);
+        assert!(result.is_err());
+
+        let mut reduce_only_user = User {
+            status: UserStatus::ReduceOnly,
+            ..User::default()
+        };
+        let result = reduce_only_user.update_reduce_only_status(true);
+        assert!(result.is_err());
+        let result = reduce_only_user.update_reduce_only_status(false);
+        assert!(result.is_ok());
+
+        let mut active_only_user = User {
+            status: UserStatus::Active,
+            ..User::default()
+        };
+        let result = active_only_user.update_reduce_only_status(false);
+        assert!(result.is_err());
+        let result = active_only_user.update_reduce_only_status(true);
+        assert!(result.is_ok());
+    }
+}

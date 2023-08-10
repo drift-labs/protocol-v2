@@ -12,7 +12,7 @@ import {
 	calculateInventoryScale,
 	calculateAllEstimatedFundingRate,
 	calculateLongShortFundingRateAndLiveTwaps,
-	OraclePriceData
+	OraclePriceData,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 
@@ -408,32 +408,50 @@ describe('AMM Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(1.9535 * PRICE_PRECISION.toNumber());
+		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
+			1.9535 * PRICE_PRECISION.toNumber()
+		);
 
 		// mockMarket1.amm.pegMultiplier = new BN(1.897573 * 1e3);
 
-		mockMarket1.amm.lastMarkPriceTwap = new BN(1.945594 * PRICE_PRECISION.toNumber());
-		mockMarket1.amm.lastBidPriceTwap = new BN(1.941629 * PRICE_PRECISION.toNumber());
-		mockMarket1.amm.lastAskPriceTwap = new BN(1.94956 * PRICE_PRECISION.toNumber());
+		mockMarket1.amm.lastMarkPriceTwap = new BN(
+			1.945594 * PRICE_PRECISION.toNumber()
+		);
+		mockMarket1.amm.lastBidPriceTwap = new BN(
+			1.941629 * PRICE_PRECISION.toNumber()
+		);
+		mockMarket1.amm.lastAskPriceTwap = new BN(
+			1.94956 * PRICE_PRECISION.toNumber()
+		);
 		mockMarket1.amm.lastMarkPriceTwapTs = new BN(1688877729);
 
-		mockMarket1.amm.historicalOracleData.lastOraclePriceTwap = new BN(1.942449 * PRICE_PRECISION.toNumber());
-		mockMarket1.amm.historicalOracleData.lastOraclePriceTwapTs = new BN(1688878333);
+		mockMarket1.amm.historicalOracleData.lastOraclePriceTwap = new BN(
+			1.942449 * PRICE_PRECISION.toNumber()
+		);
+		mockMarket1.amm.historicalOracleData.lastOraclePriceTwapTs = new BN(
+			1688878333
+		);
 
-		const [_markTwapLive, _oracleTwapLive, _lowerboundEst, _cappedAltEst, _interpEst] =
-			await calculateAllEstimatedFundingRate(
-				mockMarket1,
-				oraclePriceData,
-				currentMarkPrice,
-				now
-			);
-
-		const [markTwapLive, oracleTwapLive, est1, est2] = await calculateLongShortFundingRateAndLiveTwaps(
+		const [
+			_markTwapLive,
+			_oracleTwapLive,
+			_lowerboundEst,
+			_cappedAltEst,
+			_interpEst,
+		] = await calculateAllEstimatedFundingRate(
 			mockMarket1,
 			oraclePriceData,
 			currentMarkPrice,
 			now
 		);
+
+		const [markTwapLive, oracleTwapLive, est1, est2] =
+			await calculateLongShortFundingRateAndLiveTwaps(
+				mockMarket1,
+				oraclePriceData,
+				currentMarkPrice,
+				now
+			);
 
 		// console.log(markTwapLive.toString());
 		// console.log(oracleTwapLive.toString());
@@ -444,7 +462,6 @@ describe('AMM Tests', () => {
 		assert(oracleTwapLive.eq(new BN('1942510')));
 		assert(est1.eq(new BN('15692')));
 		assert(est2.eq(new BN('15692')));
-
 	});
 
 	it('predicted funding rate mock2', async () => {
@@ -464,25 +481,42 @@ describe('AMM Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(1.9535 * PRICE_PRECISION.toNumber());
+		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
+			1.9535 * PRICE_PRECISION.toNumber()
+		);
 
 		// mockMarket1.amm.pegMultiplier = new BN(1.897573 * 1e3);
 
-		mockMarket1.amm.lastMarkPriceTwap = new BN(1.218363 * PRICE_PRECISION.toNumber());
-		mockMarket1.amm.lastBidPriceTwap = new BN(1.218363 * PRICE_PRECISION.toNumber());
-		mockMarket1.amm.lastAskPriceTwap = new BN(1.218364 * PRICE_PRECISION.toNumber());
+		mockMarket1.amm.lastMarkPriceTwap = new BN(
+			1.218363 * PRICE_PRECISION.toNumber()
+		);
+		mockMarket1.amm.lastBidPriceTwap = new BN(
+			1.218363 * PRICE_PRECISION.toNumber()
+		);
+		mockMarket1.amm.lastAskPriceTwap = new BN(
+			1.218364 * PRICE_PRECISION.toNumber()
+		);
 		mockMarket1.amm.lastMarkPriceTwapTs = new BN(1688878815);
 
-		mockMarket1.amm.historicalOracleData.lastOraclePriceTwap = new BN(1.220964 * PRICE_PRECISION.toNumber());
-		mockMarket1.amm.historicalOracleData.lastOraclePriceTwapTs = new BN(1688879991);
+		mockMarket1.amm.historicalOracleData.lastOraclePriceTwap = new BN(
+			1.220964 * PRICE_PRECISION.toNumber()
+		);
+		mockMarket1.amm.historicalOracleData.lastOraclePriceTwapTs = new BN(
+			1688879991
+		);
 
-		const [_markTwapLive, _oracleTwapLive, _lowerboundEst, _cappedAltEst, _interpEst] =
-			await calculateAllEstimatedFundingRate(
-				mockMarket1,
-				oraclePriceData,
-				currentMarkPrice,
-				now
-			);
+		const [
+			_markTwapLive,
+			_oracleTwapLive,
+			_lowerboundEst,
+			_cappedAltEst,
+			_interpEst,
+		] = await calculateAllEstimatedFundingRate(
+			mockMarket1,
+			oraclePriceData,
+			currentMarkPrice,
+			now
+		);
 
 		// console.log(_markTwapLive.toString());
 		// console.log(_oracleTwapLive.toString());
@@ -491,21 +525,31 @@ describe('AMM Tests', () => {
 		// console.log(_interpEst.toString());
 		// console.log('-----');
 
-		const [markTwapLive, oracleTwapLive, est1, est2] = await calculateLongShortFundingRateAndLiveTwaps(
-			mockMarket1,
-			oraclePriceData,
-			currentMarkPrice,
-			now
-		);
+		const [markTwapLive, oracleTwapLive, est1, est2] =
+			await calculateLongShortFundingRateAndLiveTwaps(
+				mockMarket1,
+				oraclePriceData,
+				currentMarkPrice,
+				now
+			);
 
-		console.log('markTwapLive:', mockMarket1.amm.lastMarkPriceTwap.toString(), '->', markTwapLive.toString());
-		console.log('oracTwapLive:', mockMarket1.amm.historicalOracleData.lastOraclePriceTwap.toString(), '->', oracleTwapLive.toString());
+		console.log(
+			'markTwapLive:',
+			mockMarket1.amm.lastMarkPriceTwap.toString(),
+			'->',
+			markTwapLive.toString()
+		);
+		console.log(
+			'oracTwapLive:',
+			mockMarket1.amm.historicalOracleData.lastOraclePriceTwap.toString(),
+			'->',
+			oracleTwapLive.toString()
+		);
 		console.log('pred funding:', est1.toString(), est2.toString());
 
 		assert(markTwapLive.eq(new BN('1222131')));
 		assert(oracleTwapLive.eq(new BN('1222586')));
 		assert(est1.eq(est2));
 		assert(est2.eq(new BN('-1550')));
-
 	});
 });

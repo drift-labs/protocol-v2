@@ -38,6 +38,7 @@ pub enum UserStatus {
     Active,
     BeingLiquidated,
     Bankrupt,
+    ReduceOnly,
 }
 
 impl Default for UserStatus {
@@ -129,6 +130,10 @@ impl User {
 
     pub fn is_bankrupt(&self) -> bool {
         self.status == UserStatus::Bankrupt
+    }
+
+    pub fn is_reduce_only(&self) -> bool {
+        self.status == UserStatus::ReduceOnly
     }
 
     pub fn get_spot_position_index(&self, market_index: u16) -> DriftResult<usize> {
@@ -363,6 +368,25 @@ impl User {
         // if total withdraws are greater than $10M and user has paid more than %.01 of it in fees
         self.total_withdraws >= min_total_withdraws
             && self.total_withdraws / user_stats.fees.total_fee_paid.max(1) > 10_000
+    }
+
+    pub fn update_reduce_only_status(&mut self, reduce_only: bool) -> DriftResult {
+        if reduce_only {
+            validate!(
+                self.status == UserStatus::Active,
+                ErrorCode::UserReduceOnly,
+                "user status needs to be active to enter reduce only"
+            )?;
+            self.status = UserStatus::ReduceOnly;
+        } else {
+            validate!(
+                self.status == UserStatus::ReduceOnly,
+                ErrorCode::UserReduceOnly,
+                "user status needs to be reduce only to exit reduce only"
+            )?;
+            self.status = UserStatus::Active;
+        }
+        Ok(())
     }
 }
 
