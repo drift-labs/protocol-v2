@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- fixed divide by 0 bug when asset weight is 0
+
 ### Breaking
 
 ## [2.37.0] - 2023-08-02
