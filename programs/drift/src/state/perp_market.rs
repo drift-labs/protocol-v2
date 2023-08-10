@@ -741,10 +741,32 @@ impl Default for AMM {
 }
 
 impl AMM {
+    pub fn get_target_base_asset_amount_per_lp(&self) -> DriftResult<i128> {
+        if self.target_base_asset_amount_per_lp == 0 {
+            return Ok(0_i128);
+        }
+
+        let target_base_asset_amount_per_lp: i128 = if self.per_lp_base > 0 {
+            let rebase_divisor = 10_i128.pow(self.per_lp_base.abs().cast()?);
+            self.target_base_asset_amount_per_lp
+                .cast::<i128>()?
+                .safe_mul(rebase_divisor)?
+        } else if self.per_lp_base < 0 {
+            let rebase_divisor = 10_i128.pow(self.per_lp_base.abs().cast()?);
+            self.target_base_asset_amount_per_lp
+                .cast::<i128>()?
+                .safe_div(rebase_divisor)?
+        } else {
+            self.target_base_asset_amount_per_lp.cast::<i128>()?
+        };
+
+        Ok(target_base_asset_amount_per_lp)
+    }
+
     pub fn imbalanced_base_asset_amount_with_lp(&self) -> DriftResult<i128> {
         let target_lp_gap = self
             .base_asset_amount_per_lp
-            .safe_sub(self.target_base_asset_amount_per_lp.cast()?)?;
+            .safe_sub(self.get_target_base_asset_amount_per_lp()?)?;
 
         get_proportion_i128(target_lp_gap, self.user_lp_shares, BASE_PRECISION)
     }
@@ -771,10 +793,10 @@ impl AMM {
 
         let amm_lp_wants_to_jit_make = match taker_direction {
             PositionDirection::Long => {
-                self.base_asset_amount_per_lp > self.target_base_asset_amount_per_lp.cast()?
+                self.base_asset_amount_per_lp > self.get_target_base_asset_amount_per_lp()?
             }
             PositionDirection::Short => {
-                self.base_asset_amount_per_lp < self.target_base_asset_amount_per_lp.cast()?
+                self.base_asset_amount_per_lp < self.get_target_base_asset_amount_per_lp()?
             }
         };
         Ok(amm_lp_wants_to_jit_make && self.amm_lp_jit_is_active())

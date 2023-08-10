@@ -99,15 +99,7 @@ pub fn apply_lp_rebase_to_perp_position(
         .per_lp_base
         .safe_sub(perp_position.per_lp_base)?;
 
-    msg!(
-        "{} vs {}",
-        perp_market.amm.per_lp_base,
-        perp_position.per_lp_base,
-    );
-
     if expo_diff > 0 {
-        perp_position.per_lp_base = perp_market.amm.per_lp_base;
-
         let rebase_divisor: i64 = 10_i64.pow(expo_diff.cast()?);
 
         perp_position.last_base_asset_amount_per_lp = perp_position
@@ -122,6 +114,23 @@ pub fn apply_lp_rebase_to_perp_position(
             perp_market.market_index,
             expo_diff,
         );
+        perp_position.per_lp_base = perp_position.per_lp_base.safe_add(expo_diff)?;
+    } else if expo_diff < 0 {
+        let rebase_divisor: i64 = 10_i64.pow(expo_diff.abs().cast()?);
+
+        perp_position.last_base_asset_amount_per_lp = perp_position
+            .last_base_asset_amount_per_lp
+            .safe_div(rebase_divisor)?;
+        perp_position.last_quote_asset_amount_per_lp = perp_position
+            .last_quote_asset_amount_per_lp
+            .safe_div(rebase_divisor)?;
+
+        msg!(
+            "rebasing perp position for market_index={} per_lp_base by expo_diff={}",
+            perp_market.market_index,
+            expo_diff,
+        );
+        perp_position.per_lp_base = perp_position.per_lp_base.safe_add(expo_diff)?;
     }
 
     Ok(())

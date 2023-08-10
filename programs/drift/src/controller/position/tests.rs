@@ -248,6 +248,41 @@ fn amm_split_large_k_with_rebase() {
     assert_eq!(existing_position.quote_asset_amount, -335); // out of favor rounding... :/
 
     assert_eq!(existing_position.per_lp_base, perp_market.amm.per_lp_base);
+
+
+    // update base back
+    let base_change = -2;
+    apply_lp_rebase_to_perp_market(&mut perp_market, base_change).unwrap();
+     // noop delta
+     let delta = PositionDelta {
+        base_asset_amount: 0,
+        quote_asset_amount: 0,
+    };
+
+    update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
+
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, og_qaapl * 1000 - 1); // down only rounding
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, og_baapl * 1000);
+    
+    // 1 long order for $23 before lp position does rebasing
+    let delta = PositionDelta {
+        base_asset_amount: BASE_PRECISION_I64,
+        quote_asset_amount: -23000000,
+    };
+
+    update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
+    
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535655660);
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054784763);
+    assert_eq!(existing_position.last_base_asset_amount_per_lp, -57405475600000);
+
+    settle_lp_position(&mut existing_position, &mut perp_market).unwrap();
+
+    assert_eq!(existing_position.base_asset_amount, 0);
+    assert_eq!(existing_position.quote_asset_amount, -335); // out of favor rounding... :/
+    assert_eq!(existing_position.last_base_asset_amount_per_lp, -574054756000); // out of favor rounding... :/
+    assert_eq!(existing_position.last_quote_asset_amount_per_lp, (og_qaapl * 1000 - 1) as i64); // out of favor rounding... :/
+    assert_eq!(existing_position.per_lp_base, perp_market.amm.per_lp_base);    
 }
 
 #[test]
