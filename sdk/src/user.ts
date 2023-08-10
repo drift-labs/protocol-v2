@@ -414,7 +414,8 @@ export class User {
 	public getPerpPositionWithLPSettle(
 		marketIndex: number,
 		originalPosition?: PerpPosition,
-		burnLpShares = false
+		burnLpShares = false,
+		includeRemainderInBaseAmount = false
 	): [PerpPosition, BN, BN] {
 		originalPosition =
 			originalPosition ??
@@ -549,6 +550,10 @@ export class User {
 				market.amm.cumulativeFundingRateShort;
 		} else {
 			position.lastCumulativeFundingRate = ZERO;
+		}
+
+		if (includeRemainderInBaseAmount) {
+			position.baseAssetAmount = position.baseAssetAmount.add(remainderBaa);
 		}
 
 		return [position, remainderBaa, pnl];
