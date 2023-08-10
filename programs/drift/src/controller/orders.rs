@@ -122,6 +122,14 @@ pub fn place_perp_order(
         )?;
     }
 
+    if user.is_reduce_only() {
+        validate!(
+            params.reduce_only,
+            ErrorCode::UserReduceOnly,
+            "order must be reduce only"
+        )?;
+    }
+
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
         None => match params.order_type {
@@ -2795,6 +2803,14 @@ pub fn place_spot_order(
             oracle_map,
             now,
             slot,
+        )?;
+    }
+
+    if user.is_reduce_only() {
+        validate!(
+            params.reduce_only,
+            ErrorCode::UserReduceOnly,
+            "order must be reduce only"
         )?;
     }
 

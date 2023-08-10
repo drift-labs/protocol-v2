@@ -31,6 +31,7 @@ export class UserStatus {
 	static readonly ACTIVE = { active: {} };
 	static readonly BEING_LIQUIDATED = { beingLiquidated: {} };
 	static readonly BANKRUPT = { bankrupt: {} };
+	static readonly REDUCE_ONLY = { reduceOnly: {} };
 }
 
 export class ContractType {

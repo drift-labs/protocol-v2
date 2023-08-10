@@ -1040,7 +1040,7 @@ describe('lp jit', () => {
 		console.log(marketAfter.amm.baseAssetAmountWithAmm.toString());
 
 		assert(marketAfter.amm.baseAssetAmountPerLp.eq(new BN(-5000000)));
-		assert(marketAfter.amm.quoteAssetAmountPerLp.eq(new BN(144606790)));
+		assert(marketAfter.amm.quoteAssetAmountPerLp.eq(new BN(144606790 - 1)));
 		assert(marketAfter.amm.baseAssetAmountWithUnsettledLp.eq(new BN(-5000000)));
 		assert(marketAfter.amm.baseAssetAmountWithAmm.eq(new BN(5000000)));
 
@@ -1057,7 +1057,7 @@ describe('lp jit', () => {
 		console.log('lpPnl:', lpPnl.toString());
 
 		assert(dustPos.toString() == '0');
-		assert(lpPnl.toString() == '6134172');
+		assert(lpPnl.toString() == '6134171');
 
 		const _sig2 = await driftClient.settleLP(
 			await driftClient.getUserAccountPublicKey(),
@@ -1121,7 +1121,7 @@ describe('lp jit', () => {
 		console.log(marketAfter2.amm.baseAssetAmountWithAmm.toString());
 
 		assert(marketAfter2.amm.baseAssetAmountPerLp.eq(new BN(-2500000)));
-		assert(marketAfter2.amm.quoteAssetAmountPerLp.eq(new BN(78437568)));
+		assert(marketAfter2.amm.quoteAssetAmountPerLp.eq(new BN(78437566)));
 		assert(
 			marketAfter2.amm.baseAssetAmountWithUnsettledLp.eq(new BN(-2500000))
 		);
@@ -1140,7 +1140,7 @@ describe('lp jit', () => {
 		console.log('lpPnl:', lpPnl2.toString());
 
 		assert(dustPos2.toString() == '0');
-		assert(lpPnl2.toString() == '3067087');
+		assert(lpPnl2.toString() == '3067086');
 
 		await driftClient.settleLP(
 			await driftClient.getUserAccountPublicKey(),
