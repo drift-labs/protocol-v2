@@ -1,6 +1,7 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
+use crate::math::constants::MAX_BASE_ASSET_AMOUNT_WITH_AMM;
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -24,6 +25,13 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         market.amm.base_asset_amount_short,
         market.amm.base_asset_amount_with_amm,
         market.amm.base_asset_amount_with_unsettled_lp,
+    )?;
+
+    validate!(
+        market.amm.base_asset_amount_with_amm <= (MAX_BASE_ASSET_AMOUNT_WITH_AMM as i128),
+        ErrorCode::InvalidAmmDetected,
+        "market.amm.base_asset_amount_with_amm={} is too large",
+        market.amm.base_asset_amount_with_amm
     )?;
 
     validate!(
@@ -187,6 +195,20 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         .insurance_claim
         .max_revenue_withdraw_per_period,
         market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs()
+    )?;
+
+    validate!(
+        market.amm.base_asset_amount_per_lp < MAX_BASE_ASSET_AMOUNT_WITH_AMM as i128,
+        ErrorCode::InvalidAmmDetected,
+        "market.amm.base_asset_amount_per_lp too large: {}",
+        market.amm.base_asset_amount_per_lp
+    )?;
+
+    validate!(
+        market.amm.quote_asset_amount_per_lp < MAX_BASE_ASSET_AMOUNT_WITH_AMM as i128,
+        ErrorCode::InvalidAmmDetected,
+        "market.amm.quote_asset_amount_per_lp too large: {}",
+        market.amm.quote_asset_amount_per_lp
     )?;
 
     Ok(())

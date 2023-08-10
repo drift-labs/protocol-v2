@@ -1,6 +1,10 @@
 use crate::controller::position::{
     update_lp_market_position, update_position_and_market, PositionDelta,
 };
+
+use crate::controller::lp::{apply_lp_rebase_to_perp_market, settle_lp_position};
+
+// use crate::instructions::handle_update_perp_market_per_lp_base;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64, QUOTE_PRECISION_I128,
 };
@@ -84,6 +88,24 @@ fn amm_split_large_k() {
     assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054756);
     assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535654);
 
+    let mut existing_position = PerpPosition {
+        market_index: 0,
+        base_asset_amount: 0,
+        quote_asset_amount: 0,
+        lp_shares: perp_market.amm.user_lp_shares as u64,
+        last_base_asset_amount_per_lp: og_baapl as i64,
+        last_quote_asset_amount_per_lp: og_qaapl as i64,
+        per_lp_base: 0,
+        ..PerpPosition::default()
+    };
+
+    settle_lp_position(&mut existing_position, &mut perp_market).unwrap();
+
+    assert_eq!(existing_position.base_asset_amount, 0);
+    assert_eq!(existing_position.quote_asset_amount, -33538939); // out of favor rounding
+
+    assert_eq!(existing_position.per_lp_base, perp_market.amm.per_lp_base);
+
     // long order for $230
     let delta = PositionDelta {
         base_asset_amount: BASE_PRECISION_I64 * 10,
@@ -140,6 +162,92 @@ fn amm_split_large_k() {
         243360075047
     );
     // assert_eq!(243360075047/9977763076 < 23, true); // ensure rounding in favor
+}
+
+#[test]
+fn amm_split_large_k_with_rebase() {
+    let perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+ka+8Ni2/aLOukHaFdQJXR2jkqDS+O0MbHvA9M+sjCgLVtQwhkAQAAAAAAAAAAAAAAAAIAAAAAAAAAkI1kAQAAAAB6XWQBAAAAAO8yzWQAAAAAnJ7I3f///////////////2dHvwAAAAAAAAAAAAAAAABGiVjX6roAAAAAAAAAAAAAAAAAAAAAAAB1tO47J+xiAAAAAAAAAAAAGD03Fis3mgAAAAAAAAAAAJxiDwAAAAAAAAAAAAAAAABxqRCIGRxiAAAAAAAAAAAAEy8wZfK9YwAAAAAAAAAAAGZeZCE+g3sAAAAAAAAAAAAKYeQAAAAAAAAAAAAAAAAAlIvoyyc3mgAAAAAAAAAAAADQdQKjbgAAAAAAAAAAAAAAwu8g05H/////////////E6tNHAIAAAAAAAAAAAAAAO3mFwd0AAAAAAAAAAAAAAAAgPQg5rUAAAAAAAAAAAAAGkDtXR4AAAAAAAAAAAAAAEv0WeZW/f////////////9kUidaqAIAAAAAAAAAAAAA0ZMEr1H9/////////////w5/U3uqAgAAAAAAAAAAAAAANfbqfCd3AAAAAAAAAAAAIhABAAAAAAAiEAEAAAAAACIQAQAAAAAAY1QBAAAAAAA5f3WMVAAAAAAAAAAAAAAAFhkiihsAAAAAAAAAAAAAAO2EfWc5AAAAAAAAAAAAAACM/5CAQgAAAAAAAAAAAAAAvenX0SsAAAAAAAAAAAAAALgPUogZAAAAAAAAAAAAAAC01x97AAAAAAAAAAAAAAAAOXzVbgAAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAABwHI3fLeJiAAAAAAAAAAAABvigOblGmgAAAAAAAAAAALeRnZsi9mIAAAAAAAAAAAAqgs3ynCeaAAAAAAAAAAAAQwhkAQAAAAAAAAAAAAAAAJOMZAEAAAAAFKJkAQAAAABTl2QBAAAAALFuZAEAAAAAgrx7DAAAAAAUAwAAAAAAAAN1TAYAAAAAuC7NZAAAAAAQDgAAAAAAAADh9QUAAAAAZAAAAAAAAAAA4fUFAAAAAAAAAAAAAAAAn2HvyMABAADGV6rZFwAAAE5Qg2oPAAAA8zHNZAAAAAAdYAAAAAAAAE2FAAAAAAAA6zLNZAAAAAD6AAAAaEIAABQDAAAUAwAAAAAAANcBAABkADIAZGQAAcDIUt4AAAAA0QQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAI9qQbynsAAAAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAghuS1//////8A4fUFAAAAAAB0O6QLAAAAR7PdeQMAAAD+Mc1kAAAAAADKmjsAAAAAAAAAAAAAAAAAAAAAAAAAAOULDwAAAAAAUBkAAAAAAADtAQAAAAAAAMgAAAAAAAAAECcAAKhhAADoAwAA9AEAAAAAAAAQJwAAZAIAAGQCAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+
+    let perp_market_loader: AccountLoader<PerpMarket> =
+        AccountLoader::try_from(&perp_market_account_info).unwrap();
+    let mut perp_market = perp_market_loader.load_mut().unwrap();
+
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054756);
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535655);
+
+    let og_baapl = perp_market.amm.base_asset_amount_per_lp;
+    let og_qaapl = perp_market.amm.quote_asset_amount_per_lp;
+
+    // update base
+    let base_change = 5;
+    apply_lp_rebase_to_perp_market(&mut perp_market, base_change).unwrap();
+
+    // noop delta
+    let delta = PositionDelta {
+        base_asset_amount: 0,
+        quote_asset_amount: 0,
+    };
+
+    update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
+
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, og_qaapl * 100000);
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, og_baapl * 100000);
+
+    // min long order for $2.3
+    let delta = PositionDelta {
+        base_asset_amount: BASE_PRECISION_I64 / 10,
+        quote_asset_amount: -2300000,
+    };
+
+    update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
+
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, -57405475887639);
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 1253565506615);
+
+    let num = perp_market.amm.quote_asset_amount_per_lp - (og_qaapl * 100000);
+    let denom = perp_market.amm.base_asset_amount_per_lp - (og_baapl * 100000);
+    assert_eq!(-num * 1000000 / denom, 22997); // $22.997 cost basis for short (vs $23 actual)
+
+    // min short order for $2.3
+    let delta = PositionDelta {
+        base_asset_amount: -BASE_PRECISION_I64 / 10,
+        quote_asset_amount: 2300000,
+    };
+
+    update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
+
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, -57405475600000);
+    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 1253565499999);
+    assert_eq!(
+        (og_qaapl * 100000) - perp_market.amm.quote_asset_amount_per_lp,
+        1
+    );
+
+    let mut existing_position = PerpPosition {
+        market_index: 0,
+        base_asset_amount: 0,
+        quote_asset_amount: 0,
+        lp_shares: perp_market.amm.user_lp_shares as u64,
+        last_base_asset_amount_per_lp: og_baapl as i64,
+        last_quote_asset_amount_per_lp: og_qaapl as i64,
+        per_lp_base: 0,
+        ..PerpPosition::default()
+    };
+
+    settle_lp_position(&mut existing_position, &mut perp_market).unwrap();
+
+    assert_eq!(existing_position.base_asset_amount, 0);
+    assert_eq!(existing_position.quote_asset_amount, -335); // out of favor rounding... :/
+
+    assert_eq!(existing_position.per_lp_base, perp_market.amm.per_lp_base);
 }
 
 #[test]

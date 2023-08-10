@@ -47,6 +47,7 @@ pub fn calculate_settled_lp_base_quote(
     position: &PerpPosition,
 ) -> DriftResult<(i128, i128)> {
     let mut n_shares = position.lp_shares;
+    let mut base_unit = AMM_RESERVE_PRECISION_I128;
 
     validate!(
         amm.per_lp_base == position.per_lp_base,
@@ -59,7 +60,7 @@ pub fn calculate_settled_lp_base_quote(
     if position.per_lp_base != 0 {
         if position.per_lp_base > 0 {
             let rebase_divisor = 10_u64.pow(position.per_lp_base.cast()?);
-            n_shares = n_shares.safe_div(rebase_divisor)?;
+            base_unit = base_unit.safe_mul(rebase_divisor.cast()?)?;
         } else {
             let rebase_divisor = 10_u64.pow(position.per_lp_base.abs().cast()?);
             n_shares = n_shares.safe_mul(rebase_divisor)?;
@@ -76,7 +77,7 @@ pub fn calculate_settled_lp_base_quote(
     let base_asset_amount = amm_net_base_asset_amount_per_lp
         .cast::<i128>()?
         .safe_mul(n_shares_i128)?
-        .safe_div(AMM_RESERVE_PRECISION_I128)?;
+        .safe_div(base_unit)?;
 
     let amm_net_quote_asset_amount_per_lp = amm
         .quote_asset_amount_per_lp
@@ -85,7 +86,7 @@ pub fn calculate_settled_lp_base_quote(
     let quote_asset_amount = amm_net_quote_asset_amount_per_lp
         .cast::<i128>()?
         .safe_mul(n_shares_i128)?
-        .safe_div(AMM_RESERVE_PRECISION_I128)?;
+        .safe_div(base_unit)?;
 
     Ok((base_asset_amount, quote_asset_amount))
 }

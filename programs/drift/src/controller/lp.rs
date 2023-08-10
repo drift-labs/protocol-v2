@@ -48,10 +48,10 @@ pub fn apply_lp_rebase_to_perp_market(
             .quote_asset_amount_per_lp
             .safe_mul(rebase_divisor)?;
 
-        perp_market.amm.target_base_asset_amount_per_lp = perp_market
-            .amm
-            .target_base_asset_amount_per_lp
-            .safe_mul(rebase_divisor.cast()?)?;
+        // perp_market.amm.target_base_asset_amount_per_lp = perp_market
+        //     .amm
+        //     .target_base_asset_amount_per_lp
+        //     .safe_mul(rebase_divisor.cast()?)?;
 
         perp_market.amm.total_fee_earned_per_lp = perp_market
             .amm
@@ -68,10 +68,10 @@ pub fn apply_lp_rebase_to_perp_market(
             .quote_asset_amount_per_lp
             .safe_div(rebase_divisor)?;
 
-        perp_market.amm.target_base_asset_amount_per_lp = perp_market
-            .amm
-            .target_base_asset_amount_per_lp
-            .safe_div(rebase_divisor.cast()?)?;
+        // perp_market.amm.target_base_asset_amount_per_lp = perp_market
+        //     .amm
+        //     .target_base_asset_amount_per_lp
+        //     .safe_div(rebase_divisor.cast()?)?;
 
         perp_market.amm.total_fee_earned_per_lp = perp_market
             .amm
@@ -80,10 +80,12 @@ pub fn apply_lp_rebase_to_perp_market(
     }
 
     msg!(
-        "rebasing perp market {} per_lp_base. expo_diff={}",
+        "rebasing perp market_index={} per_lp_base expo_diff={}",
+        perp_market.market_index,
         expo_diff,
-        perp_market.market_index
     );
+
+    crate::validation::perp_market::validate_perp_market(perp_market)?;
 
     Ok(())
 }
@@ -96,6 +98,12 @@ pub fn apply_lp_rebase_to_perp_position(
         .amm
         .per_lp_base
         .safe_sub(perp_position.per_lp_base)?;
+
+    msg!(
+        "{} vs {}",
+        perp_market.amm.per_lp_base,
+        perp_position.per_lp_base,
+    );
 
     if expo_diff > 0 {
         perp_position.per_lp_base = perp_market.amm.per_lp_base;
@@ -110,9 +118,9 @@ pub fn apply_lp_rebase_to_perp_position(
             .safe_mul(rebase_divisor)?;
 
         msg!(
-            "rebasing perp market {} per_lp_base. expo_diff={}",
+            "rebasing perp position for market_index={} per_lp_base by expo_diff={}",
+            perp_market.market_index,
             expo_diff,
-            perp_market.market_index
         );
     }
 

@@ -390,6 +390,12 @@ pub fn update_lp_market_position(
         return Ok((0, 0, 0)); // no need to split with LP
     }
 
+    let rebase_divisor: u128 = if market.amm.per_lp_base < 0 {
+        0
+    } else {
+        10_u128.pow(market.amm.per_lp_base.cast()?)
+    };
+
     let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
         market.amm.user_lp_shares
     } else {
@@ -400,13 +406,13 @@ pub fn update_lp_market_position(
     let per_lp_delta_base = get_proportion_i128(
         delta.base_asset_amount.cast()?,
         AMM_RESERVE_PRECISION,
-        total_lp_shares,
+        total_lp_shares.safe_div_ceil(rebase_divisor)?,
     )?;
 
     let mut per_lp_delta_quote = get_proportion_i128(
         delta.quote_asset_amount.cast()?,
         AMM_RESERVE_PRECISION,
-        total_lp_shares,
+        total_lp_shares.safe_div_ceil(rebase_divisor)?,
     )?;
 
     // user position delta is short => lp position delta is long
@@ -438,12 +444,18 @@ pub fn update_lp_market_position(
         LP_FEE_SLICE_DENOMINATOR,
     )?
     .safe_mul(user_lp_shares.cast::<i128>()?)?
-    .safe_div(total_lp_shares.cast::<i128>()?)?;
+    .safe_div(
+        total_lp_shares
+            .safe_div_ceil(rebase_divisor)?
+            .cast::<i128>()?,
+    )?;
 
     let per_lp_fee: i128 = if lp_fee > 0 {
-        lp_fee
-            .safe_mul(AMM_RESERVE_PRECISION_I128)?
-            .safe_div(user_lp_shares.cast::<i128>()?)?
+        lp_fee.safe_mul(AMM_RESERVE_PRECISION_I128)?.safe_div(
+            user_lp_shares
+                .safe_div_ceil(rebase_divisor)?
+                .cast::<i128>()?,
+        )?
     } else {
         0
     };
