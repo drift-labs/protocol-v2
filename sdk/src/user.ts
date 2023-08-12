@@ -1098,6 +1098,7 @@ export class User {
 		if (marginCategory !== undefined) {
 			const weight = calculateAssetWeight(
 				tokenAmount,
+				oraclePriceData.price,
 				spotMarketAccount,
 				marginCategory
 			);
@@ -2052,6 +2053,7 @@ export class User {
 		if (signedTokenAmount.gt(ZERO)) {
 			const assetWeight = calculateAssetWeight(
 				signedTokenAmount,
+				this.driftClient.getOraclePriceDataAndSlot(market.oracle).data.price,
 				market,
 				'Maintenance'
 			);
@@ -2228,6 +2230,7 @@ export class User {
 		currentSpotMarketNetValue?: BN
 	): BN {
 		const market = this.driftClient.getSpotMarketAccount(targetMarketIndex);
+		const oraclePrice = this.driftClient.getOraclePriceDataAndSlot(market.oracle).data.price;
 
 		currentQuoteAssetValue = this.getSpotMarketAssetValue(
 			QUOTE_SPOT_MARKET_INDEX
@@ -2239,6 +2242,7 @@ export class User {
 		let freeCollateral = this.getFreeCollateral();
 		const marginRatio = calculateSpotMarketMarginRatio(
 			market,
+			oraclePrice,
 			'Initial',
 			ZERO,
 			isVariant(direction, 'long')
@@ -2253,6 +2257,7 @@ export class User {
 				tradeAmount = currentSpotMarketNetValue.abs();
 				const marginRatio = calculateSpotMarketMarginRatio(
 					market,
+					oraclePrice,
 					'Initial',
 					this.getTokenAmount(targetMarketIndex).abs(),
 					SpotBalanceType.BORROW
@@ -2267,6 +2272,7 @@ export class User {
 				tradeAmount = currentSpotMarketNetValue;
 				const marginRatio = calculateSpotMarketMarginRatio(
 					market,
+					oraclePrice,
 					'Initial',
 					this.getTokenAmount(targetMarketIndex),
 					SpotBalanceType.DEPOSIT

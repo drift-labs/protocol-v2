@@ -152,6 +152,7 @@ export function getTokenValue(
 
 export function calculateAssetWeight(
 	balanceAmount: BN,
+	oraclePrice: BN,
 	spotMarket: SpotMarketAccount,
 	marginCategory: MarginCategory
 ): BN {
@@ -174,7 +175,7 @@ export function calculateAssetWeight(
 			assetWeight = calculateSizeDiscountAssetWeight(
 				sizeInAmmReservePrecision,
 				new BN(spotMarket.imfFactor),
-				new BN(spotMarket.initialAssetWeight)
+				calculateScaledInitialAssetWeight(spotMarket, oraclePrice)
 			);
 			break;
 		case 'Maintenance':
@@ -185,11 +186,33 @@ export function calculateAssetWeight(
 			);
 			break;
 		default:
-			assetWeight = new BN(spotMarket.initialAssetWeight);
+			assetWeight = calculateScaledInitialAssetWeight(spotMarket, oraclePrice);
 			break;
 	}
 
 	return assetWeight;
+}
+
+export function calculateScaledInitialAssetWeight(
+	spotMarket: SpotMarketAccount,
+	oraclePrice: BN,
+) : BN {
+	if (spotMarket.scaleInitialAssetWeightStart.eq(ZERO)) {
+		return new BN(spotMarket.initialAssetWeight);
+	}
+
+	const deposits = getTokenAmount(
+		spotMarket.depositBalance,
+		spotMarket,
+		SpotBalanceType.DEPOSIT
+	);
+	const depositsValue = getTokenValue(deposits, spotMarket.decimals, oraclePrice);
+
+	if (depositsValue.lt(spotMarket.scaleInitialAssetWeightStart)) {
+		return new BN(spotMarket.initialAssetWeight);
+	} else {
+		return new BN(spotMarket.initialAssetWeight).mul(spotMarket.scaleInitialAssetWeightStart).div(depositsValue);
+	}
 }
 
 export function calculateLiabilityWeight(
