@@ -1059,6 +1059,7 @@ pub fn calculate_max_spot_order_size(
 
         let asset_weight = spot_market.get_asset_weight(
             worst_case_token_amount.unsigned_abs(),
+            oracle_price_data.price,
             &MarginRequirementType::Initial,
         )?;
 
@@ -1075,6 +1076,7 @@ pub fn calculate_max_spot_order_size(
     } else if worst_case_token_amount > 0 && direction == PositionDirection::Short {
         let asset_weight = spot_market.get_asset_weight(
             worst_case_token_amount.unsigned_abs(),
+            oracle_price_data.price,
             &MarginRequirementType::Initial,
         )?;
 
@@ -1132,6 +1134,7 @@ pub fn calculate_max_spot_order_size(
     let free_collateral_delta = calculate_free_collateral_delta_for_spot(
         &spot_market,
         worst_case_token_amount.unsigned_abs(),
+        oracle_price_data.price,
         direction,
     )?;
 
@@ -1153,6 +1156,7 @@ pub fn calculate_max_spot_order_size(
         worst_case_token_amount
             .unsigned_abs()
             .safe_add(order_size.cast()?)?,
+        oracle_price_data.price,
         direction,
     )?;
 
@@ -1176,13 +1180,15 @@ pub fn calculate_max_spot_order_size(
 fn calculate_free_collateral_delta_for_spot(
     spot_market: &SpotMarket,
     worst_case_token_amount: u128,
+    oracle_price: i64,
     order_direction: PositionDirection,
 ) -> DriftResult<u32> {
     Ok(if order_direction == PositionDirection::Long {
-        SPOT_WEIGHT_PRECISION.sub(
-            spot_market
-                .get_asset_weight(worst_case_token_amount, &MarginRequirementType::Initial)?,
-        )
+        SPOT_WEIGHT_PRECISION.sub(spot_market.get_asset_weight(
+            worst_case_token_amount,
+            oracle_price,
+            &MarginRequirementType::Initial,
+        )?)
     } else {
         spot_market
             .get_liability_weight(worst_case_token_amount, &MarginRequirementType::Initial)?

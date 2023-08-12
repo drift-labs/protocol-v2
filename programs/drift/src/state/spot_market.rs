@@ -14,7 +14,7 @@ use crate::math::margin::{
     MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::{calculate_utilization, get_token_amount};
+use crate::math::spot_balance::{calculate_utilization, get_token_amount, get_token_value};
 
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
@@ -167,7 +167,9 @@ pub struct SpotMarket {
     /// The total fees received from swaps
     /// precision: token mint precision
     pub total_swap_fee: u64,
-    pub padding: [u8; 56],
+    /// When to begin scaling down the initial asset weight
+    pub scale_initial_asset_weight_start: u64,
+    pub padding: [u8; 48],
 }
 
 impl Default for SpotMarket {
@@ -224,7 +226,8 @@ impl Default for SpotMarket {
             flash_loan_amount: 0,
             flash_loan_initial_token_amount: 0,
             total_swap_fee: 0,
-            padding: [0; 56],
+            scale_initial_asset_weight_start: 0,
+            padding: [0; 48],
         }
     }
 }
@@ -274,6 +277,7 @@ impl SpotMarket {
     pub fn get_asset_weight(
         &self,
         size: u128,
+        oracle_price: i64,
         margin_requirement_type: &MarginRequirementType,
     ) -> DriftResult<u32> {
         let size_precision = 10_u128.pow(self.decimals);
@@ -286,7 +290,7 @@ impl SpotMarket {
 
         let default_asset_weight = match margin_requirement_type {
             MarginRequirementType::Initial | MarginRequirementType::Fill => {
-                self.initial_asset_weight
+                self.get_scaled_init_asset_weight(oracle_price)?
             }
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };
@@ -298,6 +302,30 @@ impl SpotMarket {
         )?;
 
         let asset_weight = size_based_asset_weight.min(default_asset_weight);
+
+        Ok(asset_weight)
+    }
+
+    pub fn get_scaled_init_asset_weight(&self, oracle_price: i64) -> DriftResult<u32> {
+        if self.scale_initial_asset_weight_start == 0 {
+            return Ok(self.initial_asset_weight);
+        }
+
+        let deposits = self.get_deposits()?;
+        let deposit_value =
+            get_token_value(deposits.cast()?, self.decimals, oracle_price)?.cast::<u128>()?;
+
+        let scale_initial_asset_weight_start =
+            self.scale_initial_asset_weight_start.cast::<u128>()?;
+        let asset_weight = if deposit_value < scale_initial_asset_weight_start {
+            self.initial_asset_weight
+        } else {
+            self.initial_asset_weight
+                .cast::<u128>()?
+                .safe_mul(scale_initial_asset_weight_start)?
+                .safe_div(deposit_value)?
+                .cast::<u32>()?
+        };
 
         Ok(asset_weight)
     }
