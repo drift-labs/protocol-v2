@@ -290,7 +290,7 @@ impl SpotMarket {
 
         let default_asset_weight = match margin_requirement_type {
             MarginRequirementType::Initial | MarginRequirementType::Fill => {
-                self.get_scaled_init_asset_weight(oracle_price)?
+                self.get_scaled_initial_asset_weight(oracle_price)?
             }
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };
@@ -306,7 +306,7 @@ impl SpotMarket {
         Ok(asset_weight)
     }
 
-    pub fn get_scaled_init_asset_weight(&self, oracle_price: i64) -> DriftResult<u32> {
+    pub fn get_scaled_initial_asset_weight(&self, oracle_price: i64) -> DriftResult<u32> {
         if self.scale_initial_asset_weight_start == 0 {
             return Ok(self.initial_asset_weight);
         }

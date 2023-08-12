@@ -16,6 +16,10 @@ mod test {
     use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
     use crate::state::spot_market::{AssetTier, SpotMarket};
     use crate::state::user::PerpPosition;
+    use crate::{
+        PRICE_PRECISION_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION,
+        SPOT_CUMULATIVE_INTEREST_PRECISION,
+    };
 
     #[test]
     fn asset_tier_checks() {
@@ -134,6 +138,49 @@ mod test {
             .get_liability_weight(size, &MarginRequirementType::Maintenance)
             .unwrap();
         assert_eq!(maint_lib_weight, 31622);
+    }
+
+    #[test]
+    fn spot_market_scale_initial_asset_weight() {
+        let mut sol_spot_market = SpotMarket {
+            initial_asset_weight: 9000,
+            initial_liability_weight: 11000,
+            decimals: 9,
+            imf_factor: 0,
+            scale_initial_asset_weight_start: 500_000 * QUOTE_PRECISION_U64,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            ..SpotMarket::default()
+        };
+
+        let price = 25 * PRICE_PRECISION_I64;
+
+        sol_spot_market.deposit_balance = SPOT_BALANCE_PRECISION;
+        let asset_weight = sol_spot_market
+            .get_scaled_initial_asset_weight(price)
+            .unwrap();
+
+        assert_eq!(asset_weight, 9000);
+
+        sol_spot_market.deposit_balance = 20000 * SPOT_BALANCE_PRECISION;
+        let asset_weight = sol_spot_market
+            .get_scaled_initial_asset_weight(price)
+            .unwrap();
+
+        assert_eq!(asset_weight, 9000);
+
+        sol_spot_market.deposit_balance = 40000 * SPOT_BALANCE_PRECISION;
+        let asset_weight = sol_spot_market
+            .get_scaled_initial_asset_weight(price)
+            .unwrap();
+
+        assert_eq!(asset_weight, 4500);
+
+        sol_spot_market.deposit_balance = 60000 * SPOT_BALANCE_PRECISION;
+        let asset_weight = sol_spot_market
+            .get_scaled_initial_asset_weight(price)
+            .unwrap();
+
+        assert_eq!(asset_weight, 3000);
     }
 
     #[test]
