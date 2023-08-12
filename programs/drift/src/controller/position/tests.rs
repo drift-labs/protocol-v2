@@ -4,11 +4,15 @@ use crate::controller::position::{
 
 use crate::controller::lp::{apply_lp_rebase_to_perp_market, settle_lp_position};
 
+use crate::controller::repeg::_update_amm;
 // use crate::instructions::handle_update_perp_market_per_lp_base;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64, QUOTE_PRECISION_I128,
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64, PRICE_PRECISION_I64,
+    PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
 };
+use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket, AMM};
+use crate::state::state::State;
 use crate::state::user::PerpPosition;
 use crate::test_utils::create_account_info;
 use anchor_lang::prelude::AccountLoader;
@@ -102,6 +106,7 @@ fn amm_split_large_k() {
     settle_lp_position(&mut existing_position, &mut perp_market).unwrap();
 
     assert_eq!(existing_position.base_asset_amount, 0);
+    assert_eq!(existing_position.remainder_base_asset_amount, 0);
     assert_eq!(existing_position.quote_asset_amount, -33538939); // out of favor rounding
 
     assert_eq!(existing_position.per_lp_base, perp_market.amm.per_lp_base);
@@ -245,44 +250,106 @@ fn amm_split_large_k_with_rebase() {
     settle_lp_position(&mut existing_position, &mut perp_market).unwrap();
 
     assert_eq!(existing_position.base_asset_amount, 0);
+    assert_eq!(existing_position.remainder_base_asset_amount, 0);
     assert_eq!(existing_position.quote_asset_amount, -335); // out of favor rounding... :/
 
     assert_eq!(existing_position.per_lp_base, perp_market.amm.per_lp_base);
 
-
     // update base back
     let base_change = -2;
     apply_lp_rebase_to_perp_market(&mut perp_market, base_change).unwrap();
-     // noop delta
-     let delta = PositionDelta {
+    // noop delta
+    let delta = PositionDelta {
         base_asset_amount: 0,
         quote_asset_amount: 0,
     };
 
     update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
 
-    assert_eq!(perp_market.amm.quote_asset_amount_per_lp, og_qaapl * 1000 - 1); // down only rounding
+    assert_eq!(
+        perp_market.amm.quote_asset_amount_per_lp,
+        og_qaapl * 1000 - 1
+    ); // down only rounding
     assert_eq!(perp_market.amm.base_asset_amount_per_lp, og_baapl * 1000);
-    
+
     // 1 long order for $23 before lp position does rebasing
     let delta = PositionDelta {
         base_asset_amount: BASE_PRECISION_I64,
         quote_asset_amount: -23000000,
     };
+    assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054756000);
 
     update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
-    
+
+    let now = 110;
+    let clock_slot = 111;
+    let state = State::default();
+    let oracle_price_data = OraclePriceData {
+        price: 23 * PRICE_PRECISION_I64,
+        confidence: PRICE_PRECISION_U64 / 100,
+        delay: 14,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    let cost = _update_amm(
+        &mut perp_market,
+        &oracle_price_data,
+        &state,
+        now,
+        clock_slot,
+    )
+    .unwrap();
+    assert_eq!(cost, -3017938);
+
     assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535655660);
     assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054784763);
-    assert_eq!(existing_position.last_base_asset_amount_per_lp, -57405475600000);
+    assert_eq!(
+        existing_position.last_base_asset_amount_per_lp,
+        -57405475600000
+    );
+    assert_eq!(existing_position.per_lp_base, 5);
+    assert_ne!(existing_position.per_lp_base, perp_market.amm.per_lp_base);
 
+    assert_eq!(perp_market.amm.base_asset_amount_long, 121646400000000);
+    assert_eq!(perp_market.amm.base_asset_amount_short, -121139000000000);
+    assert_eq!(perp_market.amm.base_asset_amount_with_amm, -955615735884);
+    assert_eq!(
+        perp_market.amm.base_asset_amount_with_unsettled_lp,
+        1463015735884
+    );
+    let prev_with_unsettled_lp = perp_market.amm.base_asset_amount_with_unsettled_lp;
     settle_lp_position(&mut existing_position, &mut perp_market).unwrap();
 
-    assert_eq!(existing_position.base_asset_amount, 0);
-    assert_eq!(existing_position.quote_asset_amount, -335); // out of favor rounding... :/
-    assert_eq!(existing_position.last_base_asset_amount_per_lp, -574054756000); // out of favor rounding... :/
-    assert_eq!(existing_position.last_quote_asset_amount_per_lp, (og_qaapl * 1000 - 1) as i64); // out of favor rounding... :/
-    assert_eq!(existing_position.per_lp_base, perp_market.amm.per_lp_base);    
+    assert_eq!(perp_market.amm.base_asset_amount_long, 121646400000000);
+    assert_eq!(perp_market.amm.base_asset_amount_short, -121139900000000);
+    assert_eq!(perp_market.amm.base_asset_amount_with_amm, -955615735884);
+    assert_eq!(
+        perp_market.amm.base_asset_amount_with_unsettled_lp,
+        1462115735884
+    );
+    assert_eq!(
+        perp_market.amm.base_asset_amount_with_unsettled_lp,
+        1462115735884
+    );
+    assert!(perp_market.amm.base_asset_amount_with_unsettled_lp < prev_with_unsettled_lp);
+
+    // 96.47% owned
+    assert_eq!(perp_market.amm.user_lp_shares, 33538939700000000);
+    assert_eq!(perp_market.amm.sqrt_k, 34765725006847590);
+
+    assert_eq!(existing_position.per_lp_base, perp_market.amm.per_lp_base);
+
+    assert_eq!(existing_position.base_asset_amount, -900000000);
+    assert_eq!(existing_position.remainder_base_asset_amount, -64680522);
+    assert_eq!(existing_position.quote_asset_amount, 22168904); // out of favor rounding... :/
+    assert_eq!(
+        existing_position.last_base_asset_amount_per_lp,
+        perp_market.amm.base_asset_amount_per_lp as i64
+    ); // out of favor rounding... :/
+    assert_eq!(
+        existing_position.last_quote_asset_amount_per_lp,
+        perp_market.amm.quote_asset_amount_per_lp as i64
+    ); // out of favor rounding... :/
 }
 
 #[test]
