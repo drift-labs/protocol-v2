@@ -30,6 +30,10 @@ pub fn apply_lp_rebase_to_perp_market(
     perp_market: &mut PerpMarket,
     expo_diff: i8,
 ) -> DriftResult<()> {
+    // target_base_asset_amount_per_lp is the only one that it doesnt get applied
+    // thus changing the base of lp and without changing target_base_asset_amount_per_lp
+    // causes an implied change
+
     if expo_diff == 0 {
         return Ok(());
     }
@@ -48,11 +52,6 @@ pub fn apply_lp_rebase_to_perp_market(
             .quote_asset_amount_per_lp
             .safe_mul(rebase_divisor)?;
 
-        // perp_market.amm.target_base_asset_amount_per_lp = perp_market
-        //     .amm
-        //     .target_base_asset_amount_per_lp
-        //     .safe_mul(rebase_divisor.cast()?)?;
-
         perp_market.amm.total_fee_earned_per_lp = perp_market
             .amm
             .total_fee_earned_per_lp
@@ -67,11 +66,6 @@ pub fn apply_lp_rebase_to_perp_market(
             .amm
             .quote_asset_amount_per_lp
             .safe_div(rebase_divisor)?;
-
-        // perp_market.amm.target_base_asset_amount_per_lp = perp_market
-        //     .amm
-        //     .target_base_asset_amount_per_lp
-        //     .safe_div(rebase_divisor.cast()?)?;
 
         perp_market.amm.total_fee_earned_per_lp = perp_market
             .amm
