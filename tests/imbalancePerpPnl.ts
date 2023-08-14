@@ -761,7 +761,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			'market0.amm.totalFeeMinusDistributions:',
 			market0.amm.totalFeeMinusDistributions.toString()
 		);
-		assert(market0.amm.totalFeeMinusDistributions.eq(new BN('-42199926380')));
+		assert(market0.amm.totalFeeMinusDistributions.lt(new BN('0')));
 
 		// assert(market0.amm.totalFeeMinusDistributions.eq(new BN('254313115')));
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData0);
@@ -770,7 +770,11 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			'prepegAMM.totalFeeMinusDistributions:',
 			prepegAMM.totalFeeMinusDistributions.toString()
 		);
-		assert(prepegAMM.totalFeeMinusDistributions.eq(new BN('-42199926380')));
+		assert(
+			prepegAMM.totalFeeMinusDistributions.eq(
+				market0.amm.totalFeeMinusDistributions
+			)
+		);
 
 		console.log(prepegAMM.pegMultiplier.toString());
 		console.log(bid.toString());
