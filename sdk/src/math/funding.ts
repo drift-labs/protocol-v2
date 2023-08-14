@@ -156,7 +156,9 @@ export async function calculateAllEstimatedFundingRate(
 	// }
 
 	const twapSpread = markTwap.sub(oracleTwap);
-	const twapSpreadPct = twapSpread
+	const twapSpreadWithOffset = twapSpread.add(oracleTwap.div(new BN(5000)));
+
+	const twapSpreadPct = twapSpreadWithOffset
 		.mul(PRICE_PRECISION)
 		.mul(new BN(100))
 		.div(oracleTwap);
