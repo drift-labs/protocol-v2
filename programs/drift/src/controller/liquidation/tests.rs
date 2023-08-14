@@ -2818,7 +2818,7 @@ pub mod liquidate_spot {
 
         let state = State {
             liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
-            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            initial_pct_to_liquidate: (LIQUIDATION_PCT_PRECISION / 10) as u16,
             liquidation_duration: 150,
             ..Default::default()
         };
@@ -2844,6 +2844,7 @@ pub mod liquidate_spot {
         .unwrap();
 
         assert_eq!(user.last_active_slot, 1);
+        assert_eq!(user.is_being_liquidated(), true);
         assert_eq!(user.liquidation_margin_freed, 700032);
         assert_eq!(user.spot_positions[0].scaled_balance, 99055856000);
         assert_eq!(user.spot_positions[1].scaled_balance, 940676999);
@@ -2907,6 +2908,7 @@ pub mod liquidate_spot {
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);
         assert_eq!(pct_margin_freed, 433283); // ~43.3%
+        assert_eq!(user.is_being_liquidated(), true);
 
         let slot = 136_u64;
         liquidate_spot(
@@ -2931,6 +2933,7 @@ pub mod liquidate_spot {
         assert_eq!(user.liquidation_margin_freed, 0);
         assert_eq!(user.spot_positions[0].scaled_balance, 45559160000);
         assert_eq!(user.spot_positions[1].scaled_balance, 406777997);
+        assert_eq!(user.is_being_liquidated(), false);
     }
 }
 
@@ -5507,7 +5510,7 @@ pub mod liquidate_perp_pnl_for_deposit {
 
         let state = State {
             liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
-            initial_pct_to_liquidate: 10,
+            initial_pct_to_liquidate: (PERCENTAGE_PRECISION / 10) as u16,
             liquidation_duration: 150,
             ..Default::default()
         };
