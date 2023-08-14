@@ -1123,6 +1123,31 @@
       ]
     },
     {
+      "name": "updateUserReduceOnly",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "reduceOnly",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "deleteUser",
       "accounts": [
         {
@@ -3854,6 +3879,32 @@
         {
           "name": "targetBaseAssetAmountPerLp",
           "type": "i32"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketPerLpBase",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "perLpBase",
+          "type": "i8"
         }
       ]
     },
@@ -6954,11 +7005,11 @@
             "type": "i32"
           },
           {
-            "name": "lpSharesBase",
+            "name": "perLpBase",
             "docs": [
-              "expo for unit of per_lp, base 10 (if lp_shares_base=X, then per_lp unit is 10^X)"
+              "expo for unit of per_lp, base 10 (if per_lp_base=X, then per_lp unit is 10^X)"
             ],
-            "type": "u8"
+            "type": "i8"
           },
           {
             "name": "padding1",
@@ -7433,8 +7484,8 @@
             "type": "u8"
           },
           {
-            "name": "lpSharesBase",
-            "type": "u8"
+            "name": "perLpBase",
+            "type": "i8"
           }
         ]
       }
@@ -8320,6 +8371,9 @@
           },
           {
             "name": "Bankrupt"
+          },
+          {
+            "name": "ReduceOnly"
           }
         ]
       }
@@ -10687,9 +10741,11 @@
       "code": 6253,
       "name": "CantUpdatePerpBidAskTwap",
       "msg": "CantUpdatePerpBidAskTwap"
+    },
+    {
+      "code": 6254,
+      "name": "UserReduceOnly",
+      "msg": "UserReduceOnly"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }

@@ -1851,14 +1851,13 @@ pub fn handle_update_perp_market_per_lp_base(
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
     let old_per_lp_base = perp_market.amm.per_lp_base;
-    perp_market.amm.per_lp_base = per_lp_base;
     msg!(
         "updated perp_market per_lp_base {} -> {}",
         old_per_lp_base,
         per_lp_base
     );
 
-    let expo_diff = old_per_lp_base.safe_sub(per_lp_base)?;
+    let expo_diff = per_lp_base.safe_sub(old_per_lp_base)?;
 
     validate!(
         expo_diff.abs() == 1,

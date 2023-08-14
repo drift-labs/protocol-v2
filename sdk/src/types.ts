@@ -767,6 +767,8 @@ export type AMM = {
 	bidQuoteAssetReserve: BN;
 	askBaseAssetReserve: BN;
 	askQuoteAssetReserve: BN;
+
+	perLpBase: number; // i8
 };
 
 // # User Account Types

@@ -1254,6 +1254,51 @@ describe('liquidity providing', () => {
 		const position = driftClientUser.getPerpPosition(0);
 		assert(position.lpShares.eq(ZERO));
 	});
+
+	it('update per lp base (0->1)', async () => {
+		//ensure non-zero for test
+		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(0, 169);
+
+		await driftClient.fetchAccounts();
+		const marketBefore = driftClient.getPerpMarketAccount(0);
+
+		const txSig1 = await driftClient.updatePerpMarketPerLpBase(0, 1);
+		await _viewLogs(txSig1);
+
+		await sleep(1000); // todo?
+		await driftClient.fetchAccounts();
+		const marketAfter = driftClient.getPerpMarketAccount(0);
+
+		assert(
+			marketAfter.amm.totalFeeEarnedPerLp.eq(
+				marketBefore.amm.totalFeeEarnedPerLp.mul(new BN(10))
+			)
+		);
+
+		assert(
+			marketAfter.amm.baseAssetAmountPerLp.eq(
+				marketBefore.amm.baseAssetAmountPerLp.mul(new BN(10))
+			)
+		);
+
+		assert(
+			marketAfter.amm.quoteAssetAmountPerLp.eq(
+				marketBefore.amm.quoteAssetAmountPerLp.mul(new BN(10))
+			)
+		);
+
+		assert(
+			marketAfter.amm.targetBaseAssetAmountPerLp ==
+				marketBefore.amm.targetBaseAssetAmountPerLp
+		);
+
+		assert(marketBefore.amm.perLpBase == 0);
+		console.log('marketAfter.amm.perLpBase:', marketAfter.amm.perLpBase);
+		assert(marketAfter.amm.perLpBase == 1);
+
+		await driftClient.updatePerpMarketPerLpBase(0, 0);
+	});
+
 	return;
 
 	it('lp gets paid in funding (todo)', async () => {
