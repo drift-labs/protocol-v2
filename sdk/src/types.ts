@@ -787,6 +787,7 @@ export type PerpPosition = {
 	remainderBaseAssetAmount: number;
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
+	perLpBase: number;
 };
 
 export type UserStatsAccount = {
