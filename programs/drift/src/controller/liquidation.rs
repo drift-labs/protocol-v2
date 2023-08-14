@@ -663,6 +663,12 @@ pub fn liquidate_spot(
     let liquidation_duration = state.liquidation_duration as u128;
 
     validate!(
+        liquidation_duration > 0,
+        ErrorCode::InvalidLiquidation,
+        "liquidation_duration = 0",
+    )?;
+
+    validate!(
         !user.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "user bankrupt",
@@ -1605,6 +1611,12 @@ pub fn liquidate_perp_pnl_for_deposit(
     // can only be done once the perpetual position's size is 0
     // blocked when 1) user deposit oracle is deemed invalid
     // or 2) user has outstanding liability with higher tier
+
+    validate!(
+        liquidation_duration > 0,
+        ErrorCode::InvalidLiquidation,
+        "liquidation_duration = 0",
+    )?;
 
     validate!(
         !user.is_bankrupt(),

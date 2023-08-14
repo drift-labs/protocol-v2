@@ -474,6 +474,11 @@ pub fn validate_fill_price_within_price_bands(
     let max_oracle_diff = margin_ratio_initial.cast::<u128>()?;
     let max_oracle_twap_diff = oracle_twap_5min_percent_divergence.cast::<u128>()?; // 50%
 
+    // skip check for market with no initial risk
+    if margin_ratio_initial == 0 {
+        return Ok(());
+    }
+
     if direction == PositionDirection::Long {
         if fill_price < oracle_price && fill_price < oracle_twap_5min {
             return Ok(());
