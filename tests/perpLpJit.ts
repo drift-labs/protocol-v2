@@ -1051,7 +1051,12 @@ describe('lp jit', () => {
 		assert(perpPos.baseAssetAmount.toString() == '-10000000');
 
 		const [settledPos, dustPos, lpPnl] =
-			driftClientUser.getPerpPositionWithLPSettle(marketIndex);
+			driftClientUser.getPerpPositionWithLPSettle(
+				marketIndex,
+				undefined,
+				false,
+				true
+			);
 		// console.log('settlePos:', settledPos);
 		console.log('dustPos:', dustPos.toString());
 		console.log('lpPnl:', lpPnl.toString());
@@ -1134,7 +1139,12 @@ describe('lp jit', () => {
 		assert(perpPos2.baseAssetAmount.toString() == '-5000000');
 
 		const [settledPos2, dustPos2, lpPnl2] =
-			driftClientUser.getPerpPositionWithLPSettle(marketIndex);
+			driftClientUser.getPerpPositionWithLPSettle(
+				marketIndex,
+				undefined,
+				false,
+				true
+			);
 		// console.log('settlePos:', settledPos2);
 		console.log('dustPos:', dustPos2.toString());
 		console.log('lpPnl:', lpPnl2.toString());
