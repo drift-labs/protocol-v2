@@ -552,11 +552,16 @@ export class User {
 			position.lastCumulativeFundingRate = ZERO;
 		}
 
+		const remainderBeforeRemoval = new BN(position.remainderBaseAssetAmount);
+
 		if (includeRemainderInBaseAmount) {
-			position.baseAssetAmount = position.baseAssetAmount.add(remainderBaa);
+			position.baseAssetAmount = position.baseAssetAmount.add(
+				remainderBeforeRemoval
+			);
+			position.remainderBaseAssetAmount = 0;
 		}
 
-		return [position, remainderBaa, pnl];
+		return [position, remainderBeforeRemoval, pnl];
 	}
 
 	/**
