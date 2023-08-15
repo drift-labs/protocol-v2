@@ -1311,7 +1311,7 @@ describe('liquidity providing', () => {
 			marketAfter0.amm.baseAssetAmountWithUnsettledLp.toString()
 		);
 		assert(
-			marketAfter0.amm.baseAssetAmountWithUnsettledLp.eq(new BN('12500000000'))
+			marketAfter0.amm.baseAssetAmountWithUnsettledLp.eq(new BN('1250000000'))
 		);
 
 		const netValueBefore = await driftClient.getUser().getNetSpotMarketValue();
@@ -1333,9 +1333,7 @@ describe('liquidity providing', () => {
 			'baseAssetAmountWithUnsettledLp:',
 			marketAfter1.amm.baseAssetAmountWithUnsettledLp.toString()
 		);
-		assert(
-			marketAfter1.amm.baseAssetAmountWithUnsettledLp.eq(new BN('11250000000'))
-		);
+		assert(marketAfter1.amm.baseAssetAmountWithUnsettledLp.eq(new BN('0')));
 
 		const posAfter: PerpPosition = await driftClient
 			.getUser()
@@ -1356,9 +1354,7 @@ describe('liquidity providing', () => {
 			'baseAssetAmountWithUnsettledLp:',
 			marketAfter2.amm.baseAssetAmountWithUnsettledLp.toString()
 		);
-		assert(
-			marketAfter2.amm.baseAssetAmountWithUnsettledLp.eq(new BN('11250000000'))
-		);
+		assert(marketAfter2.amm.baseAssetAmountWithUnsettledLp.eq(new BN('0')));
 	});
 
 	it('permissionless lp burn', async () => {

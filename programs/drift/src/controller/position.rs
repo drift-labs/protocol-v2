@@ -408,7 +408,7 @@ pub fn update_lp_market_position(
         0 // TODO
     } else {
         let scalar: i128 = 10_i128.pow(market.amm.per_lp_base.abs().cast()?);
-        base_unit = base_unit.safe_div(scalar)?;
+        base_unit = base_unit.safe_mul(scalar)?;
         scalar
     };
 
@@ -430,6 +430,8 @@ pub fn update_lp_market_position(
         // add one => lp subtract 1
         per_lp_delta_quote = per_lp_delta_quote.safe_add(1)?;
     }
+
+    crate::dlog!(per_lp_delta_base, user_lp_shares, base_unit);
 
     // calculate dedicated for user lp shares
     let lp_delta_base = get_proportion_i128(per_lp_delta_base, user_lp_shares, base_unit.cast()?)?;

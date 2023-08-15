@@ -187,7 +187,10 @@ fn amm_split_large_k_with_rebase() {
 
     assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054756);
     assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 12535655);
-    assert_eq!(perp_market.amm.base_asset_amount_with_unsettled_lp, 498335213293);
+    assert_eq!(
+        perp_market.amm.base_asset_amount_with_unsettled_lp,
+        498335213293
+    );
 
     let og_baawul = perp_market.amm.base_asset_amount_with_unsettled_lp;
     let og_baapl = perp_market.amm.base_asset_amount_per_lp;
@@ -207,7 +210,10 @@ fn amm_split_large_k_with_rebase() {
 
     assert_eq!(perp_market.amm.quote_asset_amount_per_lp, og_qaapl * 100000);
     assert_eq!(perp_market.amm.base_asset_amount_per_lp, og_baapl * 100000);
-    assert_eq!(perp_market.amm.base_asset_amount_with_unsettled_lp, og_baawul);
+    assert_eq!(
+        perp_market.amm.base_asset_amount_with_unsettled_lp,
+        og_baawul
+    );
 
     // min long order for $2.3
     let delta = PositionDelta {
@@ -215,8 +221,16 @@ fn amm_split_large_k_with_rebase() {
         quote_asset_amount: -2300000,
     };
 
-    update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
-    assert_eq!(perp_market.amm.base_asset_amount_with_unsettled_lp, 964711205972043293);
+    let (u1, u2, u3) =
+        update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
+    assert_eq!(u1, 96471070);
+    assert_eq!(u2, -2218600);
+    assert_eq!(u3, 0);
+
+    assert_eq!(
+        perp_market.amm.base_asset_amount_with_unsettled_lp,
+        498431684363
+    );
 
     assert_eq!(
         perp_market.amm.base_asset_amount_per_lp - og_baapl * 100000,
@@ -228,7 +242,7 @@ fn amm_split_large_k_with_rebase() {
     );
     assert_eq!(
         perp_market.amm.base_asset_amount_with_unsettled_lp - og_baawul,
-        6615
+        96471070
     );
     assert_eq!(perp_market.amm.base_asset_amount_per_lp, -57405475887639);
     assert_eq!(perp_market.amm.quote_asset_amount_per_lp, 1253565506615);
@@ -328,24 +342,24 @@ fn amm_split_large_k_with_rebase() {
 
     assert_eq!(perp_market.amm.base_asset_amount_long, 121646400000000);
     assert_eq!(perp_market.amm.base_asset_amount_short, -121139000000000);
-    assert_eq!(perp_market.amm.base_asset_amount_with_amm, -955615735884);
+    assert_eq!(perp_market.amm.base_asset_amount_with_amm, 8100106185);
     assert_eq!(
         perp_market.amm.base_asset_amount_with_unsettled_lp,
-        1463015735884
+        499299893815
     );
     let prev_with_unsettled_lp = perp_market.amm.base_asset_amount_with_unsettled_lp;
     settle_lp_position(&mut existing_position, &mut perp_market).unwrap();
 
     assert_eq!(perp_market.amm.base_asset_amount_long, 121646400000000);
     assert_eq!(perp_market.amm.base_asset_amount_short, -121139900000000);
-    assert_eq!(perp_market.amm.base_asset_amount_with_amm, -955615735884);
+    assert_eq!(perp_market.amm.base_asset_amount_with_amm, 8100106185);
     assert_eq!(
         perp_market.amm.base_asset_amount_with_unsettled_lp,
-        1462115735884
+        498399893815
     );
     assert_eq!(
         perp_market.amm.base_asset_amount_with_unsettled_lp,
-        1462115735884
+        498399893815
     );
     assert!(perp_market.amm.base_asset_amount_with_unsettled_lp < prev_with_unsettled_lp);
 
