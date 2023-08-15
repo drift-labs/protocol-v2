@@ -406,8 +406,6 @@ pub fn update_lp_market_position(
         liquidity_split,
     )?;
 
-    // crate::dlog!(per_lp_delta_base, user_lp_shares, base_unit);
-
     market.amm.base_asset_amount_per_lp = market
         .amm
         .base_asset_amount_per_lp

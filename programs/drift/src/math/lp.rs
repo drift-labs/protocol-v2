@@ -61,11 +61,9 @@ pub fn calculate_settled_lp_base_quote(
         if position.per_lp_base > 0 {
             let rebase_divisor = 10_u64.pow(position.per_lp_base.cast()?);
             base_unit = base_unit.safe_mul(rebase_divisor.cast()?)?;
-            msg!("base_unit inc");
         } else {
             let rebase_divisor = 10_u64.pow(position.per_lp_base.abs().cast()?);
             n_shares = n_shares.safe_mul(rebase_divisor)?;
-            msg!("n_shares inc");
         }
     }
 
@@ -80,14 +78,6 @@ pub fn calculate_settled_lp_base_quote(
         .cast::<i128>()?
         .safe_mul(n_shares_i128)?
         .safe_div(base_unit)?;
-
-    crate::dlog!(
-        position.per_lp_base,
-        base_asset_amount,
-        amm_net_base_asset_amount_per_lp,
-        n_shares_i128,
-        base_unit
-    );
 
     let amm_net_quote_asset_amount_per_lp = amm
         .quote_asset_amount_per_lp

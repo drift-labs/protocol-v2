@@ -187,8 +187,6 @@ pub fn settle_lp_position(
     let mut lp_metrics: crate::math::lp::LPMetrics =
         calculate_settle_lp_metrics(&market.amm, position)?;
 
-    crate::dlog!(lp_metrics.base_asset_amount, lp_metrics.quote_asset_amount);
-
     let new_remainder_base_asset_amount = position
         .remainder_base_asset_amount
         .cast::<i64>()?
@@ -210,8 +208,6 @@ pub fn settle_lp_position(
         position.remainder_base_asset_amount = new_remainder_base_asset_amount.cast()?;
     }
 
-    crate::dlog!(lp_metrics.base_asset_amount, lp_metrics.quote_asset_amount);
-
     let position_delta = PositionDelta {
         base_asset_amount: lp_metrics.base_asset_amount.cast()?,
         quote_asset_amount: lp_metrics.quote_asset_amount.cast()?,
@@ -225,8 +221,6 @@ pub fn settle_lp_position(
         .amm
         .base_asset_amount_with_unsettled_lp
         .safe_add(lp_metrics.base_asset_amount)?;
-
-    crate::dlog!(market.amm.base_asset_amount_with_unsettled_lp);
 
     position.last_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
     position.last_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
