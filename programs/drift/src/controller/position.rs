@@ -384,14 +384,14 @@ pub fn update_lp_market_position(
     fee_to_market: i128,
     liquidity_split: AMMLiquiditySplit,
 ) -> DriftResult<(i128, i128, i128)> {
-    let mut user_lp_shares = market.amm.user_lp_shares;
+    let user_lp_shares = market.amm.user_lp_shares;
 
     if user_lp_shares == 0 || liquidity_split == AMMLiquiditySplit::ProtocolOwned {
         return Ok((0, 0, 0)); // no need to split with LP
     }
 
     let mut base_unit = AMM_RESERVE_PRECISION_I128;
-    let mut total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
+    let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
         market.amm.user_lp_shares
     } else {
         market.amm.sqrt_k
@@ -415,14 +415,14 @@ pub fn update_lp_market_position(
     // update Market per lp position
     let per_lp_delta_base = get_proportion_i128(
         delta.base_asset_amount.cast()?,
-        base_unit.cast()?,
-        total_lp_shares,
+        AMM_RESERVE_PRECISION,
+        total_lp_shares.safe_div_ceil(rebase_divisor.cast()?)?,
     )?;
 
     let mut per_lp_delta_quote = get_proportion_i128(
         delta.quote_asset_amount.cast()?,
-        base_unit.cast()?,
-        total_lp_shares,
+        AMM_RESERVE_PRECISION,
+        total_lp_shares.safe_div_ceil(rebase_divisor.cast()?)?,
     )?;
 
     // user position delta is short => lp position delta is long
@@ -454,16 +454,14 @@ pub fn update_lp_market_position(
         LP_FEE_SLICE_DENOMINATOR,
     )?
     .safe_mul(user_lp_shares.cast::<i128>()?)?
-    .safe_div(
-        total_lp_shares
-            .cast::<i128>()?
-            .safe_div_ceil(rebase_divisor)?,
-    )?;
+    .safe_div(total_lp_shares.cast::<i128>()?)?;
 
     let per_lp_fee: i128 = if lp_fee > 0 {
-        lp_fee
-            .safe_mul(base_unit)?
-            .safe_div(user_lp_shares.cast::<i128>()?)?
+        lp_fee.safe_mul(AMM_RESERVE_PRECISION_I128)?.safe_div(
+            user_lp_shares
+                .cast::<i128>()?
+                .safe_div_ceil(rebase_divisor)?,
+        )?
     } else {
         0
     };
