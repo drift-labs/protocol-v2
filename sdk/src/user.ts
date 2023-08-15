@@ -263,6 +263,7 @@ export class User {
 			lpShares: ZERO,
 			lastBaseAssetAmountPerLp: ZERO,
 			lastQuoteAssetAmountPerLp: ZERO,
+			perLpBase: ZERO,
 		};
 	}
 
