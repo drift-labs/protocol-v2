@@ -742,21 +742,24 @@ impl Default for AMM {
 }
 
 impl AMM {
+    pub fn get_per_lp_base_unit(self) -> DriftResult<i128> {
+        let scalar: i128 = 10_i128.pow(self.per_lp_base.abs().cast()?);
+
+        if self.per_lp_base > 0 {
+            AMM_RESERVE_PRECISION_I128.safe_mul(scalar)
+        } else {
+            AMM_RESERVE_PRECISION_I128.safe_div(scalar)
+        }
+    }
+
     pub fn calculate_lp_delta(
         &self,
         per_lp_delta_base: i128,
         per_lp_delta_quote: i128,
-        // per_lp_fee: i128,
         fee_to_market: i128,
         liquidity_split: AMMLiquiditySplit,
     ) -> DriftResult<(i128, i128, i128)> {
-        let scalar: i128 = 10_i128.pow(self.per_lp_base.abs().cast()?);
-
-        let base_unit = if self.per_lp_base > 0 {
-            AMM_RESERVE_PRECISION_I128.safe_mul(scalar)?
-        } else {
-            AMM_RESERVE_PRECISION_I128.safe_div(scalar)?
-        };
+        let base_unit = self.get_per_lp_base_unit()?;
 
         let user_lp_shares = self.user_lp_shares;
         let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
@@ -796,20 +799,7 @@ impl AMM {
         } else {
             self.sqrt_k
         };
-
-        // let rebase_divisor: i128 = if self.per_lp_base < 0 {
-        //     0 // TODO
-        // } else {
-        //     10_i128.pow(self.per_lp_base.abs().cast()?)
-        // };
-
-        let scalar: i128 = 10_i128.pow(self.per_lp_base.abs().cast()?);
-
-        let base_unit = if self.per_lp_base > 0 {
-            AMM_RESERVE_PRECISION_I128.safe_mul(scalar)?
-        } else {
-            AMM_RESERVE_PRECISION_I128.safe_div(scalar)?
-        };
+        let base_unit = self.get_per_lp_base_unit()?;
 
         // update Market per lp position
         let per_lp_delta_base = get_proportion_i128(

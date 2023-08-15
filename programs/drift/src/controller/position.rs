@@ -385,14 +385,6 @@ pub fn update_lp_market_position(
         return Ok((0, 0, 0)); // no need to split with LP
     }
 
-    // let user_lp_shares = market.amm.user_lp_shares;
-    // let mut base_unit = AMM_RESERVE_PRECISION_I128;
-    // let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
-    //     market.amm.user_lp_shares
-    // } else {
-    //     market.amm.sqrt_k
-    // };
-
     let (per_lp_delta_base, per_lp_delta_quote, per_lp_fee) =
         market
             .amm
@@ -401,7 +393,6 @@ pub fn update_lp_market_position(
     let (lp_delta_base, lp_delta_quote, lp_fee) = market.amm.calculate_lp_delta(
         per_lp_delta_base,
         per_lp_delta_quote,
-        // per_lp_fee,
         fee_to_market,
         liquidity_split,
     )?;
