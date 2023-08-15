@@ -6,11 +6,8 @@ use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, LP_FEE_SLICE_DENOMINATOR,
-    LP_FEE_SLICE_NUMERATOR, MAX_BASE_ASSET_AMOUNT_WITH_AMM, PERP_DECIMALS,
-};
-use crate::math::helpers::get_proportion_i128;
+use crate::math::constants::{MAX_BASE_ASSET_AMOUNT_WITH_AMM, PERP_DECIMALS};
+// use crate::math::helpers::get_proportion_i128;
 use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
     is_multiple_of_step_size,
@@ -384,59 +381,32 @@ pub fn update_lp_market_position(
     fee_to_market: i128,
     liquidity_split: AMMLiquiditySplit,
 ) -> DriftResult<(i128, i128, i128)> {
-    let user_lp_shares = market.amm.user_lp_shares;
-
-    if user_lp_shares == 0 || liquidity_split == AMMLiquiditySplit::ProtocolOwned {
+    if market.amm.user_lp_shares == 0 || liquidity_split == AMMLiquiditySplit::ProtocolOwned {
         return Ok((0, 0, 0)); // no need to split with LP
     }
 
-    let mut base_unit = AMM_RESERVE_PRECISION_I128;
-    let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
-        market.amm.user_lp_shares
-    } else {
-        market.amm.sqrt_k
-    };
+    // let user_lp_shares = market.amm.user_lp_shares;
+    // let mut base_unit = AMM_RESERVE_PRECISION_I128;
+    // let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
+    //     market.amm.user_lp_shares
+    // } else {
+    //     market.amm.sqrt_k
+    // };
 
-    validate!(
-        market.amm.per_lp_base >= 0,
-        ErrorCode::InvalidAmmDetected,
-        "per_lp_base={} must be non-negative (to start)",
-        market.amm.per_lp_base
+    let (per_lp_delta_base, per_lp_delta_quote, per_lp_fee) =
+        market
+            .amm
+            .calculate_per_lp_delta(delta, fee_to_market, liquidity_split)?;
+
+    let (lp_delta_base, lp_delta_quote, lp_fee) = market.amm.calculate_lp_delta(
+        per_lp_delta_base,
+        per_lp_delta_quote,
+        // per_lp_fee,
+        fee_to_market,
+        liquidity_split,
     )?;
 
-    let rebase_divisor: i128 = if market.amm.per_lp_base < 0 {
-        0 // TODO
-    } else {
-        let scalar: i128 = 10_i128.pow(market.amm.per_lp_base.abs().cast()?);
-        base_unit = base_unit.safe_mul(scalar)?;
-        scalar
-    };
-
-    // update Market per lp position
-    let per_lp_delta_base = get_proportion_i128(
-        delta.base_asset_amount.cast()?,
-        AMM_RESERVE_PRECISION,
-        total_lp_shares.safe_div_ceil(rebase_divisor.cast()?)?,
-    )?;
-
-    let mut per_lp_delta_quote = get_proportion_i128(
-        delta.quote_asset_amount.cast()?,
-        AMM_RESERVE_PRECISION,
-        total_lp_shares.safe_div_ceil(rebase_divisor.cast()?)?,
-    )?;
-
-    // user position delta is short => lp position delta is long
-    if per_lp_delta_base < 0 {
-        // add one => lp subtract 1
-        per_lp_delta_quote = per_lp_delta_quote.safe_add(1)?;
-    }
-
-    crate::dlog!(per_lp_delta_base, user_lp_shares, base_unit);
-
-    // calculate dedicated for user lp shares
-    let lp_delta_base = get_proportion_i128(per_lp_delta_base, user_lp_shares, base_unit.cast()?)?;
-    let lp_delta_quote =
-        get_proportion_i128(per_lp_delta_quote, user_lp_shares, base_unit.cast()?)?;
+    // crate::dlog!(per_lp_delta_base, user_lp_shares, base_unit);
 
     market.amm.base_asset_amount_per_lp = market
         .amm
@@ -447,26 +417,6 @@ pub fn update_lp_market_position(
         .amm
         .quote_asset_amount_per_lp
         .safe_add(-per_lp_delta_quote)?;
-
-    // 1/5 of fee auto goes to market
-    // the rest goes to lps/market proportional
-    let lp_fee = get_proportion_i128(
-        fee_to_market,
-        LP_FEE_SLICE_NUMERATOR,
-        LP_FEE_SLICE_DENOMINATOR,
-    )?
-    .safe_mul(user_lp_shares.cast::<i128>()?)?
-    .safe_div(total_lp_shares.cast::<i128>()?)?;
-
-    let per_lp_fee: i128 = if lp_fee > 0 {
-        lp_fee.safe_mul(AMM_RESERVE_PRECISION_I128)?.safe_div(
-            user_lp_shares
-                .cast::<i128>()?
-                .safe_div_ceil(rebase_divisor)?,
-        )?
-    } else {
-        0
-    };
 
     // track total fee earned by lps (to attribute breakdown of IL)
     market.amm.total_fee_earned_per_lp = market

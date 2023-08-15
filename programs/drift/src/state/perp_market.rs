@@ -2,18 +2,17 @@ use anchor_lang::prelude::*;
 
 use std::cmp::max;
 
-use crate::controller::position::PositionDirection;
+use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::Cast;
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION,
+    BID_ASK_SPREAD_PRECISION_U128, LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR,
+    MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+};
 #[cfg(test)]
-use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
-};
-use crate::math::constants::{
-    BASE_PRECISION, BID_ASK_SPREAD_PRECISION_U128, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION,
-    TWENTY_FOUR_HOUR,
-};
+use crate::math::constants::{MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64};
 use crate::math::helpers::get_proportion_i128;
 
 use crate::math::margin::{
@@ -741,6 +740,114 @@ impl Default for AMM {
 }
 
 impl AMM {
+    pub fn calculate_lp_delta(
+        &self,
+        per_lp_delta_base: i128,
+        per_lp_delta_quote: i128,
+        // per_lp_fee: i128,
+        fee_to_market: i128,
+        liquidity_split: AMMLiquiditySplit,
+    ) -> DriftResult<(i128, i128, i128)> {
+        let scalar: i128 = 10_i128.pow(self.per_lp_base.abs().cast()?);
+
+        let base_unit = AMM_RESERVE_PRECISION_I128.safe_mul(scalar)?;
+
+        let user_lp_shares = self.user_lp_shares;
+        let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
+            self.user_lp_shares
+        } else {
+            self.sqrt_k
+        };
+
+        // calculate dedicated for user lp shares
+        let lp_delta_base =
+            get_proportion_i128(per_lp_delta_base, user_lp_shares, base_unit.cast()?)?;
+        let lp_delta_quote =
+            get_proportion_i128(per_lp_delta_quote, user_lp_shares, base_unit.cast()?)?;
+
+        // 1/5 of fee auto goes to market
+        // the rest goes to lps/market proportional
+        let lp_fee = get_proportion_i128(
+            fee_to_market,
+            LP_FEE_SLICE_NUMERATOR,
+            LP_FEE_SLICE_DENOMINATOR,
+        )?
+        .safe_mul(user_lp_shares.cast::<i128>()?)?
+        .safe_div(total_lp_shares.cast::<i128>()?)?;
+
+        Ok((lp_delta_base, lp_delta_quote, lp_fee))
+    }
+
+    pub fn calculate_per_lp_delta(
+        &self,
+        delta: &PositionDelta,
+        fee_to_market: i128,
+        liquidity_split: AMMLiquiditySplit,
+    ) -> DriftResult<(i128, i128, i128)> {
+        // validate!(
+        //     self.per_lp_base >= 0,
+        //     ErrorCode::InvalidAmmDetected,
+        //     "per_lp_base={} must be non-negative (to start)",
+        //     self.per_lp_base
+        // )?;
+
+        let user_lp_shares = self.user_lp_shares;
+        // let base_unit = AMM_RESERVE_PRECISION_I128;
+
+        let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
+            self.user_lp_shares
+        } else {
+            self.sqrt_k
+        };
+
+        let rebase_divisor: i128 = if self.per_lp_base < 0 {
+            0 // TODO
+        } else {
+            10_i128.pow(self.per_lp_base.abs().cast()?)
+        };
+
+        // update Market per lp position
+        let per_lp_delta_base = get_proportion_i128(
+            delta.base_asset_amount.cast()?,
+            AMM_RESERVE_PRECISION,
+            total_lp_shares.safe_div_ceil(rebase_divisor.cast()?)?,
+        )?;
+
+        let mut per_lp_delta_quote = get_proportion_i128(
+            delta.quote_asset_amount.cast()?,
+            AMM_RESERVE_PRECISION,
+            total_lp_shares.safe_div_ceil(rebase_divisor.cast()?)?,
+        )?;
+
+        // user position delta is short => lp position delta is long
+        if per_lp_delta_base < 0 {
+            // add one => lp subtract 1
+            per_lp_delta_quote = per_lp_delta_quote.safe_add(1)?;
+        }
+
+        // 1/5 of fee auto goes to market
+        // the rest goes to lps/market proportional
+        let lp_fee = get_proportion_i128(
+            fee_to_market,
+            LP_FEE_SLICE_NUMERATOR,
+            LP_FEE_SLICE_DENOMINATOR,
+        )?
+        .safe_mul(user_lp_shares.cast::<i128>()?)?
+        .safe_div(total_lp_shares.cast::<i128>()?)?;
+
+        let per_lp_fee: i128 = if lp_fee > 0 {
+            lp_fee.safe_mul(AMM_RESERVE_PRECISION_I128)?.safe_div(
+                user_lp_shares
+                    .cast::<i128>()?
+                    .safe_div_ceil(rebase_divisor)?,
+            )?
+        } else {
+            0
+        };
+
+        Ok((per_lp_delta_base, per_lp_delta_quote, per_lp_fee))
+    }
+
     pub fn get_target_base_asset_amount_per_lp(&self) -> DriftResult<i128> {
         if self.target_base_asset_amount_per_lp == 0 {
             return Ok(0_i128);
