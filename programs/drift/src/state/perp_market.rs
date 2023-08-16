@@ -793,7 +793,6 @@ impl AMM {
         fee_to_market: i128,
         liquidity_split: AMMLiquiditySplit,
     ) -> DriftResult<(i128, i128, i128)> {
-        let user_lp_shares = self.user_lp_shares;
         let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
             self.user_lp_shares
         } else {
@@ -822,18 +821,14 @@ impl AMM {
 
         // 1/5 of fee auto goes to market
         // the rest goes to lps/market proportional
-        let lp_fee = get_proportion_i128(
-            fee_to_market,
-            LP_FEE_SLICE_NUMERATOR,
-            LP_FEE_SLICE_DENOMINATOR,
-        )?
-        .safe_mul(user_lp_shares.cast::<i128>()?)?
-        .safe_div(total_lp_shares.cast::<i128>()?)?;
-
-        let per_lp_fee: i128 = if lp_fee > 0 {
-            lp_fee
-                .safe_mul(base_unit)?
-                .safe_div(user_lp_shares.cast::<i128>()?)?
+        let per_lp_fee: i128 = if fee_to_market > 0 {
+            get_proportion_i128(
+                fee_to_market,
+                LP_FEE_SLICE_NUMERATOR,
+                LP_FEE_SLICE_DENOMINATOR,
+            )?
+            .safe_mul(base_unit)?
+            .safe_div(total_lp_shares.cast::<i128>()?)?
         } else {
             0
         };
