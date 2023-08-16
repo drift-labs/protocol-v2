@@ -1268,6 +1268,8 @@ describe('liquidity providing', () => {
 				marketBefore.amm.quoteAssetAmountPerLp.mul(new BN(10))
 			)
 		);
+		console.log(marketAfter.amm.targetBaseAssetAmountPerLp);
+		console.log(marketBefore.amm.targetBaseAssetAmountPerLp);
 
 		assert(
 			marketAfter.amm.targetBaseAssetAmountPerLp ==
@@ -1322,11 +1324,16 @@ describe('liquidity providing', () => {
 		);
 
 		const netValueBefore = await driftClient.getUser().getNetSpotMarketValue();
+		const posBefore0: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPosition(0);
+		assert(posBefore0.perLpBase == 0);
+
 		const posBefore: PerpPosition = await driftClient
 			.getUser()
 			.getPerpPositionWithLPSettle(0)[0];
-
-		assert(posBefore.perLpBase == 0);
+		// console.log(posBefore);
+		assert(posBefore.perLpBase == 1); // properly sets it
 
 		const _txSig = await driftClient.settleLP(
 			await driftClient.getUserAccountPublicKey(),
@@ -1342,14 +1349,24 @@ describe('liquidity providing', () => {
 		);
 		assert(marketAfter1.amm.baseAssetAmountWithUnsettledLp.eq(new BN('0')));
 
+		const posAfter0: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPosition(0);
+		assert(posAfter0.perLpBase == 1);
+
 		const posAfter: PerpPosition = await driftClient
 			.getUser()
 			.getPerpPositionWithLPSettle(0)[0];
 
 		assert(posAfter.perLpBase == 1);
 		assert(
-			posAfter.lastBaseAssetAmountPerLp.gt(posBefore.lastBaseAssetAmountPerLp)
+			posAfter0.lastBaseAssetAmountPerLp.gt(posBefore0.lastBaseAssetAmountPerLp)
 		);
+		// console.log(posAfter.lastBaseAssetAmountPerLp.toString());
+		// console.log(posBefore.lastBaseAssetAmountPerLp.toString());
+
+		assert(posAfter.lastBaseAssetAmountPerLp.eq(new BN('625000000')));
+		assert(posBefore.lastBaseAssetAmountPerLp.eq(new BN('750000000')));
 
 		const netValueAfter = await driftClient.getUser().getNetSpotMarketValue();
 

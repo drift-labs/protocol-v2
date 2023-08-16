@@ -431,7 +431,7 @@ export class User {
 		const market = this.driftClient.getPerpMarketAccount(position.marketIndex);
 
 		if (market.amm.perLpBase != position.perLpBase) {
-			const expoDiff = position.perLpBase - market.amm.perLpBase;
+			const expoDiff = market.amm.perLpBase - position.perLpBase;
 			const marketPerLpRebaseScalar = new BN(
 				10 ** Math.abs(market.amm.perLpBase)
 			);
@@ -447,6 +447,8 @@ export class User {
 				position.lastQuoteAssetAmountPerLp =
 					position.lastQuoteAssetAmountPerLp.div(marketPerLpRebaseScalar);
 			}
+
+			position.perLpBase = position.perLpBase + expoDiff;
 		}
 
 		const nShares = position.lpShares;

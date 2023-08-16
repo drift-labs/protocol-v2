@@ -46,7 +46,7 @@ pub fn calculate_settled_lp_base_quote(
     amm: &AMM,
     position: &PerpPosition,
 ) -> DriftResult<(i128, i128)> {
-    let mut n_shares = position.lp_shares;
+    let n_shares = position.lp_shares;
     let mut base_unit = AMM_RESERVE_PRECISION_I128;
 
     validate!(
@@ -62,8 +62,8 @@ pub fn calculate_settled_lp_base_quote(
             let rebase_divisor = 10_u64.pow(position.per_lp_base.cast()?);
             base_unit = base_unit.safe_mul(rebase_divisor.cast()?)?;
         } else {
-            let rebase_divisor = 10_u64.pow(position.per_lp_base.abs().cast()?);
-            n_shares = n_shares.safe_mul(rebase_divisor)?;
+            let rebase_multiplier = 10_u64.pow(position.per_lp_base.abs().cast()?);
+            base_unit = base_unit.safe_mul(rebase_multiplier.cast()?)?;
         }
     }
 
