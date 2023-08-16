@@ -2937,12 +2937,20 @@ export class User {
 			withdrawLimit = BN.max(withdrawLimit, userDepositAmount);
 		}
 
-		const amountWithdrawable = freeCollateral
-			.mul(MARGIN_PRECISION)
-			.div(new BN(spotMarket.initialAssetWeight))
-			.mul(PRICE_PRECISION)
-			.div(oracleData.price)
-			.mul(precisionIncrease);
+		const assetWeight = calculateAssetWeight(
+			userDepositAmount,
+			spotMarket,
+			'Initial'
+		);
+
+		const amountWithdrawable = assetWeight.eq(ZERO)
+			? userDepositAmount
+			: freeCollateral
+					.mul(MARGIN_PRECISION)
+					.div(assetWeight)
+					.mul(PRICE_PRECISION)
+					.div(oracleData.price)
+					.mul(precisionIncrease);
 
 		const maxWithdrawValue = BN.min(
 			BN.min(amountWithdrawable, userDepositAmount),
