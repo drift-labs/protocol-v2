@@ -34,9 +34,7 @@ pub fn apply_lp_rebase_to_perp_market(
     // thus changing the base of lp and without changing target_base_asset_amount_per_lp
     // causes an implied change
 
-    if expo_diff == 0 {
-        return Ok(());
-    }
+    validate!(expo_diff != 0, ErrorCode::DefaultError, "expo_diff = 0")?;
 
     perp_market.amm.per_lp_base = perp_market.amm.per_lp_base.safe_add(expo_diff)?;
     let rebase_divisor: i128 = 10_i128.pow(expo_diff.abs().cast()?);
@@ -108,7 +106,6 @@ pub fn apply_lp_rebase_to_perp_position(
             perp_market.market_index,
             expo_diff,
         );
-        perp_position.per_lp_base = perp_position.per_lp_base.safe_add(expo_diff)?;
     } else if expo_diff < 0 {
         let rebase_divisor: i64 = 10_i64.pow(expo_diff.abs().cast()?);
 
@@ -124,8 +121,9 @@ pub fn apply_lp_rebase_to_perp_position(
             perp_market.market_index,
             expo_diff,
         );
-        perp_position.per_lp_base = perp_position.per_lp_base.safe_add(expo_diff)?;
     }
+
+    perp_position.per_lp_base = perp_position.per_lp_base.safe_add(expo_diff)?;
 
     Ok(())
 }
