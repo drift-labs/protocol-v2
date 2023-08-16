@@ -1865,6 +1865,12 @@ pub fn handle_update_perp_market_per_lp_base(
         "invalid expo update (must be 1)",
     )?;
 
+    validate!(
+        per_lp_base.abs() <= 9,
+        ErrorCode::DefaultError,
+        "only consider lp_base within range of AMM_RESERVE_PRECISION",
+    )?;
+
     controller::lp::apply_lp_rebase_to_perp_market(perp_market, expo_diff)?;
 
     Ok(())
