@@ -144,6 +144,7 @@ pub fn mint_lp_shares(
     } else {
         position.last_base_asset_amount_per_lp = amm.base_asset_amount_per_lp.cast()?;
         position.last_quote_asset_amount_per_lp = amm.quote_asset_amount_per_lp.cast()?;
+        position.per_lp_base = amm.per_lp_base;
     }
 
     // add share balance
