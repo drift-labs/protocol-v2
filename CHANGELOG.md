@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.37.1] - 2023-08-17
+
+### Features
+
+### Fixes
+
+- program: round up in calculate_liability_transfer_implied_by_asset_amount
+
+### Breaking
+
 ## [2.37.0] - 2023-08-02
 
 ### Features
