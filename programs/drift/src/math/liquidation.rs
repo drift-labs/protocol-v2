@@ -128,12 +128,12 @@ pub fn calculate_liability_transfer_implied_by_asset_amount(
         .safe_mul(numerator_scale)?
         .safe_mul(asset_price.cast()?)?
         .safe_mul(liability_liquidation_multiplier.cast()?)?
-        .safe_div(
+        .safe_div_ceil(
             liability_price
                 .cast::<u128>()?
                 .safe_mul(asset_liquidation_multiplier.cast()?)?,
         )?
-        .safe_div(denominator_scale)
+        .safe_div_ceil(denominator_scale)
 }
 
 pub fn calculate_asset_transfer_for_liability_transfer(
