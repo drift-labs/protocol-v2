@@ -1123,31 +1123,6 @@
       ]
     },
     {
-      "name": "updateUserReduceOnly",
-      "accounts": [
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "subAccountId",
-          "type": "u16"
-        },
-        {
-          "name": "reduceOnly",
-          "type": "bool"
-        }
-      ]
-    },
-    {
       "name": "deleteUser",
       "accounts": [
         {
@@ -8339,9 +8314,6 @@
           },
           {
             "name": "Bankrupt"
-          },
-          {
-            "name": "ReduceOnly"
           }
         ]
       }
@@ -10709,11 +10681,6 @@
       "code": 6253,
       "name": "CantUpdatePerpBidAskTwap",
       "msg": "CantUpdatePerpBidAskTwap"
-    },
-    {
-      "code": 6254,
-      "name": "UserReduceOnly",
-      "msg": "UserReduceOnly"
     }
   ]
 }
