@@ -813,6 +813,9 @@ describe('repeg and spread amm', () => {
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
 		await driftClientUser.subscribe();
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+
 		const userCollateral = convertToNumber(
 			driftClientUser.getSpotMarketAssetValue(),
 			QUOTE_PRECISION
@@ -873,6 +876,8 @@ describe('repeg and spread amm', () => {
 				driftClientUserI.getSpotMarketAssetValue(),
 				QUOTE_PRECISION
 			);
+			await driftClientI.fetchAccounts();
+			await driftClientUserI.fetchAccounts();
 
 			const unsettledPnl = driftClientUserI
 				.getUserAccount()
