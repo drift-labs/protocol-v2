@@ -155,14 +155,14 @@ export class LogParser {
 			event.logs,
 			false
 		);
-		let _runningEventIndex = 0;
+		let runningEventIndex = 0;
 		for (const eventLog of eventGenerator) {
 			eventLog.data.txSig = event.txSig;
 			eventLog.data.slot = event.slot;
 			eventLog.data.eventType = eventLog.name;
-			//eventLog.data.txSigIndex = _runningEventIndex;
+			eventLog.data.txSigIndex = runningEventIndex;
 			records.push(eventLog.data);
-			_runningEventIndex++;
+			runningEventIndex++;
 		}
 		return records;
 	}
