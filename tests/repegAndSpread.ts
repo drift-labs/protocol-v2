@@ -101,6 +101,11 @@ async function iterClosePosition(
 	}
 
 	while (!userPosition.baseAssetAmount.eq(ZERO)) {
+		await driftClient.settlePNL(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
+			marketIndex
+		);
 		const closeOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: posDirection,
