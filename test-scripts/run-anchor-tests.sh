@@ -5,7 +5,7 @@ fi
 
 test_files=(
 #   oracleFillPriceGuardrails.ts
-#   perpLpJit.ts
+  perpLpJit.ts
 #   spotSwap.ts
 #   maxLeverageOrderParams.ts
 #   multipleMakerOrders.ts

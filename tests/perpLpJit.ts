@@ -33,6 +33,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
+	sleep,
 	// sleep,
 } from './testHelpers';
 
@@ -310,14 +311,16 @@ describe('lp jit', () => {
 			0,
 			BASE_PRECISION.toNumber()
 		);
-
+		sleep(200);
 		await driftClient.fetchAccounts();
 		let market = driftClient.getPerpMarketAccount(0);
 		console.log(
 			'market.amm.sqrtK:',
 			market.amm.userLpShares.toString(),
 			'/',
-			market.amm.sqrtK.toString()
+			market.amm.sqrtK.toString(),
+			'target:',
+			market.amm.targetBaseAssetAmountPerLp
 		);
 		assert(market.amm.sqrtK.eq(new BN('300000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
