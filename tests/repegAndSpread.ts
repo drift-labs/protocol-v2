@@ -101,11 +101,6 @@ async function iterClosePosition(
 	}
 
 	while (!userPosition.baseAssetAmount.eq(ZERO)) {
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
-			marketIndex
-		);
 		const closeOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: posDirection,
@@ -869,6 +864,7 @@ describe('repeg and spread amm', () => {
 					driftClients[i].getUserAccount(),
 					0
 				);
+				await driftClients[i].fetchAccounts();
 			}
 
 			const driftClientI = driftClients[i];
