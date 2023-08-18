@@ -864,6 +864,7 @@ describe('repeg and spread amm', () => {
 					driftClients[i].getUserAccount(),
 					0
 				);
+				await driftClients[i].fetchAccounts();
 			}
 
 			const driftClientI = driftClients[i];

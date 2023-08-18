@@ -679,7 +679,12 @@ describe('lp jit', () => {
 		);
 		assert(market.amm.sqrtK.eq(new BN('1000000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
+		assert(
+			market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber(),
+			`targetBaseAssetAmountPerLp: ${
+				market.amm.targetBaseAssetAmountPerLp
+			} != ${BASE_PRECISION.toNumber()}`
+		);
 
 		const _sig = await driftClient.addPerpLpShares(
 			new BN(100 * BASE_PRECISION.toNumber()),
