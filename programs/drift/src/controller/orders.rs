@@ -2551,10 +2551,11 @@ pub fn trigger_order(
 
     // If order is risk increasing and user is below initial margin, cancel it
     let order_direction = user.orders[order_index].direction;
-    let order_base_asset_amount = user.orders[order_index].base_asset_amount;
     let position_base_asset_amount = user
         .force_get_perp_position_mut(market_index)?
         .base_asset_amount;
+    let order_base_asset_amount = user.orders[order_index]
+        .get_base_asset_amount_unfilled(Some(position_base_asset_amount))?;
     let is_risk_increasing = is_order_risk_increasing(
         &order_direction,
         order_base_asset_amount,
