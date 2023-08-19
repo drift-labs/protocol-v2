@@ -2549,14 +2549,14 @@ pub fn trigger_order(
 
     drop(perp_market);
 
-    // If order is risk increasing and user is below initial margin, cancel it
+    // If order is position reducing and user is below initial margin, cancel it
     let order_direction = user.orders[order_index].direction;
     let position_base_asset_amount = user
         .force_get_perp_position_mut(market_index)?
         .base_asset_amount;
     let order_base_asset_amount = user.orders[order_index]
         .get_base_asset_amount_unfilled(Some(position_base_asset_amount))?;
-    let is_risk_increasing = is_order_risk_increasing(
+    let is_position_reducing = is_order_position_reducing(
         &order_direction,
         order_base_asset_amount,
         position_base_asset_amount,
@@ -2565,7 +2565,7 @@ pub fn trigger_order(
     let meets_initial_margin_requirement =
         meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
 
-    if is_risk_increasing && !meets_initial_margin_requirement {
+    if !is_position_reducing && !meets_initial_margin_requirement {
         cancel_order(
             order_index,
             user,
@@ -4485,20 +4485,27 @@ pub fn trigger_spot_order(
     emit!(order_action_record);
 
     let position_index = user.get_spot_position_index(market_index)?;
-    let token_amount = user.spot_positions[position_index].get_token_amount(&spot_market)?;
+    let signed_token_amount = user.spot_positions[position_index]
+        .get_signed_token_amount(&spot_market)?
+        .cast::<i64>()?;
 
     drop(spot_market);
     drop(quote_market);
 
-    // If order is risk increasing and user is below initial margin, cancel it
-    let balance_type = user.spot_positions[position_index].balance_type;
-    let is_risk_increasing =
-        is_spot_order_risk_increasing(&user.orders[order_index], &balance_type, token_amount)?;
+    // If order is position increasing and user is below initial margin, cancel it
+    let direction = user.orders[order_index].direction;
+    let order_base_asset_amount_unfilled =
+        user.orders[order_index].get_base_asset_amount_unfilled(Some(signed_token_amount))?;
+    let is_position_reducing = is_order_position_reducing(
+        &direction,
+        order_base_asset_amount_unfilled,
+        signed_token_amount,
+    )?;
 
     let meets_initial_margin_requirement =
         meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
 
-    if is_risk_increasing && !meets_initial_margin_requirement {
+    if !is_position_reducing && !meets_initial_margin_requirement {
         cancel_order(
             order_index,
             user,
