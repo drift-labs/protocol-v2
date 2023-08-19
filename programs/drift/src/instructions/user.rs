@@ -11,7 +11,9 @@ use crate::controller::spot_position::{
 };
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
-use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, marinade_mainnet, serum_program};
+use crate::ids::{
+    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, marinade_mainnet, serum_program,
+};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
@@ -2497,6 +2499,7 @@ pub fn handle_begin_swap(
                 AssociatedToken::id(),
                 jupiter_mainnet_3::ID,
                 jupiter_mainnet_4::ID,
+                jupiter_mainnet_6::ID,
             ];
             if !delegate_is_signer {
                 whitelisted_programs.push(Token::id());
