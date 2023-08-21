@@ -28,14 +28,15 @@ mod tests;
 pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     margin_shortage: u128,
     margin_ratio: u32,
-    liquidation_fee: u32,
+    liquidator_fee: u32,
     if_liquidation_fee: u32,
     oracle_price: i64,
     quote_oracle_price: i64,
 ) -> DriftResult<u64> {
     let margin_ratio = margin_ratio.safe_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)?;
+    let total_liquidation_fee = liquidator_fee.safe_add(if_liquidation_fee)?;
 
-    if oracle_price == 0 || margin_ratio <= liquidation_fee {
+    if oracle_price == 0 || margin_ratio <= total_liquidation_fee {
         return Ok(u64::MAX);
     }
 
@@ -46,14 +47,8 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
                 .cast::<u128>()?
                 .safe_mul(quote_oracle_price.cast()?)?
                 .safe_div(PRICE_PRECISION)?
-                .safe_mul(margin_ratio.safe_sub(liquidation_fee)?.cast()?)?
-                .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
-                .safe_sub(
-                    oracle_price
-                        .cast::<u128>()?
-                        .safe_mul(if_liquidation_fee.cast()?)?
-                        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?,
-                )?,
+                .safe_mul(margin_ratio.safe_sub(total_liquidation_fee)?.cast()?)?
+                .safe_div(LIQUIDATION_FEE_PRECISION_U128)?,
         )?
         .cast()
 }
