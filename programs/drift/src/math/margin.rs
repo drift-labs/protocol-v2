@@ -783,21 +783,21 @@ pub fn calculate_max_withdrawable_amount(
             spot_market_map,
             oracle_map,
             None,
-            false,
+            true,
         )?;
 
     let spot_market = &mut spot_market_map.get_ref(&market_index)?;
 
-    if spot_market.initial_asset_weight == 0 {
-        return Ok(u64::MAX);
-    }
+    // if spot_market.initial_asset_weight == 0 && spot_market.maintenance_asset_weight == 0 {
+    //     return Ok(u64::MAX);
+    // }
 
     if num_of_liabilities == 0 {
         // user has small dust deposit and no liabilities
         // so return early with user tokens amount
         return user
             .get_spot_position(market_index)?
-            .get_token_amount(spot_market)?
+            .get_signed_token_amount(spot_market)?
             .cast();
     }
 

@@ -402,6 +402,10 @@ pub fn handle_withdraw(
     )?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(
+        !user.is_being_liquidated(),
+        ErrorCode::UserIsBeingLiquidated
+    )?;
 
     let spot_market_is_reduce_only = {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
