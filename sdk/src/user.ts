@@ -265,7 +265,7 @@ export class User {
 			lpShares: ZERO,
 			lastBaseAssetAmountPerLp: ZERO,
 			lastQuoteAssetAmountPerLp: ZERO,
-			perLpBase: ZERO,
+			perLpBase: 0,
 		};
 	}
 
@@ -461,13 +461,13 @@ export class User {
 		if (market.amm.perLpBase == position.perLpBase) {
 			if (
 				position.perLpBase >= 0 &&
-				position.perLpBase <= AMM_RESERVE_PRECISION_EXP
+				position.perLpBase <= AMM_RESERVE_PRECISION_EXP.toNumber()
 			) {
 				const marketPerLpRebase = new BN(10 ** market.amm.perLpBase);
 				baseUnit = baseUnit.mul(marketPerLpRebase);
 			} else if (
 				position.perLpBase < 0 &&
-				position.perLpBase >= -AMM_RESERVE_PRECISION_EXP
+				position.perLpBase >= -AMM_RESERVE_PRECISION_EXP.toNumber()
 			) {
 				const marketPerLpRebase = new BN(10 ** Math.abs(market.amm.perLpBase));
 				baseUnit = baseUnit.div(marketPerLpRebase);

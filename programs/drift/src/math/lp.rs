@@ -4,7 +4,6 @@ use solana_program::msg;
 
 use crate::math::amm::calculate_market_open_bids_asks;
 use crate::math::casting::Cast;
-use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::helpers;
 use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
 use crate::math::safe_math::SafeMath;
@@ -47,7 +46,7 @@ pub fn calculate_settled_lp_base_quote(
     position: &PerpPosition,
 ) -> DriftResult<(i128, i128)> {
     let n_shares = position.lp_shares;
-    let mut base_unit = AMM_RESERVE_PRECISION_I128;
+    let base_unit: i128 = amm.get_per_lp_base_unit()?;
 
     validate!(
         amm.per_lp_base == position.per_lp_base,
@@ -56,16 +55,6 @@ pub fn calculate_settled_lp_base_quote(
         position.per_lp_base,
         amm.per_lp_base
     )?;
-
-    if position.per_lp_base != 0 {
-        if position.per_lp_base > 0 {
-            let rebase_divisor = 10_u64.pow(position.per_lp_base.cast()?);
-            base_unit = base_unit.safe_mul(rebase_divisor.cast()?)?;
-        } else {
-            let rebase_multiplier = 10_u64.pow(position.per_lp_base.abs().cast()?);
-            base_unit = base_unit.safe_mul(rebase_multiplier.cast()?)?;
-        }
-    }
 
     let n_shares_i128 = n_shares.cast::<i128>()?;
 

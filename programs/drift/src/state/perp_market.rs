@@ -759,7 +759,7 @@ impl AMM {
         fee_to_market: i128,
         liquidity_split: AMMLiquiditySplit,
     ) -> DriftResult<(i128, i128, i128)> {
-        let base_unit = self.get_per_lp_base_unit()?;
+        let base_unit: i128 = self.get_per_lp_base_unit()?;
 
         let user_lp_shares = self.user_lp_shares;
         let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {

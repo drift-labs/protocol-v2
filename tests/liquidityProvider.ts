@@ -1468,6 +1468,59 @@ describe('liquidity providing', () => {
 		assert(posAfterSettle.quoteAssetAmount.eq(posAfter.quoteAssetAmount));
 	});
 
+	it('settled at negative rebase value', async () => {
+		await driftClient.updatePerpMarketPerLpBase(0, 1);
+		await driftClient.updatePerpMarketPerLpBase(0, 0);
+		await driftClient.updatePerpMarketPerLpBase(0, -1);
+		await driftClient.updatePerpMarketPerLpBase(0, -2);
+		await driftClient.updatePerpMarketPerLpBase(0, -3);
+
+		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
+		const market = driftClient.getPerpMarketAccount(0);
+
+		console.log('user trading...');
+		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+		const _txsig = await traderDriftClient.openPosition(
+			PositionDirection.SHORT,
+			tradeSize,
+			market.marketIndex
+		);
+		await _viewLogs(_txsig);
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+
+		const posAfter: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPositionWithLPSettle(0)[0];
+		console.log('posAfter');
+		console.log(posAfter.baseAssetAmount.toString());
+		console.log(posAfter.quoteAssetAmount.toString());
+		console.log(posAfter.lastBaseAssetAmountPerLp.toString());
+		console.log(posAfter.lastQuoteAssetAmountPerLp.toString());
+		console.log(posAfter.perLpBase.toString());
+
+		const _txSig = await driftClient.settleLP(
+			await driftClient.getUserAccountPublicKey(),
+			market.marketIndex
+		);
+
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+
+		const posAfterSettle: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPositionWithLPSettle(0)[0];
+		console.log('posAfterSettle');
+		console.log(posAfterSettle.baseAssetAmount.toString());
+		console.log(posAfterSettle.quoteAssetAmount.toString());
+		console.log(posAfterSettle.lastBaseAssetAmountPerLp.toString());
+		console.log(posAfterSettle.lastQuoteAssetAmountPerLp.toString());
+		console.log(posAfterSettle.perLpBase.toString());
+
+		// assert(posAfterSettle.baseAssetAmount.eq(posAfter.baseAssetAmount)); //TODO: posAfter is wrong (sdk only)
+		// assert(posAfterSettle.quoteAssetAmount.eq(posAfter.quoteAssetAmount)); //TODO: posAfter is wrong (sdk only)
+	});
+
 	it('permissionless lp burn', async () => {
 		const lpAmount = new BN(1 * BASE_PRECISION.toNumber());
 		const _sig = await driftClient.addPerpLpShares(lpAmount, 0);
