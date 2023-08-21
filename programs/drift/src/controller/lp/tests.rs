@@ -709,6 +709,8 @@ fn test_lp_margin_calc() {
     market.amm.cumulative_funding_rate_long *= 2;
     market.amm.cumulative_funding_rate_short *= 2;
 
+    apply_lp_rebase_to_perp_market(&mut market, 1).unwrap();
+
     let sim_user_pos = user.perp_positions[0]
         .simulate_settled_lp_position(&market, oracle_price_data.price)
         .unwrap();
@@ -718,7 +720,7 @@ fn test_lp_margin_calc() {
     );
     assert_eq!(sim_user_pos.base_asset_amount, 101000000000);
     assert_eq!(sim_user_pos.quote_asset_amount, -20000000000);
-    assert_eq!(sim_user_pos.last_cumulative_funding_rate, 0);
+    assert_eq!(sim_user_pos.last_cumulative_funding_rate, 16900000000);
 
     // ensure margin calc doesnt incorrectly count funding rate (funding pnl MUST come before settling lp)
     let (margin_requirement, weighted_unrealized_pnl, worse_case_base_asset_value) =

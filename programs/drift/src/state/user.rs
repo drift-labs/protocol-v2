@@ -1,3 +1,4 @@
+use crate::controller::lp::apply_lp_rebase_to_perp_position;
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
@@ -633,12 +634,16 @@ impl PerpPosition {
         market: &PerpMarket,
         valuation_price: i64,
     ) -> DriftResult<PerpPosition> {
+        let mut settled_position = *self;
+
         if !self.is_lp() {
-            return Ok(*self);
+            return Ok(settled_position);
         }
 
+        apply_lp_rebase_to_perp_position(market, &mut settled_position)?;
+
         // compute lp metrics
-        let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, self)?;
+        let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, &settled_position)?;
 
         // compute settled position
         let base_asset_amount = self
@@ -687,15 +692,12 @@ impl PerpPosition {
 
         let open_asks = self.open_asks.safe_add(lp_asks)?;
 
-        Ok(PerpPosition {
-            base_asset_amount,
-            quote_asset_amount,
-            open_asks,
-            open_bids,
-            lp_shares: self.lp_shares,
-            // todo double check: this is ok because no other values are used in the future computations
-            ..PerpPosition::default()
-        })
+        settled_position.base_asset_amount = base_asset_amount;
+        settled_position.quote_asset_amount = quote_asset_amount;
+        settled_position.open_bids = open_bids;
+        settled_position.open_asks = open_asks;
+
+        Ok(settled_position)
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {
