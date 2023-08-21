@@ -221,11 +221,9 @@ fn amm_split_large_k_with_rebase() {
         quote_asset_amount: -2300000,
     };
 
-    let (u1, u2, u3) =
+    let u1 =
         update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
     assert_eq!(u1, 96471070);
-    assert_eq!(u2, -2218600);
-    assert_eq!(u3, 0);
 
     assert_eq!(
         perp_market.amm.base_asset_amount_with_unsettled_lp,

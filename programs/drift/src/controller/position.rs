@@ -380,22 +380,21 @@ pub fn update_lp_market_position(
     delta: &PositionDelta,
     fee_to_market: i128,
     liquidity_split: AMMLiquiditySplit,
-) -> DriftResult<(i128, i128, i128)> {
+) -> DriftResult<i128> {
     if market.amm.user_lp_shares == 0 || liquidity_split == AMMLiquiditySplit::ProtocolOwned {
-        return Ok((0, 0, 0)); // no need to split with LP
+        return Ok(0); // no need to split with LP
     }
+
+    let base_unit: i128 = market.amm.get_per_lp_base_unit()?;
 
     let (per_lp_delta_base, per_lp_delta_quote, per_lp_fee) =
         market
             .amm
-            .calculate_per_lp_delta(delta, fee_to_market, liquidity_split)?;
+            .calculate_per_lp_delta(delta, fee_to_market, liquidity_split, base_unit)?;
 
-    let (lp_delta_base, lp_delta_quote, lp_fee) = market.amm.calculate_lp_delta(
-        per_lp_delta_base,
-        per_lp_delta_quote,
-        fee_to_market,
-        liquidity_split,
-    )?;
+    let lp_delta_base = market
+        .amm
+        .calculate_lp_base_delta(per_lp_delta_base, base_unit)?;
 
     market.amm.base_asset_amount_per_lp = market
         .amm
@@ -427,7 +426,7 @@ pub fn update_lp_market_position(
         .base_asset_amount_with_unsettled_lp
         .safe_add(lp_delta_base)?;
 
-    Ok((lp_delta_base, lp_delta_quote, lp_fee))
+    Ok(lp_delta_base)
 }
 
 pub fn update_position_with_base_asset_amount(

@@ -752,39 +752,16 @@ impl AMM {
         }
     }
 
-    pub fn calculate_lp_delta(
+    pub fn calculate_lp_base_delta(
         &self,
         per_lp_delta_base: i128,
-        per_lp_delta_quote: i128,
-        fee_to_market: i128,
-        liquidity_split: AMMLiquiditySplit,
-    ) -> DriftResult<(i128, i128, i128)> {
-        let base_unit: i128 = self.get_per_lp_base_unit()?;
-
-        let user_lp_shares = self.user_lp_shares;
-        let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
-            self.user_lp_shares
-        } else {
-            self.sqrt_k
-        };
-
+        base_unit: i128,
+    ) -> DriftResult<i128> {
         // calculate dedicated for user lp shares
         let lp_delta_base =
-            get_proportion_i128(per_lp_delta_base, user_lp_shares, base_unit.cast()?)?;
-        let lp_delta_quote =
-            get_proportion_i128(per_lp_delta_quote, user_lp_shares, base_unit.cast()?)?;
+            get_proportion_i128(per_lp_delta_base, self.user_lp_shares, base_unit.cast()?)?;
 
-        // 1/5 of fee auto goes to market
-        // the rest goes to lps/market proportional
-        let lp_fee = get_proportion_i128(
-            fee_to_market,
-            LP_FEE_SLICE_NUMERATOR,
-            LP_FEE_SLICE_DENOMINATOR,
-        )?
-        .safe_mul(user_lp_shares.cast::<i128>()?)?
-        .safe_div(total_lp_shares.cast::<i128>()?)?;
-
-        Ok((lp_delta_base, lp_delta_quote, lp_fee))
+        Ok(lp_delta_base)
     }
 
     pub fn calculate_per_lp_delta(
@@ -792,13 +769,13 @@ impl AMM {
         delta: &PositionDelta,
         fee_to_market: i128,
         liquidity_split: AMMLiquiditySplit,
+        base_unit: i128,
     ) -> DriftResult<(i128, i128, i128)> {
         let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
             self.user_lp_shares
         } else {
             self.sqrt_k
         };
-        let base_unit = self.get_per_lp_base_unit()?;
 
         // update Market per lp position
         let per_lp_delta_base = get_proportion_i128(
