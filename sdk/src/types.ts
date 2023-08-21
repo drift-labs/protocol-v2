@@ -1103,3 +1103,18 @@ export type PerpMarketExtendedInfo = {
 	pnlPoolValue: BN;
 	contractTier: ContractTier;
 };
+
+export type HealthComponents = {
+	deposits: HealthComponent[];
+	borrows: HealthComponent[];
+	perpPositions: HealthComponent[];
+	perpPnl: HealthComponent[];
+};
+
+export type HealthComponent = {
+	marketIndex: number;
+	size: BN;
+	value: BN;
+	weight: BN;
+	weightedValue: BN;
+};

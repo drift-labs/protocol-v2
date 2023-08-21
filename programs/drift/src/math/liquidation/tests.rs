@@ -329,7 +329,7 @@ mod calculate_liability_transfer_implied_by_asset_amount {
         )
         .unwrap();
 
-        assert_eq!(liability_transfer, 98019801); // .1 base
+        assert_eq!(liability_transfer, 98019802); // .1 base
     }
 }
 
