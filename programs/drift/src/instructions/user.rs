@@ -10,7 +10,6 @@ use crate::controller::spot_position::{
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
-use crate::get_then_update_id;
 use crate::ids::{
     jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, marinade_mainnet, serum_program,
 };
@@ -61,6 +60,7 @@ use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
+use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -1384,8 +1384,8 @@ pub fn handle_place_and_take_spot_order<'info>(
         mut oracle_map,
     } = load_maps(
         remaining_accounts_iter,
-        &get_writable_perp_market_set(params.market_index),
         &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![QUOTE_SPOT_MARKET_INDEX, market_index]),
         clock.slot,
         None,
     )?;
@@ -1513,8 +1513,8 @@ pub fn handle_place_and_make_spot_order<'info>(
         mut oracle_map,
     } = load_maps(
         remaining_accounts_iter,
-        &get_writable_perp_market_set(params.market_index),
         &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![QUOTE_SPOT_MARKET_INDEX, params.market_index]),
         Clock::get()?.slot,
         None,
     )?;
