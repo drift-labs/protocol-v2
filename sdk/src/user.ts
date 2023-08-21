@@ -11,6 +11,7 @@ import {
 	SpotPosition,
 	isOneOfVariant,
 	PerpMarketAccount,
+	HealthComponents,
 } from './types';
 import { calculateEntryPrice, positionIsAvailable } from './math/position';
 import {
@@ -749,7 +750,7 @@ export class User {
 
 				positionUnrealizedPnl = positionUnrealizedPnl
 					.mul(quotePrice)
-					.div(new BN(PRICE_PRECISION));
+					.div(PRICE_PRECISION);
 
 				if (withWeightMarginCategory !== undefined) {
 					if (positionUnrealizedPnl.gt(ZERO)) {
@@ -1231,7 +1232,7 @@ export class User {
 		let baseAssetValue = baseAssetAmount
 			.abs()
 			.mul(valuationPrice)
-			.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(PRICE_PRECISION));
+			.div(BASE_PRECISION);
 
 		if (marginCategory) {
 			let marginRatio = new BN(
@@ -3115,6 +3116,253 @@ export class User {
 			perpTier: safestPerpTier,
 			spotTier: safestSpotTier,
 		};
+	}
+
+	public getHealthComponents({
+		marginCategory,
+	}: {
+		marginCategory: MarginCategory;
+	}): HealthComponents {
+		const healthComponents: HealthComponents = {
+			deposits: [],
+			borrows: [],
+			perpPositions: [],
+			perpPnl: [],
+		};
+
+		for (const perpPosition of this.getActivePerpPositions()) {
+			const perpMarket = this.driftClient.getPerpMarketAccount(
+				perpPosition.marketIndex
+			);
+			const oraclePriceData = this.driftClient.getOraclePriceDataAndSlot(
+				perpMarket.amm.oracle
+			).data;
+			const oraclePrice = oraclePriceData.price;
+			const worstCaseBaseAmount =
+				calculateWorstCaseBaseAssetAmount(perpPosition);
+
+			const marginRatio = new BN(
+				calculateMarketMarginRatio(
+					perpMarket,
+					worstCaseBaseAmount.abs(),
+					marginCategory
+				)
+			);
+
+			const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
+				perpMarket.quoteSpotMarketIndex
+			);
+			const quoteOraclePriceData = this.driftClient.getOraclePriceDataAndSlot(
+				quoteSpotMarket.oracle
+			).data;
+
+			const baseAssetValue = worstCaseBaseAmount
+				.abs()
+				.mul(oraclePrice)
+				.div(BASE_PRECISION);
+
+			let marginRequirement = baseAssetValue
+				.mul(quoteOraclePriceData.price)
+				.div(PRICE_PRECISION)
+				.mul(marginRatio)
+				.div(MARGIN_PRECISION);
+
+			marginRequirement = marginRequirement.add(
+				new BN(perpPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
+			);
+
+			if (perpPosition.lpShares.gt(ZERO)) {
+				marginRequirement = marginRequirement.add(
+					BN.max(
+						QUOTE_PRECISION,
+						oraclePrice
+							.mul(perpMarket.amm.orderStepSize)
+							.mul(QUOTE_PRECISION)
+							.div(AMM_RESERVE_PRECISION)
+							.div(PRICE_PRECISION)
+					)
+				);
+			}
+
+			healthComponents.perpPositions.push({
+				marketIndex: perpMarket.marketIndex,
+				size: worstCaseBaseAmount,
+				value: baseAssetValue,
+				weight: marginRatio,
+				weightedValue: marginRequirement,
+			});
+
+			const settledPerpPosition = this.getPerpPositionWithLPSettle(
+				perpPosition.marketIndex,
+				perpPosition
+			)[0];
+
+			const positionUnrealizedPnl = calculatePositionPNL(
+				perpMarket,
+				settledPerpPosition,
+				true,
+				oraclePriceData
+			);
+
+			let pnlWeight;
+			if (positionUnrealizedPnl.gt(ZERO)) {
+				pnlWeight = calculateUnrealizedAssetWeight(
+					perpMarket,
+					quoteSpotMarket,
+					positionUnrealizedPnl,
+					marginCategory,
+					oraclePriceData
+				);
+			} else {
+				pnlWeight = SPOT_MARKET_WEIGHT_PRECISION;
+			}
+
+			const pnlValue = positionUnrealizedPnl
+				.mul(quoteOraclePriceData.price)
+				.div(PRICE_PRECISION);
+
+			const wegithedPnlValue = pnlValue
+				.mul(pnlWeight)
+				.div(SPOT_MARKET_WEIGHT_PRECISION);
+
+			healthComponents.perpPnl.push({
+				marketIndex: perpMarket.marketIndex,
+				size: positionUnrealizedPnl,
+				value: wegithedPnlValue,
+				weight: pnlWeight,
+				weightedValue: wegithedPnlValue,
+			});
+		}
+
+		let netQuoteValue = ZERO;
+		for (const spotPosition of this.getActiveSpotPositions()) {
+			const spotMarketAccount: SpotMarketAccount =
+				this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
+
+			const oraclePriceData = this.getOracleDataForSpotMarket(
+				spotPosition.marketIndex
+			);
+
+			if (spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX) {
+				const tokenAmount = getSignedTokenAmount(
+					getTokenAmount(
+						spotPosition.scaledBalance,
+						spotMarketAccount,
+						spotPosition.balanceType
+					),
+					spotPosition.balanceType
+				);
+
+				netQuoteValue = netQuoteValue.add(tokenAmount);
+				continue;
+			}
+
+			const [worstCaseTokenAmount, worstCaseQuoteTokenAmount] =
+				getWorstCaseTokenAmounts(
+					spotPosition,
+					spotMarketAccount,
+					oraclePriceData
+				);
+
+			netQuoteValue = netQuoteValue.add(worstCaseQuoteTokenAmount);
+
+			const baseAssetValue = getTokenValue(
+				worstCaseTokenAmount.abs(),
+				spotMarketAccount.decimals,
+				oraclePriceData
+			);
+			const isLiability = isVariant(spotPosition.balanceType, 'borrow');
+
+			let weight;
+			if (isLiability) {
+				weight = calculateLiabilityWeight(
+					worstCaseTokenAmount.abs(),
+					spotMarketAccount,
+					marginCategory
+				);
+			} else {
+				weight = calculateAssetWeight(
+					worstCaseTokenAmount,
+					spotMarketAccount,
+					marginCategory
+				);
+			}
+
+			const weightedValue = baseAssetValue
+				.mul(weight)
+				.div(SPOT_MARKET_WEIGHT_PRECISION);
+
+			if (isLiability) {
+				healthComponents.borrows.push({
+					marketIndex: spotMarketAccount.marketIndex,
+					size: worstCaseTokenAmount,
+					value: baseAssetValue,
+					weight: weight,
+					weightedValue: weightedValue,
+				});
+			} else {
+				healthComponents.deposits.push({
+					marketIndex: spotMarketAccount.marketIndex,
+					size: worstCaseTokenAmount,
+					value: weightedValue,
+					weight: weight,
+					weightedValue: weightedValue,
+				});
+			}
+		}
+
+		if (!netQuoteValue.eq(ZERO)) {
+			const spotMarketAccount = this.driftClient.getQuoteSpotMarketAccount();
+			const oraclePriceData = this.getOracleDataForSpotMarket(
+				QUOTE_SPOT_MARKET_INDEX
+			);
+
+			const baseAssetValue = getTokenValue(
+				netQuoteValue.abs(),
+				spotMarketAccount.decimals,
+				oraclePriceData
+			);
+			const isLiability = netQuoteValue.lt(ZERO);
+
+			let weight;
+			if (isLiability) {
+				weight = calculateLiabilityWeight(
+					netQuoteValue.abs(),
+					spotMarketAccount,
+					marginCategory
+				);
+			} else {
+				weight = calculateAssetWeight(
+					netQuoteValue,
+					spotMarketAccount,
+					marginCategory
+				);
+			}
+
+			const weightedValue = baseAssetValue
+				.mul(weight)
+				.div(SPOT_MARKET_WEIGHT_PRECISION);
+
+			if (isLiability) {
+				healthComponents.borrows.push({
+					marketIndex: spotMarketAccount.marketIndex,
+					size: netQuoteValue,
+					value: baseAssetValue,
+					weight: weight,
+					weightedValue: weightedValue,
+				});
+			} else {
+				healthComponents.deposits.push({
+					marketIndex: spotMarketAccount.marketIndex,
+					size: netQuoteValue,
+					value: weightedValue,
+					weight: weight,
+					weightedValue: weightedValue,
+				});
+			}
+		}
+
+		return healthComponents;
 	}
 
 	/**

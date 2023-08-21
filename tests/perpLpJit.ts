@@ -33,6 +33,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
+	sleep,
 	// sleep,
 } from './testHelpers';
 
@@ -310,14 +311,16 @@ describe('lp jit', () => {
 			0,
 			BASE_PRECISION.toNumber()
 		);
-
+		sleep(200);
 		await driftClient.fetchAccounts();
 		let market = driftClient.getPerpMarketAccount(0);
 		console.log(
 			'market.amm.sqrtK:',
 			market.amm.userLpShares.toString(),
 			'/',
-			market.amm.sqrtK.toString()
+			market.amm.sqrtK.toString(),
+			'target:',
+			market.amm.targetBaseAssetAmountPerLp
 		);
 		assert(market.amm.sqrtK.eq(new BN('300000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
@@ -668,6 +671,7 @@ describe('lp jit', () => {
 			marketIndex,
 			BASE_PRECISION.toNumber()
 		);
+		sleep(200);
 
 		await driftClient.fetchAccounts();
 		let market = driftClient.getPerpMarketAccount(marketIndex);
@@ -679,7 +683,12 @@ describe('lp jit', () => {
 		);
 		assert(market.amm.sqrtK.eq(new BN('1000000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
-		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
+		assert(
+			market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber(),
+			`targetBaseAssetAmountPerLp: ${
+				market.amm.targetBaseAssetAmountPerLp
+			} != ${BASE_PRECISION.toNumber()}`
+		);
 
 		const _sig = await driftClient.addPerpLpShares(
 			new BN(100 * BASE_PRECISION.toNumber()),
@@ -901,6 +910,7 @@ describe('lp jit', () => {
 		await driftClient.updatePerpMarketCurveUpdateIntensity(marketIndex, 100);
 		await driftClient.updatePerpMarketMaxSpread(marketIndex, 100000);
 		await driftClient.updatePerpMarketBaseSpread(marketIndex, 10000);
+		sleep(200);
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();

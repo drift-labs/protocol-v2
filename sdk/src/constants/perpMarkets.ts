@@ -154,6 +154,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1689270550000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'HNT',
+		category: ['IoT'],
+		symbol: 'HNT-PERP',
+		baseAssetSymbol: 'HNT',
+		marketIndex: 14,
+		oracle: new PublicKey('6Eg8YdfFJQF2HHonzPUBSCCmyUEhrStg9VBLK957sBe6'),
+		launchTs: 16922949550000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -295,6 +305,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 13,
 		oracle: new PublicKey('Guffb8DAAxNH6kdoawYjPXTbwUhjmveh8R4LM6uEqRV1'),
 		launchTs: 1689270550000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'HNT',
+		category: ['IoT'],
+		symbol: 'HNT-PERP',
+		baseAssetSymbol: 'HNT',
+		marketIndex: 14,
+		oracle: new PublicKey('7moA1i5vQUpfDwSpK6Pw9s56ahB7WFGidtbL2ujWrVvm'),
+		launchTs: 16922949550000,
 		oracleSource: OracleSource.PYTH,
 	},
 ];
