@@ -1,7 +1,9 @@
-use crate::error::DriftResult;
+use crate::error::{DriftResult, ErrorCode};
+use crate::validate;
+use solana_program::msg;
+
 use crate::math::amm::calculate_market_open_bids_asks;
 use crate::math::casting::Cast;
-use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::helpers;
 use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
 use crate::math::safe_math::SafeMath;
@@ -44,6 +46,16 @@ pub fn calculate_settled_lp_base_quote(
     position: &PerpPosition,
 ) -> DriftResult<(i128, i128)> {
     let n_shares = position.lp_shares;
+    let base_unit: i128 = amm.get_per_lp_base_unit()?;
+
+    validate!(
+        amm.per_lp_base == position.per_lp_base,
+        ErrorCode::InvalidPerpPositionDetected,
+        "calculate_settled_lp_base_quote :: position/market per_lp_base unequal {} != {}",
+        position.per_lp_base,
+        amm.per_lp_base
+    )?;
+
     let n_shares_i128 = n_shares.cast::<i128>()?;
 
     // give them slice of the damm market position
@@ -54,7 +66,7 @@ pub fn calculate_settled_lp_base_quote(
     let base_asset_amount = amm_net_base_asset_amount_per_lp
         .cast::<i128>()?
         .safe_mul(n_shares_i128)?
-        .safe_div(AMM_RESERVE_PRECISION_I128)?;
+        .safe_div(base_unit)?;
 
     let amm_net_quote_asset_amount_per_lp = amm
         .quote_asset_amount_per_lp
@@ -63,7 +75,7 @@ pub fn calculate_settled_lp_base_quote(
     let quote_asset_amount = amm_net_quote_asset_amount_per_lp
         .cast::<i128>()?
         .safe_mul(n_shares_i128)?
-        .safe_div(AMM_RESERVE_PRECISION_I128)?;
+        .safe_div(base_unit)?;
 
     Ok((base_asset_amount, quote_asset_amount))
 }

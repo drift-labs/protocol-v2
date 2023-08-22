@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: add reduce only user status ([#560](https://github.com/drift-labs/protocol-v2/pull/560))
 - program: add conditionally smaller conf_component logic for amm spread ([#577](https://github.com/drift-labs/protocol-v2/pull/577))
+- program: add per_lp_base on market/position ([#568](https://github.com/drift-labs/protocol-v2/pull/568))
 
 ### Fixes
 
@@ -25,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: add deposit_into_spot_market_revenue_pool ([#520](https://github.com/drift-labs/protocol-v2/pull/520))
 - program: make users w excessive withdraws pay fees ([#547](https://github.com/drift-labs/protocol-v2/pull/547))
-- program: allow settle pnl and spot fills via match when utilization is 100% ([#525](https://github.com/drift-labs/protocol-v2/pull/525)) 
+- program: allow settle pnl and spot fills via match when utilization is 100% ([#525](https://github.com/drift-labs/protocol-v2/pull/525))
 - program: new update_perp_bid_ask_twap ix ([#548](https://github.com/drift-labs/protocol-v2/pull/548))
 - program: dont check price bands for place order ([#556](https://github.com/drift-labs/protocol-v2/pull/556))
 
