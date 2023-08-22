@@ -111,7 +111,9 @@ export class OrderSubscriber {
 					buffer
 				) as UserAccount;
 			const newOrders = userAccount.orders.filter(
-				(order) => order.slot.toNumber() === slot
+				(order) =>
+					order.slot.toNumber() > (slotAndUserAccount?.slot ?? 0) &&
+					order.slot.toNumber() <= slot
 			);
 			if (newOrders.length > 0) {
 				this.eventEmitter.emit(
