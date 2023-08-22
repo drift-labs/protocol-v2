@@ -230,6 +230,7 @@ export function calculateNetUserPnl(
 	oraclePriceData: OraclePriceData
 ): BN {
 	const netUserPositionValue = perpMarket.amm.baseAssetAmountWithAmm
+		.add(perpMarket.amm.baseAssetAmountWithUnsettledLp)
 		.mul(oraclePriceData.price)
 		.div(BASE_PRECISION)
 		.div(PRICE_TO_QUOTE_PRECISION);
