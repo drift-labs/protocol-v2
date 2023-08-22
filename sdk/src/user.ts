@@ -31,6 +31,7 @@ import {
 	BASE_PRECISION,
 	ONE,
 	TWO,
+	AMM_RESERVE_PRECISION_EXP,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -264,6 +265,7 @@ export class User {
 			lpShares: ZERO,
 			lastBaseAssetAmountPerLp: ZERO,
 			lastQuoteAssetAmountPerLp: ZERO,
+			perLpBase: 0,
 		};
 	}
 
@@ -427,21 +429,62 @@ export class User {
 		}
 
 		const position = this.getClonedPosition(originalPosition);
-
 		const market = this.driftClient.getPerpMarketAccount(position.marketIndex);
+
+		if (market.amm.perLpBase != position.perLpBase) {
+			// perLpBase = 1 => per 10 LP shares, perLpBase = -1 => per 0.1 LP shares
+			const expoDiff = market.amm.perLpBase - position.perLpBase;
+			const marketPerLpRebaseScalar = new BN(10 ** Math.abs(expoDiff));
+
+			if (expoDiff > 0) {
+				position.lastBaseAssetAmountPerLp =
+					position.lastBaseAssetAmountPerLp.mul(marketPerLpRebaseScalar);
+				position.lastQuoteAssetAmountPerLp =
+					position.lastQuoteAssetAmountPerLp.mul(marketPerLpRebaseScalar);
+			} else {
+				position.lastBaseAssetAmountPerLp =
+					position.lastBaseAssetAmountPerLp.div(marketPerLpRebaseScalar);
+				position.lastQuoteAssetAmountPerLp =
+					position.lastQuoteAssetAmountPerLp.div(marketPerLpRebaseScalar);
+			}
+
+			position.perLpBase = position.perLpBase + expoDiff;
+		}
+
 		const nShares = position.lpShares;
 
 		// incorp unsettled funding on pre settled position
 		const quoteFundingPnl = calculatePositionFundingPNL(market, position);
 
+		let baseUnit = AMM_RESERVE_PRECISION;
+		if (market.amm.perLpBase == position.perLpBase) {
+			if (
+				position.perLpBase >= 0 &&
+				position.perLpBase <= AMM_RESERVE_PRECISION_EXP.toNumber()
+			) {
+				const marketPerLpRebase = new BN(10 ** market.amm.perLpBase);
+				baseUnit = baseUnit.mul(marketPerLpRebase);
+			} else if (
+				position.perLpBase < 0 &&
+				position.perLpBase >= -AMM_RESERVE_PRECISION_EXP.toNumber()
+			) {
+				const marketPerLpRebase = new BN(10 ** Math.abs(market.amm.perLpBase));
+				baseUnit = baseUnit.div(marketPerLpRebase);
+			} else {
+				throw 'cannot calc';
+			}
+		} else {
+			throw 'market.amm.perLpBase != position.perLpBase';
+		}
+
 		const deltaBaa = market.amm.baseAssetAmountPerLp
 			.sub(position.lastBaseAssetAmountPerLp)
 			.mul(nShares)
-			.div(AMM_RESERVE_PRECISION);
+			.div(baseUnit);
 		const deltaQaa = market.amm.quoteAssetAmountPerLp
 			.sub(position.lastQuoteAssetAmountPerLp)
 			.mul(nShares)
-			.div(AMM_RESERVE_PRECISION);
+			.div(baseUnit);
 
 		function sign(v: BN) {
 			return v.isNeg() ? new BN(-1) : new BN(1);
