@@ -1517,8 +1517,8 @@ describe('liquidity providing', () => {
 		console.log(posAfterSettle.lastQuoteAssetAmountPerLp.toString());
 		console.log(posAfterSettle.perLpBase.toString());
 
-		// assert(posAfterSettle.baseAssetAmount.eq(posAfter.baseAssetAmount)); //TODO: posAfter is wrong (sdk only)
-		// assert(posAfterSettle.quoteAssetAmount.eq(posAfter.quoteAssetAmount)); //TODO: posAfter is wrong (sdk only)
+		assert(posAfterSettle.baseAssetAmount.eq(posAfter.baseAssetAmount));
+		assert(posAfterSettle.quoteAssetAmount.eq(posAfter.quoteAssetAmount));
 	});
 
 	it('permissionless lp burn', async () => {

@@ -432,10 +432,9 @@ export class User {
 		const market = this.driftClient.getPerpMarketAccount(position.marketIndex);
 
 		if (market.amm.perLpBase != position.perLpBase) {
+			// perLpBase = 1 => per 10 LP shares, perLpBase = -1 => per 0.1 LP shares
 			const expoDiff = market.amm.perLpBase - position.perLpBase;
-			const marketPerLpRebaseScalar = new BN(
-				10 ** Math.abs(market.amm.perLpBase)
-			);
+			const marketPerLpRebaseScalar = new BN(10 ** Math.abs(expoDiff));
 
 			if (expoDiff > 0) {
 				position.lastBaseAssetAmountPerLp =
