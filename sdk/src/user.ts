@@ -636,13 +636,16 @@ export class User {
 	}
 
 	/**
-	 * calculates Free Collateral = Total collateral - initial margin requirement
+	 * calculates Free Collateral = Total collateral - margin requirement
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getFreeCollateral(): BN {
-		const totalCollateral = this.getTotalCollateral('Initial', true);
-		const initialMarginRequirement = this.getInitialMarginRequirement();
-		const freeCollateral = totalCollateral.sub(initialMarginRequirement);
+	public getFreeCollateral(marginCategory: MarginCategory = 'Initial'): BN {
+		const totalCollateral = this.getTotalCollateral(marginCategory, true);
+		const marginRequirement =
+			marginCategory === 'Initial'
+				? this.getInitialMarginRequirement()
+				: this.getMaintenanceMarginRequirement();
+		const freeCollateral = totalCollateral.sub(marginRequirement);
 		return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
 	}
 
@@ -1222,19 +1225,16 @@ export class User {
 		} else if (totalCollateral.lte(ZERO)) {
 			health = 0;
 		} else {
-			const healthP1 =
-				Math.max(
-					0,
-					(1 - maintenanceMarginReq.toNumber() / totalCollateral.toNumber()) *
-						100
-				) + 1;
-
-			health = Math.min(1, Math.log(healthP1) / Math.log(100)) * 100;
-			if (health > 1) {
-				health = Math.round(health);
-			} else {
-				health = Math.round(health * 100) / 100;
-			}
+			health = Math.round(
+				Math.min(
+					100,
+					Math.max(
+						0,
+						(1 - maintenanceMarginReq.toNumber() / totalCollateral.toNumber()) *
+							100
+					)
+				)
+			);
 		}
 
 		return health;
@@ -1359,17 +1359,13 @@ export class User {
 		strict = false
 	): BN {
 		const perpPosition = this.getPerpPosition(marketIndex);
-		if (!perpPosition) {
-			return ZERO;
-		} else {
-			return this.calculateWeightedPerpPositionValue(
-				perpPosition,
-				marginCategory,
-				liquidationBuffer,
-				includeOpenOrders,
-				strict
-			);
-		}
+		return this.calculateWeightedPerpPositionValue(
+			perpPosition,
+			marginCategory,
+			liquidationBuffer,
+			includeOpenOrders,
+			strict
+		);
 	}
 
 	/**
