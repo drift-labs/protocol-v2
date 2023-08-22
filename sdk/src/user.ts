@@ -3271,7 +3271,7 @@ export class User {
 			healthComponents.perpPnl.push({
 				marketIndex: perpMarket.marketIndex,
 				size: positionUnrealizedPnl,
-				value: wegithedPnlValue,
+				value: pnlValue,
 				weight: pnlWeight,
 				weightedValue: wegithedPnlValue,
 			});
@@ -3347,7 +3347,7 @@ export class User {
 				healthComponents.deposits.push({
 					marketIndex: spotMarketAccount.marketIndex,
 					size: worstCaseTokenAmount,
-					value: weightedValue,
+					value: baseAssetValue,
 					weight: weight,
 					weightedValue: weightedValue,
 				});
@@ -3398,7 +3398,7 @@ export class User {
 				healthComponents.deposits.push({
 					marketIndex: spotMarketAccount.marketIndex,
 					size: netQuoteValue,
-					value: weightedValue,
+					value: baseAssetValue,
 					weight: weight,
 					weightedValue: weightedValue,
 				});
