@@ -2,25 +2,27 @@ import { Connection, PublicKey } from '@solana/web3.js';
 
 export class PriorityFeeSubscriber {
 	connection: Connection;
-	frequency: number;
+	frequencyMs: number;
 	addresses: PublicKey[];
 
 	intervalId?: NodeJS.Timer;
 
-	avg = 0;
-	max = 0;
+	latestPriorityFee = 0;
+	// avg of last 5 slots
+	avgPriorityFee = 0;
+	lastSlotSeen = 0;
 
 	public constructor({
 		connection,
-		frequency,
+		frequencyMs,
 		addresses,
 	}: {
 		connection: Connection;
-		frequency: number;
+		frequencyMs: number;
 		addresses: PublicKey[];
 	}) {
 		this.connection = connection;
-		this.frequency = frequency;
+		this.frequencyMs = frequencyMs;
 		this.addresses = addresses;
 	}
 
@@ -29,7 +31,7 @@ export class PriorityFeeSubscriber {
 			return;
 		}
 
-		this.intervalId = setInterval(this.load.bind(this), this.frequency);
+		this.intervalId = setInterval(this.load.bind(this), this.frequencyMs);
 	}
 
 	public async load(): Promise<void> {
@@ -39,18 +41,14 @@ export class PriorityFeeSubscriber {
 			[this.addresses]
 		);
 
-		let sum = 0;
-		let max = 0;
+		const descResults: {slot: number; prioritizationFee: number}[] = rpcJSONResponse?.result?.sort((a, b) => b.slot - a.slot)?.slice(0, 5) ?? [];
 
-		for (const { prioritizationFee } of rpcJSONResponse.result) {
-			sum += prioritizationFee;
-			max = Math.max(max, prioritizationFee);
-		}
+		if (!descResults.length) return;
 
-		const avg = sum / rpcJSONResponse.result.length;
-
-		this.max = max;
-		this.avg = avg;
+		const mostRecentResult = descResults[0];
+		this.latestPriorityFee = mostRecentResult.prioritizationFee;
+		this.lastSlotSeen = mostRecentResult.slot;
+		this.avgPriorityFee = descResults.reduce((a, b) => { return a + b.prioritizationFee }, 0) / descResults.length;
 	}
 
 	public async unsubscribe(): Promise<void> {
