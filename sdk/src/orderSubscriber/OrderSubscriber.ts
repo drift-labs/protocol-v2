@@ -110,13 +110,18 @@ export class OrderSubscriber {
 					'User',
 					buffer
 				) as UserAccount;
-			this.eventEmitter.emit(
-				'onUpdate',
-				userAccount,
-				userAccount.orders.filter((order) => order.slot.toNumber() === slot),
-				new PublicKey(key),
-				slot
+			const newOrders = userAccount.orders.filter(
+				(order) => order.slot.toNumber() === slot
 			);
+			if (newOrders.length > 0) {
+				this.eventEmitter.emit(
+					'onUpdate',
+					userAccount,
+					newOrders,
+					new PublicKey(key),
+					slot
+				);
+			}
 			if (userAccount.hasOpenOrder) {
 				this.usersAccounts.set(key, { slot, userAccount });
 			} else {
