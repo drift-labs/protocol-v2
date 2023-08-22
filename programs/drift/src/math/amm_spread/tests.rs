@@ -181,8 +181,8 @@ mod test {
         .unwrap();
         assert!(short_spread4 < long_spread4);
         // (1000000/777 + 1 )* 1.562 * 2 -> 2012 * 2
-        assert_eq!(long_spread4, 33256);
-        // base_spread
+        assert_eq!(long_spread4, 33255); // lower one for conf_component change
+                                         // base_spread
         assert_eq!(short_spread4, 500);
 
         // increases to fee pool will decrease long spread (all else equal)
@@ -257,8 +257,8 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(long_spread_btc, 411);
-        assert_eq!(short_spread_btc, 74584);
+        assert_eq!(long_spread_btc, 250);
+        assert_eq!(short_spread_btc, 74142);
 
         let (long_spread_btc1, short_spread_btc1) = calculate_spread(
             500,
