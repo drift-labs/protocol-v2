@@ -311,7 +311,7 @@ describe('lp jit', () => {
 			0,
 			BASE_PRECISION.toNumber()
 		);
-		sleep(200);
+		sleep(1000);
 		await driftClient.fetchAccounts();
 		let market = driftClient.getPerpMarketAccount(0);
 		console.log(
@@ -671,7 +671,7 @@ describe('lp jit', () => {
 			marketIndex,
 			BASE_PRECISION.toNumber()
 		);
-		sleep(200);
+		sleep(1000);
 
 		await driftClient.fetchAccounts();
 		let market = driftClient.getPerpMarketAccount(marketIndex);
@@ -910,7 +910,7 @@ describe('lp jit', () => {
 		await driftClient.updatePerpMarketCurveUpdateIntensity(marketIndex, 100);
 		await driftClient.updatePerpMarketMaxSpread(marketIndex, 100000);
 		await driftClient.updatePerpMarketBaseSpread(marketIndex, 10000);
-		sleep(200);
+		sleep(1000);
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
