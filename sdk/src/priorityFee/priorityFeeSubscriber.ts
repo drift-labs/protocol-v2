@@ -8,7 +8,7 @@ export class PriorityFeeSubscriber {
 	intervalId?: NodeJS.Timer;
 
 	latestPriorityFee = 0;
-	// avg of last 5 slots
+	// avg of last 10 slots
 	avgPriorityFee = 0;
 	lastSlotSeen = 0;
 
@@ -41,14 +41,19 @@ export class PriorityFeeSubscriber {
 			[this.addresses]
 		);
 
-		const descResults: {slot: number; prioritizationFee: number}[] = rpcJSONResponse?.result?.sort((a, b) => b.slot - a.slot)?.slice(0, 5) ?? [];
+		const descResults: { slot: number; prioritizationFee: number }[] =
+			rpcJSONResponse?.result?.sort((a, b) => b.slot - a.slot)?.slice(0, 10) ??
+			[];
 
-		if (!descResults.length) return;
+		if (!descResults?.length) return;
 
 		const mostRecentResult = descResults[0];
 		this.latestPriorityFee = mostRecentResult.prioritizationFee;
 		this.lastSlotSeen = mostRecentResult.slot;
-		this.avgPriorityFee = descResults.reduce((a, b) => { return a + b.prioritizationFee }, 0) / descResults.length;
+		this.avgPriorityFee =
+			descResults.reduce((a, b) => {
+				return a + b.prioritizationFee;
+			}, 0) / descResults.length;
 	}
 
 	public async unsubscribe(): Promise<void> {
