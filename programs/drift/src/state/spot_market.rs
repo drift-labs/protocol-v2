@@ -280,6 +280,7 @@ impl SpotMarket {
         &self,
         size: u128,
         oracle_price: i64,
+        oracle_price_twap_5min: i64,
         margin_requirement_type: &MarginRequirementType,
     ) -> DriftResult<u32> {
         let size_precision = 10_u128.pow(self.decimals);
@@ -292,7 +293,7 @@ impl SpotMarket {
 
         let default_asset_weight = match margin_requirement_type {
             MarginRequirementType::Initial | MarginRequirementType::Fill => {
-                self.get_scaled_initial_asset_weight(oracle_price)?
+                self.get_scaled_initial_asset_weight(oracle_price, oracle_price_twap_5min)?
             }
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };
@@ -308,14 +309,22 @@ impl SpotMarket {
         Ok(asset_weight)
     }
 
-    pub fn get_scaled_initial_asset_weight(&self, oracle_price: i64) -> DriftResult<u32> {
+    pub fn get_scaled_initial_asset_weight(
+        &self,
+        oracle_price: i64,
+        oracle_price_twap_5min: i64,
+    ) -> DriftResult<u32> {
         if self.scale_initial_asset_weight_start == 0 {
             return Ok(self.initial_asset_weight);
         }
 
         let deposits = self.get_deposits()?;
-        let deposit_value =
-            get_token_value(deposits.cast()?, self.decimals, oracle_price)?.cast::<u128>()?;
+        let deposit_value = get_token_value(
+            deposits.cast()?,
+            self.decimals,
+            oracle_price.max(oracle_price_twap_5min),
+        )?
+        .cast::<u128>()?;
 
         let scale_initial_asset_weight_start =
             self.scale_initial_asset_weight_start.cast::<u128>()?;

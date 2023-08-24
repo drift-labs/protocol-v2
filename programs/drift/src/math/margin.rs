@@ -398,6 +398,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                                 .get_asset_weight(
                                     worst_case_token_amount.unsigned_abs(),
                                     oracle_price_data.price,
+                                    spot_market
+                                        .historical_oracle_data
+                                        .last_oracle_price_twap_5min,
                                     &margin_requirement_type,
                                 )?
                                 .cast()?,

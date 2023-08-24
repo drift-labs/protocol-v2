@@ -3620,7 +3620,13 @@ fn fulfill_spot_order(
             &quote_market,
             &base_market,
             quote_price,
+            quote_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
             base_price,
+            base_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
             quote_token_amount_before,
             base_token_amount_before,
             quote_token_amount_after,
@@ -3633,7 +3639,13 @@ fn fulfill_spot_order(
             &base_market,
             &quote_market,
             base_price,
+            base_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
             quote_price,
+            quote_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
             base_token_amount_before,
             quote_token_amount_before,
             base_token_amount_after,

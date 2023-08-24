@@ -86,7 +86,7 @@ mod test {
         let size = 1000 * QUOTE_PRECISION;
         let price = QUOTE_PRECISION_I64;
         let asset_weight = spot_market
-            .get_asset_weight(size, price, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 9000);
 
@@ -97,7 +97,7 @@ mod test {
 
         spot_market.imf_factor = 10;
         let asset_weight = spot_market
-            .get_asset_weight(size, price, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 9000);
 
@@ -108,13 +108,18 @@ mod test {
 
         let same_asset_weight_diff_imf_factor = 8357;
         let asset_weight = spot_market
-            .get_asset_weight(size * 1_000_000, price, &MarginRequirementType::Initial)
+            .get_asset_weight(
+                size * 1_000_000,
+                price,
+                price,
+                &MarginRequirementType::Initial,
+            )
             .unwrap();
         assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
 
         spot_market.imf_factor = 10000;
         let asset_weight = spot_market
-            .get_asset_weight(size, price, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
 
@@ -125,7 +130,7 @@ mod test {
 
         spot_market.imf_factor = SPOT_IMF_PRECISION / 10;
         let asset_weight = spot_market
-            .get_asset_weight(size, price, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 2642);
 
@@ -156,28 +161,28 @@ mod test {
 
         sol_spot_market.deposit_balance = SPOT_BALANCE_PRECISION;
         let asset_weight = sol_spot_market
-            .get_scaled_initial_asset_weight(price)
+            .get_scaled_initial_asset_weight(price, price)
             .unwrap();
 
         assert_eq!(asset_weight, 9000);
 
         sol_spot_market.deposit_balance = 20000 * SPOT_BALANCE_PRECISION;
         let asset_weight = sol_spot_market
-            .get_scaled_initial_asset_weight(price)
+            .get_scaled_initial_asset_weight(price, price)
             .unwrap();
 
         assert_eq!(asset_weight, 9000);
 
         sol_spot_market.deposit_balance = 40000 * SPOT_BALANCE_PRECISION;
         let asset_weight = sol_spot_market
-            .get_scaled_initial_asset_weight(price)
+            .get_scaled_initial_asset_weight(price, price)
             .unwrap();
 
         assert_eq!(asset_weight, 4500);
 
         sol_spot_market.deposit_balance = 60000 * SPOT_BALANCE_PRECISION;
         let asset_weight = sol_spot_market
-            .get_scaled_initial_asset_weight(price)
+            .get_scaled_initial_asset_weight(price, price)
             .unwrap();
 
         assert_eq!(asset_weight, 3000);

@@ -2774,7 +2774,13 @@ pub fn handle_end_swap(
         &in_spot_market,
         &out_spot_market,
         in_oracle_price,
+        in_spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
         out_oracle_price,
+        out_spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
         in_token_amount_before,
         out_token_amount_before,
         in_token_amount_after,
