@@ -2860,13 +2860,23 @@ pub fn place_spot_order(
         .get_spot_position_index(market_index)
         .or_else(|_| user.add_spot_position(market_index, SpotBalanceType::Deposit))?;
 
-    let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle)?;
-    let (worst_case_token_amount_before, _) = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amount(spot_market, &oracle_price_data, None, None)?;
-
     let balance_type = user.spot_positions[spot_position_index].balance_type;
     let token_amount = user.spot_positions[spot_position_index].get_token_amount(spot_market)?;
     let signed_token_amount = get_signed_token_amount(token_amount, &balance_type)?;
+
+    let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle)?;
+
+    let quote_oracle = spot_market_map.get_quote_spot_market()?.oracle;
+    let quote_price = oracle_map.get_price_data(&quote_oracle)?.price;
+    let (worst_case_token_amount_before, _) = user.spot_positions[spot_position_index]
+        .get_worst_case_token_amount(
+            spot_market,
+            &oracle_price_data,
+            None,
+            quote_price,
+            Some(signed_token_amount),
+            MarginRequirementType::Initial,
+        )?;
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
@@ -2980,7 +2990,14 @@ pub fn place_spot_order(
     }
 
     let (worst_case_token_amount_after, _) = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amount(spot_market, &oracle_price_data, None, None)?;
+        .get_worst_case_token_amount(
+            spot_market,
+            &oracle_price_data,
+            None,
+            quote_price,
+            Some(signed_token_amount),
+            MarginRequirementType::Initial,
+        )?;
 
     let order_risk_decreasing =
         is_spot_order_risk_decreasing(&user.orders[new_order_index], &balance_type, token_amount)?;

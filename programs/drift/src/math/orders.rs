@@ -997,6 +997,9 @@ pub fn calculate_max_spot_order_size(
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
 
+    let quote_oracle = spot_market_map.get_quote_spot_market()?.oracle;
+    let quote_price = oracle_map.get_price_data(&quote_oracle)?.price;
+
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
     let twap = spot_market
         .historical_oracle_data
@@ -1010,7 +1013,9 @@ pub fn calculate_max_spot_order_size(
             &spot_market,
             oracle_price_data,
             Some(twap),
+            quote_price,
             Some(signed_token_amount),
+            MarginRequirementType::Initial,
         )?;
 
     let token_value_before = get_strict_token_value(

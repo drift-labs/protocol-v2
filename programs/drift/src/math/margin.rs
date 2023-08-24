@@ -255,6 +255,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         0_u32
     };
 
+    let quote_oracle = spot_market_map.get_quote_spot_market()?.oracle;
+    let quote_price = oracle_map.get_price_data(&quote_oracle)?.price;
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
 
@@ -352,7 +354,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     } else {
                         None
                     },
+                    quote_price,
                     Some(signed_token_amount),
+                    margin_requirement_type,
                 )?;
 
             if worst_case_token_amount == 0 {
