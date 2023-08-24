@@ -311,7 +311,7 @@ describe('lp jit', () => {
 			0,
 			BASE_PRECISION.toNumber()
 		);
-		sleep(200);
+		sleep(1000);
 		await driftClient.fetchAccounts();
 		let market = driftClient.getPerpMarketAccount(0);
 		console.log(
