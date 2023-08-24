@@ -168,6 +168,8 @@ pub struct SpotMarket {
     /// precision: token mint precision
     pub total_swap_fee: u64,
     /// When to begin scaling down the initial asset weight
+    /// disabled when 0
+    /// precision: QUOTE_PRECISION
     pub scale_initial_asset_weight_start: u64,
     pub padding: [u8; 48],
 }
