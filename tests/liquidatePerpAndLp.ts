@@ -213,7 +213,7 @@ describe('liquidate perp and lp', () => {
 		const expectedLiqPrice2 = new BN('500341');
 		console.log('expected liqPrice:', expectedLiqPrice2.toString());
 
-		// assert(liqPrice.eq(expectedLiqPrice2));
+		assert(liqPrice.eq(expectedLiqPrice2));
 
 		const oracle = driftClient.getPerpMarketAccount(0).amm.oracle;
 		await setFeedPrice(anchor.workspace.Pyth, 0.9, oracle);
