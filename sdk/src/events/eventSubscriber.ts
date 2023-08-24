@@ -63,7 +63,8 @@ export class EventSubscriber {
 				this.connection,
 				this.address,
 				options.commitment,
-				this.options.logProviderConfig.frequency
+				this.options.logProviderConfig.frequency,
+				this.options.logProviderConfig.batchSize
 			);
 		}
 	}
