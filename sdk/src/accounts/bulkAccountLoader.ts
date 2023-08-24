@@ -235,7 +235,9 @@ export class BulkAccountLoader {
 				console.log('Bulk account load: error in account callback');
 				console.log('accounto to load', accountToLoad.publicKey.toString());
 				console.log('buffer', buffer.toString('base64'));
-				console.log('account to load cb', accountToLoad.callbacks);
+				for (const callback of accountToLoad.callbacks.values()) {
+					console.log('account to load cb', callback);
+				}
 				throw e;
 			}
 		}
