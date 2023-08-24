@@ -41,6 +41,7 @@ use crate::state::events::{
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
+use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
@@ -2770,17 +2771,27 @@ pub fn handle_end_swap(
 
     out_spot_market.validate_max_token_deposits()?;
 
-    let margin_type = spot_swap::select_margin_type_for_swap(
-        &in_spot_market,
-        &out_spot_market,
+    let in_strict_price = StrictOraclePrice::new(
         in_oracle_price,
         in_spot_market
             .historical_oracle_data
             .last_oracle_price_twap_5min,
+        true,
+    );
+
+    let out_strict_price = StrictOraclePrice::new(
         out_oracle_price,
         out_spot_market
             .historical_oracle_data
             .last_oracle_price_twap_5min,
+        true,
+    );
+
+    let margin_type = spot_swap::select_margin_type_for_swap(
+        &in_spot_market,
+        &out_spot_market,
+        &in_strict_price,
+        &out_strict_price,
         in_token_amount_before,
         out_token_amount_before,
         in_token_amount_after,

@@ -25,7 +25,7 @@ use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 use crate::math::spot_withdraw::get_max_withdraw_for_market_with_token_amount;
 use crate::math_error;
 use crate::print_error;
-use crate::state::oracle::OraclePriceData;
+use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
@@ -1004,15 +1004,15 @@ pub fn calculate_max_spot_order_size(
     let twap = spot_market
         .historical_oracle_data
         .last_oracle_price_twap_5min;
-    let max_oracle_price = oracle_price_data.price.max(twap);
+    let strict_oracle_price = StrictOraclePrice::new(oracle_price_data.price, twap, true);
+    let max_oracle_price = strict_oracle_price.max();
 
     let spot_position = user.get_spot_position(market_index)?;
     let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
     let (worst_case_token_amount, worst_case_orders_value) = spot_position
         .get_worst_case_token_amount(
             &spot_market,
-            oracle_price_data,
-            Some(twap),
+            &strict_oracle_price,
             quote_price,
             Some(signed_token_amount),
             MarginRequirementType::Initial,
@@ -1021,8 +1021,7 @@ pub fn calculate_max_spot_order_size(
     let token_value_before = get_strict_token_value(
         signed_token_amount,
         spot_market.decimals,
-        oracle_price_data,
-        twap,
+        &strict_oracle_price,
     )?;
 
     let worst_case_token_value_before =
@@ -1064,8 +1063,7 @@ pub fn calculate_max_spot_order_size(
 
         let asset_weight = spot_market.get_asset_weight(
             worst_case_token_amount.unsigned_abs(),
-            oracle_price_data.price,
-            twap,
+            &strict_oracle_price,
             &MarginRequirementType::Initial,
         )?;
 
@@ -1082,8 +1080,7 @@ pub fn calculate_max_spot_order_size(
     } else if worst_case_token_amount > 0 && direction == PositionDirection::Short {
         let asset_weight = spot_market.get_asset_weight(
             worst_case_token_amount.unsigned_abs(),
-            oracle_price_data.price,
-            twap,
+            &strict_oracle_price,
             &MarginRequirementType::Initial,
         )?;
 
@@ -1141,8 +1138,7 @@ pub fn calculate_max_spot_order_size(
     let free_collateral_delta = calculate_free_collateral_delta_for_spot(
         &spot_market,
         worst_case_token_amount.unsigned_abs(),
-        oracle_price_data.price,
-        twap,
+        &strict_oracle_price,
         direction,
     )?;
 
@@ -1164,8 +1160,7 @@ pub fn calculate_max_spot_order_size(
         worst_case_token_amount
             .unsigned_abs()
             .safe_add(order_size.cast()?)?,
-        oracle_price_data.price,
-        twap,
+        &strict_oracle_price,
         direction,
     )?;
 
@@ -1189,15 +1184,13 @@ pub fn calculate_max_spot_order_size(
 fn calculate_free_collateral_delta_for_spot(
     spot_market: &SpotMarket,
     worst_case_token_amount: u128,
-    oracle_price: i64,
-    twap: i64,
+    strict_oracle_price: &StrictOraclePrice,
     order_direction: PositionDirection,
 ) -> DriftResult<u32> {
     Ok(if order_direction == PositionDirection::Long {
         SPOT_WEIGHT_PRECISION.sub(spot_market.get_asset_weight(
             worst_case_token_amount,
-            oracle_price,
-            twap,
+            strict_oracle_price,
             &MarginRequirementType::Initial,
         )?)
     } else {

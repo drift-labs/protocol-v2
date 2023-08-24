@@ -19,7 +19,7 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 
 use crate::math::safe_math::SafeMath;
-use crate::state::oracle::OraclePriceData;
+use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{ContractTier, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
@@ -255,8 +255,16 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         0_u32
     };
 
-    let quote_oracle = spot_market_map.get_quote_spot_market()?.oracle;
+    let quote_market = spot_market_map.get_quote_spot_market()?;
+    let quote_oracle = quote_market.oracle;
     let quote_price = oracle_map.get_price_data(&quote_oracle)?.price;
+    let quote_twap_5min = quote_market
+        .historical_oracle_data
+        .last_oracle_price_twap_5min;
+    let strict_quote_price = StrictOraclePrice::new(quote_price, quote_twap_5min, strict);
+    strict_quote_price.validate()?;
+    drop(quote_market);
+
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
 
@@ -284,18 +292,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 )?;
             }
 
-            let token_value = if strict {
-                get_strict_token_value(
-                    token_amount,
-                    spot_market.decimals,
-                    oracle_price_data,
-                    spot_market
-                        .historical_oracle_data
-                        .last_oracle_price_twap_5min,
-                )?
-            } else {
-                get_token_value(token_amount, spot_market.decimals, oracle_price_data.price)?
-            };
+            let token_value =
+                get_strict_token_value(token_amount, spot_market.decimals, &strict_quote_price)?;
 
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
@@ -340,21 +338,21 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 }
             }
         } else {
+            let strict_oracle_price = StrictOraclePrice::new(
+                oracle_price_data.price,
+                spot_market
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min,
+                strict,
+            );
+            strict_oracle_price.validate()?;
+
             let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
             let (worst_case_token_amount, worst_case_orders_value): (i128, i128) = spot_position
                 .get_worst_case_token_amount(
                     &spot_market,
-                    oracle_price_data,
-                    if strict {
-                        Some(
-                            spot_market
-                                .historical_oracle_data
-                                .last_oracle_price_twap_5min,
-                        )
-                    } else {
-                        None
-                    },
-                    quote_price,
+                    &strict_oracle_price,
+                    strict_quote_price.current,
                     Some(signed_token_amount),
                     margin_requirement_type,
                 )?;
@@ -369,22 +367,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 )?;
             }
 
-            let signed_token_value = if strict {
-                get_strict_token_value(
-                    signed_token_amount,
-                    spot_market.decimals,
-                    oracle_price_data,
-                    spot_market
-                        .historical_oracle_data
-                        .last_oracle_price_twap_5min,
-                )?
-            } else {
-                get_token_value(
-                    signed_token_amount,
-                    spot_market.decimals,
-                    oracle_price_data.price,
-                )?
-            };
+            let signed_token_value = get_strict_token_value(
+                signed_token_amount,
+                spot_market.decimals,
+                &strict_oracle_price,
+            )?;
 
             // the worst case token value is the deposit/borrow amount * oracle + worst case order size * oracle
             let worst_case_token_value =
@@ -401,10 +388,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                             spot_market
                                 .get_asset_weight(
                                     worst_case_token_amount.unsigned_abs(),
-                                    oracle_price_data.price,
-                                    spot_market
-                                        .historical_oracle_data
-                                        .last_oracle_price_twap_5min,
+                                    &strict_oracle_price,
                                     &margin_requirement_type,
                                 )?
                                 .cast()?,

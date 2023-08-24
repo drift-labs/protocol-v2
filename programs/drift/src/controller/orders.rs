@@ -58,7 +58,7 @@ use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::oracle::OraclePriceData;
+use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
@@ -2868,11 +2868,18 @@ pub fn place_spot_order(
 
     let quote_oracle = spot_market_map.get_quote_spot_market()?.oracle;
     let quote_price = oracle_map.get_price_data(&quote_oracle)?.price;
+    let strict_oracle_price = StrictOraclePrice::new(
+        oracle_price_data.price,
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        true,
+    );
+
     let (worst_case_token_amount_before, _) = user.spot_positions[spot_position_index]
         .get_worst_case_token_amount(
             spot_market,
-            &oracle_price_data,
-            None,
+            &strict_oracle_price,
             quote_price,
             Some(signed_token_amount),
             MarginRequirementType::Initial,
@@ -2992,8 +2999,7 @@ pub fn place_spot_order(
     let (worst_case_token_amount_after, _) = user.spot_positions[spot_position_index]
         .get_worst_case_token_amount(
             spot_market,
-            &oracle_price_data,
-            None,
+            &strict_oracle_price,
             quote_price,
             Some(signed_token_amount),
             MarginRequirementType::Initial,
@@ -3631,19 +3637,28 @@ fn fulfill_spot_order(
     let quote_price = oracle_map.get_price_data(&quote_market.oracle)?.price;
     let base_price = oracle_map.get_price_data(&base_market.oracle)?.price;
 
+    let strict_quote_price = StrictOraclePrice::new(
+        quote_price,
+        quote_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        true,
+    );
+    let strict_base_price = StrictOraclePrice::new(
+        base_price,
+        base_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        true,
+    );
+
     let margin_type = if order_direction == PositionDirection::Long {
         // sell quote, buy base
         select_margin_type_for_swap(
             &quote_market,
             &base_market,
-            quote_price,
-            quote_market
-                .historical_oracle_data
-                .last_oracle_price_twap_5min,
-            base_price,
-            base_market
-                .historical_oracle_data
-                .last_oracle_price_twap_5min,
+            &strict_quote_price,
+            &strict_base_price,
             quote_token_amount_before,
             base_token_amount_before,
             quote_token_amount_after,
@@ -3655,14 +3670,8 @@ fn fulfill_spot_order(
         select_margin_type_for_swap(
             &base_market,
             &quote_market,
-            base_price,
-            base_market
-                .historical_oracle_data
-                .last_oracle_price_twap_5min,
-            quote_price,
-            quote_market
-                .historical_oracle_data
-                .last_oracle_price_twap_5min,
+            &strict_base_price,
+            &strict_quote_price,
             base_token_amount_before,
             quote_token_amount_before,
             base_token_amount_after,

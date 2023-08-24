@@ -15,9 +15,11 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
+use crate::math::spot_balance::{
+    get_signed_token_amount, get_strict_token_value, get_token_amount, get_token_value,
+};
 use crate::math::stats::calculate_rolling_sum;
-use crate::state::oracle::OraclePriceData;
+use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
@@ -499,8 +501,7 @@ impl SpotPosition {
     pub fn get_worst_case_token_amount(
         &self,
         spot_market: &SpotMarket,
-        oracle_price_data: &OraclePriceData,
-        twap_5min: Option<i64>,
+        strict_oracle_price: &StrictOraclePrice,
         quote_price: i64,
         token_amount: Option<i128>,
         margin_type: MarginRequirementType,
@@ -518,24 +519,21 @@ impl SpotPosition {
 
         let token_amount_all_asks_fill = token_amount.safe_add(self.open_asks as i128)?;
 
-        let oracle_price = match twap_5min {
-            Some(twap_5min) => twap_5min.max(oracle_price_data.price),
-            None => oracle_price_data.price,
-        };
-
         let calculate_free_collateral_contribution =
-            |price: i64, twap: i64, token_amount: i128, open_orders: i64| {
+            |strict_oracle_price: &StrictOraclePrice, token_amount: i128, open_orders: i64| {
                 let mut total_collateral = 0_i128;
                 let mut margin_requirement = 0_i128;
 
-                let token_value =
-                    get_token_value(token_amount, spot_market.decimals, oracle_price_data.price)?;
+                let token_value = get_strict_token_value(
+                    token_amount,
+                    spot_market.decimals,
+                    strict_oracle_price,
+                )?;
 
                 if token_value > 0 {
                     let asset_weight = spot_market.get_asset_weight(
                         token_amount.unsigned_abs(),
-                        price,
-                        twap,
+                        strict_oracle_price,
                         &margin_type,
                     )?;
 
@@ -552,8 +550,11 @@ impl SpotPosition {
                         .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
                 }
 
-                let order_value =
-                    get_token_value(-open_orders as i128, spot_market.decimals, price)?;
+                let order_value = get_token_value(
+                    -open_orders as i128,
+                    spot_market.decimals,
+                    strict_oracle_price.max(),
+                )?;
 
                 if order_value > 0 {
                     if quote_price == QUOTE_PRECISION_I64 {
@@ -584,16 +585,14 @@ impl SpotPosition {
 
         let (free_collateral_contribution_all_bids_fill, orders_value_all_bids_fill) =
             calculate_free_collateral_contribution(
-                oracle_price,
-                twap_5min.unwrap_or(oracle_price_data.price),
+                strict_oracle_price,
                 token_amount_all_bids_fill,
                 self.open_bids,
             )?;
 
         let (free_collateral_contribution_all_asks_fill, orders_value_all_asks_fill) =
             calculate_free_collateral_contribution(
-                oracle_price,
-                twap_5min.unwrap_or(oracle_price_data.price),
+                strict_oracle_price,
                 token_amount_all_asks_fill,
                 self.open_asks,
             )?;
