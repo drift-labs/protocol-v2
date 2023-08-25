@@ -4,26 +4,32 @@ export class PriorityFeeSubscriber {
 	connection: Connection;
 	frequencyMs: number;
 	addresses: PublicKey[];
+	slotsToCheck: number;
 
 	intervalId?: NodeJS.Timer;
 
 	latestPriorityFee = 0;
-	// avg of last 10 slots
+	// avg of last {slotsToCheck} slots
 	avgPriorityFee = 0;
+	// max of last {slotsToCheck} slots
+	maxPriorityFee = 0;
 	lastSlotSeen = 0;
 
 	public constructor({
 		connection,
 		frequencyMs,
 		addresses,
+		slotsToCheck = 10,
 	}: {
 		connection: Connection;
 		frequencyMs: number;
 		addresses: PublicKey[];
+		slotsToCheck?: number;
 	}) {
 		this.connection = connection;
 		this.frequencyMs = frequencyMs;
 		this.addresses = addresses;
+		this.slotsToCheck = slotsToCheck;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -42,8 +48,9 @@ export class PriorityFeeSubscriber {
 		);
 
 		const descResults: { slot: number; prioritizationFee: number }[] =
-			rpcJSONResponse?.result?.sort((a, b) => b.slot - a.slot)?.slice(0, 10) ??
-			[];
+			rpcJSONResponse?.result
+				?.sort((a, b) => b.slot - a.slot)
+				?.slice(0, this.slotsToCheck) ?? [];
 
 		if (!descResults?.length) return;
 
@@ -54,6 +61,9 @@ export class PriorityFeeSubscriber {
 			descResults.reduce((a, b) => {
 				return a + b.prioritizationFee;
 			}, 0) / descResults.length;
+		this.maxPriorityFee = Math.max(
+			...descResults.map((result) => result.prioritizationFee)
+		);
 	}
 
 	public async unsubscribe(): Promise<void> {
