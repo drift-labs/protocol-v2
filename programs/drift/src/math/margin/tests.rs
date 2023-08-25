@@ -250,15 +250,14 @@ mod test {
             .unwrap();
         assert_eq!(uaw, 9559);
 
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
         let (pmr, upnl, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
             false,
         )
         .unwrap();
@@ -329,15 +328,14 @@ mod test {
         );
         assert_eq!(position_unrealized_pnl * 800000, 19426229516800000); // 1.9 billion
 
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
         let (pmr_2, upnl_2, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
             false,
         )
         .unwrap();
@@ -394,15 +392,14 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
         let (pmr, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
             false,
         )
         .unwrap();
@@ -424,11 +421,9 @@ mod test {
             &position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
             false,
         )
         .unwrap();
@@ -469,15 +464,14 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
         let (pmr, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
             false,
         )
         .unwrap();
@@ -494,15 +488,14 @@ mod test {
         market.amm.quote_asset_reserve = new_qar;
         market.amm.base_asset_reserve = new_bar;
 
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
         let (pmr2, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
             false,
         )
         .unwrap();

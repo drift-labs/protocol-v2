@@ -269,6 +269,7 @@ pub fn get_pyth_stable_coin_price(
 //     })
 // }
 
+#[derive(Clone, Copy)]
 pub struct StrictOraclePrice {
     pub current: i64,
     pub twap_5min: Option<i64>,
@@ -314,5 +315,15 @@ impl StrictOraclePrice {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+impl StrictOraclePrice {
+    pub fn test(price: i64) -> Self {
+        Self {
+            current: price,
+            twap_5min: None,
+        }
     }
 }
