@@ -353,6 +353,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 orders_value: mut worst_case_orders_value,
                 token_value: worst_case_token_value,
                 weighted_token_value: mut worst_case_weighted_token_value,
+                ..
             } = spot_position.get_worst_case_token_amount(
                 &spot_market,
                 &strict_oracle_price,

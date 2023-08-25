@@ -2874,7 +2874,7 @@ pub fn place_spot_order(
     );
 
     let WorstCaseTokenCalc {
-        token_amount: worst_case_token_amount_before,
+        free_collateral_contribution: free_collateral_contribution_before,
         ..
     } = user.spot_positions[spot_position_index].get_worst_case_token_amount(
         spot_market,
@@ -2995,7 +2995,7 @@ pub fn place_spot_order(
     }
 
     let WorstCaseTokenCalc {
-        token_amount: worst_case_token_amount_after,
+        free_collateral_contribution: free_collateral_contribution_after,
         ..
     } = user.spot_positions[spot_position_index].get_worst_case_token_amount(
         spot_market,
@@ -3008,8 +3008,7 @@ pub fn place_spot_order(
         is_spot_order_risk_decreasing(&user.orders[new_order_index], &balance_type, token_amount)?;
 
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let risk_decreasing = worst_case_token_amount_after.unsigned_abs()
-        <= worst_case_token_amount_before.unsigned_abs()
+    let risk_decreasing = free_collateral_contribution_after >= free_collateral_contribution_before
         && order_risk_decreasing;
 
     if options.enforce_margin_check {

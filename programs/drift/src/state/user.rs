@@ -478,6 +478,7 @@ pub struct WorstCaseTokenCalc {
     pub orders_value: i128,
     pub token_value: i128,
     pub weighted_token_value: i128,
+    pub free_collateral_contribution: i128,
 }
 
 impl SpotPosition {
@@ -552,6 +553,7 @@ impl SpotPosition {
                 orders_value: 0,
                 token_value,
                 weighted_token_value,
+                free_collateral_contribution: weighted_token_value,
             });
         }
 
@@ -614,6 +616,7 @@ impl SpotPosition {
                 orders_value: orders_value_all_asks_fill,
                 token_value: token_value_after_all_asks_fill,
                 weighted_token_value: weighted_token_value_all_asks_fill,
+                free_collateral_contribution: free_collateral_contribution_all_asks_fill,
             })
         } else {
             Ok(WorstCaseTokenCalc {
@@ -621,6 +624,7 @@ impl SpotPosition {
                 orders_value: orders_value_all_bids_fill,
                 token_value: token_value_after_all_bids_fill,
                 weighted_token_value: weighted_token_value_all_bids_fill,
+                free_collateral_contribution: free_collateral_contribution_all_bids_fill,
             })
         }
     }
