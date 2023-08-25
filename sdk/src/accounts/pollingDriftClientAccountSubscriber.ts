@@ -6,7 +6,7 @@ import {
 	NotSubscribedError,
 	OraclesToPoll,
 } from './types';
-import { BorshAccountsCoder, Program } from '@coral-xyz/anchor';
+import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
@@ -225,27 +225,9 @@ export class PollingDriftClientAccountSubscriber
 			(buffer: Buffer, slot: number) => {
 				if (!buffer) return;
 
-				let account;
-				try {
-					account = this.program.account[
-						accountToPoll.key
-					].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-				} catch (e) {
-					console.error(e);
-					console.log('account key', accountToPoll.key);
-					console.log(
-						'accountToPoll.publicKey',
-						accountToPoll.publicKey.toString()
-					);
-					console.log('buffer', buffer.toString('base64'));
-					console.log(
-						'discriminator',
-						BorshAccountsCoder.accountDiscriminator(
-							capitalize(accountToPoll.key)
-						).toString('base64')
-					);
-					return;
-				}
+				const account = this.program.account[
+					accountToPoll.key
+				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
 				const dataAndSlot = {
 					data: account,
 					slot,
