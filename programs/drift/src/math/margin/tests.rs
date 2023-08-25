@@ -258,11 +258,10 @@ mod test {
             &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
         )
         .unwrap();
 
-        assert_eq!(upnl, 17580307388);
+        assert_eq!(upnl, 100000000);
         assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
@@ -336,17 +335,16 @@ mod test {
             &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
         )
         .unwrap();
 
         let uaw_2 = market
             .get_unrealized_asset_weight(upnl_2, MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(uaw_2, 9548);
+        assert_eq!(uaw_2, 10000);
 
-        assert_eq!(upnl_2, 23107500010);
-        assert!(upnl_2 > upnl);
+        assert_eq!(upnl_2, 100000000);
+        assert!(upnl_2 == upnl);
         assert!(pmr_2 > 0);
         assert_eq!(pmr_2, 12940573769); //$12940.5737702000
         assert!(pmr > pmr_2);
@@ -400,7 +398,6 @@ mod test {
             &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
         )
         .unwrap();
 
@@ -424,7 +421,6 @@ mod test {
             &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
         )
         .unwrap();
 
@@ -472,7 +468,6 @@ mod test {
             &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
         )
         .unwrap();
 
@@ -496,7 +491,6 @@ mod test {
             &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
         )
         .unwrap();
 

@@ -102,7 +102,6 @@ pub fn calculate_perp_position_value_and_pnl(
     strict_quote_price: &StrictOraclePrice,
     margin_requirement_type: MarginRequirementType,
     user_custom_margin_ratio: u32,
-    with_bounds: bool,
 ) -> DriftResult<(u128, i128, u128)> {
     let valuation_price = if market.status == MarketStatus::Settlement {
         market.expiry_price
@@ -184,7 +183,7 @@ pub fn calculate_perp_position_value_and_pnl(
             .safe_div(PRICE_PRECISION_I128)?;
     }
 
-    if with_bounds && margin_requirement_type == MarginRequirementType::Initial {
+    if margin_requirement_type == MarginRequirementType::Initial {
         // safety guard for dangerously configured perp market
         weighted_unrealized_pnl = weighted_unrealized_pnl.min(MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN);
     }
@@ -504,7 +503,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &strict_quote_price,
                 margin_requirement_type,
                 user_custom_margin_ratio,
-                true,
             )?;
 
         margin_requirement = margin_requirement.safe_add(perp_margin_requirement)?;
