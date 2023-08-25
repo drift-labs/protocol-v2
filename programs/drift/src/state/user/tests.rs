@@ -596,17 +596,16 @@ mod get_claimable_pnl {
 mod get_worst_case_token_amount {
     use crate::math::constants::{
         PRICE_PRECISION_I64, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION,
     };
     use crate::math::margin::MarginRequirementType;
-    use crate::state::oracle::{OraclePriceData, OracleSource, StrictOraclePrice};
+    use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{SpotPosition, WorstCaseTokenCalc};
 
     #[test]
     fn no_token_open_bid() {
         let spot_position = SpotPosition {
-            market_index: 0,
+            market_index: 1,
             balance_type: SpotBalanceType::Deposit,
             scaled_balance: 0,
             open_orders: 1,
@@ -615,13 +614,7 @@ mod get_worst_case_token_amount {
             ..SpotPosition::default()
         };
 
-        let spot_market = SpotMarket {
-            market_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 9,
-            ..SpotMarket::default()
-        };
+        let spot_market = SpotMarket::default_base_market();
 
         let oracle_price_data = OraclePriceData {
             price: 100 * PRICE_PRECISION_I64,
@@ -637,7 +630,9 @@ mod get_worst_case_token_amount {
         let WorstCaseTokenCalc {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
-            ..
+            token_value: worst_case_token_value,
+            weighted_token_value: worst_case_weighted_token_value,
+            free_collateral_contribution,
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -649,6 +644,9 @@ mod get_worst_case_token_amount {
 
         assert_eq!(worst_case_token_amount, 10_i128.pow(9));
         assert_eq!(worst_case_orders_value, -100 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_token_value, 100 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_weighted_token_value, 80 * QUOTE_PRECISION_I128);
+        assert_eq!(free_collateral_contribution, -20 * QUOTE_PRECISION_I128);
     }
 
     #[test]
@@ -676,10 +674,13 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: None,
         };
+
         let WorstCaseTokenCalc {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
-            ..
+            token_value: worst_case_token_value,
+            weighted_token_value: worst_case_weighted_token_value,
+            free_collateral_contribution,
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -691,12 +692,15 @@ mod get_worst_case_token_amount {
 
         assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
         assert_eq!(worst_case_orders_value, 100 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_token_value, -100 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_weighted_token_value, -120 * QUOTE_PRECISION_I128);
+        assert_eq!(free_collateral_contribution, -20 * QUOTE_PRECISION_I128);
     }
 
     #[test]
     fn deposit_and_open_ask() {
         let spot_position = SpotPosition {
-            market_index: 0,
+            market_index: 1,
             balance_type: SpotBalanceType::Deposit,
             scaled_balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
@@ -705,13 +709,7 @@ mod get_worst_case_token_amount {
             ..SpotPosition::default()
         };
 
-        let spot_market = SpotMarket {
-            market_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 9,
-            ..SpotMarket::default()
-        };
+        let spot_market = SpotMarket::default_base_market();
 
         let oracle_price_data = OraclePriceData {
             price: 100 * PRICE_PRECISION_I64,
@@ -727,7 +725,9 @@ mod get_worst_case_token_amount {
         let WorstCaseTokenCalc {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
-            ..
+            token_value: worst_case_token_value,
+            weighted_token_value: worst_case_weighted_token_value,
+            free_collateral_contribution,
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -739,6 +739,9 @@ mod get_worst_case_token_amount {
 
         assert_eq!(worst_case_token_amount, 2 * 10_i128.pow(9));
         assert_eq!(worst_case_orders_value, 0);
+        assert_eq!(worst_case_token_value, 200 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_weighted_token_value, 160 * QUOTE_PRECISION_I128);
+        assert_eq!(free_collateral_contribution, 160 * QUOTE_PRECISION_I128);
     }
 
     #[test]
@@ -769,7 +772,9 @@ mod get_worst_case_token_amount {
         let WorstCaseTokenCalc {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
-            ..
+            token_value: worst_case_token_value,
+            weighted_token_value: worst_case_weighted_token_value,
+            free_collateral_contribution,
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -781,6 +786,9 @@ mod get_worst_case_token_amount {
 
         assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
         assert_eq!(worst_case_orders_value, 200 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_token_value, -100 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_weighted_token_value, -120 * QUOTE_PRECISION_I128);
+        assert_eq!(free_collateral_contribution, 80 * QUOTE_PRECISION_I128);
     }
 
     #[test]
@@ -790,18 +798,12 @@ mod get_worst_case_token_amount {
             balance_type: SpotBalanceType::Deposit,
             scaled_balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
-            open_bids: 0,
-            open_asks: 10_i64.pow(9),
+            open_bids: 10_i64.pow(9),
+            open_asks: 0,
             ..SpotPosition::default()
         };
 
-        let spot_market = SpotMarket {
-            market_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 9,
-            ..SpotMarket::default()
-        };
+        let spot_market = SpotMarket::default_base_market();
 
         let oracle_price_data = OraclePriceData {
             price: 100 * PRICE_PRECISION_I64,
@@ -817,7 +819,9 @@ mod get_worst_case_token_amount {
         let WorstCaseTokenCalc {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
-            ..
+            token_value: worst_case_token_value,
+            weighted_token_value: worst_case_weighted_token_value,
+            free_collateral_contribution,
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -829,6 +833,9 @@ mod get_worst_case_token_amount {
 
         assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
         assert_eq!(worst_case_orders_value, -100 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_token_value, 300 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_weighted_token_value, 240 * QUOTE_PRECISION_I128);
+        assert_eq!(free_collateral_contribution, 140 * QUOTE_PRECISION_I128);
     }
 
     #[test]
@@ -859,7 +866,9 @@ mod get_worst_case_token_amount {
         let WorstCaseTokenCalc {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
-            ..
+            token_value: worst_case_token_value,
+            weighted_token_value: worst_case_weighted_token_value,
+            free_collateral_contribution,
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -871,6 +880,9 @@ mod get_worst_case_token_amount {
 
         assert_eq!(worst_case_token_amount, -2 * 10_i128.pow(9));
         assert_eq!(worst_case_orders_value, 0);
+        assert_eq!(worst_case_token_value, -200 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_weighted_token_value, -240 * QUOTE_PRECISION_I128);
+        assert_eq!(free_collateral_contribution, -240 * QUOTE_PRECISION_I128);
     }
 
     #[test]
@@ -901,7 +913,9 @@ mod get_worst_case_token_amount {
         let WorstCaseTokenCalc {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
-            ..
+            token_value: worst_case_token_value,
+            weighted_token_value: worst_case_weighted_token_value,
+            free_collateral_contribution,
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -913,6 +927,9 @@ mod get_worst_case_token_amount {
 
         assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
         assert_eq!(worst_case_orders_value, -500 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_token_value, 300 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_weighted_token_value, 240 * QUOTE_PRECISION_I128);
+        assert_eq!(free_collateral_contribution, -260 * QUOTE_PRECISION_I128);
     }
 
     #[test]
@@ -943,7 +960,9 @@ mod get_worst_case_token_amount {
         let WorstCaseTokenCalc {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
-            ..
+            token_value: worst_case_token_value,
+            weighted_token_value: worst_case_weighted_token_value,
+            free_collateral_contribution,
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -955,6 +974,9 @@ mod get_worst_case_token_amount {
 
         assert_eq!(worst_case_token_amount, -3 * 10_i128.pow(9));
         assert_eq!(worst_case_orders_value, 100 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_token_value, -300 * QUOTE_PRECISION_I128);
+        assert_eq!(worst_case_weighted_token_value, -360 * QUOTE_PRECISION_I128);
+        assert_eq!(free_collateral_contribution, -260 * QUOTE_PRECISION_I128);
     }
 }
 
