@@ -348,7 +348,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
 
-            // todo account for user custom margin ratio
             let WorstCaseTokenCalc {
                 token_amount: worst_case_token_amount,
                 orders_value: mut worst_case_orders_value,
