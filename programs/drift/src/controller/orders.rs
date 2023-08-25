@@ -69,7 +69,7 @@ use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::traits::Size;
 use crate::state::user::{
-    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
+    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats, WorstCaseTokenCalc,
 };
 use crate::state::user::{MarketType, User};
 use crate::state::user_map::{UserMap, UserStatsMap};
@@ -2865,9 +2865,6 @@ pub fn place_spot_order(
     let signed_token_amount = get_signed_token_amount(token_amount, &balance_type)?;
 
     let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle)?;
-
-    let quote_oracle = spot_market_map.get_quote_spot_market()?.oracle;
-    let quote_price = oracle_map.get_price_data(&quote_oracle)?.price;
     let strict_oracle_price = StrictOraclePrice::new(
         oracle_price_data.price,
         spot_market
@@ -2876,14 +2873,15 @@ pub fn place_spot_order(
         true,
     );
 
-    let (worst_case_token_amount_before, _) = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amount(
-            spot_market,
-            &strict_oracle_price,
-            quote_price,
-            Some(signed_token_amount),
-            MarginRequirementType::Initial,
-        )?;
+    let WorstCaseTokenCalc {
+        worst_case_token_amount: worst_case_token_amount_before,
+        ..
+    } = user.spot_positions[spot_position_index].get_worst_case_token_amount(
+        spot_market,
+        &strict_oracle_price,
+        Some(signed_token_amount),
+        MarginRequirementType::Initial,
+    )?;
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
@@ -2996,14 +2994,15 @@ pub fn place_spot_order(
         )?;
     }
 
-    let (worst_case_token_amount_after, _) = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amount(
-            spot_market,
-            &strict_oracle_price,
-            quote_price,
-            Some(signed_token_amount),
-            MarginRequirementType::Initial,
-        )?;
+    let WorstCaseTokenCalc {
+        worst_case_token_amount: worst_case_token_amount_after,
+        ..
+    } = user.spot_positions[spot_position_index].get_worst_case_token_amount(
+        spot_market,
+        &strict_oracle_price,
+        Some(signed_token_amount),
+        MarginRequirementType::Initial,
+    )?;
 
     let order_risk_decreasing =
         is_spot_order_risk_decreasing(&user.orders[new_order_index], &balance_type, token_amount)?;

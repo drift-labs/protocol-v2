@@ -742,6 +742,8 @@ mod calculate_margin_requirement_and_total_collateral {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            initial_liability_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),

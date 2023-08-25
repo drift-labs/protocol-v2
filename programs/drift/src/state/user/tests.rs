@@ -598,9 +598,10 @@ mod get_worst_case_token_amount {
         PRICE_PRECISION_I64, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION,
     };
-    use crate::state::oracle::{OraclePriceData, OracleSource};
+    use crate::math::margin::MarginRequirementType;
+    use crate::state::oracle::{OraclePriceData, OracleSource, StrictOraclePrice};
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
-    use crate::state::user::SpotPosition;
+    use crate::state::user::{SpotPosition, WorstCaseTokenCalc};
 
     #[test]
     fn no_token_open_bid() {
@@ -629,8 +630,20 @@ mod get_worst_case_token_amount {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_orders_value) = spot_position
-            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
+        let strict_price = StrictOraclePrice {
+            current: oracle_price_data.price,
+            twap_5min: None,
+        };
+        let WorstCaseTokenCalc {
+            worst_case_token_amount,
+            worst_case_orders_value,
+        } = spot_position
+            .get_worst_case_token_amount(
+                &spot_market,
+                &strict_price,
+                None,
+                MarginRequirementType::Initial,
+            )
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 10_i128.pow(9));
@@ -640,7 +653,7 @@ mod get_worst_case_token_amount {
     #[test]
     fn no_token_open_ask() {
         let spot_position = SpotPosition {
-            market_index: 0,
+            market_index: 1,
             balance_type: SpotBalanceType::Deposit,
             scaled_balance: 0,
             open_orders: 1,
@@ -649,13 +662,7 @@ mod get_worst_case_token_amount {
             ..SpotPosition::default()
         };
 
-        let spot_market = SpotMarket {
-            market_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 9,
-            ..SpotMarket::default()
-        };
+        let spot_market = SpotMarket::default_base_market();
 
         let oracle_price_data = OraclePriceData {
             price: 100 * PRICE_PRECISION_I64,
@@ -664,8 +671,20 @@ mod get_worst_case_token_amount {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_orders_value) = spot_position
-            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
+        let strict_price = StrictOraclePrice {
+            current: oracle_price_data.price,
+            twap_5min: None,
+        };
+        let WorstCaseTokenCalc {
+            worst_case_token_amount,
+            worst_case_orders_value,
+        } = spot_position
+            .get_worst_case_token_amount(
+                &spot_market,
+                &strict_price,
+                None,
+                MarginRequirementType::Initial,
+            )
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
@@ -699,8 +718,20 @@ mod get_worst_case_token_amount {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_orders_value) = spot_position
-            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
+        let strict_price = StrictOraclePrice {
+            current: oracle_price_data.price,
+            twap_5min: None,
+        };
+        let WorstCaseTokenCalc {
+            worst_case_token_amount,
+            worst_case_orders_value,
+        } = spot_position
+            .get_worst_case_token_amount(
+                &spot_market,
+                &strict_price,
+                None,
+                MarginRequirementType::Initial,
+            )
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 2 * 10_i128.pow(9));
@@ -710,7 +741,7 @@ mod get_worst_case_token_amount {
     #[test]
     fn deposit_and_open_ask_flips_to_borrow() {
         let spot_position = SpotPosition {
-            market_index: 0,
+            market_index: 1,
             balance_type: SpotBalanceType::Deposit,
             scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
@@ -719,13 +750,7 @@ mod get_worst_case_token_amount {
             ..SpotPosition::default()
         };
 
-        let spot_market = SpotMarket {
-            market_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 9,
-            ..SpotMarket::default()
-        };
+        let spot_market = SpotMarket::default_base_market();
 
         let oracle_price_data = OraclePriceData {
             price: 100 * PRICE_PRECISION_I64,
@@ -734,8 +759,20 @@ mod get_worst_case_token_amount {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_orders_value) = spot_position
-            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
+        let strict_price = StrictOraclePrice {
+            current: oracle_price_data.price,
+            twap_5min: None,
+        };
+        let WorstCaseTokenCalc {
+            worst_case_token_amount,
+            worst_case_orders_value,
+        } = spot_position
+            .get_worst_case_token_amount(
+                &spot_market,
+                &strict_price,
+                None,
+                MarginRequirementType::Initial,
+            )
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
@@ -769,8 +806,20 @@ mod get_worst_case_token_amount {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_orders_value) = spot_position
-            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
+        let strict_price = StrictOraclePrice {
+            current: oracle_price_data.price,
+            twap_5min: None,
+        };
+        let WorstCaseTokenCalc {
+            worst_case_token_amount,
+            worst_case_orders_value,
+        } = spot_position
+            .get_worst_case_token_amount(
+                &spot_market,
+                &strict_price,
+                None,
+                MarginRequirementType::Initial,
+            )
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
@@ -780,7 +829,7 @@ mod get_worst_case_token_amount {
     #[test]
     fn borrow_and_open_bid() {
         let spot_position = SpotPosition {
-            market_index: 0,
+            market_index: 1,
             balance_type: SpotBalanceType::Borrow,
             scaled_balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
@@ -789,14 +838,7 @@ mod get_worst_case_token_amount {
             ..SpotPosition::default()
         };
 
-        let spot_market = SpotMarket {
-            market_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 9,
-            ..SpotMarket::default()
-        };
+        let spot_market = SpotMarket::default_base_market();
 
         let oracle_price_data = OraclePriceData {
             price: 100 * PRICE_PRECISION_I64,
@@ -805,8 +847,20 @@ mod get_worst_case_token_amount {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_orders_value) = spot_position
-            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
+        let strict_price = StrictOraclePrice {
+            current: oracle_price_data.price,
+            twap_5min: None,
+        };
+        let WorstCaseTokenCalc {
+            worst_case_token_amount,
+            worst_case_orders_value,
+        } = spot_position
+            .get_worst_case_token_amount(
+                &spot_market,
+                &strict_price,
+                None,
+                MarginRequirementType::Initial,
+            )
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -2 * 10_i128.pow(9));
@@ -816,7 +870,7 @@ mod get_worst_case_token_amount {
     #[test]
     fn borrow_and_open_bid_flips_to_deposit() {
         let spot_position = SpotPosition {
-            market_index: 0,
+            market_index: 1,
             balance_type: SpotBalanceType::Borrow,
             scaled_balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
@@ -825,14 +879,7 @@ mod get_worst_case_token_amount {
             ..SpotPosition::default()
         };
 
-        let spot_market = SpotMarket {
-            market_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 9,
-            ..SpotMarket::default()
-        };
+        let spot_market = SpotMarket::default_base_market();
 
         let oracle_price_data = OraclePriceData {
             price: 100 * PRICE_PRECISION_I64,
@@ -841,8 +888,20 @@ mod get_worst_case_token_amount {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_orders_value) = spot_position
-            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
+        let strict_price = StrictOraclePrice {
+            current: oracle_price_data.price,
+            twap_5min: None,
+        };
+        let WorstCaseTokenCalc {
+            worst_case_token_amount,
+            worst_case_orders_value,
+        } = spot_position
+            .get_worst_case_token_amount(
+                &spot_market,
+                &strict_price,
+                None,
+                MarginRequirementType::Initial,
+            )
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
@@ -852,7 +911,7 @@ mod get_worst_case_token_amount {
     #[test]
     fn borrow_and_open_ask() {
         let spot_position = SpotPosition {
-            market_index: 0,
+            market_index: 1,
             balance_type: SpotBalanceType::Borrow,
             scaled_balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
@@ -861,14 +920,7 @@ mod get_worst_case_token_amount {
             ..SpotPosition::default()
         };
 
-        let spot_market = SpotMarket {
-            market_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 9,
-            ..SpotMarket::default()
-        };
+        let spot_market = SpotMarket::default_base_market();
 
         let oracle_price_data = OraclePriceData {
             price: 100 * PRICE_PRECISION_I64,
@@ -877,8 +929,20 @@ mod get_worst_case_token_amount {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (worst_case_token_amount, worst_case_orders_value) = spot_position
-            .get_worst_case_token_amount(&spot_market, &oracle_price_data, None, None)
+        let strict_price = StrictOraclePrice {
+            current: oracle_price_data.price,
+            twap_5min: None,
+        };
+        let WorstCaseTokenCalc {
+            worst_case_token_amount,
+            worst_case_orders_value,
+        } = spot_position
+            .get_worst_case_token_amount(
+                &spot_market,
+                &strict_price,
+                None,
+                MarginRequirementType::Initial,
+            )
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -3 * 10_i128.pow(9));

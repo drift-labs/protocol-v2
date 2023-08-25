@@ -4,6 +4,7 @@ mod test {
     use crate::math::margin::MarginRequirementType;
 
     use crate::math::spot_swap::select_margin_type_for_swap;
+    use crate::state::oracle::StrictOraclePrice;
     use crate::state::spot_market::SpotMarket;
 
     #[test]
@@ -21,13 +22,21 @@ mod test {
         let usdc_after = -100 * 10_i128.pow(usdc_spot_market.decimals);
         let sol_after = 2 * 10_i128.pow(sol_spot_market.decimals);
 
+        let strict_usdc_price = StrictOraclePrice {
+            current: usdc_price,
+            twap_5min: None,
+        };
+
+        let strict_sol_price = StrictOraclePrice {
+            current: sol_price,
+            twap_5min: None,
+        };
+
         let margin_type = select_margin_type_for_swap(
             &usdc_spot_market,
             &sol_spot_market,
-            usdc_price,
-            usdc_price,
-            sol_price,
-            sol_price,
+            &strict_usdc_price,
+            &strict_sol_price,
             usdc_before,
             sol_before,
             usdc_after,
@@ -55,13 +64,21 @@ mod test {
         let usdc_after = 100 * 10_i128.pow(usdc_spot_market.decimals);
         let sol_after = 0_i128;
 
+        let strict_usdc_price = StrictOraclePrice {
+            current: usdc_price,
+            twap_5min: None,
+        };
+
+        let strict_sol_price = StrictOraclePrice {
+            current: sol_price,
+            twap_5min: None,
+        };
+
         let margin_type = select_margin_type_for_swap(
             &usdc_spot_market,
             &sol_spot_market,
-            usdc_price,
-            usdc_price,
-            sol_price,
-            sol_price,
+            &strict_usdc_price,
+            &strict_sol_price,
             usdc_before,
             sol_before,
             usdc_after,
@@ -88,13 +105,21 @@ mod test {
         let usdc_after = 200 * 10_i128.pow(usdc_spot_market.decimals);
         let sol_after = -(10_i128.pow(sol_spot_market.decimals));
 
+        let strict_usdc_price = StrictOraclePrice {
+            current: usdc_price,
+            twap_5min: None,
+        };
+
+        let strict_sol_price = StrictOraclePrice {
+            current: sol_price,
+            twap_5min: None,
+        };
+
         let margin_type = select_margin_type_for_swap(
             &usdc_spot_market,
             &sol_spot_market,
-            usdc_price,
-            usdc_price,
-            sol_price,
-            sol_price,
+            &strict_usdc_price,
+            &strict_sol_price,
             usdc_before,
             sol_before,
             usdc_after,
@@ -121,13 +146,21 @@ mod test {
         let usdc_after = 0_i128;
         let sol_after = 10_i128.pow(sol_spot_market.decimals);
 
+        let strict_usdc_price = StrictOraclePrice {
+            current: usdc_price,
+            twap_5min: None,
+        };
+
+        let strict_sol_price = StrictOraclePrice {
+            current: sol_price,
+            twap_5min: None,
+        };
+
         let margin_type = select_margin_type_for_swap(
             &usdc_spot_market,
             &sol_spot_market,
-            usdc_price,
-            usdc_price,
-            sol_price,
-            sol_price,
+            &strict_usdc_price,
+            &strict_sol_price,
             usdc_before,
             sol_before,
             usdc_after,

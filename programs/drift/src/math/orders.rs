@@ -32,7 +32,7 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{
-    MarketType, Order, OrderStatus, OrderTriggerCondition, PerpPosition, User,
+    MarketType, Order, OrderStatus, OrderTriggerCondition, PerpPosition, User, WorstCaseTokenCalc,
 };
 use crate::state::user_map::UserMap;
 use crate::validate;
@@ -997,9 +997,6 @@ pub fn calculate_max_spot_order_size(
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
 
-    let quote_oracle = spot_market_map.get_quote_spot_market()?.oracle;
-    let quote_price = oracle_map.get_price_data(&quote_oracle)?.price;
-
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
     let twap = spot_market
         .historical_oracle_data
@@ -1009,14 +1006,16 @@ pub fn calculate_max_spot_order_size(
 
     let spot_position = user.get_spot_position(market_index)?;
     let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
-    let (worst_case_token_amount, worst_case_orders_value) = spot_position
-        .get_worst_case_token_amount(
-            &spot_market,
-            &strict_oracle_price,
-            quote_price,
-            Some(signed_token_amount),
-            MarginRequirementType::Initial,
-        )?;
+
+    let WorstCaseTokenCalc {
+        worst_case_token_amount,
+        worst_case_orders_value,
+    } = spot_position.get_worst_case_token_amount(
+        &spot_market,
+        &strict_oracle_price,
+        Some(signed_token_amount),
+        MarginRequirementType::Initial,
+    )?;
 
     let token_value_before = get_strict_token_value(
         signed_token_amount,

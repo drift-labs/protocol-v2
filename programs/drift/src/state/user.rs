@@ -19,18 +19,19 @@ use crate::math::spot_balance::{
     get_signed_token_amount, get_strict_token_value, get_token_amount, get_token_value,
 };
 use crate::math::stats::calculate_rolling_sum;
+use crate::safe_increment;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
+use crate::validate;
 use crate::{get_then_update_id, QUOTE_PRECISION_U64};
 use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
-use crate::{safe_increment, QUOTE_PRECISION_I128};
-use crate::{validate, QUOTE_PRECISION_I64};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 use std::cmp::max;
+use std::ops::Neg;
 use std::panic::Location;
 
 #[cfg(test)]
@@ -472,6 +473,11 @@ impl SpotBalance for SpotPosition {
     }
 }
 
+pub struct WorstCaseTokenCalc {
+    pub worst_case_token_amount: i128,
+    pub worst_case_orders_value: i128,
+}
+
 impl SpotPosition {
     pub fn is_available(&self) -> bool {
         self.scaled_balance == 0 && self.open_orders == 0
@@ -502,25 +508,23 @@ impl SpotPosition {
         &self,
         spot_market: &SpotMarket,
         strict_oracle_price: &StrictOraclePrice,
-        quote_price: i64,
         token_amount: Option<i128>,
         margin_type: MarginRequirementType,
-    ) -> DriftResult<(i128, i128)> {
+    ) -> DriftResult<WorstCaseTokenCalc> {
         let token_amount = match token_amount {
             Some(token_amount) => token_amount,
             None => self.get_signed_token_amount(spot_market)?,
         };
 
         if self.open_bids == 0 && self.open_asks == 0 {
-            return Ok((token_amount, 0));
+            return Ok(WorstCaseTokenCalc {
+                worst_case_token_amount: token_amount,
+                worst_case_orders_value: 0,
+            });
         }
 
-        let token_amount_all_bids_fill = token_amount.safe_add(self.open_bids as i128)?;
-
-        let token_amount_all_asks_fill = token_amount.safe_add(self.open_asks as i128)?;
-
         let calculate_free_collateral_contribution =
-            |strict_oracle_price: &StrictOraclePrice, token_amount: i128, open_orders: i64| {
+            |strict_oracle_price: &StrictOraclePrice, token_amount: i128, open_orders: i128| {
                 let mut total_collateral = 0_i128;
                 let mut margin_requirement = 0_i128;
 
@@ -529,54 +533,40 @@ impl SpotPosition {
                     spot_market.decimals,
                     strict_oracle_price,
                 )?;
-
-                if token_value > 0 {
-                    let asset_weight = spot_market.get_asset_weight(
-                        token_amount.unsigned_abs(),
-                        strict_oracle_price,
-                        &margin_type,
-                    )?;
-
-                    total_collateral = token_value
-                        .safe_mul(asset_weight.cast()?)?
-                        .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
-                } else if token_value < 0 {
-                    let liability_weight = spot_market
-                        .get_liability_weight(token_amount.unsigned_abs(), &margin_type)?;
-
-                    margin_requirement = token_value
-                        .abs()
-                        .safe_mul(liability_weight.cast()?)?
-                        .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
-                }
-
                 let order_value = get_token_value(
                     -open_orders as i128,
                     spot_market.decimals,
                     strict_oracle_price.max(),
                 )?;
+                let token_amount_after_fill = token_amount.safe_add(open_orders)?;
+                let token_value_after_fill = token_value.safe_add(order_value.neg())?;
+
+                if token_value_after_fill > 0 {
+                    let asset_weight = spot_market.get_asset_weight(
+                        token_amount_after_fill.unsigned_abs(),
+                        strict_oracle_price,
+                        &margin_type,
+                    )?;
+
+                    total_collateral = token_value_after_fill
+                        .safe_mul(asset_weight.cast()?)?
+                        .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
+                } else if token_value_after_fill < 0 {
+                    let liability_weight = spot_market.get_liability_weight(
+                        token_amount_after_fill.unsigned_abs(),
+                        &margin_type,
+                    )?;
+
+                    margin_requirement = token_value_after_fill
+                        .abs()
+                        .safe_mul(liability_weight.cast()?)?
+                        .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
+                }
 
                 if order_value > 0 {
-                    if quote_price == QUOTE_PRECISION_I64 {
-                        total_collateral = total_collateral.safe_add(order_value)?;
-                    } else {
-                        total_collateral = total_collateral.safe_add(
-                            order_value
-                                .safe_mul(quote_price.cast()?)?
-                                .safe_div(QUOTE_PRECISION_I128)?,
-                        )?;
-                    }
+                    total_collateral = total_collateral.safe_add(order_value)?;
                 } else if order_value < 0 {
-                    if quote_price == QUOTE_PRECISION_I64 {
-                        margin_requirement = margin_requirement.safe_add(order_value.abs())?;
-                    } else {
-                        margin_requirement = margin_requirement.safe_add(
-                            order_value
-                                .abs()
-                                .safe_mul(quote_price.cast()?)?
-                                .safe_div(QUOTE_PRECISION_I128)?,
-                        )?;
-                    }
+                    margin_requirement = margin_requirement.safe_add(order_value.abs())?;
                 }
 
                 let free_collateral_contribution = total_collateral.safe_sub(margin_requirement)?;
@@ -586,21 +576,28 @@ impl SpotPosition {
         let (free_collateral_contribution_all_bids_fill, orders_value_all_bids_fill) =
             calculate_free_collateral_contribution(
                 strict_oracle_price,
-                token_amount_all_bids_fill,
-                self.open_bids,
+                token_amount,
+                self.open_bids.cast()?,
             )?;
 
         let (free_collateral_contribution_all_asks_fill, orders_value_all_asks_fill) =
             calculate_free_collateral_contribution(
                 strict_oracle_price,
-                token_amount_all_asks_fill,
-                self.open_asks,
+                token_amount,
+                self.open_asks.cast()?,
             )?;
 
-        if free_collateral_contribution_all_asks_fill < free_collateral_contribution_all_bids_fill {
-            Ok((token_amount_all_asks_fill, orders_value_all_asks_fill))
+        if free_collateral_contribution_all_asks_fill <= free_collateral_contribution_all_bids_fill
+        {
+            Ok(WorstCaseTokenCalc {
+                worst_case_token_amount: token_amount.saturating_add(self.open_asks.cast()?),
+                worst_case_orders_value: orders_value_all_asks_fill,
+            })
         } else {
-            Ok((token_amount_all_bids_fill, orders_value_all_bids_fill))
+            Ok(WorstCaseTokenCalc {
+                worst_case_token_amount: token_amount.saturating_add(self.open_bids.cast()?),
+                worst_case_orders_value: orders_value_all_bids_fill,
+            })
         }
     }
 }
