@@ -2874,7 +2874,7 @@ pub fn place_spot_order(
     );
 
     let WorstCaseTokenCalc {
-        worst_case_token_amount: worst_case_token_amount_before,
+        token_amount: worst_case_token_amount_before,
         ..
     } = user.spot_positions[spot_position_index].get_worst_case_token_amount(
         spot_market,
@@ -2995,7 +2995,7 @@ pub fn place_spot_order(
     }
 
     let WorstCaseTokenCalc {
-        worst_case_token_amount: worst_case_token_amount_after,
+        token_amount: worst_case_token_amount_after,
         ..
     } = user.spot_positions[spot_position_index].get_worst_case_token_amount(
         spot_market,

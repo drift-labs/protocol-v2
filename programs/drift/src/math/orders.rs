@@ -1008,8 +1008,9 @@ pub fn calculate_max_spot_order_size(
     let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
 
     let WorstCaseTokenCalc {
-        worst_case_token_amount,
-        worst_case_orders_value,
+        token_amount: worst_case_token_amount,
+        orders_value: worst_case_orders_value,
+        ..
     } = spot_position.get_worst_case_token_amount(
         &spot_market,
         &strict_oracle_price,

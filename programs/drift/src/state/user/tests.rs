@@ -635,8 +635,9 @@ mod get_worst_case_token_amount {
             twap_5min: None,
         };
         let WorstCaseTokenCalc {
-            worst_case_token_amount,
-            worst_case_orders_value,
+            token_amount: worst_case_token_amount,
+            orders_value: worst_case_orders_value,
+            ..
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -676,8 +677,9 @@ mod get_worst_case_token_amount {
             twap_5min: None,
         };
         let WorstCaseTokenCalc {
-            worst_case_token_amount,
-            worst_case_orders_value,
+            token_amount: worst_case_token_amount,
+            orders_value: worst_case_orders_value,
+            ..
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -723,8 +725,9 @@ mod get_worst_case_token_amount {
             twap_5min: None,
         };
         let WorstCaseTokenCalc {
-            worst_case_token_amount,
-            worst_case_orders_value,
+            token_amount: worst_case_token_amount,
+            orders_value: worst_case_orders_value,
+            ..
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -764,8 +767,9 @@ mod get_worst_case_token_amount {
             twap_5min: None,
         };
         let WorstCaseTokenCalc {
-            worst_case_token_amount,
-            worst_case_orders_value,
+            token_amount: worst_case_token_amount,
+            orders_value: worst_case_orders_value,
+            ..
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -811,8 +815,9 @@ mod get_worst_case_token_amount {
             twap_5min: None,
         };
         let WorstCaseTokenCalc {
-            worst_case_token_amount,
-            worst_case_orders_value,
+            token_amount: worst_case_token_amount,
+            orders_value: worst_case_orders_value,
+            ..
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -852,8 +857,9 @@ mod get_worst_case_token_amount {
             twap_5min: None,
         };
         let WorstCaseTokenCalc {
-            worst_case_token_amount,
-            worst_case_orders_value,
+            token_amount: worst_case_token_amount,
+            orders_value: worst_case_orders_value,
+            ..
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -893,8 +899,9 @@ mod get_worst_case_token_amount {
             twap_5min: None,
         };
         let WorstCaseTokenCalc {
-            worst_case_token_amount,
-            worst_case_orders_value,
+            token_amount: worst_case_token_amount,
+            orders_value: worst_case_orders_value,
+            ..
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,
@@ -934,8 +941,9 @@ mod get_worst_case_token_amount {
             twap_5min: None,
         };
         let WorstCaseTokenCalc {
-            worst_case_token_amount,
-            worst_case_orders_value,
+            token_amount: worst_case_token_amount,
+            orders_value: worst_case_orders_value,
+            ..
         } = spot_position
             .get_worst_case_token_amount(
                 &spot_market,

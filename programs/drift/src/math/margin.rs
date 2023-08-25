@@ -9,7 +9,7 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 
-use crate::{validate, PRICE_PRECISION_I128};
+use crate::{validate, PRICE_PRECISION_I128, SPOT_WEIGHT_PRECISION_I128};
 use crate::{validation, PRICE_PRECISION_I64};
 
 use crate::math::casting::Cast;
@@ -29,7 +29,6 @@ use crate::state::user::{PerpPosition, User, WorstCaseTokenCalc};
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min, Ordering};
-use std::ops::Neg;
 
 #[cfg(test)]
 mod tests;
@@ -349,15 +348,42 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
 
+            // todo account for user custom margin ratio
             let WorstCaseTokenCalc {
-                worst_case_token_amount,
-                worst_case_orders_value,
+                token_amount: worst_case_token_amount,
+                orders_value: mut worst_case_orders_value,
+                token_value: worst_case_token_value,
+                weighted_token_value: mut worst_case_weighted_token_value,
             } = spot_position.get_worst_case_token_amount(
                 &spot_market,
                 &strict_oracle_price,
                 Some(signed_token_amount),
                 margin_requirement_type,
             )?;
+
+            // Need to recalculate weighted_token_value if user_custom_margin_ratio != 0
+            if user_custom_margin_ratio != 0 {
+                if worst_case_weighted_token_value < 0 {
+                    let max_liability_weight = spot_market
+                        .get_liability_weight(
+                            worst_case_token_amount.unsigned_abs(),
+                            &margin_requirement_type,
+                        )?
+                        .max(user_custom_margin_ratio);
+
+                    worst_case_weighted_token_value = worst_case_token_value
+                        .safe_mul(max_liability_weight.cast()?)?
+                        .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
+                }
+
+                if worst_case_orders_value < 0 {
+                    let max_liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
+
+                    worst_case_orders_value = worst_case_orders_value
+                        .safe_mul(max_liability_weight.cast()?)?
+                        .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
+                }
+            }
 
             if worst_case_token_amount == 0 {
                 validate!(
@@ -369,70 +395,37 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 )?;
             }
 
-            let signed_token_value = get_strict_token_value(
-                signed_token_amount,
-                spot_market.decimals,
-                &strict_oracle_price,
-            )?;
-
-            // the worst case token value is the deposit/borrow amount * oracle + worst case order size * oracle
-            let worst_case_token_value =
-                signed_token_value.safe_add(worst_case_orders_value.neg())?;
-
             margin_requirement =
                 margin_requirement.safe_add(spot_position.margin_requirement_for_open_orders()?)?;
 
-            match worst_case_token_amount.cmp(&0) {
+            match worst_case_token_value.cmp(&0) {
                 Ordering::Greater => {
-                    let weighted_token_value = worst_case_token_value
-                        .unsigned_abs()
-                        .safe_mul(
-                            spot_market
-                                .get_asset_weight(
-                                    worst_case_token_amount.unsigned_abs(),
-                                    &strict_oracle_price,
-                                    &margin_requirement_type,
-                                )?
-                                .cast()?,
-                        )?
-                        .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
-
-                    total_collateral =
-                        total_collateral.safe_add(weighted_token_value.cast::<i128>()?)?;
+                    total_collateral = total_collateral
+                        .safe_add(worst_case_weighted_token_value.cast::<i128>()?)?;
                 }
                 Ordering::Less => {
-                    let liability_weight =
-                        user_custom_margin_ratio.max(spot_market.get_liability_weight(
-                            worst_case_token_amount.unsigned_abs(),
-                            &margin_requirement_type,
-                        )?);
-
-                    let weighted_token_value = worst_case_token_value
-                        .unsigned_abs()
-                        .safe_mul(liability_weight.cast()?)?
-                        .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
-
                     validate!(
-                        weighted_token_value >= worst_case_token_value.unsigned_abs(),
+                        worst_case_weighted_token_value.unsigned_abs() >= worst_case_token_value.unsigned_abs(),
                         ErrorCode::InvalidMarginRatio,
                         "weighted_token_value < abs(worst_case_token_value) in spot market_index={}",
                         spot_market.market_index,
                     )?;
 
                     validate!(
-                        weighted_token_value != 0,
+                        worst_case_weighted_token_value != 0,
                         ErrorCode::InvalidOracle,
                         "weighted_token_value=0 for worst_case_token_amount={} in spot market_index={}",
                         worst_case_token_amount,
                         spot_market.market_index,
                     )?;
 
-                    margin_requirement = margin_requirement.safe_add(weighted_token_value)?;
+                    margin_requirement = margin_requirement
+                        .safe_add(worst_case_weighted_token_value.unsigned_abs())?;
 
                     if let Some(margin_buffer_ratio) = margin_buffer_ratio {
                         margin_requirement_plus_buffer = margin_requirement_plus_buffer.safe_add(
                             calculate_margin_requirement_with_buffer(
-                                weighted_token_value,
+                                worst_case_weighted_token_value.unsigned_abs(),
                                 worst_case_token_value.unsigned_abs(),
                                 margin_buffer_ratio,
                             )?,
@@ -455,18 +448,13 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         total_collateral.safe_add(worst_case_orders_value.cast::<i128>()?)?
                 }
                 Ordering::Less => {
-                    let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
-                    let weighted_token_value = worst_case_orders_value
-                        .unsigned_abs()
-                        .safe_mul(liability_weight.cast()?)?
-                        .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
-
-                    margin_requirement = margin_requirement.safe_add(weighted_token_value)?;
+                    margin_requirement =
+                        margin_requirement.safe_add(worst_case_orders_value.unsigned_abs())?;
 
                     if let Some(margin_buffer_ratio) = margin_buffer_ratio {
                         margin_requirement_plus_buffer = margin_requirement_plus_buffer.safe_add(
                             calculate_margin_requirement_with_buffer(
-                                weighted_token_value,
+                                worst_case_orders_value.unsigned_abs(),
                                 worst_case_orders_value.unsigned_abs(),
                                 margin_buffer_ratio,
                             )?,
