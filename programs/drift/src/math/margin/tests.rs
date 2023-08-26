@@ -192,6 +192,28 @@ mod test {
             .unwrap();
 
         assert_eq!(asset_weight, 3000);
+
+        let strict_price = StrictOraclePrice {
+            current: 25 * PRICE_PRECISION_I64,
+            twap_5min: Some(50 * PRICE_PRECISION_I64),
+        };
+
+        let asset_weight = sol_spot_market
+            .get_scaled_initial_asset_weight(&strict_price)
+            .unwrap();
+
+        assert_eq!(asset_weight, 1500);
+
+        let strict_price = StrictOraclePrice {
+            current: 25 * PRICE_PRECISION_I64,
+            twap_5min: Some(15 * PRICE_PRECISION_I64),
+        };
+
+        let asset_weight = sol_spot_market
+            .get_scaled_initial_asset_weight(&strict_price)
+            .unwrap();
+
+        assert_eq!(asset_weight, 3000);
     }
 
     #[test]
