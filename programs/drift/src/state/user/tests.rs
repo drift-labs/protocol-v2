@@ -600,7 +600,7 @@ mod get_worst_case_token_amount {
     use crate::math::margin::MarginRequirementType;
     use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
-    use crate::state::user::{SpotPosition, WorstCaseTokenCalc};
+    use crate::state::user::{SpotPosition, WorstCaseTokenCalculation};
 
     #[test]
     fn no_token_open_bid() {
@@ -627,7 +627,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: None,
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -652,7 +652,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(110 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -677,7 +677,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(90 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -725,7 +725,7 @@ mod get_worst_case_token_amount {
             twap_5min: None,
         };
 
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -751,7 +751,7 @@ mod get_worst_case_token_amount {
             twap_5min: Some(110 * PRICE_PRECISION_I64),
         };
 
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -777,7 +777,7 @@ mod get_worst_case_token_amount {
             twap_5min: Some(90 * PRICE_PRECISION_I64),
         };
 
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -824,7 +824,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: None,
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -849,7 +849,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(110 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -874,7 +874,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(90 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -921,7 +921,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: None,
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -946,7 +946,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(110 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -971,7 +971,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(90 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1018,7 +1018,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: None,
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1043,7 +1043,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(110 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1068,7 +1068,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(90 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1115,7 +1115,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: None,
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1140,7 +1140,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(110 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1165,7 +1165,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(90 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1212,7 +1212,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: None,
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1237,7 +1237,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(110 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1262,7 +1262,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(90 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1309,7 +1309,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: None,
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1334,7 +1334,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(110 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,
@@ -1359,7 +1359,7 @@ mod get_worst_case_token_amount {
             current: oracle_price_data.price,
             twap_5min: Some(90 * PRICE_PRECISION_I64),
         };
-        let WorstCaseTokenCalc {
+        let WorstCaseTokenCalculation {
             token_amount: worst_case_token_amount,
             orders_value: worst_case_orders_value,
             token_value: worst_case_token_value,

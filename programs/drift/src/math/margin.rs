@@ -25,7 +25,7 @@ use crate::state::perp_market::{ContractTier, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{AssetTier, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::{PerpPosition, User, WorstCaseTokenCalc};
+use crate::state::user::{PerpPosition, User, WorstCaseTokenCalculation};
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min, Ordering};
@@ -339,7 +339,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
 
-            let WorstCaseTokenCalc {
+            let WorstCaseTokenCalculation {
                 token_amount: worst_case_token_amount,
                 orders_value: mut worst_case_orders_value,
                 token_value: worst_case_token_value,

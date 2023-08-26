@@ -32,7 +32,8 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{
-    MarketType, Order, OrderStatus, OrderTriggerCondition, PerpPosition, User, WorstCaseTokenCalc,
+    MarketType, Order, OrderStatus, OrderTriggerCondition, PerpPosition, User,
+    WorstCaseTokenCalculation,
 };
 use crate::state::user_map::UserMap;
 use crate::validate;
@@ -1007,7 +1008,7 @@ pub fn calculate_max_spot_order_size(
     let spot_position = user.get_spot_position(market_index)?;
     let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
 
-    let WorstCaseTokenCalc {
+    let WorstCaseTokenCalculation {
         token_amount: worst_case_token_amount,
         orders_value: worst_case_orders_value,
         ..
