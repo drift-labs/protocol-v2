@@ -106,7 +106,7 @@ export class OrderSubscriber {
 		const slotAndUserAccount = this.usersAccounts.get(key);
 		if (!slotAndUserAccount || slotAndUserAccount.slot < slot) {
 			const userAccount =
-				this.driftClient.program.account.user.coder.accounts.decode(
+				this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
 					'User',
 					buffer
 				) as UserAccount;

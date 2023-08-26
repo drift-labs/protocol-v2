@@ -112,10 +112,9 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		if (this.decodeBufferFn) {
 			return this.decodeBufferFn(buffer);
 		} else {
-			return this.program.account[this.accountName].coder.accounts.decode(
-				capitalize(this.accountName),
-				buffer
-			);
+			return this.program.account[
+				this.accountName
+			].coder.accounts.decodeUnchecked(capitalize(this.accountName), buffer);
 		}
 	}
 
