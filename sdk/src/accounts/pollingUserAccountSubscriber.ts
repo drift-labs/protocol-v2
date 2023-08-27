@@ -71,11 +71,10 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 					return;
 				}
 
-				const account =
-					this.program.account.user.coder.accounts.decodeUnchecked(
-						'User',
-						buffer
-					);
+				const account = this.program.account.user.coder.accounts.decode(
+					'User',
+					buffer
+				);
 				this.user = { data: account, slot };
 				this.eventEmitter.emit('userAccountUpdate', account);
 				this.eventEmitter.emit('update');
@@ -100,7 +99,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		);
 		const currentSlot = this.user?.slot ?? 0;
 		if (buffer && slot > currentSlot) {
-			const account = this.program.account.user.coder.accounts.decodeUnchecked(
+			const account = this.program.account.user.coder.accounts.decode(
 				'User',
 				buffer
 			);

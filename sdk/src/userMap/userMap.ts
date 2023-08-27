@@ -235,7 +235,7 @@ export class UserMap implements UserMapInterface {
 		for (const [key, buffer] of programAccountBufferMap.entries()) {
 			if (!this.has(key)) {
 				const userAccount =
-					this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
+					this.driftClient.program.account.user.coder.accounts.decode(
 						'User',
 						buffer
 					);
@@ -249,7 +249,7 @@ export class UserMap implements UserMapInterface {
 				this.userMap.delete(key);
 			} else {
 				const userAccount =
-					this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
+					this.driftClient.program.account.user.coder.accounts.decode(
 						'User',
 						programAccountBufferMap.get(key)
 					);

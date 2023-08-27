@@ -197,7 +197,7 @@ export class UserStatsMap {
 		for (const key of programAccountMap.keys()) {
 			if (!this.has(key)) {
 				const userStatsAccount =
-					this.driftClient.program.account.userStats.coder.accounts.decodeUnchecked(
+					this.driftClient.program.account.userStats.coder.accounts.decode(
 						'UserStats',
 						programAccountMap.get(key).data
 					);
