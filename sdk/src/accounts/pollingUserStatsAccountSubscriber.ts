@@ -74,7 +74,7 @@ export class PollingUserStatsAccountSubscriber
 					return;
 				}
 
-				const account = this.program.account.userStats.coder.accounts.decode(
+				const account = this.program.account.userStats.coder.accounts.decodeUnchecked(
 					'UserStats',
 					buffer
 				);
@@ -102,7 +102,7 @@ export class PollingUserStatsAccountSubscriber
 		);
 		const currentSlot = this.userStats?.slot ?? 0;
 		if (buffer && slot > currentSlot) {
-			const account = this.program.account.userStats.coder.accounts.decode(
+			const account = this.program.account.userStats.coder.accounts.decodeUnchecked(
 				'UserStats',
 				buffer
 			);
