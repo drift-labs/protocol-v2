@@ -27,6 +27,8 @@ import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
 import { findAllMarketAndOracles } from '../config';
+import camelcase from "camelcase";
+import { sha256 } from "js-sha256";
 
 export class PollingDriftClientAccountSubscriber
 	implements DriftClientAccountSubscriber
@@ -232,6 +234,21 @@ export class PollingDriftClientAccountSubscriber
 						capitalize(accountToPoll.key)
 					).toString('base64')
 				);
+				console.log(
+					`account:${camelcase(capitalize(accountToPoll.key), {
+						pascalCase: true,
+						preserveConsecutiveUppercase: true,
+					})}`
+				);
+				console.log(Buffer.from(
+					sha256.digest(
+						`account:${camelcase(capitalize(accountToPoll.key), {
+							pascalCase: true,
+							preserveConsecutiveUppercase: true,
+						})}`
+					)
+				).slice(0, 8).toString('base64'));
+
 				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
