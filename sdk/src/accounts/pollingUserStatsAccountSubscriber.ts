@@ -74,10 +74,11 @@ export class PollingUserStatsAccountSubscriber
 					return;
 				}
 
-				const account = this.program.account.userStats.coder.accounts.decodeUnchecked(
-					'UserStats',
-					buffer
-				);
+				const account =
+					this.program.account.userStats.coder.accounts.decodeUnchecked(
+						'UserStats',
+						buffer
+					);
 				this.userStats = { data: account, slot };
 				this.eventEmitter.emit('userStatsAccountUpdate', account);
 				this.eventEmitter.emit('update');
@@ -102,10 +103,11 @@ export class PollingUserStatsAccountSubscriber
 		);
 		const currentSlot = this.userStats?.slot ?? 0;
 		if (buffer && slot > currentSlot) {
-			const account = this.program.account.userStats.coder.accounts.decodeUnchecked(
-				'UserStats',
-				buffer
-			);
+			const account =
+				this.program.account.userStats.coder.accounts.decodeUnchecked(
+					'UserStats',
+					buffer
+				);
 			this.userStats = { data: account, slot };
 		}
 	}

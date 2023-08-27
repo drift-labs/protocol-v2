@@ -51,6 +51,7 @@ const main = async () => {
 	// Set up the Provider
 	const provider = new AnchorProvider(
 		connection,
+		// @ts-ignore
 		wallet,
 		AnchorProvider.defaultOptions()
 	);
