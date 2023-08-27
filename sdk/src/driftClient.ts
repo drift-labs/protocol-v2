@@ -174,6 +174,7 @@ export class DriftClient {
 		this.opts = config.opts || AnchorProvider.defaultOptions();
 		this.provider = new AnchorProvider(
 			config.connection,
+			// @ts-ignore
 			config.wallet,
 			this.opts
 		);
@@ -512,6 +513,7 @@ export class DriftClient {
 	): Promise<boolean> {
 		const newProvider = new AnchorProvider(
 			this.connection,
+			// @ts-ignore
 			newWallet,
 			this.opts
 		);
@@ -2473,6 +2475,7 @@ export class DriftClient {
 			);
 			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
+			// @ts-ignore
 			return { txSig, signedFillTx: signedVersionedFillTx };
 		} else {
 			const marketOrderTx = wrapInTx(
