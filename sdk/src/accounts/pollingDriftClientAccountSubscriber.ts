@@ -248,6 +248,7 @@ export class PollingDriftClientAccountSubscriber
 						})}`
 					)
 				).slice(0, 8).toString('base64'));
+				console.log('sha256', sha256);
 
 				const account = this.program.account[
 					accountToPoll.key
