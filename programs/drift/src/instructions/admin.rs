@@ -718,7 +718,9 @@ pub fn handle_initialize_perp_market(
 
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
+            per_lp_base: 0,
             padding1: 0,
+            padding2: 0,
             total_fee_earned_per_lp: 0,
             padding: [0; 32],
         },
@@ -1839,6 +1841,38 @@ pub fn handle_update_perp_market_target_base_asset_amount_per_lp(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.amm.target_base_asset_amount_per_lp = target_base_asset_amount_per_lp;
+    Ok(())
+}
+
+pub fn handle_update_perp_market_per_lp_base(
+    ctx: Context<AdminUpdatePerpMarket>,
+    per_lp_base: i8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    let old_per_lp_base = perp_market.amm.per_lp_base;
+    msg!(
+        "updated perp_market per_lp_base {} -> {}",
+        old_per_lp_base,
+        per_lp_base
+    );
+
+    let expo_diff = per_lp_base.safe_sub(old_per_lp_base)?;
+
+    validate!(
+        expo_diff.abs() == 1,
+        ErrorCode::DefaultError,
+        "invalid expo update (must be 1)",
+    )?;
+
+    validate!(
+        per_lp_base.abs() <= 9,
+        ErrorCode::DefaultError,
+        "only consider lp_base within range of AMM_RESERVE_PRECISION",
+    )?;
+
+    controller::lp::apply_lp_rebase_to_perp_market(perp_market, expo_diff)?;
+
     Ok(())
 }
 

@@ -39,9 +39,11 @@ export const mockPerpPosition: PerpPosition = {
 	remainderBaseAssetAmount: 0,
 	lastBaseAssetAmountPerLp: new BN(0),
 	lastQuoteAssetAmountPerLp: new BN(0),
+	perLpBase: 0,
 };
 
 export const mockAMM: AMM = {
+	perLpBase: 0,
 	/* these values create a bid/ask price of 12 */
 	baseAssetReserve: new BN(1).mul(BASE_PRECISION),
 	quoteAssetReserve: new BN(12)

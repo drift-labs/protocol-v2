@@ -38,6 +38,7 @@ export class TokenFaucet {
 		this.connection = connection;
 		this.wallet = wallet;
 		this.opts = opts || AnchorProvider.defaultOptions();
+		// @ts-ignore
 		const provider = new AnchorProvider(connection, wallet, this.opts);
 		this.provider = provider;
 		this.program = new Program(tokenFaucet as Idl, programId, provider);
