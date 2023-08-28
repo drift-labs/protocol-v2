@@ -1,3 +1,4 @@
+use crate::controller::lp::apply_lp_rebase_to_perp_position;
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
@@ -579,7 +580,7 @@ pub struct PerpPosition {
     pub market_index: u16,
     /// The number of open orders
     pub open_orders: u8,
-    pub padding: [u8; 1],
+    pub per_lp_base: i8,
 }
 
 impl PerpPosition {
@@ -633,26 +634,30 @@ impl PerpPosition {
         market: &PerpMarket,
         valuation_price: i64,
     ) -> DriftResult<PerpPosition> {
-        if !self.is_lp() {
-            return Ok(*self);
+        let mut settled_position = *self;
+
+        if !settled_position.is_lp() {
+            return Ok(settled_position);
         }
 
+        apply_lp_rebase_to_perp_position(market, &mut settled_position)?;
+
         // compute lp metrics
-        let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, self)?;
+        let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, &settled_position)?;
 
         // compute settled position
-        let base_asset_amount = self
+        let base_asset_amount = settled_position
             .base_asset_amount
             .safe_add(lp_metrics.base_asset_amount.cast()?)?;
 
-        let mut quote_asset_amount = self
+        let mut quote_asset_amount = settled_position
             .quote_asset_amount
             .safe_add(lp_metrics.quote_asset_amount.cast()?)?;
 
-        let mut new_remainder_base_asset_amount =
-            self.remainder_base_asset_amount
-                .cast::<i64>()?
-                .safe_add(lp_metrics.remainder_base_asset_amount.cast()?)?;
+        let mut new_remainder_base_asset_amount = settled_position
+            .remainder_base_asset_amount
+            .cast::<i64>()?
+            .safe_add(lp_metrics.remainder_base_asset_amount.cast()?)?;
 
         if new_remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size {
             let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
@@ -681,21 +686,18 @@ impl PerpPosition {
             quote_asset_amount = quote_asset_amount.safe_sub(dust_base_asset_value.cast()?)?;
         }
 
-        let (lp_bids, lp_asks) = calculate_lp_open_bids_asks(self, market)?;
+        let (lp_bids, lp_asks) = calculate_lp_open_bids_asks(&settled_position, market)?;
 
-        let open_bids = self.open_bids.safe_add(lp_bids)?;
+        let open_bids = settled_position.open_bids.safe_add(lp_bids)?;
 
-        let open_asks = self.open_asks.safe_add(lp_asks)?;
+        let open_asks = settled_position.open_asks.safe_add(lp_asks)?;
 
-        Ok(PerpPosition {
-            base_asset_amount,
-            quote_asset_amount,
-            open_asks,
-            open_bids,
-            lp_shares: self.lp_shares,
-            // todo double check: this is ok because no other values are used in the future computations
-            ..PerpPosition::default()
-        })
+        settled_position.base_asset_amount = base_asset_amount;
+        settled_position.quote_asset_amount = quote_asset_amount;
+        settled_position.open_bids = open_bids;
+        settled_position.open_asks = open_asks;
+
+        Ok(settled_position)
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {

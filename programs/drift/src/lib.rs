@@ -872,6 +872,13 @@ pub mod drift {
         )
     }
 
+    pub fn update_perp_market_per_lp_base(
+        ctx: Context<AdminUpdatePerpMarket>,
+        per_lp_base: i8,
+    ) -> Result<()> {
+        handle_update_perp_market_per_lp_base(ctx, per_lp_base)
+    }
+
     pub fn update_lp_cooldown_time(
         ctx: Context<AdminUpdateState>,
         lp_cooldown_time: u64,

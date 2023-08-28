@@ -767,6 +767,8 @@ export type AMM = {
 	bidQuoteAssetReserve: BN;
 	askBaseAssetReserve: BN;
 	askQuoteAssetReserve: BN;
+
+	perLpBase: number; // i8
 };
 
 // # User Account Types
@@ -785,6 +787,7 @@ export type PerpPosition = {
 	remainderBaseAssetAmount: number;
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
+	perLpBase: number;
 };
 
 export type UserStatsAccount = {
@@ -1099,4 +1102,19 @@ export type PerpMarketExtendedInfo = {
 	 */
 	pnlPoolValue: BN;
 	contractTier: ContractTier;
+};
+
+export type HealthComponents = {
+	deposits: HealthComponent[];
+	borrows: HealthComponent[];
+	perpPositions: HealthComponent[];
+	perpPnl: HealthComponent[];
+};
+
+export type HealthComponent = {
+	marketIndex: number;
+	size: BN;
+	value: BN;
+	weight: BN;
+	weightedValue: BN;
 };

@@ -137,6 +137,7 @@ export type WebSocketLogProviderConfig = {
 export type PollingLogProviderConfig = {
 	type: 'polling';
 	frequency: number;
+	batchSize?: number;
 };
 
 export type LogProviderConfig =

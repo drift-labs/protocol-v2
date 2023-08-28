@@ -11,8 +11,8 @@ use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
     DEFAULT_LARGE_BID_ASK_FACTOR, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION,
-    PRICE_PRECISION_I128,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 
@@ -139,16 +139,23 @@ pub fn calculate_long_short_vol_spread(
         .safe_div(max(volume_24h.cast::<u128>()?, 1))?
         .clamp(factor_clamp_min, factor_clamp_max);
 
+    // only consider confidence interval at full value when above 25 bps
+    let conf_component = if last_oracle_conf_pct > PERCENTAGE_PRECISION_U64 / 400 {
+        last_oracle_conf_pct
+    } else {
+        last_oracle_conf_pct.safe_div(10)?
+    };
+
     Ok((
         max(
-            last_oracle_conf_pct,
+            conf_component,
             vol_spread
                 .safe_mul(long_vol_spread_factor)?
                 .safe_div(PERCENTAGE_PRECISION)?
                 .cast::<u64>()?,
         ),
         max(
-            last_oracle_conf_pct,
+            conf_component,
             vol_spread
                 .safe_mul(short_vol_spread_factor)?
                 .safe_div(PERCENTAGE_PRECISION)?
