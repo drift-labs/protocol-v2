@@ -473,12 +473,23 @@ impl SpotBalance for SpotPosition {
     }
 }
 
-pub struct WorstCaseTokenCalculation {
+#[derive(Clone, Copy)]
+pub struct OrderFillSimulation {
     pub token_amount: i128,
     pub orders_value: i128,
     pub token_value: i128,
     pub weighted_token_value: i128,
     pub free_collateral_contribution: i128,
+}
+
+impl OrderFillSimulation {
+    pub fn riskier(self, other: Self) -> Self {
+        if self.free_collateral_contribution <= other.free_collateral_contribution {
+            self
+        } else {
+            other
+        }
+    }
 }
 
 impl SpotPosition {
@@ -513,7 +524,24 @@ impl SpotPosition {
         strict_oracle_price: &StrictOraclePrice,
         token_amount: Option<i128>,
         margin_type: MarginRequirementType,
-    ) -> DriftResult<WorstCaseTokenCalculation> {
+    ) -> DriftResult<OrderFillSimulation> {
+        let (bid_simulation, ask_simulation) = self.simulate_fills_both_sides(
+            spot_market,
+            strict_oracle_price,
+            token_amount,
+            margin_type,
+        )?;
+
+        Ok(ask_simulation.riskier(bid_simulation))
+    }
+
+    pub fn simulate_fills_both_sides(
+        &self,
+        spot_market: &SpotMarket,
+        strict_oracle_price: &StrictOraclePrice,
+        token_amount: Option<i128>,
+        margin_type: MarginRequirementType,
+    ) -> DriftResult<(OrderFillSimulation, OrderFillSimulation)> {
         let token_amount = match token_amount {
             Some(token_amount) => token_amount,
             None => self.get_signed_token_amount(spot_market)?,
@@ -548,18 +576,20 @@ impl SpotPosition {
         if self.open_bids == 0 && self.open_asks == 0 {
             let weighted_token_value = calculate_weighted_token_value(token_amount, token_value)?;
 
-            return Ok(WorstCaseTokenCalculation {
+            let calculation = OrderFillSimulation {
                 token_amount,
                 orders_value: 0,
                 token_value,
                 weighted_token_value,
                 free_collateral_contribution: weighted_token_value,
-            });
+            };
+
+            return Ok((calculation, calculation));
         }
 
-        let do_calculation_for_side = |strict_oracle_price: &StrictOraclePrice,
-                                       token_amount: i128,
-                                       open_orders: i128| {
+        let simulate_side = |strict_oracle_price: &StrictOraclePrice,
+                             token_amount: i128,
+                             open_orders: i128| {
             let order_value = get_token_value(
                 -open_orders as i128,
                 spot_market.decimals,
@@ -574,7 +604,7 @@ impl SpotPosition {
             let free_collateral_contribution =
                 weighted_token_value_after_fill.safe_add(order_value)?;
 
-            Ok(WorstCaseTokenCalculation {
+            Ok(OrderFillSimulation {
                 token_amount: token_amount_after_fill,
                 orders_value: order_value,
                 token_value: token_value_after_fill,
@@ -583,19 +613,13 @@ impl SpotPosition {
             })
         };
 
-        let bid_calculation =
-            do_calculation_for_side(strict_oracle_price, token_amount, self.open_bids.cast()?)?;
+        let bid_simulation =
+            simulate_side(strict_oracle_price, token_amount, self.open_bids.cast()?)?;
 
-        let ask_calculation =
-            do_calculation_for_side(strict_oracle_price, token_amount, self.open_asks.cast()?)?;
+        let ask_simulation =
+            simulate_side(strict_oracle_price, token_amount, self.open_asks.cast()?)?;
 
-        if ask_calculation.free_collateral_contribution
-            <= bid_calculation.free_collateral_contribution
-        {
-            Ok(ask_calculation)
-        } else {
-            Ok(bid_calculation)
-        }
+        Ok((bid_simulation, ask_simulation))
     }
 }
 

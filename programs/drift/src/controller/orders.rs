@@ -69,8 +69,7 @@ use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::traits::Size;
 use crate::state::user::{
-    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
-    WorstCaseTokenCalculation,
+    AssetType, Order, OrderFillSimulation, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
 };
 use crate::state::user::{MarketType, User};
 use crate::state::user_map::{UserMap, UserStatsMap};
@@ -2874,7 +2873,7 @@ pub fn place_spot_order(
         true,
     );
 
-    let WorstCaseTokenCalculation {
+    let OrderFillSimulation {
         free_collateral_contribution: free_collateral_contribution_before,
         ..
     } = user.spot_positions[spot_position_index].get_worst_case_token_amount(
@@ -2995,7 +2994,7 @@ pub fn place_spot_order(
         )?;
     }
 
-    let WorstCaseTokenCalculation {
+    let OrderFillSimulation {
         free_collateral_contribution: free_collateral_contribution_after,
         ..
     } = user.spot_positions[spot_position_index].get_worst_case_token_amount(
