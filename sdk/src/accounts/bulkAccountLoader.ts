@@ -229,7 +229,17 @@ export class BulkAccountLoader {
 		slot: number
 	): void {
 		for (const [_, callback] of accountToLoad.callbacks) {
-			callback(buffer, slot);
+			try {
+				callback(buffer, slot);
+			} catch (e) {
+				console.log('Bulk account load: error in account callback');
+				console.log('accounto to load', accountToLoad.publicKey.toString());
+				console.log('buffer', buffer.toString('base64'));
+				for (const callback of accountToLoad.callbacks.values()) {
+					console.log('account to load cb', callback);
+				}
+				throw e;
+			}
 		}
 	}
 

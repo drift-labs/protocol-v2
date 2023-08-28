@@ -42,6 +42,7 @@ import {
 	setFeedPrice,
 	getOraclePriceData,
 	initializeQuoteSpotMarket,
+	sleep,
 } from './testHelpers';
 
 describe('prepeg', () => {
@@ -442,7 +443,7 @@ describe('prepeg', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-
+		await sleep(2000);
 		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
