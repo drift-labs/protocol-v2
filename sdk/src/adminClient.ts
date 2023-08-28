@@ -691,6 +691,24 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
+	public async updatePerpMarketPerLpBase(
+		perpMarketIndex: number,
+		perLpBase: number
+	): Promise<TransactionSignature> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.rpc.updatePerpMarketPerLpBase(perLpBase, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: perpMarketPublicKey,
+			},
+		});
+	}
+
 	public async updatePerpMarketMaxSpread(
 		perpMarketIndex: number,
 		maxSpread: number

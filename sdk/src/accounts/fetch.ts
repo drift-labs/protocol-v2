@@ -36,7 +36,7 @@ export async function fetchUserAccountsUsingKeys(
 		if (!accountInfo) {
 			return undefined;
 		}
-		return program.account.user.coder.accounts.decode(
+		return program.account.user.coder.accounts.decodeUnchecked(
 			'User',
 			accountInfo.data
 		) as UserAccount;
@@ -58,7 +58,7 @@ export async function fetchUserStatsAccount(
 	);
 
 	return accountInfo
-		? (program.account.user.coder.accounts.decode(
+		? (program.account.user.coder.accounts.decodeUnchecked(
 				'UserStats',
 				accountInfo.data
 		  ) as UserStatsAccount)

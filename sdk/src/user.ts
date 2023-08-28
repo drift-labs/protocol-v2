@@ -31,6 +31,7 @@ import {
 	BASE_PRECISION,
 	ONE,
 	TWO,
+	AMM_RESERVE_PRECISION_EXP,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -264,6 +265,7 @@ export class User {
 			lpShares: ZERO,
 			lastBaseAssetAmountPerLp: ZERO,
 			lastQuoteAssetAmountPerLp: ZERO,
+			perLpBase: 0,
 		};
 	}
 
@@ -427,21 +429,62 @@ export class User {
 		}
 
 		const position = this.getClonedPosition(originalPosition);
-
 		const market = this.driftClient.getPerpMarketAccount(position.marketIndex);
+
+		if (market.amm.perLpBase != position.perLpBase) {
+			// perLpBase = 1 => per 10 LP shares, perLpBase = -1 => per 0.1 LP shares
+			const expoDiff = market.amm.perLpBase - position.perLpBase;
+			const marketPerLpRebaseScalar = new BN(10 ** Math.abs(expoDiff));
+
+			if (expoDiff > 0) {
+				position.lastBaseAssetAmountPerLp =
+					position.lastBaseAssetAmountPerLp.mul(marketPerLpRebaseScalar);
+				position.lastQuoteAssetAmountPerLp =
+					position.lastQuoteAssetAmountPerLp.mul(marketPerLpRebaseScalar);
+			} else {
+				position.lastBaseAssetAmountPerLp =
+					position.lastBaseAssetAmountPerLp.div(marketPerLpRebaseScalar);
+				position.lastQuoteAssetAmountPerLp =
+					position.lastQuoteAssetAmountPerLp.div(marketPerLpRebaseScalar);
+			}
+
+			position.perLpBase = position.perLpBase + expoDiff;
+		}
+
 		const nShares = position.lpShares;
 
 		// incorp unsettled funding on pre settled position
 		const quoteFundingPnl = calculatePositionFundingPNL(market, position);
 
+		let baseUnit = AMM_RESERVE_PRECISION;
+		if (market.amm.perLpBase == position.perLpBase) {
+			if (
+				position.perLpBase >= 0 &&
+				position.perLpBase <= AMM_RESERVE_PRECISION_EXP.toNumber()
+			) {
+				const marketPerLpRebase = new BN(10 ** market.amm.perLpBase);
+				baseUnit = baseUnit.mul(marketPerLpRebase);
+			} else if (
+				position.perLpBase < 0 &&
+				position.perLpBase >= -AMM_RESERVE_PRECISION_EXP.toNumber()
+			) {
+				const marketPerLpRebase = new BN(10 ** Math.abs(market.amm.perLpBase));
+				baseUnit = baseUnit.div(marketPerLpRebase);
+			} else {
+				throw 'cannot calc';
+			}
+		} else {
+			throw 'market.amm.perLpBase != position.perLpBase';
+		}
+
 		const deltaBaa = market.amm.baseAssetAmountPerLp
 			.sub(position.lastBaseAssetAmountPerLp)
 			.mul(nShares)
-			.div(AMM_RESERVE_PRECISION);
+			.div(baseUnit);
 		const deltaQaa = market.amm.quoteAssetAmountPerLp
 			.sub(position.lastQuoteAssetAmountPerLp)
 			.mul(nShares)
-			.div(AMM_RESERVE_PRECISION);
+			.div(baseUnit);
 
 		function sign(v: BN) {
 			return v.isNeg() ? new BN(-1) : new BN(1);
@@ -593,13 +636,16 @@ export class User {
 	}
 
 	/**
-	 * calculates Free Collateral = Total collateral - initial margin requirement
+	 * calculates Free Collateral = Total collateral - margin requirement
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getFreeCollateral(): BN {
-		const totalCollateral = this.getTotalCollateral('Initial', true);
-		const initialMarginRequirement = this.getInitialMarginRequirement();
-		const freeCollateral = totalCollateral.sub(initialMarginRequirement);
+	public getFreeCollateral(marginCategory: MarginCategory = 'Initial'): BN {
+		const totalCollateral = this.getTotalCollateral(marginCategory, true);
+		const marginRequirement =
+			marginCategory === 'Initial'
+				? this.getInitialMarginRequirement()
+				: this.getMaintenanceMarginRequirement();
+		const freeCollateral = totalCollateral.sub(marginRequirement);
 		return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
 	}
 
@@ -1179,19 +1225,16 @@ export class User {
 		} else if (totalCollateral.lte(ZERO)) {
 			health = 0;
 		} else {
-			const healthP1 =
-				Math.max(
-					0,
-					(1 - maintenanceMarginReq.toNumber() / totalCollateral.toNumber()) *
-						100
-				) + 1;
-
-			health = Math.min(1, Math.log(healthP1) / Math.log(100)) * 100;
-			if (health > 1) {
-				health = Math.round(health);
-			} else {
-				health = Math.round(health * 100) / 100;
-			}
+			health = Math.round(
+				Math.min(
+					100,
+					Math.max(
+						0,
+						(1 - maintenanceMarginReq.toNumber() / totalCollateral.toNumber()) *
+							100
+					)
+				)
+			);
 		}
 
 		return health;
@@ -1316,17 +1359,13 @@ export class User {
 		strict = false
 	): BN {
 		const perpPosition = this.getPerpPosition(marketIndex);
-		if (!perpPosition) {
-			return ZERO;
-		} else {
-			return this.calculateWeightedPerpPositionValue(
-				perpPosition,
-				marginCategory,
-				liquidationBuffer,
-				includeOpenOrders,
-				strict
-			);
-		}
+		return this.calculateWeightedPerpPositionValue(
+			perpPosition,
+			marginCategory,
+			liquidationBuffer,
+			includeOpenOrders,
+			strict
+		);
 	}
 
 	/**
@@ -3228,7 +3267,7 @@ export class User {
 			healthComponents.perpPnl.push({
 				marketIndex: perpMarket.marketIndex,
 				size: positionUnrealizedPnl,
-				value: wegithedPnlValue,
+				value: pnlValue,
 				weight: pnlWeight,
 				weightedValue: wegithedPnlValue,
 			});
@@ -3304,7 +3343,7 @@ export class User {
 				healthComponents.deposits.push({
 					marketIndex: spotMarketAccount.marketIndex,
 					size: worstCaseTokenAmount,
-					value: weightedValue,
+					value: baseAssetValue,
 					weight: weight,
 					weightedValue: weightedValue,
 				});
@@ -3355,7 +3394,7 @@ export class User {
 				healthComponents.deposits.push({
 					marketIndex: spotMarketAccount.marketIndex,
 					size: netQuoteValue,
-					value: weightedValue,
+					value: baseAssetValue,
 					weight: weight,
 					weightedValue: weightedValue,
 				});
