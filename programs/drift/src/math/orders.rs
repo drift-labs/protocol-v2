@@ -29,7 +29,7 @@ use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{
     MarketType, Order, OrderStatus, OrderTriggerCondition, PerpPosition, User,
@@ -581,33 +581,6 @@ pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> Dr
         OrderTriggerCondition::Below => Ok(oracle_price < order.trigger_price),
         _ => Err(print_error!(ErrorCode::InvalidTriggerOrderCondition)()),
     }
-}
-
-pub fn is_spot_order_risk_decreasing(
-    order: &Order,
-    balance_type: &SpotBalanceType,
-    token_amount: u128,
-) -> DriftResult<bool> {
-    let risk_decreasing = match (balance_type, order.direction) {
-        (SpotBalanceType::Deposit, PositionDirection::Short) => {
-            (order.base_asset_amount as u128) < token_amount.safe_mul(2)?
-        }
-        (SpotBalanceType::Borrow, PositionDirection::Long) => {
-            (order.base_asset_amount as u128) < token_amount.safe_mul(2)?
-        }
-        (_, _) => false,
-    };
-
-    Ok(risk_decreasing)
-}
-
-pub fn is_spot_order_risk_increasing(
-    order: &Order,
-    balance_type: &SpotBalanceType,
-    token_amount: u128,
-) -> DriftResult<bool> {
-    is_spot_order_risk_decreasing(order, balance_type, token_amount)
-        .map(|risk_decreasing| !risk_decreasing)
 }
 
 pub fn is_order_risk_decreasing(
