@@ -43,12 +43,6 @@ pub fn validate_order(
 fn validate_market_order(order: &Order, step_size: u64, min_order_size: u64) -> DriftResult {
     validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
 
-    validate!(
-        order.auction_start_price > 0 && order.auction_end_price > 0,
-        ErrorCode::InvalidOrderAuction,
-        "Auction start and end price must be greater than 0"
-    )?;
-
     validate_auction_params(order)?;
 
     if order.trigger_price > 0 {
@@ -380,7 +374,7 @@ fn validate_auction_params(order: &Order) -> DriftResult {
 
     match order.direction {
         PositionDirection::Long => {
-            if order.auction_start_price >= order.auction_end_price {
+            if order.auction_start_price > order.auction_end_price {
                 msg!(
                     "Auction start price ({}) was greater than auction end price ({})",
                     order.auction_start_price,
@@ -399,7 +393,7 @@ fn validate_auction_params(order: &Order) -> DriftResult {
             }
         }
         PositionDirection::Short => {
-            if order.auction_start_price <= order.auction_end_price {
+            if order.auction_start_price < order.auction_end_price {
                 msg!(
                     "Auction start price ({}) was less than auction end price ({})",
                     order.auction_start_price,
