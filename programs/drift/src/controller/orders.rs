@@ -3004,12 +3004,8 @@ pub fn place_spot_order(
         MarginRequirementType::Initial,
     )?;
 
-    let order_risk_decreasing =
-        is_spot_order_risk_decreasing(&user.orders[new_order_index], &balance_type, token_amount)?;
-
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let risk_decreasing = free_collateral_contribution_after >= free_collateral_contribution_before
-        && order_risk_decreasing;
+    let risk_decreasing = free_collateral_contribution_after >= free_collateral_contribution_before;
 
     if options.enforce_margin_check {
         let meets_initial_margin_requirement = meets_place_order_margin_requirement(
