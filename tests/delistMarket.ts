@@ -322,7 +322,7 @@ describe('delist market', () => {
 
 		await driftClient.fetchAccounts();
 		const perpMarket = await driftClient.getPerpMarketAccount(marketIndex);
-		console.log(perpMarket.amm.cumulativeFundingRateLong.toString());
+		// console.log(perpMarket.amm.cumulativeFundingRateLong.toString());
 		assert(!perpMarket.amm.cumulativeFundingRateLong.eq(ZERO));
 
 		await liquidatorDriftClient.addPerpLpShares(BASE_PRECISION, marketIndex);
@@ -588,11 +588,17 @@ describe('delist market', () => {
 		console.log(marketAfter0.pnlPool.scaledBalance.toString());
 		console.log(marketAfter0.pnlPool.scaledBalance.toString());
 
-		console.log('lastFundingRateLong:', marketAfter0.amm.lastFundingRateLong.toString());
-		console.log('lastFundingRateShort:', marketAfter0.amm.lastFundingRateShort.toString());
+		// console.log(
+		// 	'lastFundingRateLong:',
+		// 	marketAfter0.amm.lastFundingRateLong.toString()
+		// );
+		// console.log(
+		// 	'lastFundingRateShort:',
+		// 	marketAfter0.amm.lastFundingRateShort.toString()
+		// );
 
-		assert(marketAfter0.amm.lastFundingRateLong.toString() === '24205208')  
-		assert(marketAfter0.amm.lastFundingRateShort.toString() === '24205208')  
+		assert(marketAfter0.amm.lastFundingRateLong.toString() === '24205208');
+		assert(marketAfter0.amm.lastFundingRateShort.toString() === '24205208');
 
 		assert(marketAfter0.pnlPool.scaledBalance.gt(finalPnlResultMin0));
 		assert(
