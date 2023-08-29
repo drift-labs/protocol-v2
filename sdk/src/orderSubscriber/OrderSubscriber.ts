@@ -4,14 +4,17 @@ import { getUserFilter, getUserWithOrderFilter } from '../memcmp';
 import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { DLOB } from '../dlob/DLOB';
-import { OrderSubscriberConfig } from './types';
+import { OrderSubscriberConfig, OrderSubscriberEvents } from './types';
 import { PollingSubscription } from './PollingSubscription';
 import { WebsocketSubscription } from './WebsocketSubscription';
+import StrictEventEmitter from 'strict-event-emitter-types';
+import { EventEmitter } from 'events';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
 	subscription: PollingSubscription | WebsocketSubscription;
+	eventEmitter: StrictEventEmitter<EventEmitter, OrderSubscriberEvents>;
 
 	fetchPromise?: Promise<void>;
 	fetchPromiseResolver: () => void;
@@ -29,6 +32,7 @@ export class OrderSubscriber {
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
 			});
 		}
+		this.eventEmitter = new EventEmitter();
 	}
 
 	public async subscribe(): Promise<void> {
@@ -106,7 +110,20 @@ export class OrderSubscriber {
 					'User',
 					buffer
 				) as UserAccount;
-
+			const newOrders = userAccount.orders.filter(
+				(order) =>
+					order.slot.toNumber() > (slotAndUserAccount?.slot ?? 0) &&
+					order.slot.toNumber() <= slot
+			);
+			if (newOrders.length > 0) {
+				this.eventEmitter.emit(
+					'onUpdate',
+					userAccount,
+					newOrders,
+					new PublicKey(key),
+					slot
+				);
+			}
 			if (userAccount.hasOpenOrder) {
 				this.usersAccounts.set(key, { slot, userAccount });
 			} else {

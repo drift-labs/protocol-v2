@@ -3432,14 +3432,14 @@ pub mod liquidate_borrow_for_perp_pnl {
         )
         .unwrap();
 
-        assert_eq!(user.spot_positions[0].scaled_balance, 208712999);
+        assert_eq!(user.spot_positions[0].scaled_balance, 208711999);
         assert_eq!(user.perp_positions[0].quote_asset_amount, 0);
 
         assert_eq!(
             liquidator.spot_positions[1].balance_type,
             SpotBalanceType::Borrow
         );
-        assert_eq!(liquidator.spot_positions[1].scaled_balance, 791287001);
+        assert_eq!(liquidator.spot_positions[1].scaled_balance, 791288001);
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 80000000);
     }
 
@@ -4616,14 +4616,14 @@ pub mod liquidate_perp_pnl_for_deposit {
         .unwrap();
 
         assert_eq!(user.spot_positions[0].scaled_balance, 0);
-        assert_eq!(user.perp_positions[0].quote_asset_amount, -51098902);
+        assert_eq!(user.perp_positions[0].quote_asset_amount, -51098901);
 
         assert_eq!(
             liquidator.spot_positions[1].balance_type,
             SpotBalanceType::Deposit
         );
         assert_eq!(liquidator.spot_positions[1].scaled_balance, 1000000000);
-        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -98901098);
+        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -98901099);
     }
 
     #[test]
@@ -5531,7 +5531,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         assert_eq!(user.spot_positions[0].scaled_balance, 0);
         assert_eq!(user.spot_positions[1].scaled_balance, 0);
 
-        assert_eq!(user.perp_positions[0].quote_asset_amount, -1099099);
+        assert_eq!(user.perp_positions[0].quote_asset_amount, -1099098);
         assert_eq!(user.status, UserStatus::Bankrupt);
     }
 

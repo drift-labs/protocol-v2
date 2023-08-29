@@ -26,6 +26,108 @@ use anchor_lang::prelude::Account;
 #[cfg(test)]
 mod tests;
 
+pub fn apply_lp_rebase_to_perp_market(
+    perp_market: &mut PerpMarket,
+    expo_diff: i8,
+) -> DriftResult<()> {
+    // target_base_asset_amount_per_lp is the only one that it doesnt get applied
+    // thus changing the base of lp and without changing target_base_asset_amount_per_lp
+    // causes an implied change
+
+    validate!(expo_diff != 0, ErrorCode::DefaultError, "expo_diff = 0")?;
+
+    perp_market.amm.per_lp_base = perp_market.amm.per_lp_base.safe_add(expo_diff)?;
+    let rebase_divisor: i128 = 10_i128.pow(expo_diff.abs().cast()?);
+
+    if expo_diff > 0 {
+        perp_market.amm.base_asset_amount_per_lp = perp_market
+            .amm
+            .base_asset_amount_per_lp
+            .safe_mul(rebase_divisor)?;
+
+        perp_market.amm.quote_asset_amount_per_lp = perp_market
+            .amm
+            .quote_asset_amount_per_lp
+            .safe_mul(rebase_divisor)?;
+
+        perp_market.amm.total_fee_earned_per_lp = perp_market
+            .amm
+            .total_fee_earned_per_lp
+            .safe_mul(rebase_divisor.cast()?)?;
+    } else {
+        perp_market.amm.base_asset_amount_per_lp = perp_market
+            .amm
+            .base_asset_amount_per_lp
+            .safe_div(rebase_divisor)?;
+
+        perp_market.amm.quote_asset_amount_per_lp = perp_market
+            .amm
+            .quote_asset_amount_per_lp
+            .safe_div(rebase_divisor)?;
+
+        perp_market.amm.total_fee_earned_per_lp = perp_market
+            .amm
+            .total_fee_earned_per_lp
+            .safe_div(rebase_divisor.cast()?)?;
+    }
+
+    msg!(
+        "rebasing perp market_index={} per_lp_base expo_diff={}",
+        perp_market.market_index,
+        expo_diff,
+    );
+
+    crate::validation::perp_market::validate_perp_market(perp_market)?;
+
+    Ok(())
+}
+
+pub fn apply_lp_rebase_to_perp_position(
+    perp_market: &PerpMarket,
+    perp_position: &mut PerpPosition,
+) -> DriftResult<()> {
+    let expo_diff = perp_market
+        .amm
+        .per_lp_base
+        .safe_sub(perp_position.per_lp_base)?;
+
+    if expo_diff > 0 {
+        let rebase_divisor: i64 = 10_i64.pow(expo_diff.cast()?);
+
+        perp_position.last_base_asset_amount_per_lp = perp_position
+            .last_base_asset_amount_per_lp
+            .safe_mul(rebase_divisor)?;
+        perp_position.last_quote_asset_amount_per_lp = perp_position
+            .last_quote_asset_amount_per_lp
+            .safe_mul(rebase_divisor)?;
+
+        msg!(
+            "rebasing perp position for market_index={} per_lp_base by expo_diff={}",
+            perp_market.market_index,
+            expo_diff,
+        );
+    } else if expo_diff < 0 {
+        let rebase_divisor: i64 = 10_i64.pow(expo_diff.abs().cast()?);
+
+        perp_position.last_base_asset_amount_per_lp = perp_position
+            .last_base_asset_amount_per_lp
+            .safe_div(rebase_divisor)?;
+        perp_position.last_quote_asset_amount_per_lp = perp_position
+            .last_quote_asset_amount_per_lp
+            .safe_div(rebase_divisor)?;
+
+        msg!(
+            "rebasing perp position for market_index={} per_lp_base by expo_diff={}",
+            perp_market.market_index,
+            expo_diff,
+        );
+    }
+
+    perp_position.per_lp_base = perp_position.per_lp_base.safe_add(expo_diff)?;
+
+    Ok(())
+}
+
 pub fn mint_lp_shares(
     position: &mut PerpPosition,
     market: &mut PerpMarket,
@@ -40,6 +142,7 @@ pub fn mint_lp_shares(
     } else {
         position.last_base_asset_amount_per_lp = amm.base_asset_amount_per_lp.cast()?;
         position.last_quote_asset_amount_per_lp = amm.quote_asset_amount_per_lp.cast()?;
+        position.per_lp_base = amm.per_lp_base;
     }
 
     // add share balance
@@ -77,6 +180,8 @@ pub fn settle_lp_position(
             ErrorCode::InvalidPerpPositionDetected
         )?;
     }
+
+    apply_lp_rebase_to_perp_position(market, position)?;
 
     let mut lp_metrics: crate::math::lp::LPMetrics =
         calculate_settle_lp_metrics(&market.amm, position)?;
@@ -184,9 +289,10 @@ pub fn burn_lp_shares(
         crate::validate!(
             unsettled_remainder.unsigned_abs() <= market.amm.order_step_size as u128,
             ErrorCode::UnableToBurnLPTokens,
-            "unsettled baa on final burn too big rel to stepsize {}: {}",
+            "unsettled baa on final burn too big rel to stepsize {}: {} (remainder:{})",
             market.amm.order_step_size,
             market.amm.base_asset_amount_with_unsettled_lp,
+            position.remainder_base_asset_amount
         )?;
 
         // sub bc lps take the opposite side of the user

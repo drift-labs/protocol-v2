@@ -380,7 +380,7 @@ fn validate_auction_params(order: &Order) -> DriftResult {
 
     match order.direction {
         PositionDirection::Long => {
-            if order.auction_start_price >= order.auction_end_price {
+            if order.auction_start_price > order.auction_end_price {
                 msg!(
                     "Auction start price ({}) was greater than auction end price ({})",
                     order.auction_start_price,
@@ -399,7 +399,7 @@ fn validate_auction_params(order: &Order) -> DriftResult {
             }
         }
         PositionDirection::Short => {
-            if order.auction_start_price <= order.auction_end_price {
+            if order.auction_start_price < order.auction_end_price {
                 msg!(
                     "Auction start price ({}) was less than auction end price ({})",
                     order.auction_start_price,

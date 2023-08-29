@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 use std::cmp::max;
 
-use crate::controller::position::PositionDirection;
+use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::Cast;
@@ -11,7 +11,8 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
 };
 use crate::math::constants::{
-    BASE_PRECISION, BID_ASK_SPREAD_PRECISION_U128, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION,
+    AMM_RESERVE_PRECISION_I128, BASE_PRECISION, BID_ASK_SPREAD_PRECISION_U128,
+    LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION,
     TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
@@ -644,7 +645,10 @@ pub struct AMM {
     /// the target value for `base_asset_amount_per_lp`, used during AMM JIT with LP split
     /// precision: BASE_PRECISION
     pub target_base_asset_amount_per_lp: i32,
-    pub padding1: u32,
+    /// expo for unit of per_lp, base 10 (if per_lp_base=X, then per_lp unit is 10^X)
+    pub per_lp_base: i8,
+    pub padding1: u8,
+    pub padding2: u16,
     pub total_fee_earned_per_lp: u64,
     pub padding: [u8; 32],
 }
@@ -728,7 +732,9 @@ impl Default for AMM {
             oracle_source: OracleSource::default(),
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
+            per_lp_base: 0,
             padding1: 0,
+            padding2: 0,
             total_fee_earned_per_lp: 0,
             padding: [0; 32],
         }
@@ -736,10 +742,103 @@ impl Default for AMM {
 }
 
 impl AMM {
+    pub fn get_per_lp_base_unit(self) -> DriftResult<i128> {
+        let scalar: i128 = 10_i128.pow(self.per_lp_base.abs().cast()?);
+
+        if self.per_lp_base > 0 {
+            AMM_RESERVE_PRECISION_I128.safe_mul(scalar)
+        } else {
+            AMM_RESERVE_PRECISION_I128.safe_div(scalar)
+        }
+    }
+
+    pub fn calculate_lp_base_delta(
+        &self,
+        per_lp_delta_base: i128,
+        base_unit: i128,
+    ) -> DriftResult<i128> {
+        // calculate dedicated for user lp shares
+        let lp_delta_base =
+            get_proportion_i128(per_lp_delta_base, self.user_lp_shares, base_unit.cast()?)?;
+
+        Ok(lp_delta_base)
+    }
+
+    pub fn calculate_per_lp_delta(
+        &self,
+        delta: &PositionDelta,
+        fee_to_market: i128,
+        liquidity_split: AMMLiquiditySplit,
+        base_unit: i128,
+    ) -> DriftResult<(i128, i128, i128)> {
+        let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
+            self.user_lp_shares
+        } else {
+            self.sqrt_k
+        };
+
+        // update Market per lp position
+        let per_lp_delta_base = get_proportion_i128(
+            delta.base_asset_amount.cast()?,
+            base_unit.cast()?,
+            total_lp_shares, //.safe_div_ceil(rebase_divisor.cast()?)?,
+        )?;
+
+        let mut per_lp_delta_quote = get_proportion_i128(
+            delta.quote_asset_amount.cast()?,
+            base_unit.cast()?,
+            total_lp_shares, //.safe_div_ceil(rebase_divisor.cast()?)?,
+        )?;
+
+        // user position delta is short => lp position delta is long
+        if per_lp_delta_base < 0 {
+            // add one => lp subtract 1
+            per_lp_delta_quote = per_lp_delta_quote.safe_add(1)?;
+        }
+
+        // 1/5 of fee auto goes to market
+        // the rest goes to lps/market proportional
+        let per_lp_fee: i128 = if fee_to_market > 0 {
+            get_proportion_i128(
+                fee_to_market,
+                LP_FEE_SLICE_NUMERATOR,
+                LP_FEE_SLICE_DENOMINATOR,
+            )?
+            .safe_mul(base_unit)?
+            .safe_div(total_lp_shares.cast::<i128>()?)?
+        } else {
+            0
+        };
+
+        Ok((per_lp_delta_base, per_lp_delta_quote, per_lp_fee))
+    }
+
+    pub fn get_target_base_asset_amount_per_lp(&self) -> DriftResult<i128> {
+        if self.target_base_asset_amount_per_lp == 0 {
+            return Ok(0_i128);
+        }
+
+        let target_base_asset_amount_per_lp: i128 = if self.per_lp_base > 0 {
+            let rebase_divisor = 10_i128.pow(self.per_lp_base.abs().cast()?);
+            self.target_base_asset_amount_per_lp
+                .cast::<i128>()?
+                .safe_mul(rebase_divisor)?
+        } else if self.per_lp_base < 0 {
+            let rebase_divisor = 10_i128.pow(self.per_lp_base.abs().cast()?);
+            self.target_base_asset_amount_per_lp
+                .cast::<i128>()?
+                .safe_div(rebase_divisor)?
+        } else {
+            self.target_base_asset_amount_per_lp.cast::<i128>()?
+        };
+
+        Ok(target_base_asset_amount_per_lp)
+    }
+
     pub fn imbalanced_base_asset_amount_with_lp(&self) -> DriftResult<i128> {
         let target_lp_gap = self
             .base_asset_amount_per_lp
-            .safe_sub(self.target_base_asset_amount_per_lp.cast()?)?;
+            .safe_sub(self.get_target_base_asset_amount_per_lp()?)?;
 
         get_proportion_i128(target_lp_gap, self.user_lp_shares, BASE_PRECISION)
     }
@@ -766,10 +865,10 @@ impl AMM {
 
         let amm_lp_wants_to_jit_make = match taker_direction {
             PositionDirection::Long => {
-                self.base_asset_amount_per_lp > self.target_base_asset_amount_per_lp.cast()?
+                self.base_asset_amount_per_lp > self.get_target_base_asset_amount_per_lp()?
             }
             PositionDirection::Short => {
-                self.base_asset_amount_per_lp < self.target_base_asset_amount_per_lp.cast()?
+                self.base_asset_amount_per_lp < self.get_target_base_asset_amount_per_lp()?
             }
         };
         Ok(amm_lp_wants_to_jit_make && self.amm_lp_jit_is_active())

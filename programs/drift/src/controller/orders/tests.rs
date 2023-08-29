@@ -37,6 +37,7 @@ pub mod fulfill_order_with_maker_order {
         BID_ASK_SPREAD_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
         PRICE_PRECISION_U64, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
     };
+    use crate::math::oracle::OracleValidity;
     use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
 
@@ -1586,8 +1587,8 @@ pub mod fulfill_order_with_maker_order {
 
     #[test]
     fn taker_oracle_bid_crosses_maker_ask() {
-        let now = 5_i64;
-        let slot = 5_u64;
+        let now = 50000_i64;
+        let slot = 50000_u64;
 
         let mut maker = User {
             orders: get_orders(Order {
@@ -1615,9 +1616,10 @@ pub mod fulfill_order_with_maker_order {
                 order_type: OrderType::Oracle,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64,
-                auction_start_price: 0,
+                auction_start_price: 999 * PRICE_PRECISION_I64 / 10, // $99.9
                 auction_end_price: 100 * PRICE_PRECISION_I64,
-                auction_duration: 10,
+                auction_duration: 10, // auction is 1 cent per slot
+                slot: slot - 5,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1630,6 +1632,7 @@ pub mod fulfill_order_with_maker_order {
         };
 
         let mut oracle_price = get_pyth_price(100, 6);
+        oracle_price.curr_slot = slot - 10000;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1642,7 +1645,19 @@ pub mod fulfill_order_with_maker_order {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket::default_test();
+        market.amm.historical_oracle_data.last_oracle_price_twap = 999 * PRICE_PRECISION_I64 / 10;
+        market.amm.historical_oracle_data.last_oracle_price_twap_ts = now - 1;
         market.amm.oracle = oracle_price_key;
+
+        let (opd, ov) = oracle_map
+            .get_price_data_and_validity(
+                &oracle_price_key,
+                market.amm.historical_oracle_data.last_oracle_price_twap,
+            )
+            .unwrap();
+
+        assert_eq!(opd.delay, 50000); // quite long time
+        assert_eq!(ov, OracleValidity::StaleForMargin);
 
         let fee_structure = get_fee_structure();
         let (maker_key, taker_key, filler_key) = get_user_keys();

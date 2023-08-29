@@ -1,6 +1,6 @@
 [package]
 name = "drift"
-version = "2.37.0"
+version = "2.38.0"
 description = "Created with Anchor"
 edition = "2018"
 
@@ -18,7 +18,7 @@ default=["mainnet-beta"]
 [dependencies]
 # forked version of anchor 0.26.0 with support for large idl
 anchor-lang = { git = "https://github.com/drift-labs/anchor.git", rev = "ed950fe", version = "0.26.0" }
-solana-program = "1.13.7"
+solana-program = "1.14.9"
 anchor-spl = { git = "https://github.com/drift-labs/anchor.git", rev = "ed950fe", version = "0.26.0" }
 pyth-client = "0.2.2"
 bytemuck = { version = "1.4.0" }

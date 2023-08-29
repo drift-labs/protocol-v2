@@ -671,6 +671,11 @@ pub fn meets_place_order_margin_requirement(
     let meets_initial_margin_requirement = total_collateral >= margin_requirement.cast::<i128>()?;
 
     if !meets_initial_margin_requirement && !risk_decreasing {
+        msg!(
+            "total_collateral={}, margin_requirement={}",
+            total_collateral,
+            margin_requirement
+        );
         return Err(ErrorCode::InsufficientCollateral);
     }
 

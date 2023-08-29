@@ -79,7 +79,7 @@ export function getAuctionPriceForOracleOffsetAuction(
 	const deltaNumerator = BN.min(slotsElapsed, deltaDenominator);
 
 	if (deltaDenominator.eq(ZERO)) {
-		return order.auctionEndPrice.add(order.auctionEndPrice);
+		return oraclePrice.add(order.auctionEndPrice);
 	}
 
 	let priceOffsetDelta;

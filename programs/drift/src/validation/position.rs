@@ -11,6 +11,14 @@ pub fn validate_perp_position_with_perp_market(
     position: &PerpPosition,
     market: &PerpMarket,
 ) -> DriftResult {
+    if position.lp_shares != 0 {
+        validate!(
+            position.per_lp_base == market.amm.per_lp_base,
+            ErrorCode::InvalidPerpPositionDetected,
+            "position/market per_lp_base unequal"
+        )?;
+    }
+
     validate!(
         position.market_index == market.market_index,
         ErrorCode::InvalidPerpPositionDetected,
