@@ -293,15 +293,17 @@ pub fn place_perp_order(
         user.perp_positions[position_index].worst_case_base_asset_amount()?;
 
     let position_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
-    let order_risk_reducing = is_order_risk_decreasing(
+    let base_asset_amount_unfilled = user.orders[new_order_index]
+        .get_base_asset_amount_unfilled(Some(position_base_asset_amount))?;
+    let order_risk_decreasing = is_order_risk_decreasing(
         &params.direction,
-        order_base_asset_amount,
+        base_asset_amount_unfilled,
         position_base_asset_amount,
     )?;
 
     let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
         <= worst_case_base_asset_amount_before.unsigned_abs()
-        && order_risk_reducing;
+        && order_risk_decreasing;
 
     // when orders are placed in bulk, only need to check margin on last place
     if options.enforce_margin_check {
@@ -2549,12 +2551,13 @@ pub fn trigger_order(
 
     drop(perp_market);
 
-    // If order is risk increasing and user is below initial margin, cancel it
+    // If order is position reducing and user is below initial margin, cancel it
     let order_direction = user.orders[order_index].direction;
-    let order_base_asset_amount = user.orders[order_index].base_asset_amount;
     let position_base_asset_amount = user
         .force_get_perp_position_mut(market_index)?
         .base_asset_amount;
+    let order_base_asset_amount = user.orders[order_index]
+        .get_base_asset_amount_unfilled(Some(position_base_asset_amount))?;
     let is_risk_increasing = is_order_risk_increasing(
         &order_direction,
         order_base_asset_amount,
@@ -2982,8 +2985,14 @@ pub fn place_spot_order(
     let (worst_case_token_amount_after, _) = user.spot_positions[spot_position_index]
         .get_worst_case_token_amount(spot_market, &oracle_price_data, None, None)?;
 
-    let order_risk_decreasing =
-        is_spot_order_risk_decreasing(&user.orders[new_order_index], &balance_type, token_amount)?;
+    let order_direction = user.orders[new_order_index].direction;
+    let base_asset_amount_unfilled = user.orders[new_order_index]
+        .get_base_asset_amount_unfilled(Some(signed_token_amount.cast()?))?;
+    let order_risk_decreasing = is_order_risk_decreasing(
+        &order_direction,
+        base_asset_amount_unfilled,
+        signed_token_amount.cast()?,
+    )?;
 
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
     let risk_decreasing = worst_case_token_amount_after.unsigned_abs()
@@ -4484,15 +4493,22 @@ pub fn trigger_spot_order(
     emit!(order_action_record);
 
     let position_index = user.get_spot_position_index(market_index)?;
-    let token_amount = user.spot_positions[position_index].get_token_amount(&spot_market)?;
+    let signed_token_amount = user.spot_positions[position_index]
+        .get_signed_token_amount(&spot_market)?
+        .cast::<i64>()?;
 
     drop(spot_market);
     drop(quote_market);
 
-    // If order is risk increasing and user is below initial margin, cancel it
-    let balance_type = user.spot_positions[position_index].balance_type;
-    let is_risk_increasing =
-        is_spot_order_risk_increasing(&user.orders[order_index], &balance_type, token_amount)?;
+    // If order is position increasing and user is below initial margin, cancel it
+    let direction = user.orders[order_index].direction;
+    let order_base_asset_amount_unfilled =
+        user.orders[order_index].get_base_asset_amount_unfilled(Some(signed_token_amount))?;
+    let is_risk_increasing = is_order_risk_increasing(
+        &direction,
+        order_base_asset_amount_unfilled,
+        signed_token_amount,
+    )?;
 
     let meets_initial_margin_requirement =
         meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
