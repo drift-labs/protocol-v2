@@ -649,8 +649,14 @@ pub fn meets_place_order_margin_requirement(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    risk_decreasing: bool,
+    risk_increasing: bool,
 ) -> DriftResult<bool> {
+    let margin_type = if risk_increasing {
+        MarginRequirementType::Initial
+    } else {
+        MarginRequirementType::Maintenance
+    };
+
     let (
         margin_requirement,
         total_collateral,
@@ -661,16 +667,16 @@ pub fn meets_place_order_margin_requirement(
     ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
-        MarginRequirementType::Initial,
+        margin_type,
         spot_market_map,
         oracle_map,
         None,
         true,
     )?;
 
-    let meets_initial_margin_requirement = total_collateral >= margin_requirement.cast::<i128>()?;
+    let meets_margin_requirement = total_collateral >= margin_requirement.cast::<i128>()?;
 
-    if !meets_initial_margin_requirement && !risk_decreasing {
+    if !meets_margin_requirement {
         msg!(
             "total_collateral={}, margin_requirement={}",
             total_collateral,

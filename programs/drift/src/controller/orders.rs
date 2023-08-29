@@ -292,41 +292,26 @@ pub fn place_perp_order(
     let worst_case_base_asset_amount_after =
         user.perp_positions[position_index].worst_case_base_asset_amount()?;
 
-    let position_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
-    let base_asset_amount_unfilled = user.orders[new_order_index]
-        .get_base_asset_amount_unfilled(Some(position_base_asset_amount))?;
-    let order_risk_decreasing = is_order_risk_decreasing(
-        &params.direction,
-        base_asset_amount_unfilled,
-        position_base_asset_amount,
-    )?;
-
-    let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
-        <= worst_case_base_asset_amount_before.unsigned_abs()
-        && order_risk_decreasing;
+    let risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
+        > worst_case_base_asset_amount_before.unsigned_abs();
 
     // when orders are placed in bulk, only need to check margin on last place
     if options.enforce_margin_check {
-        // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-        let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+        meets_place_order_margin_requirement(
             user,
             perp_market_map,
             spot_market_map,
             oracle_map,
-            risk_decreasing,
+            risk_increasing,
         )?;
-
-        if !meets_initial_margin_requirement {
-            return Err(ErrorCode::InvalidOrderForInitialMarginReq);
-        }
     }
 
-    if force_reduce_only && !risk_decreasing {
+    if force_reduce_only && risk_increasing {
         return Err(ErrorCode::InvalidOrderNotRiskReducing);
     }
 
     let max_oi = market.amm.max_open_interest;
-    if max_oi != 0 && !risk_decreasing {
+    if max_oi != 0 && !risk_increasing {
         let oi_plus_order = match params.direction {
             PositionDirection::Long => market
                 .amm
@@ -3007,36 +2992,22 @@ pub fn place_spot_order(
         MarginRequirementType::Initial,
     )?;
 
-    let order_direction = user.orders[new_order_index].direction;
-    let base_asset_amount_unfilled = user.orders[new_order_index]
-        .get_base_asset_amount_unfilled(Some(signed_token_amount.cast()?))?;
-    let order_risk_decreasing = is_order_risk_decreasing(
-        &order_direction,
-        base_asset_amount_unfilled,
-        signed_token_amount.cast()?,
-    )?;
-
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let risk_decreasing = free_collateral_contribution_after >= free_collateral_contribution_before
-        && order_risk_decreasing;
+    let risk_increasing = free_collateral_contribution_after < free_collateral_contribution_before;
 
     if options.enforce_margin_check {
-        let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+        meets_place_order_margin_requirement(
             user,
             perp_market_map,
             spot_market_map,
             oracle_map,
-            risk_decreasing,
+            risk_increasing,
         )?;
-
-        if !meets_initial_margin_requirement {
-            return Err(ErrorCode::InvalidOrderForInitialMarginReq);
-        }
     }
 
     validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
 
-    if force_reduce_only && !risk_decreasing {
+    if force_reduce_only && risk_increasing {
         return Err(ErrorCode::InvalidOrderNotRiskReducing);
     }
 
