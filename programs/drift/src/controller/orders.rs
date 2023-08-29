@@ -311,7 +311,7 @@ pub fn place_perp_order(
     }
 
     let max_oi = market.amm.max_open_interest;
-    if max_oi != 0 && !risk_increasing {
+    if max_oi != 0 && risk_increasing {
         let oi_plus_order = match params.direction {
             PositionDirection::Long => market
                 .amm
