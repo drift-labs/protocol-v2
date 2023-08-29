@@ -678,9 +678,10 @@ pub fn meets_place_order_margin_requirement(
 
     if !meets_margin_requirement {
         msg!(
-            "total_collateral={}, margin_requirement={}",
+            "total_collateral={}, margin_requirement={} margin type = {:?}",
             total_collateral,
-            margin_requirement
+            margin_requirement,
+            margin_type
         );
         return Err(ErrorCode::InsufficientCollateral);
     }

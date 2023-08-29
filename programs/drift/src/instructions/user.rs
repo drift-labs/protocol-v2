@@ -776,6 +776,7 @@ impl Default for PostOnlyParam {
 pub struct PlaceOrderOptions {
     pub try_expire_orders: bool,
     pub enforce_margin_check: bool,
+    pub multiple_orders: bool,
 }
 
 impl Default for PlaceOrderOptions {
@@ -783,6 +784,7 @@ impl Default for PlaceOrderOptions {
         Self {
             try_expire_orders: true,
             enforce_margin_check: true,
+            multiple_orders: false,
         }
     }
 }
@@ -1116,6 +1118,7 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         let options = PlaceOrderOptions {
             enforce_margin_check: i == num_orders - 1,
             try_expire_orders: i == 0,
+            multiple_orders: true,
         };
 
         if params.market_type == MarketType::Perp {

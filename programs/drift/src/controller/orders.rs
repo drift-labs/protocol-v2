@@ -302,7 +302,7 @@ pub fn place_perp_order(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            risk_increasing,
+            risk_increasing || options.multiple_orders,
         )?;
     }
 
@@ -3001,7 +3001,7 @@ pub fn place_spot_order(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            risk_increasing,
+            risk_increasing || options.multiple_orders,
         )?;
     }
 
