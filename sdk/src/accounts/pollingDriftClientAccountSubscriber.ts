@@ -227,7 +227,7 @@ export class PollingDriftClientAccountSubscriber
 
 				const account = this.program.account[
 					accountToPoll.key
-				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
+				].coder.accounts.decodeUnchecked(capitalize(accountToPoll.key), buffer);
 				const dataAndSlot = {
 					data: account,
 					slot,
@@ -288,7 +288,7 @@ export class PollingDriftClientAccountSubscriber
 			if (buffer) {
 				const account = this.program.account[
 					accountToPoll.key
-				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
+				].coder.accounts.decodeUnchecked(capitalize(accountToPoll.key), buffer);
 
 				if (accountToPoll.mapKey != undefined) {
 					this[accountToPoll.key].set(accountToPoll.mapKey, {

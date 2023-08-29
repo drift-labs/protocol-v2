@@ -35,7 +35,7 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import { BulkAccountLoader, PerpPosition } from '../sdk';
 
 async function adjustOraclePostSwap(baa, swapDirection, market) {
 	const price = calculatePrice(
@@ -1231,6 +1231,296 @@ describe('liquidity providing', () => {
 		assert(settleLiquidityRecord.pnl.eq(sdkPnl));
 	});
 
+	it('update per lp base (0->1)', async () => {
+		//ensure non-zero for test
+
+		await driftClient.updatePerpMarketTargetBaseAssetAmountPerLp(0, 169);
+
+		await driftClient.fetchAccounts();
+		const marketBefore = driftClient.getPerpMarketAccount(0);
+		console.log(
+			'marketBefore.amm.totalFeeEarnedPerLp',
+			marketBefore.amm.totalFeeEarnedPerLp.toString()
+		);
+		assert(marketBefore.amm.totalFeeEarnedPerLp.eq(new BN('272')));
+
+		const txSig1 = await driftClient.updatePerpMarketPerLpBase(0, 1);
+		await _viewLogs(txSig1);
+
+		await sleep(500); // todo?
+		await driftClient.fetchAccounts();
+		const marketAfter = driftClient.getPerpMarketAccount(0);
+
+		assert(
+			marketAfter.amm.totalFeeEarnedPerLp.eq(
+				marketBefore.amm.totalFeeEarnedPerLp.mul(new BN(10))
+			)
+		);
+
+		assert(
+			marketAfter.amm.baseAssetAmountPerLp.eq(
+				marketBefore.amm.baseAssetAmountPerLp.mul(new BN(10))
+			)
+		);
+
+		assert(
+			marketAfter.amm.quoteAssetAmountPerLp.eq(
+				marketBefore.amm.quoteAssetAmountPerLp.mul(new BN(10))
+			)
+		);
+		console.log(marketAfter.amm.targetBaseAssetAmountPerLp);
+		console.log(marketBefore.amm.targetBaseAssetAmountPerLp);
+
+		assert(
+			marketAfter.amm.targetBaseAssetAmountPerLp ==
+				marketBefore.amm.targetBaseAssetAmountPerLp
+		);
+		assert(marketAfter.amm.totalFeeEarnedPerLp.eq(new BN('2720')));
+
+		assert(marketBefore.amm.perLpBase == 0);
+		console.log('marketAfter.amm.perLpBase:', marketAfter.amm.perLpBase);
+		assert(marketAfter.amm.perLpBase == 1);
+	});
+
+	it('settle lp position after perLpBase change', async () => {
+		// some user goes long (lp should get a short + pnl for closing long on settle)
+
+		const market = driftClient.getPerpMarketAccount(0);
+		console.log(
+			'baseAssetAmountWithUnsettledLp:',
+			market.amm.baseAssetAmountWithUnsettledLp.toString()
+		);
+		assert(market.amm.baseAssetAmountWithUnsettledLp.eq(ZERO));
+		// await delay(lpCooldown + 1000);
+
+		const user = await driftClientUser.getUserAccount();
+		console.log(user.perpPositions[0].lpShares.toString());
+		console.log(user.perpPositions[0].perLpBase);
+
+		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
+
+		console.log('user trading...');
+		try {
+			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+			const _txsig = await traderDriftClient.openPosition(
+				PositionDirection.LONG,
+				tradeSize,
+				market.marketIndex
+				// new BN(100 * BASE_PRECISION.toNumber())
+			);
+			await _viewLogs(_txsig);
+		} catch (e) {
+			console.log(e);
+		}
+
+		const marketAfter0 = driftClient.getPerpMarketAccount(0);
+
+		console.log(
+			'baseAssetAmountWithUnsettledLp:',
+			marketAfter0.amm.baseAssetAmountWithUnsettledLp.toString()
+		);
+		assert(
+			marketAfter0.amm.baseAssetAmountWithUnsettledLp.eq(new BN('1250000000'))
+		);
+
+		const netValueBefore = await driftClient.getUser().getNetSpotMarketValue();
+		const posBefore0: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPosition(0);
+		assert(posBefore0.perLpBase == 0);
+
+		const posBefore: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPositionWithLPSettle(0)[0];
+		// console.log(posBefore);
+		assert(posBefore.perLpBase == 1); // properly sets it
+
+		const _txSig = await driftClient.settleLP(
+			await driftClient.getUserAccountPublicKey(),
+			market.marketIndex
+		);
+		await _viewLogs(_txSig);
+		await driftClient.fetchAccounts();
+		const marketAfter1 = driftClient.getPerpMarketAccount(0);
+
+		console.log(
+			'baseAssetAmountWithUnsettledLp:',
+			marketAfter1.amm.baseAssetAmountWithUnsettledLp.toString()
+		);
+		assert(marketAfter1.amm.baseAssetAmountWithUnsettledLp.eq(new BN('0')));
+
+		const posAfter0: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPosition(0);
+		assert(posAfter0.perLpBase == 1);
+
+		const posAfter: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPositionWithLPSettle(0)[0];
+
+		assert(posAfter.perLpBase == 1);
+		assert(
+			posAfter0.lastBaseAssetAmountPerLp.gt(posBefore0.lastBaseAssetAmountPerLp)
+		);
+		// console.log(posAfter.lastBaseAssetAmountPerLp.toString());
+		// console.log(posBefore.lastBaseAssetAmountPerLp.toString());
+
+		assert(posAfter.lastBaseAssetAmountPerLp.eq(new BN('625000000')));
+		assert(posBefore.lastBaseAssetAmountPerLp.eq(new BN('750000000')));
+
+		const netValueAfter = await driftClient.getUser().getNetSpotMarketValue();
+
+		assert(netValueBefore.eq(netValueAfter));
+
+		const marketAfter2 = driftClient.getPerpMarketAccount(0);
+
+		console.log(
+			'baseAssetAmountWithUnsettledLp:',
+			marketAfter2.amm.baseAssetAmountWithUnsettledLp.toString()
+		);
+		assert(marketAfter2.amm.baseAssetAmountWithUnsettledLp.eq(new BN('0')));
+		console.log(
+			'marketBefore.amm.totalFeeEarnedPerLp',
+			marketAfter2.amm.totalFeeEarnedPerLp.toString()
+		);
+		assert(marketAfter2.amm.totalFeeEarnedPerLp.eq(new BN('2826')));
+	});
+
+	it('add back lp shares from 0, after rebase', async () => {
+		const leShares = driftClientUser.getPerpPosition(0).lpShares;
+		await driftClient.removePerpLpShares(0, leShares);
+		await driftClient.fetchAccounts();
+
+		await driftClient.updatePerpMarketPerLpBase(0, 2); // update from 1->2
+
+		const posBeforeReadd: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPositionWithLPSettle(0)[0];
+		console.log(posBeforeReadd.baseAssetAmount.toString());
+		console.log(posBeforeReadd.quoteAssetAmount.toString());
+		console.log(posBeforeReadd.lastBaseAssetAmountPerLp.toString());
+		console.log(posBeforeReadd.lastQuoteAssetAmountPerLp.toString());
+		console.log(
+			posBeforeReadd.lpShares.toString(),
+			posBeforeReadd.perLpBase.toString()
+		);
+
+		await driftClient.addPerpLpShares(leShares, 0); // lmao why is this different param order
+
+		const posBefore: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPositionWithLPSettle(0)[0];
+		console.log('posBefore');
+		console.log(posBefore.baseAssetAmount.toString());
+		console.log(posBefore.quoteAssetAmount.toString());
+		console.log(posBefore.lastBaseAssetAmountPerLp.toString());
+		console.log(posBefore.lastQuoteAssetAmountPerLp.toString());
+		console.log(posBefore.lpShares.toString(), posBefore.perLpBase.toString());
+
+		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
+		const market = driftClient.getPerpMarketAccount(0);
+
+		console.log('user trading...');
+		try {
+			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+			const _txsig = await traderDriftClient.openPosition(
+				PositionDirection.SHORT,
+				tradeSize,
+				market.marketIndex
+			);
+			await _viewLogs(_txsig);
+		} catch (e) {
+			console.log(e);
+		}
+
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+
+		const posAfter: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPositionWithLPSettle(0)[0];
+		console.log('posAfter');
+		console.log(posAfter.baseAssetAmount.toString());
+		console.log(posAfter.quoteAssetAmount.toString());
+		console.log(posAfter.lastBaseAssetAmountPerLp.toString());
+		console.log(posAfter.lastQuoteAssetAmountPerLp.toString());
+		console.log(posAfter.perLpBase.toString());
+
+		const _txSig = await driftClient.settleLP(
+			await driftClient.getUserAccountPublicKey(),
+			market.marketIndex
+		);
+
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+
+		const posAfterSettle: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPositionWithLPSettle(0)[0];
+		console.log('posAfterSettle');
+		console.log(posAfterSettle.baseAssetAmount.toString());
+		console.log(posAfterSettle.quoteAssetAmount.toString());
+		console.log(posAfterSettle.lastBaseAssetAmountPerLp.toString());
+		console.log(posAfterSettle.lastQuoteAssetAmountPerLp.toString());
+		console.log(posAfterSettle.perLpBase.toString());
+
+		assert(posAfterSettle.baseAssetAmount.eq(posAfter.baseAssetAmount));
+		assert(posAfterSettle.quoteAssetAmount.eq(posAfter.quoteAssetAmount));
+	});
+
+	it('settled at negative rebase value', async () => {
+		await driftClient.updatePerpMarketPerLpBase(0, 1);
+		await driftClient.updatePerpMarketPerLpBase(0, 0);
+		await driftClient.updatePerpMarketPerLpBase(0, -1);
+		await driftClient.updatePerpMarketPerLpBase(0, -2);
+		await driftClient.updatePerpMarketPerLpBase(0, -3);
+
+		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
+		const market = driftClient.getPerpMarketAccount(0);
+
+		console.log('user trading...');
+		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+		const _txsig = await traderDriftClient.openPosition(
+			PositionDirection.SHORT,
+			tradeSize,
+			market.marketIndex
+		);
+		await _viewLogs(_txsig);
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+
+		const posAfter: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPositionWithLPSettle(0)[0];
+		console.log('posAfter');
+		console.log(posAfter.baseAssetAmount.toString());
+		console.log(posAfter.quoteAssetAmount.toString());
+		console.log(posAfter.lastBaseAssetAmountPerLp.toString());
+		console.log(posAfter.lastQuoteAssetAmountPerLp.toString());
+		console.log(posAfter.perLpBase.toString());
+
+		const _txSig = await driftClient.settleLP(
+			await driftClient.getUserAccountPublicKey(),
+			market.marketIndex
+		);
+
+		await driftClient.fetchAccounts();
+		await driftClientUser.fetchAccounts();
+
+		const posAfterSettle: PerpPosition = await driftClient
+			.getUser()
+			.getPerpPositionWithLPSettle(0)[0];
+		console.log('posAfterSettle');
+		console.log(posAfterSettle.baseAssetAmount.toString());
+		console.log(posAfterSettle.quoteAssetAmount.toString());
+		console.log(posAfterSettle.lastBaseAssetAmountPerLp.toString());
+		console.log(posAfterSettle.lastQuoteAssetAmountPerLp.toString());
+		console.log(posAfterSettle.perLpBase.toString());
+
+		assert(posAfterSettle.baseAssetAmount.eq(posAfter.baseAssetAmount));
+		assert(posAfterSettle.quoteAssetAmount.eq(posAfter.quoteAssetAmount));
+	});
+
 	it('permissionless lp burn', async () => {
 		const lpAmount = new BN(1 * BASE_PRECISION.toNumber());
 		const _sig = await driftClient.addPerpLpShares(lpAmount, 0);
@@ -1254,6 +1544,7 @@ describe('liquidity providing', () => {
 		const position = driftClientUser.getPerpPosition(0);
 		assert(position.lpShares.eq(ZERO));
 	});
+
 	return;
 
 	it('lp gets paid in funding (todo)', async () => {

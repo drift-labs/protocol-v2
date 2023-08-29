@@ -63,7 +63,8 @@ export class EventSubscriber {
 				this.connection,
 				this.address,
 				options.commitment,
-				this.options.logProviderConfig.frequency
+				this.options.logProviderConfig.frequency,
+				this.options.logProviderConfig.batchSize
 			);
 		}
 	}
@@ -176,7 +177,7 @@ export class EventSubscriber {
 				event.data.txSig = txSig;
 				event.data.slot = slot;
 				event.data.eventType = event.name;
-				//event.data.txSigIndex = runningEventIndex;
+				event.data.txSigIndex = runningEventIndex;
 				records.push(event.data);
 			}
 			runningEventIndex++;

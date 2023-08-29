@@ -32,6 +32,7 @@ import {
 	getTokenAmountAsBN,
 	mintUSDCToUser,
 	printTxLogs,
+	sleep,
 } from './testHelpers';
 import { getAccount } from '@solana/spl-token';
 
@@ -567,6 +568,8 @@ describe('drift client', () => {
 			usdcAmount,
 			provider
 		);
+
+		await sleep(2000);
 
 		await driftClient.deposit(
 			usdcAmount,

@@ -64,7 +64,7 @@ export type EventSubscriptionOrderDirection = 'asc' | 'desc';
 export type Event<T> = T & {
 	txSig: TransactionSignature;
 	slot: number;
-	//txSigIndex: number; // Unique index for each event inside a tx
+	txSigIndex: number; // Unique index for each event inside a tx
 };
 
 export type WrappedEvent<Type extends EventType> = EventMap[Type] & {
@@ -137,6 +137,7 @@ export type WebSocketLogProviderConfig = {
 export type PollingLogProviderConfig = {
 	type: 'polling';
 	frequency: number;
+	batchSize?: number;
 };
 
 export type LogProviderConfig =
