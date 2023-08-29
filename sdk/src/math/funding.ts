@@ -5,6 +5,7 @@ import {
 	QUOTE_PRECISION,
 	ZERO,
 	ONE,
+	FUNDING_RATE_OFFSET_DENOMINATOR,
 } from '../constants/numericConstants';
 import { PerpMarketAccount, isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
@@ -156,7 +157,9 @@ export async function calculateAllEstimatedFundingRate(
 	// }
 
 	const twapSpread = markTwap.sub(oracleTwap);
-	const twapSpreadWithOffset = twapSpread.add(oracleTwap.div(new BN(5000)));
+	const twapSpreadWithOffset = twapSpread.add(
+		BN.abs(oracleTwap).div(FUNDING_RATE_OFFSET_DENOMINATOR)
+	);
 
 	const twapSpreadPct = twapSpreadWithOffset
 		.mul(PRICE_PRECISION)
