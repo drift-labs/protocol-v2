@@ -2469,6 +2469,10 @@ pub fn trigger_order(
     )?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
+    let worst_case_base_asset_amount_before = user
+        .get_perp_position(market_index)?
+        .worst_case_base_asset_amount()?;
+
     {
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
@@ -2536,37 +2540,34 @@ pub fn trigger_order(
 
     drop(perp_market);
 
-    // If order is position reducing and user is below initial margin, cancel it
-    let order_direction = user.orders[order_index].direction;
-    let position_base_asset_amount = user
-        .force_get_perp_position_mut(market_index)?
-        .base_asset_amount;
-    let order_base_asset_amount = user.orders[order_index]
-        .get_base_asset_amount_unfilled(Some(position_base_asset_amount))?;
-    let is_risk_increasing = is_order_risk_increasing(
-        &order_direction,
-        order_base_asset_amount,
-        position_base_asset_amount,
-    )?;
+    let worst_case_base_asset_amount_after = user
+        .get_perp_position(market_index)?
+        .worst_case_base_asset_amount()?;
 
-    let meets_initial_margin_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let is_risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
+        > worst_case_base_asset_amount_before.unsigned_abs();
 
-    if is_risk_increasing && !meets_initial_margin_requirement {
-        cancel_order(
-            order_index,
-            user,
-            &user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            now,
-            slot,
-            OrderActionExplanation::InsufficientFreeCollateral,
-            Some(&filler_key),
-            0,
-            false,
-        )?;
+    // If order increases risk and user is below initial margin, cancel it
+    if is_risk_increasing && !user.orders[order_index].reduce_only {
+        let meets_initial_margin_requirement =
+            meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+
+        if !meets_initial_margin_requirement {
+            cancel_order(
+                order_index,
+                user,
+                &user_key,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                now,
+                slot,
+                OrderActionExplanation::InsufficientFreeCollateral,
+                Some(&filler_key),
+                0,
+                false,
+            )?;
+        }
     }
 
     user.update_last_active_slot(slot);
@@ -4418,6 +4419,14 @@ pub fn trigger_spot_order(
         &spot_market.oracle,
         spot_market.historical_oracle_data.last_oracle_price_twap,
     )?;
+    let strict_oracle_price = StrictOraclePrice {
+        current: oracle_price_data.price,
+        twap_5min: Some(
+            spot_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
+        ),
+    };
 
     validate!(
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::TriggerOrder))?,
@@ -4433,6 +4442,20 @@ pub fn trigger_spot_order(
         oracle_price.unsigned_abs().cast()?,
     )?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
+
+    let position_index = user.get_spot_position_index(market_index)?;
+    let signed_token_amount =
+        user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
+
+    let OrderFillSimulation {
+        free_collateral_contribution: free_collateral_contribution_before,
+        ..
+    } = user.spot_positions[position_index].get_worst_case_token_amount(
+        &spot_market,
+        &strict_oracle_price,
+        Some(signed_token_amount),
+        MarginRequirementType::Initial,
+    )?;
 
     {
         let direction = user.orders[order_index].direction;
@@ -4499,42 +4522,45 @@ pub fn trigger_spot_order(
 
     emit!(order_action_record);
 
-    let position_index = user.get_spot_position_index(market_index)?;
-    let signed_token_amount = user.spot_positions[position_index]
-        .get_signed_token_amount(&spot_market)?
-        .cast::<i64>()?;
+    let OrderFillSimulation {
+        free_collateral_contribution: free_collateral_contribution_after,
+        ..
+    } = user
+        .get_spot_position(market_index)?
+        .get_worst_case_token_amount(
+            &spot_market,
+            &strict_oracle_price,
+            Some(signed_token_amount),
+            MarginRequirementType::Initial,
+        )?;
 
     drop(spot_market);
     drop(quote_market);
 
-    // If order is position increasing and user is below initial margin, cancel it
-    let direction = user.orders[order_index].direction;
-    let order_base_asset_amount_unfilled =
-        user.orders[order_index].get_base_asset_amount_unfilled(Some(signed_token_amount))?;
-    let is_risk_increasing = is_order_risk_increasing(
-        &direction,
-        order_base_asset_amount_unfilled,
-        signed_token_amount,
-    )?;
+    let is_risk_increasing =
+        free_collateral_contribution_after < free_collateral_contribution_before;
 
-    let meets_initial_margin_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    // If order is risk increasing and user is below initial margin, cancel it
+    if is_risk_increasing && !user.orders[order_index].reduce_only {
+        let meets_initial_margin_requirement =
+            meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
 
-    if is_risk_increasing && !meets_initial_margin_requirement {
-        cancel_order(
-            order_index,
-            user,
-            &user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            now,
-            slot,
-            OrderActionExplanation::InsufficientFreeCollateral,
-            Some(&filler_key),
-            0,
-            false,
-        )?;
+        if !meets_initial_margin_requirement {
+            cancel_order(
+                order_index,
+                user,
+                &user_key,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                now,
+                slot,
+                OrderActionExplanation::InsufficientFreeCollateral,
+                Some(&filler_key),
+                0,
+                false,
+            )?;
+        }
     }
 
     user.update_last_active_slot(slot);
