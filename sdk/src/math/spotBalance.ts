@@ -201,11 +201,6 @@ export function calculateScaledInitialAssetWeight(
 		return new BN(spotMarket.initialAssetWeight);
 	}
 
-	const maxOralcePrice = BN.max(
-		oraclePrice,
-		spotMarket.historicalOracleData.lastOraclePriceTwap5Min
-	);
-
 	const deposits = getTokenAmount(
 		spotMarket.depositBalance,
 		spotMarket,
@@ -214,7 +209,7 @@ export function calculateScaledInitialAssetWeight(
 	const depositsValue = getTokenValue(
 		deposits,
 		spotMarket.decimals,
-		maxOralcePrice
+		{ price: oraclePrice }
 	);
 
 	if (depositsValue.lt(spotMarket.scaleInitialAssetWeightStart)) {
