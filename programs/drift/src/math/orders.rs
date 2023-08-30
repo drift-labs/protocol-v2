@@ -992,8 +992,9 @@ pub fn calculate_max_spot_order_size(
         ..
     } = ask_simulation.riskier(bid_simulation);
 
-    // account for order flipping worst case base asset amount
+    // account for order flipping worst case
     if worst_case_token_amount < 0 && direction == PositionDirection::Long {
+        // to determine order size to flip direction, need to know diff in free collateral
         let mut free_collateral_difference = bid_simulation
             .free_collateral_contribution
             .safe_sub(ask_simulation.free_collateral_contribution)?
@@ -1002,6 +1003,7 @@ pub fn calculate_max_spot_order_size(
 
         let mut token_amount = bid_simulation.token_amount;
 
+        // the free collateral delta is positive until the worst case hits 0
         if token_amount < 0 {
             let token_value =
                 get_strict_token_value(token_amount, spot_market.decimals, &strict_oracle_price)?;
@@ -1023,13 +1025,14 @@ pub fn calculate_max_spot_order_size(
             token_amount = 0;
         }
 
+        // free collateral delta is negative as the worst case goes above 0
         let weight = spot_market.get_asset_weight(
             token_amount.unsigned_abs(),
             &strict_oracle_price,
             &MarginRequirementType::Initial,
         )?;
 
-        let free_collateral_consumer_per_order = weight
+        let free_collateral_delta_per_order = weight
             .cast::<i128>()?
             .safe_sub(SPOT_WEIGHT_PRECISION_I128)?
             .abs()
@@ -1041,7 +1044,7 @@ pub fn calculate_max_spot_order_size(
         order_size_to_flip = order_size_to_flip.safe_add(
             free_collateral_difference
                 .safe_mul(spot_market.get_precision().cast()?)?
-                .safe_div(free_collateral_consumer_per_order)?
+                .safe_div(free_collateral_delta_per_order)?
                 .cast::<u64>()?,
         )?;
 
@@ -1080,7 +1083,7 @@ pub fn calculate_max_spot_order_size(
         let weight = spot_market
             .get_liability_weight(token_amount.unsigned_abs(), &MarginRequirementType::Initial)?;
 
-        let free_collateral_consumer_per_order = weight
+        let free_collateral_delta_per_order = weight
             .cast::<i128>()?
             .safe_sub(SPOT_WEIGHT_PRECISION_I128)?
             .abs()
@@ -1092,7 +1095,7 @@ pub fn calculate_max_spot_order_size(
         order_size_to_flip = order_size_to_flip.safe_add(
             free_collateral_difference
                 .safe_mul(spot_market.get_precision().cast()?)?
-                .safe_div(free_collateral_consumer_per_order)?
+                .safe_div(free_collateral_delta_per_order)?
                 .cast::<u64>()?,
         )?;
 
