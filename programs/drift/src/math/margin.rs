@@ -245,16 +245,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         0_u32
     };
 
-    let quote_market = spot_market_map.get_quote_spot_market()?;
-    let quote_oracle = quote_market.oracle;
-    let quote_price = oracle_map.get_price_data(&quote_oracle)?.price;
-    let quote_twap_5min = quote_market
-        .historical_oracle_data
-        .last_oracle_price_twap_5min;
-    let strict_quote_price = StrictOraclePrice::new(quote_price, quote_twap_5min, strict);
-    strict_quote_price.validate()?;
-    drop(quote_market);
-
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
 
@@ -270,6 +260,15 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         all_oracles_valid &=
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
 
+        let strict_oracle_price = StrictOraclePrice::new(
+            oracle_price_data.price,
+            spot_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
+            strict,
+        );
+        strict_oracle_price.validate()?;
+
         if spot_market.market_index == 0 {
             let token_amount = spot_position.get_signed_token_amount(&spot_market)?;
             if token_amount == 0 {
@@ -283,7 +282,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             }
 
             let token_value =
-                get_strict_token_value(token_amount, spot_market.decimals, &strict_quote_price)?;
+                get_strict_token_value(token_amount, spot_market.decimals, &strict_oracle_price)?;
 
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
@@ -328,15 +327,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 }
             }
         } else {
-            let strict_oracle_price = StrictOraclePrice::new(
-                oracle_price_data.price,
-                spot_market
-                    .historical_oracle_data
-                    .last_oracle_price_twap_5min,
-                strict,
-            );
-            strict_oracle_price.validate()?;
-
             let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
 
             let OrderFillSimulation {
@@ -456,6 +446,17 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             }
         }
     }
+
+    // Most perps will have default quote market, preload the oracle price
+    let quote_market = spot_market_map.get_quote_spot_market()?;
+    let quote_oracle = quote_market.oracle;
+    let quote_price = oracle_map.get_price_data(&quote_oracle)?.price;
+    let quote_twap_5min = quote_market
+        .historical_oracle_data
+        .last_oracle_price_twap_5min;
+    let strict_quote_price = StrictOraclePrice::new(quote_price, quote_twap_5min, strict);
+    strict_quote_price.validate()?;
+    drop(quote_market);
 
     for market_position in user.perp_positions.iter() {
         if market_position.is_available() {
@@ -650,7 +651,7 @@ pub fn meets_place_order_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     risk_increasing: bool,
-) -> DriftResult<bool> {
+) -> DriftResult {
     let margin_type = if risk_increasing {
         MarginRequirementType::Initial
     } else {
@@ -694,7 +695,7 @@ pub fn meets_place_order_margin_requirement(
         )?;
     }
 
-    Ok(true)
+    Ok(())
 }
 
 pub fn meets_initial_margin_requirement(
