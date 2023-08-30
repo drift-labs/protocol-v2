@@ -42,174 +42,174 @@ export interface Route {
 }
 
 /**
- * 
+ *
  * @export
  * @interface RoutePlanStep
  */
 export interface RoutePlanStep {
-  /**
-   * 
-   * @type {SwapInfo}
-   * @memberof RoutePlanStep
-   */
-  swapInfo: SwapInfo;
-  /**
-   * 
-   * @type {number}
-   * @memberof RoutePlanStep
-   */
-  percent: number;
+	/**
+	 *
+	 * @type {SwapInfo}
+	 * @memberof RoutePlanStep
+	 */
+	swapInfo: SwapInfo;
+	/**
+	 *
+	 * @type {number}
+	 * @memberof RoutePlanStep
+	 */
+	percent: number;
 }
 
 export interface SwapInfo {
-  /**
-   * 
-   * @type {string}
-   * @memberof SwapInfo
-   */
-  ammKey: string;
-  /**
-   * 
-   * @type {string}
-   * @memberof SwapInfo
-   */
-  label?: string;
-  /**
-   * 
-   * @type {string}
-   * @memberof SwapInfo
-   */
-  inputMint: string;
-  /**
-   * 
-   * @type {string}
-   * @memberof SwapInfo
-   */
-  outputMint: string;
-  /**
-   * 
-   * @type {string}
-   * @memberof SwapInfo
-   */
-  inAmount: string;
-  /**
-   * 
-   * @type {string}
-   * @memberof SwapInfo
-   */
-  outAmount: string;
-  /**
-   * 
-   * @type {string}
-   * @memberof SwapInfo
-   */
-  feeAmount: string;
-  /**
-   * 
-   * @type {string}
-   * @memberof SwapInfo
-   */
-  feeMint: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof SwapInfo
+	 */
+	ammKey: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof SwapInfo
+	 */
+	label?: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof SwapInfo
+	 */
+	inputMint: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof SwapInfo
+	 */
+	outputMint: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof SwapInfo
+	 */
+	inAmount: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof SwapInfo
+	 */
+	outAmount: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof SwapInfo
+	 */
+	feeAmount: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof SwapInfo
+	 */
+	feeMint: string;
 }
 
 /**
- * 
+ *
  * @export
  * @interface PlatformFee
  */
 export interface PlatformFee {
-  /**
-   * 
-   * @type {string}
-   * @memberof PlatformFee
-   */
-  amount?: string;
-  /**
-   * 
-   * @type {number}
-   * @memberof PlatformFee
-   */
-  feeBps?: number;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof PlatformFee
+	 */
+	amount?: string;
+	/**
+	 *
+	 * @type {number}
+	 * @memberof PlatformFee
+	 */
+	feeBps?: number;
 }
 
 /**
- * 
+ *
  * @export
  * @interface QuoteResponse
  */
 export interface QuoteResponse {
-  /**
-   * 
-   * @type {string}
-   * @memberof QuoteResponse
-   */
-  inputMint: string;
-  /**
-   * 
-   * @type {string}
-   * @memberof QuoteResponse
-   */
-  inAmount: string;
-  /**
-   * 
-   * @type {string}
-   * @memberof QuoteResponse
-   */
-  outputMint: string;
-  /**
-   * 
-   * @type {string}
-   * @memberof QuoteResponse
-   */
-  outAmount: string;
-  /**
-   * 
-   * @type {string}
-   * @memberof QuoteResponse
-   */
-  otherAmountThreshold: string;
-  /**
-   * 
-   * @type {SwapMode}
-   * @memberof QuoteResponse
-   */
-  swapMode: SwapMode;
-  /**
-   * 
-   * @type {number}
-   * @memberof QuoteResponse
-   */
-  slippageBps: number;
-  /**
-   * 
-   * @type {PlatformFee}
-   * @memberof QuoteResponse
-   */
-  platformFee?: PlatformFee;
-  /**
-   * 
-   * @type {string}
-   * @memberof QuoteResponse
-   */
-  priceImpactPct: string;
-  /**
-   * 
-   * @type {Array<RoutePlanStep>}
-   * @memberof QuoteResponse
-   */
-  routePlan: Array<RoutePlanStep>;
-  /**
-   * 
-   * @type {number}
-   * @memberof QuoteResponse
-   */
-  contextSlot?: number;
-  /**
-   * 
-   * @type {number}
-   * @memberof QuoteResponse
-   */
-  timeTaken?: number;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof QuoteResponse
+	 */
+	inputMint: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof QuoteResponse
+	 */
+	inAmount: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof QuoteResponse
+	 */
+	outputMint: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof QuoteResponse
+	 */
+	outAmount: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof QuoteResponse
+	 */
+	otherAmountThreshold: string;
+	/**
+	 *
+	 * @type {SwapMode}
+	 * @memberof QuoteResponse
+	 */
+	swapMode: SwapMode;
+	/**
+	 *
+	 * @type {number}
+	 * @memberof QuoteResponse
+	 */
+	slippageBps: number;
+	/**
+	 *
+	 * @type {PlatformFee}
+	 * @memberof QuoteResponse
+	 */
+	platformFee?: PlatformFee;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof QuoteResponse
+	 */
+	priceImpactPct: string;
+	/**
+	 *
+	 * @type {Array<RoutePlanStep>}
+	 * @memberof QuoteResponse
+	 */
+	routePlan: Array<RoutePlanStep>;
+	/**
+	 *
+	 * @type {number}
+	 * @memberof QuoteResponse
+	 */
+	contextSlot?: number;
+	/**
+	 *
+	 * @type {number}
+	 * @memberof QuoteResponse
+	 */
+	timeTaken?: number;
 }
 
 export class JupiterClient {
@@ -294,9 +294,7 @@ export class JupiterClient {
 			swapMode,
 			onlyDirectRoutes: onlyDirectRoutes.toString(),
 		}).toString();
-		const quote = await (
-			await fetch(`${this.url}/v6/quote?${params}`)
-		).json();
+		const quote = await (await fetch(`${this.url}/v6/quote?${params}`)).json();
 		return quote;
 	}
 
@@ -322,7 +320,7 @@ export class JupiterClient {
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify({
-          quoteResponse: quote,
+					quoteResponse: quote,
 					userPublicKey,
 					slippageBps,
 				}),
