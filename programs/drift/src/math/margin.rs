@@ -676,7 +676,7 @@ pub fn meets_place_order_margin_requirement(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    risk_decreasing: bool,
+    risk_increasing: bool,
 ) -> DriftResult<bool> {
     let (
         margin_requirement,
@@ -697,7 +697,7 @@ pub fn meets_place_order_margin_requirement(
 
     let meets_initial_margin_requirement = total_collateral >= margin_requirement.cast::<i128>()?;
 
-    if !meets_initial_margin_requirement && !risk_decreasing {
+    if !meets_initial_margin_requirement && risk_increasing {
         msg!(
             "total_collateral={}, margin_requirement={}",
             total_collateral,
