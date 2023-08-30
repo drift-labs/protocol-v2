@@ -80,7 +80,7 @@ import {
 
 import { calculateLiveOracleTwap } from './math/oracles';
 import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
-import {StrictOraclePrice} from "./oracles/strictOraclePrice";
+import { StrictOraclePrice } from './oracles/strictOraclePrice';
 
 export class User {
 	driftClient: DriftClient;
@@ -880,7 +880,10 @@ export class User {
 					FIVE_MINUTE // 5MIN
 				);
 			}
-			const strictOraclePrice = new StrictOraclePrice(oraclePriceData.price, twap5min);
+			const strictOraclePrice = new StrictOraclePrice(
+				oraclePriceData.price,
+				twap5min
+			);
 
 			if (
 				spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX &&
@@ -901,7 +904,7 @@ export class User {
 						strictOraclePrice,
 						spotMarketAccount,
 						marginCategory,
-						liquidationBuffer,
+						liquidationBuffer
 					).abs();
 
 					netQuoteValue = netQuoteValue.sub(weightedTokenValue);
@@ -910,7 +913,7 @@ export class User {
 						tokenAmount,
 						strictOraclePrice,
 						spotMarketAccount,
-						marginCategory,
+						marginCategory
 					);
 
 					netQuoteValue = netQuoteValue.add(weightedTokenValue);
@@ -934,7 +937,7 @@ export class User {
 						strictOraclePrice,
 						spotMarketAccount,
 						marginCategory,
-						liquidationBuffer,
+						liquidationBuffer
 					).abs();
 					totalLiabilityValue = totalLiabilityValue.add(liabilityValue);
 
@@ -949,7 +952,7 @@ export class User {
 						tokenAmount,
 						strictOraclePrice,
 						spotMarketAccount,
-						marginCategory,
+						marginCategory
 					);
 					totalAssetValue = totalAssetValue.add(assetValue);
 
@@ -972,7 +975,7 @@ export class User {
 					worstCaseTokenAmount,
 					strictOraclePrice,
 					spotMarketAccount,
-					marginCategory,
+					marginCategory
 				);
 
 				totalAssetValue = totalAssetValue.add(baseAssetValue);
@@ -984,7 +987,7 @@ export class User {
 					strictOraclePrice,
 					spotMarketAccount,
 					marginCategory,
-					liquidationBuffer,
+					liquidationBuffer
 				).abs();
 
 				totalLiabilityValue = totalLiabilityValue.add(baseLiabilityValue);
@@ -1048,7 +1051,7 @@ export class User {
 		strictOraclePrice: StrictOraclePrice,
 		spotMarketAccount: SpotMarketAccount,
 		marginCategory?: MarginCategory,
-		liquidationBuffer?: BN,
+		liquidationBuffer?: BN
 	): BN {
 		let liabilityValue = getStrictTokenValue(
 			tokenAmount,
@@ -1101,12 +1104,12 @@ export class User {
 		tokenAmount: BN,
 		strictOraclePrice: StrictOraclePrice,
 		spotMarketAccount: SpotMarketAccount,
-		marginCategory?: MarginCategory,
+		marginCategory?: MarginCategory
 	): BN {
 		let assetValue = getStrictTokenValue(
 			tokenAmount,
 			spotMarketAccount.decimals,
-			strictOraclePrice,
+			strictOraclePrice
 		);
 
 		if (marginCategory !== undefined) {
@@ -2332,8 +2335,7 @@ export class User {
 		const inOraclePriceData = this.getOracleDataForSpotMarket(inMarketIndex);
 		const inOraclePrice = inOraclePriceData.price;
 		const outOraclePriceData = this.getOracleDataForSpotMarket(outMarketIndex);
-		const outOraclePrice =
-			outOraclePriceData.price;
+		const outOraclePrice = outOraclePriceData.price;
 
 		const inStrictOraclePrice = new StrictOraclePrice(inOraclePrice);
 		const outStrictOraclePrice = new StrictOraclePrice(outOraclePrice);
@@ -2351,17 +2353,29 @@ export class User {
 		const freeCollateral = this.getFreeCollateral();
 
 		const inContributionInitial =
-			this.calculateSpotPositionFreeCollateralContribution(inSpotPosition, inStrictOraclePrice);
+			this.calculateSpotPositionFreeCollateralContribution(
+				inSpotPosition,
+				inStrictOraclePrice
+			);
 		const {
 			totalAssetValue: inTotalAssetValueInitial,
 			totalLiabilityValue: inTotalLiabilityValueInitial,
-		} = this.calculateSpotPositionLeverageContribution(inSpotPosition, inStrictOraclePrice);
+		} = this.calculateSpotPositionLeverageContribution(
+			inSpotPosition,
+			inStrictOraclePrice
+		);
 		const outContributionInitial =
-			this.calculateSpotPositionFreeCollateralContribution(outSpotPosition, outStrictOraclePrice);
+			this.calculateSpotPositionFreeCollateralContribution(
+				outSpotPosition,
+				outStrictOraclePrice
+			);
 		const {
 			totalAssetValue: outTotalAssetValueInitial,
 			totalLiabilityValue: outTotalLiabilityValueInitial,
-		} = this.calculateSpotPositionLeverageContribution(outSpotPosition, outStrictOraclePrice);
+		} = this.calculateSpotPositionLeverageContribution(
+			outSpotPosition,
+			outStrictOraclePrice
+		);
 		const initialContribution = inContributionInitial.add(
 			outContributionInitial
 		);
@@ -2421,7 +2435,10 @@ export class User {
 				);
 
 				const inContributionAfter =
-					this.calculateSpotPositionFreeCollateralContribution(inPositionAfter, inStrictOraclePrice);
+					this.calculateSpotPositionFreeCollateralContribution(
+						inPositionAfter,
+						inStrictOraclePrice
+					);
 				const outContributionAfter =
 					this.calculateSpotPositionFreeCollateralContribution(
 						outPositionAfter,
@@ -2463,12 +2480,18 @@ export class User {
 		const {
 			totalAssetValue: inTotalAssetValueAfter,
 			totalLiabilityValue: inTotalLiabilityValueAfter,
-		} = this.calculateSpotPositionLeverageContribution(inPositionAfter, inStrictOraclePrice);
+		} = this.calculateSpotPositionLeverageContribution(
+			inPositionAfter,
+			inStrictOraclePrice
+		);
 
 		const {
 			totalAssetValue: outTotalAssetValueAfter,
 			totalLiabilityValue: outTotalLiabilityValueAfter,
-		} = this.calculateSpotPositionLeverageContribution(outPositionAfter, outStrictOraclePrice);
+		} = this.calculateSpotPositionLeverageContribution(
+			outPositionAfter,
+			outStrictOraclePrice
+		);
 
 		const spotAssetValueDelta = inTotalAssetValueAfter
 			.add(outTotalAssetValueAfter)
@@ -2553,9 +2576,7 @@ export class User {
 		const spotMarketAccount: SpotMarketAccount =
 			this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
 
-		const {
-			freeCollateralContribution,
-		} = getWorstCaseTokenAmounts(
+		const { freeCollateralContribution } = getWorstCaseTokenAmounts(
 			spotPosition,
 			spotMarketAccount,
 			strictOraclePrice,
@@ -2565,7 +2586,10 @@ export class User {
 		return freeCollateralContribution;
 	}
 
-	calculateSpotPositionLeverageContribution(spotPosition: SpotPosition, strictOraclePrice: StrictOraclePrice): {
+	calculateSpotPositionLeverageContribution(
+		spotPosition: SpotPosition,
+		strictOraclePrice: StrictOraclePrice
+	): {
 		totalAssetValue: BN;
 		totalLiabilityValue: BN;
 	} {
@@ -2575,10 +2599,7 @@ export class User {
 		const spotMarketAccount: SpotMarketAccount =
 			this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
 
-		const {
-			tokenValue,
-			ordersValue,
-		} = getWorstCaseTokenAmounts(
+		const { tokenValue, ordersValue } = getWorstCaseTokenAmounts(
 			spotPosition,
 			spotMarketAccount,
 			strictOraclePrice,
@@ -2594,9 +2615,7 @@ export class User {
 		if (ordersValue.gt(ZERO)) {
 			totalAssetValue = totalAssetValue.add(ordersValue);
 		} else {
-			totalLiabilityValue = totalLiabilityValue.add(
-				ordersValue.abs()
-			);
+			totalLiabilityValue = totalLiabilityValue.add(ordersValue.abs());
 		}
 
 		return {
@@ -2629,8 +2648,7 @@ export class User {
 		const inOraclePriceData = this.getOracleDataForSpotMarket(inMarketIndex);
 		const inOraclePrice = inOraclePriceData.price;
 		const outOraclePriceData = this.getOracleDataForSpotMarket(outMarketIndex);
-		const outOraclePrice =
-			outOraclePriceData.price;
+		const outOraclePrice = outOraclePriceData.price;
 		const inStrictOraclePrice = new StrictOraclePrice(inOraclePrice);
 		const outStrictOraclePrice = new StrictOraclePrice(outOraclePrice);
 
@@ -2644,11 +2662,17 @@ export class User {
 		const {
 			totalAssetValue: inTotalAssetValueInitial,
 			totalLiabilityValue: inTotalLiabilityValueInitial,
-		} = this.calculateSpotPositionLeverageContribution(inSpotPosition, inStrictOraclePrice);
+		} = this.calculateSpotPositionLeverageContribution(
+			inSpotPosition,
+			inStrictOraclePrice
+		);
 		const {
 			totalAssetValue: outTotalAssetValueInitial,
 			totalLiabilityValue: outTotalLiabilityValueInitial,
-		} = this.calculateSpotPositionLeverageContribution(outSpotPosition, outStrictOraclePrice);
+		} = this.calculateSpotPositionLeverageContribution(
+			outSpotPosition,
+			outStrictOraclePrice
+		);
 
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
 			this.getLeverageComponents();
@@ -2667,12 +2691,18 @@ export class User {
 		const {
 			totalAssetValue: inTotalAssetValueAfter,
 			totalLiabilityValue: inTotalLiabilityValueAfter,
-		} = this.calculateSpotPositionLeverageContribution(inPositionAfter, inStrictOraclePrice);
+		} = this.calculateSpotPositionLeverageContribution(
+			inPositionAfter,
+			inStrictOraclePrice
+		);
 
 		const {
 			totalAssetValue: outTotalAssetValueAfter,
 			totalLiabilityValue: outTotalLiabilityValueAfter,
-		} = this.calculateSpotPositionLeverageContribution(outPositionAfter, outStrictOraclePrice);
+		} = this.calculateSpotPositionLeverageContribution(
+			outPositionAfter,
+			outStrictOraclePrice
+		);
 
 		const spotAssetValueDelta = inTotalAssetValueAfter
 			.add(outTotalAssetValueAfter)
