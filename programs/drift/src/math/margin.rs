@@ -774,17 +774,34 @@ pub fn calculate_max_withdrawable_amount(
 
     let spot_market = &mut spot_market_map.get_ref(&market_index)?;
 
-    if spot_market.initial_asset_weight == 0 {
+    let token_amount = user
+        .get_spot_position(market_index)?
+        .get_token_amount(spot_market)?;
+
+    let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
+    let strict_price = StrictOraclePrice {
+        current: oracle_price,
+        twap_5min: Some(
+            spot_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
+        ),
+    };
+
+    let asset_weight = spot_market.get_asset_weight(
+        token_amount,
+        &strict_price,
+        &MarginRequirementType::Initial,
+    )?;
+
+    if asset_weight == 0 {
         return Ok(u64::MAX);
     }
 
     if num_of_liabilities == 0 {
         // user has small dust deposit and no liabilities
         // so return early with user tokens amount
-        return user
-            .get_spot_position(market_index)?
-            .get_token_amount(spot_market)?
-            .cast();
+        return token_amount.cast();
     }
 
     let free_collateral = total_collateral
@@ -794,11 +811,9 @@ pub fn calculate_max_withdrawable_amount(
 
     let precision_increase = 10u128.pow(spot_market.decimals - 6);
 
-    let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
-
     free_collateral
         .safe_mul(MARGIN_PRECISION_U128)?
-        .safe_div(spot_market.initial_asset_weight.cast()?)?
+        .safe_div(asset_weight.cast()?)?
         .safe_mul(PRICE_PRECISION)?
         .safe_div(oracle_price.cast()?)?
         .safe_mul(precision_increase)?
