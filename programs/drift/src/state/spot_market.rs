@@ -16,9 +16,7 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{calculate_utilization, get_token_amount, get_token_value};
 
-use crate::state::oracle::{
-    HistoricalIndexData, HistoricalOracleData, OracleSource, StrictOraclePrice,
-};
+use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
 use crate::validate;
@@ -281,7 +279,7 @@ impl SpotMarket {
     pub fn get_asset_weight(
         &self,
         size: u128,
-        strict_oracle_price: &StrictOraclePrice,
+        oracle_price: i64,
         margin_requirement_type: &MarginRequirementType,
     ) -> DriftResult<u32> {
         let size_precision = 10_u128.pow(self.decimals);
@@ -294,7 +292,7 @@ impl SpotMarket {
 
         let default_asset_weight = match margin_requirement_type {
             MarginRequirementType::Initial | MarginRequirementType::Fill => {
-                self.get_scaled_initial_asset_weight(strict_oracle_price)?
+                self.get_scaled_initial_asset_weight(oracle_price)?
             }
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };
@@ -310,18 +308,14 @@ impl SpotMarket {
         Ok(asset_weight)
     }
 
-    pub fn get_scaled_initial_asset_weight(
-        &self,
-        strict_oracle_price: &StrictOraclePrice,
-    ) -> DriftResult<u32> {
+    pub fn get_scaled_initial_asset_weight(&self, oracle_price: i64) -> DriftResult<u32> {
         if self.scale_initial_asset_weight_start == 0 {
             return Ok(self.initial_asset_weight);
         }
 
         let deposits = self.get_deposits()?;
         let deposit_value =
-            get_token_value(deposits.cast()?, self.decimals, strict_oracle_price.max())?
-                .cast::<u128>()?;
+            get_token_value(deposits.cast()?, self.decimals, oracle_price)?.cast::<u128>()?;
 
         let scale_initial_asset_weight_start =
             self.scale_initial_asset_weight_start.cast::<u128>()?;

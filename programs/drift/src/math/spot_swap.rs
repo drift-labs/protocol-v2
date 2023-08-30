@@ -42,7 +42,7 @@ pub fn select_margin_type_for_swap(
             let weight = if token_amount >= 0 {
                 market.get_asset_weight(
                     token_amount.unsigned_abs(),
-                    strict_oracle_price,
+                    strict_oracle_price.current,
                     &MarginRequirementType::Initial,
                 )?
             } else {

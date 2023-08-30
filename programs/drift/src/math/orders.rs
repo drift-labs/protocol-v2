@@ -1028,7 +1028,7 @@ pub fn calculate_max_spot_order_size(
         // free collateral delta is negative as the worst case goes above 0
         let weight = spot_market.get_asset_weight(
             token_amount.unsigned_abs(),
-            &strict_oracle_price,
+            strict_oracle_price.current,
             &MarginRequirementType::Initial,
         )?;
 
@@ -1064,7 +1064,7 @@ pub fn calculate_max_spot_order_size(
 
             let asset_weight = spot_market.get_asset_weight(
                 token_amount.unsigned_abs(),
-                &strict_oracle_price,
+                strict_oracle_price.current,
                 &MarginRequirementType::Initial,
             )?;
 
@@ -1161,7 +1161,7 @@ fn calculate_free_collateral_delta_for_spot(
     Ok(if order_direction == PositionDirection::Long {
         SPOT_WEIGHT_PRECISION.sub(spot_market.get_asset_weight(
             worst_case_token_amount,
-            strict_oracle_price,
+            strict_oracle_price.current,
             &MarginRequirementType::Initial,
         )?)
     } else {

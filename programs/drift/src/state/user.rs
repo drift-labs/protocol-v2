@@ -555,7 +555,7 @@ impl SpotPosition {
             if token_value > 0 {
                 let asset_weight = spot_market.get_asset_weight(
                     token_amount.unsigned_abs(),
-                    strict_oracle_price,
+                    strict_oracle_price.current,
                     &margin_type,
                 )?;
 

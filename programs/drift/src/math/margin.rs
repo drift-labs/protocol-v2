@@ -779,18 +779,10 @@ pub fn calculate_max_withdrawable_amount(
         .get_token_amount(spot_market)?;
 
     let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
-    let strict_price = StrictOraclePrice {
-        current: oracle_price,
-        twap_5min: Some(
-            spot_market
-                .historical_oracle_data
-                .last_oracle_price_twap_5min,
-        ),
-    };
 
     let asset_weight = spot_market.get_asset_weight(
         token_amount,
-        &strict_price,
+        oracle_price,
         &MarginRequirementType::Initial,
     )?;
 

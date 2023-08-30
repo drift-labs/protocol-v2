@@ -85,9 +85,8 @@ mod test {
 
         let size = 1000 * QUOTE_PRECISION;
         let price = QUOTE_PRECISION_I64;
-        let strict_oracle_price = StrictOraclePrice::test(price);
         let asset_weight = spot_market
-            .get_asset_weight(size, &strict_oracle_price, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 9000);
 
@@ -98,7 +97,7 @@ mod test {
 
         spot_market.imf_factor = 10;
         let asset_weight = spot_market
-            .get_asset_weight(size, &strict_oracle_price, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 9000);
 
@@ -109,17 +108,13 @@ mod test {
 
         let same_asset_weight_diff_imf_factor = 8357;
         let asset_weight = spot_market
-            .get_asset_weight(
-                size * 1_000_000,
-                &strict_oracle_price,
-                &MarginRequirementType::Initial,
-            )
+            .get_asset_weight(size * 1_000_000, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
 
         spot_market.imf_factor = 10000;
         let asset_weight = spot_market
-            .get_asset_weight(size, &strict_oracle_price, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
 
@@ -130,7 +125,7 @@ mod test {
 
         spot_market.imf_factor = SPOT_IMF_PRECISION / 10;
         let asset_weight = spot_market
-            .get_asset_weight(size, &strict_oracle_price, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 2642);
 
@@ -157,54 +152,32 @@ mod test {
             ..SpotMarket::default()
         };
 
-        let strict_price = StrictOraclePrice::test(25 * PRICE_PRECISION_I64);
+        let oracle_price = 25 * PRICE_PRECISION_I64;
 
         sol_spot_market.deposit_balance = SPOT_BALANCE_PRECISION;
         let asset_weight = sol_spot_market
-            .get_scaled_initial_asset_weight(&strict_price)
+            .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
 
         assert_eq!(asset_weight, 9000);
 
         sol_spot_market.deposit_balance = 20000 * SPOT_BALANCE_PRECISION;
         let asset_weight = sol_spot_market
-            .get_scaled_initial_asset_weight(&strict_price)
+            .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
 
         assert_eq!(asset_weight, 9000);
 
         sol_spot_market.deposit_balance = 40000 * SPOT_BALANCE_PRECISION;
         let asset_weight = sol_spot_market
-            .get_scaled_initial_asset_weight(&strict_price)
+            .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
 
         assert_eq!(asset_weight, 4500);
 
         sol_spot_market.deposit_balance = 60000 * SPOT_BALANCE_PRECISION;
         let asset_weight = sol_spot_market
-            .get_scaled_initial_asset_weight(&strict_price)
-            .unwrap();
-
-        assert_eq!(asset_weight, 3000);
-
-        let strict_price = StrictOraclePrice {
-            current: 25 * PRICE_PRECISION_I64,
-            twap_5min: Some(50 * PRICE_PRECISION_I64),
-        };
-
-        let asset_weight = sol_spot_market
-            .get_scaled_initial_asset_weight(&strict_price)
-            .unwrap();
-
-        assert_eq!(asset_weight, 1500);
-
-        let strict_price = StrictOraclePrice {
-            current: 25 * PRICE_PRECISION_I64,
-            twap_5min: Some(15 * PRICE_PRECISION_I64),
-        };
-
-        let asset_weight = sol_spot_market
-            .get_scaled_initial_asset_weight(&strict_price)
+            .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
 
         assert_eq!(asset_weight, 3000);
