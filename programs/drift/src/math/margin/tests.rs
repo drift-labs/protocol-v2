@@ -85,10 +85,7 @@ mod test {
 
         let size = 1000 * QUOTE_PRECISION;
         let price = QUOTE_PRECISION_I64;
-        let strict_oracle_price = StrictOraclePrice {
-            current: price,
-            twap_5min: None,
-        };
+        let strict_oracle_price = StrictOraclePrice::test(price);
         let asset_weight = spot_market
             .get_asset_weight(size, &strict_oracle_price, &MarginRequirementType::Initial)
             .unwrap();
@@ -160,10 +157,7 @@ mod test {
             ..SpotMarket::default()
         };
 
-        let strict_price = StrictOraclePrice {
-            current: 25 * PRICE_PRECISION_I64,
-            twap_5min: None,
-        };
+        let strict_price = StrictOraclePrice::test(25 * PRICE_PRECISION_I64);
 
         sol_spot_market.deposit_balance = SPOT_BALANCE_PRECISION;
         let asset_weight = sol_spot_market
