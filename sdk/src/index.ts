@@ -87,5 +87,6 @@ export * from './orderSubscriber/types';
 export * from './auctionSubscriber';
 export * from './auctionSubscriber/types';
 export * from './memcmp';
+export * from './jitProxy';
 
 export { BN, PublicKey, pyth };

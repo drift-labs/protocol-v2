@@ -820,6 +820,30 @@ dependencies = [
 
 [[package]]
 name = "drift"
+version = "2.31.0-beta.6"
+source = "git+https://github.com/drift-labs/protocol-v2.git?rev=099cbca#099cbca35f23c6840c90271c436c9ca5ee455d73"
+dependencies = [
+ "anchor-lang 0.26.0 (git+https://github.com/drift-labs/anchor.git?rev=ed950fe)",
+ "anchor-spl 0.26.0 (git+https://github.com/drift-labs/anchor.git?rev=ed950fe)",
+ "arrayref",
+ "base64 0.13.0",
+ "borsh",
+ "bytemuck",
+ "enumflags2",
+ "num-derive",
+ "num-integer",
+ "num-traits",
+ "phoenix-v1",
+ "pyth-client",
+ "serum_dex",
+ "solana-program",
+ "solana-security-txt",
+ "thiserror",
+ "uint",
+]
+
+[[package]]
+name = "drift"
 version = "2.38.0"
 dependencies = [
  "anchor-lang 0.26.0 (git+https://github.com/drift-labs/anchor.git?rev=ed950fe)",
@@ -1116,6 +1140,17 @@ name = "itoa"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "453ad9f582a441959e5f0d088b02ce04cfe8d51a8eaf077f12ac6d3e94164ca6"
+
+[[package]]
+name = "jit-proxy"
+version = "0.9.0"
+dependencies = [
+ "anchor-lang 0.26.0 (git+https://github.com/drift-labs/anchor.git?rev=ed950fe)",
+ "anchor-spl 0.26.0 (git+https://github.com/drift-labs/anchor.git?rev=ed950fe)",
+ "bytemuck",
+ "drift 2.31.0-beta.6",
+ "static_assertions",
+]
 
 [[package]]
 name = "jobserver"
