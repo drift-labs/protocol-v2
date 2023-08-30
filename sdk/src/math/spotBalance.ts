@@ -22,6 +22,7 @@ import {
 import { OraclePriceData } from '../oracles/types';
 import { PERCENTAGE_PRECISION } from '../constants/numericConstants';
 import { divCeil } from './utils';
+import { StrictOraclePrice } from '../oracles/strictOraclePrice';
 
 /**
  * Calculates the balance of a given token amount including any accumulated interest. This
@@ -102,25 +103,23 @@ export function getSignedTokenAmount(
  *
  * @param {BN} tokenAmount - The amount of tokens to calculate the value for (from `getTokenAmount`)
  * @param {number} spotDecimals - The number of decimals in the token.
- * @param {OraclePriceData} oraclePriceData - The oracle price data (typically a token/USD oracle).
- * @param {BN} oraclePriceTwap - The Time-Weighted Average Price of the oracle.
+ * @param {StrictOraclePrice} strictOraclePrice - Contains oracle price and 5min twap.
  * @return {BN} The calculated value of the given token amount, scaled by `PRICE_PRECISION`
  */
 export function getStrictTokenValue(
 	tokenAmount: BN,
 	spotDecimals: number,
-	oraclePriceData: OraclePriceData,
-	oraclePriceTwap: BN
+	strictOraclePrice: StrictOraclePrice
 ): BN {
 	if (tokenAmount.eq(ZERO)) {
 		return ZERO;
 	}
 
-	let price = oraclePriceData.price;
-	if (tokenAmount.gt(ZERO)) {
-		price = BN.min(oraclePriceData.price, oraclePriceTwap);
+	let price;
+	if (tokenAmount.gte(ZERO)) {
+		price = strictOraclePrice.min();
 	} else {
-		price = BN.max(oraclePriceData.price, oraclePriceTwap);
+		price = strictOraclePrice.max();
 	}
 
 	const precisionDecrease = TEN.pow(new BN(spotDecimals));
@@ -206,11 +205,9 @@ export function calculateScaledInitialAssetWeight(
 		spotMarket,
 		SpotBalanceType.DEPOSIT
 	);
-	const depositsValue = getTokenValue(
-		deposits,
-		spotMarket.decimals,
-		{ price: oraclePrice }
-	);
+	const depositsValue = getTokenValue(deposits, spotMarket.decimals, {
+		price: oraclePrice,
+	});
 
 	if (depositsValue.lt(spotMarket.scaleInitialAssetWeightStart)) {
 		return new BN(spotMarket.initialAssetWeight);

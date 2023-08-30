@@ -12,7 +12,7 @@ import {
 	getTokenAmount,
 	getTokenValue,
 } from './spotBalance';
-import { OraclePriceData } from '../oracles/types';
+import { StrictOraclePrice } from '../oracles/strictOraclePrice';
 
 export function isSpotPositionAvailable(position: SpotPosition): boolean {
 	return position.scaledBalance.eq(ZERO) && position.openOrders === 0;
@@ -22,6 +22,7 @@ export type OrderFillSimulation = {
 	tokenAmount: BN;
 	ordersValue: BN;
 	tokenValue: BN;
+	weight: BN;
 	weightedTokenValue: BN;
 	freeCollateralContribution;
 };
@@ -29,7 +30,7 @@ export type OrderFillSimulation = {
 export function getWorstCaseTokenAmounts(
 	spotPosition: SpotPosition,
 	spotMarketAccount: SpotMarketAccount,
-	oraclePriceData: OraclePriceData,
+	strictOraclePrice: StrictOraclePrice,
 	marginCategory: MarginCategory
 ): OrderFillSimulation {
 	const tokenAmount = getSignedTokenAmount(
@@ -41,28 +42,17 @@ export function getWorstCaseTokenAmounts(
 		spotPosition.balanceType
 	);
 
-	let tokenValue;
-	if (marginCategory === 'Maintenance') {
-		tokenValue = getTokenValue(
-			tokenAmount,
-			spotMarketAccount.decimals,
-			oraclePriceData
-		);
-	} else {
-		const twap = spotMarketAccount.historicalOracleData.lastOraclePriceTwap5Min;
-		tokenValue = getStrictTokenValue(
-			tokenAmount,
-			spotMarketAccount.decimals,
-			oraclePriceData,
-			twap
-		);
-	}
+	const tokenValue = getStrictTokenValue(
+		tokenAmount,
+		spotMarketAccount.decimals,
+		strictOraclePrice
+	);
 
 	if (spotPosition.openBids.eq(ZERO) && spotPosition.openAsks.eq(ZERO)) {
-		const weightedTokenValue = calculateWeightedTokenValue(
+		const { weight, weightedTokenValue } = calculateWeightedTokenValue(
 			tokenAmount,
 			tokenValue,
-			oraclePriceData.price,
+			strictOraclePrice.current,
 			spotMarketAccount,
 			marginCategory
 		);
@@ -70,6 +60,7 @@ export function getWorstCaseTokenAmounts(
 			tokenAmount,
 			ordersValue: ZERO,
 			tokenValue,
+			weight,
 			weightedTokenValue,
 			freeCollateralContribution: weightedTokenValue,
 		};
@@ -79,7 +70,7 @@ export function getWorstCaseTokenAmounts(
 		tokenAmount,
 		tokenValue,
 		spotPosition.openBids,
-		oraclePriceData.price,
+		strictOraclePrice.current,
 		spotMarketAccount,
 		marginCategory
 	);
@@ -87,7 +78,7 @@ export function getWorstCaseTokenAmounts(
 		tokenAmount,
 		tokenValue,
 		spotPosition.openAsks,
-		oraclePriceData.price,
+		strictOraclePrice.current,
 		spotMarketAccount,
 		marginCategory
 	);
@@ -109,25 +100,29 @@ export function calculateWeightedTokenValue(
 	oraclePrice: BN,
 	spotMarket: SpotMarketAccount,
 	marginCategory: MarginCategory
-): BN {
+): { weight: BN; weightedTokenValue: BN } {
+	let weight: BN;
 	if (tokenValue.gte(ZERO)) {
-		const weight = calculateAssetWeight(
+		weight = calculateAssetWeight(
 			tokenAmount,
 			oraclePrice,
 			spotMarket,
 			marginCategory
 		);
-
-		return tokenValue.mul(weight).div(SPOT_MARKET_WEIGHT_PRECISION);
 	} else {
-		const weight = calculateLiabilityWeight(
-			tokenAmount,
+		weight = calculateLiabilityWeight(
+			tokenAmount.abs(),
 			spotMarket,
 			marginCategory
 		);
-
-		return tokenValue.mul(weight).div(SPOT_MARKET_WEIGHT_PRECISION);
 	}
+
+	return {
+		weight: weight,
+		weightedTokenValue: tokenValue
+			.mul(weight)
+			.div(SPOT_MARKET_WEIGHT_PRECISION),
+	};
 }
 
 export function simulateOrderFill(
@@ -147,13 +142,14 @@ export function simulateOrderFill(
 	const tokenAmountAfterFill = tokenAmount.add(ordersValue);
 	const tokenValueAfterFill = tokenValue.add(ordersValue.neg());
 
-	const weightedTokenValueAfterFill = calculateWeightedTokenValue(
-		tokenAmountAfterFill,
-		tokenValueAfterFill,
-		oraclePrice,
-		spotMarket,
-		marginCategory
-	);
+	const { weight, weightedTokenValue: weightedTokenValueAfterFill } =
+		calculateWeightedTokenValue(
+			tokenAmountAfterFill,
+			tokenValueAfterFill,
+			oraclePrice,
+			spotMarket,
+			marginCategory
+		);
 
 	const freeCollateralContribution =
 		weightedTokenValueAfterFill.add(ordersValue);
@@ -162,6 +158,7 @@ export function simulateOrderFill(
 		tokenAmount: tokenAmountAfterFill,
 		ordersValue: ordersValue,
 		tokenValue: tokenValueAfterFill,
+		weight,
 		weightedTokenValue: weightedTokenValueAfterFill,
 		freeCollateralContribution,
 	};
