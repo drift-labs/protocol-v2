@@ -93,7 +93,7 @@ pub fn place_perp_order(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     params: OrderParams,
-    options: PlaceOrderOptions,
+    mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -295,6 +295,8 @@ pub fn place_perp_order(
     let risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
         > worst_case_base_asset_amount_before.unsigned_abs();
 
+    options.update_risk_increasing(risk_increasing);
+
     // when orders are placed in bulk, only need to check margin on last place
     if options.enforce_margin_check {
         meets_place_order_margin_requirement(
@@ -302,7 +304,7 @@ pub fn place_perp_order(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            risk_increasing || options.multiple_orders,
+            options.risk_increasing,
         )?;
     }
 
@@ -2766,7 +2768,7 @@ pub fn place_spot_order(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     params: OrderParams,
-    options: PlaceOrderOptions,
+    mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -2996,13 +2998,15 @@ pub fn place_spot_order(
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
     let risk_increasing = free_collateral_contribution_after < free_collateral_contribution_before;
 
+    options.update_risk_increasing(risk_increasing);
+
     if options.enforce_margin_check {
         meets_place_order_margin_requirement(
             user,
             perp_market_map,
             spot_market_map,
             oracle_map,
-            risk_increasing || options.multiple_orders,
+            options.risk_increasing,
         )?;
     }
 
