@@ -21,7 +21,7 @@ import {
 	OrderRecord,
 	ZERO,
 	ContractTier,
-	SPOT_MARKET_BALANCE_PRECISION,
+	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
 } from '../../src';
 
 export const mockPerpPosition: PerpPosition = {
@@ -288,8 +288,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		optimalUtilization: 0,
 		optimalBorrowRate: 0,
 		maxBorrowRate: 0,
-		cumulativeDepositInterest: SPOT_MARKET_BALANCE_PRECISION,
-		cumulativeBorrowInterest: SPOT_MARKET_BALANCE_PRECISION,
+		cumulativeDepositInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+		cumulativeBorrowInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 		totalSocialLoss: new BN(0),
 		totalQuoteSocialLoss: new BN(0),
 		depositBalance: new BN(0),
@@ -369,8 +369,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		optimalUtilization: 0,
 		optimalBorrowRate: 0,
 		maxBorrowRate: 0,
-		cumulativeDepositInterest: new BN(0),
-		cumulativeBorrowInterest: new BN(0),
+		cumulativeDepositInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+		cumulativeBorrowInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 		totalSocialLoss: new BN(0),
 		totalQuoteSocialLoss: new BN(0),
 		depositBalance: new BN(0),
@@ -450,8 +450,8 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		optimalUtilization: 0,
 		optimalBorrowRate: 0,
 		maxBorrowRate: 0,
-		cumulativeDepositInterest: new BN(0),
-		cumulativeBorrowInterest: new BN(0),
+		cumulativeDepositInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+		cumulativeBorrowInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 		totalSocialLoss: new BN(0),
 		totalQuoteSocialLoss: new BN(0),
 		depositBalance: new BN(0),

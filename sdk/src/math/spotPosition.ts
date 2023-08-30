@@ -134,12 +134,13 @@ export function simulateOrderFill(
 	marginCategory: MarginCategory
 ): OrderFillSimulation {
 	const maxOraclePrice = BN.max(
-		spotMarket.historicalOracleData.lastOraclePriceTwap5Min
+		spotMarket.historicalOracleData.lastOraclePriceTwap5Min,
+		oraclePrice
 	);
 	const ordersValue = getTokenValue(openOrders.neg(), spotMarket.decimals, {
 		price: maxOraclePrice,
 	});
-	const tokenAmountAfterFill = tokenAmount.add(ordersValue);
+	const tokenAmountAfterFill = tokenAmount.add(openOrders);
 	const tokenValueAfterFill = tokenValue.add(ordersValue.neg());
 
 	const { weight, weightedTokenValue: weightedTokenValueAfterFill } =
