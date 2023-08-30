@@ -952,12 +952,15 @@ export class User {
 				}
 			}
 
-			const [worstCaseTokenAmount, worstCaseQuoteTokenAmount] =
-				getWorstCaseTokenAmounts(
-					spotPosition,
-					spotMarketAccount,
-					this.getOracleDataForSpotMarket(spotPosition.marketIndex)
-				);
+			const {
+				tokenAmount: worstCaseTokenAmount,
+				ordersValue: worstCaseQuoteTokenAmount,
+			} = getWorstCaseTokenAmounts(
+				spotPosition,
+				spotMarketAccount,
+				this.getOracleDataForSpotMarket(spotPosition.marketIndex),
+				marginCategory
+			);
 
 			if (worstCaseTokenAmount.gt(ZERO) && countForBase) {
 				const baseAssetValue = this.getSpotAssetValue(
@@ -2270,7 +2273,9 @@ export class User {
 		currentSpotMarketNetValue?: BN
 	): BN {
 		const market = this.driftClient.getSpotMarketAccount(targetMarketIndex);
-		const oraclePrice = this.driftClient.getOraclePriceDataAndSlot(market.oracle).data.price;
+		const oraclePrice = this.driftClient.getOraclePriceDataAndSlot(
+			market.oracle
+		).data.price;
 
 		currentQuoteAssetValue = this.getSpotMarketAssetValue(
 			QUOTE_SPOT_MARKET_INDEX
@@ -2584,12 +2589,15 @@ export class User {
 			spotPosition.marketIndex
 		);
 
-		const [worstCaseTokenAmount, worstCaseQuoteTokenAmount] =
-			getWorstCaseTokenAmounts(
-				spotPosition,
-				spotMarketAccount,
-				oraclePriceData
-			);
+		const {
+			tokenAmount: worstCaseTokenAmount,
+			ordersValue: worstCaseQuoteTokenAmount,
+		} = getWorstCaseTokenAmounts(
+			spotPosition,
+			spotMarketAccount,
+			oraclePriceData,
+			marginCategory
+		);
 
 		if (worstCaseTokenAmount.gt(ZERO)) {
 			const baseAssetValue = this.getSpotAssetValue(
@@ -2638,12 +2646,15 @@ export class User {
 			spotPosition.marketIndex
 		);
 
-		const [worstCaseTokenAmount, worstCaseQuoteTokenAmount] =
-			getWorstCaseTokenAmounts(
-				spotPosition,
-				spotMarketAccount,
-				oraclePriceData
-			);
+		const {
+			tokenAmount: worstCaseTokenAmount,
+			ordersValue: worstCaseQuoteTokenAmount,
+		} = getWorstCaseTokenAmounts(
+			spotPosition,
+			spotMarketAccount,
+			oraclePriceData,
+			'Initial'
+		);
 
 		if (worstCaseTokenAmount.gt(ZERO)) {
 			totalAssetValue = this.getSpotAssetValue(
@@ -2985,6 +2996,7 @@ export class User {
 
 		const assetWeight = calculateAssetWeight(
 			userDepositAmount,
+			oracleData.price,
 			spotMarket,
 			'Initial'
 		);
@@ -3302,12 +3314,15 @@ export class User {
 				continue;
 			}
 
-			const [worstCaseTokenAmount, worstCaseQuoteTokenAmount] =
-				getWorstCaseTokenAmounts(
-					spotPosition,
-					spotMarketAccount,
-					oraclePriceData
-				);
+			const {
+				tokenAmount: worstCaseTokenAmount,
+				ordersValue: worstCaseQuoteTokenAmount,
+			} = getWorstCaseTokenAmounts(
+				spotPosition,
+				spotMarketAccount,
+				oraclePriceData,
+				marginCategory
+			);
 
 			netQuoteValue = netQuoteValue.add(worstCaseQuoteTokenAmount);
 
@@ -3328,6 +3343,7 @@ export class User {
 			} else {
 				weight = calculateAssetWeight(
 					worstCaseTokenAmount,
+					oraclePriceData.price,
 					spotMarketAccount,
 					marginCategory
 				);
@@ -3379,6 +3395,7 @@ export class User {
 			} else {
 				weight = calculateAssetWeight(
 					netQuoteValue,
+					oraclePriceData.price,
 					spotMarketAccount,
 					marginCategory
 				);

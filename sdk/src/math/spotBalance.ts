@@ -139,7 +139,7 @@ export function getStrictTokenValue(
 export function getTokenValue(
 	tokenAmount: BN,
 	spotDecimals: number,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	if (tokenAmount.eq(ZERO)) {
 		return ZERO;
@@ -195,23 +195,34 @@ export function calculateAssetWeight(
 
 export function calculateScaledInitialAssetWeight(
 	spotMarket: SpotMarketAccount,
-	oraclePrice: BN,
-) : BN {
+	oraclePrice: BN
+): BN {
 	if (spotMarket.scaleInitialAssetWeightStart.eq(ZERO)) {
 		return new BN(spotMarket.initialAssetWeight);
 	}
+
+	const maxOralcePrice = BN.max(
+		oraclePrice,
+		spotMarket.historicalOracleData.lastOraclePriceTwap5Min
+	);
 
 	const deposits = getTokenAmount(
 		spotMarket.depositBalance,
 		spotMarket,
 		SpotBalanceType.DEPOSIT
 	);
-	const depositsValue = getTokenValue(deposits, spotMarket.decimals, oraclePrice);
+	const depositsValue = getTokenValue(
+		deposits,
+		spotMarket.decimals,
+		maxOralcePrice
+	);
 
 	if (depositsValue.lt(spotMarket.scaleInitialAssetWeightStart)) {
 		return new BN(spotMarket.initialAssetWeight);
 	} else {
-		return new BN(spotMarket.initialAssetWeight).mul(spotMarket.scaleInitialAssetWeightStart).div(depositsValue);
+		return new BN(spotMarket.initialAssetWeight)
+			.mul(spotMarket.scaleInitialAssetWeightStart)
+			.div(depositsValue);
 	}
 }
 
