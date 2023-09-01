@@ -1648,7 +1648,7 @@ fn fulfill_perp_order(
     for (maker_key, _) in makers_filled {
         let maker = makers_and_referrer.get_ref(&maker_key)?;
 
-        let (_, maker_total_collateral, maker_margin_requirement_plus_buffer, _) =
+        let (maker_margin_requirement, maker_total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &maker,
                 perp_market_map,
@@ -1658,11 +1658,11 @@ fn fulfill_perp_order(
                 None,
             )?;
 
-        if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
+        if maker_total_collateral < maker_margin_requirement.cast()? {
             msg!(
                 "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
                 maker_key,
-                maker_margin_requirement_plus_buffer,
+                maker_margin_requirement,
                 maker_total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
