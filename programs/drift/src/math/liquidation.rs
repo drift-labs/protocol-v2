@@ -6,13 +6,12 @@ use crate::math::constants::{
     LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LIQUIDATION_PCT_PRECISION, PRICE_PRECISION,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
-use crate::math::margin::{
-    calculate_margin_requirement_and_total_collateral, MarginRequirementType,
-};
+use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
 use crate::math::spot_swap::calculate_swap_price;
+use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -196,15 +195,17 @@ pub fn is_user_being_liquidated(
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
 ) -> DriftResult<bool> {
-    let (_, total_collateral, margin_requirement_plus_buffer, _) =
-        calculate_margin_requirement_and_total_collateral(
-            user,
-            market_map,
-            MarginRequirementType::Maintenance,
-            spot_market_map,
-            oracle_map,
-            Some(liquidation_margin_buffer_ratio as u128),
-        )?;
+    let MarginCalculation {
+        total_collateral,
+        margin_requirement_plus_buffer,
+        ..
+    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio),
+    )?;
     let is_being_liquidated = total_collateral <= margin_requirement_plus_buffer.cast()?;
 
     Ok(is_being_liquidated)

@@ -19,9 +19,10 @@ pub mod liquidate_perp {
     };
     use crate::math::liquidation::is_user_being_liquidated;
     use crate::math::margin::{
-        calculate_margin_requirement_and_total_collateral, MarginRequirementType,
+        calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
     };
     use crate::math::position::calculate_base_asset_value_with_oracle_price;
+    use crate::state::margin_calculation::{MarginCalculation, MarginContext};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -755,16 +756,18 @@ pub mod liquidate_perp {
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
-        let (_, total_collateral, margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &user,
-                &perp_market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                Some(state.liquidation_margin_buffer_ratio as u128),
-            )
-            .unwrap();
+        let MarginCalculation {
+            total_collateral,
+            margin_requirement_plus_buffer,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(state.liquidation_margin_buffer_ratio),
+        )
+        .unwrap();
 
         // user out of liq territory
         assert_eq!(
@@ -886,13 +889,15 @@ pub mod liquidate_perp {
             ..User::default()
         };
 
-        let (margin_req, _, _, _) = calculate_margin_requirement_and_total_collateral(
+        let MarginCalculation {
+            margin_requirement: margin_req,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
             &user,
             &perp_market_map,
-            MarginRequirementType::Maintenance,
             &spot_market_map,
             &mut oracle_map,
-            None,
+            MarginContext::standard(MarginRequirementType::Maintenance, false),
         )
         .unwrap();
         assert_eq!(margin_req, 140014010000);
@@ -910,13 +915,15 @@ pub mod liquidate_perp {
             market_to_edit.imf_factor *= 10;
         }
 
-        let (margin_req2, _, _, _) = calculate_margin_requirement_and_total_collateral(
+        let MarginCalculation {
+            margin_requirement: margin_req2,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
             &user,
             &perp_market_map,
-            MarginRequirementType::Maintenance,
             &spot_market_map,
             &mut oracle_map,
-            None,
+            MarginContext::standard(MarginRequirementType::Maintenance, false),
         )
         .unwrap();
         assert_eq!(margin_req2, 1040104010000);
@@ -1557,16 +1564,18 @@ pub mod liquidate_perp {
         assert_eq!(user.liquidation_margin_freed, 9610000);
         assert_eq!(user.perp_positions[0].base_asset_amount, 1480000000);
 
-        let (_, total_collateral, margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &user,
-                &perp_market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                Some(state.liquidation_margin_buffer_ratio as u128),
-            )
-            .unwrap();
+        let MarginCalculation {
+            total_collateral,
+            margin_requirement_plus_buffer,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(state.liquidation_margin_buffer_ratio),
+        )
+        .unwrap();
 
         let margin_shortage =
             ((margin_requirement_plus_buffer as i128) - total_collateral).unsigned_abs();
@@ -1625,16 +1634,18 @@ pub mod liquidate_perp {
         assert_eq!(user.liquidation_margin_freed, 12310000);
         assert_eq!(user.perp_positions[0].base_asset_amount, 940000000);
 
-        let (_, total_collateral, margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &user,
-                &perp_market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                Some(state.liquidation_margin_buffer_ratio as u128),
-            )
-            .unwrap();
+        let MarginCalculation {
+            total_collateral,
+            margin_requirement_plus_buffer,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(state.liquidation_margin_buffer_ratio),
+        )
+        .unwrap();
 
         let margin_shortage =
             ((margin_requirement_plus_buffer as i128) - total_collateral).unsigned_abs();
@@ -1811,10 +1822,9 @@ pub mod liquidate_spot {
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
-    use crate::math::margin::{
-        calculate_margin_requirement_and_total_collateral, MarginRequirementType,
-    };
+    use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
     use crate::math::spot_balance::{get_strict_token_value, get_token_amount, get_token_value};
+    use crate::state::margin_calculation::{MarginCalculation, MarginContext};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle::{HistoricalOracleData, StrictOraclePrice};
     use crate::state::oracle_map::OracleMap;
@@ -2242,16 +2252,19 @@ pub mod liquidate_spot {
         assert_eq!(user.spot_positions[0].scaled_balance, 45558159000);
         assert_eq!(user.spot_positions[1].scaled_balance, 406768999);
 
-        let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &user,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                Some(liquidation_buffer as u128),
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            margin_requirement_plus_buffer,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(liquidation_buffer),
+        )
+        .unwrap();
 
         assert_eq!(margin_requirement, 44744590);
         assert_eq!(total_collateral, 45558159);
@@ -2818,16 +2831,18 @@ pub mod liquidate_spot {
         assert_eq!(user.spot_positions[0].scaled_balance, 99055856000);
         assert_eq!(user.spot_positions[1].scaled_balance, 940676999);
 
-        let (_, total_collateral, margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &user,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                Some(liquidation_buffer as u128),
-            )
-            .unwrap();
+        let MarginCalculation {
+            total_collateral,
+            margin_requirement_plus_buffer,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(liquidation_buffer),
+        )
+        .unwrap();
 
         let margin_shortage =
             ((margin_requirement_plus_buffer as i128) - total_collateral).unsigned_abs();
@@ -2862,16 +2877,18 @@ pub mod liquidate_spot {
         assert_eq!(user.spot_positions[0].scaled_balance, 79245846000);
         assert_eq!(user.spot_positions[1].scaled_balance, 742971998);
 
-        let (_, total_collateral, margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &user,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                Some(liquidation_buffer as u128),
-            )
-            .unwrap();
+        let MarginCalculation {
+            total_collateral,
+            margin_requirement_plus_buffer,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(liquidation_buffer),
+        )
+        .unwrap();
 
         let margin_shortage =
             ((margin_requirement_plus_buffer as i128) - total_collateral).unsigned_abs();
@@ -2926,10 +2943,9 @@ pub mod liquidate_borrow_for_perp_pnl {
         QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::math::margin::{
-        calculate_margin_requirement_and_total_collateral, MarginRequirementType,
-    };
+    use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
     use crate::math::spot_balance::{get_token_amount, get_token_value};
+    use crate::state::margin_calculation::{MarginCalculation, MarginContext};
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -3243,16 +3259,18 @@ pub mod liquidate_borrow_for_perp_pnl {
         assert_eq!(user.spot_positions[0].scaled_balance, 357739999);
         assert_eq!(user.perp_positions[0].quote_asset_amount, 40066807);
 
-        let (_, total_collateral, margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &user,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                Some(liquidation_buffer as u128),
-            )
-            .unwrap();
+        let MarginCalculation {
+            total_collateral,
+            margin_requirement_plus_buffer,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(liquidation_buffer),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral, 40066807);
         assert_eq!(margin_requirement_plus_buffer, 40066880);
@@ -4041,16 +4059,18 @@ pub mod liquidate_borrow_for_perp_pnl {
         assert_eq!(user.spot_positions[0].scaled_balance, 935773999);
         assert_eq!(user.perp_positions[0].quote_asset_amount, 98506681);
 
-        let (_, total_collateral, margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &user,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                Some(liquidation_buffer as u128),
-            )
-            .unwrap();
+        let MarginCalculation {
+            total_collateral,
+            margin_requirement_plus_buffer,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(liquidation_buffer),
+        )
+        .unwrap();
 
         let margin_shortage =
             ((margin_requirement_plus_buffer as i128) - total_collateral).unsigned_abs();
@@ -4085,16 +4105,18 @@ pub mod liquidate_borrow_for_perp_pnl {
         assert_eq!(user.spot_positions[0].scaled_balance, 721727998);
         assert_eq!(user.perp_positions[0].quote_asset_amount, 76866395);
 
-        let (_, total_collateral, margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &user,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                Some(liquidation_buffer as u128),
-            )
-            .unwrap();
+        let MarginCalculation {
+            total_collateral,
+            margin_requirement_plus_buffer,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(liquidation_buffer),
+        )
+        .unwrap();
 
         let margin_shortage =
             ((margin_requirement_plus_buffer as i128) - total_collateral).unsigned_abs();
@@ -4146,9 +4168,8 @@ pub mod liquidate_perp_pnl_for_deposit {
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
-    use crate::math::margin::{
-        calculate_margin_requirement_and_total_collateral, MarginRequirementType,
-    };
+    use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
+    use crate::state::margin_calculation::{MarginCalculation, MarginContext};
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -5223,16 +5244,18 @@ pub mod liquidate_perp_pnl_for_deposit {
         assert_eq!(user.spot_positions[0].scaled_balance, 988766000);
         assert_eq!(user.perp_positions[0].quote_asset_amount, -89888889);
 
-        let (_, total_collateral, margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &user,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                Some(liquidation_buffer as u128),
-            )
-            .unwrap();
+        let MarginCalculation {
+            total_collateral,
+            margin_requirement_plus_buffer,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(liquidation_buffer),
+        )
+        .unwrap();
 
         let margin_shortage =
             ((margin_requirement_plus_buffer as i128) - total_collateral).unsigned_abs();
@@ -5267,16 +5290,18 @@ pub mod liquidate_perp_pnl_for_deposit {
         assert_eq!(user.spot_positions[0].scaled_balance, 951337000);
         assert_eq!(user.perp_positions[0].quote_asset_amount, -86187099);
 
-        let (_, total_collateral, margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &user,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                Some(liquidation_buffer as u128),
-            )
-            .unwrap();
+        let MarginCalculation {
+            total_collateral,
+            margin_requirement_plus_buffer,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(liquidation_buffer),
+        )
+        .unwrap();
 
         let margin_shortage =
             ((margin_requirement_plus_buffer as i128) - total_collateral).unsigned_abs();
