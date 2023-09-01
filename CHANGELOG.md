@@ -9,7 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.38.0] - 2023-09-01
+
+### Features
+
 - program: allow up to 12500 users
+- program: PlaceOrderParam keeps track of risk increasing trade
 
 ### Fixes
 
