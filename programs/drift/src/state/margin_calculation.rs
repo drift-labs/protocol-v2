@@ -5,7 +5,7 @@ use crate::math::safe_math::SafeMath;
 use crate::{validate, MARGIN_PRECISION_U128, PRICE_PRECISION};
 use anchor_lang::solana_program::msg;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum MarginCalculationMode {
     Standard,
     Liquidation {
@@ -14,7 +14,7 @@ pub enum MarginCalculationMode {
     },
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct MarginContext {
     pub margin_type: MarginRequirementType,
     pub mode: MarginCalculationMode,
@@ -63,6 +63,7 @@ impl MarginContext {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct MarginCalculation {
     pub context: MarginContext,
     pub total_collateral: i128,
@@ -185,6 +186,18 @@ impl MarginCalculation {
 
     pub fn meets_margin_requirement(&self) -> bool {
         self.total_collateral >= self.margin_requirement as i128
+    }
+
+    pub fn can_exit_liquidation(&self) -> bool {
+        self.total_collateral >= self.margin_requirement_plus_buffer as i128
+    }
+
+    pub fn margin_shortage(&self) -> DriftResult<u128> {
+        Ok(self
+            .margin_requirement_plus_buffer
+            .cast::<i128>()?
+            .safe_sub(self.total_collateral)?
+            .unsigned_abs())
     }
 
     pub fn get_free_collateral(&self) -> DriftResult<u128> {
