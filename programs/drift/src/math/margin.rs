@@ -528,7 +528,7 @@ pub fn meets_withdraw_margin_requirement(
     margin_requirement_type: MarginRequirementType,
 ) -> DriftResult<bool> {
     let strict = margin_requirement_type == MarginRequirementType::Initial;
-    let context = MarginContext::standard(margin_requirement_type, strict);
+    let context = MarginContext::standard(margin_requirement_type).strict(strict);
 
     let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
@@ -578,7 +578,7 @@ pub fn meets_place_order_margin_requirement(
     } else {
         MarginRequirementType::Maintenance
     };
-    let context = MarginContext::standard(margin_type, true);
+    let context = MarginContext::standard(margin_type).strict(true);
 
     let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
@@ -621,7 +621,7 @@ pub fn meets_initial_margin_requirement(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial, false),
+        MarginContext::standard(MarginRequirementType::Initial),
     )
     .map(|calc| calc.meets_margin_requirement())
 }
@@ -637,7 +637,7 @@ pub fn meets_maintenance_margin_requirement(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Maintenance, false),
+        MarginContext::standard(MarginRequirementType::Maintenance),
     )
     .map(|calc| calc.meets_margin_requirement())
 }
@@ -654,7 +654,7 @@ pub fn calculate_max_withdrawable_amount(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial, false),
+        MarginContext::standard(MarginRequirementType::Initial),
     )?;
 
     let spot_market = &mut spot_market_map.get_ref(&market_index)?;

@@ -2121,7 +2121,7 @@ pub fn resolve_perp_bankruptcy(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Maintenance, false),
+        MarginContext::standard(MarginRequirementType::Maintenance),
     )?;
 
     // spot market's insurance fund draw attempt here (before social loss)
@@ -2325,7 +2325,7 @@ pub fn resolve_spot_bankruptcy(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Maintenance, false),
+        MarginContext::standard(MarginRequirementType::Maintenance),
     )?;
 
     let borrow_amount = {

@@ -1566,7 +1566,7 @@ mod calculate_max_spot_order_size {
             &PerpMarketMap::empty(),
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -1673,7 +1673,7 @@ mod calculate_max_spot_order_size {
             &PerpMarketMap::empty(),
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -1781,7 +1781,7 @@ mod calculate_max_spot_order_size {
             &PerpMarketMap::empty(),
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -2025,7 +2025,7 @@ mod calculate_max_perp_order_size {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -2252,7 +2252,7 @@ mod calculate_max_perp_order_size {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 

@@ -22,12 +22,17 @@ pub struct MarginContext {
 }
 
 impl MarginContext {
-    pub fn standard(margin_type: MarginRequirementType, strict: bool) -> Self {
+    pub fn standard(margin_type: MarginRequirementType) -> Self {
         Self {
             margin_type,
             mode: MarginCalculationMode::Standard,
-            strict,
+            strict: false,
         }
+    }
+
+    pub fn strict(mut self, strict: bool) -> Self {
+        self.strict = strict;
+        self
     }
 
     pub fn liquidation(margin_buffer: u32) -> Self {

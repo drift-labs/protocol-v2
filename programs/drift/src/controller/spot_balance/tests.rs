@@ -1465,7 +1465,7 @@ fn attempt_borrow_with_massive_upnl() {
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial, false),
+        MarginContext::standard(MarginRequirementType::Initial),
     )
     .unwrap();
 
@@ -1481,7 +1481,7 @@ fn attempt_borrow_with_massive_upnl() {
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Maintenance, false),
+        MarginContext::standard(MarginRequirementType::Maintenance),
     )
     .unwrap();
 
@@ -1502,7 +1502,7 @@ fn attempt_borrow_with_massive_upnl() {
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial, false),
+        MarginContext::standard(MarginRequirementType::Initial),
     )
     .unwrap();
 

@@ -540,7 +540,7 @@ pub fn test_lp_settle_pnl() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial, false),
+        MarginContext::standard(MarginRequirementType::Initial),
     )
     .unwrap();
 

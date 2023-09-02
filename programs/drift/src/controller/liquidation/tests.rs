@@ -897,7 +897,7 @@ pub mod liquidate_perp {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
         assert_eq!(margin_req, 140014010000);
@@ -923,7 +923,7 @@ pub mod liquidate_perp {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
         assert_eq!(margin_req2, 1040104010000);

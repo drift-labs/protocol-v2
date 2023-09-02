@@ -755,7 +755,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
 
@@ -788,7 +788,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
 
@@ -974,7 +974,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
 
@@ -1007,7 +1007,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
 
@@ -1213,7 +1213,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
 
@@ -1477,7 +1477,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
 
@@ -1542,7 +1542,7 @@ pub mod delisting_test {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                MarginContext::standard(MarginRequirementType::Maintenance, false),
+                MarginContext::standard(MarginRequirementType::Maintenance),
             )
             .unwrap();
 
@@ -1595,7 +1595,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
 
@@ -1890,7 +1890,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
 
@@ -1906,7 +1906,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
 
@@ -1945,7 +1945,7 @@ pub mod delisting_test {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                MarginContext::standard(MarginRequirementType::Maintenance, false),
+                MarginContext::standard(MarginRequirementType::Maintenance),
             )
             .unwrap();
 
@@ -2281,7 +2281,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
 
@@ -2749,7 +2749,7 @@ pub mod delisting_test {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                MarginContext::standard(MarginRequirementType::Maintenance, false),
+                MarginContext::standard(MarginRequirementType::Maintenance),
             )
             .unwrap();
 

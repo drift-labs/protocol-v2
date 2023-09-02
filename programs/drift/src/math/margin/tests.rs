@@ -599,7 +599,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, false),
+            MarginContext::standard(MarginRequirementType::Initial),
         )
         .unwrap();
 
@@ -690,7 +690,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, false),
+            MarginContext::standard(MarginRequirementType::Initial),
         )
         .unwrap();
 
@@ -784,7 +784,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, false),
+            MarginContext::standard(MarginRequirementType::Initial),
         )
         .unwrap();
 
@@ -898,7 +898,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, false),
+            MarginContext::standard(MarginRequirementType::Initial),
         )
         .unwrap();
 
@@ -916,7 +916,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, false),
+            MarginContext::standard(MarginRequirementType::Initial),
         )
         .unwrap();
 
@@ -934,7 +934,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, false),
+            MarginContext::standard(MarginRequirementType::Initial),
         )
         .unwrap();
 
@@ -953,7 +953,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance, false),
+            MarginContext::standard(MarginRequirementType::Maintenance),
         )
         .unwrap();
 
@@ -1059,7 +1059,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, false),
+            MarginContext::standard(MarginRequirementType::Initial),
         )
         .unwrap();
 
@@ -1180,7 +1180,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, false),
+            MarginContext::standard(MarginRequirementType::Initial),
         )
         .unwrap();
 
@@ -1225,7 +1225,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, false),
+            MarginContext::standard(MarginRequirementType::Initial),
         )
         .unwrap();
 
@@ -1378,7 +1378,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, false),
+            MarginContext::standard(MarginRequirementType::Initial),
         )
         .unwrap();
 
@@ -1488,7 +1488,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, false),
+            MarginContext::standard(MarginRequirementType::Initial),
         )
         .unwrap();
 
@@ -1586,7 +1586,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -1609,7 +1609,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -1632,7 +1632,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -1733,7 +1733,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -1756,7 +1756,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -1779,7 +1779,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -1903,7 +1903,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -1926,7 +1926,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 
@@ -1949,7 +1949,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial, true),
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
 

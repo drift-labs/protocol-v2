@@ -854,7 +854,7 @@ pub fn calculate_max_perp_order_size(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial, true),
+        MarginContext::standard(MarginRequirementType::Initial).strict(true),
     )?;
 
     let free_collateral = total_collateral.safe_sub(margin_requirement.cast()?)?;
@@ -965,7 +965,7 @@ pub fn calculate_max_spot_order_size(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial, true),
+        MarginContext::standard(MarginRequirementType::Initial).strict(true),
     )?;
 
     let mut order_size_to_flip = 0_u64;

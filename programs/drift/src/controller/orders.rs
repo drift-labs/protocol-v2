@@ -1618,14 +1618,11 @@ fn fulfill_perp_order(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(
-            if user_order_position_decreasing {
-                MarginRequirementType::Maintenance
-            } else {
-                MarginRequirementType::Fill
-            },
-            false,
-        ),
+        MarginContext::standard(if user_order_position_decreasing {
+            MarginRequirementType::Maintenance
+        } else {
+            MarginRequirementType::Fill
+        }),
     )?;
     if taker_total_collateral < taker_margin_requirement.cast()? {
         msg!(
@@ -1648,7 +1645,7 @@ fn fulfill_perp_order(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(MarginRequirementType::Fill, false),
+            MarginContext::standard(MarginRequirementType::Fill),
         )?;
 
         if maker_total_collateral < maker_margin_requirement.cast()? {
@@ -3683,7 +3680,7 @@ fn fulfill_spot_order(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(margin_type, false),
+        MarginContext::standard(margin_type),
     )?;
 
     if taker_total_collateral < taker_margin_requirement.cast()? {
@@ -3705,7 +3702,7 @@ fn fulfill_spot_order(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(MarginRequirementType::Fill, false),
+            MarginContext::standard(MarginRequirementType::Fill),
         )?;
 
         if maker_total_collateral < maker_margin_requirement.cast()? {
