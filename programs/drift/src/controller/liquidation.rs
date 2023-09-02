@@ -126,7 +126,7 @@ pub fn liquidate_perp(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio),
+        MarginContext::liquidation(liquidation_margin_buffer_ratio).track_margin_ratio()?,
     )?;
 
     if !user.is_being_liquidated() && total_collateral >= margin_requirement.cast()? {
@@ -800,7 +800,7 @@ pub fn liquidate_spot(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio),
+        MarginContext::liquidation(liquidation_margin_buffer_ratio).track_margin_ratio()?,
     )?;
 
     if !user.is_being_liquidated() && total_collateral >= margin_requirement.cast()? {
