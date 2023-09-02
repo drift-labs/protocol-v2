@@ -366,3 +366,11 @@ pub fn calculate_max_pct_to_liquidate(
         .safe_mul(LIQUIDATION_PCT_PRECISION)?
         .safe_div(margin_shortage)
 }
+
+pub fn calculate_if_fee(margin_ratio: u128, liquidator_fee: u32, max_if_fee: u32) -> u32 {
+    margin_ratio
+        .cast::<u32>()
+        .unwrap_or(u32::MAX)
+        .saturating_sub(liquidator_fee)
+        .min(max_if_fee)
+}
