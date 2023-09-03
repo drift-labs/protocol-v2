@@ -32,8 +32,8 @@ use crate::math::liquidation::{
     calculate_funding_rate_deltas_to_resolve_bankruptcy, calculate_if_fee,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
-    calculate_margin_shortage, calculate_max_pct_to_liquidate,
-    validate_transfer_satisfies_limit_price, LiquidationMultiplierType,
+    calculate_max_pct_to_liquidate, validate_transfer_satisfies_limit_price,
+    LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
@@ -127,7 +127,7 @@ pub fn liquidate_perp(
     if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
         msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated() && margin_calculation.can_exit_liquidation() {
+    } else if user.is_being_liquidated() && margin_calculation.can_exit_liquidation()? {
         user.exit_liquidation();
         return Ok(());
     }
@@ -238,7 +238,7 @@ pub fn liquidate_perp(
             .cast::<u64>()?;
         user.increment_margin_freed(margin_freed)?;
 
-        if intermediate_margin_calculation.can_exit_liquidation() {
+        if intermediate_margin_calculation.can_exit_liquidation()? {
             emit!(LiquidationRecord {
                 ts: now,
                 liquidation_id,
@@ -781,7 +781,7 @@ pub fn liquidate_spot(
     if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
         msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated() && margin_calculation.can_exit_liquidation() {
+    } else if user.is_being_liquidated() && margin_calculation.can_exit_liquidation()? {
         user.exit_liquidation();
         return Ok(());
     }
@@ -823,7 +823,7 @@ pub fn liquidate_spot(
             .cast::<u64>()?;
         user.increment_margin_freed(margin_freed)?;
 
-        if intermediate_margin_calculation.can_exit_liquidation() {
+        if intermediate_margin_calculation.can_exit_liquidation()? {
             emit!(LiquidationRecord {
                 ts: now,
                 liquidation_id,
@@ -1248,7 +1248,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
         msg!("margin calculation {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated() && margin_calculation.can_exit_liquidation() {
+    } else if user.is_being_liquidated() && margin_calculation.can_exit_liquidation()? {
         user.exit_liquidation();
         return Ok(());
     }
@@ -1290,7 +1290,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             .cast::<u64>()?;
         user.increment_margin_freed(margin_freed)?;
 
-        if intermediate_margin_calculation.can_exit_liquidation() {
+        if intermediate_margin_calculation.can_exit_liquidation()? {
             let market = perp_market_map.get_ref(&perp_market_index)?;
             let market_oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
@@ -1702,7 +1702,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
         msg!("margin calculation {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated() && margin_calculation.can_exit_liquidation() {
+    } else if user.is_being_liquidated() && margin_calculation.can_exit_liquidation()? {
         user.exit_liquidation();
         return Ok(());
     }
@@ -1749,7 +1749,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             .cast::<u64>()?;
         user.increment_margin_freed(margin_freed)?;
 
-        let exiting_liq_territory = intermediate_margin_calculation.can_exit_liquidation();
+        let exiting_liq_territory = intermediate_margin_calculation.can_exit_liquidation()?;
 
         if exiting_liq_territory || is_contract_tier_violation {
             let market = perp_market_map.get_ref(&perp_market_index)?;
@@ -2348,20 +2348,16 @@ pub fn calculate_margin_freed(
     liquidation_margin_buffer_ratio: u32,
     initial_margin_shortage: u128,
 ) -> DriftResult<u64> {
-    let MarginCalculation {
-        total_collateral: total_collateral_after,
-        margin_requirement_plus_buffer: margin_requirement_plus_buffer_after,
-        ..
-    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        user,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio),
-    )?;
+    let margin_calculation_after =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            MarginContext::liquidation(liquidation_margin_buffer_ratio),
+        )?;
 
-    let new_margin_shortage =
-        calculate_margin_shortage(margin_requirement_plus_buffer_after, total_collateral_after)?;
+    let new_margin_shortage = margin_calculation_after.margin_shortage()?;
 
     initial_margin_shortage
         .saturating_sub(new_margin_shortage)

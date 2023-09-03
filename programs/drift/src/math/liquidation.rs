@@ -11,7 +11,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
 use crate::math::spot_swap::calculate_swap_price;
-use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+use crate::state::margin_calculation::MarginContext;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -195,18 +195,15 @@ pub fn is_user_being_liquidated(
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
 ) -> DriftResult<bool> {
-    let MarginCalculation {
-        total_collateral,
-        margin_requirement_plus_buffer,
-        ..
-    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         market_map,
         spot_market_map,
         oracle_map,
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
-    let is_being_liquidated = total_collateral <= margin_requirement_plus_buffer.cast()?;
+
+    let is_being_liquidated = !margin_calculation.can_exit_liquidation()?;
 
     Ok(is_being_liquidated)
 }
@@ -327,16 +324,6 @@ pub fn validate_transfer_satisfies_limit_price(
         swap_price,
         limit_price
     )
-}
-
-pub fn calculate_margin_shortage(
-    margin_requirement_with_buffer: u128,
-    total_collateral: i128,
-) -> DriftResult<u128> {
-    Ok(margin_requirement_with_buffer
-        .cast::<i128>()?
-        .safe_sub(total_collateral)?
-        .unsigned_abs())
 }
 
 pub fn calculate_max_pct_to_liquidate(

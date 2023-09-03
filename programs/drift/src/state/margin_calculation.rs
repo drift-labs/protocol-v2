@@ -56,7 +56,7 @@ impl MarginContext {
             }
             _ => {
                 msg!("Cant track margin ratio outside of liquidation mode");
-                return Err(ErrorCode::DefaultError);
+                return Err(ErrorCode::InvalidMarginCalculation);
             }
         }
         Ok(self)
@@ -68,6 +68,9 @@ pub struct MarginCalculation {
     pub context: MarginContext,
     pub total_collateral: i128,
     pub margin_requirement: u128,
+    #[cfg(not(test))]
+    margin_requirement_plus_buffer: u128,
+    #[cfg(test)]
     pub margin_requirement_plus_buffer: u128,
     pub num_spot_liabilities: u8,
     pub num_perp_liabilities: u8,
@@ -188,8 +191,13 @@ impl MarginCalculation {
         self.total_collateral >= self.margin_requirement as i128
     }
 
-    pub fn can_exit_liquidation(&self) -> bool {
-        self.total_collateral >= self.margin_requirement_plus_buffer as i128
+    pub fn can_exit_liquidation(&self) -> DriftResult<bool> {
+        if !self.is_liquidation_mode() {
+            msg!("liquidation mode not enabled");
+            return Err(ErrorCode::InvalidMarginCalculation);
+        }
+
+        Ok(self.total_collateral >= self.margin_requirement_plus_buffer as i128)
     }
 
     pub fn margin_shortage(&self) -> DriftResult<u128> {
@@ -218,10 +226,14 @@ impl MarginCalculation {
         }
     }
 
+    fn is_liquidation_mode(&self) -> bool {
+        matches!(self.context.mode, MarginCalculationMode::Liquidation { .. })
+    }
+
     pub fn get_margin_ratio(&self) -> DriftResult<u128> {
         if !self.track_margin_ratio_enabled() {
             msg!("track margin ratio is not enabled");
-            return Err(ErrorCode::DefaultError);
+            return Err(ErrorCode::InvalidMarginCalculation);
         }
 
         if self.total_spot_asset_value < 0 {
