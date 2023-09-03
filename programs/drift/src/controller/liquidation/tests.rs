@@ -3103,8 +3103,6 @@ pub mod liquidate_spot {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 20,
-            // liquidator_fee: 0,
-            // if_liquidation_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
