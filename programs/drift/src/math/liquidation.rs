@@ -354,10 +354,17 @@ pub fn calculate_max_pct_to_liquidate(
         .safe_div(margin_shortage)
 }
 
-pub fn calculate_if_fee(margin_ratio: u128, liquidator_fee: u32, max_if_fee: u32) -> u32 {
+pub fn calculate_if_fee(
+    margin_ratio: u128,
+    liquidator_fee: u32,
+    asset_weight: u32,
+    liability_weight: u32,
+    max_if_fee: u32,
+) -> DriftResult<u32> {
     margin_ratio
+        .saturating_sub(liquidator_fee.cast::<u128>()?)
+        .safe_mul(asset_weight.cast()?)?
+        .safe_div(liability_weight.cast()?)?
         .cast::<u32>()
-        .unwrap_or(u32::MAX)
-        .saturating_sub(liquidator_fee)
-        .min(max_if_fee)
+        .map(|if_fee| if_fee.min(max_if_fee))
 }

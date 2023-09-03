@@ -534,28 +534,51 @@ mod validate_transfer_satisfies_limit_price {
 
 mod calculate_if_fee {
     use crate::math::liquidation::calculate_if_fee;
-    use crate::PRICE_PRECISION;
+    use crate::{PRICE_PRECISION, SPOT_WEIGHT_PRECISION};
 
     #[test]
     fn test() {
         let max_if_fee = (PRICE_PRECISION / 20) as u32; // 5%
         let liquidator_fee = (PRICE_PRECISION / 100) as u32; // 1%
+        let asset_weight = SPOT_WEIGHT_PRECISION;
+        let liability_weight = SPOT_WEIGHT_PRECISION;
 
         let margin_ratio = PRICE_PRECISION / 10; // 10%
 
-        let if_fee = calculate_if_fee(margin_ratio, liquidator_fee, max_if_fee);
+        let if_fee = calculate_if_fee(
+            margin_ratio,
+            liquidator_fee,
+            asset_weight,
+            liability_weight,
+            max_if_fee,
+        )
+        .unwrap();
 
         assert_eq!(if_fee, max_if_fee); // 5%
 
         let margin_ratio = PRICE_PRECISION / 20; // 5%
 
-        let if_fee = calculate_if_fee(margin_ratio, liquidator_fee, max_if_fee);
+        let if_fee = calculate_if_fee(
+            margin_ratio,
+            liquidator_fee,
+            asset_weight,
+            liability_weight,
+            max_if_fee,
+        )
+        .unwrap();
 
         assert_eq!(if_fee, max_if_fee - liquidator_fee); // 4%
 
         let margin_ratio = PRICE_PRECISION / 100; // 1%
 
-        let if_fee = calculate_if_fee(margin_ratio, liquidator_fee, max_if_fee);
+        let if_fee = calculate_if_fee(
+            margin_ratio,
+            liquidator_fee,
+            asset_weight,
+            liability_weight,
+            max_if_fee,
+        )
+        .unwrap();
 
         assert_eq!(if_fee, 0); // 0%
     }

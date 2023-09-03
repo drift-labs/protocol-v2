@@ -3103,6 +3103,8 @@ pub mod liquidate_spot {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 20,
+            // liquidator_fee: 0,
+            // if_liquidation_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
@@ -3110,24 +3112,42 @@ pub mod liquidate_spot {
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
+        let mut usdt_market = SpotMarket {
+            market_index: 2,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+            deposit_balance: 200 * SPOT_BALANCE_PRECISION,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(usdt_market, SpotMarket, usdt_spot_market_account_info);
         let spot_market_account_infos = Vec::from([
             &usdc_spot_market_account_info,
             &sol_spot_market_account_info,
+            &usdt_spot_market_account_info,
         ]);
         let spot_market_map =
             SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
         let mut spot_positions = [SpotPosition::default(); 8];
-        spot_positions[0] = SpotPosition {
-            market_index: 0,
-            balance_type: SpotBalanceType::Deposit,
-            scaled_balance: 105 * SPOT_BALANCE_PRECISION_U64,
-            ..SpotPosition::default()
-        };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
             scaled_balance: SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        spot_positions[2] = SpotPosition {
+            market_index: 2,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 105 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
@@ -3153,7 +3173,7 @@ pub mod liquidate_spot {
         let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
 
         liquidate_spot(
-            0,
+            2,
             1,
             10_u128.pow(9),
             None,
@@ -3180,7 +3200,21 @@ pub mod liquidate_spot {
         )
         .unwrap();
 
-        assert_eq!(revenue_pool_token_amount, 10_u128.pow(9) / 25); // 4%
+        assert_eq!(revenue_pool_token_amount, 23943627); // 2.39%
+
+        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::liquidation(liquidation_buffer)
+                .track_margin_ratio()
+                .unwrap(),
+        )
+        .unwrap();
+
+        print!("{:?}", margin_calc);
+        assert!(margin_calc.meets_margin_requirement());
     }
 }
 

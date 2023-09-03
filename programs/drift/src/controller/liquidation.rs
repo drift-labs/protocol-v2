@@ -305,8 +305,10 @@ pub fn liquidate_perp(
     let if_liquidation_fee = calculate_if_fee(
         margin_calculation.get_margin_ratio()?,
         liquidator_fee,
+        SPOT_WEIGHT_PRECISION,
+        SPOT_WEIGHT_PRECISION,
         market.if_liquidation_fee,
-    );
+    )?;
     let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
     let quote_oracle_price = oracle_map.get_price_data(&quote_spot_market.oracle)?.price;
     let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount_ceil(
@@ -861,13 +863,22 @@ pub fn liquidate_spot(
     let liability_weight_with_buffer =
         liability_weight.safe_add(liquidation_margin_buffer_ratio)?;
 
+    let effective_liquidator_fee = asset_liquidation_multiplier
+        .cast::<u128>()?
+        .safe_mul(LIQUIDATION_FEE_PRECISION_U128)?
+        .safe_div(liability_liquidation_multiplier.cast()?)?
+        .safe_sub(LIQUIDATION_FEE_PRECISION_U128)?
+        .cast::<u32>()?;
+
     let liquidation_if_fee = calculate_if_fee(
         margin_calculation.get_margin_ratio()?,
-        asset_liquidation_multiplier.saturating_sub(liability_liquidation_multiplier),
+        effective_liquidator_fee,
+        asset_weight,
+        liability_weight_with_buffer,
         spot_market_map
             .get_ref(&liability_market_index)?
             .if_liquidation_fee,
-    );
+    )?;
 
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
     let liability_transfer_to_cover_margin_shortage =
