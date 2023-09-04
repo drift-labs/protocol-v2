@@ -15,14 +15,19 @@ const main = async () => {
 	const sdkConfig = initialize({ env });
 
 	// Set up the Wallet and Provider
-	const privateKey = process.env.BOT_PRIVATE_KEY; // stored as an array string
-	const keypair = Keypair.fromSecretKey(
-		Uint8Array.from(JSON.parse(privateKey))
-	);
-	const wallet = new Wallet(keypair);
+	let wallet = new Wallet(Keypair.generate());
+	try {
+		const privateKey = process.env.BOT_PRIVATE_KEY; // stored as an array string
+		const keypair = Keypair.fromSecretKey(
+			Uint8Array.from(JSON.parse(privateKey))
+		);
+		wallet = new Wallet(keypair);
+	} catch {
+		console.log('cannot load `process.env.BOT_PRIVATE_KEY`');
+	}
 
 	// Set up the Connection
-	const rpcAddress = process.env.RPC_ADDRESS; // can use: https://api.devnet.solana.com for devnet; https://api.mainnet-beta.solana.com for mainnet;
+	const rpcAddress = process.env.RPC_ADDRESS || `https://api.${env}.solana.com`; // can use: https://api.devnet.solana.com for devnet; https://api.mainnet-beta.solana.com for mainnet;
 	const connection = new Connection(rpcAddress);
 
 	// Set up the Provider
