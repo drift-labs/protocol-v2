@@ -44,6 +44,17 @@ To run this example, execute:
 ts-node -T src/examples/loadDlob.ts
 ```
 
+### logRecentTrades.ts
+
+This example demonstrates how to use the event subscriber.
+
+To run this example, execute:
+
+```
+ts-node -T src/examples/logRecentTrades.ts
+```
+
+
 ## Note
 
 These examples assume that you have set up your environment variables, such as `RPC_ADDRESS` and `ENVIRONMENT`, according to the main README of the Drift Protocol repository.
