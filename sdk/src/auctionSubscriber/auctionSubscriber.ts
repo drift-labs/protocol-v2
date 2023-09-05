@@ -27,7 +27,9 @@ export class AuctionSubscriber {
 			'AuctionSubscriber',
 			'User',
 			this.driftClient.program,
-			this.driftClient.program.account.user.coder.accounts.decode.bind(this),
+			this.driftClient.program.account.user.coder.accounts.decode.bind(
+				this.driftClient.program.account.user.coder.accounts
+			),
 			{
 				filters: [getUserFilter(), getUserWithAuctionFilter()],
 				commitment: this.driftClient.opts.commitment,
