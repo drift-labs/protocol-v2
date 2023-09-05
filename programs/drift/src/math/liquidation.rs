@@ -365,8 +365,12 @@ pub fn calculate_perp_if_fee(
 ) -> DriftResult<u32> {
     let margin_ratio = margin_ratio.safe_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)?;
 
-    if oracle_price == 0 || margin_ratio <= liquidator_fee {
-        return Ok(u32::MAX);
+    if oracle_price == 0
+        || quote_oracle_price == 0
+        || margin_ratio <= liquidator_fee
+        || user_base_asset_amount == 0
+    {
+        return Ok(0);
     }
 
     let price = oracle_price
@@ -374,6 +378,7 @@ pub fn calculate_perp_if_fee(
         .safe_mul(quote_oracle_price.cast()?)?
         .safe_div(PRICE_PRECISION)?;
 
+    // margin ratio - liquidator fee - (margin shortage / (user base asset amount * price))
     let implied_if_fee = margin_ratio.saturating_sub(liquidator_fee).saturating_sub(
         margin_shortage
             .safe_mul(BASE_PRECISION)?
