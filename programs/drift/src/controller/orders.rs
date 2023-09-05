@@ -69,7 +69,7 @@ use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::traits::Size;
 use crate::state::user::{
-    AssetType, Order, OrderFillSimulation, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
+    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
 };
 use crate::state::user::{MarketType, User};
 use crate::state::user_map::{UserMap, UserStatsMap};
@@ -2864,15 +2864,13 @@ pub fn place_spot_order(
         true,
     );
 
-    let OrderFillSimulation {
-        free_collateral_contribution: free_collateral_contribution_before,
-        ..
-    } = user.spot_positions[spot_position_index].get_worst_case_token_amount(
-        spot_market,
-        &strict_oracle_price,
-        Some(signed_token_amount),
-        MarginRequirementType::Initial,
-    )?;
+    let worst_case_simulation_before = user.spot_positions[spot_position_index]
+        .get_worst_case_token_amount(
+            spot_market,
+            &strict_oracle_price,
+            Some(signed_token_amount),
+            MarginRequirementType::Initial,
+        )?;
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
@@ -2985,18 +2983,16 @@ pub fn place_spot_order(
         )?;
     }
 
-    let OrderFillSimulation {
-        free_collateral_contribution: free_collateral_contribution_after,
-        ..
-    } = user.spot_positions[spot_position_index].get_worst_case_token_amount(
-        spot_market,
-        &strict_oracle_price,
-        Some(signed_token_amount),
-        MarginRequirementType::Initial,
-    )?;
+    let worst_case_simulation_after = user.spot_positions[spot_position_index]
+        .get_worst_case_token_amount(
+            spot_market,
+            &strict_oracle_price,
+            Some(signed_token_amount),
+            MarginRequirementType::Initial,
+        )?;
 
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let risk_increasing = free_collateral_contribution_after < free_collateral_contribution_before;
+    let risk_increasing = worst_case_simulation_before.risk_increasing(worst_case_simulation_after);
 
     options.update_risk_increasing(risk_increasing);
 
@@ -4451,15 +4447,13 @@ pub fn trigger_spot_order(
     let signed_token_amount =
         user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
 
-    let OrderFillSimulation {
-        free_collateral_contribution: free_collateral_contribution_before,
-        ..
-    } = user.spot_positions[position_index].get_worst_case_token_amount(
-        &spot_market,
-        &strict_oracle_price,
-        Some(signed_token_amount),
-        MarginRequirementType::Initial,
-    )?;
+    let worst_case_simulation_before = user.spot_positions[position_index]
+        .get_worst_case_token_amount(
+            &spot_market,
+            &strict_oracle_price,
+            Some(signed_token_amount),
+            MarginRequirementType::Initial,
+        )?;
 
     {
         let direction = user.orders[order_index].direction;
@@ -4526,10 +4520,7 @@ pub fn trigger_spot_order(
 
     emit!(order_action_record);
 
-    let OrderFillSimulation {
-        free_collateral_contribution: free_collateral_contribution_after,
-        ..
-    } = user
+    let worst_case_simulation_after = user
         .get_spot_position(market_index)?
         .get_worst_case_token_amount(
             &spot_market,
@@ -4542,7 +4533,7 @@ pub fn trigger_spot_order(
     drop(quote_market);
 
     let is_risk_increasing =
-        free_collateral_contribution_after < free_collateral_contribution_before;
+        worst_case_simulation_before.risk_increasing(worst_case_simulation_after);
 
     // If order is risk increasing and user is below initial margin, cancel it
     if is_risk_increasing && !user.orders[order_index].reduce_only {
