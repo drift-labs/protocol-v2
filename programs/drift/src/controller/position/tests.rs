@@ -5,7 +5,6 @@ use crate::controller::position::{
 use crate::controller::lp::{apply_lp_rebase_to_perp_market, settle_lp_position};
 
 use crate::controller::repeg::_update_amm;
-// use crate::instructions::handle_update_perp_market_per_lp_base;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64, PRICE_PRECISION_I64,
     PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
@@ -283,6 +282,14 @@ fn amm_split_large_k_with_rebase() {
 
     assert_eq!(existing_position.per_lp_base, perp_market.amm.per_lp_base);
 
+    assert_eq!(
+        perp_market
+            .amm
+            .imbalanced_base_asset_amount_with_lp()
+            .unwrap(),
+        -303686915482213
+    );
+
     // update base back
     let base_change = -2;
     apply_lp_rebase_to_perp_market(&mut perp_market, base_change).unwrap();
@@ -291,6 +298,15 @@ fn amm_split_large_k_with_rebase() {
         base_asset_amount: 0,
         quote_asset_amount: 0,
     };
+
+    // unchanged with rebase (when target is 0)
+    assert_eq!(
+        perp_market
+            .amm
+            .imbalanced_base_asset_amount_with_lp()
+            .unwrap(),
+        -303686915482213
+    );
 
     update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
 
