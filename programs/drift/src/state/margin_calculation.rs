@@ -10,7 +10,7 @@ pub enum MarginCalculationMode {
     Standard,
     Liquidation {
         margin_buffer: u128,
-        market_to_track: Option<(MarketType, u16)>,
+        market_to_track_margin_requirement: Option<(MarketType, u16)>,
     },
 }
 
@@ -40,16 +40,19 @@ impl MarginContext {
             margin_type: MarginRequirementType::Maintenance,
             mode: MarginCalculationMode::Liquidation {
                 margin_buffer: margin_buffer as u128,
-                market_to_track: None,
+                market_to_track_margin_requirement: None,
             },
             strict: false,
         }
     }
 
-    pub fn track_market(mut self, market: (MarketType, u16)) -> DriftResult<Self> {
+    pub fn track_market_margin_requirement(
+        mut self,
+        market: (MarketType, u16),
+    ) -> DriftResult<Self> {
         match self.mode {
             MarginCalculationMode::Liquidation {
-                ref mut market_to_track,
+                market_to_track_margin_requirement: ref mut market_to_track,
                 ..
             } => {
                 *market_to_track = Some(market);
@@ -121,7 +124,7 @@ impl MarginCalculation {
                 )?)?;
         }
 
-        if let Some(market_to_track) = self.market_to_track() {
+        if let Some(market_to_track) = self.market_to_track_margin_requirement() {
             if market_to_track == market {
                 self.tracked_market_margin_requirement = self
                     .tracked_market_margin_requirement
@@ -185,7 +188,7 @@ impl MarginCalculation {
     }
 
     pub fn tracked_market_margin_shortage(&self, margin_shortage: u128) -> DriftResult<u128> {
-        if self.market_to_track().is_none() {
+        if self.market_to_track_margin_requirement().is_none() {
             msg!("cant call tracked_market_margin_shortage");
             return Err(ErrorCode::InvalidMarginCalculation);
         }
@@ -206,9 +209,9 @@ impl MarginCalculation {
             .cast()
     }
 
-    fn market_to_track(&self) -> Option<(MarketType, u16)> {
+    fn market_to_track_margin_requirement(&self) -> Option<(MarketType, u16)> {
         if let MarginCalculationMode::Liquidation {
-            market_to_track: track_margin_requirement,
+            market_to_track_margin_requirement: track_margin_requirement,
             ..
         } = self.context.mode
         {

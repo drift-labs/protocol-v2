@@ -122,7 +122,7 @@ pub fn liquidate_perp(
         spot_market_map,
         oracle_map,
         MarginContext::liquidation(liquidation_margin_buffer_ratio)
-            .track_market((MarketType::Perp, market_index))?,
+            .track_market_margin_requirement((MarketType::Perp, market_index))?,
     )?;
 
     if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
@@ -229,7 +229,7 @@ pub fn liquidate_perp(
                 spot_market_map,
                 oracle_map,
                 MarginContext::liquidation(liquidation_margin_buffer_ratio)
-                    .track_market((MarketType::Perp, market_index))?,
+                    .track_market_margin_requirement((MarketType::Perp, market_index))?,
             )?;
 
         let initial_margin_shortage = margin_calculation.margin_shortage()?;
@@ -782,7 +782,7 @@ pub fn liquidate_spot(
         spot_market_map,
         oracle_map,
         MarginContext::liquidation(liquidation_margin_buffer_ratio)
-            .track_market((MarketType::Spot, liability_market_index))?,
+            .track_market_margin_requirement((MarketType::Spot, liability_market_index))?,
     )?;
 
     if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
@@ -820,7 +820,7 @@ pub fn liquidate_spot(
                 spot_market_map,
                 oracle_map,
                 MarginContext::liquidation(liquidation_margin_buffer_ratio)
-                    .track_market((MarketType::Spot, liability_market_index))?,
+                    .track_market_margin_requirement((MarketType::Spot, liability_market_index))?,
             )?;
 
         let initial_margin_shortage = margin_calculation.margin_shortage()?;
