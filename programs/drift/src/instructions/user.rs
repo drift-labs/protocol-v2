@@ -135,7 +135,7 @@ pub fn handle_initialize_user(
     safe_increment!(state.number_of_sub_accounts, 1);
 
     validate!(
-        state.number_of_sub_accounts <= 10000,
+        state.number_of_sub_accounts <= 12500,
         ErrorCode::MaxNumberOfUsers
     )?;
 
@@ -775,6 +775,7 @@ impl Default for PostOnlyParam {
 pub struct PlaceOrderOptions {
     pub try_expire_orders: bool,
     pub enforce_margin_check: bool,
+    pub risk_increasing: bool,
 }
 
 impl Default for PlaceOrderOptions {
@@ -782,7 +783,14 @@ impl Default for PlaceOrderOptions {
         Self {
             try_expire_orders: true,
             enforce_margin_check: true,
+            risk_increasing: false,
         }
+    }
+}
+
+impl PlaceOrderOptions {
+    pub fn update_risk_increasing(&mut self, risk_increasing: bool) {
+        self.risk_increasing = self.risk_increasing || risk_increasing;
     }
 }
 
@@ -1115,6 +1123,7 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         let options = PlaceOrderOptions {
             enforce_margin_check: i == num_orders - 1,
             try_expire_orders: i == 0,
+            risk_increasing: false,
         };
 
         if params.market_type == MarketType::Perp {
