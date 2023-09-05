@@ -290,6 +290,8 @@ fn amm_split_large_k_with_rebase() {
         -303686915482213
     );
 
+    assert_eq!(perp_market.amm.target_base_asset_amount_per_lp, -565000000);
+
     // update base back
     let base_change = -2;
     apply_lp_rebase_to_perp_market(&mut perp_market, base_change).unwrap();
@@ -299,7 +301,7 @@ fn amm_split_large_k_with_rebase() {
         quote_asset_amount: 0,
     };
 
-    // unchanged with rebase (when target is 0)
+    // unchanged with rebase (even when target!=0)
     assert_eq!(
         perp_market
             .amm
