@@ -1247,7 +1247,7 @@ describe('liquidity providing', () => {
 		const txSig1 = await driftClient.updatePerpMarketPerLpBase(0, 1);
 		await _viewLogs(txSig1);
 
-		await sleep(500); // todo?
+		await sleep(1400); // todo?
 		await driftClient.fetchAccounts();
 		const marketAfter = driftClient.getPerpMarketAccount(0);
 
