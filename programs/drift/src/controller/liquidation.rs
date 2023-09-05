@@ -29,11 +29,11 @@ use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
     calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy,
-    calculate_funding_rate_deltas_to_resolve_bankruptcy, calculate_if_fee,
+    calculate_funding_rate_deltas_to_resolve_bankruptcy,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
-    calculate_max_pct_to_liquidate, validate_transfer_satisfies_limit_price,
-    LiquidationMultiplierType,
+    calculate_max_pct_to_liquidate, calculate_perp_if_fee, calculate_spot_if_fee,
+    validate_transfer_satisfies_limit_price, LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
@@ -121,7 +121,9 @@ pub fn liquidate_perp(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio).track_margin_ratio()?,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio)
+            .track_margin_ratio()?
+            .track_market((MarketType::Perp, market_index))?,
     )?;
 
     if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
@@ -227,7 +229,9 @@ pub fn liquidate_perp(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::liquidation(liquidation_margin_buffer_ratio),
+                MarginContext::liquidation(liquidation_margin_buffer_ratio)
+                    .track_margin_ratio()?
+                    .track_market((MarketType::Perp, market_index))?,
             )?;
 
         let initial_margin_shortage = margin_calculation.margin_shortage()?;
@@ -301,16 +305,18 @@ pub fn liquidate_perp(
     let margin_shortage = intermediate_margin_calculation.margin_shortage()?;
 
     let market = perp_market_map.get_ref(&market_index)?;
-    let liquidator_fee = market.liquidator_fee;
-    let if_liquidation_fee = calculate_if_fee(
-        margin_calculation.get_margin_ratio()?,
-        liquidator_fee,
-        SPOT_WEIGHT_PRECISION,
-        SPOT_WEIGHT_PRECISION,
-        market.if_liquidation_fee,
-    )?;
     let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
     let quote_oracle_price = oracle_map.get_price_data(&quote_spot_market.oracle)?.price;
+    let liquidator_fee = market.liquidator_fee;
+    let if_liquidation_fee = calculate_perp_if_fee(
+        margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
+        user_base_asset_amount,
+        margin_ratio_with_buffer,
+        liquidator_fee,
+        oracle_price,
+        quote_oracle_price,
+        market.if_liquidation_fee,
+    )?;
     let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount_ceil(
         calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
@@ -777,7 +783,9 @@ pub fn liquidate_spot(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio).track_margin_ratio()?,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio)
+            .track_margin_ratio()?
+            .track_market((MarketType::Spot, liability_market_index))?,
     )?;
 
     if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
@@ -814,7 +822,9 @@ pub fn liquidate_spot(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::liquidation(liquidation_margin_buffer_ratio),
+                MarginContext::liquidation(liquidation_margin_buffer_ratio)
+                    .track_margin_ratio()?
+                    .track_market((MarketType::Spot, liability_market_index))?,
             )?;
 
         let initial_margin_shortage = margin_calculation.margin_shortage()?;
@@ -863,18 +873,15 @@ pub fn liquidate_spot(
     let liability_weight_with_buffer =
         liability_weight.safe_add(liquidation_margin_buffer_ratio)?;
 
-    let effective_liquidator_fee = asset_liquidation_multiplier
-        .cast::<u128>()?
-        .safe_mul(LIQUIDATION_FEE_PRECISION_U128)?
-        .safe_div(liability_liquidation_multiplier.cast()?)?
-        .safe_sub(LIQUIDATION_FEE_PRECISION_U128)?
-        .cast::<u32>()?;
-
-    let liquidation_if_fee = calculate_if_fee(
-        margin_calculation.get_margin_ratio()?,
-        effective_liquidator_fee,
+    let liquidation_if_fee = calculate_spot_if_fee(
+        margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
+        liability_amount,
         asset_weight,
+        asset_liquidation_multiplier,
         liability_weight_with_buffer,
+        liability_liquidation_multiplier,
+        liability_decimals,
+        liability_price,
         spot_market_map
             .get_ref(&liability_market_index)?
             .if_liquidation_fee,

@@ -9,7 +9,7 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 
-use crate::{validate, PRICE_PRECISION_I128, SPOT_WEIGHT_PRECISION_I128};
+use crate::{validate, MarketType, PRICE_PRECISION_I128, SPOT_WEIGHT_PRECISION_I128};
 use crate::{validation, PRICE_PRECISION_I64};
 
 use crate::math::casting::Cast;
@@ -309,7 +309,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         spot_market.market_index,
                     )?;
 
-                    calculation.add_margin_requirement(weighted_token_value, token_value)?;
+                    calculation.add_margin_requirement(
+                        weighted_token_value,
+                        token_value,
+                        (MarketType::Spot, 0),
+                    )?;
                     calculation.add_spot_liability_value(&|| Ok(token_value))?;
 
                     calculation.add_spot_liability()?;
@@ -384,8 +388,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 })?;
             }
 
-            calculation
-                .add_margin_requirement(spot_position.margin_requirement_for_open_orders()?, 0)?;
+            calculation.add_margin_requirement(
+                spot_position.margin_requirement_for_open_orders()?,
+                0,
+                (MarketType::Spot, spot_market.market_index),
+            )?;
 
             match worst_case_token_value.cmp(&0) {
                 Ordering::Greater => {
@@ -411,6 +418,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     calculation.add_margin_requirement(
                         worst_case_weighted_token_value.unsigned_abs(),
                         worst_case_token_value.unsigned_abs(),
+                        (MarketType::Spot, spot_market.market_index),
                     )?;
 
                     calculation.add_spot_liability()?;
@@ -430,6 +438,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     calculation.add_margin_requirement(
                         worst_case_orders_value.unsigned_abs(),
                         worst_case_orders_value.unsigned_abs(),
+                        (MarketType::Spot, 0),
                     )?;
                 }
                 Ordering::Equal => {}
@@ -501,7 +510,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 user_custom_margin_ratio,
             )?;
 
-        calculation.add_margin_requirement(perp_margin_requirement, worst_case_base_asset_value)?;
+        calculation.add_margin_requirement(
+            perp_margin_requirement,
+            worst_case_base_asset_value,
+            (MarketType::Perp, market.market_index),
+        )?;
         calculation.add_perp_liability_value(&|| {
             calculate_base_asset_value_with_oracle_price(
                 market_position.base_asset_amount.cast()?,

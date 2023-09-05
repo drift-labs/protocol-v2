@@ -3198,7 +3198,7 @@ pub mod liquidate_spot {
         )
         .unwrap();
 
-        assert_eq!(revenue_pool_token_amount, 23943627); // 2.39%
+        assert_eq!(revenue_pool_token_amount, 23944781); // 2.39%
 
         let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
             &user,

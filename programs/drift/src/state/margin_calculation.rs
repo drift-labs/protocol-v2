@@ -2,7 +2,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::margin::MarginRequirementType;
 use crate::math::safe_math::SafeMath;
-use crate::{validate, MARGIN_PRECISION_U128, PRICE_PRECISION};
+use crate::{validate, MarketType, MARGIN_PRECISION_U128, PRICE_PRECISION};
 use anchor_lang::solana_program::msg;
 
 #[derive(Clone, Copy, Debug)]
@@ -11,6 +11,7 @@ pub enum MarginCalculationMode {
     Liquidation {
         margin_buffer: u128,
         track_margin_ratio: bool,
+        market_to_track: Option<(MarketType, u16)>,
     },
 }
 
@@ -41,6 +42,7 @@ impl MarginContext {
             mode: MarginCalculationMode::Liquidation {
                 margin_buffer: margin_buffer as u128,
                 track_margin_ratio: false,
+                market_to_track: None,
             },
             strict: false,
         }
@@ -56,6 +58,22 @@ impl MarginContext {
             }
             _ => {
                 msg!("Cant track margin ratio outside of liquidation mode");
+                return Err(ErrorCode::InvalidMarginCalculation);
+            }
+        }
+        Ok(self)
+    }
+
+    pub fn track_market(mut self, market: (MarketType, u16)) -> DriftResult<Self> {
+        match self.mode {
+            MarginCalculationMode::Liquidation {
+                ref mut market_to_track,
+                ..
+            } => {
+                *market_to_track = Some(market);
+            }
+            _ => {
+                msg!("Cant track market outside of liquidation mode");
                 return Err(ErrorCode::InvalidMarginCalculation);
             }
         }
@@ -80,6 +98,7 @@ pub struct MarginCalculation {
     pub total_spot_asset_value: i128,
     pub total_spot_liability_value: u128,
     pub total_perp_liability_value: u128,
+    tracked_market_margin_requirement: u128,
 }
 
 impl MarginCalculation {
@@ -96,6 +115,7 @@ impl MarginCalculation {
             total_spot_asset_value: 0,
             total_spot_liability_value: 0,
             total_perp_liability_value: 0,
+            tracked_market_margin_requirement: 0,
         }
     }
 
@@ -108,6 +128,7 @@ impl MarginCalculation {
         &mut self,
         margin_requirement: u128,
         liability_value: u128,
+        market: (MarketType, u16),
     ) -> DriftResult {
         self.margin_requirement = self.margin_requirement.safe_add(margin_requirement)?;
         if let MarginCalculationMode::Liquidation { margin_buffer, .. } = self.context.mode {
@@ -117,6 +138,15 @@ impl MarginCalculation {
                     liability_value.safe_mul(margin_buffer)? / MARGIN_PRECISION_U128,
                 )?)?;
         }
+
+        if let Some(market_to_track) = self.market_to_track() {
+            if market_to_track == market {
+                self.tracked_market_margin_requirement = self
+                    .tracked_market_margin_requirement
+                    .safe_add(margin_requirement)?;
+            }
+        }
+
         Ok(())
     }
 
@@ -208,6 +238,21 @@ impl MarginCalculation {
             .unsigned_abs())
     }
 
+    pub fn tracked_market_margin_shortage(&self, margin_shortage: u128) -> DriftResult<u128> {
+        if self.market_to_track().is_none() {
+            msg!("cant call tracked_market_margin_shortage");
+            return Err(ErrorCode::InvalidMarginCalculation);
+        }
+
+        if self.margin_requirement == 0 {
+            return Ok(0);
+        }
+
+        margin_shortage
+            .safe_mul(self.tracked_market_margin_requirement)?
+            .safe_div(self.margin_requirement)
+    }
+
     pub fn get_free_collateral(&self) -> DriftResult<u128> {
         self.total_collateral
             .safe_sub(self.margin_requirement.cast::<i128>()?)?
@@ -223,6 +268,18 @@ impl MarginCalculation {
             track_margin_ratio
         } else {
             false
+        }
+    }
+
+    fn market_to_track(&self) -> Option<(MarketType, u16)> {
+        if let MarginCalculationMode::Liquidation {
+            market_to_track: track_margin_requirement,
+            ..
+        } = self.context.mode
+        {
+            track_margin_requirement
+        } else {
+            None
         }
     }
 
