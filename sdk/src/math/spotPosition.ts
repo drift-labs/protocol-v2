@@ -70,7 +70,7 @@ export function getWorstCaseTokenAmounts(
 		tokenAmount,
 		tokenValue,
 		spotPosition.openBids,
-		strictOraclePrice.current,
+		strictOraclePrice,
 		spotMarketAccount,
 		marginCategory
 	);
@@ -78,7 +78,7 @@ export function getWorstCaseTokenAmounts(
 		tokenAmount,
 		tokenValue,
 		spotPosition.openAsks,
-		strictOraclePrice.current,
+		strictOraclePrice,
 		spotMarketAccount,
 		marginCategory
 	);
@@ -129,16 +129,12 @@ export function simulateOrderFill(
 	tokenAmount: BN,
 	tokenValue: BN,
 	openOrders: BN,
-	oraclePrice: BN,
+	strictOraclePrice: StrictOraclePrice,
 	spotMarket: SpotMarketAccount,
 	marginCategory: MarginCategory
 ): OrderFillSimulation {
-	const maxOraclePrice = BN.max(
-		spotMarket.historicalOracleData.lastOraclePriceTwap5Min,
-		oraclePrice
-	);
 	const ordersValue = getTokenValue(openOrders.neg(), spotMarket.decimals, {
-		price: maxOraclePrice,
+		price: strictOraclePrice.max(),
 	});
 	const tokenAmountAfterFill = tokenAmount.add(openOrders);
 	const tokenValueAfterFill = tokenValue.add(ordersValue.neg());
@@ -147,7 +143,7 @@ export function simulateOrderFill(
 		calculateWeightedTokenValue(
 			tokenAmountAfterFill,
 			tokenValueAfterFill,
-			oraclePrice,
+			strictOraclePrice.current,
 			spotMarket,
 			marginCategory
 		);
