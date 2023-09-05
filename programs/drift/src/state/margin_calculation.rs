@@ -2,7 +2,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::margin::MarginRequirementType;
 use crate::math::safe_math::SafeMath;
-use crate::{validate, MarketType, MARGIN_PRECISION_U128, PRICE_PRECISION};
+use crate::{validate, MarketType, MARGIN_PRECISION_U128};
 use anchor_lang::solana_program::msg;
 
 #[derive(Clone, Copy, Debug)]
@@ -10,7 +10,6 @@ pub enum MarginCalculationMode {
     Standard,
     Liquidation {
         margin_buffer: u128,
-        track_margin_ratio: bool,
         market_to_track: Option<(MarketType, u16)>,
     },
 }
@@ -41,27 +40,10 @@ impl MarginContext {
             margin_type: MarginRequirementType::Maintenance,
             mode: MarginCalculationMode::Liquidation {
                 margin_buffer: margin_buffer as u128,
-                track_margin_ratio: false,
                 market_to_track: None,
             },
             strict: false,
         }
-    }
-
-    pub fn track_margin_ratio(mut self) -> DriftResult<Self> {
-        match self.mode {
-            MarginCalculationMode::Liquidation {
-                ref mut track_margin_ratio,
-                ..
-            } => {
-                *track_margin_ratio = true;
-            }
-            _ => {
-                msg!("Cant track margin ratio outside of liquidation mode");
-                return Err(ErrorCode::InvalidMarginCalculation);
-            }
-        }
-        Ok(self)
     }
 
     pub fn track_market(mut self, market: (MarketType, u16)) -> DriftResult<Self> {
@@ -150,42 +132,6 @@ impl MarginCalculation {
         Ok(())
     }
 
-    pub fn add_spot_asset_value(
-        &mut self,
-        asset_value_fn: &dyn Fn() -> DriftResult<i128>,
-    ) -> DriftResult {
-        if self.track_margin_ratio_enabled() {
-            self.total_spot_asset_value = self.total_spot_asset_value.safe_add(asset_value_fn()?)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn add_spot_liability_value(
-        &mut self,
-        liability_value_fn: &dyn Fn() -> DriftResult<u128>,
-    ) -> DriftResult {
-        if self.track_margin_ratio_enabled() {
-            self.total_spot_liability_value = self
-                .total_spot_liability_value
-                .safe_add(liability_value_fn()?)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn add_perp_liability_value(
-        &mut self,
-        perp_value_fn: &dyn Fn() -> DriftResult<u128>,
-    ) -> DriftResult {
-        if self.track_margin_ratio_enabled() {
-            self.total_perp_liability_value =
-                self.total_perp_liability_value.safe_add(perp_value_fn()?)?;
-        }
-
-        Ok(())
-    }
-
     pub fn add_spot_liability(&mut self) -> DriftResult {
         self.num_spot_liabilities = self.num_spot_liabilities.safe_add(1)?;
         Ok(())
@@ -260,17 +206,6 @@ impl MarginCalculation {
             .cast()
     }
 
-    fn track_margin_ratio_enabled(&self) -> bool {
-        if let MarginCalculationMode::Liquidation {
-            track_margin_ratio, ..
-        } = self.context.mode
-        {
-            track_margin_ratio
-        } else {
-            false
-        }
-    }
-
     fn market_to_track(&self) -> Option<(MarketType, u16)> {
         if let MarginCalculationMode::Liquidation {
             market_to_track: track_margin_requirement,
@@ -285,31 +220,5 @@ impl MarginCalculation {
 
     fn is_liquidation_mode(&self) -> bool {
         matches!(self.context.mode, MarginCalculationMode::Liquidation { .. })
-    }
-
-    pub fn get_margin_ratio(&self) -> DriftResult<u128> {
-        if !self.track_margin_ratio_enabled() {
-            msg!("track margin ratio is not enabled");
-            return Err(ErrorCode::InvalidMarginCalculation);
-        }
-
-        if self.total_spot_asset_value < 0 {
-            return Ok(0);
-        }
-
-        let net_asset_value = self
-            .total_spot_asset_value
-            .unsigned_abs()
-            .saturating_sub(self.total_spot_liability_value);
-
-        if net_asset_value == 0 {
-            return Ok(0);
-        }
-
-        // spot liability value + perp liability value / (spot asset value - spot liability value)
-        net_asset_value.safe_mul(PRICE_PRECISION)?.safe_div(
-            self.total_perp_liability_value
-                .safe_add(self.total_spot_liability_value)?,
-        )
     }
 }

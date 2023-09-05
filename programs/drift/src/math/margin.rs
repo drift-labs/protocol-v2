@@ -283,7 +283,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
                     calculation.add_total_collateral(token_value)?;
-                    calculation.add_spot_asset_value(&|| Ok(token_value))?;
                 }
                 SpotBalanceType::Borrow => {
                     let token_value = token_value.unsigned_abs();
@@ -314,7 +313,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         token_value,
                         (MarketType::Spot, 0),
                     )?;
-                    calculation.add_spot_liability_value(&|| Ok(token_value))?;
 
                     calculation.add_spot_liability()?;
                 }
@@ -367,25 +365,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     spot_position.scaled_balance,
                     worst_case_token_amount,
                 )?;
-            }
-
-            if signed_token_amount >= 0 {
-                calculation.add_spot_asset_value(&|| {
-                    get_token_value(
-                        signed_token_amount,
-                        spot_market.decimals,
-                        strict_oracle_price.current,
-                    )
-                })?;
-            } else {
-                calculation.add_spot_liability_value(&|| {
-                    get_token_value(
-                        signed_token_amount,
-                        spot_market.decimals,
-                        strict_oracle_price.current,
-                    )
-                    .map(|v| v.unsigned_abs())
-                })?;
             }
 
             calculation.add_margin_requirement(
@@ -515,15 +494,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             worst_case_base_asset_value,
             (MarketType::Perp, market.market_index),
         )?;
-        calculation.add_perp_liability_value(&|| {
-            calculate_base_asset_value_with_oracle_price(
-                market_position.base_asset_amount.cast()?,
-                oracle_price_data.price,
-            )
-        })?;
 
         calculation.add_total_collateral(weighted_pnl)?;
-        calculation.add_spot_asset_value(&|| Ok(weighted_pnl))?;
 
         if market_position.base_asset_amount != 0
             || market_position.quote_asset_amount < 0

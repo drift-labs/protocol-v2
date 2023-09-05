@@ -122,7 +122,6 @@ pub fn liquidate_perp(
         spot_market_map,
         oracle_map,
         MarginContext::liquidation(liquidation_margin_buffer_ratio)
-            .track_margin_ratio()?
             .track_market((MarketType::Perp, market_index))?,
     )?;
 
@@ -230,7 +229,6 @@ pub fn liquidate_perp(
                 spot_market_map,
                 oracle_map,
                 MarginContext::liquidation(liquidation_margin_buffer_ratio)
-                    .track_margin_ratio()?
                     .track_market((MarketType::Perp, market_index))?,
             )?;
 
@@ -784,7 +782,6 @@ pub fn liquidate_spot(
         spot_market_map,
         oracle_map,
         MarginContext::liquidation(liquidation_margin_buffer_ratio)
-            .track_margin_ratio()?
             .track_market((MarketType::Spot, liability_market_index))?,
     )?;
 
@@ -823,7 +820,6 @@ pub fn liquidate_spot(
                 spot_market_map,
                 oracle_map,
                 MarginContext::liquidation(liquidation_margin_buffer_ratio)
-                    .track_margin_ratio()?
                     .track_market((MarketType::Spot, liability_market_index))?,
             )?;
 

@@ -3205,9 +3205,7 @@ pub mod liquidate_spot {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::liquidation(liquidation_buffer)
-                .track_margin_ratio()
-                .unwrap(),
+            MarginContext::liquidation(liquidation_buffer),
         )
         .unwrap();
 
