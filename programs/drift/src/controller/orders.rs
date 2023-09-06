@@ -58,7 +58,7 @@ use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+use crate::state::margin_calculation::MarginContext;
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
@@ -1609,26 +1609,24 @@ fn fulfill_perp_order(
         quote_asset_amount
     )?;
 
-    let MarginCalculation {
-        margin_requirement: taker_margin_requirement,
-        total_collateral: taker_total_collateral,
-        ..
-    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        user,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        MarginContext::standard(if user_order_position_decreasing {
-            MarginRequirementType::Maintenance
-        } else {
-            MarginRequirementType::Fill
-        }),
-    )?;
-    if taker_total_collateral < taker_margin_requirement.cast()? {
+    let taker_margin_calculation =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            MarginContext::standard(if user_order_position_decreasing {
+                MarginRequirementType::Maintenance
+            } else {
+                MarginRequirementType::Fill
+            }),
+        )?;
+
+    if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
             "taker breached fill requirements (margin requirement {}) (total_collateral {})",
-            taker_margin_requirement,
-            taker_total_collateral
+            taker_margin_calculation.margin_requirement,
+            taker_margin_calculation.total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
     }
@@ -1636,24 +1634,21 @@ fn fulfill_perp_order(
     for (maker_key, _) in makers_filled {
         let maker = makers_and_referrer.get_ref(&maker_key)?;
 
-        let MarginCalculation {
-            margin_requirement: maker_margin_requirement,
-            total_collateral: maker_total_collateral,
-            ..
-        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
-            &maker,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            MarginContext::standard(MarginRequirementType::Fill),
-        )?;
+        let maker_margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &maker,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                MarginContext::standard(MarginRequirementType::Fill),
+            )?;
 
-        if maker_total_collateral < maker_margin_requirement.cast()? {
+        if !maker_margin_calculation.meets_margin_requirement() {
             msg!(
                 "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
                 maker_key,
-                maker_margin_requirement,
-                maker_total_collateral
+                maker_margin_calculation.margin_requirement,
+                maker_margin_calculation.total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
@@ -3667,46 +3662,40 @@ fn fulfill_spot_order(
     drop(base_market);
     drop(quote_market);
 
-    let MarginCalculation {
-        margin_requirement: taker_margin_requirement,
-        total_collateral: taker_total_collateral,
-        ..
-    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        user,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        MarginContext::standard(margin_type),
-    )?;
+    let taker_margin_calculation =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            MarginContext::standard(margin_type),
+        )?;
 
-    if taker_total_collateral < taker_margin_requirement.cast()? {
+    if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
             "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            taker_margin_requirement,
-            taker_total_collateral
+            taker_margin_calculation.margin_requirement,
+            taker_margin_calculation.total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
     }
 
     if let Some(maker) = maker {
-        let MarginCalculation {
-            margin_requirement: maker_margin_requirement,
-            total_collateral: maker_total_collateral,
-            ..
-        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
-            maker,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            MarginContext::standard(MarginRequirementType::Fill),
-        )?;
+        let maker_margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                maker,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                MarginContext::standard(MarginRequirementType::Fill),
+            )?;
 
-        if maker_total_collateral < maker_margin_requirement.cast()? {
+        if !maker_margin_calculation.meets_margin_requirement() {
             msg!(
                 "maker ({}) breached maintenance requirements (margin requirement {}) (total_collateral {})",
                 maker_key.safe_unwrap()?,
-                maker_margin_requirement,
-                maker_total_collateral
+                maker_margin_calculation.margin_requirement,
+                maker_margin_calculation.total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
