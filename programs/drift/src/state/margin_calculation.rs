@@ -180,6 +180,11 @@ impl MarginCalculation {
     }
 
     pub fn margin_shortage(&self) -> DriftResult<u128> {
+        if !self.is_liquidation_mode() {
+            msg!("liquidation mode not enabled");
+            return Err(ErrorCode::InvalidMarginCalculation);
+        }
+
         Ok(self
             .margin_requirement_plus_buffer
             .cast::<i128>()?
