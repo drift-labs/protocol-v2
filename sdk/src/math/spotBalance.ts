@@ -22,6 +22,7 @@ import {
 import { OraclePriceData } from '../oracles/types';
 import { PERCENTAGE_PRECISION } from '../constants/numericConstants';
 import { divCeil } from './utils';
+import { StrictOraclePrice } from '../oracles/strictOraclePrice';
 
 /**
  * Calculates the balance of a given token amount including any accumulated interest. This
@@ -102,25 +103,23 @@ export function getSignedTokenAmount(
  *
  * @param {BN} tokenAmount - The amount of tokens to calculate the value for (from `getTokenAmount`)
  * @param {number} spotDecimals - The number of decimals in the token.
- * @param {OraclePriceData} oraclePriceData - The oracle price data (typically a token/USD oracle).
- * @param {BN} oraclePriceTwap - The Time-Weighted Average Price of the oracle.
+ * @param {StrictOraclePrice} strictOraclePrice - Contains oracle price and 5min twap.
  * @return {BN} The calculated value of the given token amount, scaled by `PRICE_PRECISION`
  */
 export function getStrictTokenValue(
 	tokenAmount: BN,
 	spotDecimals: number,
-	oraclePriceData: OraclePriceData,
-	oraclePriceTwap: BN
+	strictOraclePrice: StrictOraclePrice
 ): BN {
 	if (tokenAmount.eq(ZERO)) {
 		return ZERO;
 	}
 
-	let price = oraclePriceData.price;
-	if (tokenAmount.gt(ZERO)) {
-		price = BN.min(oraclePriceData.price, oraclePriceTwap);
+	let price;
+	if (tokenAmount.gte(ZERO)) {
+		price = strictOraclePrice.min();
 	} else {
-		price = BN.max(oraclePriceData.price, oraclePriceTwap);
+		price = strictOraclePrice.max();
 	}
 
 	const precisionDecrease = TEN.pow(new BN(spotDecimals));
@@ -139,7 +138,7 @@ export function getStrictTokenValue(
 export function getTokenValue(
 	tokenAmount: BN,
 	spotDecimals: number,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	if (tokenAmount.eq(ZERO)) {
 		return ZERO;
@@ -152,6 +151,7 @@ export function getTokenValue(
 
 export function calculateAssetWeight(
 	balanceAmount: BN,
+	oraclePrice: BN,
 	spotMarket: SpotMarketAccount,
 	marginCategory: MarginCategory
 ): BN {
@@ -174,7 +174,7 @@ export function calculateAssetWeight(
 			assetWeight = calculateSizeDiscountAssetWeight(
 				sizeInAmmReservePrecision,
 				new BN(spotMarket.imfFactor),
-				new BN(spotMarket.initialAssetWeight)
+				calculateScaledInitialAssetWeight(spotMarket, oraclePrice)
 			);
 			break;
 		case 'Maintenance':
@@ -185,11 +185,37 @@ export function calculateAssetWeight(
 			);
 			break;
 		default:
-			assetWeight = new BN(spotMarket.initialAssetWeight);
+			assetWeight = calculateScaledInitialAssetWeight(spotMarket, oraclePrice);
 			break;
 	}
 
 	return assetWeight;
+}
+
+export function calculateScaledInitialAssetWeight(
+	spotMarket: SpotMarketAccount,
+	oraclePrice: BN
+): BN {
+	if (spotMarket.scaleInitialAssetWeightStart.eq(ZERO)) {
+		return new BN(spotMarket.initialAssetWeight);
+	}
+
+	const deposits = getTokenAmount(
+		spotMarket.depositBalance,
+		spotMarket,
+		SpotBalanceType.DEPOSIT
+	);
+	const depositsValue = getTokenValue(deposits, spotMarket.decimals, {
+		price: oraclePrice,
+	});
+
+	if (depositsValue.lt(spotMarket.scaleInitialAssetWeightStart)) {
+		return new BN(spotMarket.initialAssetWeight);
+	} else {
+		return new BN(spotMarket.initialAssetWeight)
+			.mul(spotMarket.scaleInitialAssetWeightStart)
+			.div(depositsValue);
+	}
 }
 
 export function calculateLiabilityWeight(

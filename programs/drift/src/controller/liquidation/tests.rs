@@ -1815,8 +1815,8 @@ pub mod liquidate_spot {
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
     };
     use crate::math::spot_balance::{get_strict_token_value, get_token_amount, get_token_value};
-    use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
+    use crate::state::oracle::{HistoricalOracleData, StrictOraclePrice};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -2267,27 +2267,26 @@ pub mod liquidate_spot {
         let token_value =
             get_token_value(token_amount as i128, 6, oracle_price_data.price).unwrap();
 
-        let strict_token_value_1 = get_strict_token_value(
-            token_amount as i128,
-            6,
-            oracle_price_data,
-            oracle_price_data.price / 10,
-        )
-        .unwrap();
-        let strict_token_value_2 = get_strict_token_value(
-            token_amount as i128,
-            6,
-            oracle_price_data,
-            oracle_price_data.price * 2,
-        )
-        .unwrap();
-        let strict_token_value_3 = get_strict_token_value(
-            -(token_amount as i128),
-            6,
-            oracle_price_data,
-            oracle_price_data.price * 2,
-        )
-        .unwrap();
+        let strict_price_1 = StrictOraclePrice {
+            current: oracle_price_data.price,
+            twap_5min: Some(oracle_price_data.price / 10),
+        };
+        let strict_token_value_1 =
+            get_strict_token_value(token_amount as i128, 6, &strict_price_1).unwrap();
+
+        let strict_price_2 = StrictOraclePrice {
+            current: oracle_price_data.price,
+            twap_5min: Some(oracle_price_data.price * 2),
+        };
+        let strict_token_value_2 =
+            get_strict_token_value(token_amount as i128, 6, &strict_price_2).unwrap();
+
+        let strict_price_3 = StrictOraclePrice {
+            current: oracle_price_data.price,
+            twap_5min: Some(oracle_price_data.price * 2),
+        };
+        let strict_token_value_3 =
+            get_strict_token_value(-(token_amount as i128), 6, &strict_price_3).unwrap();
 
         assert_eq!(token_amount, 406769);
         assert_eq!(token_value, 40676900);

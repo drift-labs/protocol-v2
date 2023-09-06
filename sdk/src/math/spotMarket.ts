@@ -21,12 +21,18 @@ export function castNumberToSpotPrecision(
 
 export function calculateSpotMarketMarginRatio(
 	market: SpotMarketAccount,
+	oraclePrice: BN,
 	marginCategory: MarginCategory,
 	size: BN,
 	balanceType: SpotBalanceType
 ): number {
 	if (isVariant(balanceType, 'deposit')) {
-		const assetWeight = calculateAssetWeight(size, market, marginCategory);
+		const assetWeight = calculateAssetWeight(
+			size,
+			oraclePrice,
+			market,
+			marginCategory
+		);
 		return MARGIN_PRECISION.sub(assetWeight).toNumber();
 	} else {
 		const liabilityWeight = calculateLiabilityWeight(

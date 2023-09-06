@@ -1,13 +1,10 @@
-use solana_program::msg;
-
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
 use crate::math::safe_math::{SafeDivFloor, SafeMath};
-use crate::state::oracle::OraclePriceData;
+use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
-use crate::validate;
 
 pub fn get_spot_balance(
     token_amount: u128,
@@ -214,8 +211,7 @@ pub fn get_balance_value_and_token_amount(
 pub fn get_strict_token_value(
     token_amount: i128,
     spot_decimals: u32,
-    oracle_price_data: &OraclePriceData,
-    oracle_price_twap: i64,
+    strict_price: &StrictOraclePrice,
 ) -> DriftResult<i128> {
     if token_amount == 0 {
         return Ok(0);
@@ -223,18 +219,10 @@ pub fn get_strict_token_value(
 
     let precision_decrease = 10_i128.pow(spot_decimals);
 
-    validate!(
-        oracle_price_twap > 0 && oracle_price_data.price > 0,
-        ErrorCode::InvalidOracle,
-        "oracle_price_data={:?} oracle_price_twap={} (<= 0)",
-        oracle_price_data,
-        oracle_price_twap
-    )?;
-
     let price = if token_amount > 0 {
-        oracle_price_data.price.min(oracle_price_twap)
+        strict_price.min()
     } else {
-        oracle_price_data.price.max(oracle_price_twap)
+        strict_price.max()
     };
 
     let token_with_price = token_amount.safe_mul(price.cast()?)?;

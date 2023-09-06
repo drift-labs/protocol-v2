@@ -19,8 +19,8 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, calculate_perp_position_value_and_pnl,
     meets_maintenance_margin_requirement, MarginRequirementType,
 };
-use crate::state::oracle::OraclePriceData;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
+use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance};
 use crate::state::perp_market_map::PerpMarketMap;
@@ -722,18 +722,16 @@ fn test_lp_margin_calc() {
     assert_eq!(sim_user_pos.quote_asset_amount, -20000000000);
     assert_eq!(sim_user_pos.last_cumulative_funding_rate, 16900000000);
 
+    let strict_quote_price = StrictOraclePrice::test(1000000);
     // ensure margin calc doesnt incorrectly count funding rate (funding pnl MUST come before settling lp)
     let (margin_requirement, weighted_unrealized_pnl, worse_case_base_asset_value) =
         calculate_perp_position_value_and_pnl(
             &user.perp_positions[0],
             &market,
             &oracle_price_data,
-            1000000,
-            1000000,
+            &strict_quote_price,
             crate::math::margin::MarginRequirementType::Initial,
             0,
-            false,
-            false,
         )
         .unwrap();
 

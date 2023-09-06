@@ -655,6 +655,7 @@ export type SpotMarketAccount = {
 	maintenanceLiabilityWeight: number;
 	liquidatorFee: number;
 	imfFactor: number;
+	scaleInitialAssetWeightStart: BN;
 
 	withdrawGuardThreshold: BN;
 	depositTokenTwap: BN;
