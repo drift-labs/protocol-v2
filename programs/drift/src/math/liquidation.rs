@@ -403,9 +403,12 @@ pub fn calculate_spot_if_fee(
     liability_price: i64,
     max_if_fee: u32,
 ) -> DriftResult<u32> {
-    // If unsettled pnl asset weight is 1 and quote asset is 1, this calculation breaks
-    if asset_weight >= liability_weight {
-        return Ok(u32::MAX);
+    if asset_weight >= liability_weight
+        || liability_price == 0
+        || token_amount == 0
+        || liability_liquidation_multiplier == 0
+    {
+        return Ok(0);
     }
 
     let token_precision = 10_u128.pow(liability_decimals);
@@ -428,7 +431,7 @@ pub fn calculate_spot_if_fee(
                 .safe_mul(LIQUIDATION_FEE_PRECISION_U128)?
                 .safe_mul(token_precision)?
                 .safe_div(token_amount)?
-                .safe_div(liability_price.cast()?)?,
+                .safe_div(liability_price.cast()?)?, // price and quote precision the same
         )
         .safe_mul(LIQUIDATION_FEE_PRECISION_U128)?
         .safe_div(liability_weight)?
