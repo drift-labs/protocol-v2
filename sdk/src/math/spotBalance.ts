@@ -255,7 +255,7 @@ export function calculateLiabilityWeight(
 			);
 			break;
 		default:
-			liabilityWeight = spotMarket.initialLiabilityWeight;
+			liabilityWeight = new BN(spotMarket.initialLiabilityWeight);
 			break;
 	}
 
