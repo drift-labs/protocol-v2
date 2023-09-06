@@ -909,6 +909,29 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async updateSpotMarketScaleInitialAssetWeightStart(
+		spotMarketIndex: number,
+		scaleInitialAssetWeightStart: BN
+	): Promise<TransactionSignature> {
+		const tx =
+			this.program.transaction.updateSpotMarketScaleInitialAssetWeightStart(
+				scaleInitialAssetWeightStart,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						spotMarket: await getSpotMarketPublicKey(
+							this.program.programId,
+							spotMarketIndex
+						),
+					},
+				}
+			);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async updateInsuranceFundUnstakingPeriod(
 		spotMarketIndex: number,
 		insuranceWithdrawEscrowPeriod: BN

@@ -967,7 +967,7 @@ export class User {
 				spotPosition,
 				spotMarketAccount,
 				strictOraclePrice,
-				marginCategory
+				marginCategory ?? 'Initial'
 			);
 
 			if (worstCaseTokenAmount.gt(ZERO) && countForBase) {

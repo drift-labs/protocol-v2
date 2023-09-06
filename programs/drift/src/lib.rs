@@ -777,6 +777,16 @@ pub mod drift {
         handle_update_spot_market_max_token_deposits(ctx, max_token_deposits)
     }
 
+    pub fn update_spot_market_scale_initial_asset_weight_start(
+        ctx: Context<AdminUpdateSpotMarket>,
+        scale_initial_asset_weight_start: u64,
+    ) -> Result<()> {
+        handle_update_spot_market_scale_initial_asset_weight_start(
+            ctx,
+            scale_initial_asset_weight_start,
+        )
+    }
+
     pub fn update_spot_market_oracle(
         ctx: Context<AdminUpdateSpotMarketOracle>,
         oracle: Pubkey,

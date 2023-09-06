@@ -993,7 +993,7 @@ pub fn calculate_max_spot_order_size(
     let OrderFillSimulation {
         token_amount: mut worst_case_token_amount,
         ..
-    } = ask_simulation.riskier(bid_simulation);
+    } = OrderFillSimulation::riskier_side(ask_simulation, bid_simulation);
 
     // account for order flipping worst case
     if worst_case_token_amount < 0 && direction == PositionDirection::Long {

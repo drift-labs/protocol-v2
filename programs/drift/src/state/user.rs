@@ -484,12 +484,16 @@ pub struct OrderFillSimulation {
 }
 
 impl OrderFillSimulation {
-    pub fn riskier(self, other: Self) -> Self {
-        if self.free_collateral_contribution <= other.free_collateral_contribution {
-            self
+    pub fn riskier_side(ask: Self, bid: Self) -> Self {
+        if ask.free_collateral_contribution <= bid.free_collateral_contribution {
+            ask
         } else {
-            other
+            bid
         }
+    }
+
+    pub fn risk_increasing(&self, after: Self) -> bool {
+        after.free_collateral_contribution < self.free_collateral_contribution
     }
 }
 
@@ -533,7 +537,10 @@ impl SpotPosition {
             margin_type,
         )?;
 
-        Ok(ask_simulation.riskier(bid_simulation))
+        Ok(OrderFillSimulation::riskier_side(
+            ask_simulation,
+            bid_simulation,
+        ))
     }
 
     pub fn simulate_fills_both_sides(

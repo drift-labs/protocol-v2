@@ -1695,6 +1695,18 @@ pub fn handle_update_spot_market_max_token_deposits(
 }
 
 #[access_control(
+spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_update_spot_market_scale_initial_asset_weight_start(
+    ctx: Context<AdminUpdateSpotMarket>,
+    scale_initial_asset_weight_start: u64,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    spot_market.scale_initial_asset_weight_start = scale_initial_asset_weight_start;
+    Ok(())
+}
+
+#[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
 pub fn handle_update_spot_market_orders_enabled(

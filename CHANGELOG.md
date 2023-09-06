@@ -11,11 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - sdk: updated anchor to 0.28.1-beta.2
 - sdk: add priorityFeeSubscriber
+- program: allow up to 12500 users
+- program: scale initial asset weight for spot markets based on total deposits ([#575](https://github.com/drift-labs/protocol-v2/pull/575))
 
 ### Fixes
 
 - program: let auction start/end be the same ([#597](https://github.com/drift-labs/protocol-v2/pull/597))
 - program: account for reduce only when checking margin in trigger order ([#583](https://github.com/drift-labs/protocol-v2/pull/583))
+- program: use per_lp_base_unit for calculating base imbalance for lp jit ([#604](https://github.com/drift-labs/protocol-v2/pull/604))
 
 ### Breaking
 

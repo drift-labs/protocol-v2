@@ -3539,6 +3539,32 @@
       ]
     },
     {
+      "name": "updateSpotMarketScaleInitialAssetWeightStart",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "scaleInitialAssetWeightStart",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketOracle",
       "accounts": [
         {
@@ -5358,11 +5384,20 @@
             "type": "u64"
           },
           {
+            "name": "scaleInitialAssetWeightStart",
+            "docs": [
+              "When to begin scaling down the initial asset weight",
+              "disabled when 0",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                56
+                48
               ]
             }
           }
