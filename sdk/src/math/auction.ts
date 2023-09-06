@@ -104,3 +104,21 @@ export function getAuctionPriceForOracleOffsetAuction(
 
 	return oraclePrice.add(priceOffset);
 }
+
+export function deriveOracleAuctionParams({
+	oraclePrice,
+	auctionStartPrice,
+	auctionEndPrice,
+	limitPrice,
+}: {
+	oraclePrice: BN;
+	auctionStartPrice: BN;
+	auctionEndPrice: BN;
+	limitPrice: BN;
+}): { auctionStartPrice: BN; auctionEndPrice: BN; limitPrice: BN } {
+	return {
+		auctionStartPrice: auctionStartPrice.sub(oraclePrice),
+		auctionEndPrice: auctionEndPrice.sub(oraclePrice),
+		limitPrice: limitPrice.sub(oraclePrice),
+	};
+}
