@@ -3,14 +3,14 @@ use crate::math::casting::Cast;
 use crate::math::margin::MarginRequirementType;
 use crate::math::safe_math::SafeMath;
 use crate::{validate, MarketType, MARGIN_PRECISION_U128};
-use anchor_lang::solana_program::msg;
+use anchor_lang::{prelude::*, solana_program::msg};
 
 #[derive(Clone, Copy, Debug)]
 pub enum MarginCalculationMode {
     Standard,
     Liquidation {
         margin_buffer: u128,
-        market_to_track_margin_requirement: Option<(MarketType, u16)>,
+        market_to_track_margin_requirement: Option<MarketIdentifier>,
     },
 }
 
@@ -19,6 +19,28 @@ pub struct MarginContext {
     pub margin_type: MarginRequirementType,
     pub mode: MarginCalculationMode,
     pub strict: bool,
+}
+
+#[derive(PartialEq, Eq, Copy, Clone, Debug, AnchorSerialize, AnchorDeserialize)]
+pub struct MarketIdentifier {
+    pub market_type: MarketType,
+    pub market_index: u16,
+}
+
+impl MarketIdentifier {
+    pub fn spot(market_index: u16) -> Self {
+        Self {
+            market_type: MarketType::Spot,
+            market_index,
+        }
+    }
+
+    pub fn perp(market_index: u16) -> Self {
+        Self {
+            market_type: MarketType::Perp,
+            market_index,
+        }
+    }
 }
 
 impl MarginContext {
@@ -48,14 +70,14 @@ impl MarginContext {
 
     pub fn track_market_margin_requirement(
         mut self,
-        market: (MarketType, u16),
+        market_identifier: MarketIdentifier,
     ) -> DriftResult<Self> {
         match self.mode {
             MarginCalculationMode::Liquidation {
                 market_to_track_margin_requirement: ref mut market_to_track,
                 ..
             } => {
-                *market_to_track = Some(market);
+                *market_to_track = Some(market_identifier);
             }
             _ => {
                 msg!("Cant track market outside of liquidation mode");
@@ -113,7 +135,7 @@ impl MarginCalculation {
         &mut self,
         margin_requirement: u128,
         liability_value: u128,
-        market: (MarketType, u16),
+        market_identifier: MarketIdentifier,
     ) -> DriftResult {
         self.margin_requirement = self.margin_requirement.safe_add(margin_requirement)?;
         if let MarginCalculationMode::Liquidation { margin_buffer, .. } = self.context.mode {
@@ -125,7 +147,7 @@ impl MarginCalculation {
         }
 
         if let Some(market_to_track) = self.market_to_track_margin_requirement() {
-            if market_to_track == market {
+            if market_to_track == market_identifier {
                 self.tracked_market_margin_requirement = self
                     .tracked_market_margin_requirement
                     .safe_add(margin_requirement)?;
@@ -214,7 +236,7 @@ impl MarginCalculation {
             .cast()
     }
 
-    fn market_to_track_margin_requirement(&self) -> Option<(MarketType, u16)> {
+    fn market_to_track_margin_requirement(&self) -> Option<MarketIdentifier> {
         if let MarginCalculationMode::Liquidation {
             market_to_track_margin_requirement: track_margin_requirement,
             ..
