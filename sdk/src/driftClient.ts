@@ -113,7 +113,12 @@ import { isSpotPositionAvailable } from './math/spotPosition';
 import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
-import { JupiterClient, QuoteResponse, Route, SwapMode } from './jupiter/jupiterClient';
+import {
+	JupiterClient,
+	QuoteResponse,
+	Route,
+	SwapMode,
+} from './jupiter/jupiterClient';
 import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
@@ -3418,7 +3423,7 @@ export class DriftClient {
 		route,
 		reduceOnly,
 		txParams,
-		v6
+		v6,
 	}: {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
@@ -3433,7 +3438,7 @@ export class DriftClient {
 		txParams?: TxParams;
 		v6?: {
 			quote?: QuoteResponse;
-		}
+		};
 	}): Promise<TransactionSignature> {
 		let ixs: anchor.web3.TransactionInstruction[];
 		let lookupTables: anchor.web3.AddressLookupTableAccount[];
@@ -3613,7 +3618,7 @@ export class DriftClient {
 
 		return { ixs, lookupTables };
 	}
-	
+
 	public async getJupiterSwapIxV6({
 		jupiterClient,
 		outMarketIndex,
