@@ -307,7 +307,7 @@ pub fn liquidate_perp(
     let quote_oracle_price = oracle_map.get_price_data(&quote_spot_market.oracle)?.price;
     let liquidator_fee = market.liquidator_fee;
     let if_liquidation_fee = calculate_perp_if_fee(
-        margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
+        intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
         user_base_asset_amount,
         margin_ratio_with_buffer,
         liquidator_fee,
@@ -870,7 +870,7 @@ pub fn liquidate_spot(
         liability_weight.safe_add(liquidation_margin_buffer_ratio)?;
 
     let liquidation_if_fee = calculate_spot_if_fee(
-        margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
+        intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
         liability_amount,
         asset_weight,
         asset_liquidation_multiplier,
