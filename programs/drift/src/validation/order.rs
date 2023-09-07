@@ -79,7 +79,7 @@ fn validate_oracle_order(order: &Order, step_size: u64, min_order_size: u64) -> 
 
     match order.direction {
         PositionDirection::Long => {
-            if order.auction_start_price >= order.auction_end_price {
+            if order.auction_start_price > order.auction_end_price {
                 msg!(
                     "Auction start price offset ({}) was greater than auction end price offset ({})",
                     order.auction_start_price,
@@ -100,7 +100,7 @@ fn validate_oracle_order(order: &Order, step_size: u64, min_order_size: u64) -> 
             }
         }
         PositionDirection::Short => {
-            if order.auction_start_price <= order.auction_end_price {
+            if order.auction_start_price < order.auction_end_price {
                 msg!(
                     "Auction start price ({}) was less than auction end price ({})",
                     order.auction_start_price,
