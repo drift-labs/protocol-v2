@@ -1,0 +1,22 @@
+name: test
+
+on:
+  push:
+    branches: git-update-event
+
+jobs:
+  emit-event:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo: ['keeper-bots-v2']
+    steps:
+    - name: Emit custom event
+      run: |
+        curl -X POST \
+          -H "Authorization: token ${{ secrets.GH_PAT }}" \
+          -H "Accept: application/vnd.github.everest-preview+json" \
+          "https://api.github.com/repos/drift-labs/${{ matrix.repo }}/dispatches" \
+          -d '{"event_type": "sdk-update"}'
+      env:
+        MY_PAT: ${{ secrets.GH_PAT }}
