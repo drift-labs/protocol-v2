@@ -10,13 +10,10 @@ jobs:
     strategy:
       matrix:
         repo: ["keeper-bots-v2"]
-    defaults:
-      run:
-        working-directory: ./sdk
     steps:
     - name: Emit custom event
       run: |
-        VERSION=$(node -e "console.log(require('./package.json').version);")
+        VERSION=$(node -e "console.log(require('sdk/package.json').version);")
         curl -X POST \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: token ${{ secrets.GH_PAT }}" \
