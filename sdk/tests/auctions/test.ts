@@ -52,7 +52,7 @@ describe('Auction Tests', () => {
 		assert(oracleOrderParams.oraclePriceOffset.eq(new BN(-20).mul(PRICE_PRECISION)));
 
 		oracleOrderParams = deriveOracleAuctionParams({
-			direction: PositionDirection.LONG,
+			direction: PositionDirection.SHORT,
 			oraclePrice,
 			auctionStartPrice: oraclePrice,
 			auctionEndPrice: oraclePrice,
