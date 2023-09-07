@@ -3320,7 +3320,7 @@ export class User {
 			const { weight, weightedTokenValue } = calculateWeightedTokenValue(
 				netQuoteValue,
 				baseAssetValue,
-				oraclePriceData,
+				oraclePriceData.price,
 				spotMarketAccount,
 				marginCategory
 			);
