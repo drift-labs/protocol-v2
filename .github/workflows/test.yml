@@ -10,6 +10,9 @@ jobs:
     strategy:
       matrix:
         repo: ["keeper-bots-v2"]
+    defaults:
+      run:
+        working-directory: ./sdk
     steps:
     - name: Emit custom event
       run: |
