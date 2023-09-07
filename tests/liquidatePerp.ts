@@ -349,7 +349,7 @@ describe('liquidate perp (no open orders)', () => {
 			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(1750000))
 		);
 		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
-		assert(liquidationRecord.liquidatePerp.ifFee.eq(new BN(17500)));
+		assert(liquidationRecord.liquidatePerp.ifFee.eq(new BN(0)));
 		assert(liquidationRecord.liquidatePerp.liquidatorFee.eq(new BN(0)));
 
 		const fillRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
@@ -364,7 +364,7 @@ describe('liquidate perp (no open orders)', () => {
 				new BN(17500000000)
 			)
 		);
-		assert(fillRecord.takerFee.eq(new BN(17500)));
+		assert(fillRecord.takerFee.eq(new BN(0)));
 		assert(isVariant(fillRecord.takerOrderDirection, 'short'));
 		assert(fillRecord.makerOrderBaseAssetAmount.eq(new BN(17500000000)));
 		assert(
@@ -386,11 +386,11 @@ describe('liquidate perp (no open orders)', () => {
 
 		await driftClient.fetchAccounts();
 		assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
-		console.log(driftClient.getUserAccount().perpPositions[0].quoteAssetAmount);
+		console.log(driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString());
 		assert(
 			driftClient
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-5785008))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-5767508))
 		);
 
 		// try to add liq when bankrupt -- should fail
@@ -451,7 +451,7 @@ describe('liquidate perp (no open orders)', () => {
 			'marketAfterBankruptcy.amm.totalSocialLoss:',
 			marketAfterBankruptcy.amm.totalSocialLoss.toString()
 		);
-		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(5767507)));
+		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(5750007)));
 
 		// assert(!driftClient.getUserAccount().isBankrupt);
 		// assert(!driftClient.getUserAccount().isBeingLiquidated);
@@ -468,13 +468,13 @@ describe('liquidate perp (no open orders)', () => {
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
 		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex === 0);
-		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5785008)));
+		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5767508)));
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
 		);
 		assert(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.eq(
-				new BN(329572000)
+				new BN(328572000)
 			)
 		);
 
@@ -483,7 +483,7 @@ describe('liquidate perp (no open orders)', () => {
 			market.amm.cumulativeFundingRateLong.toString(),
 			market.amm.cumulativeFundingRateShort.toString()
 		);
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(329572000)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-329572000)));
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(328572000)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-328572000)));
 	});
 });
