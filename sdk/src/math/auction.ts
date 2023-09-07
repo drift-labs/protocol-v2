@@ -117,7 +117,7 @@ export function deriveOracleAuctionParams({
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
 	limitPrice: BN;
-}): { auctionStartPrice: BN; auctionEndPrice: BN; oraclePriceOffset: BN } {
+}): { auctionStartPrice: BN; auctionEndPrice: BN; oraclePriceOffset: number } {
 	let oraclePriceOffset = limitPrice.sub(oraclePrice);
 	if (oraclePriceOffset.eq(ZERO)) {
 		oraclePriceOffset = isVariant(direction, 'long')
@@ -125,9 +125,16 @@ export function deriveOracleAuctionParams({
 			: auctionEndPrice.sub(oraclePrice).sub(ONE);
 	}
 
+	let oraclePriceOffsetNum;
+	try {
+		oraclePriceOffsetNum = oraclePriceOffset.toNumber();
+	} catch (e) {
+		oraclePriceOffsetNum = 0;
+	}
+
 	return {
 		auctionStartPrice: auctionStartPrice.sub(oraclePrice),
 		auctionEndPrice: auctionEndPrice.sub(oraclePrice),
-		oraclePriceOffset,
+		oraclePriceOffset: oraclePriceOffsetNum,
 	};
 }
