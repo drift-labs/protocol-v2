@@ -383,7 +383,9 @@ describe('liquidate perp and lp', () => {
 
 		await driftClient.fetchAccounts();
 		assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
-		console.log(driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString());
+		console.log(
+			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
+		);
 		assert(
 			driftClient
 				.getUserAccount()
@@ -452,9 +454,7 @@ describe('liquidate perp and lp', () => {
 			'marketAfterBankruptcy.amm.totalSocialLoss:',
 			marketAfterBankruptcy.amm.totalSocialLoss.toString()
 		);
-		assert(
-			marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(4430007))
-		);
+		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(4430007)));
 
 		// assert(!driftClient.getUserAccount().isBankrupt);
 		// assert(!driftClient.getUserAccount().isBeingLiquidated);
@@ -472,15 +472,11 @@ describe('liquidate perp and lp', () => {
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
 		// console.log(perpBankruptcyRecord);
 		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex === 0);
-		console.log(
-			perpBankruptcyRecord.perpBankruptcy.pnl.toString()
-		);
+		console.log(perpBankruptcyRecord.perpBankruptcy.pnl.toString());
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
 		);
-		assert(
-			perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-4447508))
-		);
+		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-4447508)));
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
 		);
@@ -495,11 +491,7 @@ describe('liquidate perp and lp', () => {
 		// 	market.amm.cumulativeFundingRateLong.toString(),
 		// 	market.amm.cumulativeFundingRateShort.toString()
 		// );
-		assert(
-			market.amm.cumulativeFundingRateLong.eq(new BN(253144000))
-		);
-		assert(
-			market.amm.cumulativeFundingRateShort.eq(new BN(-253144000))
-		);
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(253144000)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-253144000)));
 	});
 });
