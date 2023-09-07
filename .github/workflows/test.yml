@@ -20,4 +20,4 @@ jobs:
           "https://api.github.com/repos/drift-labs/${{ matrix.repo }}/dispatches" \
           -d '{"event_type": "sdk-update"}'
       env:
-        MY_PAT: ${{ secrets.GH_PAT }}
+        GH_PAT: ${{ secrets.GH_PAT }}
