@@ -401,10 +401,16 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     )?;
 
                     calculation.add_spot_liability()?;
+                    calculation.update_with_isolated_liability(
+                        spot_market.asset_tier == AssetTier::Isolated,
+                    );
                 }
                 Ordering::Equal => {
                     if spot_position.has_open_order() {
                         calculation.add_spot_liability()?;
+                        calculation.update_with_isolated_liability(
+                            spot_market.asset_tier == AssetTier::Isolated,
+                        );
                     }
                 }
             }
@@ -502,6 +508,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             || market_position.has_open_order()
         {
             calculation.add_perp_liability()?;
+            calculation
+                .update_with_isolated_liability(market.contract_tier == ContractTier::Isolated);
         }
     }
 
@@ -536,14 +544,13 @@ pub fn meets_withdraw_margin_requirement(
         )?;
     }
 
-    // TODO add back
-    // if num_of_liabilities > 1 {
-    //     validate!(
-    //         !includes_isolated_liability,
-    //         ErrorCode::IsolatedAssetTierViolation,
-    //         "User attempting to increase number of liabilities above 1 with a isolated tier liability"
-    //     )?;
-    // }
+    if calculation.get_num_of_liabilities()? > 1 {
+        validate!(
+            !calculation.with_isolated_liability,
+            ErrorCode::IsolatedAssetTierViolation,
+            "User attempting to increase number of liabilities above 1 with a isolated tier liability"
+        )?;
+    }
 
     validate!(
         calculation.meets_margin_requirement(),
@@ -588,14 +595,13 @@ pub fn meets_place_order_margin_requirement(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    // TODO add back
-    // if num_of_liabilities > 1 {
-    //     validate!(
-    //         !includes_isolated_liability,
-    //         ErrorCode::IsolatedAssetTierViolation,
-    //         "User attempting to increase number of liabilities above 1 with a isolated tier liability"
-    //     )?;
-    // }
+    if calculation.get_num_of_liabilities()? > 1 {
+        validate!(
+            !calculation.with_isolated_liability,
+            ErrorCode::IsolatedAssetTierViolation,
+            "User attempting to increase number of liabilities above 1 with a isolated tier liability"
+        )?;
+    }
 
     Ok(())
 }
