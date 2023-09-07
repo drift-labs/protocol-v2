@@ -23,19 +23,21 @@ export class AuctionSubscriber {
 	}
 
 	public async subscribe() {
-		this.subscriber = new WebSocketProgramAccountSubscriber<UserAccount>(
-			'AuctionSubscriber',
-			'User',
-			this.driftClient.program,
-			this.driftClient.program.account.user.coder.accounts.decode.bind(
-				this.driftClient.program.account.user.coder.accounts
-			),
-			{
-				filters: [getUserFilter(), getUserWithAuctionFilter()],
-				commitment: this.driftClient.opts.commitment,
-			},
-			this.resubTimeoutMs
-		);
+		if (!this.subscriber) {
+			this.subscriber = new WebSocketProgramAccountSubscriber<UserAccount>(
+				'AuctionSubscriber',
+				'User',
+				this.driftClient.program,
+				this.driftClient.program.account.user.coder.accounts.decode.bind(
+					this.driftClient.program.account.user.coder.accounts
+				),
+				{
+					filters: [getUserFilter(), getUserWithAuctionFilter()],
+					commitment: this.driftClient.opts.commitment,
+				},
+				this.resubTimeoutMs
+			);
+		}
 
 		await this.subscriber.subscribe(
 			(accountId: PublicKey, data: UserAccount, context: Context) => {

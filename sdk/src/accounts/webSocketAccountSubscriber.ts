@@ -13,7 +13,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	decodeBufferFn: (buffer: Buffer) => T;
 	onChange: (data: T) => void;
 	listenerId?: number;
-	resubTimeoutMs: number;
+	resubTimeoutMs?: number;
 	timeoutId?: NodeJS.Timeout;
 
 	receivingData: boolean;
@@ -23,7 +23,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		program: Program,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
-		resubTimeoutMs = 30000
+		resubTimeoutMs?: number
 	) {
 		this.accountName = accountName;
 		this.program = program;
@@ -46,15 +46,21 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		this.listenerId = this.program.provider.connection.onAccountChange(
 			this.accountPublicKey,
 			(accountInfo, context) => {
-				this.receivingData = true;
-				clearTimeout(this.timeoutId);
-				this.handleRpcResponse(context, accountInfo);
-				this.setTimeout();
+				if (this.resubTimeoutMs) {
+					this.receivingData = true;
+					clearTimeout(this.timeoutId);
+					this.handleRpcResponse(context, accountInfo);
+					this.setTimeout();
+				} else {
+					this.handleRpcResponse(context, accountInfo);
+				}
 			},
 			(this.program.provider as AnchorProvider).opts.commitment
 		);
 
-		this.setTimeout();
+		if (this.resubTimeoutMs) {
+			this.setTimeout();
+		}
 	}
 
 	setData(data: T, slot?: number): void {

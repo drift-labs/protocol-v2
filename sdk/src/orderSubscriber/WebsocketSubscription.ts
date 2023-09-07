@@ -26,19 +26,21 @@ export class WebsocketSubscription {
 	}
 
 	public async subscribe(): Promise<void> {
-		this.subscriber = new WebSocketProgramAccountSubscriber<UserAccount>(
-			'OrderSubscriber',
-			'User',
-			this.orderSubscriber.driftClient.program,
-			this.orderSubscriber.driftClient.program.account.user.coder.accounts.decode.bind(
-				this.orderSubscriber.driftClient.program.account.user.coder.accounts
-			),
-			{
-				filters: [getUserFilter(), getNonIdleUserFilter()],
-				commitment: this.orderSubscriber.driftClient.opts.commitment,
-			},
-			this.resubTimeoutMs
-		);
+		if (!this.subscriber) {
+			this.subscriber = new WebSocketProgramAccountSubscriber<UserAccount>(
+				'OrderSubscriber',
+				'User',
+				this.orderSubscriber.driftClient.program,
+				this.orderSubscriber.driftClient.program.account.user.coder.accounts.decode.bind(
+					this.orderSubscriber.driftClient.program.account.user.coder.accounts
+				),
+				{
+					filters: [getUserFilter(), getNonIdleUserFilter()],
+					commitment: this.orderSubscriber.driftClient.opts.commitment,
+				},
+				this.resubTimeoutMs
+			);
+		}
 
 		await this.subscriber.subscribe(
 			(accountId: PublicKey, account: UserAccount, context: Context) => {

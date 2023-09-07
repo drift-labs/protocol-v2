@@ -20,7 +20,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	decodeBuffer: (accountName: string, ix: Buffer) => T;
 	onChange: (accountId: PublicKey, data: T, context: Context) => void;
 	listenerId?: number;
-	resubTimeoutMs: number;
+	resubTimeoutMs?: number;
 	timeoutId?: NodeJS.Timeout;
 	options: { filters: MemcmpFilter[]; commitment?: Commitment };
 
@@ -34,7 +34,7 @@ export class WebSocketProgramAccountSubscriber<T>
 		options: { filters: MemcmpFilter[]; commitment?: Commitment } = {
 			filters: [],
 		},
-		resubTimeoutMs = 30000
+		resubTimeoutMs?: number
 	) {
 		this.subscriptionName = subscriptionName;
 		this.accountDiscriminator = accountDiscriminator;
@@ -57,17 +57,23 @@ export class WebSocketProgramAccountSubscriber<T>
 		this.listenerId = this.program.provider.connection.onProgramAccountChange(
 			this.program.programId,
 			(keyedAccountInfo, context) => {
-				this.receivingData = true;
-				clearTimeout(this.timeoutId);
-				this.handleRpcResponse(context, keyedAccountInfo);
-				this.setTimeout();
+				if (this.resubTimeoutMs) {
+					this.receivingData = true;
+					clearTimeout(this.timeoutId);
+					this.handleRpcResponse(context, keyedAccountInfo);
+					this.setTimeout();
+				} else {
+					this.handleRpcResponse(context, keyedAccountInfo);
+				}
 			},
 			this.options.commitment ??
 				(this.program.provider as AnchorProvider).opts.commitment,
 			this.options.filters
 		);
 
-		this.setTimeout();
+		if (this.resubTimeoutMs) {
+			this.setTimeout();
+		}
 	}
 
 	private setTimeout(): void {
