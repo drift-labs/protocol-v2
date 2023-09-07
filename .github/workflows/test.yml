@@ -9,10 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        repo: ['keeper-bots-v2']
+        repo: ["keeper-bots-v2"]
     steps:
     - name: Emit custom event
       run: |
+        echo ${{ matrix.repo }}
         curl -X POST \
           -H "Authorization: token ${{ secrets.GH_PAT }}" \
           -H "Accept: application/vnd.github.everest-preview+json" \
