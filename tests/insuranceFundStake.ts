@@ -1093,9 +1093,8 @@ describe('insurance fund stake', () => {
 			!isVariant(secondUserDriftClient.getUserAccount().status, 'bankrupt')
 		);
 
-
 		const liquidationRecord =
-		eventSubscriber.getEventsArray('LiquidationRecord')[0];
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidateSpot'));
 		assert(liquidationRecord.liquidateSpot.liabilityMarketIndex === 0);
@@ -1128,8 +1127,6 @@ describe('insurance fund stake', () => {
 
 		// but it is zero
 		assert(liquidationRecord.liquidateSpot.ifFee.eq(ZERO));
-
-
 
 		const ifPoolBalanceAfter = getTokenAmount(
 			spotMarket.revenuePool.scaledBalance,
