@@ -121,8 +121,8 @@ export function deriveOracleAuctionParams({
 	let oraclePriceOffset = limitPrice.sub(oraclePrice);
 	if (oraclePriceOffset.eq(ZERO)) {
 		oraclePriceOffset = isVariant(direction, 'long')
-			? auctionEndPrice.add(ONE)
-			: auctionEndPrice.sub(ONE);
+			? auctionEndPrice.sub(oraclePrice).add(ONE)
+			: auctionEndPrice.sub(oraclePrice).sub(ONE);
 	}
 
 	return {
