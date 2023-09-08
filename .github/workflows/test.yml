@@ -4,18 +4,24 @@ on:
   push:
     branches: git-update-event
 
+defaults:
+  run:
+    shell: bash
+    working-directory: .
+    
 jobs:
   emit-event:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         repo: ["keeper-bots-v2"]
+    defaults:
+      run:
+        working-directory: ./sdk
     steps:
     - name: Emit custom event
       run: |
-        pwd
-        ls -la
-        VERSION=$(node -e "console.log(require('protocol-v2/sdk/package.json').version);")
+        VERSION=$(node -e "console.log(require('./package.json').version);")
         curl -X POST \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: token ${{ secrets.GH_PAT }}" \
