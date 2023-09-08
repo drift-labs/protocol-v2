@@ -447,17 +447,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         }
     }
 
-    // Most perps will have default quote market, preload the oracle price
-    let quote_market = spot_market_map.get_quote_spot_market()?;
-    let quote_oracle = quote_market.oracle;
-    let quote_price = oracle_map.get_price_data(&quote_oracle)?.price;
-    let quote_twap_5min = quote_market
-        .historical_oracle_data
-        .last_oracle_price_twap_5min;
-    let strict_quote_price = StrictOraclePrice::new(quote_price, quote_twap_5min, strict);
-    strict_quote_price.validate()?;
-    drop(quote_market);
-
     for market_position in user.perp_positions.iter() {
         if market_position.is_available() {
             continue;
@@ -465,29 +454,26 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
 
-        let strict_quote_price = if market.quote_spot_market_index != 0 {
-            let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
-            let (quote_oracle_price_data, quote_oracle_validity) = oracle_map
-                .get_price_data_and_validity(
-                    &quote_spot_market.oracle,
-                    quote_spot_market
-                        .historical_oracle_data
-                        .last_oracle_price_twap,
-                )?;
-
-            all_oracles_valid &=
-                is_oracle_valid_for_action(quote_oracle_validity, Some(DriftAction::MarginCalc))?;
-
-            StrictOraclePrice::new(
-                quote_oracle_price_data.price,
+        let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
+        let (quote_oracle_price_data, quote_oracle_validity) = oracle_map
+            .get_price_data_and_validity(
+                &quote_spot_market.oracle,
                 quote_spot_market
                     .historical_oracle_data
-                    .last_oracle_price_twap_5min,
-                strict,
-            )
-        } else {
-            strict_quote_price
-        };
+                    .last_oracle_price_twap,
+            )?;
+
+        all_oracles_valid &=
+            is_oracle_valid_for_action(quote_oracle_validity, Some(DriftAction::MarginCalc))?;
+
+        let strict_quote_price = StrictOraclePrice::new(
+            quote_oracle_price_data.price,
+            quote_spot_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
+            strict,
+        );
+        drop(quote_spot_market);
 
         let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
             &market.amm.oracle,
