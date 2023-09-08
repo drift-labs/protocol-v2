@@ -12,10 +12,15 @@ import {
 	QUOTE_PRECISION,
 	calculatePositionPNL,
 	SPOT_MARKET_BALANCE_PRECISION,
+	getWorstCaseTokenAmounts,
+	StrictOraclePrice,
+	LAMPORTS_PRECISION,
+	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+	SpotBalanceType
 } from '../../src';
 import { MockUserMap, mockPerpMarkets, mockSpotMarkets } from '../dlob/helpers';
 import { assert } from '../../src/assert/assert';
-import { mockUserAccount } from './helpers';
+import {mockUserAccount} from './helpers';
 import * as _ from 'lodash';
 
 async function makeMockUser(
@@ -222,8 +227,8 @@ describe('User Tests', () => {
 
 		myMockPerpMarkets[0].imfFactor = 550;
 		myMockUserAccount.spotPositions[0].scaledBalance = new BN(
-			100000 * SPOT_MARKET_BALANCE_PRECISION.toNumber()
-		); //100k
+			10000 * SPOT_MARKET_BALANCE_PRECISION.toNumber()
+		); //10k
 
 		const mockUser: User = await makeMockUser(
 			myMockPerpMarkets,
@@ -241,7 +246,7 @@ describe('User Tests', () => {
 
 		assert(
 			uA.spotPositions[0].scaledBalance.eq(
-				new BN(100000 * SPOT_MARKET_BALANCE_PRECISION.toNumber())
+				new BN(10000 * SPOT_MARKET_BALANCE_PRECISION.toNumber())
 			)
 		);
 		for (let i = 1; i < 8; i++) {
@@ -282,5 +287,73 @@ describe('User Tests', () => {
 			mockUser.getMaxLeverageForPerp(0).toString()
 		);
 		assert(mockUser.getMaxLeverageForPerp(0).eq(new BN('0')));
+	});
+
+	it('worst case token amount', async () => {
+		const myMockUserAccount = _.cloneDeep(mockUserAccount);
+
+		const solMarket = Object.assign({}, _.cloneDeep(mockSpotMarkets[1]), {
+			initialAssetWeight: 8000,
+			initialLiabilityWeight: 12000,
+			cumulativeDepositInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+			cumulativeBorrowInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+		});
+
+		const strictOraclePrice = new StrictOraclePrice(PRICE_PRECISION.muln(100));
+
+		let spotPosition = Object.assign({}, myMockUserAccount.spotPositions[1], {
+			marketIndex: 1,
+			openBids: new BN(100).mul( LAMPORTS_PRECISION),
+		});
+
+		let worstCase = getWorstCaseTokenAmounts(spotPosition, solMarket, strictOraclePrice, 'Initial');
+
+		assert(worstCase.tokenAmount.eq(new BN(100).mul( LAMPORTS_PRECISION))); // 100
+		assert(worstCase.tokenValue.eq(new BN(10000).mul(PRICE_PRECISION))); // $10k
+		assert(worstCase.weightedTokenValue.eq(new BN(8000).mul(PRICE_PRECISION))); // $8k
+		assert(worstCase.ordersValue.eq(new BN(-10000).mul(PRICE_PRECISION))); // -$10k
+		assert(worstCase.freeCollateralContribution.eq(new BN(-2000).mul(QUOTE_PRECISION))); // -$2k
+
+		spotPosition = Object.assign({}, myMockUserAccount.spotPositions[1], {
+			marketIndex: 1,
+			scaledBalance: new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION),
+			openBids: new BN(100).mul( LAMPORTS_PRECISION),
+		});
+
+		worstCase = getWorstCaseTokenAmounts(spotPosition, solMarket, strictOraclePrice, 'Initial');
+
+		assert(worstCase.tokenAmount.eq(new BN(200).mul(LAMPORTS_PRECISION))); // 200
+		assert(worstCase.tokenValue.eq(new BN(20000).mul(PRICE_PRECISION))); // $20k
+		assert(worstCase.weightedTokenValue.eq(new BN(16000).mul(PRICE_PRECISION))); // $16k
+		assert(worstCase.ordersValue.eq(new BN(-10000).mul(PRICE_PRECISION))); // -$10k
+		assert(worstCase.freeCollateralContribution.eq(new BN(6000).mul(QUOTE_PRECISION))); // $6k
+
+		spotPosition = Object.assign({}, myMockUserAccount.spotPositions[1], {
+			marketIndex: 1,
+			openAsks: new BN(-100).mul( LAMPORTS_PRECISION),
+		});
+
+		worstCase = getWorstCaseTokenAmounts(spotPosition, solMarket, strictOraclePrice, 'Initial');
+
+		assert(worstCase.tokenAmount.eq(new BN(-100).mul( LAMPORTS_PRECISION)));
+		assert(worstCase.tokenValue.eq(new BN(-10000).mul(PRICE_PRECISION))); // -$10k
+		assert(worstCase.weightedTokenValue.eq(new BN(-12000).mul(PRICE_PRECISION))); // -$12k
+		assert(worstCase.ordersValue.eq(new BN(10000).mul(PRICE_PRECISION))); // $10k
+		assert(worstCase.freeCollateralContribution.eq(new BN(-2000).mul(QUOTE_PRECISION))); // -$2k
+
+		spotPosition = Object.assign({}, myMockUserAccount.spotPositions[1], {
+			marketIndex: 1,
+			balanceType: SpotBalanceType.BORROW,
+			scaledBalance: new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION),
+			openAsks: new BN(-100).mul( LAMPORTS_PRECISION),
+		});
+
+		worstCase = getWorstCaseTokenAmounts(spotPosition, solMarket, strictOraclePrice, 'Initial');
+
+		assert(worstCase.tokenAmount.eq(new BN(-200).mul( LAMPORTS_PRECISION)));
+		assert(worstCase.tokenValue.eq(new BN(-20000).mul(PRICE_PRECISION))); // -$20k
+		assert(worstCase.weightedTokenValue.eq(new BN(-24000).mul(PRICE_PRECISION))); // -$24k
+		assert(worstCase.ordersValue.eq(new BN(10000).mul(PRICE_PRECISION))); // $10k
+		assert(worstCase.freeCollateralContribution.eq(new BN(-14000).mul(QUOTE_PRECISION))); // -$2k
 	});
 });

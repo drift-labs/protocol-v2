@@ -113,7 +113,12 @@ import { isSpotPositionAvailable } from './math/spotPosition';
 import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
-import { JupiterClient, Route, SwapMode } from './jupiter/jupiterClient';
+import {
+	JupiterClient,
+	QuoteResponse,
+	Route,
+	SwapMode,
+} from './jupiter/jupiterClient';
 import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
@@ -3418,6 +3423,7 @@ export class DriftClient {
 		route,
 		reduceOnly,
 		txParams,
+		v6,
 	}: {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
@@ -3430,19 +3436,44 @@ export class DriftClient {
 		route?: Route;
 		reduceOnly?: SwapReduceOnly;
 		txParams?: TxParams;
+		v6?: {
+			quote?: QuoteResponse;
+		};
 	}): Promise<TransactionSignature> {
-		const { ixs, lookupTables } = await this.getJupiterSwapIx({
-			jupiterClient,
-			outMarketIndex,
-			inMarketIndex,
-			outAssociatedTokenAccount,
-			inAssociatedTokenAccount,
-			amount,
-			slippageBps,
-			swapMode,
-			route,
-			reduceOnly,
-		});
+		let ixs: anchor.web3.TransactionInstruction[];
+		let lookupTables: anchor.web3.AddressLookupTableAccount[];
+
+		if (v6) {
+			const res = await this.getJupiterSwapIxV6({
+				jupiterClient,
+				outMarketIndex,
+				inMarketIndex,
+				outAssociatedTokenAccount,
+				inAssociatedTokenAccount,
+				amount,
+				slippageBps,
+				swapMode,
+				quote: v6.quote,
+				reduceOnly,
+			});
+			ixs = res.ixs;
+			lookupTables = res.lookupTables;
+		} else {
+			const res = await this.getJupiterSwapIx({
+				jupiterClient,
+				outMarketIndex,
+				inMarketIndex,
+				outAssociatedTokenAccount,
+				inAssociatedTokenAccount,
+				amount,
+				slippageBps,
+				swapMode,
+				route,
+				reduceOnly,
+			});
+			ixs = res.ixs;
+			lookupTables = res.lookupTables;
+		}
 
 		const tx = (await this.buildTransaction(
 			ixs,
@@ -3510,6 +3541,132 @@ export class DriftClient {
 
 		const transaction = await jupiterClient.getSwapTransaction({
 			route,
+			userPublicKey: this.provider.wallet.publicKey,
+			slippageBps,
+		});
+
+		const { transactionMessage, lookupTables } =
+			await jupiterClient.getTransactionMessageAndLookupTables({
+				transaction,
+			});
+
+		const jupiterInstructions = jupiterClient.getJupiterInstructions({
+			transactionMessage,
+			inputMint: inMarket.mint,
+			outputMint: outMarket.mint,
+		});
+
+		const preInstructions = [];
+		if (!outAssociatedTokenAccount) {
+			outAssociatedTokenAccount = await this.getAssociatedTokenAccount(
+				outMarket.marketIndex,
+				false
+			);
+
+			const accountInfo = await this.connection.getAccountInfo(
+				outAssociatedTokenAccount
+			);
+			if (!accountInfo) {
+				preInstructions.push(
+					this.createAssociatedTokenAccountIdempotentInstruction(
+						outAssociatedTokenAccount,
+						this.provider.wallet.publicKey,
+						this.provider.wallet.publicKey,
+						outMarket.mint
+					)
+				);
+			}
+		}
+
+		if (!inAssociatedTokenAccount) {
+			inAssociatedTokenAccount = await this.getAssociatedTokenAccount(
+				inMarket.marketIndex,
+				false
+			);
+
+			const accountInfo = await this.connection.getAccountInfo(
+				inAssociatedTokenAccount
+			);
+			if (!accountInfo) {
+				preInstructions.push(
+					this.createAssociatedTokenAccountIdempotentInstruction(
+						inAssociatedTokenAccount,
+						this.provider.wallet.publicKey,
+						this.provider.wallet.publicKey,
+						inMarket.mint
+					)
+				);
+			}
+		}
+
+		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
+			outMarketIndex,
+			inMarketIndex,
+			amountIn: amount,
+			inTokenAccount: inAssociatedTokenAccount,
+			outTokenAccount: outAssociatedTokenAccount,
+			reduceOnly,
+			userAccountPublicKey,
+		});
+
+		const ixs = [
+			...preInstructions,
+			beginSwapIx,
+			...jupiterInstructions,
+			endSwapIx,
+		];
+
+		return { ixs, lookupTables };
+	}
+
+	public async getJupiterSwapIxV6({
+		jupiterClient,
+		outMarketIndex,
+		inMarketIndex,
+		outAssociatedTokenAccount,
+		inAssociatedTokenAccount,
+		amount,
+		slippageBps,
+		swapMode,
+		onlyDirectRoutes,
+		quote,
+		reduceOnly,
+		userAccountPublicKey,
+	}: {
+		jupiterClient: JupiterClient;
+		outMarketIndex: number;
+		inMarketIndex: number;
+		outAssociatedTokenAccount?: PublicKey;
+		inAssociatedTokenAccount?: PublicKey;
+		amount: BN;
+		slippageBps?: number;
+		swapMode?: SwapMode;
+		onlyDirectRoutes?: boolean;
+		quote?: QuoteResponse;
+		reduceOnly?: SwapReduceOnly;
+		userAccountPublicKey?: PublicKey;
+	}): Promise<{
+		ixs: TransactionInstruction[];
+		lookupTables: AddressLookupTableAccount[];
+	}> {
+		const outMarket = this.getSpotMarketAccount(outMarketIndex);
+		const inMarket = this.getSpotMarketAccount(inMarketIndex);
+
+		if (!quote) {
+			const fetchedQuote = await jupiterClient.getQuote({
+				inputMint: inMarket.mint,
+				outputMint: outMarket.mint,
+				amount,
+				slippageBps,
+				swapMode,
+				onlyDirectRoutes,
+			});
+
+			quote = fetchedQuote;
+		}
+
+		const transaction = await jupiterClient.getSwap({
+			quote,
 			userPublicKey: this.provider.wallet.publicKey,
 			slippageBps,
 		});

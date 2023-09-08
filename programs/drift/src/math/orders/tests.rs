@@ -1632,7 +1632,7 @@ mod calculate_max_spot_order_size {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 66000 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
@@ -1641,7 +1641,7 @@ mod calculate_max_spot_order_size {
             scaled_balance: 500 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
-        let user = User {
+        let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: [PerpPosition::default(); 8],
             spot_positions,
@@ -1658,7 +1658,24 @@ mod calculate_max_spot_order_size {
         )
         .unwrap();
 
-        assert_eq!(max_order_size, 999999999999);
+        assert_eq!(max_order_size, 1000000000000);
+
+        user.spot_positions[1].open_bids = max_order_size as i64;
+
+        let (margin_requirement, total_collateral, _, _, _, _) =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &user,
+                &PerpMarketMap::empty(),
+                MarginRequirementType::Initial,
+                &spot_market_map,
+                &mut oracle_map,
+                None,
+                true,
+            )
+            .unwrap();
+
+        // still 0
+        assert_eq!(total_collateral - (margin_requirement as i128), 0);
     }
 
     #[test]
@@ -1854,7 +1871,7 @@ mod calculate_max_spot_order_size {
         )
         .unwrap();
 
-        assert_eq!(max_order_size, 3181817727272);
+        assert_eq!(max_order_size, 3227272272726);
     }
 }
 

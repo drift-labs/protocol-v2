@@ -11,9 +11,8 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
 };
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, BASE_PRECISION, BID_ASK_SPREAD_PRECISION_U128,
-    LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION,
-    TWENTY_FOUR_HOUR,
+    AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128, LP_FEE_SLICE_DENOMINATOR,
+    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -840,7 +839,9 @@ impl AMM {
             .base_asset_amount_per_lp
             .safe_sub(self.get_target_base_asset_amount_per_lp()?)?;
 
-        get_proportion_i128(target_lp_gap, self.user_lp_shares, BASE_PRECISION)
+        let base_unit = self.get_per_lp_base_unit()?.cast()?;
+
+        get_proportion_i128(target_lp_gap, self.user_lp_shares, base_unit)
     }
 
     pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> DriftResult<bool> {

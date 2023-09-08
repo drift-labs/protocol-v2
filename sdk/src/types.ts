@@ -155,6 +155,9 @@ export class OrderActionExplanation {
 	static readonly ORDER_FILLED_WITH_SERUM = {
 		orderFillWithSerum: {},
 	};
+	static readonly ORDER_FILLED_WITH_PHOENIX = {
+		orderFillWithPhoenix: {},
+	};
 	static readonly REDUCE_ONLY_ORDER_INCREASED_POSITION = {
 		reduceOnlyOrderIncreasedPosition: {},
 	};
@@ -652,6 +655,7 @@ export type SpotMarketAccount = {
 	maintenanceLiabilityWeight: number;
 	liquidatorFee: number;
 	imfFactor: number;
+	scaleInitialAssetWeightStart: BN;
 
 	withdrawGuardThreshold: BN;
 	depositTokenTwap: BN;

@@ -12,10 +12,14 @@ mod test {
     use crate::math::position::{
         calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
     };
-    use crate::state::oracle::OraclePriceData;
+    use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
     use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
     use crate::state::spot_market::{AssetTier, SpotMarket};
     use crate::state::user::PerpPosition;
+    use crate::{
+        PRICE_PRECISION_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION,
+        SPOT_CUMULATIVE_INTEREST_PRECISION,
+    };
 
     #[test]
     fn asset_tier_checks() {
@@ -80,8 +84,9 @@ mod test {
         };
 
         let size = 1000 * QUOTE_PRECISION;
+        let price = QUOTE_PRECISION_I64;
         let asset_weight = spot_market
-            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 9000);
 
@@ -92,7 +97,7 @@ mod test {
 
         spot_market.imf_factor = 10;
         let asset_weight = spot_market
-            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 9000);
 
@@ -103,13 +108,13 @@ mod test {
 
         let same_asset_weight_diff_imf_factor = 8357;
         let asset_weight = spot_market
-            .get_asset_weight(size * 1_000_000, &MarginRequirementType::Initial)
+            .get_asset_weight(size * 1_000_000, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
 
         spot_market.imf_factor = 10000;
         let asset_weight = spot_market
-            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
 
@@ -120,7 +125,7 @@ mod test {
 
         spot_market.imf_factor = SPOT_IMF_PRECISION / 10;
         let asset_weight = spot_market
-            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .get_asset_weight(size, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 2642);
 
@@ -133,6 +138,49 @@ mod test {
             .get_liability_weight(size, &MarginRequirementType::Maintenance)
             .unwrap();
         assert_eq!(maint_lib_weight, 31622);
+    }
+
+    #[test]
+    fn spot_market_scale_initial_asset_weight() {
+        let mut sol_spot_market = SpotMarket {
+            initial_asset_weight: 9000,
+            initial_liability_weight: 11000,
+            decimals: 9,
+            imf_factor: 0,
+            scale_initial_asset_weight_start: 500_000 * QUOTE_PRECISION_U64,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            ..SpotMarket::default()
+        };
+
+        let oracle_price = 25 * PRICE_PRECISION_I64;
+
+        sol_spot_market.deposit_balance = SPOT_BALANCE_PRECISION;
+        let asset_weight = sol_spot_market
+            .get_scaled_initial_asset_weight(oracle_price)
+            .unwrap();
+
+        assert_eq!(asset_weight, 9000);
+
+        sol_spot_market.deposit_balance = 20000 * SPOT_BALANCE_PRECISION;
+        let asset_weight = sol_spot_market
+            .get_scaled_initial_asset_weight(oracle_price)
+            .unwrap();
+
+        assert_eq!(asset_weight, 9000);
+
+        sol_spot_market.deposit_balance = 40000 * SPOT_BALANCE_PRECISION;
+        let asset_weight = sol_spot_market
+            .get_scaled_initial_asset_weight(oracle_price)
+            .unwrap();
+
+        assert_eq!(asset_weight, 4500);
+
+        sol_spot_market.deposit_balance = 60000 * SPOT_BALANCE_PRECISION;
+        let asset_weight = sol_spot_market
+            .get_scaled_initial_asset_weight(oracle_price)
+            .unwrap();
+
+        assert_eq!(asset_weight, 3000);
     }
 
     #[test]
@@ -191,20 +239,18 @@ mod test {
             .unwrap();
         assert_eq!(uaw, 9559);
 
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
         let (pmr, upnl, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
-            false,
         )
         .unwrap();
 
-        assert_eq!(upnl, 17580307388);
+        assert_eq!(upnl, 100000000);
         assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
@@ -270,26 +316,24 @@ mod test {
         );
         assert_eq!(position_unrealized_pnl * 800000, 19426229516800000); // 1.9 billion
 
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
         let (pmr_2, upnl_2, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
-            false,
         )
         .unwrap();
 
         let uaw_2 = market
             .get_unrealized_asset_weight(upnl_2, MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(uaw_2, 9548);
+        assert_eq!(uaw_2, 10000);
 
-        assert_eq!(upnl_2, 23107500010);
-        assert!(upnl_2 > upnl);
+        assert_eq!(upnl_2, 100000000);
+        assert!(upnl_2 == upnl);
         assert!(pmr_2 > 0);
         assert_eq!(pmr_2, 12940573769); //$12940.5737702000
         assert!(pmr > pmr_2);
@@ -335,16 +379,14 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
         let (pmr, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
-            false,
         )
         .unwrap();
 
@@ -365,12 +407,9 @@ mod test {
             &position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
-            false,
         )
         .unwrap();
 
@@ -410,16 +449,14 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
         let (pmr, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
-            false,
         )
         .unwrap();
 
@@ -435,16 +472,14 @@ mod test {
         market.amm.quote_asset_reserve = new_qar;
         market.amm.base_asset_reserve = new_bar;
 
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
         let (pmr2, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
-            QUOTE_PRECISION_I64,
-            QUOTE_PRECISION_I64,
+            &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
-            false,
         )
         .unwrap();
 
@@ -683,6 +718,8 @@ mod calculate_margin_requirement_and_total_collateral {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            initial_liability_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
