@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        repo: ["keeper-bots-v2"]
+        repo: ["jit-proxy"]
     defaults:
       run:
         working-directory: sdk
