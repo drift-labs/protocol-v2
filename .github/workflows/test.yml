@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        repo: ["jit-proxy"]
+        repo: ["jit-proxy", "internal-keeper-bot", "dlob-server", "drift-vaults"]
     defaults:
       run:
         working-directory: sdk
