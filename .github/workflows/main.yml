@@ -173,7 +173,7 @@ jobs:
         run: yarn
       - run: yarn build
       - name: Update package version
-        run: npm version prerelease --preid=beta
+        run: npm version preminor --preid=beta
       - name: Git commit
         run: |
           VERSION=$(node -e "console.log(require('./package.json').version);")
