@@ -13,6 +13,8 @@ jobs:
     steps:
     - name: Emit custom event
       run: |
+        pwd
+        ls -la
         VERSION=$(node -e "console.log(require('sdk/package.json').version);")
         curl -X POST \
           -H "Accept: application/vnd.github+json" \
