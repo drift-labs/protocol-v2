@@ -3789,6 +3789,7 @@ export class DriftClient {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts,
 			writableSpotMarketIndexes: [outMarketIndex, inMarketIndex],
+			readableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
 
 		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
