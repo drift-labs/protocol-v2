@@ -4,11 +4,6 @@ on:
   push:
     branches: git-update-event
 
-defaults:
-  run:
-    shell: bash
-    working-directory: .
-    
 jobs:
   emit-event:
     runs-on: ubuntu-latest
@@ -17,7 +12,7 @@ jobs:
         repo: ["keeper-bots-v2"]
     defaults:
       run:
-        working-directory: ./sdk
+        working-directory: sdk
     steps:
     - name: Emit custom event
       run: |
