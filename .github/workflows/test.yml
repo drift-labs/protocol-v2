@@ -15,7 +15,7 @@ jobs:
       run: |
         pwd
         ls -la
-        VERSION=$(node -e "console.log(require('sdk/package.json').version);")
+        VERSION=$(node -e "console.log(require('protocol-v2/sdk/package.json').version);")
         curl -X POST \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: token ${{ secrets.GH_PAT }}" \
