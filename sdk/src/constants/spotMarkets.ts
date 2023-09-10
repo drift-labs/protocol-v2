@@ -113,6 +113,9 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(EIGHT),
 		precisionExp: EIGHT,
 		serumMarket: new PublicKey('BbJgE7HZMaDp5NTYvRh5jZSkQPVDTU8ubPFtpogUkEj4'),
+		phoenixMarket: new PublicKey(
+			'Ew3vFDdtdGrknJAVVfraxCA37uNJtimXYPY4QjnfhFHH'
+		),
 	},
 	{
 		symbol: 'USDT',
