@@ -162,6 +162,8 @@ jobs:
     defaults:
       run:
         working-directory: ./sdk
+    outputs:
+      version: ${{ steps.git-commit.outputs.version }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup node
@@ -177,8 +179,10 @@ jobs:
           VERSION=$(node -e "console.log(require('./package.json').version);")
           [[ "$VERSION" == *beta* ]] && npm version prerelease --preid=beta || npm version preminor --preid=beta
       - name: Git commit
+        id: git-commit
         run: |
           VERSION=$(node -e "console.log(require('./package.json').version);")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           git config user.name "GitHub Actions"
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add ..
@@ -200,7 +204,6 @@ jobs:
       uses: actions/checkout@v2
     - name: Emit dispatch event
       run: |
-        VERSION=$(node -e "console.log(require('./package.json').version);")
         curl -X POST \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: token ${{ secrets.GH_PAT }}" \
@@ -211,6 +214,7 @@ jobs:
           }}"
       env:
         GH_PAT: ${{ secrets.GH_PAT }}
+        VERSION: ${{ needs.release.outputs.version }}
       working-directory: ./sdk
   verified-build:
     name: Build Verifiable Artifact
