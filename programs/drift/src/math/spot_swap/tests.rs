@@ -227,12 +227,14 @@ mod validate_price_bands_for_swap {
     fn usdc_in_sol_out() {
         let in_price = PRICE_PRECISION_I64;
         let in_market = SpotMarket {
+            market_index: 0,
             historical_oracle_data: HistoricalOracleData::default_price(in_price),
             ..SpotMarket::default_quote_market()
         };
 
         let out_price = 100 * PRICE_PRECISION_I64;
         let out_market = SpotMarket {
+            market_index: 1,
             historical_oracle_data: HistoricalOracleData::default_price(out_price),
             ..SpotMarket::default_base_market()
         };
@@ -288,23 +290,25 @@ mod validate_price_bands_for_swap {
 
     #[test]
     fn sol_in_btc_out() {
-        let in_price = 100 * PRICE_PRECISION_I64;
+        let in_price = 100 * PRICE_PRECISION_I64; // $100 SOL
         let in_market = SpotMarket {
+            market_index: 1,
             historical_oracle_data: HistoricalOracleData::default_price(in_price),
             ..SpotMarket::default_base_market()
         };
 
-        let out_price = 20000 * PRICE_PRECISION_I64;
+        let out_price = 20000 * PRICE_PRECISION_I64; // $20k BTC
         let out_market = SpotMarket {
+            market_index: 3,
             historical_oracle_data: HistoricalOracleData::default_price(out_price),
             decimals: 6,
             ..SpotMarket::default_base_market()
         };
 
-        let amount_in = LAMPORTS_PER_SOL_U64;
-        let amount_out = QUOTE_PRECISION_U64 / 200;
+        let amount_in = LAMPORTS_PER_SOL_U64; // 1 SOL
+        let amount_out = QUOTE_PRECISION_U64 / 200; // .005 BTC
 
-        let max_5min_twap_divergence = PERCENTAGE_PRECISION_U64 / 2;
+        let max_5min_twap_divergence = PERCENTAGE_PRECISION_U64 / 2; // 50%
 
         let result = validate_price_bands_for_swap(
             &in_market,

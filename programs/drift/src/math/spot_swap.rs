@@ -100,8 +100,10 @@ pub fn validate_price_bands_for_swap(
     out_price: i64,
     oracle_twap_5min_percent_divergence: u64,
 ) -> DriftResult {
-    let (fill_price, direction, oracle_price, oracle_twap_5min, margin_ratio) =
-        if in_market.market_index != 0 {
+    let (fill_price, direction, oracle_price, oracle_twap_5min, margin_ratio) = {
+        let in_market_margin_ratio = in_market.get_margin_ratio(&MarginRequirementType::Initial)?;
+
+        if in_market_margin_ratio != 0 {
             // quote value for out amount
             let out_value = get_token_value(amount_out.cast()?, out_market.decimals, out_price)?
                 .cast::<u64>()?;
@@ -114,7 +116,7 @@ pub fn validate_price_bands_for_swap(
                 PositionDirection::Short,
                 in_price,
                 in_market.historical_oracle_data.last_oracle_price_twap_5min,
-                in_market.get_margin_ratio(&MarginRequirementType::Initial)?,
+                in_market_margin_ratio,
             )
         } else {
             let fill_price =
@@ -129,7 +131,8 @@ pub fn validate_price_bands_for_swap(
                     .last_oracle_price_twap_5min,
                 out_market.get_margin_ratio(&MarginRequirementType::Initial)?,
             )
-        };
+        }
+    };
 
     validate_fill_price_within_price_bands(
         fill_price,
