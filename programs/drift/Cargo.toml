@@ -16,9 +16,9 @@ mainnet-beta=[]
 default=["mainnet-beta"]
 
 [dependencies]
-anchor-lang = "0.28.0"
-solana-program = "=1.14.18"
-anchor-spl = "0.28.0"
+anchor-lang = "0.27.0"
+solana-program = "=1.14.16"
+anchor-spl = "0.27.0"
 pyth-client = "0.2.2"
 bytemuck = { version = "1.4.0" }
 borsh = "0.9.1"
