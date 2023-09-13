@@ -13,6 +13,8 @@ import {
 	calculateAllEstimatedFundingRate,
 	calculateLongShortFundingRateAndLiveTwaps,
 	OraclePriceData,
+	getVammL2Generator,
+	BASE_PRECISION,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 
@@ -551,5 +553,54 @@ describe('AMM Tests', () => {
 		assert(oracleTwapLive.eq(new BN('1222586')));
 		assert(est1.eq(est2));
 		assert(est2.eq(new BN('-1550')));
+	});
+
+	it('orderbook L2 gen', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+
+		const mockMarket1 = myMockPerpMarkets[0];
+		const cc = 38104569 * BASE_PRECISION.toNumber();
+		mockMarket1.sqrtK = new BN(cc);
+		mockMarket1.baseAssetReserve = new BN(cc);
+		mockMarket1.maxBaseAssetAmount = mockMarket1.baseAssetReserve.mul(
+			new BN(2)
+		);
+		mockMarket1.minBaseAssetAmount = mockMarket1.baseAssetReserve.div(
+			new BN(2)
+		);
+
+		mockMarket1.quoteAssetReserve = new BN(cc);
+
+		mockMarket1.pegMultiplier = new BN(18.32 * PEG_PRECISION.toNumber());
+
+		const now = new BN(1688881915);
+
+		const oraclePriceData: OraclePriceData = {
+			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
+			slot: new BN(0),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
+			18.5535 * PRICE_PRECISION.toNumber()
+		);
+
+		const generator = getVammL2Generator({
+			marketAccount: mockMarket1,
+			oraclePriceData,
+			numOrders: 10,
+			now,
+			topofBookQuoteAmounts: [
+				new BN(10).mul(QUOTE_PRECISION),
+				new BN(100).mul(QUOTE_PRECISION),
+				new BN(1000).mul(QUOTE_PRECISION),
+				new BN(10000).mul(QUOTE_PRECISION),
+			],
+		});
+
+		const bids = Array.from(generator.getL2Asks());
+		const asks = Array.from(generator.getL2Asks());
+
+		console.log(bids, asks);
 	});
 });
