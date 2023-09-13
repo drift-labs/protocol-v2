@@ -171,13 +171,16 @@ export function getVammL2Generator({
 	);
 
 	let numBids = 0;
-	const bidSize = openBids.div(new BN(numBaseOrders));
+
+	let topOfBookBidSize = ZERO;
+	let bidSize = openBids.div(new BN(numBaseOrders));
 	const bidAmm = {
 		baseAssetReserve: bidReserves.baseAssetReserve,
 		quoteAssetReserve: bidReserves.quoteAssetReserve,
 		sqrtK: updatedAmm.sqrtK,
 		pegMultiplier: updatedAmm.pegMultiplier,
 	};
+
 	const getL2Bids = function* () {
 		while (numBids < numOrders && bidSize.gt(ZERO)) {
 			let quoteSwapped = ZERO;
@@ -195,6 +198,8 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = bidAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+				topOfBookBidSize = topOfBookBidSize.add(baseSwapped);
+				bidSize = openBids.sub(topOfBookBidSize).div(new BN(numBaseOrders));
 			} else {
 				baseSwapped = bidSize;
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
@@ -228,13 +233,15 @@ export function getVammL2Generator({
 	};
 
 	let numAsks = 0;
-	const askSize = openAsks.abs().div(new BN(numBaseOrders));
+	let topOfBookAskSize = ZERO;
+	let askSize = openAsks.abs().div(new BN(numBaseOrders));
 	const askAmm = {
 		baseAssetReserve: askReserves.baseAssetReserve,
 		quoteAssetReserve: askReserves.quoteAssetReserve,
 		sqrtK: updatedAmm.sqrtK,
 		pegMultiplier: updatedAmm.pegMultiplier,
 	};
+
 	const getL2Asks = function* () {
 		while (numAsks < numOrders && askSize.gt(ZERO)) {
 			let quoteSwapped: BN = ZERO;
@@ -242,7 +249,7 @@ export function getVammL2Generator({
 			let [afterSwapQuoteReserves, afterSwapBaseReserves] = [ZERO, ZERO];
 
 			if (numAsks < topofBookQuoteAmounts.length) {
-				quoteSwapped = topofBookQuoteAmounts[numBids];
+				quoteSwapped = topofBookQuoteAmounts[numAsks];
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(
 						askAmm,
@@ -252,8 +259,11 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = askAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
-
-				console.log('baseSwapped:', baseSwapped.toString());
+				topOfBookAskSize = topOfBookAskSize.add(baseSwapped);
+				askSize = openAsks
+					.abs()
+					.sub(topOfBookAskSize)
+					.div(new BN(numBaseOrders));
 			} else {
 				baseSwapped = askSize;
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
@@ -269,8 +279,6 @@ export function getVammL2Generator({
 					askAmm.pegMultiplier,
 					SwapDirection.REMOVE
 				);
-
-				console.log('baseSwapped:', baseSwapped.toString());
 			}
 
 			const price = quoteSwapped.mul(BASE_PRECISION).div(baseSwapped);
