@@ -447,15 +447,17 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     .last_oracle_price_twap,
             )?;
 
-        all_oracles_valid &=
-            is_oracle_valid_for_action(quote_oracle_validity, Some(DriftAction::MarginCalc))?;
+        calculation.update_all_oracles_valid(is_oracle_valid_for_action(
+            quote_oracle_validity,
+            Some(DriftAction::MarginCalc),
+        )?);
 
         let strict_quote_price = StrictOraclePrice::new(
             quote_oracle_price_data.price,
             quote_spot_market
                 .historical_oracle_data
                 .last_oracle_price_twap_5min,
-            strict,
+            calculation.context.strict,
         );
         drop(quote_spot_market);
 
