@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.39.0] - 2023-09-07
+
+### Features
+
 - sdk: updated anchor to 0.28.1-beta.2
 - sdk: add priorityFeeSubscriber
 - program: allow up to 12500 users

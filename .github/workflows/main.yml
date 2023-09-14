@@ -154,7 +154,7 @@ jobs:
         with:
           filters: |
             sdk:
-              - 'sdk/src/**'
+              - 'sdk/**'
   release:
     runs-on: ubuntu-latest
     needs: [fmt-clippy, unit, cargo-audit, yarn-prettier, yarn-lint, check-for-sdk-changes]
@@ -162,6 +162,8 @@ jobs:
     defaults:
       run:
         working-directory: ./sdk
+    outputs:
+      version: ${{ steps.git-commit.outputs.version }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup node
@@ -173,10 +175,14 @@ jobs:
         run: yarn
       - run: yarn build
       - name: Update package version
-        run: npm version prerelease --preid=beta
-      - name: Git commit
         run: |
           VERSION=$(node -e "console.log(require('./package.json').version);")
+          [[ "$VERSION" == *beta* ]] && npm version prerelease --preid=beta || npm version preminor --preid=beta
+      - name: Git commit
+        id: git-commit
+        run: |
+          VERSION=$(node -e "console.log(require('./package.json').version);")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           git config user.name "GitHub Actions"
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add ..
@@ -186,6 +192,30 @@ jobs:
         run: npm publish --access=public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  emit-dispatch-events:
+    runs-on: ubuntu-latest
+    needs: [release, check-for-sdk-changes]
+    if: ${{ github.ref == 'refs/heads/master' && needs.check-for-sdk-changes.outputs.sdk == 'true' }}
+    strategy:
+      matrix:
+        repo: ["jit-proxy", "internal-keeper-bot", "dlob-server", "drift-vaults"]
+    steps:
+    - name: Checkout code with new updated version
+      uses: actions/checkout@v2
+    - name: Emit dispatch event
+      run: |
+        curl -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: token ${{ secrets.GH_PAT }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/drift-labs/${{ matrix.repo }}/dispatches" \
+          -d "{\"event_type\": \"sdk-update\", \"client_payload\": {
+            \"version\": \"$VERSION\"
+          }}"
+      env:
+        GH_PAT: ${{ secrets.GH_PAT }}
+        VERSION: ${{ needs.release.outputs.version }}
+      working-directory: ./sdk
   verified-build:
     name: Build Verifiable Artifact
     runs-on: ubuntu-latest
