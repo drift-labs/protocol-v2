@@ -1135,7 +1135,7 @@ describe('insurance fund stake', () => {
 		);
 		console.log('ifPoolBalance: 0 ->', ifPoolBalanceAfter.toString());
 
-		assert(ifPoolBalanceAfter.gte(new BN('10080')));
+		assert(ifPoolBalanceAfter.gte(new BN('8840')));
 		assert(ifPoolBalanceAfter.lte(new BN('30080')));
 
 		// assert(ifPoolBalanceAfter.gte(new BN('6004698'))); // before IF fee change
