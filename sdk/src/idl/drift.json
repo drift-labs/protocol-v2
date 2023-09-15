@@ -6315,6 +6315,24 @@
       }
     },
     {
+      "name": "MarketIdentifier",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
       "name": "HistoricalOracleData",
       "type": {
         "kind": "struct",
@@ -8194,6 +8212,34 @@
           },
           {
             "name": "Match"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarginCalculationMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Standard"
+          },
+          {
+            "name": "Liquidation",
+            "fields": [
+              {
+                "name": "margin_buffer",
+                "type": "u128"
+              },
+              {
+                "name": "market_to_track_margin_requirement",
+                "type": {
+                  "option": {
+                    "defined": "MarketIdentifier"
+                  }
+                }
+              }
+            ]
           }
         ]
       }
@@ -10781,6 +10827,11 @@
       "code": 6254,
       "name": "UserReduceOnly",
       "msg": "UserReduceOnly"
+    },
+    {
+      "code": 6255,
+      "name": "InvalidMarginCalculation",
+      "msg": "InvalidMarginCalculation"
     }
   ]
 }
