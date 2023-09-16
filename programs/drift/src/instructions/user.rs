@@ -54,7 +54,7 @@ use crate::state::spot_market_map::{
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::{
-    MarketType, OrderTriggerCondition, OrderType, ReferrerName, User, UserStats, UserStatus,
+    MarketType, OrderTriggerCondition, OrderType, ReferrerName, User, UserStats,
 };
 use crate::state::user_map::load_user_maps;
 use crate::validate;
@@ -326,10 +326,8 @@ pub fn handle_deposit(
             state.liquidation_margin_buffer_ratio,
         )?;
 
-        if is_being_liquidated {
-            user.status = UserStatus::BeingLiquidated;
-        } else {
-            user.status = UserStatus::Active;
+        if !is_being_liquidated {
+            user.exit_liquidation();
         }
     }
 
@@ -485,7 +483,7 @@ pub fn handle_withdraw(
     validate_spot_margin_trading(user, &spot_market_map, &mut oracle_map)?;
 
     if user.is_being_liquidated() {
-        user.status = UserStatus::Active;
+        user.exit_liquidation();
     }
 
     user.update_last_active_slot(slot);
@@ -641,7 +639,7 @@ pub fn handle_transfer_deposit(
     validate_spot_margin_trading(from_user, &spot_market_map, &mut oracle_map)?;
 
     if from_user.is_being_liquidated() {
-        from_user.status = UserStatus::Active;
+        from_user.exit_liquidation();
     }
 
     from_user.update_last_active_slot(slot);
