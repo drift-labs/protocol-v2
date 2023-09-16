@@ -9,6 +9,7 @@ use phoenix::{
     state::{OrderPacket, Side},
 };
 use solana_program::{msg, program::invoke_signed_unchecked};
+use std::convert::TryFrom;
 use std::{cell::Ref, convert::TryInto, mem::size_of, ops::Deref};
 
 use crate::{
@@ -89,7 +90,7 @@ pub fn compute_base_lot_size(
         ))
 }
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Default, PartialEq, Eq, Debug)]
 #[repr(C)]
 pub struct PhoenixV1FulfillmentConfig {
@@ -270,7 +271,7 @@ impl<'a, 'b> PhoenixFulfillmentParams<'a, 'b> {
                 ErrorCode::InvalidFulfillmentConfig
             })?);
 
-        let token_program: Program<Token> = Program::try_from(token_program).map_err(|e| {
+        let token_program: Program<Token> = Program::try_from(*token_program).map_err(|e| {
             msg!("{:?}", e);
             ErrorCode::InvalidFulfillmentConfig
         })?;
