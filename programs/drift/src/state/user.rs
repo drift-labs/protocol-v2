@@ -43,7 +43,7 @@ pub enum UserStatus {
     // Active = 0
     BeingLiquidated = 0b00000001,
     Bankrupt = 0b00000010,
-    ReduceOnly = 0b00000100,
+    ReduceLiabilityOnly = 0b00000100,
 }
 
 // implement SIZE const for User
@@ -128,8 +128,8 @@ impl User {
         self.status & (UserStatus::Bankrupt as u8) > 0
     }
 
-    pub fn is_reduce_only(&self) -> bool {
-        self.status & (UserStatus::ReduceOnly as u8) > 0
+    pub fn is_reduce_liability_only(&self) -> bool {
+        self.status & (UserStatus::ReduceLiabilityOnly as u8) > 0
     }
 
     pub fn add_user_status(&mut self, status: UserStatus) {
@@ -375,16 +375,6 @@ impl User {
         // if total withdraws are greater than $10M and user has paid more than %.01 of it in fees
         self.total_withdraws >= min_total_withdraws
             && self.total_withdraws / user_stats.fees.total_fee_paid.max(1) > 10_000
-    }
-
-    pub fn update_reduce_only_status(&mut self, reduce_only: bool) -> DriftResult {
-        if reduce_only {
-            self.add_user_status(UserStatus::ReduceOnly);
-        } else {
-            self.remove_user_status(UserStatus::ReduceOnly);
-        }
-
-        Ok(())
     }
 }
 

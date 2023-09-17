@@ -514,7 +514,7 @@ pub enum ErrorCode {
     #[msg("CantUpdatePerpBidAskTwap")]
     CantUpdatePerpBidAskTwap,
     #[msg("UserReduceOnly")]
-    UserReduceOnly,
+    UserReduceLiabilityOnly,
     #[msg("InvalidMarginCalculation")]
     InvalidMarginCalculation,
 }

@@ -123,14 +123,6 @@ pub fn place_perp_order(
         )?;
     }
 
-    if user.is_reduce_only() {
-        validate!(
-            params.reduce_only,
-            ErrorCode::UserReduceOnly,
-            "order must be reduce only"
-        )?;
-    }
-
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
         None => match params.order_type {
@@ -230,6 +222,14 @@ pub fn place_perp_order(
         ErrorCode::InvalidOrderMarketType,
         "must be perp order"
     )?;
+
+    if user.is_reduce_liability_only() {
+        validate!(
+            params.reduce_only,
+            ErrorCode::UserReduceLiabilityOnly,
+            "order must be reduce only when use in reduce liability only mode"
+        )?;
+    }
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -2797,14 +2797,6 @@ pub fn place_spot_order(
         )?;
     }
 
-    if user.is_reduce_only() {
-        validate!(
-            params.reduce_only,
-            ErrorCode::UserReduceOnly,
-            "order must be reduce only"
-        )?;
-    }
-
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
         None => match params.order_type {
@@ -2934,6 +2926,20 @@ pub fn place_spot_order(
         ErrorCode::InvalidOrderMarketType,
         "must be spot order"
     )?;
+
+    if user.is_reduce_liability_only() {
+        validate!(
+            params.reduce_only,
+            ErrorCode::UserReduceLiabilityOnly,
+            "order must be reduce only when user in reduce liability only mode"
+        )?;
+
+        validate!(
+            signed_token_amount < 0,
+            ErrorCode::UserReduceLiabilityOnly,
+            "order must be reducing borrow when user in reduce liability only mode"
+        )?;
+    }
 
     let new_order = Order {
         status: OrderStatus::Open,
