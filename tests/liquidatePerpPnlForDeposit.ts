@@ -36,6 +36,7 @@ import {
 	isVariant,
 	PERCENTAGE_PRECISION,
 	QUOTE_PRECISION,
+	UserStatus,
 } from '../sdk';
 
 describe('liquidate perp pnl for deposit', () => {
@@ -261,8 +262,8 @@ describe('liquidate perp pnl for deposit', () => {
 				QUOTE_PRECISION
 			)
 		);
-		// assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
-		assert(isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
+
+		assert(driftClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED);
 
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(

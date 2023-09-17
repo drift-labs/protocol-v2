@@ -9,7 +9,6 @@ import {
 	OrderType,
 	PositionDirection,
 	OrderTriggerCondition,
-	UserStatus,
 	UserAccount,
 	ZERO,
 } from '../../src';
@@ -67,7 +66,7 @@ export const mockUserAccount: UserAccount = {
 	orders: Array.from({ length: 8 }, function () {
 		return Object.assign({}, mockOrder);
 	}),
-	status: UserStatus.ACTIVE,
+	status: 0,
 	nextLiquidationId: 0,
 	nextOrderId: 0,
 	maxMarginRatio: 0,

@@ -38,7 +38,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { Keypair } from '@solana/web3.js';
-import { BulkAccountLoader, calculateReservePrice } from '../sdk';
+import { BulkAccountLoader, calculateReservePrice, UserStatus } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -659,7 +659,8 @@ describe('delist market, liquidation of expired position', () => {
 			driftClientLoser.getUserAccount().spotPositions,
 			driftClientLoser.getUserAccount().perpPositions
 		);
-		assert(isVariant(driftClientLoser.getUserAccount().status, 'bankrupt'));
+
+		assert(driftClientLoser.getUserAccount().status === UserStatus.BANKRUPT);
 
 		const txSigBankrupt = await liquidatorDriftClient.resolvePerpBankruptcy(
 			await driftClientLoser.getUserAccountPublicKey(),
@@ -671,7 +672,7 @@ describe('delist market, liquidation of expired position', () => {
 		await printTxLogs(connection, txSigBankrupt);
 
 		await driftClientLoser.fetchAccounts();
-		assert(!isVariant(driftClientLoser.getUserAccount().status, 'bankrupt'));
+		assert(driftClientLoser.getUserAccount().status !== UserStatus.BANKRUPT);
 		assert(
 			driftClientLoser
 				.getUserAccount()

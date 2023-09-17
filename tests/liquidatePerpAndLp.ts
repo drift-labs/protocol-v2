@@ -32,7 +32,7 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, PERCENTAGE_PRECISION } from '../sdk';
+import { BulkAccountLoader, PERCENTAGE_PRECISION, UserStatus } from '../sdk';
 
 describe('liquidate perp and lp', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -316,7 +316,7 @@ describe('liquidate perp and lp', () => {
 				.perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
 		);
 
-		assert(isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
+		assert(driftClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED);
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 
 		// try to add liq when being liquidated -- should fail
@@ -382,7 +382,7 @@ describe('liquidate perp and lp', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
+		assert(driftClient.getUserAccount().status === UserStatus.BANKRUPT);
 		console.log(
 			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
 		);
@@ -456,11 +456,11 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(4430007)));
 
-		// assert(!driftClient.getUserAccount().isBankrupt);
-		// assert(!driftClient.getUserAccount().isBeingLiquidated);
-		assert(!isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
-		assert(!isVariant(driftClient.getUserAccount().status, 'bankrupt'));
-		assert(isVariant(driftClient.getUserAccount().status, 'active'));
+		assert(
+			(driftClient.getUserAccount().status &
+				(UserStatus.BANKRUPT | UserStatus.BEING_LIQUIDATED)) ===
+				0
+		);
 
 		assert(
 			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)

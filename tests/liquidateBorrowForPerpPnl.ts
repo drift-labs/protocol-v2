@@ -30,7 +30,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant } from '../sdk';
+import { BulkAccountLoader, isVariant, UserStatus } from '../sdk';
 
 describe('liquidate borrow for perp pnl', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -216,7 +216,7 @@ describe('liquidate borrow for perp pnl', () => {
 				.logMessages
 		);
 
-		assert(isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
+		assert(driftClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED);
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
 			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)

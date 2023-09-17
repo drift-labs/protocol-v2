@@ -252,7 +252,7 @@ describe('liquidate spot', () => {
 		);
 
 		// assert(!driftClient.getUserAccount().isBeingLiquidated); // out of liq territory
-		assert(!isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
+		assert(driftClient.getUserAccount().status === 0);
 
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(

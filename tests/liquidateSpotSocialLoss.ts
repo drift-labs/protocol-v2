@@ -28,7 +28,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant } from '../sdk';
+import { BulkAccountLoader, isVariant, UserStatus } from '../sdk';
 
 describe('liquidate spot w/ social loss', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -170,7 +170,7 @@ describe('liquidate spot w/ social loss', () => {
 
 		console.log(driftClient.getUserAccount().status);
 		// assert(driftClient.getUserAccount().isBeingLiquidated);
-		assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
+		assert(driftClient.getUserAccount().status === UserStatus.BANKRUPT);
 
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
@@ -332,8 +332,7 @@ describe('liquidate spot w/ social loss', () => {
 
 		await driftClient.fetchAccounts();
 
-		assert(!isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
-		assert(!isVariant(driftClient.getUserAccount().status, 'bankrupt'));
+		assert(driftClient.getUserAccount().status === 0);
 
 		// assert(!driftClient.getUserAccount().isBankrupt);
 		assert(
