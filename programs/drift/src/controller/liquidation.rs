@@ -283,7 +283,7 @@ pub fn liquidate_perp(
     validate!(
         liquidator_max_base_asset_amount != 0,
         ErrorCode::InvalidBaseAssetAmountForLiquidatePerp,
-        "liquidator_max_base_asset_amount cant be 0"
+        "liquidator_max_base_asset_amount must be greater or equal to the step size",
     )?;
 
     let user_base_asset_amount = user.perp_positions[position_index]
