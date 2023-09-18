@@ -34,7 +34,7 @@ pub struct SpotMarket {
     /// The vault used to store the market's deposits
     /// The amount in the vault should be equal to or greater than deposits - borrows
     pub vault: Pubkey,
-    /// The encoded display name fo the market e.g. SOL
+    /// The encoded display name for the market e.g. SOL
     pub name: [u8; 32],
     pub historical_oracle_data: HistoricalOracleData,
     pub historical_index_data: HistoricalIndexData,
@@ -56,7 +56,7 @@ pub struct SpotMarket {
     pub deposit_balance: u128,
     /// The sum of the scaled balances for borrows across users and pool balances
     /// To convert to the borrow token amount, multiply by the cumulative borrow interest
-    /// precision: SPOT_BALANCE_PRECISION   
+    /// precision: SPOT_BALANCE_PRECISION
     pub borrow_balance: u128,
     /// The cumulative interest earned by depositors
     /// Used to calculate the deposit token amount from the deposit balance
