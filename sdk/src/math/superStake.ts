@@ -190,9 +190,11 @@ export async function findBestJitoSolSuperStakeIxs({
 }
 
 export async function calculateSolEarned({
+	marketIndex,
 	user,
 	depositRecords,
 }: {
+	marketIndex: number;
 	user: User;
 	depositRecords: DepositRecord[];
 }): Promise<BN> {
@@ -202,20 +204,23 @@ export async function calculateSolEarned({
 		...depositRecords.map((r) => r.ts.toNumber()),
 	];
 
-	const msolRatios = new Map<number, number>();
+	const lstRatios = new Map<number, number>();
 
-	const getPrice = async (timestamp) => {
+	const getMsolPrice = async (timestamp) => {
 		const date = new Date(timestamp * 1000); // Convert Unix timestamp to milliseconds
 		const swaggerApiDateTime = date.toISOString(); // Format date as swagger API date-time
 		const url = `https://api.marinade.finance/msol/price_sol?time=${swaggerApiDateTime}`;
 		const response = await fetch(url);
 		if (response.status === 200) {
 			const data = await response.json();
-			msolRatios.set(timestamp, data);
+			lstRatios.set(timestamp, data);
 		}
 	};
 
-	await Promise.all(timestamps.map(getPrice));
+	// todo add jitosol
+	if (marketIndex === 2) {
+		await Promise.all(timestamps.map(getMsolPrice));
+	}
 
 	let solEarned = ZERO;
 	for (const record of depositRecords) {
@@ -226,7 +231,7 @@ export async function calculateSolEarned({
 				solEarned = solEarned.add(record.amount);
 			}
 		} else if (record.marketIndex === 2) {
-			const msolRatio = msolRatios.get(record.ts.toNumber());
+			const msolRatio = lstRatios.get(record.ts.toNumber());
 			const msolRatioBN = new BN(msolRatio * LAMPORTS_PER_SOL);
 
 			const solAmount = record.amount.mul(msolRatioBN).div(LAMPORTS_PRECISION);
@@ -235,18 +240,34 @@ export async function calculateSolEarned({
 			} else {
 				solEarned = solEarned.add(solAmount);
 			}
+		} else if (record.marketIndex === 6) {
+			const jitoSolRatio = lstRatios.get(record.ts.toNumber());
+			const jitoSolRatioBN = new BN(jitoSolRatio * LAMPORTS_PER_SOL);
+
+			const solAmount = record.amount
+				.mul(jitoSolRatioBN)
+				.div(LAMPORTS_PRECISION);
+			if (isVariant(record.direction, 'deposit')) {
+				solEarned = solEarned.sub(solAmount);
+			} else {
+				solEarned = solEarned.add(solAmount);
+			}
 		}
 	}
 
-	const currentMSOLTokenAmount = await user.getTokenAmount(2);
+	// todo add jitosol
+	if (marketIndex === 2) {
+		const currentMSOLTokenAmount = await user.getTokenAmount(2);
+
+		const currentMSOLRatio = lstRatios.get(now);
+		const currentMSOLRatioBN = new BN(currentMSOLRatio * LAMPORTS_PER_SOL);
+
+		solEarned = solEarned.add(
+			currentMSOLTokenAmount.mul(currentMSOLRatioBN).div(LAMPORTS_PRECISION)
+		);
+	}
+
 	const currentSOLTokenAmount = await user.getTokenAmount(1);
-
-	const currentMSOLRatio = msolRatios.get(now);
-	const currentMSOLRatioBN = new BN(currentMSOLRatio * LAMPORTS_PER_SOL);
-
-	solEarned = solEarned.add(
-		currentMSOLTokenAmount.mul(currentMSOLRatioBN).div(LAMPORTS_PRECISION)
-	);
 	solEarned = solEarned.add(currentSOLTokenAmount);
 
 	return solEarned;
