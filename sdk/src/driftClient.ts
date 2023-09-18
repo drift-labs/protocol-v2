@@ -3424,6 +3424,7 @@ export class DriftClient {
 		reduceOnly,
 		txParams,
 		v6,
+		onlyDirectRoutes = false
 	}: {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
@@ -3436,6 +3437,7 @@ export class DriftClient {
 		route?: Route;
 		reduceOnly?: SwapReduceOnly;
 		txParams?: TxParams;
+		onlyDirectRoutes?: boolean;
 		v6?: {
 			quote?: QuoteResponse;
 		};
@@ -3455,6 +3457,7 @@ export class DriftClient {
 				swapMode,
 				quote: v6.quote,
 				reduceOnly,
+				onlyDirectRoutes
 			});
 			ixs = res.ixs;
 			lookupTables = res.lookupTables;
