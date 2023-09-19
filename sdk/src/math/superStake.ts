@@ -10,8 +10,9 @@ import { getMarinadeFinanceProgram, getMarinadeMSolPrice } from '../marinade';
 import { BN } from '@coral-xyz/anchor';
 import { User } from '../user';
 import { DepositRecord, isVariant } from '../types';
-import { LAMPORTS_PRECISION, ZERO } from '../constants/numericConstants';
+import { LAMPORTS_PRECISION, ZERO, NINE } from '../constants/numericConstants';
 import fetch from 'node-fetch';
+import { checkSameDate } from './utils';
 
 export async function findBestSuperStakeIxs({
 	marketIndex,
@@ -189,6 +190,110 @@ export async function findBestJitoSolSuperStakeIxs({
 	};
 }
 
+export type JITO_SOL_METRICS_ENDPOINT_RESPONSE = {
+	data: {
+		getStakePoolStats: {
+			tvl: {
+				// TVL in SOL, BN
+				data: number;
+				date: string;
+			}[];
+			supply: {
+				// jitoSOL supply
+				data: number;
+				date: string;
+			}[];
+			apy: {
+				data: number;
+				date: string;
+			}[];
+		};
+	};
+};
+
+const JITO_SOL_START_DATE = '2022-10-31T00:00:00Z';
+
+export async function fetchJitoSolMetrics() {
+	const res = await fetch('https://kobe.mainnet.jito.network/', {
+		body: JSON.stringify({
+			operationName: 'QueryRoot',
+			variables: {
+				request: {
+					bucketType: 'DAILY',
+					rangeFilter: {
+						start: JITO_SOL_START_DATE,
+						end: new Date().toISOString(),
+					},
+					sortBy: {
+						order: 'ASC',
+						field: 'BLOCK_TIME',
+					},
+				},
+			},
+			query: `
+						query QueryRoot($request: GetStakePoolStatsRequest!) {
+								getStakePoolStats(req: $request) {
+										tvl {
+												data
+												date
+										}
+										apy {
+												data
+												date
+										}
+										supply {
+												data
+												date
+										}
+								}
+						}
+				`,
+		}),
+		method: 'POST',
+	});
+
+	const data: JITO_SOL_METRICS_ENDPOINT_RESPONSE = await res.json();
+
+	return data;
+}
+
+const getJitoSolHistoricalPriceMap = async (timestamps: number[]) => {
+	try {
+		const data = await fetchJitoSolMetrics();
+		const jitoSolHistoricalPriceMap = new Map<number, number>();
+		const jitoSolHistoricalPriceInSol = [];
+
+		for (let i = 0; i < data.data.getStakePoolStats.supply.length; i++) {
+			const priceInSol =
+				data.data.getStakePoolStats.tvl[i].data /
+				new BN(10).pow(NINE) /
+				data.data.getStakePoolStats.supply[i].data;
+			jitoSolHistoricalPriceInSol.push({
+				price: priceInSol,
+				ts: data.data.getStakePoolStats.tvl[i].date,
+			});
+		}
+
+		for (const timestamp of timestamps) {
+			const date = new Date(timestamp * 1000);
+			const dateString = date.toISOString();
+
+			const price = jitoSolHistoricalPriceInSol.find((p) =>
+				checkSameDate(p.ts, dateString)
+			);
+
+			if (price) {
+				jitoSolHistoricalPriceMap.set(timestamp, price.price);
+			}
+		}
+
+		return jitoSolHistoricalPriceMap;
+	} catch (err) {
+		console.error(err);
+		return undefined;
+	}
+};
+
 export async function calculateSolEarned({
 	marketIndex,
 	user,
@@ -204,7 +309,7 @@ export async function calculateSolEarned({
 		...depositRecords.map((r) => r.ts.toNumber()),
 	];
 
-	const lstRatios = new Map<number, number>();
+	let lstRatios = new Map<number, number>();
 
 	const getMsolPrice = async (timestamp) => {
 		const date = new Date(timestamp * 1000); // Convert Unix timestamp to milliseconds
@@ -217,9 +322,10 @@ export async function calculateSolEarned({
 		}
 	};
 
-	// todo add jitosol
 	if (marketIndex === 2) {
 		await Promise.all(timestamps.map(getMsolPrice));
+	} else if (marketIndex === 6) {
+		lstRatios = await getJitoSolHistoricalPriceMap(timestamps);
 	}
 
 	let solEarned = ZERO;
@@ -255,17 +361,13 @@ export async function calculateSolEarned({
 		}
 	}
 
-	// todo add jitosol
-	if (marketIndex === 2) {
-		const currentMSOLTokenAmount = await user.getTokenAmount(2);
+	const currentLstTokenAmount = await user.getTokenAmount(marketIndex);
+	const currentLstRatio = lstRatios.get(now);
+	const currentLstRatioBN = new BN(currentLstRatio * LAMPORTS_PER_SOL);
 
-		const currentMSOLRatio = lstRatios.get(now);
-		const currentMSOLRatioBN = new BN(currentMSOLRatio * LAMPORTS_PER_SOL);
-
-		solEarned = solEarned.add(
-			currentMSOLTokenAmount.mul(currentMSOLRatioBN).div(LAMPORTS_PRECISION)
-		);
-	}
+	solEarned = solEarned.add(
+		currentLstTokenAmount.mul(currentLstRatioBN).div(LAMPORTS_PRECISION)
+	);
 
 	const currentSOLTokenAmount = await user.getTokenAmount(1);
 	solEarned = solEarned.add(currentSOLTokenAmount);
