@@ -278,7 +278,8 @@ export class DriftClient {
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
 				config.oracleInfos ?? [],
-				noMarketsAndOraclesSpecified
+				noMarketsAndOraclesSpecified,
+				config.accountSubscription?.resubTimeoutMs
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
