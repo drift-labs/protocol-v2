@@ -128,7 +128,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		serumMarket: new PublicKey('B2na8Awyd7cpC59iEU43FagJAPLigr3AP3s38KM982bu'),
 	},
 	{
-		symbol: 'jitoSOL',
+		symbol: 'JitoSOL',
 		marketIndex: 6,
 		oracle: new PublicKey('7yyaeuJ1GGtVBLT2z2xub5ZWYKaNhF28mj1RdV4VDFVk'),
 		oracleSource: OracleSource.PYTH,
