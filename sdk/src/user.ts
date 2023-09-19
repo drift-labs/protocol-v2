@@ -1465,8 +1465,10 @@ export class User {
 	 * calculates current user leverage which is (total liability size) / (net asset value)
 	 * @returns : Precision TEN_THOUSAND
 	 */
-	public getLeverage(): BN {
-		return this.calculateLeverageFromComponents(this.getLeverageComponents());
+	public getLeverage(includeOpenOrders = true): BN {
+		return this.calculateLeverageFromComponents(
+			this.getLeverageComponents(includeOpenOrders)
+		);
 	}
 
 	calculateLeverageFromComponents({
@@ -1491,7 +1493,7 @@ export class User {
 		return totalLiabilityValue.mul(TEN_THOUSAND).div(netAssetValue);
 	}
 
-	getLeverageComponents(): {
+	getLeverageComponents(includeOpenOrders = true): {
 		perpLiabilityValue: BN;
 		perpPnl: BN;
 		spotAssetValue: BN;
@@ -1500,7 +1502,7 @@ export class User {
 		const perpLiability = this.getTotalPerpPositionValue(
 			undefined,
 			undefined,
-			true
+			includeOpenOrders
 		);
 		const perpPnl = this.getUnrealizedPNL(true);
 
@@ -1511,7 +1513,7 @@ export class User {
 			undefined,
 			undefined,
 			undefined,
-			true
+			includeOpenOrders
 		);
 
 		return {
