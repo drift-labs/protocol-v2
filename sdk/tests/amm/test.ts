@@ -559,7 +559,7 @@ describe('AMM Tests', () => {
 		assert(est2.eq(new BN('-1550')));
 	});
 
-	it('orderbook L2 gen (no topofBookQuoteAmounts, 10 numOrders)', async () => {
+	it('orderbook L2 gen (no topOfBookQuoteAmounts, 10 numOrders)', async () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 
 		const mockMarket1: PerpMarketAccount = myMockPerpMarkets[0];
@@ -601,7 +601,7 @@ describe('AMM Tests', () => {
 			oraclePriceData,
 			numOrders: 10,
 			now,
-			topofBookQuoteAmounts: [],
+			topOfBookQuoteAmounts: [],
 		});
 
 		const bids = Array.from(generator.getL2Bids());
@@ -634,7 +634,7 @@ describe('AMM Tests', () => {
 		assert(totalAskSize.sub(openAsks.abs()).lte(new BN(5))); // only tiny rounding errors
 	});
 
-	it('orderbook L2 gen (4 topofBookQuoteAmounts, 10 numOrders)', async () => {
+	it('orderbook L2 gen (4 topOfBookQuoteAmounts, 10 numOrders)', async () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 
 		const mockMarket1: PerpMarketAccount = myMockPerpMarkets[0];
@@ -678,7 +678,7 @@ describe('AMM Tests', () => {
 			oraclePriceData,
 			numOrders: 10,
 			now,
-			topofBookQuoteAmounts: [
+			topOfBookQuoteAmounts: [
 				new BN(10).mul(QUOTE_PRECISION),
 				new BN(100).mul(QUOTE_PRECISION),
 				new BN(1000).mul(QUOTE_PRECISION),

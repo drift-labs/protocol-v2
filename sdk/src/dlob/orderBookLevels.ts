@@ -140,18 +140,18 @@ export function getVammL2Generator({
 	oraclePriceData,
 	numOrders,
 	now,
-	topofBookQuoteAmounts,
+	topOfBookQuoteAmounts,
 }: {
 	marketAccount: PerpMarketAccount;
 	oraclePriceData: OraclePriceData;
 	numOrders: number;
 	now?: BN;
-	topofBookQuoteAmounts?: BN[];
+	topOfBookQuoteAmounts?: BN[];
 }): L2OrderBookGenerator {
 	let numBaseOrders = numOrders;
-	if (topofBookQuoteAmounts) {
-		numBaseOrders = numOrders - topofBookQuoteAmounts.length;
-		assert(topofBookQuoteAmounts.length < numOrders);
+	if (topOfBookQuoteAmounts) {
+		numBaseOrders = numOrders - topOfBookQuoteAmounts.length;
+		assert(topOfBookQuoteAmounts.length < numOrders);
 	}
 
 	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, oraclePriceData);
@@ -187,8 +187,8 @@ export function getVammL2Generator({
 			let baseSwapped = ZERO;
 			let [afterSwapQuoteReserves, afterSwapBaseReserves] = [ZERO, ZERO];
 
-			if (numBids < topofBookQuoteAmounts.length) {
-				quoteSwapped = topofBookQuoteAmounts[numBids];
+			if (topOfBookQuoteAmounts && numBids < topOfBookQuoteAmounts?.length) {
+				quoteSwapped = topOfBookQuoteAmounts[numBids];
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(
 						bidAmm,
@@ -248,8 +248,8 @@ export function getVammL2Generator({
 			let baseSwapped: BN = ZERO;
 			let [afterSwapQuoteReserves, afterSwapBaseReserves] = [ZERO, ZERO];
 
-			if (numAsks < topofBookQuoteAmounts.length) {
-				quoteSwapped = topofBookQuoteAmounts[numAsks];
+			if (topOfBookQuoteAmounts && numAsks < topOfBookQuoteAmounts?.length) {
+				quoteSwapped = topOfBookQuoteAmounts[numAsks];
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(
 						askAmm,
