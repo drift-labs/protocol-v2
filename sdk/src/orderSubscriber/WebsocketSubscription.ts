@@ -59,6 +59,7 @@ export class WebsocketSubscription {
 	}
 
 	public async unsubscribe(): Promise<void> {
+		if (!this.subscriber) return;
 		this.subscriber.unsubscribe();
 	}
 }
