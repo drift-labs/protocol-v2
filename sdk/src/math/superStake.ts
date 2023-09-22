@@ -266,7 +266,7 @@ const getJitoSolHistoricalPriceMap = async (timestamps: number[]) => {
 		for (let i = 0; i < data.data.getStakePoolStats.supply.length; i++) {
 			const priceInSol =
 				data.data.getStakePoolStats.tvl[i].data /
-				new BN(10).pow(NINE) /
+				10 ** 9 /
 				data.data.getStakePoolStats.supply[i].data;
 			jitoSolHistoricalPriceInSol.push({
 				price: priceInSol,
