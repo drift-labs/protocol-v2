@@ -8,7 +8,7 @@ import {
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { PublicKey } from '@solana/web3.js';
+import { Context, PublicKey } from '@solana/web3.js';
 import { Account } from '@solana/spl-token';
 import { OracleInfo, OraclePriceData } from '..';
 
@@ -19,6 +19,13 @@ export interface AccountSubscriber<T> {
 	unsubscribe(): Promise<void>;
 
 	setData(userAccount: T, slot?: number): void;
+}
+
+export interface ProgramAccountSubscriber<T> {
+	subscribe(
+		onChange: (accountId: PublicKey, data: T, context: Context) => void
+	): Promise<void>;
+	unsubscribe(): Promise<void>;
 }
 
 export class NotSubscribedError extends Error {
