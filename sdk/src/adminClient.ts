@@ -24,7 +24,7 @@ import {
 	getInsuranceFundVaultPublicKey,
 	getSerumOpenOrdersPublicKey,
 	getSerumFulfillmentConfigPublicKey,
-	getPhoenixFulfillmentConfigPublicKey,
+	getPhoenixFulfillmentConfigPublicKey, getProtocolIfSharesTransferConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -1512,6 +1512,33 @@ export class AdminClient extends DriftClient {
 						this.program.programId,
 						spotMarketIndex
 					),
+				},
+			}
+		);
+	}
+
+	public async initializeProtocolIfSharesTransferConfig(): Promise<TransactionSignature> {
+		return await this.program.rpc.initializeProtocolIfSharesTransferConfig(
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					protocolIfSharesTransferConfig: getProtocolIfSharesTransferConfigPublicKey(this.program.programId)
+				},
+			}
+		);
+	}
+
+	public async updateProtocolIfSharesTransferConfig(whitelistedSigner: PublicKey): Promise<TransactionSignature> {
+		return await this.program.rpc.initializeProtocolIfSharesTransferConfig(
+			whitelistedSigner,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					protocolIfSharesTransferConfig: getProtocolIfSharesTransferConfigPublicKey(this.program.programId)
 				},
 			}
 		);

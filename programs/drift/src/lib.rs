@@ -1056,6 +1056,19 @@ pub mod drift {
     ) -> Result<()> {
         handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
     }
+
+    pub fn initialize_protocol_if_shares_transfer_config(
+        ctx: Context<InitializeProtocolIfSharesTransferConfig>,
+    ) -> Result<()> {
+        handle_initialize_protocol_if_shares_transfer_config(ctx)
+    }
+
+    pub fn update_protocol_if_shares_transfer_config(
+        ctx: Context<UpdateProtocolIfSharesTransferConfig>,
+        whitelisted_signer: Pubkey,
+    ) -> Result<()> {
+        handle_update_protocol_if_shares_transfer_config(ctx, whitelisted_signer)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

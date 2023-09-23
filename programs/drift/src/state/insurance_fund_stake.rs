@@ -85,3 +85,16 @@ impl InsuranceFundStake {
         Ok(())
     }
 }
+
+#[account(zero_copy(unsafe))]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct ProtocolIfSharesTransferConfig {
+    pub whitelisted_signer: Pubkey,
+    pub padding: [u128; 8],
+}
+
+// implement SIZE const for ProtocolIfSharesTransferConfig
+impl Size for ProtocolIfSharesTransferConfig {
+    const SIZE: usize = 168;
+}

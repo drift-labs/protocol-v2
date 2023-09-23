@@ -34,6 +34,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
 use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
+use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
     get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
     OracleSource,
@@ -2244,6 +2245,24 @@ pub fn handle_admin_disable_update_perp_bid_ask_twap(
     Ok(())
 }
 
+pub fn handle_initialize_protocol_if_shares_transfer_config(
+    ctx: Context<InitializeProtocolIfSharesTransferConfig>,
+) -> Result<()> {
+    ctx.accounts
+        .protocol_if_shares_transfer_config
+        .load_init()?;
+    Ok(())
+}
+
+pub fn handle_update_protocol_if_shares_transfer_config(
+    ctx: Context<UpdateProtocolIfSharesTransferConfig>,
+    whitelisted_signer: Pubkey,
+) -> Result<()> {
+    let mut config = ctx.accounts.protocol_if_shares_transfer_config.load_mut()?;
+    config.whitelisted_signer = whitelisted_signer;
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -2638,4 +2657,40 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeProtocolIfSharesTransferConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"protocol_if_shares_transfer_config".as_ref()],
+        space = ProtocolIfSharesTransferConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub protocol_if_shares_transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateProtocolIfSharesTransferConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"protocol_if_shares_transfer_config".as_ref()],
+        bump,
+    )]
+    pub protocol_if_shares_transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
 }

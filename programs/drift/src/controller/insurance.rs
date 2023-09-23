@@ -477,7 +477,7 @@ pub fn admin_remove_insurance_fund_stake(
     Ok(withdraw_amount)
 }
 
-pub fn admin_transfer_insurance_fund_stake(
+pub fn transfer_protocol_insurance_fund_stake(
     insurance_vault_amount: u64,
     n_shares: u128,
     target_insurance_fund_stake: &mut InsuranceFundStake,
