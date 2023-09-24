@@ -484,7 +484,7 @@ pub fn transfer_protocol_insurance_fund_stake(
     user_stats: &mut UserStats,
     spot_market: &mut SpotMarket,
     now: i64,
-    admin_pubkey: Pubkey,
+    signer_pubkey: Pubkey,
 ) -> DriftResult<u64> {
     apply_rebase_to_insurance_fund(insurance_vault_amount, spot_market)?;
 
@@ -529,7 +529,7 @@ pub fn transfer_protocol_insurance_fund_stake(
 
     emit!(InsuranceFundStakeRecord {
         ts: now,
-        user_authority: admin_pubkey,
+        user_authority: signer_pubkey,
         action: StakeAction::UnstakeTransfer,
         amount: withdraw_amount,
         market_index: spot_market.market_index,
