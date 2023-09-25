@@ -8,9 +8,9 @@ import {
 	SlotSource,
 } from './types';
 import { DriftClient } from '../driftClient';
-import { BN, QUOTE_PRECISION } from '..';
 import { isVariant, MarketType } from '../types';
 import {
+	DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
 	getVammL2Generator,
 	L2OrderBook,
 	L2OrderBookGenerator,
@@ -126,12 +126,7 @@ export class DLOBSubscriber {
 					marketAccount: this.driftClient.getPerpMarketAccount(marketIndex),
 					oraclePriceData,
 					numOrders: numVammOrders ?? depth,
-					topOfBookQuoteAmounts: [
-						new BN(250).mul(QUOTE_PRECISION),
-						new BN(1000).mul(QUOTE_PRECISION),
-						new BN(5000).mul(QUOTE_PRECISION),
-						new BN(10000).mul(QUOTE_PRECISION),
-					],
+					topOfBookQuoteAmounts: DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
 				}),
 			];
 		}

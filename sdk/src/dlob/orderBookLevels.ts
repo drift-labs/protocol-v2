@@ -10,6 +10,7 @@ import {
 	OraclePriceData,
 	PerpMarketAccount,
 	PositionDirection,
+	QUOTE_PRECISION,
 	standardizePrice,
 	SwapDirection,
 	ZERO,
@@ -46,6 +47,14 @@ export type L3OrderBook = {
 	asks: L3Level[];
 	bids: L3Level[];
 };
+
+export const DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS = [
+	new BN(100).mul(QUOTE_PRECISION),
+	new BN(500).mul(QUOTE_PRECISION),
+	new BN(1000).mul(QUOTE_PRECISION),
+	new BN(2000).mul(QUOTE_PRECISION),
+	new BN(5000).mul(QUOTE_PRECISION),
+];
 
 /**
  * Get an {@link Generator<L2Level>} generator from a {@link Generator<DLOBNode>}
