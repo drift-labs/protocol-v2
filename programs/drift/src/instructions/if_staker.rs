@@ -244,7 +244,7 @@ pub fn handle_transfer_protocol_if_shares(
     market_index: u16,
     shares: u128,
 ) -> Result<()> {
-    let transfer_config = &ctx.accounts.transfer_config.load()?;
+    let mut transfer_config = ctx.accounts.transfer_config.load_mut()?;
     validate!(
         transfer_config.whitelisted_signer == ctx.accounts.signer.key(),
         ErrorCode::DefaultError,
@@ -256,6 +256,11 @@ pub fn handle_transfer_protocol_if_shares(
         ErrorCode::DefaultError,
         "must be if for quote spot market"
     )?;
+
+    let now = Clock::get()?.unix_timestamp;
+    transfer_config.update_epoch(now)?;
+    transfer_config.validate_transfer(shares)?;
+    transfer_config.current_epoch_transfer += shares;
 
     let mut if_stake = ctx.accounts.insurance_fund_stake.load_mut()?;
     let mut user_stats = ctx.accounts.user_stats.load_mut()?;
@@ -423,6 +428,7 @@ pub struct RemoveInsuranceFundStake<'info> {
 #[instruction(market_index: u16,)]
 pub struct TransferProtocolIfShares<'info> {
     pub signer: Signer<'info>,
+    #[account(mut)]
     pub transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
     pub state: Box<Account<'info, State>>,
     #[account(

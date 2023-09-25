@@ -8,7 +8,6 @@ use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
 use crate::error::ErrorCode;
-use crate::get_then_update_id;
 use crate::instructions::constraints::*;
 use crate::load;
 use crate::load_mut;
@@ -54,6 +53,7 @@ use crate::validation::margin::{validate_margin, validate_margin_weights};
 use crate::validation::perp_market::validate_perp_market;
 use crate::validation::spot_market::validate_borrow_rate;
 use crate::{controller, QUOTE_PRECISION_I64};
+use crate::{get_then_update_id, EPOCH_DURATION};
 use crate::{math, safe_decrement, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -2248,18 +2248,31 @@ pub fn handle_admin_disable_update_perp_bid_ask_twap(
 pub fn handle_initialize_protocol_if_shares_transfer_config(
     ctx: Context<InitializeProtocolIfSharesTransferConfig>,
 ) -> Result<()> {
-    ctx.accounts
+    let mut config = ctx
+        .accounts
         .protocol_if_shares_transfer_config
         .load_init()?;
+
+    let now = Clock::get()?.unix_timestamp;
+    config.next_epoch_ts = now.safe_add(EPOCH_DURATION)?;
+
     Ok(())
 }
 
 pub fn handle_update_protocol_if_shares_transfer_config(
     ctx: Context<UpdateProtocolIfSharesTransferConfig>,
-    whitelisted_signer: Pubkey,
+    whitelisted_signer: Option<Pubkey>,
+    max_transfer_per_epoch: Option<u128>,
 ) -> Result<()> {
     let mut config = ctx.accounts.protocol_if_shares_transfer_config.load_mut()?;
-    config.whitelisted_signer = whitelisted_signer;
+
+    if let Some(whitelisted_signer) = whitelisted_signer {
+        config.whitelisted_signer = whitelisted_signer;
+    }
+
+    if let Some(max_transfer_per_epoch) = max_transfer_per_epoch {
+        config.max_transfer_per_epoch = max_transfer_per_epoch;
+    }
     Ok(())
 }
 

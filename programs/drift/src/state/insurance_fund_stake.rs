@@ -1,11 +1,12 @@
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
 use crate::safe_decrement;
 use crate::safe_increment;
 use crate::state::spot_market::SpotMarket;
 use crate::state::traits::Size;
 use crate::validate;
+use crate::{math_error, EPOCH_DURATION};
 use anchor_lang::prelude::*;
 
 #[account(zero_copy(unsafe))]
@@ -91,10 +92,48 @@ impl InsuranceFundStake {
 #[repr(C)]
 pub struct ProtocolIfSharesTransferConfig {
     pub whitelisted_signer: Pubkey,
+    pub max_transfer_per_epoch: u128,
+    pub current_epoch_transfer: u128,
+    pub next_epoch_ts: i64,
     pub padding: [u128; 8],
 }
 
 // implement SIZE const for ProtocolIfSharesTransferConfig
 impl Size for ProtocolIfSharesTransferConfig {
     const SIZE: usize = 168;
+}
+
+impl ProtocolIfSharesTransferConfig {
+    pub fn update_epoch(&mut self, now: i64) -> DriftResult {
+        if now > self.next_epoch_ts {
+            let n_epoch_durations = now
+                .safe_sub(self.next_epoch_ts)?
+                .safe_div(EPOCH_DURATION)?
+                .safe_add(1)?;
+
+            self.next_epoch_ts = self
+                .next_epoch_ts
+                .safe_add(EPOCH_DURATION.safe_mul(n_epoch_durations)?)?;
+
+            self.current_epoch_transfer = 0;
+        }
+
+        Ok(())
+    }
+
+    pub fn validate_transfer(&self, requested_transfer: u128) -> DriftResult {
+        let max_transfer = self
+            .max_transfer_per_epoch
+            .saturating_sub(self.current_epoch_transfer);
+
+        validate!(
+            requested_transfer < max_transfer,
+            ErrorCode::DefaultError,
+            "requested transfer {} exceeds max transfer {}",
+            requested_transfer,
+            max_transfer
+        )?;
+
+        Ok(())
+    }
 }
