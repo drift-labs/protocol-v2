@@ -10,7 +10,7 @@ import { getMarinadeFinanceProgram, getMarinadeMSolPrice } from '../marinade';
 import { BN } from '@coral-xyz/anchor';
 import { User } from '../user';
 import { DepositRecord, isVariant } from '../types';
-import { LAMPORTS_PRECISION, ZERO, NINE } from '../constants/numericConstants';
+import { LAMPORTS_PRECISION, ZERO } from '../constants/numericConstants';
 import fetch from 'node-fetch';
 import { checkSameDate } from './utils';
 
