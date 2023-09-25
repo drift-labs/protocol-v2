@@ -103,6 +103,12 @@ export class DLOBSubscriber {
 			}
 		}
 
+		if (includeVamm && fallbackL2Generators.length > 0) {
+			throw new Error(
+				'includeVamm can only be used if fallbackL2Generators is empty'
+			);
+		}
+
 		let oraclePriceData;
 		let fallbackBid;
 		let fallbackAsk;
