@@ -273,7 +273,7 @@ pub fn handle_transfer_protocol_if_shares(
         &mut user_stats,
         &mut spot_market,
         Clock::get()?.unix_timestamp,
-        ctx.accounts.state.admin,
+        ctx.accounts.state.signer,
     )?;
 
     Ok(())
