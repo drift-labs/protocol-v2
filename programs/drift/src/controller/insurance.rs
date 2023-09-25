@@ -521,11 +521,12 @@ pub fn transfer_protocol_insurance_fund_stake(
         spot_market.insurance_fund.total_shares,
         insurance_vault_amount,
     )?;
+    let user_if_shares_after = spot_market.insurance_fund.user_shares;
 
-    let admin_if_shares_after = spot_market
+    let protocol_if_shares_after = spot_market
         .insurance_fund
         .total_shares
-        .safe_sub(user_if_shares_before)?;
+        .safe_sub(user_if_shares_after)?;
 
     emit!(InsuranceFundStakeRecord {
         ts: now,
@@ -537,7 +538,7 @@ pub fn transfer_protocol_insurance_fund_stake(
         if_shares_before,
         user_if_shares_before,
         total_if_shares_before,
-        if_shares_after: admin_if_shares_after,
+        if_shares_after: protocol_if_shares_after,
         total_if_shares_after: spot_market.insurance_fund.total_shares,
         user_if_shares_after: spot_market.insurance_fund.user_shares,
     });
@@ -557,7 +558,7 @@ pub fn transfer_protocol_insurance_fund_stake(
         user_if_shares_after: spot_market.insurance_fund.user_shares,
     });
 
-    Ok(0)
+    Ok(withdraw_amount)
 }
 
 pub fn attempt_settle_revenue_to_insurance_fund<'info>(
