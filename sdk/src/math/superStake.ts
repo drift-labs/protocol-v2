@@ -10,7 +10,7 @@ import { getMarinadeFinanceProgram, getMarinadeMSolPrice } from '../marinade';
 import { BN } from '@coral-xyz/anchor';
 import { User } from '../user';
 import { DepositRecord, isVariant } from '../types';
-import { LAMPORTS_PRECISION, ZERO, NINE } from '../constants/numericConstants';
+import { LAMPORTS_PRECISION, ZERO } from '../constants/numericConstants';
 import fetch from 'node-fetch';
 import { checkSameDate } from './utils';
 
@@ -266,7 +266,7 @@ const getJitoSolHistoricalPriceMap = async (timestamps: number[]) => {
 		for (let i = 0; i < data.data.getStakePoolStats.supply.length; i++) {
 			const priceInSol =
 				data.data.getStakePoolStats.tvl[i].data /
-				new BN(10).pow(NINE) /
+				10 ** 9 /
 				data.data.getStakePoolStats.supply[i].data;
 			jitoSolHistoricalPriceInSol.push({
 				price: priceInSol,
