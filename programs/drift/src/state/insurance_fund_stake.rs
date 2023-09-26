@@ -91,7 +91,7 @@ impl InsuranceFundStake {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct ProtocolIfSharesTransferConfig {
-    pub whitelisted_signer: Pubkey,
+    pub whitelisted_signers: [Pubkey; 4],
     pub max_transfer_per_epoch: u128,
     pub current_epoch_transfer: u128,
     pub next_epoch_ts: i64,
@@ -104,6 +104,17 @@ impl Size for ProtocolIfSharesTransferConfig {
 }
 
 impl ProtocolIfSharesTransferConfig {
+    pub fn validate_signer(&self, signer: &Pubkey) -> DriftResult {
+        validate!(
+            self.whitelisted_signers.contains(signer) && *signer != Pubkey::default(),
+            ErrorCode::DefaultError,
+            "signer {} not whitelisted",
+            signer
+        )?;
+
+        Ok(())
+    }
+
     pub fn update_epoch(&mut self, now: i64) -> DriftResult {
         if now > self.next_epoch_ts {
             let n_epoch_durations = now

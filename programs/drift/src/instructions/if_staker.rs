@@ -244,12 +244,7 @@ pub fn handle_transfer_protocol_if_shares(
     market_index: u16,
     shares: u128,
 ) -> Result<()> {
-    let mut transfer_config = ctx.accounts.transfer_config.load_mut()?;
-    validate!(
-        transfer_config.whitelisted_signer == ctx.accounts.signer.key(),
-        ErrorCode::DefaultError,
-        "invalid signer"
-    )?;
+    let now = Clock::get()?.unix_timestamp;
 
     validate!(
         market_index == QUOTE_SPOT_MARKET_INDEX,
@@ -257,7 +252,10 @@ pub fn handle_transfer_protocol_if_shares(
         "must be if for quote spot market"
     )?;
 
-    let now = Clock::get()?.unix_timestamp;
+    let mut transfer_config = ctx.accounts.transfer_config.load_mut()?;
+
+    transfer_config.validate_signer(ctx.accounts.signer.key)?;
+
     transfer_config.update_epoch(now)?;
     transfer_config.validate_transfer(shares)?;
     transfer_config.current_epoch_transfer += shares;

@@ -2261,13 +2261,13 @@ pub fn handle_initialize_protocol_if_shares_transfer_config(
 
 pub fn handle_update_protocol_if_shares_transfer_config(
     ctx: Context<UpdateProtocolIfSharesTransferConfig>,
-    whitelisted_signer: Option<Pubkey>,
+    whitelisted_signers: Option<[Pubkey; 4]>,
     max_transfer_per_epoch: Option<u128>,
 ) -> Result<()> {
     let mut config = ctx.accounts.protocol_if_shares_transfer_config.load_mut()?;
 
-    if let Some(whitelisted_signer) = whitelisted_signer {
-        config.whitelisted_signer = whitelisted_signer;
+    if let Some(whitelisted_signers) = whitelisted_signers {
+        config.whitelisted_signers = whitelisted_signers;
     }
 
     if let Some(max_transfer_per_epoch) = max_transfer_per_epoch {

@@ -1065,12 +1065,12 @@ pub mod drift {
 
     pub fn update_protocol_if_shares_transfer_config(
         ctx: Context<UpdateProtocolIfSharesTransferConfig>,
-        whitelisted_signer: Option<Pubkey>,
+        whitelisted_signers: Option<[Pubkey; 4]>,
         max_transfer_per_epoch: Option<u128>,
     ) -> Result<()> {
         handle_update_protocol_if_shares_transfer_config(
             ctx,
-            whitelisted_signer,
+            whitelisted_signers,
             max_transfer_per_epoch,
         )
     }
