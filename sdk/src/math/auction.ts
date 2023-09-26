@@ -1,5 +1,5 @@
-import { isOneOfVariant, isVariant, Order } from '../types';
-import { BN, ZERO } from '../.';
+import { isOneOfVariant, isVariant, Order, PositionDirection } from '../types';
+import { BN, ONE, ZERO } from '../.';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
 	if (order.auctionDuration === 0) {
@@ -103,4 +103,38 @@ export function getAuctionPriceForOracleOffsetAuction(
 	}
 
 	return oraclePrice.add(priceOffset);
+}
+
+export function deriveOracleAuctionParams({
+	direction,
+	oraclePrice,
+	auctionStartPrice,
+	auctionEndPrice,
+	limitPrice,
+}: {
+	direction: PositionDirection;
+	oraclePrice: BN;
+	auctionStartPrice: BN;
+	auctionEndPrice: BN;
+	limitPrice: BN;
+}): { auctionStartPrice: BN; auctionEndPrice: BN; oraclePriceOffset: number } {
+	let oraclePriceOffset = limitPrice.sub(oraclePrice);
+	if (oraclePriceOffset.eq(ZERO)) {
+		oraclePriceOffset = isVariant(direction, 'long')
+			? auctionEndPrice.sub(oraclePrice).add(ONE)
+			: auctionEndPrice.sub(oraclePrice).sub(ONE);
+	}
+
+	let oraclePriceOffsetNum;
+	try {
+		oraclePriceOffsetNum = oraclePriceOffset.toNumber();
+	} catch (e) {
+		oraclePriceOffsetNum = 0;
+	}
+
+	return {
+		auctionStartPrice: auctionStartPrice.sub(oraclePrice),
+		auctionEndPrice: auctionEndPrice.sub(oraclePrice),
+		oraclePriceOffset: oraclePriceOffsetNum,
+	};
 }
