@@ -279,6 +279,7 @@ export class JupiterClient {
 		slippageBps = 50,
 		swapMode = 'ExactIn',
 		onlyDirectRoutes = false,
+		excludeDexes = [],
 	}: {
 		inputMint: PublicKey;
 		outputMint: PublicKey;
@@ -287,6 +288,7 @@ export class JupiterClient {
 		slippageBps?: number;
 		swapMode?: SwapMode;
 		onlyDirectRoutes?: boolean;
+		excludeDexes?: string[];
 	}): Promise<QuoteResponse> {
 		const params = new URLSearchParams({
 			inputMint: inputMint.toString(),
@@ -296,6 +298,7 @@ export class JupiterClient {
 			swapMode,
 			onlyDirectRoutes: onlyDirectRoutes.toString(),
 			maxAccounts: maxAccounts.toString(),
+			excludeDexes: excludeDexes.join(','),
 		}).toString();
 		const quote = await (await fetch(`${this.url}/v6/quote?${params}`)).json();
 		return quote;
