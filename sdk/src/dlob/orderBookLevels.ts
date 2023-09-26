@@ -197,6 +197,7 @@ export function getVammL2Generator({
 			let [afterSwapQuoteReserves, afterSwapBaseReserves] = [ZERO, ZERO];
 
 			if (topOfBookQuoteAmounts && numBids < topOfBookQuoteAmounts?.length) {
+				const remainingBaseLiquidity = openBids.sub(topOfBookBidSize);
 				quoteSwapped = topOfBookQuoteAmounts[numBids];
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(
@@ -207,6 +208,22 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = bidAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+				if(remainingBaseLiquidity.lt(baseSwapped)) {
+					baseSwapped = remainingBaseLiquidity;
+					[afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(
+						bidAmm,
+						'base',
+						baseSwapped,
+						SwapDirection.ADD
+					);
+
+					quoteSwapped = calculateQuoteAssetAmountSwapped(
+						bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+						bidAmm.pegMultiplier,
+						SwapDirection.ADD
+					);
+				}
 				topOfBookBidSize = topOfBookBidSize.add(baseSwapped);
 				bidSize = openBids.sub(topOfBookBidSize).div(new BN(numBaseOrders));
 			} else {
@@ -258,6 +275,7 @@ export function getVammL2Generator({
 			let [afterSwapQuoteReserves, afterSwapBaseReserves] = [ZERO, ZERO];
 
 			if (topOfBookQuoteAmounts && numAsks < topOfBookQuoteAmounts?.length) {
+				const remainingBaseLiquidity = openAsks.mul(new BN(-1)).sub(topOfBookAskSize);
 				quoteSwapped = topOfBookQuoteAmounts[numAsks];
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(
@@ -268,6 +286,22 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = askAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+				if(remainingBaseLiquidity.lt(baseSwapped)) {
+					baseSwapped = remainingBaseLiquidity;
+					[afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(
+						bidAmm,
+						'base',
+						baseSwapped,
+						SwapDirection.REMOVE
+					);
+
+					quoteSwapped = calculateQuoteAssetAmountSwapped(
+						bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+						bidAmm.pegMultiplier,
+						SwapDirection.REMOVE
+					);
+				}
 				topOfBookAskSize = topOfBookAskSize.add(baseSwapped);
 				askSize = openAsks
 					.abs()
