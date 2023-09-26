@@ -8,7 +8,7 @@ use crate::state::traits::Size;
 use crate::validate;
 use anchor_lang::prelude::*;
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct InsuranceFundStake {

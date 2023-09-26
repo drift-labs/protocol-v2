@@ -275,6 +275,7 @@ export class JupiterClient {
 		inputMint,
 		outputMint,
 		amount,
+		maxAccounts = 52, // 52 is an estimated amount with buffer
 		slippageBps = 50,
 		swapMode = 'ExactIn',
 		onlyDirectRoutes = false,
@@ -282,6 +283,7 @@ export class JupiterClient {
 		inputMint: PublicKey;
 		outputMint: PublicKey;
 		amount: BN;
+		maxAccounts?: number;
 		slippageBps?: number;
 		swapMode?: SwapMode;
 		onlyDirectRoutes?: boolean;
@@ -293,6 +295,7 @@ export class JupiterClient {
 			slippageBps: slippageBps.toString(),
 			swapMode,
 			onlyDirectRoutes: onlyDirectRoutes.toString(),
+			maxAccounts: maxAccounts.toString(),
 		}).toString();
 		const quote = await (await fetch(`${this.url}/v6/quote?${params}`)).json();
 		return quote;

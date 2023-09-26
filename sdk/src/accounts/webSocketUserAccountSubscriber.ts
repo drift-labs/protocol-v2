@@ -14,17 +14,23 @@ import { UserAccount } from '../types';
 
 export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
+	reconnectTimeoutMs?: number;
 	program: Program;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 	userAccountPublicKey: PublicKey;
 
 	userDataAccountSubscriber: AccountSubscriber<UserAccount>;
 
-	public constructor(program: Program, userAccountPublicKey: PublicKey) {
+	public constructor(
+		program: Program,
+		userAccountPublicKey: PublicKey,
+		reconnectTimeoutMs?: number
+	) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.userAccountPublicKey = userAccountPublicKey;
 		this.eventEmitter = new EventEmitter();
+		this.reconnectTimeoutMs = reconnectTimeoutMs;
 	}
 
 	async subscribe(userAccount?: UserAccount): Promise<boolean> {
@@ -35,7 +41,9 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		this.userDataAccountSubscriber = new WebSocketAccountSubscriber(
 			'user',
 			this.program,
-			this.userAccountPublicKey
+			this.userAccountPublicKey,
+			undefined,
+			this.reconnectTimeoutMs
 		);
 
 		if (userAccount) {

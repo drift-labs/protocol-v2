@@ -1093,6 +1093,41 @@ describe('insurance fund stake', () => {
 			!isVariant(secondUserDriftClient.getUserAccount().status, 'bankrupt')
 		);
 
+		const liquidationRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+		assert(liquidationRecord.liquidationId === 1);
+		assert(isVariant(liquidationRecord.liquidationType, 'liquidateSpot'));
+		assert(liquidationRecord.liquidateSpot.liabilityMarketIndex === 0);
+		console.log(liquidationRecord.liquidateSpot.liabilityTransfer.toString());
+		assert(
+			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(600000000))
+		);
+		console.log(liquidationRecord.liquidateSpot.ifFee.toString());
+		console.log(spotMarketBefore.liquidatorFee.toString());
+		console.log(spotMarketBefore.ifLiquidationFee.toString());
+		console.log(
+			liquidationRecord.liquidateSpot.liabilityTransfer
+				.div(new BN(100))
+				.toString()
+		);
+
+		// if liq fee is 0 since user is bankrupt
+		assert(
+			liquidationRecord.liquidateSpot.ifFee.lt(
+				new BN(spotMarketBefore.ifLiquidationFee)
+			)
+		);
+
+		// if liquidator fee is non-zero, it should be equal to that
+		assert(
+			liquidationRecord.liquidateSpot.ifFee.eq(
+				new BN(spotMarketBefore.liquidatorFee)
+			)
+		);
+
+		// but it is zero
+		assert(liquidationRecord.liquidateSpot.ifFee.eq(ZERO));
+
 		const ifPoolBalanceAfter = getTokenAmount(
 			spotMarket.revenuePool.scaledBalance,
 			spotMarket,
@@ -1100,7 +1135,10 @@ describe('insurance fund stake', () => {
 		);
 		console.log('ifPoolBalance: 0 ->', ifPoolBalanceAfter.toString());
 
-		assert(ifPoolBalanceAfter.gte(new BN('6004698')));
+		assert(ifPoolBalanceAfter.gte(new BN('8840')));
+		assert(ifPoolBalanceAfter.lte(new BN('30080')));
+
+		// assert(ifPoolBalanceAfter.gte(new BN('6004698'))); // before IF fee change
 
 		const usdcBefore = ifPoolBalanceAfter
 			.add(afterLiquiderUSDCDeposit)
