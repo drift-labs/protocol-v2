@@ -497,6 +497,14 @@ pub mod drift {
         handle_remove_insurance_fund_stake(ctx, market_index)
     }
 
+    pub fn transfer_protocol_if_shares(
+        ctx: Context<TransferProtocolIfShares>,
+        market_index: u16,
+        shares: u128,
+    ) -> Result<()> {
+        handle_transfer_protocol_if_shares(ctx, market_index, shares)
+    }
+
     // Admin Instructions
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
