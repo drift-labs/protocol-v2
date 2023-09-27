@@ -208,15 +208,15 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = bidAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
-				if(remainingBaseLiquidity.lt(baseSwapped)) {
+				if (remainingBaseLiquidity.lt(baseSwapped)) {
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
-					calculateAmmReservesAfterSwap(
-						bidAmm,
-						'base',
-						baseSwapped,
-						SwapDirection.ADD
-					);
+						calculateAmmReservesAfterSwap(
+							bidAmm,
+							'base',
+							baseSwapped,
+							SwapDirection.ADD
+						);
 
 					quoteSwapped = calculateQuoteAssetAmountSwapped(
 						bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
@@ -275,7 +275,9 @@ export function getVammL2Generator({
 			let [afterSwapQuoteReserves, afterSwapBaseReserves] = [ZERO, ZERO];
 
 			if (topOfBookQuoteAmounts && numAsks < topOfBookQuoteAmounts?.length) {
-				const remainingBaseLiquidity = openAsks.mul(new BN(-1)).sub(topOfBookAskSize);
+				const remainingBaseLiquidity = openAsks
+					.mul(new BN(-1))
+					.sub(topOfBookAskSize);
 				quoteSwapped = topOfBookQuoteAmounts[numAsks];
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(
@@ -286,15 +288,15 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = askAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
-				if(remainingBaseLiquidity.lt(baseSwapped)) {
+				if (remainingBaseLiquidity.lt(baseSwapped)) {
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
-					calculateAmmReservesAfterSwap(
-						bidAmm,
-						'base',
-						baseSwapped,
-						SwapDirection.REMOVE
-					);
+						calculateAmmReservesAfterSwap(
+							bidAmm,
+							'base',
+							baseSwapped,
+							SwapDirection.REMOVE
+						);
 
 					quoteSwapped = calculateQuoteAssetAmountSwapped(
 						bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
