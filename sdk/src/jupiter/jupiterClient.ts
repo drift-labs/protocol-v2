@@ -275,7 +275,7 @@ export class JupiterClient {
 		inputMint,
 		outputMint,
 		amount,
-		maxAccounts = 52, // 52 is an estimated amount with buffer
+		maxAccounts = 50, // 50 is an estimated amount with buffer
 		slippageBps = 50,
 		swapMode = 'ExactIn',
 		onlyDirectRoutes = false,
