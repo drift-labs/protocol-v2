@@ -9,6 +9,9 @@ use crate::validate;
 use crate::{math_error, EPOCH_DURATION};
 use anchor_lang::prelude::*;
 
+#[cfg(test)]
+mod tests;
+
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
