@@ -103,12 +103,6 @@ export class DLOBSubscriber {
 			}
 		}
 
-		if (includeVamm && fallbackL2Generators.length > 0) {
-			throw new Error(
-				'includeVamm can only be used if fallbackL2Generators is empty'
-			);
-		}
-
 		let oraclePriceData;
 		let fallbackBid;
 		let fallbackAsk;
@@ -127,6 +121,12 @@ export class DLOBSubscriber {
 		}
 
 		if (isPerp && includeVamm) {
+			if (fallbackL2Generators.length > 0) {
+				throw new Error(
+					'includeVamm can only be used if fallbackL2Generators is empty'
+				);
+			}
+
 			fallbackL2Generators = [
 				getVammL2Generator({
 					marketAccount: this.driftClient.getPerpMarketAccount(marketIndex),
