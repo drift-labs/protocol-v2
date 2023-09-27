@@ -10,11 +10,13 @@ import {
 	OraclePriceData,
 	PerpMarketAccount,
 	PositionDirection,
+	QUOTE_PRECISION,
 	standardizePrice,
 	SwapDirection,
 	ZERO,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
+import { assert } from '../assert/assert';
 
 type liquiditySource = 'serum' | 'vamm' | 'dlob' | 'phoenix';
 
@@ -45,6 +47,14 @@ export type L3OrderBook = {
 	asks: L3Level[];
 	bids: L3Level[];
 };
+
+export const DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS = [
+	new BN(100).mul(QUOTE_PRECISION),
+	new BN(500).mul(QUOTE_PRECISION),
+	new BN(1000).mul(QUOTE_PRECISION),
+	new BN(2000).mul(QUOTE_PRECISION),
+	new BN(5000).mul(QUOTE_PRECISION),
+];
 
 /**
  * Get an {@link Generator<L2Level>} generator from a {@link Generator<DLOBNode>}
@@ -139,12 +149,20 @@ export function getVammL2Generator({
 	oraclePriceData,
 	numOrders,
 	now,
+	topOfBookQuoteAmounts,
 }: {
 	marketAccount: PerpMarketAccount;
 	oraclePriceData: OraclePriceData;
 	numOrders: number;
 	now?: BN;
+	topOfBookQuoteAmounts?: BN[];
 }): L2OrderBookGenerator {
+	let numBaseOrders = numOrders;
+	if (topOfBookQuoteAmounts) {
+		numBaseOrders = numOrders - topOfBookQuoteAmounts.length;
+		assert(topOfBookQuoteAmounts.length < numOrders);
+	}
+
 	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, oraclePriceData);
 
 	const [openBids, openAsks] = calculateMarketOpenBidAsk(
@@ -162,38 +180,78 @@ export function getVammL2Generator({
 	);
 
 	let numBids = 0;
-	const baseSize = openBids.div(new BN(numOrders));
+
+	let topOfBookBidSize = ZERO;
+	let bidSize = openBids.div(new BN(numBaseOrders));
 	const bidAmm = {
 		baseAssetReserve: bidReserves.baseAssetReserve,
 		quoteAssetReserve: bidReserves.quoteAssetReserve,
 		sqrtK: updatedAmm.sqrtK,
 		pegMultiplier: updatedAmm.pegMultiplier,
 	};
+
 	const getL2Bids = function* () {
-		while (numBids < numOrders && baseSize.gt(ZERO)) {
-			const [afterSwapQuoteReserves, afterSwapBaseReserves] =
-				calculateAmmReservesAfterSwap(
-					bidAmm,
-					'base',
-					baseSize,
+		while (numBids < numOrders && bidSize.gt(ZERO)) {
+			let quoteSwapped = ZERO;
+			let baseSwapped = ZERO;
+			let [afterSwapQuoteReserves, afterSwapBaseReserves] = [ZERO, ZERO];
+
+			if (topOfBookQuoteAmounts && numBids < topOfBookQuoteAmounts?.length) {
+				const remainingBaseLiquidity = openBids.sub(topOfBookBidSize);
+				quoteSwapped = topOfBookQuoteAmounts[numBids];
+				[afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(
+						bidAmm,
+						'quote',
+						quoteSwapped,
+						SwapDirection.REMOVE
+					);
+
+				baseSwapped = bidAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+				if(remainingBaseLiquidity.lt(baseSwapped)) {
+					baseSwapped = remainingBaseLiquidity;
+					[afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(
+						bidAmm,
+						'base',
+						baseSwapped,
+						SwapDirection.ADD
+					);
+
+					quoteSwapped = calculateQuoteAssetAmountSwapped(
+						bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+						bidAmm.pegMultiplier,
+						SwapDirection.ADD
+					);
+				}
+				topOfBookBidSize = topOfBookBidSize.add(baseSwapped);
+				bidSize = openBids.sub(topOfBookBidSize).div(new BN(numBaseOrders));
+			} else {
+				baseSwapped = bidSize;
+				[afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(
+						bidAmm,
+						'base',
+						baseSwapped,
+						SwapDirection.ADD
+					);
+
+				quoteSwapped = calculateQuoteAssetAmountSwapped(
+					bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+					bidAmm.pegMultiplier,
 					SwapDirection.ADD
 				);
+			}
 
-			const quoteSwapped = calculateQuoteAssetAmountSwapped(
-				bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
-				bidAmm.pegMultiplier,
-				SwapDirection.ADD
-			);
-
-			const price = quoteSwapped.mul(BASE_PRECISION).div(baseSize);
+			const price = quoteSwapped.mul(BASE_PRECISION).div(baseSwapped);
 
 			bidAmm.baseAssetReserve = afterSwapBaseReserves;
 			bidAmm.quoteAssetReserve = afterSwapQuoteReserves;
 
 			yield {
 				price,
-				size: baseSize,
-				sources: { vamm: baseSize },
+				size: baseSwapped,
+				sources: { vamm: baseSwapped },
 			};
 
 			numBids++;
@@ -201,38 +259,80 @@ export function getVammL2Generator({
 	};
 
 	let numAsks = 0;
-	const askSize = openAsks.abs().div(new BN(numOrders));
+	let topOfBookAskSize = ZERO;
+	let askSize = openAsks.abs().div(new BN(numBaseOrders));
 	const askAmm = {
 		baseAssetReserve: askReserves.baseAssetReserve,
 		quoteAssetReserve: askReserves.quoteAssetReserve,
 		sqrtK: updatedAmm.sqrtK,
 		pegMultiplier: updatedAmm.pegMultiplier,
 	};
+
 	const getL2Asks = function* () {
 		while (numAsks < numOrders && askSize.gt(ZERO)) {
-			const [afterSwapQuoteReserves, afterSwapBaseReserves] =
-				calculateAmmReservesAfterSwap(
-					askAmm,
-					'base',
-					askSize,
+			let quoteSwapped: BN = ZERO;
+			let baseSwapped: BN = ZERO;
+			let [afterSwapQuoteReserves, afterSwapBaseReserves] = [ZERO, ZERO];
+
+			if (topOfBookQuoteAmounts && numAsks < topOfBookQuoteAmounts?.length) {
+				const remainingBaseLiquidity = openAsks.mul(new BN(-1)).sub(topOfBookAskSize);
+				quoteSwapped = topOfBookQuoteAmounts[numAsks];
+				[afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(
+						askAmm,
+						'quote',
+						quoteSwapped,
+						SwapDirection.ADD
+					);
+
+				baseSwapped = askAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+				if(remainingBaseLiquidity.lt(baseSwapped)) {
+					baseSwapped = remainingBaseLiquidity;
+					[afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(
+						bidAmm,
+						'base',
+						baseSwapped,
+						SwapDirection.REMOVE
+					);
+
+					quoteSwapped = calculateQuoteAssetAmountSwapped(
+						bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+						bidAmm.pegMultiplier,
+						SwapDirection.REMOVE
+					);
+				}
+				topOfBookAskSize = topOfBookAskSize.add(baseSwapped);
+				askSize = openAsks
+					.abs()
+					.sub(topOfBookAskSize)
+					.div(new BN(numBaseOrders));
+			} else {
+				baseSwapped = askSize;
+				[afterSwapQuoteReserves, afterSwapBaseReserves] =
+					calculateAmmReservesAfterSwap(
+						askAmm,
+						'base',
+						askSize,
+						SwapDirection.REMOVE
+					);
+
+				quoteSwapped = calculateQuoteAssetAmountSwapped(
+					askAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+					askAmm.pegMultiplier,
 					SwapDirection.REMOVE
 				);
+			}
 
-			const quoteSwapped = calculateQuoteAssetAmountSwapped(
-				askAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
-				askAmm.pegMultiplier,
-				SwapDirection.REMOVE
-			);
-
-			const price = quoteSwapped.mul(BASE_PRECISION).div(askSize);
+			const price = quoteSwapped.mul(BASE_PRECISION).div(baseSwapped);
 
 			askAmm.baseAssetReserve = afterSwapBaseReserves;
 			askAmm.quoteAssetReserve = afterSwapQuoteReserves;
 
 			yield {
 				price,
-				size: askSize,
-				sources: { vamm: baseSize },
+				size: baseSwapped,
+				sources: { vamm: baseSwapped },
 			};
 
 			numAsks++;

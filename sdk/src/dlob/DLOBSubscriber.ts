@@ -10,6 +10,7 @@ import {
 import { DriftClient } from '../driftClient';
 import { isVariant, MarketType } from '../types';
 import {
+	DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
 	getVammL2Generator,
 	L2OrderBook,
 	L2OrderBookGenerator,
@@ -102,6 +103,12 @@ export class DLOBSubscriber {
 			}
 		}
 
+		if (includeVamm && fallbackL2Generators.length > 0) {
+			throw new Error(
+				'includeVamm can only be used if fallbackL2Generators is empty'
+			);
+		}
+
 		let oraclePriceData;
 		let fallbackBid;
 		let fallbackAsk;
@@ -125,6 +132,7 @@ export class DLOBSubscriber {
 					marketAccount: this.driftClient.getPerpMarketAccount(marketIndex),
 					oraclePriceData,
 					numOrders: numVammOrders ?? depth,
+					topOfBookQuoteAmounts: DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
 				}),
 			];
 		}
