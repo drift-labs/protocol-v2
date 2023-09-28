@@ -2678,7 +2678,7 @@ pub struct InitializeProtocolIfSharesTransferConfig<'info> {
     pub admin: Signer<'info>,
     #[account(
         init,
-        seeds = [b"protocol_if_shares_transfer_config".as_ref()],
+        seeds = [b"if_shares_transfer_config".as_ref()],
         space = ProtocolIfSharesTransferConfig::SIZE,
         bump,
         payer = admin
@@ -2698,7 +2698,7 @@ pub struct UpdateProtocolIfSharesTransferConfig<'info> {
     pub admin: Signer<'info>,
     #[account(
         mut,
-        seeds = [b"protocol_if_shares_transfer_config".as_ref()],
+        seeds = [b"if_shares_transfer_config".as_ref()],
         bump,
     )]
     pub protocol_if_shares_transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,

@@ -103,7 +103,7 @@ pub struct ProtocolIfSharesTransferConfig {
 
 // implement SIZE const for ProtocolIfSharesTransferConfig
 impl Size for ProtocolIfSharesTransferConfig {
-    const SIZE: usize = 168;
+    const SIZE: usize = 304;
 }
 
 impl ProtocolIfSharesTransferConfig {

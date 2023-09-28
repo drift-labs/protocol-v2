@@ -2377,6 +2377,61 @@
       ]
     },
     {
+      "name": "transferProtocolIfShares",
+      "accounts": [
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "transferConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "shares",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "initialize",
       "accounts": [
         {
@@ -4542,6 +4597,76 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "initializeProtocolIfSharesTransferConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "protocolIfSharesTransferConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateProtocolIfSharesTransferConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "protocolIfSharesTransferConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "whitelistedSigners",
+          "type": {
+            "option": {
+              "array": [
+                "publicKey",
+                4
+              ]
+            }
+          }
+        },
+        {
+          "name": "maxTransferPerEpoch",
+          "type": {
+            "option": "u128"
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -4726,6 +4851,44 @@
               "array": [
                 "u8",
                 14
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolIfSharesTransferConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "whitelistedSigners",
+            "type": {
+              "array": [
+                "publicKey",
+                4
+              ]
+            }
+          },
+          {
+            "name": "maxTransferPerEpoch",
+            "type": "u128"
+          },
+          {
+            "name": "currentEpochTransfer",
+            "type": "u128"
+          },
+          {
+            "name": "nextEpochTs",
+            "type": "i64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u128",
+                8
               ]
             }
           }
@@ -5004,7 +5167,7 @@
           {
             "name": "name",
             "docs": [
-              "The encoded display name fo the market e.g. SOL"
+              "The encoded display name for the market e.g. SOL"
             ],
             "type": {
               "array": [
@@ -8175,6 +8338,12 @@
           },
           {
             "name": "Unstake"
+          },
+          {
+            "name": "UnstakeTransfer"
+          },
+          {
+            "name": "StakeTransfer"
           }
         ]
       }

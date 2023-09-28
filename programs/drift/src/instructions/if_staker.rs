@@ -430,6 +430,7 @@ pub struct TransferProtocolIfShares<'info> {
     pub transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
     pub state: Box<Account<'info, State>>,
     #[account(
+        mut,
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
         bump
     )]

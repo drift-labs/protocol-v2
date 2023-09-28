@@ -1532,10 +1532,12 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async updateProtocolIfSharesTransferConfig(
-		whitelistedSigner: PublicKey
+		whitelistedSigners?: PublicKey[],
+		maxTransferPerEpoch?: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.initializeProtocolIfSharesTransferConfig(
-			whitelistedSigner,
+		return await this.program.rpc.updateProtocolIfSharesTransferConfig(
+			whitelistedSigners || null,
+			maxTransferPerEpoch,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
