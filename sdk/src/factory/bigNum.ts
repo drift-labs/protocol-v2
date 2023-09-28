@@ -618,7 +618,8 @@ export class BigNum {
 		if (!val.replace(BigNum.delim, '')) {
 			return BigNum.from(ZERO, precisionShift);
 		}
-		if (val.includes('e')) val = (+val).toFixed(precisionShift?.toNumber() ?? 9); // prevent small numbers e.g. 3.1e-8, use assume max precision 9 as default
+		if (val.includes('e'))
+			val = (+val).toFixed(precisionShift?.toNumber() ?? 9); // prevent small numbers e.g. 3.1e-8, use assume max precision 9 as default
 
 		const sides = val.split(BigNum.delim);
 		const rightSide = sides[1];
