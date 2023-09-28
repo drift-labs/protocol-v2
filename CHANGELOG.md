@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add ix to transfer protocol if shares([#612](https://github.com/drift-labs/protocol-v2/pull/612))
+
 ### Fixes
 
 ### Breaking
 
-## [2.34.0] - 2023-09-28
+## [2.40.0] - 2023-09-28
 
 ### Features
 
