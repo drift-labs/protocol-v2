@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: add dynamic liquidation fee ([#601](https://github.com/drift-labs/protocol-v2/pull/601))
 - sdk: add deriveOracleAuctionParams
+- program: update to anchor 0.27.0 ([#617](https://github.com/drift-labs/protocol-v2/pull/617))
 
 ### Fixes
 
