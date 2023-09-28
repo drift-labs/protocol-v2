@@ -8,7 +8,6 @@ use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
 use crate::error::ErrorCode;
-use crate::get_then_update_id;
 use crate::instructions::constraints::*;
 use crate::load;
 use crate::load_mut;
@@ -34,6 +33,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
 use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
+use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
     get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
     OracleSource,
@@ -53,6 +53,7 @@ use crate::validation::margin::{validate_margin, validate_margin_weights};
 use crate::validation::perp_market::validate_perp_market;
 use crate::validation::spot_market::validate_borrow_rate;
 use crate::{controller, QUOTE_PRECISION_I64};
+use crate::{get_then_update_id, EPOCH_DURATION};
 use crate::{math, safe_decrement, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -2244,6 +2245,37 @@ pub fn handle_admin_disable_update_perp_bid_ask_twap(
     Ok(())
 }
 
+pub fn handle_initialize_protocol_if_shares_transfer_config(
+    ctx: Context<InitializeProtocolIfSharesTransferConfig>,
+) -> Result<()> {
+    let mut config = ctx
+        .accounts
+        .protocol_if_shares_transfer_config
+        .load_init()?;
+
+    let now = Clock::get()?.unix_timestamp;
+    config.next_epoch_ts = now.safe_add(EPOCH_DURATION)?;
+
+    Ok(())
+}
+
+pub fn handle_update_protocol_if_shares_transfer_config(
+    ctx: Context<UpdateProtocolIfSharesTransferConfig>,
+    whitelisted_signers: Option<[Pubkey; 4]>,
+    max_transfer_per_epoch: Option<u128>,
+) -> Result<()> {
+    let mut config = ctx.accounts.protocol_if_shares_transfer_config.load_mut()?;
+
+    if let Some(whitelisted_signers) = whitelisted_signers {
+        config.whitelisted_signers = whitelisted_signers;
+    }
+
+    if let Some(max_transfer_per_epoch) = max_transfer_per_epoch {
+        config.max_transfer_per_epoch = max_transfer_per_epoch;
+    }
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -2638,4 +2670,40 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeProtocolIfSharesTransferConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"protocol_if_shares_transfer_config".as_ref()],
+        space = ProtocolIfSharesTransferConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub protocol_if_shares_transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateProtocolIfSharesTransferConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"protocol_if_shares_transfer_config".as_ref()],
+        bump,
+    )]
+    pub protocol_if_shares_transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
 }

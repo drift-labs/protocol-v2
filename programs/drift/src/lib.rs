@@ -497,6 +497,14 @@ pub mod drift {
         handle_remove_insurance_fund_stake(ctx, market_index)
     }
 
+    pub fn transfer_protocol_if_shares(
+        ctx: Context<TransferProtocolIfShares>,
+        market_index: u16,
+        shares: u128,
+    ) -> Result<()> {
+        handle_transfer_protocol_if_shares(ctx, market_index, shares)
+    }
+
     // Admin Instructions
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -1055,6 +1063,24 @@ pub mod drift {
         amount: u64,
     ) -> Result<()> {
         handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
+    }
+
+    pub fn initialize_protocol_if_shares_transfer_config(
+        ctx: Context<InitializeProtocolIfSharesTransferConfig>,
+    ) -> Result<()> {
+        handle_initialize_protocol_if_shares_transfer_config(ctx)
+    }
+
+    pub fn update_protocol_if_shares_transfer_config(
+        ctx: Context<UpdateProtocolIfSharesTransferConfig>,
+        whitelisted_signers: Option<[Pubkey; 4]>,
+        max_transfer_per_epoch: Option<u128>,
+    ) -> Result<()> {
+        handle_update_protocol_if_shares_transfer_config(
+            ctx,
+            whitelisted_signers,
+            max_transfer_per_epoch,
+        )
     }
 }
 

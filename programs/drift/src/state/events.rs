@@ -490,6 +490,8 @@ pub enum StakeAction {
     UnstakeRequest,
     UnstakeCancelRequest,
     Unstake,
+    UnstakeTransfer,
+    StakeTransfer,
 }
 
 impl Default for StakeAction {

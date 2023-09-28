@@ -1,16 +1,17 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
 
+use crate::controller::insurance::transfer_protocol_insurance_fund_stake;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
-use crate::load_mut;
-use crate::state::insurance_fund_stake::InsuranceFundStake;
+use crate::state::insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig};
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::UserStats;
 use crate::validate;
 use crate::{controller, math};
+use crate::{load_mut, QUOTE_SPOT_MARKET_INDEX};
 
 pub fn handle_initialize_insurance_fund_stake(
     ctx: Context<InitializeInsuranceFundStake>,
@@ -238,6 +239,44 @@ pub fn handle_remove_insurance_fund_stake(
     Ok(())
 }
 
+pub fn handle_transfer_protocol_if_shares(
+    ctx: Context<TransferProtocolIfShares>,
+    market_index: u16,
+    shares: u128,
+) -> Result<()> {
+    let now = Clock::get()?.unix_timestamp;
+
+    validate!(
+        market_index == QUOTE_SPOT_MARKET_INDEX,
+        ErrorCode::DefaultError,
+        "must be if for quote spot market"
+    )?;
+
+    let mut transfer_config = ctx.accounts.transfer_config.load_mut()?;
+
+    transfer_config.validate_signer(ctx.accounts.signer.key)?;
+
+    transfer_config.update_epoch(now)?;
+    transfer_config.validate_transfer(shares)?;
+    transfer_config.current_epoch_transfer += shares;
+
+    let mut if_stake = ctx.accounts.insurance_fund_stake.load_mut()?;
+    let mut user_stats = ctx.accounts.user_stats.load_mut()?;
+    let mut spot_market = ctx.accounts.spot_market.load_mut()?;
+
+    transfer_protocol_insurance_fund_stake(
+        ctx.accounts.insurance_fund_vault.amount,
+        shares,
+        &mut if_stake,
+        &mut user_stats,
+        &mut spot_market,
+        Clock::get()?.unix_timestamp,
+        ctx.accounts.state.signer,
+    )?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction(
     market_index: u16,
@@ -381,4 +420,34 @@ pub struct RemoveInsuranceFundStake<'info> {
     )]
     pub user_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16,)]
+pub struct TransferProtocolIfShares<'info> {
+    pub signer: Signer<'info>,
+    #[account(mut)]
+    pub transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(
+        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
 }
