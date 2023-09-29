@@ -270,7 +270,6 @@ describe('User Account', () => {
 
 		const marketMarginRatio = calculateMarketMarginRatio(
 			market,
-			MarketType.PERP,
 			worstCaseBaseAssetAmount.abs(),
 			'Maintenance'
 		);

@@ -1254,7 +1254,8 @@ export class User {
 				calculateMarketMarginRatio(
 					market,
 					baseAssetAmount.abs(),
-					marginCategory
+					marginCategory,
+					this.getUserAccount().maxMarginRatio
 				)
 			);
 
@@ -2261,7 +2262,8 @@ export class User {
 			ZERO,
 			isVariant(direction, 'long')
 				? SpotBalanceType.DEPOSIT
-				: SpotBalanceType.BORROW
+				: SpotBalanceType.BORROW,
+			this.getUserAccount().maxMarginRatio
 		);
 
 		let tradeAmount = ZERO;
@@ -2274,7 +2276,8 @@ export class User {
 					oraclePrice,
 					'Initial',
 					this.getTokenAmount(targetMarketIndex).abs(),
-					SpotBalanceType.BORROW
+					SpotBalanceType.BORROW,
+					this.getUserAccount().maxMarginRatio
 				);
 				freeCollateral = freeCollateral.add(
 					tradeAmount.mul(new BN(marginRatio)).div(MARGIN_PRECISION)
@@ -2289,7 +2292,8 @@ export class User {
 					oraclePrice,
 					'Initial',
 					this.getTokenAmount(targetMarketIndex),
-					SpotBalanceType.DEPOSIT
+					SpotBalanceType.DEPOSIT,
+					this.getUserAccount().maxMarginRatio
 				);
 				freeCollateral = freeCollateral.add(
 					tradeAmount.mul(new BN(marginRatio)).div(MARGIN_PRECISION)
