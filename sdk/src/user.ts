@@ -631,7 +631,8 @@ export class User {
 		const marginRatio = calculateMarketMarginRatio(
 			this.driftClient.getPerpMarketAccount(marketIndex),
 			baseAssetAmount,
-			'Initial'
+			'Initial',
+			this.getUserAccount().maxMarginRatio
 		);
 
 		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
@@ -1257,13 +1258,6 @@ export class User {
 				)
 			);
 
-			if (marginCategory === 'Initial') {
-				marginRatio = BN.max(
-					marginRatio,
-					new BN(this.getUserAccount().maxMarginRatio)
-				);
-			}
-
 			if (liquidationBuffer !== undefined) {
 				marginRatio = marginRatio.add(liquidationBuffer);
 			}
@@ -1598,7 +1592,10 @@ export class User {
 
 		switch (marginCategory) {
 			case 'Initial':
-				rawMarginRatio = market.marginRatioInitial;
+				rawMarginRatio = Math.max(
+					market.marginRatioInitial,
+					this.getUserAccount().maxMarginRatio
+				);
 				break;
 			case 'Maintenance':
 				rawMarginRatio = market.marginRatioMaintenance;
@@ -1622,7 +1619,8 @@ export class User {
 		let marginRatio = calculateMarketMarginRatio(
 			market,
 			maxSize,
-			marginCategory
+			marginCategory,
+			this.getUserAccount().maxMarginRatio
 		);
 
 		// use more fesible size since imf factor activated
@@ -1642,7 +1640,8 @@ export class User {
 			marginRatio = calculateMarketMarginRatio(
 				market,
 				targetSize,
-				marginCategory
+				marginCategory,
+				this.getUserAccount().maxMarginRatio
 			);
 			attempts += 1;
 		}
@@ -2176,6 +2175,7 @@ export class User {
 			: this.getPerpPositionValue(targetMarketIndex, oracleData);
 
 		let maxPositionSize = this.getPerpBuyingPower(targetMarketIndex, lpBuffer);
+
 		if (maxPositionSize.gte(ZERO)) {
 			if (oppositeSizeValueUSDC.eq(ZERO)) {
 				// case 1 : Regular trade where current total position less than max, and no opposite position to account for
@@ -3156,7 +3156,8 @@ export class User {
 				calculateMarketMarginRatio(
 					perpMarket,
 					worstCaseBaseAmount.abs(),
-					marginCategory
+					marginCategory,
+					this.getUserAccount().maxMarginRatio
 				)
 			);
 

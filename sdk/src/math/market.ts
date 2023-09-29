@@ -129,17 +129,22 @@ export function calculateOracleSpread(
 export function calculateMarketMarginRatio(
 	market: PerpMarketAccount,
 	size: BN,
-	marginCategory: MarginCategory
+	marginCategory: MarginCategory,
+	customMarginRatio = 0
 ): number {
 	let marginRatio;
 	switch (marginCategory) {
 		case 'Initial': {
-			marginRatio = calculateSizePremiumLiabilityWeight(
-				size,
-				new BN(market.imfFactor),
-				new BN(market.marginRatioInitial),
-				MARGIN_PRECISION
-			).toNumber();
+			// use lowest leverage between max allowed and optional user custom max
+			marginRatio = Math.max(
+				calculateSizePremiumLiabilityWeight(
+					size,
+					new BN(market.imfFactor),
+					new BN(market.marginRatioInitial),
+					MARGIN_PRECISION
+				).toNumber(),
+				customMarginRatio
+			);
 			break;
 		}
 		case 'Maintenance': {
