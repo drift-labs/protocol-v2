@@ -41,6 +41,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     referrer_stats: &Option<&mut UserStats>,
     quote_asset_amount_surplus: i64,
     is_post_only: bool,
+    fee_adjustment: i8,
 ) -> DriftResult<FillFees> {
     let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp)?;
 
@@ -75,7 +76,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             referee_discount: 0,
         })
     } else {
-        let fee = calculate_taker_fee(quote_asset_amount, fee_tier)?;
+        let fee = calculate_taker_fee(quote_asset_amount, fee_tier, fee_adjustment)?;
 
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
             calculate_referee_fee_and_referrer_reward(
@@ -121,20 +122,54 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     }
 }
 
-fn calculate_taker_fee(quote_asset_amount: u64, fee_tier: &FeeTier) -> DriftResult<u64> {
-    quote_asset_amount
+fn calculate_taker_fee(
+    quote_asset_amount: u64,
+    fee_tier: &FeeTier,
+    fee_adjustment: i8,
+) -> DriftResult<u64> {
+    let mut taker_fee = quote_asset_amount
         .cast::<u128>()?
         .safe_mul(fee_tier.fee_numerator.cast::<u128>()?)?
         .safe_div_ceil(fee_tier.fee_denominator.cast::<u128>()?)?
-        .cast()
+        .cast::<u64>()?;
+
+    if fee_adjustment < 0 {
+        taker_fee = taker_fee.saturating_sub(
+            taker_fee
+                .safe_mul(fee_adjustment.unsigned_abs().cast()?)?
+                .safe_div(100)?,
+        );
+    } else if fee_adjustment > 0 {
+        taker_fee =
+            taker_fee.saturating_add(taker_fee.safe_mul(fee_adjustment.cast()?)?.safe_div(100)?);
+    }
+
+    Ok(taker_fee)
 }
 
-fn calculate_maker_rebate(quote_asset_amount: u64, fee_tier: &FeeTier) -> DriftResult<u64> {
-    quote_asset_amount
+fn calculate_maker_rebate(
+    quote_asset_amount: u64,
+    fee_tier: &FeeTier,
+    fee_adjustment: i8,
+) -> DriftResult<u64> {
+    let mut maker_fee = quote_asset_amount
         .cast::<u128>()?
         .safe_mul(fee_tier.maker_rebate_numerator as u128)?
         .safe_div(fee_tier.maker_rebate_denominator as u128)?
-        .cast()
+        .cast::<u64>()?;
+
+    if fee_adjustment < 0 {
+        maker_fee = maker_fee.saturating_sub(
+            maker_fee
+                .safe_mul(fee_adjustment.unsigned_abs().cast()?)?
+                .safe_div(100)?,
+        );
+    } else if fee_adjustment > 0 {
+        maker_fee =
+            maker_fee.saturating_add(maker_fee.safe_mul(fee_adjustment.cast()?)?.safe_div(100)?);
+    }
+
+    Ok(maker_fee)
 }
 
 fn calculate_referee_fee_and_referrer_reward(
@@ -221,6 +256,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     reward_referrer: bool,
     referrer_stats: &Option<&mut UserStats>,
     market_type: &MarketType,
+    fee_adjustment: i8,
 ) -> DriftResult<FillFees> {
     let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure, market_type)?;
     let maker_fee_tier = if let Some(maker_stats) = maker_stats {
@@ -229,7 +265,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         determine_user_fee_tier(taker_stats, fee_structure, market_type)?
     };
 
-    let taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier)?;
+    let taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, fee_adjustment)?;
 
     let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
         calculate_referee_fee_and_referrer_reward(
@@ -242,7 +278,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         (taker_fee, 0, 0)
     };
 
-    let maker_rebate = calculate_maker_rebate(quote_asset_amount, maker_fee_tier)?;
+    let maker_rebate = calculate_maker_rebate(quote_asset_amount, maker_fee_tier, fee_adjustment)?;
 
     let filler_reward = if filler_multiplier == 0 {
         0_u64
@@ -291,10 +327,11 @@ pub fn calculate_fee_for_fulfillment_with_external_market(
     external_market_fee: u64,
     unsettled_referrer_rebate: u64,
     fee_pool_amount: u64,
+    fee_adjustment: i8,
 ) -> DriftResult<ExternalFillFees> {
     let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot)?;
 
-    let fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier)?;
+    let fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, fee_adjustment)?;
 
     let fee_plus_referrer_rebate = external_market_fee.safe_add(unsettled_referrer_rebate)?;
 

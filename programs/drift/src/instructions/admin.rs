@@ -630,7 +630,7 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        padding1: false,
+        fee_adjustment: 0,
         quote_spot_market_index: 0,
         padding: [0; 48],
         amm: AMM {
