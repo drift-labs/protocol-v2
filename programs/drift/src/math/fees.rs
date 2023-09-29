@@ -15,6 +15,7 @@ use crate::math::safe_math::SafeMath;
 use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
+use crate::FEE_ADJUSTMENT_MAX;
 use solana_program::msg;
 
 #[cfg(test)]
@@ -137,11 +138,14 @@ fn calculate_taker_fee(
         taker_fee = taker_fee.saturating_sub(
             taker_fee
                 .safe_mul(fee_adjustment.unsigned_abs().cast()?)?
-                .safe_div(100)?,
+                .safe_div(FEE_ADJUSTMENT_MAX)?,
         );
     } else if fee_adjustment > 0 {
-        taker_fee =
-            taker_fee.saturating_add(taker_fee.safe_mul(fee_adjustment.cast()?)?.safe_div(100)?);
+        taker_fee = taker_fee.saturating_add(
+            taker_fee
+                .safe_mul(fee_adjustment.cast()?)?
+                .safe_div(FEE_ADJUSTMENT_MAX)?,
+        );
     }
 
     Ok(taker_fee)
@@ -162,11 +166,14 @@ fn calculate_maker_rebate(
         maker_fee = maker_fee.saturating_sub(
             maker_fee
                 .safe_mul(fee_adjustment.unsigned_abs().cast()?)?
-                .safe_div(100)?,
+                .safe_div(FEE_ADJUSTMENT_MAX)?,
         );
     } else if fee_adjustment > 0 {
-        maker_fee =
-            maker_fee.saturating_add(maker_fee.safe_mul(fee_adjustment.cast()?)?.safe_div(100)?);
+        maker_fee = maker_fee.saturating_add(
+            maker_fee
+                .safe_mul(fee_adjustment.cast()?)?
+                .safe_div(FEE_ADJUSTMENT_MAX)?,
+        );
     }
 
     Ok(maker_fee)
