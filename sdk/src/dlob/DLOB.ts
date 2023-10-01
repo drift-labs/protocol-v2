@@ -71,6 +71,14 @@ export type MarketNodeLists = {
 	};
 };
 
+/**
+ *  Receives a DLOBNode and is expected to return true if the node should
+ *  be taken into account when generating, or false otherwise.
+ *
+ * Currently used in getMakerLimitBids and getMakerLimitAsks.
+ */
+export type DLOBFilterFn = (node: DLOBNode) => boolean;
+
 type OrderBookCallback = () => void;
 
 export type NodeToFill = {
@@ -1155,6 +1163,9 @@ export class DLOB {
 	 * Filters the limit asks that are resting and do not cross fallback bid
 	 * Taking orders can only fill against orders that meet this criteria
 	 *
+	 * It can also receive an optional filterFn. If present, and the function
+	 * returns false for a node, the node will be excluded when generating.
+	 *
 	 * @returns
 	 */
 	*getMakerLimitAsks(
@@ -1162,7 +1173,8 @@ export class DLOB {
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData,
-		fallbackBid?: BN
+		fallbackBid?: BN,
+		filterFn?: DLOBFilterFn
 	): Generator<DLOBNode> {
 		const isPerpMarket = isVariant(marketType, 'perp');
 		for (const node of this.getRestingLimitAsks(
@@ -1172,9 +1184,10 @@ export class DLOB {
 			oraclePriceData
 		)) {
 			if (
-				isPerpMarket &&
-				fallbackBid &&
-				node.getPrice(oraclePriceData, slot).lte(fallbackBid)
+				(filterFn && !filterFn(node)) ||
+				(isPerpMarket &&
+					fallbackBid &&
+					node.getPrice(oraclePriceData, slot).lte(fallbackBid))
 			) {
 				continue;
 			}
@@ -1220,7 +1233,10 @@ export class DLOB {
 
 	/**
 	 * Filters the limit bids that are post only, have been place for sufficiently long or are below the fallback ask
-	 * Market orders can only fill against orders that meet this criteria
+	 * Market orders can only fill against orders that meet this criteria.
+	 *
+	 * It can also receive an optional filterFn. If present, and the function
+	 * returns false for a node, the node will be excluded when generating.
 	 *
 	 * @returns
 	 */
@@ -1229,7 +1245,8 @@ export class DLOB {
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData,
-		fallbackAsk?: BN
+		fallbackAsk?: BN,
+		filterFn?: DLOBFilterFn
 	): Generator<DLOBNode> {
 		const isPerpMarket = isVariant(marketType, 'perp');
 		for (const node of this.getRestingLimitBids(
@@ -1239,9 +1256,10 @@ export class DLOB {
 			oraclePriceData
 		)) {
 			if (
-				isPerpMarket &&
-				fallbackAsk &&
-				node.getPrice(oraclePriceData, slot).gte(fallbackAsk)
+				(filterFn && !filterFn(node)) ||
+				(isPerpMarket &&
+					fallbackAsk &&
+					node.getPrice(oraclePriceData, slot).gte(fallbackAsk))
 			) {
 				continue;
 			}
