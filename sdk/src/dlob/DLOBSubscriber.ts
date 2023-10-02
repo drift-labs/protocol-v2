@@ -16,7 +16,6 @@ import {
 	L2OrderBookGenerator,
 	L3OrderBook,
 } from './orderBookLevels';
-import { calculateAskPrice, calculateBidPrice } from '../math/market';
 
 export class DLOBSubscriber {
 	driftClient: DriftClient;

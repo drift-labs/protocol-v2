@@ -23,7 +23,6 @@ import {
 	convertToNumber,
 	QUOTE_PRECISION,
 	isVariant,
-	TWO,
 } from '../../src';
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';

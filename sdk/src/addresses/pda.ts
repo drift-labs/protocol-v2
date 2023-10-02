@@ -219,11 +219,7 @@ export function getProtocolIfSharesTransferConfigPublicKey(
 	programId: PublicKey
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
-		[
-			Buffer.from(
-				anchor.utils.bytes.utf8.encode('if_shares_transfer_config')
-			),
-		],
+		[Buffer.from(anchor.utils.bytes.utf8.encode('if_shares_transfer_config'))],
 		programId
 	)[0];
 }

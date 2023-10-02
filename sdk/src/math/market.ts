@@ -283,7 +283,7 @@ export function calculateAvailablePerpLiquidity(
 		market.marketIndex,
 		slot,
 		MarketType.PERP,
-		oraclePriceData,
+		oraclePriceData
 	)) {
 		bids = bids.add(
 			bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled)
@@ -294,7 +294,7 @@ export function calculateAvailablePerpLiquidity(
 		market.marketIndex,
 		slot,
 		MarketType.PERP,
-		oraclePriceData,
+		oraclePriceData
 	)) {
 		asks = asks.add(
 			ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled)

@@ -687,7 +687,7 @@ export class DLOB {
 					}
 				}
 				return takerPrice === undefined || takerPrice.lte(makerPrice);
-			},
+			}
 		);
 		for (const takingAskCrossingBid of takingAsksCrossingBids) {
 			nodesToFill.push(takingAskCrossingBid);
@@ -744,7 +744,7 @@ export class DLOB {
 				}
 
 				return takerPrice === undefined || takerPrice.gte(makerPrice);
-			},
+			}
 		);
 
 		for (const takingBidToFill of takingBidsToFill) {
@@ -788,9 +788,9 @@ export class DLOB {
 			marketIndex: number,
 			slot: number,
 			marketType: MarketType,
-			oraclePriceData: OraclePriceData,
+			oraclePriceData: OraclePriceData
 		) => Generator<DLOBNode>,
-		doesCross: (takerPrice: BN | undefined, makerPrice: BN) => boolean,
+		doesCross: (takerPrice: BN | undefined, makerPrice: BN) => boolean
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -799,7 +799,7 @@ export class DLOB {
 				marketIndex,
 				slot,
 				marketType,
-				oraclePriceData,
+				oraclePriceData
 			);
 
 			for (const makerNode of makerNodeGenerator) {
@@ -1727,12 +1727,7 @@ export class DLOB {
 		fallbackL2Generators?: L2OrderBookGenerator[];
 	}): L2OrderBook {
 		const makerAskL2LevelGenerator = getL2GeneratorFromDLOBNodes(
-			this.getRestingLimitAsks(
-				marketIndex,
-				slot,
-				marketType,
-				oraclePriceData,
-			),
+			this.getRestingLimitAsks(marketIndex, slot, marketType, oraclePriceData),
 			oraclePriceData,
 			slot
 		);
@@ -1753,12 +1748,7 @@ export class DLOB {
 		const asks = createL2Levels(askL2LevelGenerator, depth);
 
 		const makerBidGenerator = getL2GeneratorFromDLOBNodes(
-			this.getRestingLimitBids(
-				marketIndex,
-				slot,
-				marketType,
-				oraclePriceData,
-			),
+			this.getRestingLimitBids(marketIndex, slot, marketType, oraclePriceData),
 			oraclePriceData,
 			slot
 		);

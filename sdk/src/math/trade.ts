@@ -412,12 +412,7 @@ export function calculateEstimatedPerpEntryPrice(
 	const takerIsLong = isVariant(direction, 'long');
 	const limitOrders = dlob[
 		takerIsLong ? 'getRestingLimitAsks' : 'getRestingLimitBids'
-	](
-		market.marketIndex,
-		slot,
-		MarketType.PERP,
-		oraclePriceData,
-	);
+	](market.marketIndex, slot, MarketType.PERP, oraclePriceData);
 
 	const swapDirection = getSwapDirection(assetType, direction);
 
