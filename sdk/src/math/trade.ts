@@ -411,15 +411,12 @@ export function calculateEstimatedPerpEntryPrice(
 
 	const takerIsLong = isVariant(direction, 'long');
 	const limitOrders = dlob[
-		takerIsLong ? 'getMakerLimitAsks' : 'getMakerLimitBids'
+		takerIsLong ? 'getRestingLimitAsks' : 'getRestingLimitBids'
 	](
 		market.marketIndex,
 		slot,
 		MarketType.PERP,
 		oraclePriceData,
-		takerIsLong
-			? calculateBidPrice(market, oraclePriceData)
-			: calculateAskPrice(market, oraclePriceData)
 	);
 
 	const swapDirection = getSwapDirection(assetType, direction);
@@ -726,7 +723,7 @@ export function calculateEstimatedSpotEntryPrice(
 
 	const takerIsLong = isVariant(direction, 'long');
 	const dlobLimitOrders = dlob[
-		takerIsLong ? 'getMakerLimitAsks' : 'getMakerLimitBids'
+		takerIsLong ? 'getRestingLimitAsks' : 'getRestingLimitBids'
 	](market.marketIndex, slot, MarketType.SPOT, oraclePriceData);
 	const serumLimitOrders = takerIsLong
 		? serumAsks.getL2(100)

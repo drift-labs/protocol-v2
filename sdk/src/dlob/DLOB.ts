@@ -675,7 +675,7 @@ export class DLOB {
 			marketType,
 			oraclePriceData,
 			takingOrderGenerator,
-			this.getMakerLimitBids.bind(this),
+			this.getRestingLimitBids.bind(this),
 			(takerPrice, makerPrice) => {
 				if (isVariant(marketType, 'spot')) {
 					if (takerPrice === undefined) {
@@ -688,7 +688,6 @@ export class DLOB {
 				}
 				return takerPrice === undefined || takerPrice.lte(makerPrice);
 			},
-			fallbackAsk
 		);
 		for (const takingAskCrossingBid of takingAsksCrossingBids) {
 			nodesToFill.push(takingAskCrossingBid);
@@ -732,7 +731,7 @@ export class DLOB {
 			marketType,
 			oraclePriceData,
 			takingOrderGenerator,
-			this.getMakerLimitAsks.bind(this),
+			this.getRestingLimitAsks.bind(this),
 			(takerPrice, makerPrice) => {
 				if (isVariant(marketType, 'spot')) {
 					if (takerPrice === undefined) {
@@ -746,7 +745,6 @@ export class DLOB {
 
 				return takerPrice === undefined || takerPrice.gte(makerPrice);
 			},
-			fallbackBid
 		);
 
 		for (const takingBidToFill of takingBidsToFill) {
@@ -791,10 +789,8 @@ export class DLOB {
 			slot: number,
 			marketType: MarketType,
 			oraclePriceData: OraclePriceData,
-			fallbackPrice?: BN
 		) => Generator<DLOBNode>,
 		doesCross: (takerPrice: BN | undefined, makerPrice: BN) => boolean,
-		fallbackPrice?: BN
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -804,7 +800,6 @@ export class DLOB {
 				slot,
 				marketType,
 				oraclePriceData,
-				fallbackPrice
 			);
 
 			for (const makerNode of makerNodeGenerator) {
@@ -1714,8 +1709,6 @@ export class DLOB {
 	 * @param slot
 	 * @param oraclePriceData
 	 * @param depth how many levels of the order book to return
-	 * @param fallbackAsk best ask for fallback liquidity, only relevant for perps
-	 * @param fallbackBid best bid for fallback liquidity, only relevant for perps
 	 * @param fallbackL2Generators L2 generators for fallback liquidity e.g. vAMM {@link getVammL2Generator}, openbook {@link SerumSubscriber}
 	 */
 	public getL2({
@@ -1724,8 +1717,6 @@ export class DLOB {
 		slot,
 		oraclePriceData,
 		depth,
-		fallbackAsk,
-		fallbackBid,
 		fallbackL2Generators = [],
 	}: {
 		marketIndex: number;
@@ -1733,17 +1724,14 @@ export class DLOB {
 		slot: number;
 		oraclePriceData: OraclePriceData;
 		depth: number;
-		fallbackAsk?: BN;
-		fallbackBid?: BN;
 		fallbackL2Generators?: L2OrderBookGenerator[];
 	}): L2OrderBook {
 		const makerAskL2LevelGenerator = getL2GeneratorFromDLOBNodes(
-			this.getMakerLimitAsks(
+			this.getRestingLimitAsks(
 				marketIndex,
 				slot,
 				marketType,
 				oraclePriceData,
-				fallbackBid
 			),
 			oraclePriceData,
 			slot
@@ -1765,12 +1753,11 @@ export class DLOB {
 		const asks = createL2Levels(askL2LevelGenerator, depth);
 
 		const makerBidGenerator = getL2GeneratorFromDLOBNodes(
-			this.getMakerLimitBids(
+			this.getRestingLimitBids(
 				marketIndex,
 				slot,
 				marketType,
 				oraclePriceData,
-				fallbackAsk
 			),
 			oraclePriceData,
 			slot
