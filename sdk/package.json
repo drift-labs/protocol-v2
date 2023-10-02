@@ -11,7 +11,7 @@
 	},
 	"scripts": {
 		"lint": "eslint './**/*.{ts,tsx}' --quiet",
-		"build": "yarn clean && tsc",
+		"build": "bun run clean && tsc",
 		"clean": "rm -rf lib",
 		"test": "mocha -r ts-node/register tests/**/*.ts",
 		"test:inspect": "mocha --inspect-brk -r ts-node/register tests/**/*.ts",
