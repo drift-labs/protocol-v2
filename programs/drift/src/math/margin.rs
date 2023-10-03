@@ -9,7 +9,7 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 
-use crate::{validate, PRICE_PRECISION_I128, SPOT_WEIGHT_PRECISION_I128};
+use crate::{validate, PRICE_PRECISION_I128};
 use crate::{validation, PRICE_PRECISION_I64};
 
 use crate::math::casting::Cast;
@@ -322,40 +322,18 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             let OrderFillSimulation {
                 token_amount: worst_case_token_amount,
-                orders_value: mut worst_case_orders_value,
+                orders_value: worst_case_orders_value,
                 token_value: worst_case_token_value,
-                weighted_token_value: mut worst_case_weighted_token_value,
+                weighted_token_value: worst_case_weighted_token_value,
                 ..
-            } = spot_position.get_worst_case_token_amount(
-                &spot_market,
-                &strict_oracle_price,
-                Some(signed_token_amount),
-                context.margin_type,
-            )?;
-
-            // Need to recalculate weighted_token_value if user_custom_margin_ratio != 0
-            if user_custom_margin_ratio != 0 {
-                if worst_case_weighted_token_value < 0 {
-                    let max_liability_weight = spot_market
-                        .get_liability_weight(
-                            worst_case_token_amount.unsigned_abs(),
-                            &context.margin_type,
-                        )?
-                        .max(user_custom_margin_ratio);
-
-                    worst_case_weighted_token_value = worst_case_token_value
-                        .safe_mul(max_liability_weight.cast()?)?
-                        .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
-                }
-
-                if worst_case_orders_value < 0 {
-                    let max_liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
-
-                    worst_case_orders_value = worst_case_orders_value
-                        .safe_mul(max_liability_weight.cast()?)?
-                        .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
-                }
-            }
+            } = spot_position
+                .get_worst_case_token_amount(
+                    &spot_market,
+                    &strict_oracle_price,
+                    Some(signed_token_amount),
+                    context.margin_type,
+                )?
+                .apply_user_custom_margin_ratio(&spot_market, user_custom_margin_ratio)?;
 
             if worst_case_token_amount == 0 {
                 validate!(
