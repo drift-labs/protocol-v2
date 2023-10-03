@@ -1468,19 +1468,16 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		feeAdjustment: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketFeeAdjustment(
-			feeAdjustment,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
-		);
+		return await this.program.rpc.updatePerpMarketFeeAdjustment(feeAdjustment, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
 	}
 
 	public async updateSerumVault(
