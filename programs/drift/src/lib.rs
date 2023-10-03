@@ -1018,6 +1018,13 @@ pub mod drift {
         handle_update_perp_market_max_open_interest(ctx, max_open_interest)
     }
 
+    pub fn update_perp_market_fee_adjustment(
+        ctx: Context<AdminUpdatePerpMarket>,
+        fee_adjustment: i8,
+    ) -> Result<()> {
+        handle_update_perp_market_fee_adjustment(ctx, fee_adjustment)
+    }
+
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         handle_update_admin(ctx, admin)
     }

@@ -560,7 +560,7 @@ mod calculate_perp_if_fee {
         )
         .unwrap();
 
-        assert_eq!(fee, LIQUIDATION_FEE_PRECISION / 50); // 2%
+        assert_eq!(fee, 19000); // 2% * .95
 
         let tiny_margin_shortage = QUOTE_PRECISION;
         let fee = calculate_perp_if_fee(
@@ -574,7 +574,7 @@ mod calculate_perp_if_fee {
         )
         .unwrap();
 
-        assert_eq!(fee, 39000); // 3.9%
+        assert_eq!(fee, 37050); // 3.9% * .95
 
         let huge_margin_shortage = 1000 * QUOTE_PRECISION;
         let fee = calculate_perp_if_fee(

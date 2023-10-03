@@ -9,7 +9,6 @@ use solana_program::msg;
 
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
-use crate::load;
 use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -54,6 +53,7 @@ use crate::validation::perp_market::validate_perp_market;
 use crate::validation::spot_market::validate_borrow_rate;
 use crate::{controller, QUOTE_PRECISION_I64};
 use crate::{get_then_update_id, EPOCH_DURATION};
+use crate::{load, FEE_ADJUSTMENT_MAX};
 use crate::{math, safe_decrement, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -630,7 +630,7 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        padding1: false,
+        fee_adjustment: 0,
         quote_spot_market_index: 0,
         padding: [0; 48],
         amm: AMM {
@@ -2140,6 +2140,27 @@ pub fn handle_update_perp_market_max_open_interest(
     )?;
 
     perp_market.amm.max_open_interest = max_open_interest;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_fee_adjustment(
+    ctx: Context<AdminUpdatePerpMarket>,
+    fee_adjustment: i8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    validate!(
+        fee_adjustment.unsigned_abs().cast::<u64>()? <= FEE_ADJUSTMENT_MAX,
+        ErrorCode::DefaultError,
+        "fee adjustment {} greater than max {}",
+        fee_adjustment,
+        FEE_ADJUSTMENT_MAX
+    )?;
+
+    perp_market.fee_adjustment = fee_adjustment;
     Ok(())
 }
 
