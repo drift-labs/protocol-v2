@@ -218,15 +218,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
         let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -250,15 +248,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
         let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -284,15 +280,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
         let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -318,15 +312,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
         let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -352,15 +344,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
         let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -386,15 +376,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
         let result = order_breaches_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 

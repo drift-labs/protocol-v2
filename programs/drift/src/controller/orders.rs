@@ -1295,7 +1295,6 @@ fn get_maker_orders_info(
         settle_funding_payment(&mut maker, maker_key, &mut market, now)?;
 
         let initial_margin_ratio = market.margin_ratio_initial;
-        let maintenance_margin_ratio = market.margin_ratio_maintenance;
 
         drop(market);
 
@@ -1325,7 +1324,6 @@ fn get_maker_orders_info(
                     maker_order.direction,
                     oracle_price,
                     initial_margin_ratio,
-                    maintenance_margin_ratio,
                 )?
             };
 
@@ -3438,15 +3436,12 @@ fn get_spot_maker_order<'a>(
     let breaches_oracle_price_limits = {
         let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?;
         let initial_margin_ratio = spot_market.get_margin_ratio(&MarginRequirementType::Initial)?;
-        let maintenance_margin_ratio =
-            spot_market.get_margin_ratio(&MarginRequirementType::Maintenance)?;
         order_breaches_oracle_price_bands(
             &maker.orders[maker_order_index],
             oracle_price.price,
             slot,
             spot_market.order_tick_size,
             initial_margin_ratio,
-            maintenance_margin_ratio,
         )?
     };
 
