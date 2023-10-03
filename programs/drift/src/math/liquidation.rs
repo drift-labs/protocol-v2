@@ -379,15 +379,19 @@ pub fn calculate_perp_if_fee(
         .safe_div(PRICE_PRECISION)?;
 
     // margin ratio - liquidator fee - (margin shortage / (user base asset amount * price))
-    let implied_if_fee = margin_ratio.saturating_sub(liquidator_fee).saturating_sub(
-        margin_shortage
-            .safe_mul(BASE_PRECISION)?
-            .safe_div(user_base_asset_amount.cast()?)?
-            .safe_mul(PRICE_PRECISION)?
-            .safe_div(price)?
-            .cast::<u32>()
-            .unwrap_or(u32::MAX),
-    );
+    let implied_if_fee = margin_ratio
+        .saturating_sub(liquidator_fee)
+        .saturating_sub(
+            margin_shortage
+                .safe_mul(BASE_PRECISION)?
+                .safe_div(user_base_asset_amount.cast()?)?
+                .safe_mul(PRICE_PRECISION)?
+                .safe_div(price)?
+                .cast::<u32>()
+                .unwrap_or(u32::MAX),
+        )
+        .safe_mul(19)?
+        .safe_div(20)?;
 
     Ok(max_if_liquidation_fee.min(implied_if_fee))
 }
