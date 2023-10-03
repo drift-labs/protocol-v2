@@ -144,7 +144,7 @@ fn calculate_taker_fee(
         taker_fee = taker_fee.saturating_add(
             taker_fee
                 .safe_mul(fee_adjustment.cast()?)?
-                .safe_div(FEE_ADJUSTMENT_MAX)?,
+                .safe_div_ceil(FEE_ADJUSTMENT_MAX)?,
         );
     }
 
@@ -166,7 +166,7 @@ fn calculate_maker_rebate(
         maker_fee = maker_fee.saturating_sub(
             maker_fee
                 .safe_mul(fee_adjustment.unsigned_abs().cast()?)?
-                .safe_div(FEE_ADJUSTMENT_MAX)?,
+                .safe_div_ceil(FEE_ADJUSTMENT_MAX)?,
         );
     } else if fee_adjustment > 0 {
         maker_fee = maker_fee.saturating_add(
