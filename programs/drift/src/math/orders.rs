@@ -381,7 +381,7 @@ pub fn should_cancel_reduce_only_order(
     Ok(should_cancel)
 }
 
-pub fn order_breaches_oracle_price_bands(
+pub fn order_breaches_maker_oracle_price_bands(
     order: &Order,
     oracle_price: i64,
     slot: u64,
@@ -390,7 +390,7 @@ pub fn order_breaches_oracle_price_bands(
 ) -> DriftResult<bool> {
     let order_limit_price =
         order.force_get_limit_price(Some(oracle_price), None, slot, tick_size)?;
-    limit_price_breaches_oracle_price_bands(
+    limit_price_breaches_maker_oracle_price_bands(
         order_limit_price,
         order.direction,
         oracle_price,
@@ -398,7 +398,10 @@ pub fn order_breaches_oracle_price_bands(
     )
 }
 
-pub fn limit_price_breaches_oracle_price_bands(
+/// Cancel maker order if there limit price cross the oracle price sufficiently
+/// E.g. if initial margin ratio is .05 and oracle price is 100, then maker limit price must be
+/// less than 105 to be valid
+pub fn limit_price_breaches_maker_oracle_price_bands(
     order_limit_price: u64,
     order_direction: PositionDirection,
     oracle_price: i64,

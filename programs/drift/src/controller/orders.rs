@@ -1319,7 +1319,7 @@ fn get_maker_orders_info(
             }
 
             let breaches_oracle_price_limits = {
-                limit_price_breaches_oracle_price_bands(
+                limit_price_breaches_maker_oracle_price_bands(
                     maker_order_price,
                     maker_order.direction,
                     oracle_price,
@@ -3436,7 +3436,7 @@ fn get_spot_maker_order<'a>(
     let breaches_oracle_price_limits = {
         let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?;
         let initial_margin_ratio = spot_market.get_margin_ratio(&MarginRequirementType::Initial)?;
-        order_breaches_oracle_price_bands(
+        order_breaches_maker_oracle_price_bands(
             &maker.orders[maker_order_index],
             oracle_price.price,
             slot,

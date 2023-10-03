@@ -197,7 +197,7 @@ mod is_order_risk_increase {
 mod order_breaches_oracle_price_limits {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
-    use crate::math::orders::order_breaches_oracle_price_bands;
+    use crate::math::orders::order_breaches_maker_oracle_price_bands;
     use crate::state::perp_market::PerpMarket;
     use crate::state::user::Order;
 
@@ -219,7 +219,7 @@ mod order_breaches_oracle_price_limits {
         let tick_size = 1;
 
         let margin_ratio_initial = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
@@ -249,7 +249,7 @@ mod order_breaches_oracle_price_limits {
         let tick_size = 1;
 
         let margin_ratio_initial = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
@@ -281,7 +281,7 @@ mod order_breaches_oracle_price_limits {
         let tick_size = 1;
 
         let margin_ratio_initial = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
@@ -313,7 +313,7 @@ mod order_breaches_oracle_price_limits {
         let tick_size = 1;
 
         let margin_ratio_initial = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
@@ -345,7 +345,7 @@ mod order_breaches_oracle_price_limits {
         let tick_size = 1;
 
         let margin_ratio_initial = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
@@ -377,7 +377,7 @@ mod order_breaches_oracle_price_limits {
         let tick_size = 1;
 
         let margin_ratio_initial = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
