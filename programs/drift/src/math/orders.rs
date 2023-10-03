@@ -1180,11 +1180,13 @@ fn calculate_free_collateral_delta_for_spot(
     user_custom_margin_ratio: u32,
 ) -> DriftResult<u32> {
     Ok(if order_direction == PositionDirection::Long {
-        SPOT_WEIGHT_PRECISION.sub(spot_market.get_asset_weight(
-            worst_case_token_amount,
-            strict_oracle_price.current,
-            &MarginRequirementType::Initial,
-        )?)
+        SPOT_WEIGHT_PRECISION
+            .max(user_custom_margin_ratio)
+            .sub(spot_market.get_asset_weight(
+                worst_case_token_amount,
+                strict_oracle_price.current,
+                &MarginRequirementType::Initial,
+            )?)
     } else {
         spot_market
             .get_liability_weight(worst_case_token_amount, &MarginRequirementType::Initial)?
