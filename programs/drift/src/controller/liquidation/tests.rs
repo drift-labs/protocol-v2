@@ -2058,7 +2058,6 @@ pub mod liquidate_perp {
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
         assert!(!user.is_being_liquidated());
-        // .5% * 100 =$0.5
         assert_eq!(market_after.amm.total_liquidation_fee, 41787043);
     }
 }

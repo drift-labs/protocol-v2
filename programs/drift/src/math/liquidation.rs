@@ -390,6 +390,8 @@ pub fn calculate_perp_if_fee(
                 .cast::<u32>()
                 .unwrap_or(u32::MAX),
         )
+        // multiply by 95% to avoid situation where fee leads to deposits == negative pnl
+        // leading to bankruptcy
         .safe_mul(19)?
         .safe_div(20)?;
 
