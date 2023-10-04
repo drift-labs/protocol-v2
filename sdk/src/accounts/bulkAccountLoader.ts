@@ -40,6 +40,11 @@ export class BulkAccountLoader {
 		publicKey: PublicKey,
 		callback: (buffer: Buffer, slot: number) => void
 	): Promise<string> {
+
+		if (!publicKey) {
+			console.trace(`Caught adding blank publickey to bulkAccountLoader`);
+		}
+
 		const existingSize = this.accountsToLoad.size;
 
 		const callbackId = uuidv4();
@@ -150,7 +155,12 @@ export class BulkAccountLoader {
 		for (const accountsToLoadChunk of accountsToLoadChunks) {
 			const args = [
 				accountsToLoadChunk.map((accountToLoad) => {
-					return accountToLoad.publicKey.toBase58();
+					try {
+						return accountToLoad.publicKey.toBase58();
+					} catch (e) {
+						this.logStateForInvalidAccountKeysError();
+						throw e;
+					}
 				}),
 				{ commitment: this.commitment },
 			];
@@ -276,5 +286,17 @@ export class BulkAccountLoader {
 		if (this.accountsToLoad.size > 0) {
 			this.startPolling();
 		}
+	}
+
+	// Debugging Methods
+	private alreadyLoggedInvalidAccountKeysDebugging = false;
+	private logStateForInvalidAccountKeysError() {
+		if (this.alreadyLoggedInvalidAccountKeysDebugging) return;
+
+		console.log('Debug logging account state of bulkAccountLoader:');
+		for (const entry of this.accountsToLoad.entries()) {
+			console.log(`[${entry[0]}], [${entry[1]?.publicKey?.toString?.()}]`);
+		}
+		console.log('finished debug logging for bulkAccountLoader');
 	}
 }
