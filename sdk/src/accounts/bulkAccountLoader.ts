@@ -202,7 +202,7 @@ export class BulkAccountLoader {
 				try {
 					key = accountToLoad.publicKey.toBase58();
 				} catch (e) {
-					this.logResponseHandlingError(i,j,rpcResponses,accountsToLoad);
+					this.logResponseHandlingError(i,j,rpcResponses,accountsToLoad,accountToLoad);
 					this.logStateForBadBulkAccountLoader();
 					throw e;
 				}
@@ -323,7 +323,7 @@ export class BulkAccountLoader {
 	}
 
 	private alreadyLoggedResponseHandlingDebugging = false;
-	private logResponseHandlingError(i:any,j:any,rpcResponses:any,accountsToLoad:any) {
+	private logResponseHandlingError(i:any,j:any,rpcResponses:any,accountsToLoad:any,accountToLoad:any) {
 		if (this.alreadyLoggedResponseHandlingDebugging) return;
 		
 		console.log('');
@@ -333,6 +333,7 @@ export class BulkAccountLoader {
 		console.log(`j`, j);
 		console.log(`rpcResponses`, rpcResponses);
 		console.log(`accountsToLoad`, accountsToLoad);
+		console.log(`accountToLoad`, accountToLoad);
 		console.log(`Finished debug logging bulkAccountLoader response handling`);
 		console.log('');
 		console.log('');
