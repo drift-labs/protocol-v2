@@ -158,7 +158,7 @@ export class BulkAccountLoader {
 					try {
 						return accountToLoad.publicKey.toBase58();
 					} catch (e) {
-						this.logStateForInvalidAccountKeysError();
+						this.logStateForBadBulkAccountLoader();
 						throw e;
 					}
 				}),
@@ -198,7 +198,14 @@ export class BulkAccountLoader {
 			const accountsToLoad = accountsToLoadChunks[i];
 			for (const j in accountsToLoad) {
 				const accountToLoad = accountsToLoad[j];
-				const key = accountToLoad.publicKey.toBase58();
+				let key : string;
+				try {
+					key = accountToLoad.publicKey.toBase58();
+				} catch (e) {
+					this.logResponseHandlingError(i,j,rpcResponses,accountsToLoad);
+					this.logStateForBadBulkAccountLoader();
+					throw e;
+				}
 				const oldRPCResponse = this.bufferAndSlotMap.get(key);
 
 				if (oldRPCResponse && newSlot <= oldRPCResponse.slot) {
@@ -290,7 +297,7 @@ export class BulkAccountLoader {
 
 	// Debugging Methods
 	private alreadyLoggedInvalidAccountKeysDebugging = false;
-	private logStateForInvalidAccountKeysError() {
+	private logStateForBadBulkAccountLoader() {
 		if (this.alreadyLoggedInvalidAccountKeysDebugging) return;
 
 		console.log('');
@@ -313,6 +320,24 @@ export class BulkAccountLoader {
 		console.log('');
 		
 		this.alreadyLoggedInvalidAccountKeysDebugging = true;
+	}
+
+	private alreadyLoggedResponseHandlingDebugging = false;
+	private logResponseHandlingError(i:any,j:any,rpcResponses:any,accountsToLoad:any) {
+		if (this.alreadyLoggedResponseHandlingDebugging) return;
+		
+		console.log('');
+		console.log('');
+		console.log(`Debug logging error in bulkAccountLoader response handling:`);
+		console.log(`i`, i);
+		console.log(`j`, j);
+		console.log(`rpcResponses`, rpcResponses);
+		console.log(`accountsToLoad`, accountsToLoad);
+		console.log(`Finished debug logging bulkAccountLoader response handling`);
+		console.log('');
+		console.log('');
+		
+		this.alreadyLoggedResponseHandlingDebugging = true;
 	}
 
 }
