@@ -40,6 +40,11 @@ export class BulkAccountLoader {
 		publicKey: PublicKey,
 		callback: (buffer: Buffer, slot: number) => void
 	): Promise<string> {
+
+		if (!publicKey) {
+			console.trace(`Caught adding blank publickey to bulkAccountLoader`);
+		}
+
 		const existingSize = this.accountsToLoad.size;
 
 		const callbackId = uuidv4();
@@ -150,7 +155,12 @@ export class BulkAccountLoader {
 		for (const accountsToLoadChunk of accountsToLoadChunks) {
 			const args = [
 				accountsToLoadChunk.map((accountToLoad) => {
-					return accountToLoad.publicKey.toBase58();
+					try {
+						return accountToLoad.publicKey.toBase58();
+					} catch (e) {
+						this.logStateForInvalidAccountKeysError();
+						throw e;
+					}
 				}),
 				{ commitment: this.commitment },
 			];
@@ -277,4 +287,32 @@ export class BulkAccountLoader {
 			this.startPolling();
 		}
 	}
+
+	// Debugging Methods
+	private alreadyLoggedInvalidAccountKeysDebugging = false;
+	private logStateForInvalidAccountKeysError() {
+		if (this.alreadyLoggedInvalidAccountKeysDebugging) return;
+
+		console.log('');
+		console.log('');
+		console.log('Debug logging account state of bulkAccountLoader:');
+		let debugString = ``;
+		for (const entry of this.accountsToLoad.entries()) {
+			debugString += '\n' + ('Accounts:');
+			debugString += '\n' + (`[${entry[0]}], [${entry[1]?.publicKey?.toString?.()}]`);
+			debugString += '\n' + ('');
+			debugString += '\n' + ('Callbacks:');
+			for (const callback of entry[1]?.callbacks?.values?.()) {
+				debugString += '\n' + (callback?.toString?.());
+			}
+			debugString += '\n' + ('');
+		}
+		console.log(debugString);
+		console.log('finished debug logging for bulkAccountLoader');
+		console.log('');
+		console.log('');
+		
+		this.alreadyLoggedInvalidAccountKeysDebugging = true;
+	}
+
 }
