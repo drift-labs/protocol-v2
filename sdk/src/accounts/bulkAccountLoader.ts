@@ -40,7 +40,6 @@ export class BulkAccountLoader {
 		publicKey: PublicKey,
 		callback: (buffer: Buffer, slot: number) => void
 	): Promise<string> {
-
 		if (!publicKey) {
 			console.trace(`Caught adding blank publickey to bulkAccountLoader`);
 		}
@@ -155,12 +154,7 @@ export class BulkAccountLoader {
 		for (const accountsToLoadChunk of accountsToLoadChunks) {
 			const args = [
 				accountsToLoadChunk.map((accountToLoad) => {
-					try {
-						return accountToLoad.publicKey.toBase58();
-					} catch (e) {
-						this.logStateForBadBulkAccountLoader();
-						throw e;
-					}
+					return accountToLoad.publicKey.toBase58();
 				}),
 				{ commitment: this.commitment },
 			];
@@ -182,12 +176,11 @@ export class BulkAccountLoader {
 			return;
 		}
 
-		for (const i in rpcResponses) {
-			const rpcResponse = rpcResponses[i];
+		rpcResponses.forEach((rpcResponse, i) => {
 			if (!rpcResponse.result) {
 				console.error('rpc response missing result:');
 				console.log(JSON.stringify(rpcResponse));
-				continue;
+				return;
 			}
 			const newSlot = rpcResponse.result.context.slot;
 
@@ -196,20 +189,12 @@ export class BulkAccountLoader {
 			}
 
 			const accountsToLoad = accountsToLoadChunks[i];
-			for (const j in accountsToLoad) {
-				const accountToLoad = accountsToLoad[j];
-				let key : string;
-				try {
-					key = accountToLoad.publicKey.toBase58();
-				} catch (e) {
-					this.logResponseHandlingError(i,j,rpcResponses,accountsToLoad,accountToLoad);
-					this.logStateForBadBulkAccountLoader();
-					throw e;
-				}
+			accountsToLoad.forEach((accountToLoad, j) => {
+				const key = accountToLoad.publicKey.toBase58();
 				const oldRPCResponse = this.bufferAndSlotMap.get(key);
 
 				if (oldRPCResponse && newSlot <= oldRPCResponse.slot) {
-					continue;
+					return;
 				}
 
 				let newBuffer: Buffer | undefined = undefined;
@@ -225,7 +210,7 @@ export class BulkAccountLoader {
 						buffer: newBuffer,
 					});
 					this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
-					continue;
+					return;
 				}
 
 				const oldBuffer = oldRPCResponse.buffer;
@@ -236,8 +221,8 @@ export class BulkAccountLoader {
 					});
 					this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
 				}
-			}
-		}
+			});
+		});
 	}
 
 	handleAccountCallbacks(
@@ -294,51 +279,4 @@ export class BulkAccountLoader {
 			this.startPolling();
 		}
 	}
-
-	// Debugging Methods
-	private alreadyLoggedInvalidAccountKeysDebugging = false;
-	private logStateForBadBulkAccountLoader() {
-		if (this.alreadyLoggedInvalidAccountKeysDebugging) return;
-
-		console.log('');
-		console.log('');
-		console.log('Debug logging account state of bulkAccountLoader:');
-		let debugString = ``;
-		for (const entry of this.accountsToLoad.entries()) {
-			debugString += '\n' + ('Accounts:');
-			debugString += '\n' + (`[${entry[0]}], [${entry[1]?.publicKey?.toString?.()}]`);
-			debugString += '\n' + ('');
-			debugString += '\n' + ('Callbacks:');
-			for (const callback of entry[1]?.callbacks?.values?.()) {
-				debugString += '\n' + (callback?.toString?.());
-			}
-			debugString += '\n' + ('');
-		}
-		console.log(debugString);
-		console.log('finished debug logging for bulkAccountLoader');
-		console.log('');
-		console.log('');
-		
-		this.alreadyLoggedInvalidAccountKeysDebugging = true;
-	}
-
-	private alreadyLoggedResponseHandlingDebugging = false;
-	private logResponseHandlingError(i:any,j:any,rpcResponses:any,accountsToLoad:any,accountToLoad:any) {
-		if (this.alreadyLoggedResponseHandlingDebugging) return;
-		
-		console.log('');
-		console.log('');
-		console.log(`Debug logging error in bulkAccountLoader response handling:`);
-		console.log(`i`, i);
-		console.log(`j`, j);
-		console.log(`rpcResponses`, rpcResponses);
-		console.log(`accountsToLoad`, accountsToLoad);
-		console.log(`accountToLoad`, accountToLoad);
-		console.log(`Finished debug logging bulkAccountLoader response handling`);
-		console.log('');
-		console.log('');
-		
-		this.alreadyLoggedResponseHandlingDebugging = true;
-	}
-
 }
