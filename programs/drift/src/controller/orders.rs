@@ -1295,7 +1295,6 @@ fn get_maker_orders_info(
         settle_funding_payment(&mut maker, maker_key, &mut market, now)?;
 
         let initial_margin_ratio = market.margin_ratio_initial;
-        let maintenance_margin_ratio = market.margin_ratio_maintenance;
 
         drop(market);
 
@@ -1320,12 +1319,11 @@ fn get_maker_orders_info(
             }
 
             let breaches_oracle_price_limits = {
-                limit_price_breaches_oracle_price_bands(
+                limit_price_breaches_maker_oracle_price_bands(
                     maker_order_price,
                     maker_order.direction,
                     oracle_price,
                     initial_margin_ratio,
-                    maintenance_margin_ratio,
                 )?
             };
 
@@ -1827,6 +1825,7 @@ pub fn fulfill_perp_order_with_amm(
         referrer_stats,
         quote_asset_amount_surplus,
         order_post_only,
+        market.fee_adjustment,
     )?;
 
     let user_position_delta =
@@ -2219,6 +2218,7 @@ pub fn fulfill_perp_order_with_match(
         reward_referrer,
         referrer_stats,
         &MarketType::Perp,
+        market.fee_adjustment,
     )?;
 
     // Increment the markets house's total fee variables
@@ -3438,15 +3438,12 @@ fn get_spot_maker_order<'a>(
     let breaches_oracle_price_limits = {
         let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?;
         let initial_margin_ratio = spot_market.get_margin_ratio(&MarginRequirementType::Initial)?;
-        let maintenance_margin_ratio =
-            spot_market.get_margin_ratio(&MarginRequirementType::Maintenance)?;
-        order_breaches_oracle_price_bands(
+        order_breaches_maker_oracle_price_bands(
             &maker.orders[maker_order_index],
             oracle_price.price,
             slot,
             spot_market.order_tick_size,
             initial_margin_ratio,
-            maintenance_margin_ratio,
         )?
     };
 
@@ -3875,6 +3872,7 @@ pub fn fulfill_spot_order_with_match(
         false,
         &None,
         &MarketType::Spot,
+        0,
     )?;
 
     // Update taker state
@@ -4223,6 +4221,7 @@ pub fn fulfill_spot_order_with_external_market(
         external_market_fee,
         unsettled_referrer_rebate,
         fee_pool_amount.cast()?,
+        0,
     )?;
 
     let quote_spot_position_delta = match quote_update_direction {
