@@ -182,12 +182,12 @@ export class BulkAccountLoader {
 			return;
 		}
 
-		for (const i in rpcResponses) {
-			const rpcResponse = rpcResponses[i];
+		// for (const i in rpcResponses) {
+		rpcResponses.forEach((rpcResponse, i) => {
 			if (!rpcResponse.result) {
 				console.error('rpc response missing result:');
 				console.log(JSON.stringify(rpcResponse));
-				continue;
+				return;
 			}
 			const newSlot = rpcResponse.result.context.slot;
 
@@ -196,8 +196,7 @@ export class BulkAccountLoader {
 			}
 
 			const accountsToLoad = accountsToLoadChunks[i];
-			for (const j in accountsToLoad) {
-				const accountToLoad = accountsToLoad[j];
+			accountsToLoad.forEach((accountToLoad, j) => {
 				let key : string;
 				try {
 					key = accountToLoad.publicKey.toBase58();
@@ -209,7 +208,7 @@ export class BulkAccountLoader {
 				const oldRPCResponse = this.bufferAndSlotMap.get(key);
 
 				if (oldRPCResponse && newSlot <= oldRPCResponse.slot) {
-					continue;
+					return;
 				}
 
 				let newBuffer: Buffer | undefined = undefined;
@@ -225,7 +224,7 @@ export class BulkAccountLoader {
 						buffer: newBuffer,
 					});
 					this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
-					continue;
+					return;
 				}
 
 				const oldBuffer = oldRPCResponse.buffer;
@@ -236,8 +235,8 @@ export class BulkAccountLoader {
 					});
 					this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
 				}
-			}
-		}
+			});
+		});
 	}
 
 	handleAccountCallbacks(
