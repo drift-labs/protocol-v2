@@ -12,6 +12,7 @@ import {
 	isOneOfVariant,
 	PerpMarketAccount,
 	HealthComponents,
+	UserStatsAccount,
 } from './types';
 import { calculateEntryPrice, positionIsAvailable } from './math/position';
 import {
@@ -56,6 +57,7 @@ import {
 	SpotBalanceType,
 	sigNum,
 	getBalance,
+	UserStats,
 } from '.';
 import {
 	getTokenAmount,
@@ -2910,10 +2912,47 @@ export class User {
 	}
 
 	public getUserFeeTier(marketType: MarketType) {
+		const state = this.driftClient.getStateAccount();
+
+		let feeTierIndex = 0;
 		if (isVariant(marketType, 'perp')) {
-			return this.driftClient.getStateAccount().perpFeeStructure.feeTiers[0];
+			const userStatsAccount: UserStatsAccount = this.driftClient
+				.getUserStats()
+				.getAccount();
+
+			const total30dVolume = userStatsAccount.takerVolume30D.add(
+				userStatsAccount.makerVolume30D
+			); // todo: update using now and lastTs?
+
+			const stakedQuoteAssetAmount = userStatsAccount.ifStakedQuoteAssetAmount;
+			const volumeTiers = [
+				new BN(100_000_000).mul(QUOTE_PRECISION),
+				new BN(50_000_000).mul(QUOTE_PRECISION),
+				new BN(10_000_000).mul(QUOTE_PRECISION),
+				new BN(5_000_000).mul(QUOTE_PRECISION),
+				new BN(1_000_000).mul(QUOTE_PRECISION),
+			];
+			const stakedTiers = [
+				new BN(10000).mul(QUOTE_PRECISION),
+				new BN(5000).mul(QUOTE_PRECISION),
+				new BN(2000).mul(QUOTE_PRECISION),
+				new BN(1000).mul(QUOTE_PRECISION),
+				new BN(500).mul(QUOTE_PRECISION),
+			];
+
+			for (let i = 0; i < volumeTiers.length; i++) {
+				if (
+					total30dVolume.gte(volumeTiers[i]) ||
+					stakedQuoteAssetAmount.gte(stakedTiers[i])
+				) {
+					feeTierIndex = 5 - i;
+				}
+			}
+
+			return state.perpFeeStructure.feeTiers[feeTierIndex];
 		}
-		return this.driftClient.getStateAccount().spotFeeStructure.feeTiers[0];
+
+		return state.spotFeeStructure.feeTiers[feeTierIndex];
 	}
 
 	/**
@@ -2941,13 +2980,12 @@ export class User {
 	}
 
 	/**
-	 * Calculates how much fee will be taken for a given sized trade
+	 * Calculates how much perp fee will be taken for a given sized trade
 	 * @param quoteAmount
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
 	public calculateFeeForQuoteAmount(quoteAmount: BN): BN {
-		const feeTier =
-			this.driftClient.getStateAccount().perpFeeStructure.feeTiers[0];
+		const feeTier = this.getUserFeeTier(MarketType.PERP);
 		return quoteAmount
 			.mul(new BN(feeTier.feeNumerator))
 			.div(new BN(feeTier.feeDenominator));
