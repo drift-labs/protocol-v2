@@ -630,9 +630,10 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        fee_adjustment: 0,
+        padding1: 0,
         quote_spot_market_index: 0,
-        padding: [0; 48],
+        fee_adjustment: 0,
+        padding: [0; 46],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -2148,7 +2149,7 @@ pub fn handle_update_perp_market_max_open_interest(
 )]
 pub fn handle_update_perp_market_fee_adjustment(
     ctx: Context<AdminUpdatePerpMarket>,
-    fee_adjustment: i8,
+    fee_adjustment: i16,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 

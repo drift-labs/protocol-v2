@@ -42,7 +42,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     referrer_stats: &Option<&mut UserStats>,
     quote_asset_amount_surplus: i64,
     is_post_only: bool,
-    fee_adjustment: i8,
+    fee_adjustment: i16,
 ) -> DriftResult<FillFees> {
     let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp)?;
 
@@ -126,7 +126,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
 fn calculate_taker_fee(
     quote_asset_amount: u64,
     fee_tier: &FeeTier,
-    fee_adjustment: i8,
+    fee_adjustment: i16,
 ) -> DriftResult<u64> {
     let mut taker_fee = quote_asset_amount
         .cast::<u128>()?
@@ -154,7 +154,7 @@ fn calculate_taker_fee(
 fn calculate_maker_rebate(
     quote_asset_amount: u64,
     fee_tier: &FeeTier,
-    fee_adjustment: i8,
+    fee_adjustment: i16,
 ) -> DriftResult<u64> {
     let mut maker_fee = quote_asset_amount
         .cast::<u128>()?
@@ -263,7 +263,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     reward_referrer: bool,
     referrer_stats: &Option<&mut UserStats>,
     market_type: &MarketType,
-    fee_adjustment: i8,
+    fee_adjustment: i16,
 ) -> DriftResult<FillFees> {
     let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure, market_type)?;
     let maker_fee_tier = if let Some(maker_stats) = maker_stats {
@@ -334,7 +334,7 @@ pub fn calculate_fee_for_fulfillment_with_external_market(
     external_market_fee: u64,
     unsettled_referrer_rebate: u64,
     fee_pool_amount: u64,
-    fee_adjustment: i8,
+    fee_adjustment: i16,
 ) -> DriftResult<ExternalFillFees> {
     let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot)?;
 

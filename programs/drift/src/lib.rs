@@ -1020,7 +1020,7 @@ pub mod drift {
 
     pub fn update_perp_market_fee_adjustment(
         ctx: Context<AdminUpdatePerpMarket>,
-        fee_adjustment: i8,
+        fee_adjustment: i16,
     ) -> Result<()> {
         handle_update_perp_market_fee_adjustment(ctx, fee_adjustment)
     }
