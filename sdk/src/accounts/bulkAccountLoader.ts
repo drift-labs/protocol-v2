@@ -40,7 +40,6 @@ export class BulkAccountLoader {
 		publicKey: PublicKey,
 		callback: (buffer: Buffer, slot: number) => void
 	): Promise<string> {
-
 		if (!publicKey) {
 			console.trace(`Caught adding blank publickey to bulkAccountLoader`);
 		}
@@ -198,11 +197,17 @@ export class BulkAccountLoader {
 			const accountsToLoad = accountsToLoadChunks[i];
 			for (const j in accountsToLoad) {
 				const accountToLoad = accountsToLoad[j];
-				let key : string;
+				let key: string;
 				try {
 					key = accountToLoad.publicKey.toBase58();
 				} catch (e) {
-					this.logResponseHandlingError(i,j,rpcResponses,accountsToLoad,accountToLoad);
+					this.logResponseHandlingError(
+						i,
+						j,
+						rpcResponses,
+						accountsToLoad,
+						accountToLoad
+					);
 					this.logStateForBadBulkAccountLoader();
 					throw e;
 				}
@@ -305,27 +310,34 @@ export class BulkAccountLoader {
 		console.log('Debug logging account state of bulkAccountLoader:');
 		let debugString = ``;
 		for (const entry of this.accountsToLoad.entries()) {
-			debugString += '\n' + ('Accounts:');
-			debugString += '\n' + (`[${entry[0]}], [${entry[1]?.publicKey?.toString?.()}]`);
-			debugString += '\n' + ('');
-			debugString += '\n' + ('Callbacks:');
+			debugString += '\n' + 'Accounts:';
+			debugString +=
+				'\n' + `[${entry[0]}], [${entry[1]?.publicKey?.toString?.()}]`;
+			debugString += '\n' + '';
+			debugString += '\n' + 'Callbacks:';
 			for (const callback of entry[1]?.callbacks?.values?.()) {
-				debugString += '\n' + (callback?.toString?.());
+				debugString += '\n' + callback?.toString?.();
 			}
-			debugString += '\n' + ('');
+			debugString += '\n' + '';
 		}
 		console.log(debugString);
 		console.log('finished debug logging for bulkAccountLoader');
 		console.log('');
 		console.log('');
-		
+
 		this.alreadyLoggedInvalidAccountKeysDebugging = true;
 	}
 
 	private alreadyLoggedResponseHandlingDebugging = false;
-	private logResponseHandlingError(i:any,j:any,rpcResponses:any,accountsToLoad:any,accountToLoad:any) {
+	private logResponseHandlingError(
+		i: any,
+		j: any,
+		rpcResponses: any,
+		accountsToLoad: any,
+		accountToLoad: any
+	) {
 		if (this.alreadyLoggedResponseHandlingDebugging) return;
-		
+
 		console.log('');
 		console.log('');
 		console.log(`Debug logging error in bulkAccountLoader response handling:`);
@@ -337,8 +349,7 @@ export class BulkAccountLoader {
 		console.log(`Finished debug logging bulkAccountLoader response handling`);
 		console.log('');
 		console.log('');
-		
+
 		this.alreadyLoggedResponseHandlingDebugging = true;
 	}
-
 }

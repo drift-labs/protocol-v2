@@ -2909,6 +2909,37 @@ export class User {
 		return newLeverage;
 	}
 
+	public getUserFeeTier(marketType: MarketType) {
+		if (isVariant(marketType, 'perp')) {
+			return this.driftClient.getStateAccount().perpFeeStructure.feeTiers[0];
+		}
+		return this.driftClient.getStateAccount().spotFeeStructure.feeTiers[0];
+	}
+
+	/**
+	 * Calculates taker / maker fee (as a percentage, e.g. .001 = 10 basis points) for particular marketType
+	 * @param marketType
+	 * @param positionMarketIndex
+	 * @returns : {takerFee: number, makerFee: number} Precision None
+	 */
+	public getMarketFees(marketType: MarketType, marketIndex?: number) {
+		const feeTier = this.getUserFeeTier(marketType);
+		let takerFee = feeTier.feeNumerator / feeTier.feeDenominator;
+		let makerFee =
+			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
+
+		if (marketIndex && isVariant(marketType, 'perp')) {
+			const marketAccount = this.driftClient.getPerpMarketAccount(marketIndex);
+			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
+			makerFee -= (makerFee * marketAccount.feeAdjustment) / 100;
+		}
+
+		return {
+			takerFee,
+			makerFee,
+		};
+	}
+
 	/**
 	 * Calculates how much fee will be taken for a given sized trade
 	 * @param quoteAmount
