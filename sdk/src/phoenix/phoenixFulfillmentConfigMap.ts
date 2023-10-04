@@ -14,9 +14,10 @@ export class PhoenixFulfillmentConfigMap {
 		marketIndex: number,
 		phoenixMarketAddress: PublicKey
 	): Promise<void> {
-		const account = await this.driftClient.getPhoenixV1FulfillmentConfig(
-			phoenixMarketAddress
-		);
+		const account =
+			await this.driftClient.getPhoenixV1FulfillmentConfig(
+				phoenixMarketAddress
+			);
 		this.map.set(marketIndex, account);
 	}
 

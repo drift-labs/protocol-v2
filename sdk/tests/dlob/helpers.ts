@@ -21,7 +21,7 @@ import {
 	OrderRecord,
 	ZERO,
 	ContractTier,
-	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
+	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 } from '../../src';
 
 export const mockPerpPosition: PerpPosition = {
