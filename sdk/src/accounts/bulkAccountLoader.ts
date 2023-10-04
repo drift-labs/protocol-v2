@@ -158,7 +158,7 @@ export class BulkAccountLoader {
 					try {
 						return accountToLoad.publicKey.toBase58();
 					} catch (e) {
-						this.logStateForBadBulkAccountLoader();
+						this.logStateForBadBulkAccountLoader(accountsToLoadChunk);
 						throw e;
 					}
 				}),
@@ -201,9 +201,10 @@ export class BulkAccountLoader {
 				let key : string;
 				try {
 					key = accountToLoad.publicKey.toBase58();
+					this.logResponseHandlingError(i,j,rpcResponse,accountToLoad, rpcResponses, accountsToLoad);
 				} catch (e) {
-					this.logResponseHandlingError(i,j,rpcResponses,accountsToLoad,accountToLoad);
-					this.logStateForBadBulkAccountLoader();
+					this.logResponseHandlingError(i,j,rpcResponse,accountToLoad, rpcResponses, accountsToLoad);
+					this.logStateForBadBulkAccountLoader(accountsToLoad);
 					throw e;
 				}
 				const oldRPCResponse = this.bufferAndSlotMap.get(key);
@@ -297,14 +298,14 @@ export class BulkAccountLoader {
 
 	// Debugging Methods
 	private alreadyLoggedInvalidAccountKeysDebugging = false;
-	private logStateForBadBulkAccountLoader() {
+	private logStateForBadBulkAccountLoader(accountsToLoad) {
 		if (this.alreadyLoggedInvalidAccountKeysDebugging) return;
 
 		console.log('');
 		console.log('');
 		console.log('Debug logging account state of bulkAccountLoader:');
 		let debugString = ``;
-		for (const entry of this.accountsToLoad.entries()) {
+		for (const entry of accountsToLoad.entries()) {
 			debugString += '\n' + ('Accounts:');
 			debugString += '\n' + (`[${entry[0]}], [${entry[1]?.publicKey?.toString?.()}]`);
 			debugString += '\n' + ('');
@@ -323,17 +324,24 @@ export class BulkAccountLoader {
 	}
 
 	private alreadyLoggedResponseHandlingDebugging = false;
-	private logResponseHandlingError(i:any,j:any,rpcResponses:any,accountsToLoad:any,accountToLoad:any) {
+	private logResponseHandlingError(i:any,j:any,rpcResponse, accountToLoad, rpcResponses, accountsToLoad) {
 		if (this.alreadyLoggedResponseHandlingDebugging) return;
 		
 		console.log('');
 		console.log('');
 		console.log(`Debug logging error in bulkAccountLoader response handling:`);
-		console.log(`i`, i);
-		console.log(`j`, j);
-		console.log(`rpcResponses`, rpcResponses);
-		console.log(`accountsToLoad`, accountsToLoad);
-		console.log(`accountToLoad`, accountToLoad);
+		console.log(`i:`);
+		console.log(i);
+		console.log(`j:`);
+		console.log(j);
+		console.log(`rpcResponse:`);
+		console.log(JSON.stringify(rpcResponse));
+		console.log(`accountToLoad:`);
+		console.log(JSON.stringify(accountToLoad));
+		console.log(`rpcResponses:`);
+		console.log(JSON.stringify(rpcResponses));
+		console.log(`accountsToLoad:`);
+		console.log(JSON.stringify(accountsToLoad));
 		console.log(`Finished debug logging bulkAccountLoader response handling`);
 		console.log('');
 		console.log('');
