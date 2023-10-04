@@ -2396,7 +2396,7 @@
         },
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -4423,6 +4423,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketFeeAdjustment",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feeAdjustment",
+          "type": "i16"
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -5109,7 +5135,7 @@
           },
           {
             "name": "padding1",
-            "type": "bool"
+            "type": "u8"
           },
           {
             "name": "quoteSpotMarketIndex",
@@ -5119,11 +5145,20 @@
             "type": "u16"
           },
           {
+            "name": "feeAdjustment",
+            "docs": [
+              "Between -100 and 100, represents what % to increase/decrease the fee by",
+              "E.g. if this is -50 and the fee is 5bps, the new fee will be 2.5bps",
+              "if this is 50 and the fee is 5bps, the new fee will be 7.5bps"
+            ],
+            "type": "i16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                48
+                46
               ]
             }
           }
