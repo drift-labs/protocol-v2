@@ -28,7 +28,6 @@ import {
 	convertToNumber,
 	calculatePrice,
 	AMM_RESERVE_PRECISION,
-	MarketType,
 } from '../sdk/src';
 import { BulkAccountLoader } from '../sdk';
 
