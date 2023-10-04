@@ -151,6 +151,8 @@ export class BulkAccountLoader {
 			return;
 		}
 
+		this.logStateForInvalidAccountKeysError();
+
 		const requests = new Array<{ methodName: string; args: any }>();
 		for (const accountsToLoadChunk of accountsToLoadChunks) {
 			const args = [
@@ -309,5 +311,8 @@ export class BulkAccountLoader {
 		console.log('finished debug logging for bulkAccountLoader');
 		console.log('');
 		console.log('');
+		
+		this.alreadyLoggedInvalidAccountKeysDebugging = true;
 	}
+
 }
