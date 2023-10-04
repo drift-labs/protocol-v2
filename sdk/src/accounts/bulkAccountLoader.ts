@@ -293,10 +293,21 @@ export class BulkAccountLoader {
 	private logStateForInvalidAccountKeysError() {
 		if (this.alreadyLoggedInvalidAccountKeysDebugging) return;
 
+		console.log('');
+		console.log('');
 		console.log('Debug logging account state of bulkAccountLoader:');
 		for (const entry of this.accountsToLoad.entries()) {
+			console.log('Accounts:');
 			console.log(`[${entry[0]}], [${entry[1]?.publicKey?.toString?.()}]`);
+			console.log('');
+			console.log('Callbacks:');
+			for (const callback of entry[1]?.callbacks?.values?.()) {
+				console.log(callback?.toString?.());
+			}
+			console.log('');
 		}
 		console.log('finished debug logging for bulkAccountLoader');
+		console.log('');
+		console.log('');
 	}
 }
