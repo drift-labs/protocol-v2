@@ -40,7 +40,6 @@ export class BulkAccountLoader {
 		publicKey: PublicKey,
 		callback: (buffer: Buffer, slot: number) => void
 	): Promise<string> {
-
 		if (!publicKey) {
 			console.trace(`Caught adding blank publickey to bulkAccountLoader`);
 		}
