@@ -201,7 +201,6 @@ export class BulkAccountLoader {
 				let key : string;
 				try {
 					key = accountToLoad.publicKey.toBase58();
-					this.logResponseHandlingError(i,j,rpcResponse,accountToLoad, rpcResponses, accountsToLoad);
 				} catch (e) {
 					this.logResponseHandlingError(i,j,rpcResponse,accountToLoad, rpcResponses, accountsToLoad);
 					this.logStateForBadBulkAccountLoader(accountsToLoad);
