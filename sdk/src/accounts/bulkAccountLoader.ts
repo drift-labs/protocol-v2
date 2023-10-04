@@ -151,8 +151,6 @@ export class BulkAccountLoader {
 			return;
 		}
 
-		this.logStateForInvalidAccountKeysError();
-
 		const requests = new Array<{ methodName: string; args: any }>();
 		for (const accountsToLoadChunk of accountsToLoadChunks) {
 			const args = [
@@ -298,16 +296,18 @@ export class BulkAccountLoader {
 		console.log('');
 		console.log('');
 		console.log('Debug logging account state of bulkAccountLoader:');
+		let debugString = ``;
 		for (const entry of this.accountsToLoad.entries()) {
-			console.log('Accounts:');
-			console.log(`[${entry[0]}], [${entry[1]?.publicKey?.toString?.()}]`);
-			console.log('');
-			console.log('Callbacks:');
+			debugString += '\n' + ('Accounts:');
+			debugString += '\n' + (`[${entry[0]}], [${entry[1]?.publicKey?.toString?.()}]`);
+			debugString += '\n' + ('');
+			debugString += '\n' + ('Callbacks:');
 			for (const callback of entry[1]?.callbacks?.values?.()) {
-				console.log(callback?.toString?.());
+				debugString += '\n' + (callback?.toString?.());
 			}
-			console.log('');
+			debugString += '\n' + ('');
 		}
+		console.log(debugString);
 		console.log('finished debug logging for bulkAccountLoader');
 		console.log('');
 		console.log('');
