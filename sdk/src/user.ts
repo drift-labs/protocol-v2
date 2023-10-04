@@ -2970,7 +2970,7 @@ export class User {
 		if (marketIndex && isVariant(marketType, 'perp')) {
 			const marketAccount = this.driftClient.getPerpMarketAccount(marketIndex);
 			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
-			makerFee -= (makerFee * marketAccount.feeAdjustment) / 100;
+			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
 		}
 
 		return {
