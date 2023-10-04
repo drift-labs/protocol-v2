@@ -177,7 +177,6 @@ export class BulkAccountLoader {
 			return;
 		}
 
-		// for (const i in rpcResponses) {
 		rpcResponses.forEach((rpcResponse, i) => {
 			if (!rpcResponse.result) {
 				console.error('rpc response missing result:');
