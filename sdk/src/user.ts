@@ -2945,6 +2945,7 @@ export class User {
 					stakedQuoteAssetAmount.gte(stakedTiers[i])
 				) {
 					feeTierIndex = 5 - i;
+					break;
 				}
 			}
 
