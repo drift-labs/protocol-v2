@@ -402,27 +402,30 @@ fn determine_perp_fee_tier<'a>(
     let staked_quote_asset_amount = user_stats.if_staked_quote_asset_amount;
 
     if total_30d_volume >= ONE_HUNDRED_MILLION_QUOTE
-        || staked_quote_asset_amount >= TEN_THOUSAND_QUOTE
+        || staked_quote_asset_amount >= TEN_THOUSAND_QUOTE - 1
     {
         return Ok(&fee_structure.fee_tiers[5]);
     }
 
     if total_30d_volume >= FIFTY_MILLION_QUOTE
-        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 5
+        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 5 - 1
     {
         return Ok(&fee_structure.fee_tiers[4]);
     }
 
-    if total_30d_volume >= TEN_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 2
+    if total_30d_volume >= TEN_MILLION_QUOTE
+        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 2 - 1
     {
         return Ok(&fee_structure.fee_tiers[3]);
     }
 
-    if total_30d_volume >= FIVE_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE {
+    if total_30d_volume >= FIVE_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE - 1
+    {
         return Ok(&fee_structure.fee_tiers[2]);
     }
 
-    if total_30d_volume >= ONE_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE / 2
+    if total_30d_volume >= ONE_MILLION_QUOTE
+        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE / 2 - 1
     {
         return Ok(&fee_structure.fee_tiers[1]);
     }
