@@ -57,7 +57,6 @@ import {
 	SpotBalanceType,
 	sigNum,
 	getBalance,
-	UserStats,
 } from '.';
 import {
 	getTokenAmount,
