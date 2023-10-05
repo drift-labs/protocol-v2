@@ -175,7 +175,7 @@ describe('oracle fill guardrails', () => {
 		await makerDriftClient.placePerpOrder({
 			marketIndex: 0,
 			direction: PositionDirection.SHORT,
-			price: new BN(21).mul(PRICE_PRECISION),
+			price: new BN(14).mul(PRICE_PRECISION),
 			orderType: OrderType.LIMIT,
 			baseAssetAmount: BASE_PRECISION,
 		});
