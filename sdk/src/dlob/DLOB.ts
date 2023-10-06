@@ -73,6 +73,14 @@ export type MarketNodeLists = {
 
 type OrderBookCallback = () => void;
 
+/**
+ *  Receives a DLOBNode and is expected to return true if the node should
+ *  be taken into account when generating, or false otherwise.
+ *
+ * Currently used in getRestingLimitBids and getRestingLimitAsks.
+ */
+export type DLOBFilterFcn = (node: DLOBNode) => boolean;
+
 export type NodeToFill = {
 	node: DLOBNode;
 	makerNodes: DLOBNode[];
@@ -1065,7 +1073,8 @@ export class DLOB {
 			currentDLOBNode: DLOBNode,
 			slot: number,
 			oraclePriceData: OraclePriceData
-		) => boolean
+		) => boolean,
+		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		const generators = generatorList.map((generator) => {
 			return {
@@ -1102,6 +1111,11 @@ export class DLOB {
 					continue;
 				}
 
+				if (filterFcn && filterFcn(bestGenerator.next.value)) {
+					bestGenerator.next = bestGenerator.generator.next();
+					continue;
+				}
+
 				yield bestGenerator.next.value;
 				bestGenerator.next = bestGenerator.generator.next();
 			} else {
@@ -1114,7 +1128,8 @@ export class DLOB {
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot asks');
@@ -1142,7 +1157,8 @@ export class DLOB {
 				return bestNode
 					.getPrice(oraclePriceData, slot)
 					.lt(currentNode.getPrice(oraclePriceData, slot));
-			}
+			},
+			filterFcn
 		);
 	}
 
@@ -1181,7 +1197,8 @@ export class DLOB {
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot bids');
@@ -1209,7 +1226,8 @@ export class DLOB {
 				return bestNode
 					.getPrice(oraclePriceData, slot)
 					.gt(currentNode.getPrice(oraclePriceData, slot));
-			}
+			},
+			filterFcn
 		);
 	}
 
