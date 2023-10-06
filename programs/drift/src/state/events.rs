@@ -12,6 +12,7 @@ use std::io::Write;
 
 #[event]
 pub struct NewUserRecord {
+    /// unix_timestamp of action
     pub ts: i64,
     pub user_authority: Pubkey,
     pub user: Pubkey,
@@ -22,19 +23,30 @@ pub struct NewUserRecord {
 
 #[event]
 pub struct DepositRecord {
+    /// unix_timestamp of action
     pub ts: i64,
     pub user_authority: Pubkey,
+    /// user account public key
     pub user: Pubkey,
     pub direction: DepositDirection,
     pub deposit_record_id: u64,
+    /// precision: token mint precision
     pub amount: u64,
+    /// spot market index
     pub market_index: u16,
+    /// precision: PRICE_PRECISION
     pub oracle_price: i64,
+    /// precision: SPOT_BALANCE_PRECISION
     pub market_deposit_balance: u128,
+    /// precision: SPOT_BALANCE_PRECISION
     pub market_withdraw_balance: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
     pub market_cumulative_deposit_interest: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
     pub market_cumulative_borrow_interest: u128,
+    /// precision: QUOTE_PRECISION
     pub total_deposits_after: u64,
+    /// precision: QUOTE_PRECISION
     pub total_withdraws_after: u64,
     pub explanation: DepositExplanation,
     pub transfer_user: Option<Pubkey>,
@@ -57,12 +69,19 @@ impl Default for DepositExplanation {
 pub struct SpotInterestRecord {
     pub ts: i64,
     pub market_index: u16,
+    /// precision: SPOT_BALANCE_PRECISION
     pub deposit_balance: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
     pub cumulative_deposit_interest: u128,
+    /// precision: SPOT_BALANCE_PRECISION
     pub borrow_balance: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
     pub cumulative_borrow_interest: u128,
+    // precision: PERCENTAGE_PRECISION
     pub optimal_utilization: u32,
+    // precision: PERCENTAGE_PRECISION
     pub optimal_borrow_rate: u32,
+    // precision: PERCENTAGE_PRECISION
     pub max_borrow_rate: u32,
 }
 
@@ -85,10 +104,15 @@ pub struct FundingPaymentRecord {
     pub user_authority: Pubkey,
     pub user: Pubkey,
     pub market_index: u16,
+    /// precision: QUOTE_PRECISION
     pub funding_payment: i64,
+    /// precision: BASE_PRECISION
     pub base_asset_amount: i64,
+    /// precision: FUNDING_RATE_PRECISION
     pub user_last_cumulative_funding: i64,
+    /// precision: FUNDING_RATE_PRECISION
     pub amm_cumulative_funding_long: i128,
+    /// precision: FUNDING_RATE_PRECISION
     pub amm_cumulative_funding_short: i128,
 }
 
@@ -102,10 +126,15 @@ pub struct FundingRateRecord {
     pub funding_rate_short: i128,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
+    /// precision: PRICE_PRECISION
     pub oracle_price_twap: i64,
+    /// precision: PRICE_PRECISION
     pub mark_price_twap: u64,
+    /// precision: QUOTE_PRECISION
     pub period_revenue: i64,
+    /// precision: BASE_PRECISION
     pub base_asset_amount_with_amm: i128,
+    /// precision: BASE_PRECISION
     pub base_asset_amount_with_unsettled_lp: i128,
 }
 
@@ -121,12 +150,19 @@ pub struct CurveRecord {
     pub base_asset_reserve_after: u128,
     pub quote_asset_reserve_after: u128,
     pub sqrt_k_after: u128,
+    /// precision: BASE_PRECISION
     pub base_asset_amount_long: u128,
+    /// precision: BASE_PRECISION
     pub base_asset_amount_short: u128,
+    /// precision: BASE_PRECISION
     pub base_asset_amount_with_amm: i128,
+    /// precision: QUOTE_PRECISION
     pub total_fee: i128,
+    /// precision: QUOTE_PRECISION
     pub total_fee_minus_distributions: i128,
+    /// precision: QUOTE_PRECISION
     pub adjustment_cost: i128,
+    /// precision: PRICE_PRECISION
     pub oracle_price: i64,
     pub fill_record: u128,
     pub number_of_users: u32,
@@ -153,31 +189,46 @@ pub struct OrderActionRecord {
     pub market_type: MarketType,
 
     pub filler: Option<Pubkey>,
+    /// precision: QUOTE_PRECISION
     pub filler_reward: Option<u64>,
     pub fill_record_id: Option<u64>,
 
+    /// precision: BASE_PRECISION
     pub base_asset_amount_filled: Option<u64>,
+    /// precision: QUOTE_PRECISION
     pub quote_asset_amount_filled: Option<u64>,
+    /// precision: QUOTE_PRECISION
     pub taker_fee: Option<u64>,
+    /// precision: QUOTE_PRECISION
     pub maker_fee: Option<i64>,
+    /// precision: QUOTE_PRECISION
     pub referrer_reward: Option<u32>,
+    /// precision: QUOTE_PRECISION
     pub quote_asset_amount_surplus: Option<i64>,
+    /// precision: QUOTE_PRECISION
     pub spot_fulfillment_method_fee: Option<u64>,
 
     pub taker: Option<Pubkey>,
     pub taker_order_id: Option<u32>,
     pub taker_order_direction: Option<PositionDirection>,
+    /// precision: BASE_PRECISION
     pub taker_order_base_asset_amount: Option<u64>,
+    /// precision: BASE_PRECISION
     pub taker_order_cumulative_base_asset_amount_filled: Option<u64>,
+    /// precision: QUOTE_PRECISION
     pub taker_order_cumulative_quote_asset_amount_filled: Option<u64>,
 
     pub maker: Option<Pubkey>,
     pub maker_order_id: Option<u32>,
     pub maker_order_direction: Option<PositionDirection>,
+    /// precision: BASE_PRECISION
     pub maker_order_base_asset_amount: Option<u64>,
+    /// precision: BASE_PRECISION
     pub maker_order_cumulative_base_asset_amount_filled: Option<u64>,
+    /// precision: QUOTE_PRECISION
     pub maker_order_cumulative_quote_asset_amount_filled: Option<u64>,
 
+    /// precision: PRICE_PRECISION
     pub oracle_price: i64,
 }
 
@@ -299,10 +350,15 @@ pub struct LPRecord {
     pub ts: i64,
     pub user: Pubkey,
     pub action: LPAction,
+    /// precision: AMM_RESERVE_PRECISION
     pub n_shares: u64,
     pub market_index: u16,
+    /// precision: BASE_PRECISION
     pub delta_base_asset_amount: i64,
+    /// precision: QUOTE_PRECISION
     pub delta_quote_asset_amount: i64,
+    /// realized pnl of the position settlement
+    /// precision: QUOTE_PRECISION
     pub pnl: i64,
 }
 
@@ -367,11 +423,14 @@ pub struct LiquidatePerpRecord {
     pub oracle_price: i64,
     pub base_asset_amount: i64,
     pub quote_asset_amount: i64,
+    /// precision: AMM_RESERVE_PRECISION
     pub lp_shares: u64,
     pub fill_record_id: u64,
     pub user_order_id: u32,
     pub liquidator_order_id: u32,
+    /// precision: QUOTE_PRECISION
     pub liquidator_fee: u64,
+    /// precision: QUOTE_PRECISION
     pub if_fee: u64,
 }
 
@@ -382,7 +441,9 @@ pub struct LiquidateSpotRecord {
     pub asset_transfer: u128,
     pub liability_market_index: u16,
     pub liability_price: i64,
+    /// precision: token mint precision
     pub liability_transfer: u128,
+    /// precision: token mint precision
     pub if_fee: u64,
 }
 
@@ -457,12 +518,17 @@ pub struct InsuranceFundRecord {
     pub ts: i64,
     pub spot_market_index: u16,
     pub perp_market_index: u16,
+    // precision: PERCENTAGE_PRECISION
     pub user_if_factor: u32,
+    // precision: PERCENTAGE_PRECISION
     pub total_if_factor: u32,
+    // precision: token mint precision
     pub vault_amount_before: u64,
+    // precision: token mint precision
     pub insurance_vault_amount_before: u64,
     pub total_if_shares_before: u128,
     pub total_if_shares_after: u128,
+    // precision: token mint precision
     pub amount: i64,
 }
 
@@ -472,9 +538,11 @@ pub struct InsuranceFundStakeRecord {
     pub ts: i64,
     pub user_authority: Pubkey,
     pub action: StakeAction,
+    // precision: token mint precision
     pub amount: u64,
     pub market_index: u16,
 
+    // precision: token mint precision
     pub insurance_vault_amount_before: u64,
     pub if_shares_before: u128,
     pub user_if_shares_before: u128,
@@ -505,11 +573,15 @@ impl Default for StakeAction {
 pub struct SwapRecord {
     pub ts: i64,
     pub user: Pubkey,
+    // precision: out market mint precision
     pub amount_out: u64,
+    // precision: in market mint precision
     pub amount_in: u64,
     pub out_market_index: u16,
     pub in_market_index: u16,
+    // precision: PRICE_PRECISION
     pub out_oracle_price: i64,
+    // precision: PRICE_PRECISION
     pub in_oracle_price: i64,
     pub fee: u64,
 }
