@@ -12,6 +12,7 @@ import {
 	isOneOfVariant,
 	PerpMarketAccount,
 	HealthComponents,
+	UserStatsAccount,
 } from './types';
 import { calculateEntryPrice, positionIsAvailable } from './math/position';
 import {
@@ -2913,14 +2914,82 @@ export class User {
 		return newLeverage;
 	}
 
+	public getUserFeeTier(marketType: MarketType) {
+		const state = this.driftClient.getStateAccount();
+
+		let feeTierIndex = 0;
+		if (isVariant(marketType, 'perp')) {
+			const userStatsAccount: UserStatsAccount = this.driftClient
+				.getUserStats()
+				.getAccount();
+
+			const total30dVolume = userStatsAccount.takerVolume30D.add(
+				userStatsAccount.makerVolume30D
+			); // todo: update using now and lastTs?
+
+			const stakedQuoteAssetAmount = userStatsAccount.ifStakedQuoteAssetAmount;
+			const volumeTiers = [
+				new BN(100_000_000).mul(QUOTE_PRECISION),
+				new BN(50_000_000).mul(QUOTE_PRECISION),
+				new BN(10_000_000).mul(QUOTE_PRECISION),
+				new BN(5_000_000).mul(QUOTE_PRECISION),
+				new BN(1_000_000).mul(QUOTE_PRECISION),
+			];
+			const stakedTiers = [
+				new BN(10000).mul(QUOTE_PRECISION),
+				new BN(5000).mul(QUOTE_PRECISION),
+				new BN(2000).mul(QUOTE_PRECISION),
+				new BN(1000).mul(QUOTE_PRECISION),
+				new BN(500).mul(QUOTE_PRECISION),
+			];
+
+			for (let i = 0; i < volumeTiers.length; i++) {
+				if (
+					total30dVolume.gte(volumeTiers[i]) ||
+					stakedQuoteAssetAmount.gte(stakedTiers[i])
+				) {
+					feeTierIndex = 5 - i;
+					break;
+				}
+			}
+
+			return state.perpFeeStructure.feeTiers[feeTierIndex];
+		}
+
+		return state.spotFeeStructure.feeTiers[feeTierIndex];
+	}
+
 	/**
-	 * Calculates how much fee will be taken for a given sized trade
+	 * Calculates taker / maker fee (as a percentage, e.g. .001 = 10 basis points) for particular marketType
+	 * @param marketType
+	 * @param positionMarketIndex
+	 * @returns : {takerFee: number, makerFee: number} Precision None
+	 */
+	public getMarketFees(marketType: MarketType, marketIndex?: number) {
+		const feeTier = this.getUserFeeTier(marketType);
+		let takerFee = feeTier.feeNumerator / feeTier.feeDenominator;
+		let makerFee =
+			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
+
+		if (marketIndex && isVariant(marketType, 'perp')) {
+			const marketAccount = this.driftClient.getPerpMarketAccount(marketIndex);
+			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
+			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
+		}
+
+		return {
+			takerFee,
+			makerFee,
+		};
+	}
+
+	/**
+	 * Calculates how much perp fee will be taken for a given sized trade
 	 * @param quoteAmount
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
 	public calculateFeeForQuoteAmount(quoteAmount: BN): BN {
-		const feeTier =
-			this.driftClient.getStateAccount().perpFeeStructure.feeTiers[0];
+		const feeTier = this.getUserFeeTier(MarketType.PERP);
 		return quoteAmount
 			.mul(new BN(feeTier.feeNumerator))
 			.div(new BN(feeTier.feeDenominator));

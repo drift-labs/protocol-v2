@@ -8,9 +8,7 @@ use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
 use crate::error::ErrorCode;
-use crate::get_then_update_id;
 use crate::instructions::constraints::*;
-use crate::load;
 use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -34,6 +32,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
 use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
+use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
     get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
     OracleSource,
@@ -53,6 +52,8 @@ use crate::validation::margin::{validate_margin, validate_margin_weights};
 use crate::validation::perp_market::validate_perp_market;
 use crate::validation::spot_market::validate_borrow_rate;
 use crate::{controller, QUOTE_PRECISION_I64};
+use crate::{get_then_update_id, EPOCH_DURATION};
+use crate::{load, FEE_ADJUSTMENT_MAX};
 use crate::{math, safe_decrement, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -629,9 +630,10 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        padding1: false,
+        padding1: 0,
         quote_spot_market_index: 0,
-        padding: [0; 48],
+        fee_adjustment: 0,
+        padding: [0; 46],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -2142,6 +2144,27 @@ pub fn handle_update_perp_market_max_open_interest(
     Ok(())
 }
 
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_fee_adjustment(
+    ctx: Context<AdminUpdatePerpMarket>,
+    fee_adjustment: i16,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    validate!(
+        fee_adjustment.unsigned_abs().cast::<u64>()? <= FEE_ADJUSTMENT_MAX,
+        ErrorCode::DefaultError,
+        "fee adjustment {} greater than max {}",
+        fee_adjustment,
+        FEE_ADJUSTMENT_MAX
+    )?;
+
+    perp_market.fee_adjustment = fee_adjustment;
+    Ok(())
+}
+
 pub fn handle_update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
     ctx.accounts.state.admin = admin;
     Ok(())
@@ -2241,6 +2264,37 @@ pub fn handle_admin_disable_update_perp_bid_ask_twap(
 ) -> Result<()> {
     let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
     user_stats.disable_update_perp_bid_ask_twap = disable;
+    Ok(())
+}
+
+pub fn handle_initialize_protocol_if_shares_transfer_config(
+    ctx: Context<InitializeProtocolIfSharesTransferConfig>,
+) -> Result<()> {
+    let mut config = ctx
+        .accounts
+        .protocol_if_shares_transfer_config
+        .load_init()?;
+
+    let now = Clock::get()?.unix_timestamp;
+    config.next_epoch_ts = now.safe_add(EPOCH_DURATION)?;
+
+    Ok(())
+}
+
+pub fn handle_update_protocol_if_shares_transfer_config(
+    ctx: Context<UpdateProtocolIfSharesTransferConfig>,
+    whitelisted_signers: Option<[Pubkey; 4]>,
+    max_transfer_per_epoch: Option<u128>,
+) -> Result<()> {
+    let mut config = ctx.accounts.protocol_if_shares_transfer_config.load_mut()?;
+
+    if let Some(whitelisted_signers) = whitelisted_signers {
+        config.whitelisted_signers = whitelisted_signers;
+    }
+
+    if let Some(max_transfer_per_epoch) = max_transfer_per_epoch {
+        config.max_transfer_per_epoch = max_transfer_per_epoch;
+    }
     Ok(())
 }
 
@@ -2638,4 +2692,40 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeProtocolIfSharesTransferConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"if_shares_transfer_config".as_ref()],
+        space = ProtocolIfSharesTransferConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub protocol_if_shares_transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateProtocolIfSharesTransferConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"if_shares_transfer_config".as_ref()],
+        bump,
+    )]
+    pub protocol_if_shares_transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
 }

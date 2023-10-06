@@ -9,8 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.41.0] - 2023-10-05
+
+### Features
+
+- program: order_breaches_maker_oracle_price_bands only uses init margin ratio ([#636](https://github.com/drift-labs/protocol-v2/pull/636))
+- program: add fee_adjustment to perp market ([#629](https://github.com/drift-labs/protocol-v2/pull/629))
+- program: add buffer to calculating max perp if fee ([#635](https://github.com/drift-labs/protocol-v2/pull/635))
+- sdk: remove getMakerLimitBids/Asks ([#632](https://github.com/drift-labs/protocol-v2/pull/632))
+- program: add ix to transfer protocol if shares ([#612](https://github.com/drift-labs/protocol-v2/pull/612))
+
+### Fixes
+
+- program: fix if staking rounding for fee tier selection ([#643](https://github.com/drift-labs/protocol-v2/pull/643))
+
+### Breaking
+
+## [2.40.0] - 2023-09-28
+
+### Features
+
 - program: add dynamic liquidation fee ([#601](https://github.com/drift-labs/protocol-v2/pull/601))
 - sdk: add deriveOracleAuctionParams
+- program: update to anchor 0.27.0 ([#617](https://github.com/drift-labs/protocol-v2/pull/617))
 
 ### Fixes
 

@@ -49,7 +49,6 @@ export type L3OrderBook = {
 };
 
 export const DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS = [
-	new BN(100).mul(QUOTE_PRECISION),
 	new BN(500).mul(QUOTE_PRECISION),
 	new BN(1000).mul(QUOTE_PRECISION),
 	new BN(2000).mul(QUOTE_PRECISION),
@@ -58,7 +57,7 @@ export const DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS = [
 
 /**
  * Get an {@link Generator<L2Level>} generator from a {@link Generator<DLOBNode>}
- * @param dlobNodes e.g. {@link DLOB#getMakerLimitAsks} or {@link DLOB#getMakerLimitBids}
+ * @param dlobNodes e.g. {@link DLOB#getRestingLimitAsks} or {@link DLOB#getRestingLimitBids}
  * @param oraclePriceData
  * @param slot
  */

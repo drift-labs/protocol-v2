@@ -178,6 +178,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 			quoteMaxInsurance: new BN(0),
 		},
 		quoteSpotMarketIndex: 0,
+		feeAdjustment: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -215,6 +216,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 			quoteMaxInsurance: new BN(0),
 		},
 		quoteSpotMarketIndex: 0,
+		feeAdjustment: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -252,6 +254,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 			quoteMaxInsurance: new BN(0),
 		},
 		quoteSpotMarketIndex: 0,
+		feeAdjustment: 0,
 	},
 ];
 
