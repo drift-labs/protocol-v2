@@ -1555,69 +1555,125 @@ export class DriftClient {
 		marketIndex: number,
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
-		reduceOnly = false
+		reduceOnly = false,
+		useVersionedTx = false
 	): Promise<TransactionSignature> {
-		const tx = new Transaction();
-		tx.add(
-			ComputeBudgetProgram.setComputeUnitLimit({
-				units: 600_000,
-			})
-		);
+		if (useVersionedTx) {
+			const ixs: Array<TransactionInstruction> = [];
 
-		const additionalSigners: Array<Signer> = [];
+			const additionalSigners: Array<Signer> = [];
 
-		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+			const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+			const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
+			const signerAuthority = this.wallet.publicKey;
+			const createWSOLTokenAccount =
+				isSolMarket && associatedTokenAccount.equals(signerAuthority);
 
-		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
+			if (createWSOLTokenAccount) {
+				const { ixs: wrappedSolIxs, pubkey } =
+					await this.getWrappedSolAccountCreationIxs(amount, true);
 
-		const signerAuthority = this.wallet.publicKey;
+				associatedTokenAccount = pubkey;
 
-		const createWSOLTokenAccount =
-			isSolMarket && associatedTokenAccount.equals(signerAuthority);
+				wrappedSolIxs.forEach((ix) => {
+					ixs.push(ix);
+				});
+			}
 
-		if (createWSOLTokenAccount) {
-			const { ixs, pubkey } = await this.getWrappedSolAccountCreationIxs(
+			const depositCollateralIx = await this.getDepositInstruction(
 				amount,
+				marketIndex,
+				associatedTokenAccount,
+				subAccountId,
+				reduceOnly,
 				true
 			);
 
-			associatedTokenAccount = pubkey;
+			ixs.push(depositCollateralIx);
 
-			ixs.forEach((ix) => {
-				tx.add(ix);
-			});
-		}
+			// Close the wrapped sol account at the end of the transaction
+			if (createWSOLTokenAccount) {
+				ixs.push(
+					createCloseAccountInstruction(
+						associatedTokenAccount,
+						signerAuthority,
+						signerAuthority,
+						[]
+					)
+				);
+			}
 
-		const depositCollateralIx = await this.getDepositInstruction(
-			amount,
-			marketIndex,
-			associatedTokenAccount,
-			subAccountId,
-			reduceOnly,
-			true
-		);
-
-		tx.add(depositCollateralIx);
-
-		// Close the wrapped sol account at the end of the transaction
-		if (createWSOLTokenAccount) {
-			tx.add(
-				createCloseAccountInstruction(
-					associatedTokenAccount,
-					signerAuthority,
-					signerAuthority,
-					[]
-				)
+			console.log(ixs);
+			const { txSig, slot: _slot } = await this.sendTransaction(
+				await this.buildTransaction(ixs, { computeUnits: 600_000 }, 0),
+				additionalSigners,
+				this.opts
 			);
-		}
 
-		const { txSig, slot } = await this.sendTransaction(
-			tx,
-			additionalSigners,
-			this.opts
-		);
-		this.spotMarketLastSlotCache.set(marketIndex, slot);
-		return txSig;
+			return txSig;
+		} else {
+			const tx = new Transaction();
+			tx.add(
+				ComputeBudgetProgram.setComputeUnitLimit({
+					units: 600_000,
+				})
+			);
+
+			const additionalSigners: Array<Signer> = [];
+
+			const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+
+			const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
+
+			const signerAuthority = this.wallet.publicKey;
+
+			const createWSOLTokenAccount =
+				isSolMarket && associatedTokenAccount.equals(signerAuthority);
+
+			if (createWSOLTokenAccount) {
+				const { ixs, pubkey } = await this.getWrappedSolAccountCreationIxs(
+					amount,
+					true
+				);
+
+				associatedTokenAccount = pubkey;
+
+				ixs.forEach((ix) => {
+					tx.add(ix);
+				});
+			}
+
+			const depositCollateralIx = await this.getDepositInstruction(
+				amount,
+				marketIndex,
+				associatedTokenAccount,
+				subAccountId,
+				reduceOnly,
+				true
+			);
+
+			tx.add(depositCollateralIx);
+
+			// Close the wrapped sol account at the end of the transaction
+			if (createWSOLTokenAccount) {
+				tx.add(
+					createCloseAccountInstruction(
+						associatedTokenAccount,
+						signerAuthority,
+						signerAuthority,
+						[]
+					)
+				);
+			}
+
+			const { txSig, slot } = await this.sendTransaction(
+				tx,
+				additionalSigners,
+				this.opts
+			);
+			this.spotMarketLastSlotCache.set(marketIndex, slot);
+			return txSig;
+		}
 	}
 
 	async getDepositInstruction(
@@ -2435,9 +2491,8 @@ export class DriftClient {
 		const placePerpOrderIx = await this.getPlacePerpOrderIx(orderParams);
 
 		for (const bracketOrderParams of bracketOrdersParams) {
-			const placeBracketOrderIx = await this.getPlacePerpOrderIx(
-				bracketOrderParams
-			);
+			const placeBracketOrderIx =
+				await this.getPlacePerpOrderIx(bracketOrderParams);
 			bracketOrderIxs.push(placeBracketOrderIx);
 		}
 
@@ -5490,9 +5545,8 @@ export class DriftClient {
 		}
 
 		if (initializeStakeAccount) {
-			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
-				marketIndex
-			);
+			const initializeIx =
+				await this.getInitializeInsuranceFundStakeIx(marketIndex);
 			tx.add(initializeIx);
 		}
 
