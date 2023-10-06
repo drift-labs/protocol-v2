@@ -589,12 +589,33 @@ export class DriftClient {
 	}
 
 	public switchActiveUser(subAccountId: number, authority?: PublicKey) {
+		const authorityChanged = !this.authority?.equals(authority);
+
 		this.activeSubAccountId = subAccountId;
 		this.authority = authority ?? this.authority;
 		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
 			this.authority
 		);
+
+		const updateAndSubscribeUserStats = async () => {
+			if (this.userStats && this.userStats.isSubscribed) {
+				await this.userStats.unsubscribe();
+			}
+
+			this.userStats = new UserStats({
+				driftClient: this,
+				userStatsAccountPublicKey: this.userStatsAccountPublicKey,
+				accountSubscription: this.userAccountSubscriptionConfig,
+			});
+
+			this.userStats.subscribe();
+		};
+
+		/* If changing the user authority ie switching from delegate to non-delegate account, need to re-subscribe to the user stats account */
+		if (authorityChanged) {
+			updateAndSubscribeUserStats();
+		}
 	}
 
 	public async addUser(
@@ -2435,9 +2456,8 @@ export class DriftClient {
 		const placePerpOrderIx = await this.getPlacePerpOrderIx(orderParams);
 
 		for (const bracketOrderParams of bracketOrdersParams) {
-			const placeBracketOrderIx = await this.getPlacePerpOrderIx(
-				bracketOrderParams
-			);
+			const placeBracketOrderIx =
+				await this.getPlacePerpOrderIx(bracketOrderParams);
 			bracketOrderIxs.push(placeBracketOrderIx);
 		}
 
@@ -5490,9 +5510,8 @@ export class DriftClient {
 		}
 
 		if (initializeStakeAccount) {
-			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
-				marketIndex
-			);
+			const initializeIx =
+				await this.getInitializeInsuranceFundStakeIx(marketIndex);
 			tx.add(initializeIx);
 		}
 
