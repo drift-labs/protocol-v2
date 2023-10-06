@@ -588,7 +588,7 @@ export class DriftClient {
 		return success;
 	}
 
-	public switchActiveUser(subAccountId: number, authority?: PublicKey) {
+	public async switchActiveUser(subAccountId: number, authority?: PublicKey) {
 		const authorityChanged = !this.authority?.equals(authority);
 
 		this.activeSubAccountId = subAccountId;
@@ -598,7 +598,8 @@ export class DriftClient {
 			this.authority
 		);
 
-		const updateAndSubscribeUserStats = async () => {
+		/* If changing the user authority ie switching from delegate to non-delegate account, need to re-subscribe to the user stats account */
+		if (authorityChanged) {
 			if (this.userStats && this.userStats.isSubscribed) {
 				await this.userStats.unsubscribe();
 			}
@@ -610,11 +611,6 @@ export class DriftClient {
 			});
 
 			this.userStats.subscribe();
-		};
-
-		/* If changing the user authority ie switching from delegate to non-delegate account, need to re-subscribe to the user stats account */
-		if (authorityChanged) {
-			updateAndSubscribeUserStats();
 		}
 	}
 
