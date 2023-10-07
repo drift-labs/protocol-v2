@@ -2506,6 +2506,11 @@
           "isSigner": false
         },
         {
+          "name": "adminConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "oracle",
           "isMut": false,
           "isSigner": false

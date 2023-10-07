@@ -4,12 +4,31 @@ use anchor_lang::accounts::signer::Signer;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 
 use crate::error::ErrorCode;
+use crate::state::admin_config::AdminConfig;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::{ExchangeStatus, State};
 use crate::state::user::{User, UserStats};
 use crate::validate;
 use solana_program::msg;
+
+pub fn is_fast_admin(
+    admin_config: &AccountLoader<AdminConfig>,
+    signer: &Signer,
+) -> anchor_lang::Result<bool> {
+    admin_config
+        .load()
+        .map(|admin_config| admin_config.fast_signer.eq(signer.key))
+}
+
+pub fn is_slow_admin(
+    admin_config: &AccountLoader<AdminConfig>,
+    signer: &Signer,
+) -> anchor_lang::Result<bool> {
+    admin_config
+        .load()
+        .map(|admin_config| admin_config.slow_signer.eq(signer.key))
+}
 
 pub fn can_sign_for_user(user: &AccountLoader<User>, signer: &Signer) -> anchor_lang::Result<bool> {
     user.load().map(|user| {

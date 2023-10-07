@@ -2391,11 +2391,12 @@ pub struct InitializeSpotMarket<'info> {
     )]
     /// CHECK: program signer
     pub drift_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
+    #[account(
+        constraint = is_slow_admin(&admin_config, &admin)?
+    )]
+    pub admin_config: AccountLoader<'info, AdminConfig>,
     /// CHECK: checked in `initialize_spot_market`
     pub oracle: AccountInfo<'info>,
     #[account(mut)]

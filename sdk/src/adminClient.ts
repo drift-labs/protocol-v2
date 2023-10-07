@@ -127,6 +127,7 @@ export class AdminClient extends DriftClient {
 					insuranceFundVault,
 					driftSigner: this.getSignerPublicKey(),
 					spotMarketMint: mint,
+					adminConfig: getAdminConfigPublicKey(this.program.programId),
 					oracle,
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
