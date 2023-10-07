@@ -77,7 +77,7 @@ describe('Pause exchange', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.initialize();
 		await driftClient.subscribe();
 
 		await driftClient.initializePerpMarket(

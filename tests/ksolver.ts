@@ -198,7 +198,7 @@ describe('AMM Curve', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.initialize();
 		await driftClient.subscribe();
 
 		solUsdOracle = await createPriceFeed({

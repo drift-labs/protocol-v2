@@ -223,3 +223,10 @@ export function getProtocolIfSharesTransferConfigPublicKey(
 		programId
 	)[0];
 }
+
+export function getAdminConfigPublicKey(programId: PublicKey): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from(anchor.utils.bytes.utf8.encode('admin_config'))],
+		programId
+	)[0];
+}

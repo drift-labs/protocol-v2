@@ -120,7 +120,7 @@ describe('prepeg', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.initialize();
 		await driftClient.updatePerpAuctionDuration(0);
 
 		await driftClient.subscribe();

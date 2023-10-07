@@ -87,6 +87,10 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         padding: [0; 14],
     };
 
+    let mut admin_config = ctx.accounts.admin_config.load_init()?;
+    admin_config.fast_signer = *ctx.accounts.admin.key;
+    admin_config.slow_signer = *ctx.accounts.admin.key;
+
     Ok(())
 }
 
@@ -2338,7 +2342,14 @@ pub struct Initialize<'info> {
         payer = admin
     )]
     pub state: Box<Account<'info, State>>,
-    pub quote_asset_mint: Box<Account<'info, Mint>>,
+    #[account(
+        init,
+        seeds = [b"admin_config".as_ref()],
+        space = AdminConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub admin_config: AccountLoader<'info, AdminConfig>,
     /// CHECK: checked in `initialize`
     pub drift_signer: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,

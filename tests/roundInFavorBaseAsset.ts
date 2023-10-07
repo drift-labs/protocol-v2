@@ -78,7 +78,7 @@ describe('round in favor', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await primaryDriftClient.initialize(usdcMint.publicKey, true);
+		await primaryDriftClient.initialize();
 		await primaryDriftClient.subscribe();
 
 		await initializeQuoteSpotMarket(primaryDriftClient, usdcMint.publicKey);

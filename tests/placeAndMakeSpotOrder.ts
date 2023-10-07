@@ -83,7 +83,7 @@ describe('place and make spot order', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await makerDriftClient.initialize(usdcMint.publicKey, true);
+		await makerDriftClient.initialize();
 		await makerDriftClient.subscribe();
 		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(makerDriftClient, solUsd);
