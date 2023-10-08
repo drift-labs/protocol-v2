@@ -2227,6 +2227,119 @@ export class User {
 		return maxPositionSize;
 	}
 
+	public getMaxTradeSizeUSDCForPerp2(
+		targetMarketIndex: number,
+		tradeSide: PositionDirection,
+		iterationLimit = 10,
+	): { tradeSize: BN, leverage: BN } {
+		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
+			this.getLeverageComponents();
+
+		const totalAssetValue = spotAssetValue.add(perpPnl);
+
+		const netAssetValue = totalAssetValue.sub(spotLiabilityValue);
+
+		if (netAssetValue.eq(ZERO)) {
+			return { tradeSize: ZERO, leverage: ZERO };
+		}
+
+		const totalLiabilityValue = perpLiabilityValue.add(spotLiabilityValue);
+
+		const freeCollateral = this.getFreeCollateral();
+
+		const currentPosition =
+			this.getPerpPosition(targetMarketIndex) ||
+			this.getEmptyPosition(targetMarketIndex);
+
+		const perpMarket = this.driftClient.getPerpMarketAccount(targetMarketIndex);
+
+		const oraclePriceData = this.getOracleDataForPerpMarket(targetMarketIndex);
+		const strictOraclePrice = new StrictOraclePrice(oraclePriceData.price, perpMarket.amm.historicalOracleData.lastOraclePriceTwap5Min);
+
+		if (freeCollateral.lt(ZERO)) {
+			const worstCaseBaseAssetAmount = calculateWorstCaseBaseAssetAmount(currentPosition);
+			let tradeSizeBase = ZERO;
+			if (isVariant(tradeSide, 'short') && worstCaseBaseAssetAmount.gt(ZERO)) {
+				tradeSizeBase = worstCaseBaseAssetAmount.neg().sub(currentPosition.baseAssetAmount.add(currentPosition.openAsks));
+			} else if (isVariant(tradeSide, 'long') && worstCaseBaseAssetAmount.lt(ZERO)) {
+				tradeSizeBase = worstCaseBaseAssetAmount.abs().sub(currentPosition.baseAssetAmount.add(currentPosition.openBids));
+			}
+			
+			const tradeSize = tradeSizeBase.mul(strictOraclePrice.current).div(BASE_PRECISION);
+
+			const leverage = totalLiabilityValue
+				.mul(TEN_THOUSAND)
+				.div(netAssetValue);
+
+			return { tradeSize, leverage };
+		}
+
+		const initialFreeCollateralContribution = this.calculateWeightedPerpPositionValue(
+			currentPosition,
+			'Initial',
+			undefined,
+			true,
+			true
+		);
+
+		let minTradeSize = ZERO;
+		let maxTradeSize = freeCollateral.mul(MARGIN_PRECISION).div(new BN(perpMarket.marginRatioInitial));
+		let tradeSize = maxTradeSize.div(TWO);
+
+		const tradeSign = isVariant(tradeSide, 'short') ? -1 : 1;
+
+		const error = freeCollateral.div(new BN(1000));
+		let i = 0;
+		let freeCollateralAfter = freeCollateral;
+		let positionAfter = currentPosition;
+		while (freeCollateralAfter.gt(error) || freeCollateralAfter.isNeg()) {
+			const tradeSizeBase = tradeSize.mul(BASE_PRECISION).div(strictOraclePrice.current()).muln(tradeSign);
+			positionAfter = this.cloneAndUpdatePerpPosition(
+				currentPosition,
+				tradeSizeBase
+			);
+			const freeCollateralContributionAfter = this.calculateWeightedPerpPositionValue(
+				positionAfter,
+				'Initial',
+				undefined,
+				true,
+				true
+			);
+
+			const freeCollateralDelta = freeCollateralContributionAfter.sub(initialFreeCollateralContribution);
+			freeCollateralAfter = freeCollateral.sub(freeCollateralDelta);
+
+			if (freeCollateralAfter.gt(error)) {
+				minTradeSize = tradeSize;
+				tradeSize = minTradeSize.add(maxTradeSize).div(TWO);
+			} else if (freeCollateralAfter.isNeg()) {
+				maxTradeSize = tradeSize;
+				tradeSize = minTradeSize.add(maxTradeSize).div(TWO);
+			}
+
+			if (i++ > iterationLimit) {
+				console.log('iteration limit reached');
+				break;
+			}
+		}
+
+		const leverage = totalLiabilityValue
+			.add(tradeSize)
+			.mul(TEN_THOUSAND)
+			.div(netAssetValue);
+
+		return { leverage, tradeSize };
+	}
+
+	public cloneAndUpdatePerpPosition(
+		position: PerpPosition,
+		baseAssetAmount: BN,
+	): PerpPosition {
+		const clonedPosition = Object.assign({}, position);
+		clonedPosition.baseAssetAmount = clonedPosition.baseAssetAmount.add(baseAssetAmount);
+		return clonedPosition;
+	}
+
 	/**
 	 * Get the maximum trade size for a given market, taking into account the user's current leverage, positions, collateral, etc.
 	 *
