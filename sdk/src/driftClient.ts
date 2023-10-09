@@ -2491,8 +2491,9 @@ export class DriftClient {
 		const placePerpOrderIx = await this.getPlacePerpOrderIx(orderParams);
 
 		for (const bracketOrderParams of bracketOrdersParams) {
-			const placeBracketOrderIx =
-				await this.getPlacePerpOrderIx(bracketOrderParams);
+			const placeBracketOrderIx = await this.getPlacePerpOrderIx(
+				bracketOrderParams
+			);
 			bracketOrderIxs.push(placeBracketOrderIx);
 		}
 
@@ -5545,8 +5546,9 @@ export class DriftClient {
 		}
 
 		if (initializeStakeAccount) {
-			const initializeIx =
-				await this.getInitializeInsuranceFundStakeIx(marketIndex);
+			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
+				marketIndex
+			);
 			tx.add(initializeIx);
 		}
 
