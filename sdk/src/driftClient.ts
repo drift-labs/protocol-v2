@@ -1603,7 +1603,6 @@ export class DriftClient {
 				);
 			}
 
-			console.log(ixs);
 			const { txSig, slot: _slot } = await this.sendTransaction(
 				await this.buildTransaction(ixs, { computeUnits: 600_000 }, 0),
 				additionalSigners,
