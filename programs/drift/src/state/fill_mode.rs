@@ -4,6 +4,9 @@ use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use crate::state::user::Order;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum FillMode {
     Fill,
@@ -27,7 +30,7 @@ impl FillMode {
                 if order.has_auction() {
                     calculate_auction_price(
                         order,
-                        slot.safe_add(order.auction_duration.cast()?)?,
+                        order.slot.safe_add(order.auction_duration.cast()?)?,
                         tick_size,
                         valid_oracle_price,
                     )
