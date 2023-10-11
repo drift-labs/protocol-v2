@@ -16,6 +16,7 @@ pub fn determine_perp_fulfillment_methods(
     amm: &AMM,
     amm_reserve_price: u64,
     valid_oracle_price: Option<i64>,
+    limit_price: Option<u64>,
     amm_is_available: bool,
     slot: u64,
     min_auction_duration: u8,
@@ -26,15 +27,12 @@ pub fn determine_perp_fulfillment_methods(
         && valid_oracle_price.is_some()
         && is_amm_available_liquidity_source(taker_order, min_auction_duration, slot)?;
 
-    let taker_price =
-        taker_order.get_limit_price(valid_oracle_price, None, slot, amm.order_tick_size)?;
-
     let maker_direction = taker_order.direction.opposite();
 
     let (mut amm_bid_price, mut amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
 
     for (maker_key, maker_order_index, maker_price) in maker_orders_info.iter() {
-        let taker_crosses_maker = match taker_price {
+        let taker_crosses_maker = match limit_price {
             Some(taker_price) => do_orders_cross(maker_direction, *maker_price, taker_price),
             None => true,
         };
@@ -75,7 +73,7 @@ pub fn determine_perp_fulfillment_methods(
             PositionDirection::Short => amm_ask_price,
         };
 
-        let taker_crosses_maker = match taker_price {
+        let taker_crosses_maker = match limit_price {
             Some(taker_price) => do_orders_cross(maker_direction, amm_price, taker_price),
             None => true,
         };

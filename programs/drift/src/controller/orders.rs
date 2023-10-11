@@ -57,6 +57,7 @@ use crate::math::spot_swap::select_margin_type_for_swap;
 use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
+use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::margin_calculation::MarginContext;
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
@@ -852,6 +853,7 @@ pub fn fill_perp_order(
     makers_and_referrer_stats: &UserStatsMap,
     jit_maker_order_id: Option<u32>,
     clock: &Clock,
+    fill_mode: FillMode,
 ) -> DriftResult<u64> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -1091,6 +1093,7 @@ pub fn fill_perp_order(
         slot,
         state.min_perp_auction_duration,
         amm_is_available,
+        fill_mode,
     )?;
 
     if base_asset_amount != 0 {
@@ -1475,11 +1478,19 @@ fn fulfill_perp_order(
     slot: u64,
     min_auction_duration: u8,
     amm_is_available: bool,
+    fill_mode: FillMode,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
     let user_order_position_decreasing =
         determine_if_user_order_is_position_decreasing(user, market_index, user_order_index)?;
+
+    let limit_price = fill_mode.get_limit_price(
+        &user.orders[user_order_index],
+        valid_oracle_price,
+        slot,
+        perp_market_map.get_ref(&market_index)?.amm.order_tick_size,
+    )?;
 
     let fulfillment_methods = {
         let market = perp_market_map.get_ref(&market_index)?;
@@ -1491,6 +1502,7 @@ fn fulfill_perp_order(
             &market.amm,
             reserve_price_before,
             Some(oracle_price),
+            limit_price,
             amm_is_available,
             slot,
             min_auction_duration,
@@ -1530,7 +1542,6 @@ fn fulfill_perp_order(
                         reserve_price_before,
                         now,
                         slot,
-                        valid_oracle_price,
                         user_key,
                         filler_key,
                         filler,
@@ -1538,6 +1549,7 @@ fn fulfill_perp_order(
                         &mut referrer.as_deref_mut(),
                         &mut referrer_stats.as_deref_mut(),
                         fee_structure,
+                        limit_price,
                         None,
                         *maker_price,
                         AMMLiquiditySplit::Shared,
@@ -1578,6 +1590,7 @@ fn fulfill_perp_order(
                         &mut referrer_stats.as_deref_mut(),
                         reserve_price_before,
                         valid_oracle_price,
+                        limit_price,
                         now,
                         slot,
                         fee_structure,
@@ -1704,7 +1717,6 @@ pub fn fulfill_perp_order_with_amm(
     reserve_price_before: u64,
     now: i64,
     slot: u64,
-    valid_oracle_price: Option<i64>,
     user_key: &Pubkey,
     filler_key: &Pubkey,
     filler: &mut Option<&mut User>,
@@ -1712,6 +1724,7 @@ pub fn fulfill_perp_order_with_amm(
     referrer: &mut Option<&mut User>,
     referrer_stats: &mut Option<&mut UserStats>,
     fee_structure: &FeeStructure,
+    limit_price: Option<u64>,
     override_base_asset_amount: Option<u64>,
     override_fill_price: Option<u64>,
     liquidity_split: AMMLiquiditySplit,
@@ -1721,13 +1734,6 @@ pub fn fulfill_perp_order_with_amm(
     // Determine the base asset amount the market can fill
     let (base_asset_amount, limit_price, fill_price) = match override_base_asset_amount {
         Some(override_base_asset_amount) => {
-            let limit_price = user.orders[order_index].get_limit_price(
-                valid_oracle_price,
-                None,
-                slot,
-                market.amm.order_tick_size,
-            )?;
-
             (override_base_asset_amount, limit_price, override_fill_price)
         }
         None => {
@@ -1735,8 +1741,7 @@ pub fn fulfill_perp_order_with_amm(
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
                 &user.orders[order_index],
                 market,
-                valid_oracle_price,
-                slot,
+                limit_price,
                 override_fill_price,
                 existing_base_asset_amount,
             )?;
@@ -1987,6 +1992,7 @@ pub fn fulfill_perp_order_with_match(
     referrer_stats: &mut Option<&mut UserStats>,
     reserve_price_before: u64,
     valid_oracle_price: Option<i64>,
+    taker_limit_price: Option<u64>,
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
@@ -2003,20 +2009,20 @@ pub fn fulfill_perp_order_with_match(
 
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     let taker_direction = taker.orders[taker_order_index].direction;
-    let amm_available_liquidity = calculate_amm_available_liquidity(&market.amm, &taker_direction)?;
-    let taker_fallback_price = get_fallback_price(
-        &taker_direction,
-        bid_price,
-        ask_price,
-        amm_available_liquidity,
-        oracle_price,
-    )?;
-    let taker_price = taker.orders[taker_order_index].force_get_limit_price(
-        Some(oracle_price),
-        Some(taker_fallback_price),
-        slot,
-        market.amm.order_tick_size,
-    )?;
+
+    let taker_price = if let Some(taker_limit_price) = taker_limit_price {
+        taker_limit_price
+    } else {
+        let amm_available_liquidity =
+            calculate_amm_available_liquidity(&market.amm, &taker_direction)?;
+        get_fallback_price(
+            &taker_direction,
+            bid_price,
+            ask_price,
+            amm_available_liquidity,
+            oracle_price,
+        )?
+    };
 
     let taker_existing_position = taker
         .get_perp_position(market.market_index)?
@@ -2094,7 +2100,6 @@ pub fn fulfill_perp_order_with_match(
                 reserve_price_before,
                 now,
                 slot,
-                valid_oracle_price,
                 taker_key,
                 filler_key,
                 filler,
@@ -2102,6 +2107,7 @@ pub fn fulfill_perp_order_with_match(
                 &mut None,
                 &mut None,
                 fee_structure,
+                taker_limit_price,
                 Some(jit_base_asset_amount),
                 Some(maker_price), // match the makers price
                 amm_liquidity_split,

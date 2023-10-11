@@ -39,6 +39,7 @@ use crate::state::events::{
     DepositDirection, DepositExplanation, DepositRecord, LPAction, LPRecord, NewUserRecord,
     OrderActionExplanation, SwapRecord,
 };
+use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
@@ -1225,6 +1226,7 @@ pub fn handle_place_and_take_perp_order<'info>(
         &makers_and_referrer_stats,
         None,
         &Clock::get()?,
+        FillMode::PlaceAndTake,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1322,6 +1324,7 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         &makers_and_referrer_stats,
         Some(order_id),
         clock,
+        FillMode::PlaceAndMake,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
