@@ -1578,13 +1578,6 @@ export class DriftClient {
 		subAccountId?: number,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
-		const tx = new Transaction();
-		tx.add(
-			ComputeBudgetProgram.setComputeUnitLimit({
-				units: 600_000,
-			})
-		);
-
 		const additionalSigners: Array<Signer> = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -1596,6 +1589,8 @@ export class DriftClient {
 		const createWSOLTokenAccount =
 			isSolMarket && associatedTokenAccount.equals(signerAuthority);
 
+		const instructions = [];
+
 		if (createWSOLTokenAccount) {
 			const { ixs, pubkey } = await this.getWrappedSolAccountCreationIxs(
 				amount,
@@ -1604,9 +1599,7 @@ export class DriftClient {
 
 			associatedTokenAccount = pubkey;
 
-			ixs.forEach((ix) => {
-				tx.add(ix);
-			});
+			instructions.push(...ixs);
 		}
 
 		const depositCollateralIx = await this.getDepositInstruction(
@@ -1618,11 +1611,11 @@ export class DriftClient {
 			true
 		);
 
-		tx.add(depositCollateralIx);
+		instructions.push(depositCollateralIx);
 
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
-			tx.add(
+			instructions.push(
 				createCloseAccountInstruction(
 					associatedTokenAccount,
 					signerAuthority,
@@ -1631,6 +1624,10 @@ export class DriftClient {
 				)
 			);
 		}
+
+		const txParams = { ...this.txParams, computeUnits: 600_000 };
+
+		const tx = await this.buildTransaction(instructions, txParams);
 
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
@@ -5851,7 +5848,8 @@ export class DriftClient {
 		opts?: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
-		if (this.txVersion === 'legacy') {
+		//@ts-ignore
+		if (this.txVersion === 'legacy' || !tx.message) {
 			return this.txSender.send(
 				tx as Transaction,
 				additionalSigners,
