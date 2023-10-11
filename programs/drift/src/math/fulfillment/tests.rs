@@ -53,12 +53,15 @@ mod determine_perp_fulfillment_methods {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let taker_price = Some(taker_order.price);
+
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
             &[(Pubkey::default(), 0, 103 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
+            taker_price,
             true,
             0,
             0,
@@ -110,12 +113,15 @@ mod determine_perp_fulfillment_methods {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let taker_price = Some(taker_order.price);
+
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
             &[(Pubkey::default(), 0, 99 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
+            taker_price,
             true,
             0,
             0,
@@ -179,12 +185,15 @@ mod determine_perp_fulfillment_methods {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let taker_price = Some(taker_order.price);
+
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
             &[(Pubkey::default(), 0, 101 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
+            taker_price,
             true,
             0,
             0,
@@ -243,6 +252,8 @@ mod determine_perp_fulfillment_methods {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let taker_price = Some(taker_order.price);
+
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
             &[
@@ -252,6 +263,7 @@ mod determine_perp_fulfillment_methods {
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
+            taker_price,
             true,
             0,
             0,
@@ -311,6 +323,8 @@ mod determine_perp_fulfillment_methods {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let taker_price = Some(taker_order.price);
+
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
             &[
@@ -324,6 +338,7 @@ mod determine_perp_fulfillment_methods {
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
+            taker_price,
             true,
             0,
             0,
@@ -382,6 +397,8 @@ mod determine_perp_fulfillment_methods {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let taker_price = Some(taker_order.price);
+
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
             &[
@@ -391,6 +408,7 @@ mod determine_perp_fulfillment_methods {
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
+            taker_price,
             true,
             0,
             0,
@@ -451,6 +469,8 @@ mod determine_perp_fulfillment_methods {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let taker_price = Some(taker_order.price);
+
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
             &[
@@ -460,6 +480,7 @@ mod determine_perp_fulfillment_methods {
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
+            taker_price,
             true,
             0,
             0,
@@ -519,6 +540,8 @@ mod determine_perp_fulfillment_methods {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let taker_price = Some(taker_order.price);
+
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
             &[
@@ -528,6 +551,7 @@ mod determine_perp_fulfillment_methods {
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
+            taker_price,
             true,
             0,
             0,
@@ -586,6 +610,8 @@ mod determine_perp_fulfillment_methods {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let taker_price = Some(taker_order.price);
+
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
             &[
@@ -595,6 +621,7 @@ mod determine_perp_fulfillment_methods {
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
+            taker_price,
             true,
             0,
             0,
@@ -655,6 +682,8 @@ mod determine_perp_fulfillment_methods {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let taker_price = Some(taker_order.price);
+
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
             &[
@@ -664,6 +693,7 @@ mod determine_perp_fulfillment_methods {
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
+            taker_price,
             true,
             0,
             0,
@@ -715,6 +745,8 @@ mod determine_perp_fulfillment_methods {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let taker_price = Some(taker_order.price);
+
         let fulfillment_methods = determine_perp_fulfillment_methods(
             &taker_order,
             &[
@@ -724,6 +756,7 @@ mod determine_perp_fulfillment_methods {
             &market.amm,
             market.amm.reserve_price().unwrap(),
             Some(oracle_price),
+            taker_price,
             true,
             0,
             0,
