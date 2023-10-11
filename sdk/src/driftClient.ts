@@ -539,6 +539,10 @@ export class DriftClient {
 		this.activeSubAccountId = activeSubAccountId;
 		this.userStatsAccountPublicKey = undefined;
 		this.includeDelegates = includeDelegates ?? false;
+		const walletSupportsVersionedTxns =
+			//@ts-ignore
+			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
+		this.txVersion = walletSupportsVersionedTxns ? 0 : 'legacy';
 
 		if (includeDelegates && subAccountIds) {
 			throw new Error(
@@ -2442,8 +2446,7 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
-		referrerInfo?: ReferrerInfo,
-		useVersionedTx = true
+		referrerInfo?: ReferrerInfo
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
@@ -2469,12 +2472,8 @@ export class DriftClient {
 			referrerInfo
 		);
 
-		const walletSupportsVersionedTxns =
-			//@ts-ignore
-			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
-
 		// use versioned transactions if there is a lookup table account and wallet is compatible
-		if (walletSupportsVersionedTxns && useVersionedTx) {
+		if (this.txVersion === 0) {
 			const versionedMarketOrderTx = await this.buildTransaction(
 				[placePerpOrderIx].concat(bracketOrderIxs),
 				txParams,
@@ -5852,8 +5851,7 @@ export class DriftClient {
 		opts?: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
-		// @ts-ignore
-		if (!tx.message) {
+		if (this.txVersion === 'legacy') {
 			return this.txSender.send(
 				tx as Transaction,
 				additionalSigners,
