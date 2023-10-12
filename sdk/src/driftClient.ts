@@ -5848,8 +5848,7 @@ export class DriftClient {
 		opts?: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
-		//@ts-ignore
-		if (this.txVersion === 'legacy' || !tx.message) {
+		if (tx instanceof Transaction) {
 			return this.txSender.send(
 				tx as Transaction,
 				additionalSigners,
