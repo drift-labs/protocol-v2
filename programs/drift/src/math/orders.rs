@@ -975,7 +975,7 @@ pub fn calculate_max_spot_order_size(
         MarginContext::standard(MarginRequirementType::Initial).strict(true),
     )?;
 
-    let user_custom_margin_ratio = user.max_margin_ratio;
+    let user_custom_liability_weight = user.max_margin_ratio.safe_add(SPOT_WEIGHT_PRECISION)?;
 
     let mut order_size_to_flip = 0_u64;
     let free_collateral = total_collateral.safe_sub(margin_requirement.cast()?)?;
@@ -1001,7 +1001,7 @@ pub fn calculate_max_spot_order_size(
         )?
         .map(|simulation| {
             simulation
-                .apply_user_custom_margin_ratio(&spot_market, user_custom_margin_ratio)
+                .apply_user_custom_liability_weight(&spot_market, user_custom_liability_weight)
                 .unwrap()
         });
 
@@ -1028,7 +1028,7 @@ pub fn calculate_max_spot_order_size(
 
             let liability_weight = spot_market
                 .get_liability_weight(token_amount.unsigned_abs(), &MarginRequirementType::Initial)?
-                .max(user_custom_margin_ratio);
+                .max(user_custom_liability_weight);
 
             let free_collateral_regained = token_value
                 .abs()
@@ -1099,7 +1099,7 @@ pub fn calculate_max_spot_order_size(
 
         let weight = spot_market
             .get_liability_weight(token_amount.unsigned_abs(), &MarginRequirementType::Initial)?
-            .max(user_custom_margin_ratio);
+            .max(user_custom_liability_weight);
 
         let free_collateral_delta_per_order = weight
             .cast::<i128>()?
@@ -1129,7 +1129,7 @@ pub fn calculate_max_spot_order_size(
         worst_case_token_amount.unsigned_abs(),
         &strict_oracle_price,
         direction,
-        user_custom_margin_ratio,
+        user_custom_liability_weight,
     )?;
 
     let precision_increase = 10i128.pow(spot_market.decimals - 6);
@@ -1152,7 +1152,7 @@ pub fn calculate_max_spot_order_size(
             .safe_add(order_size.cast()?)?,
         &strict_oracle_price,
         direction,
-        user_custom_margin_ratio,
+        user_custom_liability_weight,
     )?;
 
     if updated_free_collateral_delta != free_collateral_delta {

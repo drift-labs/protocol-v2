@@ -902,7 +902,7 @@ mod calculate_margin_requirement_and_total_collateral {
         )
         .unwrap();
 
-        assert_eq!(margin_requirement, 40000000000); // 100 * $100 * 2 + 100 * $100 * 2
+        assert_eq!(margin_requirement, 50000000000); // 100 * $100 * 3 + 100 * $100 * 2
 
         let user = User {
             max_margin_ratio: MARGIN_PRECISION as u32, // 1x leverage
@@ -920,7 +920,7 @@ mod calculate_margin_requirement_and_total_collateral {
         )
         .unwrap();
 
-        assert_eq!(margin_requirement, 22000000000); // 100 * 100 * 1 + 100 * $100 * 1.2
+        assert_eq!(margin_requirement, 30000000000); // 100 * 100 * 1 + 100 * $100 * 2
 
         let user = User {
             max_margin_ratio: MARGIN_PRECISION as u32 / 2, // 2x leverage
@@ -938,7 +938,7 @@ mod calculate_margin_requirement_and_total_collateral {
         )
         .unwrap();
 
-        assert_eq!(margin_requirement, 17000000000); // 100 * 100 * .5 + 100 * $100 * 1.2
+        assert_eq!(margin_requirement, 20000000000); // 100 * 100 * .5 + 100 * $100 * 1.5
 
         let user = User {
             max_margin_ratio: 10 * MARGIN_PRECISION as u32, // .1x leverage
@@ -1200,7 +1200,7 @@ mod calculate_margin_requirement_and_total_collateral {
 
         assert_eq!(oracles_valid, false);
         assert_eq!(total_collateral, 0); // todo not 0
-        assert_eq!(margin_requirement, 2);
+        assert_eq!(margin_requirement, 3);
 
         let mut sol_oracle_price = get_pyth_price(1, 6);
         sol_oracle_price.agg.price /= 10000; // < 1 penny
@@ -1245,7 +1245,7 @@ mod calculate_margin_requirement_and_total_collateral {
 
         assert_eq!(oracles_valid, false);
         assert_eq!(total_collateral, 0); // todo not 0
-        assert_eq!(margin_requirement, 2);
+        assert_eq!(margin_requirement, 3);
     }
 }
 

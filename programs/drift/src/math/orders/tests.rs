@@ -1965,7 +1965,7 @@ mod calculate_max_spot_order_size {
         )
         .unwrap();
 
-        assert_eq!(max_order_size, 75757500000);
+        assert_eq!(max_order_size, 41322272727);
 
         user.spot_positions[1].open_orders = 1;
         user.spot_positions[1].open_bids = max_order_size as i64;
@@ -2073,7 +2073,7 @@ mod calculate_max_spot_order_size {
         )
         .unwrap();
 
-        assert_eq!(max_order_size, 90909000000);
+        assert_eq!(max_order_size, 45454500000);
 
         user.spot_positions[1].open_orders = 1;
         user.spot_positions[1].open_asks = -(max_order_size as i64);

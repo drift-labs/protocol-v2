@@ -496,12 +496,12 @@ impl OrderFillSimulation {
         after.free_collateral_contribution < self.free_collateral_contribution
     }
 
-    pub fn apply_user_custom_margin_ratio(
+    pub fn apply_user_custom_liability_weight(
         mut self,
         spot_market: &SpotMarket,
-        user_custom_margin_ratio: u32,
+        user_custom_liability_weight: u32,
     ) -> DriftResult<Self> {
-        if user_custom_margin_ratio == 0 {
+        if user_custom_liability_weight == SPOT_WEIGHT_PRECISION {
             return Ok(self);
         }
 
@@ -511,7 +511,7 @@ impl OrderFillSimulation {
                     self.token_amount.unsigned_abs(),
                     &MarginRequirementType::Initial,
                 )?
-                .max(user_custom_margin_ratio);
+                .max(user_custom_liability_weight);
 
             self.weighted_token_value = self
                 .token_value
@@ -520,7 +520,7 @@ impl OrderFillSimulation {
         }
 
         if self.orders_value < 0 {
-            let max_liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
+            let max_liability_weight = user_custom_liability_weight.max(SPOT_WEIGHT_PRECISION);
 
             self.orders_value = self
                 .orders_value
