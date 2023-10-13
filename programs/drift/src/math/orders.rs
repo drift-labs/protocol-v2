@@ -10,9 +10,9 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::{is_amm_available_liquidity_source, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::{
-    load, math, PostOnlyParam, State, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
-    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
+    load, math, FeeTier, PostOnlyParam, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
+    OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64,
+    PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -48,6 +48,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     slot: u64,
     override_limit_price: Option<u64>,
     existing_base_asset_amount: i64,
+    fee_tier: &FeeTier,
 ) -> DriftResult<(u64, Option<u64>)> {
     let limit_price = if let Some(override_limit_price) = override_limit_price {
         if let Some(limit_price) =
@@ -73,10 +74,39 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         return Ok((0, limit_price));
     }
 
+    let limit_price_with_buffer = if !order.post_only {
+        limit_price
+    } else if let Some(limit_price) = limit_price {
+        let mut buffer = limit_price
+            .safe_mul(fee_tier.maker_rebate_numerator.cast()?)?
+            .safe_div(fee_tier.maker_rebate_denominator.cast()?)?;
+
+        if market.fee_adjustment < 0 {
+            buffer = buffer.saturating_sub(
+                buffer
+                    .safe_mul(market.fee_adjustment.abs().cast()?)?
+                    .safe_div(FEE_ADJUSTMENT_MAX)?,
+            );
+        } else if market.fee_adjustment > 0 {
+            buffer = buffer.saturating_add(
+                buffer
+                    .safe_mul(market.fee_adjustment.cast()?)?
+                    .safe_div(FEE_ADJUSTMENT_MAX)?,
+            );
+        }
+
+        match order.direction {
+            PositionDirection::Long => Some(limit_price.safe_sub(buffer)?),
+            PositionDirection::Short => Some(limit_price.safe_add(buffer)?),
+        }
+    } else {
+        None
+    };
+
     let base_asset_amount = calculate_base_asset_amount_to_fill_up_to_limit_price(
         order,
         market,
-        limit_price,
+        limit_price_with_buffer,
         Some(existing_base_asset_amount),
     )?;
     let max_base_asset_amount = calculate_amm_available_liquidity(&market.amm, &order.direction)?;

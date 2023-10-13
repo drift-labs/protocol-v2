@@ -32,7 +32,7 @@ use crate::math::constants::{
     BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
     QUOTE_SPOT_MARKET_INDEX,
 };
-use crate::math::fees::{ExternalFillFees, FillFees};
+use crate::math::fees::{determine_user_fee_tier, ExternalFillFees, FillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
 };
@@ -1732,6 +1732,7 @@ pub fn fulfill_perp_order_with_amm(
         }
         None => {
             let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
+            let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp)?;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
                 &user.orders[order_index],
                 market,
@@ -1739,6 +1740,7 @@ pub fn fulfill_perp_order_with_amm(
                 slot,
                 override_fill_price,
                 existing_base_asset_amount,
+                fee_tier,
             )?;
 
             let fill_price = if user.orders[order_index].post_only {
@@ -1813,7 +1815,7 @@ pub fn fulfill_perp_order_with_amm(
         referee_discount,
         referrer_reward,
         fee_to_market_for_lp,
-        ..
+        maker_rebate,
     } = fees::calculate_fee_for_fulfillment_with_amm(
         user_stats,
         quote_asset_amount,
@@ -1872,6 +1874,7 @@ pub fn fulfill_perp_order_with_amm(
 
     // Increment the user's total fee variables
     user_stats.increment_total_fees(user_fee)?;
+    user_stats.increment_total_rebate(maker_rebate)?;
     user_stats.increment_total_referee_discount(referee_discount)?;
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
@@ -1885,11 +1888,21 @@ pub fn fulfill_perp_order_with_amm(
 
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
 
-    controller::position::update_quote_asset_and_break_even_amount(
-        &mut user.perp_positions[position_index],
-        market,
-        -user_fee.cast()?,
-    )?;
+    if user_fee != 0 {
+        controller::position::update_quote_asset_and_break_even_amount(
+            &mut user.perp_positions[position_index],
+            market,
+            -user_fee.cast()?,
+        )?;
+    }
+
+    if maker_rebate != 0 {
+        controller::position::update_quote_asset_and_break_even_amount(
+            &mut user.perp_positions[position_index],
+            market,
+            maker_rebate.cast()?,
+        )?;
+    }
 
     if order_post_only {
         user_stats.update_maker_volume_30d(quote_asset_amount, now)?;

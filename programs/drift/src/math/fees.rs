@@ -48,11 +48,18 @@ pub fn calculate_fee_for_fulfillment_with_amm(
 
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
-        let fee = quote_asset_amount_surplus.cast::<u64>().map_err(|e| {
-            msg!("quote_asset_amount_surplus {}", quote_asset_amount_surplus);
-            msg!("quote_asset_amount {}", quote_asset_amount);
-            e
-        })?;
+        let maker_rebate = calculate_maker_rebate(quote_asset_amount, fee_tier, fee_adjustment)?;
+
+        let fee = quote_asset_amount_surplus
+            .cast::<u64>()?
+            .safe_sub(maker_rebate)
+            .map_err(|e| {
+                msg!("quote_asset_amount_surplus {}", quote_asset_amount_surplus);
+                msg!("quote_asset_amount {}", quote_asset_amount);
+                msg!("maker_rebate {}", maker_rebate);
+                e
+            })?;
+
         let filler_reward = if !reward_filler {
             0_u64
         } else {
@@ -69,7 +76,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
 
         Ok(FillFees {
             user_fee,
-            maker_rebate: 0,
+            maker_rebate,
             fee_to_market,
             fee_to_market_for_lp: 0,
             filler_reward,
