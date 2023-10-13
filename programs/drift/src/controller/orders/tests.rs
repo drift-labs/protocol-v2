@@ -2381,6 +2381,7 @@ pub mod fulfill_order {
 
     use crate::controller::orders::{fulfill_perp_order, validate_market_within_price_band};
     use crate::controller::position::PositionDirection;
+    use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::get_orders;
     use crate::math::constants::{
@@ -2400,7 +2401,6 @@ pub mod fulfill_order {
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
     use crate::{create_account_info, PERCENTAGE_PRECISION_U64};
-    use crate::{create_anchor_account_info, BID_ASK_SPREAD_PRECISION};
 
     use super::*;
 
