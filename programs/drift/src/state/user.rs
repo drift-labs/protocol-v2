@@ -496,12 +496,13 @@ impl OrderFillSimulation {
         after.free_collateral_contribution < self.free_collateral_contribution
     }
 
-    pub fn apply_user_custom_liability_weight(
+    pub fn apply_user_custom_margin_ratio(
         mut self,
         spot_market: &SpotMarket,
-        user_custom_liability_weight: u32,
+        oracle_price: i64,
+        user_custom_margin_ratio: u32,
     ) -> DriftResult<Self> {
-        if user_custom_liability_weight == SPOT_WEIGHT_PRECISION {
+        if user_custom_margin_ratio == 0 {
             return Ok(self);
         }
 
@@ -511,20 +512,24 @@ impl OrderFillSimulation {
                     self.token_amount.unsigned_abs(),
                     &MarginRequirementType::Initial,
                 )?
-                .max(user_custom_liability_weight);
+                .max(user_custom_margin_ratio.safe_add(SPOT_WEIGHT_PRECISION)?);
 
             self.weighted_token_value = self
                 .token_value
                 .safe_mul(max_liability_weight.cast()?)?
                 .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
-        }
+        } else if self.weighted_token_value > 0 {
+            let min_asset_weight = spot_market
+                .get_asset_weight(
+                    self.token_amount.unsigned_abs(),
+                    oracle_price,
+                    &MarginRequirementType::Initial,
+                )?
+                .min(SPOT_WEIGHT_PRECISION.saturating_sub(user_custom_margin_ratio));
 
-        if self.orders_value < 0 {
-            let max_liability_weight = user_custom_liability_weight.max(SPOT_WEIGHT_PRECISION);
-
-            self.orders_value = self
-                .orders_value
-                .safe_mul(max_liability_weight.cast()?)?
+            self.weighted_token_value = self
+                .token_value
+                .safe_mul(min_asset_weight.cast()?)?
                 .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
         }
 

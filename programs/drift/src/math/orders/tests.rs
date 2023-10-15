@@ -1879,7 +1879,7 @@ mod calculate_max_spot_order_size {
     }
 
     #[test]
-    pub fn usdc_deposit_and_5x_sol_bid_custom_margin_ratio() {
+    pub fn usdc_deposit_and_max_sol_bid_custom_margin_ratio() {
         let slot = 0_u64;
 
         let mut sol_oracle_price = get_pyth_price(100, 6);
@@ -1922,7 +1922,7 @@ mod calculate_max_spot_order_size {
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap_5min: 110 * PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: 100 * PRICE_PRECISION_I64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1951,7 +1951,7 @@ mod calculate_max_spot_order_size {
             orders: [Order::default(); 32],
             perp_positions: [PerpPosition::default(); 8],
             spot_positions,
-            max_margin_ratio: 2 * MARGIN_PRECISION,
+            max_margin_ratio: MARGIN_PRECISION / 2, // 50% margin ratio or 2x leverage
             ..User::default()
         };
 
@@ -1965,7 +1965,7 @@ mod calculate_max_spot_order_size {
         )
         .unwrap();
 
-        assert_eq!(max_order_size, 41322272727);
+        assert_eq!(max_order_size, 199999800000);
 
         user.spot_positions[1].open_orders = 1;
         user.spot_positions[1].open_bids = max_order_size as i64;
@@ -1987,7 +1987,7 @@ mod calculate_max_spot_order_size {
     }
 
     #[test]
-    pub fn usdc_deposit_and_5x_sol_sell_custom_margin_ratio() {
+    pub fn usdc_deposit_and_max_sol_sell_custom_margin_ratio() {
         let slot = 0_u64;
 
         let mut sol_oracle_price = get_pyth_price(100, 6);
@@ -2030,7 +2030,7 @@ mod calculate_max_spot_order_size {
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap_5min: 110 * PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: 100 * PRICE_PRECISION_I64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2059,7 +2059,7 @@ mod calculate_max_spot_order_size {
             orders: [Order::default(); 32],
             perp_positions: [PerpPosition::default(); 8],
             spot_positions,
-            max_margin_ratio: 2 * MARGIN_PRECISION,
+            max_margin_ratio: MARGIN_PRECISION / 2, // 2x
             ..User::default()
         };
 
@@ -2073,7 +2073,7 @@ mod calculate_max_spot_order_size {
         )
         .unwrap();
 
-        assert_eq!(max_order_size, 45454500000);
+        assert_eq!(max_order_size, 199999800000);
 
         user.spot_positions[1].open_orders = 1;
         user.spot_positions[1].open_asks = -(max_order_size as i64);

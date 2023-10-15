@@ -238,8 +238,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         0_u32
     };
 
-    let user_custom_liability_weight = SPOT_WEIGHT_PRECISION.safe_add(user_custom_margin_ratio)?;
-
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
 
@@ -288,30 +286,17 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 }
                 SpotBalanceType::Borrow => {
                     let token_value = token_value.unsigned_abs();
-                    let liability_weight = user_custom_liability_weight.max(SPOT_WEIGHT_PRECISION);
-                    let weighted_token_value = token_value
-                        .safe_mul(liability_weight.cast()?)?
-                        .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
 
                     validate!(
-                        weighted_token_value >= token_value,
+                        token_value != 0,
                         ErrorCode::InvalidMarginRatio,
-                        "weighted_token_value={} < abs(token_amount={}) in spot market_index={}",
-                        weighted_token_value,
-                        token_amount,
-                        spot_market.market_index,
-                    )?;
-
-                    validate!(
-                        weighted_token_value != 0,
-                        ErrorCode::InvalidMarginRatio,
-                        "weighted_token_value=0 for token_amount={} in spot market_index={}",
+                        "token_value=0 for token_amount={} in spot market_index={}",
                         token_amount,
                         spot_market.market_index,
                     )?;
 
                     calculation.add_margin_requirement(
-                        weighted_token_value,
+                        token_value,
                         token_value,
                         MarketIdentifier::spot(0),
                     )?;
@@ -335,7 +320,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     Some(signed_token_amount),
                     context.margin_type,
                 )?
-                .apply_user_custom_liability_weight(&spot_market, user_custom_liability_weight)?;
+                .apply_user_custom_margin_ratio(
+                    &spot_market,
+                    strict_oracle_price.current,
+                    user_custom_margin_ratio,
+                )?;
 
             if worst_case_token_amount == 0 {
                 validate!(

@@ -959,6 +959,34 @@ mod calculate_margin_requirement_and_total_collateral {
 
         // doesnt affect maintenance margin requirement
         assert_eq!(maintenance_margin_requirement, 11500000000); // 100 * 100 * .05 + 100 * $100 * 1.1
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+
+        let user = User {
+            orders: [Order::default(); 32],
+            spot_positions,
+            max_margin_ratio: MARGIN_PRECISION as u32 / 2, // 2x leverage
+            ..User::default()
+        };
+
+        let MarginCalculation {
+            total_collateral, ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial),
+        )
+        .unwrap();
+
+        assert_eq!(total_collateral, 5000000000); // 100 * $100 * .5
     }
 
     #[test]
