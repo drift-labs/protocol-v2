@@ -1068,8 +1068,8 @@ export class User {
 				marginCategory
 			);
 
-			if (marginCategory === 'Initial') {
-				weight = BN.max(weight, new BN(this.getUserAccount().maxMarginRatio));
+			if (marginCategory === 'Initial' && spotMarketAccount.marketIndex !== QUOTE_SPOT_MARKET_INDEX) {
+				weight = BN.max(weight, SPOT_MARKET_WEIGHT_PRECISION.addn(this.getUserAccount().maxMarginRatio));
 			}
 
 			if (liquidationBuffer !== undefined) {
@@ -1115,12 +1115,17 @@ export class User {
 		);
 
 		if (marginCategory !== undefined) {
-			const weight = calculateAssetWeight(
+			let weight = calculateAssetWeight(
 				tokenAmount,
 				strictOraclePrice.current,
 				spotMarketAccount,
 				marginCategory
 			);
+
+			if (marginCategory === 'Initial' && spotMarketAccount.marketIndex !== QUOTE_SPOT_MARKET_INDEX) {
+				const userCustomAssetWeight = BN.max(ZERO, SPOT_MARKET_WEIGHT_PRECISION.subn(this.getUserAccount().maxMarginRatio));
+				weight = BN.max(weight, userCustomAssetWeight);
+			}
 
 			assetValue = assetValue.mul(weight).div(SPOT_MARKET_WEIGHT_PRECISION);
 		}
