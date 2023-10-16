@@ -78,7 +78,6 @@ import {
 	getWorstCaseTokenAmounts,
 	isSpotPositionAvailable,
 } from './math/spotPosition';
-
 import { calculateLiveOracleTwap } from './math/oracles';
 import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 import { StrictOraclePrice } from './oracles/strictOraclePrice';
@@ -969,7 +968,8 @@ export class User {
 				spotPosition,
 				spotMarketAccount,
 				strictOraclePrice,
-				marginCategory ?? 'Initial'
+				marginCategory ?? 'Initial',
+				this.getUserAccount().maxMarginRatio
 			);
 
 			if (worstCaseTokenAmount.gt(ZERO) && countForBase) {
@@ -977,7 +977,7 @@ export class User {
 					worstCaseTokenAmount,
 					strictOraclePrice,
 					spotMarketAccount,
-					marginCategory
+					marginCategory ?? 'Initial'
 				);
 
 				totalAssetValue = totalAssetValue.add(baseAssetValue);
@@ -988,7 +988,7 @@ export class User {
 					worstCaseTokenAmount,
 					strictOraclePrice,
 					spotMarketAccount,
-					marginCategory,
+					marginCategory ?? 'Initial',
 					liquidationBuffer
 				).abs();
 
@@ -1068,8 +1068,16 @@ export class User {
 				marginCategory
 			);
 
-			if (marginCategory === 'Initial' && spotMarketAccount.marketIndex !== QUOTE_SPOT_MARKET_INDEX) {
-				weight = BN.max(weight, SPOT_MARKET_WEIGHT_PRECISION.addn(this.getUserAccount().maxMarginRatio));
+			if (
+				marginCategory === 'Initial' &&
+				spotMarketAccount.marketIndex !== QUOTE_SPOT_MARKET_INDEX
+			) {
+				weight = BN.max(
+					weight,
+					SPOT_MARKET_WEIGHT_PRECISION.addn(
+						this.getUserAccount().maxMarginRatio
+					)
+				);
 			}
 
 			if (liquidationBuffer !== undefined) {
@@ -1122,8 +1130,16 @@ export class User {
 				marginCategory
 			);
 
-			if (marginCategory === 'Initial' && spotMarketAccount.marketIndex !== QUOTE_SPOT_MARKET_INDEX) {
-				const userCustomAssetWeight = BN.max(ZERO, SPOT_MARKET_WEIGHT_PRECISION.subn(this.getUserAccount().maxMarginRatio));
+			if (
+				marginCategory === 'Initial' &&
+				spotMarketAccount.marketIndex !== QUOTE_SPOT_MARKET_INDEX
+			) {
+				const userCustomAssetWeight = BN.max(
+					ZERO,
+					SPOT_MARKET_WEIGHT_PRECISION.subn(
+						this.getUserAccount().maxMarginRatio
+					)
+				);
 				weight = BN.max(weight, userCustomAssetWeight);
 			}
 
@@ -1494,25 +1510,28 @@ export class User {
 		return totalLiabilityValue.mul(TEN_THOUSAND).div(netAssetValue);
 	}
 
-	getLeverageComponents(includeOpenOrders = true): {
+	getLeverageComponents(
+		includeOpenOrders = true,
+		marginCategory: MarginCategory = undefined
+	): {
 		perpLiabilityValue: BN;
 		perpPnl: BN;
 		spotAssetValue: BN;
 		spotLiabilityValue: BN;
 	} {
 		const perpLiability = this.getTotalPerpPositionValue(
-			undefined,
+			marginCategory,
 			undefined,
 			includeOpenOrders
 		);
-		const perpPnl = this.getUnrealizedPNL(true);
+		const perpPnl = this.getUnrealizedPNL(true, undefined, marginCategory);
 
 		const {
 			totalAssetValue: spotAssetValue,
 			totalLiabilityValue: spotLiabilityValue,
 		} = this.getSpotMarketAssetAndLiabilityValue(
 			undefined,
-			undefined,
+			marginCategory,
 			undefined,
 			includeOpenOrders
 		);
@@ -2393,7 +2412,7 @@ export class User {
 		);
 
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
-			this.getLeverageComponents();
+			this.getLeverageComponents(undefined, 'Initial');
 
 		if (!calculateSwap) {
 			calculateSwap = (inSwap: BN) => {
@@ -2592,7 +2611,8 @@ export class User {
 			spotPosition,
 			spotMarketAccount,
 			strictOraclePrice,
-			marginCategory
+			marginCategory,
+			this.getUserAccount().maxMarginRatio
 		);
 
 		return freeCollateralContribution;
@@ -2615,7 +2635,8 @@ export class User {
 			spotPosition,
 			spotMarketAccount,
 			strictOraclePrice,
-			'Initial'
+			'Initial',
+			this.getUserAccount().maxMarginRatio
 		);
 
 		if (tokenValue.gte(ZERO)) {
@@ -3359,7 +3380,8 @@ export class User {
 				spotPosition,
 				spotMarketAccount,
 				strictOraclePrice,
-				marginCategory
+				marginCategory,
+				this.getUserAccount().maxMarginRatio
 			);
 
 			netQuoteValue = netQuoteValue.add(ordersValue);
@@ -3403,7 +3425,8 @@ export class User {
 				baseAssetValue,
 				oraclePriceData.price,
 				spotMarketAccount,
-				marginCategory
+				marginCategory,
+				this.getUserAccount().maxMarginRatio
 			);
 
 			if (netQuoteValue.lt(ZERO)) {
