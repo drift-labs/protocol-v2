@@ -1140,7 +1140,7 @@ export class User {
 						this.getUserAccount().maxMarginRatio
 					)
 				);
-				weight = BN.max(weight, userCustomAssetWeight);
+				weight = BN.min(weight, userCustomAssetWeight);
 			}
 
 			assetValue = assetValue.mul(weight).div(SPOT_MARKET_WEIGHT_PRECISION);
