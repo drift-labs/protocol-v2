@@ -968,7 +968,7 @@ export class User {
 				spotPosition,
 				spotMarketAccount,
 				strictOraclePrice,
-				marginCategory ?? 'Initial',
+				marginCategory,
 				this.getUserAccount().maxMarginRatio
 			);
 
@@ -977,7 +977,7 @@ export class User {
 					worstCaseTokenAmount,
 					strictOraclePrice,
 					spotMarketAccount,
-					marginCategory ?? 'Initial'
+					marginCategory
 				);
 
 				totalAssetValue = totalAssetValue.add(baseAssetValue);
@@ -988,7 +988,7 @@ export class User {
 					worstCaseTokenAmount,
 					strictOraclePrice,
 					spotMarketAccount,
-					marginCategory ?? 'Initial',
+					marginCategory,
 					liquidationBuffer
 				).abs();
 
@@ -1484,7 +1484,7 @@ export class User {
 	 */
 	public getLeverage(includeOpenOrders = true): BN {
 		return this.calculateLeverageFromComponents(
-			this.getLeverageComponents(includeOpenOrders, 'Initial')
+			this.getLeverageComponents(includeOpenOrders)
 		);
 	}
 
