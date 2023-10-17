@@ -17,6 +17,7 @@ import {
 	LAMPORTS_PRECISION,
 	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	SpotBalanceType,
+	MARGIN_PRECISION,
 } from '../../src';
 import { MockUserMap, mockPerpMarkets, mockSpotMarkets } from '../dlob/helpers';
 import { assert } from '../../src/assert/assert';
@@ -260,15 +261,16 @@ describe('User Tests', () => {
 			'spot cumulativeDepositInterest:',
 			mockSpotMarkets[0].cumulativeDepositInterest.toString()
 		);
-		assert(mockUser.getTokenAmount(0).eq(new BN('10000000000')));
-		assert(mockUser.getNetSpotMarketValue().eq(new BN('10000000000')));
+		const expectedAmount = new BN('10000000000');
+		assert(mockUser.getTokenAmount(0).eq(expectedAmount));
+		assert(mockUser.getNetSpotMarketValue().eq(expectedAmount));
 		assert(
 			mockUser
 				.getSpotMarketAssetAndLiabilityValue()
 				.totalLiabilityValue.eq(ZERO)
 		);
 
-		assert(mockUser.getFreeCollateral().eq(ZERO));
+		assert(mockUser.getFreeCollateral().gt(ZERO));
 		const upnl = mockUser.getUnrealizedPNL(true, 0, undefined, false);
 		console.log('upnl:', upnl.toString());
 		assert(upnl.eq(new BN('0'))); // $10
@@ -277,7 +279,7 @@ describe('User Tests', () => {
 		console.log(liqResult);
 		assert(liqResult.canBeLiquidated == false);
 		assert(liqResult.marginRequirement.eq(new BN('0'))); //10x maint leverage
-		assert(liqResult.totalCollateral.eq(ZERO));
+		assert(liqResult.totalCollateral.eq(expectedAmount));
 
 		console.log(mockUser.getHealth());
 		assert(mockUser.getHealth() == 100);
@@ -286,7 +288,9 @@ describe('User Tests', () => {
 			'getMaxLeverageForPerp:',
 			mockUser.getMaxLeverageForPerp(0).toString()
 		);
-		assert(mockUser.getMaxLeverageForPerp(0).eq(new BN('0')));
+		assert(mockUser.getMaxLeverageForPerp(0).eq(new BN('50000'))); // 5x
+		assert(mockUser.getMaxLeverageForPerp(0, 'Maintenance').eq(new BN('100000'))); // 10x
+
 	});
 
 	it('worst case token amount', async () => {
@@ -394,4 +398,111 @@ describe('User Tests', () => {
 			)
 		); // -$2k
 	});
+
+
+	it('custom margin ratio (sol spot)', async() => {
+		const myMockUserAccount = _.cloneDeep(mockUserAccount);
+
+		const solMarket = Object.assign({}, _.cloneDeep(mockSpotMarkets[1]), {
+			initialAssetWeight: 8000,
+			initialLiabilityWeight: 12000,
+			cumulativeDepositInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+			cumulativeBorrowInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+		});
+
+		// $25
+		const strictOraclePrice = new StrictOraclePrice(PRICE_PRECISION.muln(25));
+
+		let spotPosition = Object.assign({}, myMockUserAccount.spotPositions[1], {
+			marketIndex: 1,
+			openBids: new BN(100).mul(LAMPORTS_PRECISION),
+		});
+
+		let worstCase = getWorstCaseTokenAmounts(
+			spotPosition,
+			solMarket,
+			strictOraclePrice,
+			'Initial',
+			myMockUserAccount.maxMarginRatio
+		);
+
+		console.log(worstCase);
+		assert(worstCase.weight.eq(new BN(8000))); 
+
+
+		myMockUserAccount.maxMarginRatio = MARGIN_PRECISION.toNumber(); // max 1x pls
+
+
+		let worstCaseAfter = getWorstCaseTokenAmounts(
+			spotPosition,
+			solMarket,
+			strictOraclePrice,
+			'Initial',
+			myMockUserAccount.maxMarginRatio
+		);
+
+		console.log(worstCaseAfter);
+		assert(worstCaseAfter.weight.eq(new BN(0))); // not allowed to increase exposure
+
+	});
+
+	it('custom margin ratio (sol perp)', async() => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
+		const myMockUserAccount = _.cloneDeep(mockUserAccount);
+		// myMockPerpMarkets[0].imfFactor = 550;
+		myMockPerpMarkets[0].marginRatioInitial = 2000; // 5x
+		myMockPerpMarkets[0].marginRatioMaintenance = 1000; // 10x
+
+		myMockSpotMarkets[0].initialAssetWeight = 1000;
+		myMockSpotMarkets[0].initialLiabilityWeight = 1000;
+
+		myMockUserAccount.spotPositions[0].scaledBalance = new BN(
+			10000 * SPOT_MARKET_BALANCE_PRECISION.toNumber()
+		); //10k
+
+		const mockUser: User = await makeMockUser(
+			myMockPerpMarkets,
+			myMockSpotMarkets,
+			myMockUserAccount,
+			[1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1]
+		);
+
+
+		assert(mockUser.getTokenAmount(0).eq(new BN('10000000000')));
+		assert(mockUser.getNetSpotMarketValue().eq(new BN('10000000000')));
+		assert(
+			mockUser
+				.getSpotMarketAssetAndLiabilityValue()
+				.totalLiabilityValue.eq(ZERO)
+		);
+
+		assert(mockUser.getFreeCollateral().gt(ZERO));
+
+		let uA = mockUser.getUserAccount();
+		let iLev = mockUser.getMaxLeverageForPerp(0, 'Initial').toNumber();
+		let mLev = mockUser.getMaxLeverageForPerp(0, 'Maintenance').toNumber();
+		console.log(iLev, mLev);
+		assert(iLev == 5000);
+		assert(mLev == 10000);
+
+		myMockUserAccount.maxMarginRatio = MARGIN_PRECISION.div(new BN(2)).toNumber(); // 2x max pls
+
+		const mockUser2: User = await makeMockUser(
+			myMockPerpMarkets,
+			myMockSpotMarkets,
+			myMockUserAccount,
+			[1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1]
+		);
+		uA = mockUser2.getUserAccount();
+		iLev = mockUser2.getMaxLeverageForPerp(0, 'Initial').toNumber();
+		mLev = mockUser2.getMaxLeverageForPerp(0, 'Maintenance').toNumber();
+		console.log(iLev, mLev);
+		
+		assert(iLev == 2000);
+		assert(mLev == 10000);
+
+	})
 });
