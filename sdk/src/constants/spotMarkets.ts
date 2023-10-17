@@ -113,6 +113,9 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(EIGHT),
 		precisionExp: EIGHT,
 		serumMarket: new PublicKey('BbJgE7HZMaDp5NTYvRh5jZSkQPVDTU8ubPFtpogUkEj4'),
+		phoenixMarket: new PublicKey(
+			'Ew3vFDdtdGrknJAVVfraxCA37uNJtimXYPY4QjnfhFHH'
+		),
 	},
 	{
 		symbol: 'USDT',
@@ -123,6 +126,16 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: QUOTE_PRECISION,
 		precisionExp: QUOTE_PRECISION_EXP,
 		serumMarket: new PublicKey('B2na8Awyd7cpC59iEU43FagJAPLigr3AP3s38KM982bu'),
+	},
+	{
+		symbol: 'jitoSOL',
+		marketIndex: 6,
+		oracle: new PublicKey('7yyaeuJ1GGtVBLT2z2xub5ZWYKaNhF28mj1RdV4VDFVk'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		serumMarket: new PublicKey('JAmhJbmBzLp2aTp9mNJodPsTcpCJsmq5jpr6CuCbWHvR'),
 	},
 ];
 

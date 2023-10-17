@@ -16,17 +16,23 @@ export class WebSocketUserStatsAccountSubscriber
 	implements UserStatsAccountSubscriber
 {
 	isSubscribed: boolean;
+	reconnectTimeoutMs?: number;
 	program: Program;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;
 	userStatsAccountPublicKey: PublicKey;
 
 	userStatsAccountSubscriber: AccountSubscriber<UserStatsAccount>;
 
-	public constructor(program: Program, userStatsAccountPublicKey: PublicKey) {
+	public constructor(
+		program: Program,
+		userStatsAccountPublicKey: PublicKey,
+		reconnectTimeoutMs?: number
+	) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.userStatsAccountPublicKey = userStatsAccountPublicKey;
 		this.eventEmitter = new EventEmitter();
+		this.reconnectTimeoutMs = reconnectTimeoutMs;
 	}
 
 	async subscribe(userStatsAccount?: UserStatsAccount): Promise<boolean> {
@@ -37,7 +43,9 @@ export class WebSocketUserStatsAccountSubscriber
 		this.userStatsAccountSubscriber = new WebSocketAccountSubscriber(
 			'userStats',
 			this.program,
-			this.userStatsAccountPublicKey
+			this.userStatsAccountPublicKey,
+			undefined,
+			this.reconnectTimeoutMs
 		);
 
 		if (userStatsAccount) {

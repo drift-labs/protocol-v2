@@ -279,27 +279,22 @@ export function calculateAvailablePerpLiquidity(
 
 	asks = asks.abs();
 
-	const bidPrice = calculateBidPrice(market, oraclePriceData);
-	const askPrice = calculateAskPrice(market, oraclePriceData);
-
-	for (const bid of dlob.getMakerLimitBids(
+	for (const bid of dlob.getRestingLimitBids(
 		market.marketIndex,
 		slot,
 		MarketType.PERP,
-		oraclePriceData,
-		askPrice
+		oraclePriceData
 	)) {
 		bids = bids.add(
 			bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled)
 		);
 	}
 
-	for (const ask of dlob.getMakerLimitAsks(
+	for (const ask of dlob.getRestingLimitAsks(
 		market.marketIndex,
 		slot,
 		MarketType.PERP,
-		oraclePriceData,
-		bidPrice
+		oraclePriceData
 	)) {
 		asks = asks.add(
 			ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled)

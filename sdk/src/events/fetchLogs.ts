@@ -117,8 +117,7 @@ export async function fetchTransactionLogs(
 	}
 
 	const logs = new Array<Log>();
-	for (const i in rpcResponses) {
-		const rpcResponse = rpcResponses[i];
+	for (const rpcResponse of rpcResponses) {
 		if (rpcResponse.result) {
 			logs.push(mapTransactionResponseToLog(rpcResponse.result));
 		}

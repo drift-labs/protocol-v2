@@ -13,17 +13,24 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	decodeBufferFn: (buffer: Buffer) => T;
 	onChange: (data: T) => void;
 	listenerId?: number;
+	resubTimeoutMs?: number;
+	timeoutId?: NodeJS.Timeout;
+
+	receivingData: boolean;
 
 	public constructor(
 		accountName: string,
 		program: Program,
 		accountPublicKey: PublicKey,
-		decodeBuffer?: (buffer: Buffer) => T
+		decodeBuffer?: (buffer: Buffer) => T,
+		resubTimeoutMs?: number
 	) {
 		this.accountName = accountName;
 		this.program = program;
 		this.accountPublicKey = accountPublicKey;
 		this.decodeBufferFn = decodeBuffer;
+		this.resubTimeoutMs = resubTimeoutMs;
+		this.receivingData = false;
 	}
 
 	async subscribe(onChange: (data: T) => void): Promise<void> {
@@ -39,10 +46,21 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		this.listenerId = this.program.provider.connection.onAccountChange(
 			this.accountPublicKey,
 			(accountInfo, context) => {
-				this.handleRpcResponse(context, accountInfo);
+				if (this.resubTimeoutMs) {
+					this.receivingData = true;
+					clearTimeout(this.timeoutId);
+					this.handleRpcResponse(context, accountInfo);
+					this.setTimeout();
+				} else {
+					this.handleRpcResponse(context, accountInfo);
+				}
 			},
 			(this.program.provider as AnchorProvider).opts.commitment
 		);
+
+		if (this.resubTimeoutMs) {
+			this.setTimeout();
+		}
 	}
 
 	setData(data: T, slot?: number): void {
@@ -55,6 +73,22 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			data,
 			slot,
 		};
+	}
+
+	private setTimeout(): void {
+		if (!this.onChange) {
+			throw new Error('onChange callback function must be set');
+		}
+		this.timeoutId = setTimeout(async () => {
+			if (this.receivingData) {
+				console.log(
+					`No ws data from ${this.accountName} in ${this.resubTimeoutMs}ms, resubscribing`
+				);
+				await this.unsubscribe();
+				this.receivingData = false;
+				await this.subscribe(this.onChange);
+			}
+		}, this.resubTimeoutMs);
 	}
 
 	async fetch(): Promise<void> {

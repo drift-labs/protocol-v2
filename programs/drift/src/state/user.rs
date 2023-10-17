@@ -57,7 +57,7 @@ impl Size for User {
     const SIZE: usize = 4376;
 }
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct User {
@@ -395,7 +395,7 @@ impl User {
     }
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct UserFees {
@@ -419,7 +419,7 @@ pub struct UserFees {
     pub current_epoch_referrer_reward: u64,
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct SpotPosition {
@@ -631,7 +631,7 @@ impl SpotPosition {
     }
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Default, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct PerpPosition {
@@ -879,7 +879,7 @@ impl PerpPosition {
 
 pub type PerpPositions = [PerpPosition; 8];
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub struct Order {
@@ -1236,7 +1236,7 @@ impl Default for MarketType {
     }
 }
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct UserStats {
@@ -1400,7 +1400,7 @@ impl UserStats {
     }
 }
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct ReferrerName {

@@ -25,6 +25,7 @@ use crate::math::spot_balance::get_strict_token_value;
 use crate::math::spot_withdraw::get_max_withdraw_for_market_with_token_amount;
 use crate::math_error;
 use crate::print_error;
+use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{PerpMarket, AMM};
@@ -380,35 +381,35 @@ pub fn should_cancel_reduce_only_order(
     Ok(should_cancel)
 }
 
-pub fn order_breaches_oracle_price_bands(
+pub fn order_breaches_maker_oracle_price_bands(
     order: &Order,
     oracle_price: i64,
     slot: u64,
     tick_size: u64,
     margin_ratio_initial: u32,
-    margin_ratio_maintenance: u32,
 ) -> DriftResult<bool> {
     let order_limit_price =
         order.force_get_limit_price(Some(oracle_price), None, slot, tick_size)?;
-    limit_price_breaches_oracle_price_bands(
+    limit_price_breaches_maker_oracle_price_bands(
         order_limit_price,
         order.direction,
         oracle_price,
         margin_ratio_initial,
-        margin_ratio_maintenance,
     )
 }
 
-pub fn limit_price_breaches_oracle_price_bands(
+/// Cancel maker order if there limit price cross the oracle price sufficiently
+/// E.g. if initial margin ratio is .05 and oracle price is 100, then maker limit price must be
+/// less than 105 to be valid
+pub fn limit_price_breaches_maker_oracle_price_bands(
     order_limit_price: u64,
     order_direction: PositionDirection,
     oracle_price: i64,
     margin_ratio_initial: u32,
-    margin_ratio_maintenance: u32,
 ) -> DriftResult<bool> {
     let oracle_price = oracle_price.unsigned_abs();
 
-    let max_percent_diff = margin_ratio_initial.safe_sub(margin_ratio_maintenance)?;
+    let max_percent_diff = margin_ratio_initial;
 
     match order_direction {
         PositionDirection::Long => {
@@ -844,16 +845,17 @@ pub fn calculate_max_perp_order_size(
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
     // calculate initial margin requirement
-    let (margin_requirement, total_collateral, _, _, _, _) =
-        calculate_margin_requirement_and_total_collateral_and_liability_info(
-            user,
-            perp_market_map,
-            MarginRequirementType::Initial,
-            spot_market_map,
-            oracle_map,
-            None,
-            true,
-        )?;
+    let MarginCalculation {
+        margin_requirement,
+        total_collateral,
+        ..
+    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::standard(MarginRequirementType::Initial).strict(true),
+    )?;
 
     let free_collateral = total_collateral.safe_sub(margin_requirement.cast()?)?;
 
@@ -954,16 +956,17 @@ pub fn calculate_max_spot_order_size(
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
     // calculate initial margin requirement
-    let (margin_requirement, total_collateral, _, _, _, _) =
-        calculate_margin_requirement_and_total_collateral_and_liability_info(
-            user,
-            perp_market_map,
-            MarginRequirementType::Initial,
-            spot_market_map,
-            oracle_map,
-            None,
-            true,
-        )?;
+    let MarginCalculation {
+        margin_requirement,
+        total_collateral,
+        ..
+    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::standard(MarginRequirementType::Initial).strict(true),
+    )?;
 
     let mut order_size_to_flip = 0_u64;
     let free_collateral = total_collateral.safe_sub(margin_requirement.cast()?)?;

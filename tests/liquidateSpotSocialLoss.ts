@@ -193,8 +193,34 @@ describe('liquidate spot w/ social loss', () => {
 		assert(
 			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(500000000))
 		);
+		console.log(liquidationRecord.liquidateSpot.ifFee.toString());
+		console.log(spotMarketBefore.liquidatorFee.toString());
+		console.log(spotMarketBefore.ifLiquidationFee.toString());
+		console.log(
+			liquidationRecord.liquidateSpot.liabilityTransfer
+				.div(new BN(100))
+				.toString()
+		);
+
+		// if liq fee is 0 since user is bankrupt
+		assert(
+			liquidationRecord.liquidateSpot.ifFee.lt(
+				new BN(spotMarketBefore.ifLiquidationFee)
+			)
+		);
+
+		// if liquidator fee is non-zero, it should be equal to that
 		assert(
 			liquidationRecord.liquidateSpot.ifFee.eq(
+				new BN(spotMarketBefore.liquidatorFee)
+			)
+		);
+
+		// but it is zero
+		assert(liquidationRecord.liquidateSpot.ifFee.eq(ZERO));
+
+		assert(
+			new BN(5000000).eq(
 				liquidationRecord.liquidateSpot.liabilityTransfer.div(new BN(100))
 			)
 		);

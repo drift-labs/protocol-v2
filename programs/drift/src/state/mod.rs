@@ -2,6 +2,7 @@ pub mod events;
 pub mod fulfillment;
 pub mod fulfillment_params;
 pub mod insurance_fund_stake;
+pub mod margin_calculation;
 pub mod oracle;
 pub mod oracle_map;
 pub mod perp_market;

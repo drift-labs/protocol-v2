@@ -278,7 +278,8 @@ export class DriftClient {
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
 				config.oracleInfos ?? [],
-				noMarketsAndOraclesSpecified
+				noMarketsAndOraclesSpecified,
+				config.accountSubscription?.resubTimeoutMs
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -538,6 +539,10 @@ export class DriftClient {
 		this.activeSubAccountId = activeSubAccountId;
 		this.userStatsAccountPublicKey = undefined;
 		this.includeDelegates = includeDelegates ?? false;
+		const walletSupportsVersionedTxns =
+			//@ts-ignore
+			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
+		this.txVersion = walletSupportsVersionedTxns ? 0 : 'legacy';
 
 		if (includeDelegates && subAccountIds) {
 			throw new Error(
@@ -587,13 +592,30 @@ export class DriftClient {
 		return success;
 	}
 
-	public switchActiveUser(subAccountId: number, authority?: PublicKey) {
+	public async switchActiveUser(subAccountId: number, authority?: PublicKey) {
+		const authorityChanged = authority && !this.authority?.equals(authority);
+
 		this.activeSubAccountId = subAccountId;
 		this.authority = authority ?? this.authority;
 		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
 			this.authority
 		);
+
+		/* If changing the user authority ie switching from delegate to non-delegate account, need to re-subscribe to the user stats account */
+		if (authorityChanged) {
+			if (this.userStats && this.userStats.isSubscribed) {
+				await this.userStats.unsubscribe();
+			}
+
+			this.userStats = new UserStats({
+				driftClient: this,
+				userStatsAccountPublicKey: this.userStatsAccountPublicKey,
+				accountSubscription: this.userAccountSubscriptionConfig,
+			});
+
+			this.userStats.subscribe();
+		}
 	}
 
 	public async addUser(
@@ -1556,13 +1578,6 @@ export class DriftClient {
 		subAccountId?: number,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
-		const tx = new Transaction();
-		tx.add(
-			ComputeBudgetProgram.setComputeUnitLimit({
-				units: 600_000,
-			})
-		);
-
 		const additionalSigners: Array<Signer> = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -1574,6 +1589,8 @@ export class DriftClient {
 		const createWSOLTokenAccount =
 			isSolMarket && associatedTokenAccount.equals(signerAuthority);
 
+		const instructions = [];
+
 		if (createWSOLTokenAccount) {
 			const { ixs, pubkey } = await this.getWrappedSolAccountCreationIxs(
 				amount,
@@ -1582,9 +1599,7 @@ export class DriftClient {
 
 			associatedTokenAccount = pubkey;
 
-			ixs.forEach((ix) => {
-				tx.add(ix);
-			});
+			instructions.push(...ixs);
 		}
 
 		const depositCollateralIx = await this.getDepositInstruction(
@@ -1596,11 +1611,11 @@ export class DriftClient {
 			true
 		);
 
-		tx.add(depositCollateralIx);
+		instructions.push(depositCollateralIx);
 
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
-			tx.add(
+			instructions.push(
 				createCloseAccountInstruction(
 					associatedTokenAccount,
 					signerAuthority,
@@ -1609,6 +1624,10 @@ export class DriftClient {
 				)
 			);
 		}
+
+		const txParams = { ...this.txParams, computeUnits: 600_000 };
+
+		const tx = await this.buildTransaction(instructions, txParams);
 
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
@@ -2424,8 +2443,7 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
-		referrerInfo?: ReferrerInfo,
-		useVersionedTx = true
+		referrerInfo?: ReferrerInfo
 	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
@@ -2451,12 +2469,8 @@ export class DriftClient {
 			referrerInfo
 		);
 
-		const walletSupportsVersionedTxns =
-			//@ts-ignore
-			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
-
 		// use versioned transactions if there is a lookup table account and wallet is compatible
-		if (walletSupportsVersionedTxns && useVersionedTx) {
+		if (this.txVersion === 0) {
 			const versionedMarketOrderTx = await this.buildTransaction(
 				[placePerpOrderIx].concat(bracketOrderIxs),
 				txParams,
@@ -3424,6 +3438,7 @@ export class DriftClient {
 		reduceOnly,
 		txParams,
 		v6,
+		onlyDirectRoutes = false,
 	}: {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
@@ -3436,6 +3451,7 @@ export class DriftClient {
 		route?: Route;
 		reduceOnly?: SwapReduceOnly;
 		txParams?: TxParams;
+		onlyDirectRoutes?: boolean;
 		v6?: {
 			quote?: QuoteResponse;
 		};
@@ -3455,6 +3471,7 @@ export class DriftClient {
 				swapMode,
 				quote: v6.quote,
 				reduceOnly,
+				onlyDirectRoutes,
 			});
 			ixs = res.ixs;
 			lookupTables = res.lookupTables;
@@ -5831,17 +5848,16 @@ export class DriftClient {
 		opts?: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
-		// @ts-ignore
-		if (!tx.message) {
-			return this.txSender.send(
-				tx as Transaction,
+		if (tx instanceof VersionedTransaction) {
+			return this.txSender.sendVersionedTransaction(
+				tx as VersionedTransaction,
 				additionalSigners,
 				opts,
 				preSigned
 			);
 		} else {
-			return this.txSender.sendVersionedTransaction(
-				tx as VersionedTransaction,
+			return this.txSender.send(
+				tx as Transaction,
 				additionalSigners,
 				opts,
 				preSigned

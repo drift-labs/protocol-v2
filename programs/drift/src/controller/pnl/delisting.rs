@@ -33,12 +33,11 @@ pub mod delisting_test {
     };
     use crate::math::funding::calculate_funding_payment;
     use crate::math::margin::{
-        calculate_margin_requirement_and_total_collateral,
-        calculate_perp_position_value_and_pnl,
-        // meets_initial_margin_requirement,
-        MarginRequirementType,
+        calculate_margin_requirement_and_total_collateral_and_liability_info,
+        calculate_perp_position_value_and_pnl, MarginRequirementType,
     };
     use crate::state::events::OrderActionExplanation;
+    use crate::state::margin_calculation::{MarginCalculation, MarginContext};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle::{HistoricalOracleData, StrictOraclePrice};
     use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance, AMM};
@@ -747,16 +746,18 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.expiry_price, 0);
 
-        let (margin_requirement, total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &taker,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &taker,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral, 100000000);
         assert_eq!(margin_requirement, 7510000);
@@ -778,16 +779,18 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
-        let (margin_requirement, total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &taker,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &taker,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral, 100000000);
         assert_eq!(margin_requirement, 10000);
@@ -962,16 +965,18 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.expiry_price, 0);
 
-        let (margin_requirement, total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &taker,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &taker,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral, 100000000);
         assert_eq!(margin_requirement, 7510000);
@@ -993,16 +998,18 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
-        let (margin_requirement, total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &taker,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &taker,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral, 100000000);
         assert_eq!(margin_requirement, 10000); // settlement in margin now
@@ -1197,16 +1204,18 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
-        let (margin_requirement, total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &taker,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &taker,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral, 100000000);
         assert_eq!(margin_requirement, 10000);
@@ -1459,16 +1468,18 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.expiry_price, 0);
 
-        let (margin_requirement, total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &longer,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &longer,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
         assert_eq!(margin_requirement, 10005010000);
@@ -1522,16 +1533,18 @@ pub mod delisting_test {
             assert_eq!(shorter.perp_positions[0].quote_asset_amount, 20000000000);
             drop(market);
 
-            let (margin_requirement, total_collateral, _, _) =
-                calculate_margin_requirement_and_total_collateral(
-                    &shorter,
-                    &market_map,
-                    MarginRequirementType::Maintenance,
-                    &spot_market_map,
-                    &mut oracle_map,
-                    None,
-                )
-                .unwrap();
+            let MarginCalculation {
+                margin_requirement,
+                total_collateral,
+                ..
+            } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &shorter,
+                &market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                MarginContext::standard(MarginRequirementType::Maintenance),
+            )
+            .unwrap();
 
             assert_eq!(total_collateral, 199001001000);
             assert_eq!(margin_requirement, 11000000000);
@@ -1573,16 +1586,18 @@ pub mod delisting_test {
             assert_eq!(shorter.perp_positions[0].quote_break_even_amount, 0);
         }
 
-        let (margin_requirement, total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &longer,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &longer,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
         assert_eq!(margin_requirement, 10000);
@@ -1866,30 +1881,34 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.expiry_price, 0);
 
-        let (margin_requirement, total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &longer,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &longer,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
         assert_eq!(margin_requirement, 1005010000);
 
-        let (margin_requirement_short, total_collateral_short, _, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &shorter,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement: margin_requirement_short,
+            total_collateral: total_collateral_short,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &shorter,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral_short, 17_000_000_000);
         assert_eq!(margin_requirement_short, 16002510000);
@@ -1917,16 +1936,18 @@ pub mod delisting_test {
 
         // try long close
         {
-            let (margin_requirement, total_collateral, _, _) =
-                calculate_margin_requirement_and_total_collateral(
-                    &longer,
-                    &market_map,
-                    MarginRequirementType::Maintenance,
-                    &spot_market_map,
-                    &mut oracle_map,
-                    None,
-                )
-                .unwrap();
+            let MarginCalculation {
+                margin_requirement,
+                total_collateral,
+                ..
+            } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &longer,
+                &market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                MarginContext::standard(MarginRequirementType::Maintenance),
+            )
+            .unwrap();
 
             assert_eq!(total_collateral, 20000000000);
             assert_eq!(margin_requirement, 10000);
@@ -2251,16 +2272,18 @@ pub mod delisting_test {
             ..State::default()
         };
 
-        let (margin_requirement, total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
-                &longer,
-                &market_map,
-                MarginRequirementType::Maintenance,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &longer,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
         assert_eq!(margin_requirement, 1005010000);
@@ -2717,16 +2740,18 @@ pub mod delisting_test {
 
         // do long close
         {
-            let (margin_requirement, total_collateral, _, _) =
-                calculate_margin_requirement_and_total_collateral(
-                    &longer,
-                    &market_map,
-                    MarginRequirementType::Maintenance,
-                    &spot_market_map,
-                    &mut oracle_map,
-                    None,
-                )
-                .unwrap();
+            let MarginCalculation {
+                margin_requirement,
+                total_collateral,
+                ..
+            } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &longer,
+                &market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                MarginContext::standard(MarginRequirementType::Maintenance),
+            )
+            .unwrap();
 
             assert_eq!(total_collateral, 20000000000);
             assert_eq!(margin_requirement, 10000);

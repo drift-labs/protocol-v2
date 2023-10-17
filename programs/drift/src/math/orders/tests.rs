@@ -197,7 +197,7 @@ mod is_order_risk_increase {
 mod order_breaches_oracle_price_limits {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
-    use crate::math::orders::order_breaches_oracle_price_bands;
+    use crate::math::orders::order_breaches_maker_oracle_price_bands;
     use crate::state::perp_market::PerpMarket;
     use crate::state::user::Order;
 
@@ -218,15 +218,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -250,15 +248,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -284,15 +280,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -318,15 +312,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -352,15 +344,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -386,15 +376,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -1457,6 +1445,7 @@ mod calculate_max_spot_order_size {
     use crate::state::oracle_map::OracleMap;
 
     use crate::create_anchor_account_info;
+    use crate::state::margin_calculation::{MarginCalculation, MarginContext};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -1556,17 +1545,18 @@ mod calculate_max_spot_order_size {
         user.spot_positions[1].open_orders = 1;
         user.spot_positions[1].open_bids = max_order_size as i64;
 
-        let (margin_requirement, total_collateral, _, _, _, _) =
-            calculate_margin_requirement_and_total_collateral_and_liability_info(
-                &user,
-                &PerpMarketMap::empty(),
-                MarginRequirementType::Initial,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-                true,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &PerpMarketMap::empty(),
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral.unsigned_abs(), margin_requirement);
     }
@@ -1662,17 +1652,18 @@ mod calculate_max_spot_order_size {
 
         user.spot_positions[1].open_bids = max_order_size as i64;
 
-        let (margin_requirement, total_collateral, _, _, _, _) =
-            calculate_margin_requirement_and_total_collateral_and_liability_info(
-                &user,
-                &PerpMarketMap::empty(),
-                MarginRequirementType::Initial,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-                true,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &PerpMarketMap::empty(),
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        )
+        .unwrap();
 
         // still 0
         assert_eq!(total_collateral - (margin_requirement as i128), 0);
@@ -1769,17 +1760,18 @@ mod calculate_max_spot_order_size {
         user.spot_positions[1].open_orders = 1;
         user.spot_positions[1].open_asks = -(max_order_size as i64);
 
-        let (margin_requirement, total_collateral, _, _, _, _) =
-            calculate_margin_requirement_and_total_collateral_and_liability_info(
-                &user,
-                &PerpMarketMap::empty(),
-                MarginRequirementType::Initial,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-                true,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &PerpMarketMap::empty(),
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral.unsigned_abs(), margin_requirement);
     }
@@ -1892,6 +1884,7 @@ mod calculate_max_perp_order_size {
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
 
+    use crate::state::margin_calculation::{MarginCalculation, MarginContext};
     use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -2011,17 +2004,18 @@ mod calculate_max_perp_order_size {
         user.perp_positions[0].open_orders = 1;
         user.perp_positions[0].open_bids = max_order_size as i64;
 
-        let (margin_requirement, total_collateral, _, _, _, _) =
-            calculate_margin_requirement_and_total_collateral_and_liability_info(
-                &user,
-                &market_map,
-                MarginRequirementType::Initial,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-                true,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral.unsigned_abs(), margin_requirement);
     }
@@ -2237,17 +2231,18 @@ mod calculate_max_perp_order_size {
         user.perp_positions[0].open_orders = 1;
         user.perp_positions[0].open_asks = -(max_order_size as i64);
 
-        let (margin_requirement, total_collateral, _, _, _, _) =
-            calculate_margin_requirement_and_total_collateral_and_liability_info(
-                &user,
-                &market_map,
-                MarginRequirementType::Initial,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-                true,
-            )
-            .unwrap();
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        )
+        .unwrap();
 
         assert_eq!(total_collateral.unsigned_abs(), margin_requirement);
     }

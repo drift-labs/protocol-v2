@@ -25,6 +25,7 @@ import {
 	getSerumOpenOrdersPublicKey,
 	getSerumFulfillmentConfigPublicKey,
 	getPhoenixFulfillmentConfigPublicKey,
+	getProtocolIfSharesTransferConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -1463,6 +1464,22 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketFeeAdjustment(
+		perpMarketIndex: number,
+		feeAdjustment: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketFeeAdjustment(feeAdjustment, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
 	public async updateSerumVault(
 		srmVault: PublicKey
 	): Promise<TransactionSignature> {
@@ -1512,6 +1529,37 @@ export class AdminClient extends DriftClient {
 						this.program.programId,
 						spotMarketIndex
 					),
+				},
+			}
+		);
+	}
+
+	public async initializeProtocolIfSharesTransferConfig(): Promise<TransactionSignature> {
+		return await this.program.rpc.initializeProtocolIfSharesTransferConfig({
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+				protocolIfSharesTransferConfig:
+					getProtocolIfSharesTransferConfigPublicKey(this.program.programId),
+			},
+		});
+	}
+
+	public async updateProtocolIfSharesTransferConfig(
+		whitelistedSigners?: PublicKey[],
+		maxTransferPerEpoch?: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateProtocolIfSharesTransferConfig(
+			whitelistedSigners || null,
+			maxTransferPerEpoch,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					protocolIfSharesTransferConfig:
+						getProtocolIfSharesTransferConfigPublicKey(this.program.programId),
 				},
 			}
 		);

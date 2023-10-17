@@ -58,6 +58,7 @@ use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
+use crate::state::margin_calculation::MarginContext;
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
@@ -1294,7 +1295,6 @@ fn get_maker_orders_info(
         settle_funding_payment(&mut maker, maker_key, &mut market, now)?;
 
         let initial_margin_ratio = market.margin_ratio_initial;
-        let maintenance_margin_ratio = market.margin_ratio_maintenance;
 
         drop(market);
 
@@ -1319,12 +1319,11 @@ fn get_maker_orders_info(
             }
 
             let breaches_oracle_price_limits = {
-                limit_price_breaches_oracle_price_bands(
+                limit_price_breaches_maker_oracle_price_bands(
                     maker_order_price,
                     maker_order.direction,
                     oracle_price,
                     initial_margin_ratio,
-                    maintenance_margin_ratio,
                 )?
             };
 
@@ -1608,24 +1607,24 @@ fn fulfill_perp_order(
         quote_asset_amount
     )?;
 
-    let (taker_margin_requirement, taker_total_collateral, _, _) =
-        calculate_margin_requirement_and_total_collateral(
+    let taker_margin_calculation =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
             perp_market_map,
-            if user_order_position_decreasing {
+            spot_market_map,
+            oracle_map,
+            MarginContext::standard(if user_order_position_decreasing {
                 MarginRequirementType::Maintenance
             } else {
                 MarginRequirementType::Fill
-            },
-            spot_market_map,
-            oracle_map,
-            None,
+            }),
         )?;
-    if taker_total_collateral < taker_margin_requirement.cast()? {
+
+    if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
             "taker breached fill requirements (margin requirement {}) (total_collateral {})",
-            taker_margin_requirement,
-            taker_total_collateral
+            taker_margin_calculation.margin_requirement,
+            taker_margin_calculation.total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
     }
@@ -1633,22 +1632,21 @@ fn fulfill_perp_order(
     for (maker_key, _) in makers_filled {
         let maker = makers_and_referrer.get_ref(&maker_key)?;
 
-        let (maker_margin_requirement, maker_total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
+        let maker_margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &maker,
                 perp_market_map,
-                MarginRequirementType::Fill,
                 spot_market_map,
                 oracle_map,
-                None,
+                MarginContext::standard(MarginRequirementType::Fill),
             )?;
 
-        if maker_total_collateral < maker_margin_requirement.cast()? {
+        if !maker_margin_calculation.meets_margin_requirement() {
             msg!(
                 "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
                 maker_key,
-                maker_margin_requirement,
-                maker_total_collateral
+                maker_margin_calculation.margin_requirement,
+                maker_margin_calculation.total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
@@ -1827,6 +1825,7 @@ pub fn fulfill_perp_order_with_amm(
         referrer_stats,
         quote_asset_amount_surplus,
         order_post_only,
+        market.fee_adjustment,
     )?;
 
     let user_position_delta =
@@ -2219,6 +2218,7 @@ pub fn fulfill_perp_order_with_match(
         reward_referrer,
         referrer_stats,
         &MarketType::Perp,
+        market.fee_adjustment,
     )?;
 
     // Increment the markets house's total fee variables
@@ -3438,15 +3438,12 @@ fn get_spot_maker_order<'a>(
     let breaches_oracle_price_limits = {
         let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?;
         let initial_margin_ratio = spot_market.get_margin_ratio(&MarginRequirementType::Initial)?;
-        let maintenance_margin_ratio =
-            spot_market.get_margin_ratio(&MarginRequirementType::Maintenance)?;
-        order_breaches_oracle_price_bands(
+        order_breaches_maker_oracle_price_bands(
             &maker.orders[maker_order_index],
             oracle_price.price,
             slot,
             spot_market.order_tick_size,
             initial_margin_ratio,
-            maintenance_margin_ratio,
         )?
     };
 
@@ -3662,42 +3659,40 @@ fn fulfill_spot_order(
     drop(base_market);
     drop(quote_market);
 
-    let (taker_margin_requirement, taker_total_collateral, _, _) =
-        calculate_margin_requirement_and_total_collateral(
+    let taker_margin_calculation =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
             perp_market_map,
-            margin_type,
             spot_market_map,
             oracle_map,
-            None,
+            MarginContext::standard(margin_type),
         )?;
 
-    if taker_total_collateral < taker_margin_requirement.cast()? {
+    if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
             "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            taker_margin_requirement,
-            taker_total_collateral
+            taker_margin_calculation.margin_requirement,
+            taker_margin_calculation.total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
     }
 
     if let Some(maker) = maker {
-        let (maker_margin_requirement, maker_total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
+        let maker_margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
                 maker,
                 perp_market_map,
-                MarginRequirementType::Fill,
                 spot_market_map,
                 oracle_map,
-                None,
+                MarginContext::standard(MarginRequirementType::Fill),
             )?;
 
-        if maker_total_collateral < maker_margin_requirement.cast()? {
+        if !maker_margin_calculation.meets_margin_requirement() {
             msg!(
                 "maker ({}) breached maintenance requirements (margin requirement {}) (total_collateral {})",
                 maker_key.safe_unwrap()?,
-                maker_margin_requirement,
-                maker_total_collateral
+                maker_margin_calculation.margin_requirement,
+                maker_margin_calculation.total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
@@ -3877,6 +3872,7 @@ pub fn fulfill_spot_order_with_match(
         false,
         &None,
         &MarketType::Spot,
+        0,
     )?;
 
     // Update taker state
@@ -4225,6 +4221,7 @@ pub fn fulfill_spot_order_with_external_market(
         external_market_fee,
         unsettled_referrer_rebate,
         fee_pool_amount.cast()?,
+        0,
     )?;
 
     let quote_spot_position_delta = match quote_update_direction {

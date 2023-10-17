@@ -124,7 +124,7 @@ impl AMMLiquiditySplit {
     }
 }
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct PerpMarket {
@@ -195,10 +195,14 @@ pub struct PerpMarket {
     /// The contract tier determines how much insurance a market can receive, with more speculative markets receiving less insurance
     /// It also influences the order perp markets can be liquidated, with less speculative markets being liquidated first
     pub contract_tier: ContractTier,
-    pub padding1: bool,
+    pub padding1: u8,
     /// The spot market that pnl is settled in
     pub quote_spot_market_index: u16,
-    pub padding: [u8; 48],
+    /// Between -100 and 100, represents what % to increase/decrease the fee by
+    /// E.g. if this is -50 and the fee is 5bps, the new fee will be 2.5bps
+    /// if this is 50 and the fee is 5bps, the new fee will be 7.5bps
+    pub fee_adjustment: i16,
+    pub padding: [u8; 46],
 }
 
 impl Default for PerpMarket {
@@ -229,9 +233,10 @@ impl Default for PerpMarket {
             status: MarketStatus::default(),
             contract_type: ContractType::default(),
             contract_tier: ContractTier::default(),
-            padding1: false,
+            padding1: 0,
             quote_spot_market_index: 0,
-            padding: [0; 48],
+            fee_adjustment: 0,
+            padding: [0; 46],
         }
     }
 }
@@ -409,7 +414,7 @@ impl PerpMarket {
     }
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct InsuranceClaim {
@@ -431,7 +436,7 @@ pub struct InsuranceClaim {
     pub last_revenue_withdraw_ts: i64,
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct PoolBalance {
@@ -472,7 +477,7 @@ impl SpotBalance for PoolBalance {
     }
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct AMM {
