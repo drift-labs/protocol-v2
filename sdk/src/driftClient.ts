@@ -593,7 +593,7 @@ export class DriftClient {
 	}
 
 	public async switchActiveUser(subAccountId: number, authority?: PublicKey) {
-		const authorityChanged = !this.authority?.equals(authority);
+		const authorityChanged = authority && !this.authority?.equals(authority);
 
 		this.activeSubAccountId = subAccountId;
 		this.authority = authority ?? this.authority;
