@@ -108,7 +108,7 @@ describe('referrer', () => {
 			},
 		});
 
-		await referrerDriftClient.initialize(usdcMint.publicKey, true);
+		await referrerDriftClient.initialize();
 		await referrerDriftClient.subscribe();
 		await referrerDriftClient.updatePerpAuctionDuration(0);
 

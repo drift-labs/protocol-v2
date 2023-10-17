@@ -108,7 +108,7 @@ describe('serum spot market', () => {
 			},
 		});
 
-		await makerDriftClient.initialize(usdcMint.publicKey, true);
+		await makerDriftClient.initialize();
 		await makerDriftClient.subscribe();
 		await makerDriftClient.initializeUserAccount();
 

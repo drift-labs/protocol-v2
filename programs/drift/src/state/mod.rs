@@ -1,3 +1,4 @@
+pub mod admin_config;
 pub mod events;
 pub mod fulfillment;
 pub mod fulfillment_params;

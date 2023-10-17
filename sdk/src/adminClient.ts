@@ -26,6 +26,7 @@ import {
 	getSerumFulfillmentConfigPublicKey,
 	getPhoenixFulfillmentConfigPublicKey,
 	getProtocolIfSharesTransferConfigPublicKey,
+	getAdminConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -36,10 +37,7 @@ import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 
 export class AdminClient extends DriftClient {
-	public async initialize(
-		usdcMint: PublicKey,
-		_adminControlsPrices: boolean
-	): Promise<[TransactionSignature]> {
+	public async initialize(): Promise<[TransactionSignature]> {
 		const stateAccountRPCResponse = await this.connection.getParsedAccountInfo(
 			await this.getStatePublicKey()
 		);
@@ -51,11 +49,13 @@ export class AdminClient extends DriftClient {
 			this.program.programId
 		);
 
+		const adminConfig = getAdminConfigPublicKey(this.program.programId);
+
 		const initializeTx = await this.program.transaction.initialize({
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: driftStatePublicKey,
-				quoteAssetMint: usdcMint,
+				adminConfig,
 				rent: SYSVAR_RENT_PUBKEY,
 				driftSigner: this.getSignerPublicKey(),
 				systemProgram: anchor.web3.SystemProgram.programId,
@@ -127,6 +127,7 @@ export class AdminClient extends DriftClient {
 					insuranceFundVault,
 					driftSigner: this.getSignerPublicKey(),
 					spotMarketMint: mint,
+					adminConfig: getAdminConfigPublicKey(this.program.programId),
 					oracle,
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,

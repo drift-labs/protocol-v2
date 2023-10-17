@@ -110,7 +110,7 @@ describe('asset tiers', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.initialize();
 		await driftClient.subscribe();
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);

@@ -91,7 +91,7 @@ describe('place and make perp order', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await makerDriftClient.initialize(usdcMint.publicKey, true);
+		await makerDriftClient.initialize();
 		await makerDriftClient.subscribe();
 		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
 

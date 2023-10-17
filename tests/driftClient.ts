@@ -103,7 +103,7 @@ describe('drift client', () => {
 	});
 
 	it('Initialize State', async () => {
-		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.initialize();
 
 		await driftClient.subscribe();
 		const state = driftClient.getStateAccount();

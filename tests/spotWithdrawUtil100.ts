@@ -113,7 +113,7 @@ describe('test function when spot market at >= 100% util', () => {
 			},
 		});
 
-		await admin.initialize(usdcMint.publicKey, true);
+		await admin.initialize();
 		await admin.subscribe();
 	});
 

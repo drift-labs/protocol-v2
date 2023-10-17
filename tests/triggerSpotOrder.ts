@@ -96,7 +96,7 @@ describe('trigger orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await fillerDriftClient.initialize(usdcMint.publicKey, true);
+		await fillerDriftClient.initialize();
 		await fillerDriftClient.subscribe();
 		await initializeQuoteSpotMarket(fillerDriftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(fillerDriftClient, solUsd);

@@ -200,7 +200,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.initialize();
 		await driftClient.subscribe();
 
 		const oracleGuardrails = driftClient.getStateAccount().oracleGuardRails;

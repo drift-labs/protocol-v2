@@ -2445,8 +2445,8 @@
           "isSigner": false
         },
         {
-          "name": "quoteAssetMint",
-          "isMut": false,
+          "name": "adminConfig",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2503,6 +2503,11 @@
         {
           "name": "state",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "adminConfig",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -4693,9 +4698,94 @@
           }
         }
       ]
+    },
+    {
+      "name": "initializeAdminConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "adminConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateAdminConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "adminConfig",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fastSigner",
+          "type": {
+            "option": "publicKey"
+          }
+        },
+        {
+          "name": "slowSigner",
+          "type": {
+            "option": "publicKey"
+          }
+        }
+      ]
     }
   ],
   "accounts": [
+    {
+      "name": "AdminConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "fastSigner",
+            "type": "publicKey"
+          },
+          {
+            "name": "slowSigner",
+            "type": "publicKey"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u128",
+                16
+              ]
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "PhoenixV1FulfillmentConfig",
       "type": {

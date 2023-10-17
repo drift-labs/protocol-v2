@@ -27,6 +27,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn, oracle};
 use crate::math_error;
+use crate::state::admin_config::AdminConfig;
 use crate::state::events::CurveRecord;
 use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
 use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
@@ -85,6 +86,10 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         initial_pct_to_liquidate: 0,
         padding: [0; 14],
     };
+
+    let mut admin_config = ctx.accounts.admin_config.load_init()?;
+    admin_config.fast_signer = *ctx.accounts.admin.key;
+    admin_config.slow_signer = *ctx.accounts.admin.key;
 
     Ok(())
 }
@@ -2298,6 +2303,33 @@ pub fn handle_update_protocol_if_shares_transfer_config(
     Ok(())
 }
 
+pub fn handle_initialize_admin_config(ctx: Context<InitializeAdminConfig>) -> Result<()> {
+    let mut config = ctx.accounts.admin_config.load_init()?;
+
+    config.fast_signer = ctx.accounts.state.admin;
+    config.slow_signer = ctx.accounts.state.admin;
+
+    Ok(())
+}
+
+pub fn handle_update_admin_config(
+    ctx: Context<UpdateAdminConfig>,
+    fast_signer: Option<Pubkey>,
+    slow_signer: Option<Pubkey>,
+) -> Result<()> {
+    let mut config = ctx.accounts.admin_config.load_mut()?;
+
+    if let Some(fast_signer) = fast_signer {
+        config.fast_signer = fast_signer;
+    }
+
+    if let Some(slow_signer) = slow_signer {
+        config.slow_signer = slow_signer;
+    }
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -2310,7 +2342,14 @@ pub struct Initialize<'info> {
         payer = admin
     )]
     pub state: Box<Account<'info, State>>,
-    pub quote_asset_mint: Box<Account<'info, Mint>>,
+    #[account(
+        init,
+        seeds = [b"admin_config".as_ref()],
+        space = AdminConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub admin_config: AccountLoader<'info, AdminConfig>,
     /// CHECK: checked in `initialize`
     pub drift_signer: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -2352,11 +2391,12 @@ pub struct InitializeSpotMarket<'info> {
     )]
     /// CHECK: program signer
     pub drift_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
+    #[account(
+        constraint = is_slow_admin(&admin_config, &admin)?
+    )]
+    pub admin_config: AccountLoader<'info, AdminConfig>,
     /// CHECK: checked in `initialize_spot_market`
     pub oracle: AccountInfo<'info>,
     #[account(mut)]
@@ -2728,4 +2768,35 @@ pub struct UpdateProtocolIfSharesTransferConfig<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeAdminConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"admin_config".as_ref()],
+        space = AdminConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub admin_config: AccountLoader<'info, AdminConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateAdminConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        constraint = admin_config.load()?.is_slow_signer(admin.key())
+    )]
+    pub admin_config: AccountLoader<'info, AdminConfig>,
 }

@@ -112,7 +112,7 @@ describe('spot swap', () => {
 			},
 		});
 
-		await makerDriftClient.initialize(usdcMint.publicKey, true);
+		await makerDriftClient.initialize();
 		await makerDriftClient.subscribe();
 		await makerDriftClient.initializeUserAccount();
 

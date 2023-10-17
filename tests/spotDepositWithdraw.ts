@@ -110,7 +110,7 @@ describe('spot deposit and withdraw', () => {
 			},
 		});
 
-		await admin.initialize(usdcMint.publicKey, true);
+		await admin.initialize();
 		await admin.subscribe();
 	});
 

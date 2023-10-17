@@ -1089,6 +1089,18 @@ pub mod drift {
             max_transfer_per_epoch,
         )
     }
+
+    pub fn initialize_admin_config(ctx: Context<InitializeAdminConfig>) -> Result<()> {
+        handle_initialize_admin_config(ctx)
+    }
+
+    pub fn update_admin_config(
+        ctx: Context<UpdateAdminConfig>,
+        fast_signer: Option<Pubkey>,
+        slow_signer: Option<Pubkey>,
+    ) -> Result<()> {
+        handle_update_admin_config(ctx, fast_signer, slow_signer)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

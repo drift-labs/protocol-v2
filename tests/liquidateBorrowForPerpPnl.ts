@@ -103,7 +103,7 @@ describe('liquidate borrow for perp pnl', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.initialize();
 		await driftClient.subscribe();
 
 		await driftClient.updateInitialPctToLiquidate(
