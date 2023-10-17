@@ -474,7 +474,7 @@ impl SpotBalance for SpotPosition {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug)]
 pub struct OrderFillSimulation {
     pub token_amount: i128,
     pub orders_value: i128,
