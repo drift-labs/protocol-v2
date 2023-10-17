@@ -1484,7 +1484,7 @@ export class User {
 	 */
 	public getLeverage(includeOpenOrders = true): BN {
 		return this.calculateLeverageFromComponents(
-			this.getLeverageComponents(includeOpenOrders)
+			this.getLeverageComponents(includeOpenOrders, 'Initial')
 		);
 	}
 
@@ -2708,7 +2708,7 @@ export class User {
 		);
 
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
-			this.getLeverageComponents();
+			this.getLeverageComponents(undefined, 'Initial');
 
 		const inPositionAfter = this.cloneAndUpdateSpotPosition(
 			inSpotPosition,
