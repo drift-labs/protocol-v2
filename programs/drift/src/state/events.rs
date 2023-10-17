@@ -121,10 +121,15 @@ pub struct FundingRateRecord {
     pub ts: i64,
     pub record_id: u64,
     pub market_index: u16,
+    /// precision: FUNDING_RATE_PRECISION
     pub funding_rate: i64,
+    /// precision: FUNDING_RATE_PRECISION
     pub funding_rate_long: i128,
+    /// precision: FUNDING_RATE_PRECISION
     pub funding_rate_short: i128,
+    /// precision: FUNDING_RATE_PRECISION
     pub cumulative_funding_rate_long: i128,
+    /// precision: FUNDING_RATE_PRECISION
     pub cumulative_funding_rate_short: i128,
     /// precision: PRICE_PRECISION
     pub oracle_price_twap: i64,
