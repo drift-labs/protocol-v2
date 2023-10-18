@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: user custom margin ratio works with spot ([#633](https://github.com/drift-labs/protocol-v2/pull/633))
 - program: add swap price bands ([#611](https://github.com/drift-labs/protocol-v2/pull/611))
 
 ### Fixes
