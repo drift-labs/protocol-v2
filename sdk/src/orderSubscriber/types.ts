@@ -1,3 +1,5 @@
+import { PublicKey } from '@solana/web3.js';
+import { Order, UserAccount } from '../types';
 import { DriftClient } from '../driftClient';
 
 export type OrderSubscriberConfig = {
@@ -10,5 +12,15 @@ export type OrderSubscriberConfig = {
 		| {
 				type: 'websocket';
 				skipInitialLoad?: boolean;
+				resubTimeoutMs?: number;
 		  };
 };
+
+export interface OrderSubscriberEvents {
+	onUpdate: (
+		account: UserAccount,
+		updatedOrders: Order[],
+		pubkey: PublicKey,
+		slot: number
+	) => void;
+}

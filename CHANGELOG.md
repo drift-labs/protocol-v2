@@ -9,11 +9,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add swap price bands ([#611](https://github.com/drift-labs/protocol-v2/pull/611))
+
+### Fixes
+
+### Breaking
+
+## [2.41.0] - 2023-10-05
+
+### Features
+
+- program: order_breaches_maker_oracle_price_bands only uses init margin ratio ([#636](https://github.com/drift-labs/protocol-v2/pull/636))
+- program: add fee_adjustment to perp market ([#629](https://github.com/drift-labs/protocol-v2/pull/629))
+- program: add buffer to calculating max perp if fee ([#635](https://github.com/drift-labs/protocol-v2/pull/635))
+- sdk: remove getMakerLimitBids/Asks ([#632](https://github.com/drift-labs/protocol-v2/pull/632))
+- program: add ix to transfer protocol if shares ([#612](https://github.com/drift-labs/protocol-v2/pull/612))
+
+### Fixes
+
+- program: fix if staking rounding for fee tier selection ([#643](https://github.com/drift-labs/protocol-v2/pull/643))
+
+### Breaking
+
+## [2.40.0] - 2023-09-28
+
+### Features
+
+- program: add dynamic liquidation fee ([#601](https://github.com/drift-labs/protocol-v2/pull/601))
+- sdk: add deriveOracleAuctionParams
+- program: update to anchor 0.27.0 ([#617](https://github.com/drift-labs/protocol-v2/pull/617))
+
+### Fixes
+
+### Breaking
+
+## [2.39.0] - 2023-09-07
+
+### Features
+
+- sdk: updated anchor to 0.28.1-beta.2
+- sdk: add priorityFeeSubscriber
+- program: allow up to 12500 users
+- program: scale initial asset weight for spot markets based on total deposits ([#575](https://github.com/drift-labs/protocol-v2/pull/575))
+
+### Fixes
+
+- program: let auction start/end be the same ([#597](https://github.com/drift-labs/protocol-v2/pull/597))
+- program: account for reduce only when checking margin in trigger order ([#583](https://github.com/drift-labs/protocol-v2/pull/583))
+- program: use per_lp_base_unit for calculating base imbalance for lp jit ([#604](https://github.com/drift-labs/protocol-v2/pull/604))
+
+### Breaking
+
+## [2.38.0] - 2023-08-25
+
+### Features
+
 - program: add reduce only user status ([#560](https://github.com/drift-labs/protocol-v2/pull/560))
+- program: add conditionally smaller conf_component logic for amm spread ([#577](https://github.com/drift-labs/protocol-v2/pull/577))
+- program: add per_lp_base on market/position ([#568](https://github.com/drift-labs/protocol-v2/pull/568))
 
 ### Fixes
 
 - program: add update_lp_market_position test for big k ([#565](https://github.com/drift-labs/protocol-v2/pull/565))
+- sdk: fixed divide by 0 bug in withdraw amount when asset weight is 0 ([#572](https://github.com/drift-labs/protocol-v2/pull/572))
 
 ### Breaking
 
@@ -23,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: add deposit_into_spot_market_revenue_pool ([#520](https://github.com/drift-labs/protocol-v2/pull/520))
 - program: make users w excessive withdraws pay fees ([#547](https://github.com/drift-labs/protocol-v2/pull/547))
-- program: allow settle pnl and spot fills via match when utilization is 100% ([#525](https://github.com/drift-labs/protocol-v2/pull/525)) 
+- program: allow settle pnl and spot fills via match when utilization is 100% ([#525](https://github.com/drift-labs/protocol-v2/pull/525))
 - program: new update_perp_bid_ask_twap ix ([#548](https://github.com/drift-labs/protocol-v2/pull/548))
 - program: dont check price bands for place order ([#556](https://github.com/drift-labs/protocol-v2/pull/556))
 

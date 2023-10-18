@@ -1,7 +1,10 @@
 # RUSTSEC-2022-0013 ignores as upstream dependency
 
 [advisories]
-ignore = ["RUSTSEC-2022-0013"] # advisory IDs to ignore e.g. ["RUSTSEC-2019-0001", ...]
+ignore = [
+	"RUSTSEC-2022-0013",
+	"RUSTSEC-2022-0093", # Double Public Key Signing Function Oracle Attack on `ed25519-dalek`
+]
 informational_warnings = ["unmaintained"] # warn for categories of informational advisories
 severity_threshold = "high" # CVSS severity ("none", "low", "medium", "high", "critical")
 

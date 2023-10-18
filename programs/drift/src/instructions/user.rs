@@ -10,8 +10,9 @@ use crate::controller::spot_position::{
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
-use crate::get_then_update_id;
-use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, marinade_mainnet, serum_program};
+use crate::ids::{
+    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, marinade_mainnet, serum_program,
+};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
@@ -29,7 +30,7 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
 use crate::math::spot_swap;
-use crate::math::spot_swap::calculate_swap_price;
+use crate::math::spot_swap::{calculate_swap_price, validate_price_bands_for_swap};
 use crate::math_error;
 use crate::print_error;
 use crate::safe_decrement;
@@ -41,6 +42,7 @@ use crate::state::events::{
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
+use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
@@ -59,6 +61,7 @@ use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
+use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -133,7 +136,7 @@ pub fn handle_initialize_user(
     safe_increment!(state.number_of_sub_accounts, 1);
 
     validate!(
-        state.number_of_sub_accounts <= 10000,
+        state.number_of_sub_accounts <= 12500,
         ErrorCode::MaxNumberOfUsers
     )?;
 
@@ -773,6 +776,7 @@ impl Default for PostOnlyParam {
 pub struct PlaceOrderOptions {
     pub try_expire_orders: bool,
     pub enforce_margin_check: bool,
+    pub risk_increasing: bool,
 }
 
 impl Default for PlaceOrderOptions {
@@ -780,7 +784,14 @@ impl Default for PlaceOrderOptions {
         Self {
             try_expire_orders: true,
             enforce_margin_check: true,
+            risk_increasing: false,
         }
+    }
+}
+
+impl PlaceOrderOptions {
+    pub fn update_risk_increasing(&mut self, risk_increasing: bool) {
+        self.risk_increasing = self.risk_increasing || risk_increasing;
     }
 }
 
@@ -1113,6 +1124,7 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         let options = PlaceOrderOptions {
             enforce_margin_check: i == num_orders - 1,
             try_expire_orders: i == 0,
+            risk_increasing: false,
         };
 
         if params.market_type == MarketType::Perp {
@@ -1382,8 +1394,8 @@ pub fn handle_place_and_take_spot_order<'info>(
         mut oracle_map,
     } = load_maps(
         remaining_accounts_iter,
-        &get_writable_perp_market_set(params.market_index),
         &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![QUOTE_SPOT_MARKET_INDEX, market_index]),
         clock.slot,
         None,
     )?;
@@ -1511,8 +1523,8 @@ pub fn handle_place_and_make_spot_order<'info>(
         mut oracle_map,
     } = load_maps(
         remaining_accounts_iter,
-        &get_writable_perp_market_set(params.market_index),
         &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![QUOTE_SPOT_MARKET_INDEX, params.market_index]),
         Clock::get()?.slot,
         None,
     )?;
@@ -2497,6 +2509,7 @@ pub fn handle_begin_swap(
                 AssociatedToken::id(),
                 jupiter_mainnet_3::ID,
                 jupiter_mainnet_4::ID,
+                jupiter_mainnet_6::ID,
             ];
             if !delegate_is_signer {
                 whitelisted_programs.push(Token::id());
@@ -2770,11 +2783,27 @@ pub fn handle_end_swap(
 
     out_spot_market.validate_max_token_deposits()?;
 
+    let in_strict_price = StrictOraclePrice::new(
+        in_oracle_price,
+        in_spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        true,
+    );
+
+    let out_strict_price = StrictOraclePrice::new(
+        out_oracle_price,
+        out_spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        true,
+    );
+
     let margin_type = spot_swap::select_margin_type_for_swap(
         &in_spot_market,
         &out_spot_market,
-        in_oracle_price,
-        out_oracle_price,
+        &in_strict_price,
+        &out_strict_price,
         in_token_amount_before,
         out_token_amount_before,
         in_token_amount_after,
@@ -2824,6 +2853,18 @@ pub fn handle_end_swap(
             && in_spot_market.flash_loan_amount == 0,
         ErrorCode::InvalidSwap,
         "end_swap ended in invalid state"
+    )?;
+
+    validate_price_bands_for_swap(
+        &in_spot_market,
+        &out_spot_market,
+        amount_in,
+        amount_out,
+        in_oracle_price,
+        out_oracle_price,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence(),
     )?;
 
     Ok(())

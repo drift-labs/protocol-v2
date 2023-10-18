@@ -329,7 +329,7 @@ mod calculate_liability_transfer_implied_by_asset_amount {
         )
         .unwrap();
 
-        assert_eq!(liability_transfer, 98019801); // .1 base
+        assert_eq!(liability_transfer, 98019802); // .1 base
     }
 }
 
@@ -529,5 +529,252 @@ mod validate_transfer_satisfies_limit_price {
             Some(limit_price)
         )
         .is_err());
+    }
+}
+
+mod calculate_perp_if_fee {
+    use crate::math::liquidation::calculate_perp_if_fee;
+    use crate::{
+        BASE_PRECISION_U64, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, PRICE_PRECISION_I64,
+        QUOTE_PRECISION,
+    };
+
+    #[test]
+    fn test() {
+        let margin_shortage = 20 * QUOTE_PRECISION;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let quote_price = PRICE_PRECISION_I64;
+        let liquidator_fee = LIQUIDATION_FEE_PRECISION / 100; // 1%
+        let margin_ratio = MARGIN_PRECISION / 20; // 5%
+        let base_asset_amount = 10 * BASE_PRECISION_U64;
+        let max_if_fee = LIQUIDATION_FEE_PRECISION / 20; // 5%
+
+        let fee = calculate_perp_if_fee(
+            margin_shortage,
+            base_asset_amount,
+            margin_ratio,
+            liquidator_fee,
+            oracle_price,
+            quote_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 19000); // 2% * .95
+
+        let tiny_margin_shortage = QUOTE_PRECISION;
+        let fee = calculate_perp_if_fee(
+            tiny_margin_shortage,
+            base_asset_amount,
+            margin_ratio,
+            liquidator_fee,
+            oracle_price,
+            quote_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 37050); // 3.9% * .95
+
+        let huge_margin_shortage = 1000 * QUOTE_PRECISION;
+        let fee = calculate_perp_if_fee(
+            huge_margin_shortage,
+            base_asset_amount,
+            margin_ratio,
+            liquidator_fee,
+            oracle_price,
+            quote_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 0);
+
+        let large_liquidator_fee = LIQUIDATION_FEE_PRECISION / 10; // 10%
+        let fee = calculate_perp_if_fee(
+            margin_shortage,
+            base_asset_amount,
+            margin_ratio,
+            large_liquidator_fee,
+            oracle_price,
+            quote_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 0);
+
+        let zero_oracle_price = 0;
+        let fee = calculate_perp_if_fee(
+            margin_shortage,
+            base_asset_amount,
+            margin_ratio,
+            liquidator_fee,
+            zero_oracle_price,
+            quote_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 0);
+
+        let zero_quote_price = 0;
+        let fee = calculate_perp_if_fee(
+            margin_shortage,
+            base_asset_amount,
+            margin_ratio,
+            liquidator_fee,
+            oracle_price,
+            zero_quote_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 0);
+
+        let zero_base_asset_amount = 0;
+        let fee = calculate_perp_if_fee(
+            margin_shortage,
+            zero_base_asset_amount,
+            margin_ratio,
+            liquidator_fee,
+            oracle_price,
+            quote_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 0);
+    }
+}
+
+mod calculate_spot_if_fee {
+    use crate::math::liquidation::calculate_spot_if_fee;
+    use crate::{
+        LIQUIDATION_FEE_PRECISION, PRICE_PRECISION_I64, QUOTE_PRECISION, SPOT_WEIGHT_PRECISION,
+    };
+
+    #[test]
+    fn test() {
+        let margin_shortage = 5 * QUOTE_PRECISION;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let asset_weight = SPOT_WEIGHT_PRECISION;
+        let asset_multiplier = 101 * LIQUIDATION_FEE_PRECISION / 100;
+        let liability_weight = 11 * SPOT_WEIGHT_PRECISION / 10;
+        let liability_multiplier = LIQUIDATION_FEE_PRECISION;
+        let decimals = 9_u32;
+        let token_amount = 10_u128.pow(decimals);
+        let max_if_fee = LIQUIDATION_FEE_PRECISION / 20; // 5%
+
+        let fee = calculate_spot_if_fee(
+            margin_shortage,
+            token_amount,
+            asset_weight,
+            asset_multiplier,
+            liability_weight,
+            liability_multiplier,
+            decimals,
+            oracle_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 36363); // 4% /1.1
+
+        let large_margin_shortage = 100 * QUOTE_PRECISION;
+        let fee = calculate_spot_if_fee(
+            large_margin_shortage,
+            token_amount,
+            asset_weight,
+            asset_multiplier,
+            liability_weight,
+            liability_multiplier,
+            decimals,
+            oracle_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 0);
+
+        let tiny_margin_shortage = QUOTE_PRECISION;
+        let fee = calculate_spot_if_fee(
+            tiny_margin_shortage,
+            token_amount,
+            asset_weight,
+            asset_multiplier,
+            liability_weight,
+            liability_multiplier,
+            decimals,
+            oracle_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, max_if_fee);
+
+        let large_asset_weight = SPOT_WEIGHT_PRECISION * 2;
+        let fee = calculate_spot_if_fee(
+            tiny_margin_shortage,
+            token_amount,
+            large_asset_weight,
+            asset_multiplier,
+            liability_weight,
+            liability_multiplier,
+            decimals,
+            oracle_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 0);
+
+        let zero_liability_weight = 0;
+        let fee = calculate_spot_if_fee(
+            margin_shortage,
+            token_amount,
+            asset_weight,
+            asset_multiplier,
+            zero_liability_weight,
+            liability_multiplier,
+            decimals,
+            oracle_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 0);
+
+        let zero_token_amount = 0;
+        let fee = calculate_spot_if_fee(
+            margin_shortage,
+            zero_token_amount,
+            asset_weight,
+            asset_multiplier,
+            liability_weight,
+            liability_multiplier,
+            decimals,
+            oracle_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 0);
+
+        let zero_liability_multiplier = 0;
+        let fee = calculate_spot_if_fee(
+            margin_shortage,
+            token_amount,
+            asset_weight,
+            asset_multiplier,
+            liability_weight,
+            zero_liability_multiplier,
+            decimals,
+            oracle_price,
+            max_if_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 0);
     }
 }

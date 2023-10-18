@@ -40,6 +40,10 @@ export class BulkAccountLoader {
 		publicKey: PublicKey,
 		callback: (buffer: Buffer, slot: number) => void
 	): Promise<string> {
+		if (!publicKey) {
+			console.trace(`Caught adding blank publickey to bulkAccountLoader`);
+		}
+
 		const existingSize = this.accountsToLoad.size;
 
 		const callbackId = uuidv4();
@@ -172,12 +176,11 @@ export class BulkAccountLoader {
 			return;
 		}
 
-		for (const i in rpcResponses) {
-			const rpcResponse = rpcResponses[i];
+		rpcResponses.forEach((rpcResponse, i) => {
 			if (!rpcResponse.result) {
 				console.error('rpc response missing result:');
 				console.log(JSON.stringify(rpcResponse));
-				continue;
+				return;
 			}
 			const newSlot = rpcResponse.result.context.slot;
 
@@ -186,13 +189,12 @@ export class BulkAccountLoader {
 			}
 
 			const accountsToLoad = accountsToLoadChunks[i];
-			for (const j in accountsToLoad) {
-				const accountToLoad = accountsToLoad[j];
+			accountsToLoad.forEach((accountToLoad, j) => {
 				const key = accountToLoad.publicKey.toBase58();
 				const oldRPCResponse = this.bufferAndSlotMap.get(key);
 
 				if (oldRPCResponse && newSlot <= oldRPCResponse.slot) {
-					continue;
+					return;
 				}
 
 				let newBuffer: Buffer | undefined = undefined;
@@ -208,7 +210,7 @@ export class BulkAccountLoader {
 						buffer: newBuffer,
 					});
 					this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
-					continue;
+					return;
 				}
 
 				const oldBuffer = oldRPCResponse.buffer;
@@ -219,8 +221,8 @@ export class BulkAccountLoader {
 					});
 					this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
 				}
-			}
-		}
+			});
+		});
 	}
 
 	handleAccountCallbacks(
@@ -229,7 +231,17 @@ export class BulkAccountLoader {
 		slot: number
 	): void {
 		for (const [_, callback] of accountToLoad.callbacks) {
-			callback(buffer, slot);
+			try {
+				callback(buffer, slot);
+			} catch (e) {
+				console.log('Bulk account load: error in account callback');
+				console.log('accounto to load', accountToLoad.publicKey.toString());
+				console.log('buffer', buffer.toString('base64'));
+				for (const callback of accountToLoad.callbacks.values()) {
+					console.log('account to load cb', callback);
+				}
+				throw e;
+			}
 		}
 	}
 

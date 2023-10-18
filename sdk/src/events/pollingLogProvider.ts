@@ -19,7 +19,8 @@ export class PollingLogProvider implements LogProvider {
 		private connection: Connection,
 		private address: PublicKey,
 		commitment: Commitment,
-		private frequency = 15 * 1000
+		private frequency = 15 * 1000,
+		private batchSize?: number
 	) {
 		this.finality = commitment === 'finalized' ? 'finalized' : 'confirmed';
 	}
@@ -46,7 +47,8 @@ export class PollingLogProvider implements LogProvider {
 					undefined,
 					this.mostRecentSeenTx,
 					// If skipping history, only fetch one log back, not the maximum amount available
-					skipHistory && this.firstFetch ? 1 : undefined
+					skipHistory && this.firstFetch ? 1 : undefined,
+					this.batchSize
 				);
 
 				if (response === undefined) {

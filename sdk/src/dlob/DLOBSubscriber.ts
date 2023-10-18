@@ -10,12 +10,12 @@ import {
 import { DriftClient } from '../driftClient';
 import { isVariant, MarketType } from '../types';
 import {
+	DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
 	getVammL2Generator,
 	L2OrderBook,
 	L2OrderBookGenerator,
 	L3OrderBook,
 } from './orderBookLevels';
-import { calculateAskPrice, calculateBidPrice } from '../math/market';
 
 export class DLOBSubscriber {
 	driftClient: DriftClient;
@@ -103,8 +103,6 @@ export class DLOBSubscriber {
 		}
 
 		let oraclePriceData;
-		let fallbackBid;
-		let fallbackAsk;
 		const isPerp = isVariant(marketType, 'perp');
 		if (isPerp) {
 			const perpMarketAccount =
@@ -112,19 +110,24 @@ export class DLOBSubscriber {
 			oraclePriceData = this.driftClient.getOracleDataForPerpMarket(
 				perpMarketAccount.marketIndex
 			);
-			fallbackBid = calculateBidPrice(perpMarketAccount, oraclePriceData);
-			fallbackAsk = calculateAskPrice(perpMarketAccount, oraclePriceData);
 		} else {
 			oraclePriceData =
 				this.driftClient.getOracleDataForSpotMarket(marketIndex);
 		}
 
 		if (isPerp && includeVamm) {
+			if (fallbackL2Generators.length > 0) {
+				throw new Error(
+					'includeVamm can only be used if fallbackL2Generators is empty'
+				);
+			}
+
 			fallbackL2Generators = [
 				getVammL2Generator({
 					marketAccount: this.driftClient.getPerpMarketAccount(marketIndex),
 					oraclePriceData,
 					numOrders: numVammOrders ?? depth,
+					topOfBookQuoteAmounts: DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
 				}),
 			];
 		}
@@ -135,8 +138,6 @@ export class DLOBSubscriber {
 			depth,
 			oraclePriceData,
 			slot: this.slotSource.getSlot(),
-			fallbackBid,
-			fallbackAsk,
 			fallbackL2Generators: fallbackL2Generators,
 		});
 	}

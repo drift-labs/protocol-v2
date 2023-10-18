@@ -4,14 +4,17 @@ import { getUserFilter, getUserWithOrderFilter } from '../memcmp';
 import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { DLOB } from '../dlob/DLOB';
-import { OrderSubscriberConfig } from './types';
+import { OrderSubscriberConfig, OrderSubscriberEvents } from './types';
 import { PollingSubscription } from './PollingSubscription';
 import { WebsocketSubscription } from './WebsocketSubscription';
+import StrictEventEmitter from 'strict-event-emitter-types';
+import { EventEmitter } from 'events';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
 	subscription: PollingSubscription | WebsocketSubscription;
+	eventEmitter: StrictEventEmitter<EventEmitter, OrderSubscriberEvents>;
 
 	fetchPromise?: Promise<void>;
 	fetchPromiseResolver: () => void;
@@ -27,8 +30,10 @@ export class OrderSubscriber {
 			this.subscription = new WebsocketSubscription({
 				orderSubscriber: this,
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
+				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
 			});
 		}
+		this.eventEmitter = new EventEmitter();
 	}
 
 	public async subscribe(): Promise<void> {
@@ -82,7 +87,12 @@ export class OrderSubscriber {
 					programAccount.account.data[1]
 				);
 				programAccountSet.add(key);
-				this.tryUpdateUserAccount(key, buffer, slot);
+				const userAccount =
+					this.driftClient.program.account.user.coder.accounts.decode(
+						'User',
+						buffer
+					) as UserAccount;
+				this.tryUpdateUserAccount(key, userAccount, slot);
 			}
 
 			for (const key of this.usersAccounts.keys()) {
@@ -98,15 +108,27 @@ export class OrderSubscriber {
 		}
 	}
 
-	tryUpdateUserAccount(key: string, buffer: Buffer, slot: number): void {
+	tryUpdateUserAccount(
+		key: string,
+		userAccount: UserAccount,
+		slot: number
+	): void {
 		const slotAndUserAccount = this.usersAccounts.get(key);
 		if (!slotAndUserAccount || slotAndUserAccount.slot < slot) {
-			const userAccount =
-				this.driftClient.program.account.user.coder.accounts.decode(
-					'User',
-					buffer
-				) as UserAccount;
-
+			const newOrders = userAccount.orders.filter(
+				(order) =>
+					order.slot.toNumber() > (slotAndUserAccount?.slot ?? 0) &&
+					order.slot.toNumber() <= slot
+			);
+			if (newOrders.length > 0) {
+				this.eventEmitter.emit(
+					'onUpdate',
+					userAccount,
+					newOrders,
+					new PublicKey(key),
+					slot
+				);
+			}
 			if (userAccount.hasOpenOrder) {
 				this.usersAccounts.set(key, { slot, userAccount });
 			} else {
