@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: add swap price bands ([#611](https://github.com/drift-labs/protocol-v2/pull/611))
+- program: add 5min twap price bands to liquidate_perp and liquidate_spot ([#570](https://github.com/drift-labs/protocol-v2/pull/570)) 
 
 ### Fixes
 
