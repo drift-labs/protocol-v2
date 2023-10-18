@@ -2063,6 +2063,7 @@ pub mod liquidate_perp {
 }
 
 pub mod liquidate_spot {
+    use crate::state::state::State;
     use std::ops::Deref;
     use std::str::FromStr;
 
@@ -2074,9 +2075,8 @@ pub mod liquidate_spot {
     use crate::error::ErrorCode;
     use crate::math::constants::{
         LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION, MARGIN_PRECISION,
-        MARGIN_PRECISION_U128, PERCENTAGE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64,
-        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        MARGIN_PRECISION_U128, PRICE_PRECISION, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
     use crate::math::spot_balance::{get_strict_token_value, get_token_amount, get_token_value};
@@ -2144,6 +2144,7 @@ pub mod liquidate_spot {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2189,6 +2190,13 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
+        let state = State {
+            liquidation_margin_buffer_ratio: 10,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
+
         liquidate_spot(
             0,
             1,
@@ -2203,9 +2211,7 @@ pub mod liquidate_spot {
             &mut oracle_map,
             now,
             slot,
-            10,
-            PERCENTAGE_PRECISION,
-            150,
+            &state,
         )
         .unwrap();
 
@@ -2276,6 +2282,7 @@ pub mod liquidate_spot {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 1442 / 10000),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 999 / 1000),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2321,6 +2328,12 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
+        let state = State {
+            liquidation_margin_buffer_ratio: 10,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
         // oracle twap too volatile to liq rn
         assert!(liquidate_spot(
             0,
@@ -2336,9 +2349,7 @@ pub mod liquidate_spot {
             &mut oracle_map,
             now,
             slot,
-            10,
-            PERCENTAGE_PRECISION,
-            150,
+            &state,
         )
         .is_err());
 
@@ -2364,9 +2375,7 @@ pub mod liquidate_spot {
             &mut oracle_map,
             now,
             slot,
-            10,
-            PERCENTAGE_PRECISION,
-            150,
+            &state,
         )
         .unwrap();
 
@@ -2438,6 +2447,7 @@ pub mod liquidate_spot {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2483,8 +2493,12 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
-
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
         liquidate_spot(
             0,
             1,
@@ -2499,15 +2513,14 @@ pub mod liquidate_spot {
             &mut oracle_map,
             now,
             slot,
-            liquidation_buffer, // 2%
-            PERCENTAGE_PRECISION,
-            150,
+            &state,
         )
         .unwrap();
 
         assert_eq!(user.spot_positions[0].scaled_balance, 45558159000);
         assert_eq!(user.spot_positions[1].scaled_balance, 406768999);
 
+        let liquidation_buffer = state.liquidation_margin_buffer_ratio;
         let MarginCalculation {
             margin_requirement,
             total_collateral,
@@ -2647,6 +2660,7 @@ pub mod liquidate_spot {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2691,7 +2705,12 @@ pub mod liquidate_spot {
 
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
-
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
         let limit_price = (100000000 * PRICE_PRECISION_U64 / 999000) + 1;
         let result = liquidate_spot(
             0,
@@ -2707,9 +2726,7 @@ pub mod liquidate_spot {
             &mut oracle_map,
             now,
             slot,
-            10,
-            PERCENTAGE_PRECISION,
-            150,
+            &state,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -2767,6 +2784,7 @@ pub mod liquidate_spot {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2811,7 +2829,12 @@ pub mod liquidate_spot {
 
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
-
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
         let limit_price = (100000000 * PRICE_PRECISION_U64 / 999000) - 1;
         let result = liquidate_spot(
             0,
@@ -2827,9 +2850,7 @@ pub mod liquidate_spot {
             &mut oracle_map,
             now,
             slot,
-            10,
-            PERCENTAGE_PRECISION,
-            150,
+            &state,
         );
 
         assert_eq!(result, Ok(()));
@@ -2888,6 +2909,7 @@ pub mod liquidate_spot {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2933,8 +2955,12 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
-
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
         liquidate_spot(
             0,
             1,
@@ -2949,9 +2975,7 @@ pub mod liquidate_spot {
             &mut oracle_map,
             now,
             slot,
-            liquidation_buffer, // 2%
-            PERCENTAGE_PRECISION,
-            150,
+            &state,
         )
         .unwrap();
 
@@ -3015,6 +3039,7 @@ pub mod liquidate_spot {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -3060,7 +3085,14 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            initial_pct_to_liquidate: (LIQUIDATION_PCT_PRECISION / 10) as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
+
+        let liquidation_buffer = state.liquidation_margin_buffer_ratio;
 
         liquidate_spot(
             0,
@@ -3076,13 +3108,12 @@ pub mod liquidate_spot {
             &mut oracle_map,
             now,
             slot,
-            liquidation_buffer, // 2%
-            LIQUIDATION_PCT_PRECISION / 10,
-            150,
+            &state,
         )
         .unwrap();
 
         assert_eq!(user.last_active_slot, 1);
+        assert_eq!(user.is_being_liquidated(), true);
         assert_eq!(user.liquidation_margin_freed, 700032);
         assert_eq!(user.spot_positions[0].scaled_balance, 99055856000);
         assert_eq!(user.spot_positions[1].scaled_balance, 940676999);
@@ -3122,9 +3153,7 @@ pub mod liquidate_spot {
             &mut oracle_map,
             now,
             slot,
-            liquidation_buffer, // 2%
-            LIQUIDATION_PCT_PRECISION / 10,
-            150,
+            &state,
         )
         .unwrap();
 
@@ -3152,6 +3181,7 @@ pub mod liquidate_spot {
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);
         assert_eq!(pct_margin_freed, 433283); // ~43.3%
+        assert_eq!(user.is_being_liquidated(), true);
 
         let slot = 136_u64;
         liquidate_spot(
@@ -3168,9 +3198,7 @@ pub mod liquidate_spot {
             &mut oracle_map,
             now,
             slot,
-            liquidation_buffer, // 2%
-            LIQUIDATION_PCT_PRECISION / 10,
-            150,
+            &state,
         )
         .unwrap();
 
@@ -3178,6 +3206,7 @@ pub mod liquidate_spot {
         assert_eq!(user.liquidation_margin_freed, 0);
         assert_eq!(user.spot_positions[0].scaled_balance, 45559160000);
         assert_eq!(user.spot_positions[1].scaled_balance, 406777997);
+        assert_eq!(user.is_being_liquidated(), false);
     }
 
     #[test]
@@ -3233,6 +3262,7 @@ pub mod liquidate_spot {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 20,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -3297,6 +3327,12 @@ pub mod liquidate_spot {
         let liquidator_key = Pubkey::default();
 
         let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let state = State {
+            liquidation_margin_buffer_ratio: liquidation_buffer,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
 
         liquidate_spot(
             2,
@@ -3312,9 +3348,7 @@ pub mod liquidate_spot {
             &mut oracle_map,
             now,
             slot,
-            liquidation_buffer, // 2%
-            PERCENTAGE_PRECISION,
-            150,
+            &state,
         )
         .unwrap();
 
@@ -3454,6 +3488,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -3609,6 +3644,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -3804,6 +3840,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -3958,6 +3995,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -4104,6 +4142,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -4251,6 +4290,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -4407,6 +4447,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -4569,6 +4610,7 @@ pub mod liquidate_borrow_for_perp_pnl {
 }
 
 pub mod liquidate_perp_pnl_for_deposit {
+    use crate::state::state::State;
     use std::str::FromStr;
 
     use anchor_lang::Owner;
@@ -4678,6 +4720,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -4833,6 +4876,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -4990,6 +5034,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -5144,6 +5189,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -5290,6 +5336,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -5437,6 +5484,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -5592,6 +5640,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -5906,6 +5955,13 @@ pub mod liquidate_perp_pnl_for_deposit {
         )
         .is_err());
 
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            initial_pct_to_liquidate: (PERCENTAGE_PRECISION / 10) as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
+
         liquidate_spot(
             0,
             1,
@@ -5920,9 +5976,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &mut oracle_map,
             now,
             slot,
-            10,
-            PERCENTAGE_PRECISION,
-            150,
+            &state,
         )
         .unwrap();
 
@@ -6095,6 +6149,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()

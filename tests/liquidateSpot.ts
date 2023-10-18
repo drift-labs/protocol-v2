@@ -33,7 +33,7 @@ import {
 	initializeSolSpotMarket,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import {BulkAccountLoader, PERCENTAGE_PRECISION} from '../sdk';
 
 describe('liquidate spot', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -106,6 +106,12 @@ describe('liquidate spot', () => {
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
+
+		const oracleGuardrails = await driftClient.getStateAccount().oracleGuardRails;
+		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
+			100
+		).mul(PERCENTAGE_PRECISION);
+		await driftClient.updateOracleGuardRails(oracleGuardrails);
 
 		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,

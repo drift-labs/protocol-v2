@@ -2106,6 +2106,8 @@ pub mod delisting_test {
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount: QUOTE_PRECISION_I128 * (97 * 1000 + 200),
@@ -2164,6 +2166,8 @@ pub mod delisting_test {
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: (oracle_price.agg.price * 99 / 100) as i64,
+                last_oracle_price_twap_5min: (oracle_price.agg.price * 99 / 100) as i64,
+
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
