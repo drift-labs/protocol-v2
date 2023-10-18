@@ -20,7 +20,6 @@ use crate::math::spot_balance::{
     get_signed_token_amount, get_strict_token_value, get_token_amount, get_token_value,
 };
 use crate::math::stats::calculate_rolling_sum;
-use crate::safe_increment;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
@@ -28,6 +27,7 @@ use crate::state::traits::Size;
 use crate::validate;
 use crate::{get_then_update_id, QUOTE_PRECISION_U64};
 use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
+use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
@@ -474,7 +474,7 @@ impl SpotBalance for SpotPosition {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug)]
 pub struct OrderFillSimulation {
     pub token_amount: i128,
     pub orders_value: i128,
@@ -494,6 +494,49 @@ impl OrderFillSimulation {
 
     pub fn risk_increasing(&self, after: Self) -> bool {
         after.free_collateral_contribution < self.free_collateral_contribution
+    }
+
+    pub fn apply_user_custom_margin_ratio(
+        mut self,
+        spot_market: &SpotMarket,
+        oracle_price: i64,
+        user_custom_margin_ratio: u32,
+    ) -> DriftResult<Self> {
+        if user_custom_margin_ratio == 0 {
+            return Ok(self);
+        }
+
+        if self.weighted_token_value < 0 {
+            let max_liability_weight = spot_market
+                .get_liability_weight(
+                    self.token_amount.unsigned_abs(),
+                    &MarginRequirementType::Initial,
+                )?
+                .max(user_custom_margin_ratio.safe_add(SPOT_WEIGHT_PRECISION)?);
+
+            self.weighted_token_value = self
+                .token_value
+                .safe_mul(max_liability_weight.cast()?)?
+                .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
+        } else if self.weighted_token_value > 0 {
+            let min_asset_weight = spot_market
+                .get_asset_weight(
+                    self.token_amount.unsigned_abs(),
+                    oracle_price,
+                    &MarginRequirementType::Initial,
+                )?
+                .min(SPOT_WEIGHT_PRECISION.saturating_sub(user_custom_margin_ratio));
+
+            self.weighted_token_value = self
+                .token_value
+                .safe_mul(min_asset_weight.cast()?)?
+                .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
+        }
+
+        self.free_collateral_contribution =
+            self.weighted_token_value.safe_add(self.orders_value)?;
+
+        Ok(self)
     }
 }
 
@@ -530,7 +573,7 @@ impl SpotPosition {
         token_amount: Option<i128>,
         margin_type: MarginRequirementType,
     ) -> DriftResult<OrderFillSimulation> {
-        let (bid_simulation, ask_simulation) = self.simulate_fills_both_sides(
+        let [bid_simulation, ask_simulation] = self.simulate_fills_both_sides(
             spot_market,
             strict_oracle_price,
             token_amount,
@@ -549,7 +592,7 @@ impl SpotPosition {
         strict_oracle_price: &StrictOraclePrice,
         token_amount: Option<i128>,
         margin_type: MarginRequirementType,
-    ) -> DriftResult<(OrderFillSimulation, OrderFillSimulation)> {
+    ) -> DriftResult<[OrderFillSimulation; 2]> {
         let token_amount = match token_amount {
             Some(token_amount) => token_amount,
             None => self.get_signed_token_amount(spot_market)?,
@@ -592,7 +635,7 @@ impl SpotPosition {
                 free_collateral_contribution: weighted_token_value,
             };
 
-            return Ok((calculation, calculation));
+            return Ok([calculation, calculation]);
         }
 
         let simulate_side = |strict_oracle_price: &StrictOraclePrice,
@@ -627,7 +670,7 @@ impl SpotPosition {
         let ask_simulation =
             simulate_side(strict_oracle_price, token_amount, self.open_asks.cast()?)?;
 
-        Ok((bid_simulation, ask_simulation))
+        Ok([bid_simulation, ask_simulation])
     }
 }
 

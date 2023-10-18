@@ -24,8 +24,11 @@ export function calculateSpotMarketMarginRatio(
 	oraclePrice: BN,
 	marginCategory: MarginCategory,
 	size: BN,
-	balanceType: SpotBalanceType
+	balanceType: SpotBalanceType,
+	customMarginRatio = 0
 ): number {
+	let marginRatio;
+
 	if (isVariant(balanceType, 'deposit')) {
 		const assetWeight = calculateAssetWeight(
 			size,
@@ -33,13 +36,20 @@ export function calculateSpotMarketMarginRatio(
 			market,
 			marginCategory
 		);
-		return MARGIN_PRECISION.sub(assetWeight).toNumber();
+		marginRatio = MARGIN_PRECISION.sub(assetWeight).toNumber();
 	} else {
 		const liabilityWeight = calculateLiabilityWeight(
 			size,
 			market,
 			marginCategory
 		);
-		return liabilityWeight.sub(MARGIN_PRECISION).toNumber();
+		marginRatio = liabilityWeight.sub(MARGIN_PRECISION).toNumber();
 	}
+
+	if (marginCategory === 'Initial') {
+		// use lowest leverage between max allowed and optional user custom max
+		return Math.max(marginRatio, customMarginRatio);
+	}
+
+	return marginRatio;
 }

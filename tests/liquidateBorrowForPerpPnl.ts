@@ -109,12 +109,13 @@ describe('liquidate borrow for perp pnl', () => {
 		await driftClient.updateInitialPctToLiquidate(
 			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
+		// await driftClient.updateLiquidationDuration(1);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
-		const periodicity = new BN(0);
+		const periodicity = new BN(3600);
 
 		await driftClient.initializePerpMarket(
 			0,
