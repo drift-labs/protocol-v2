@@ -1498,3 +1498,119 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
     assert_eq!(spot_market.insurance_fund.user_shares, 0);
     assert_eq!(spot_market.insurance_fund.total_shares, 0);
 }
+
+#[test]
+fn test_transfer_protocol_owned_stake() {
+    let mut if_balance = (199000 * QUOTE_PRECISION) as u64;
+
+    let mut if_stake_2 = InsuranceFundStake::new(Pubkey::default(), 0, 0);
+    let mut user_stats_2 = UserStats {
+        number_of_sub_accounts: 0,
+        ..UserStats::default()
+    };
+
+    let mut spot_market = SpotMarket {
+        deposit_balance: 0,
+        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        insurance_fund: InsuranceFund {
+            unstaking_period: 0,
+            ..InsuranceFund::default()
+        },
+        ..SpotMarket::default()
+    };
+    assert_eq!(spot_market.insurance_fund.user_shares, 0);
+    assert_eq!(spot_market.insurance_fund.total_shares, 0);
+
+    spot_market.insurance_fund.total_shares = 42210407198; // make price != 1
+
+    // withdraw half
+    let amount_returned = admin_remove_insurance_fund_stake(
+        if_balance,
+        (spot_market.insurance_fund.total_shares / 2) as u128,
+        &mut spot_market,
+        1,
+        Pubkey::default(),
+    )
+    .unwrap();
+    if_balance -= amount_returned;
+
+    assert_eq!(amount_returned, (99500000000) as u64);
+    assert_eq!(spot_market.insurance_fund.user_shares, 0);
+    assert_eq!(spot_market.insurance_fund.total_shares, 21105203599);
+
+    let now = 6969696969;
+
+    let transfer_num_0 = transfer_protocol_insurance_fund_stake(
+        if_balance,
+        0,
+        &mut if_stake_2,
+        &mut user_stats_2,
+        &mut spot_market,
+        now,
+        Pubkey::default(),
+    )
+    .unwrap();
+    assert_eq!(0, spot_market.insurance_fund.user_shares);
+    assert_eq!(transfer_num_0, 0);
+
+    let transfer_num_1 = transfer_protocol_insurance_fund_stake(
+        if_balance,
+        1,
+        &mut if_stake_2,
+        &mut user_stats_2,
+        &mut spot_market,
+        now,
+        Pubkey::default(),
+    )
+    .unwrap();
+    assert_eq!(1, spot_market.insurance_fund.user_shares);
+    assert_eq!(21105203599, spot_market.insurance_fund.total_shares);
+    assert_eq!(transfer_num_1, 4);
+
+    assert!(transfer_protocol_insurance_fund_stake(
+        if_balance,
+        spot_market.insurance_fund.total_shares,
+        &mut if_stake_2,
+        &mut user_stats_2,
+        &mut spot_market,
+        now,
+        Pubkey::default(),
+    )
+    .is_err());
+
+    let transfer_num_2 = transfer_protocol_insurance_fund_stake(
+        if_balance,
+        spot_market.insurance_fund.total_shares - spot_market.insurance_fund.user_shares,
+        &mut if_stake_2,
+        &mut user_stats_2,
+        &mut spot_market,
+        now,
+        Pubkey::default(),
+    )
+    .unwrap();
+
+    assert_eq!(
+        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.user_shares
+    );
+    assert_eq!(transfer_num_2, 99499999995);
+
+    let mut expected_if_stake_2 = InsuranceFundStake::new(Pubkey::default(), 0, 0);
+    expected_if_stake_2
+        .increase_if_shares(21105203599 as u128, &spot_market)
+        .unwrap();
+
+    assert_eq!(user_stats_2.if_staked_quote_asset_amount, 99500000000);
+    assert_eq!(if_stake_2, expected_if_stake_2);
+
+    assert!(transfer_protocol_insurance_fund_stake(
+        if_balance,
+        spot_market.insurance_fund.total_shares,
+        &mut if_stake_2,
+        &mut user_stats_2,
+        &mut spot_market,
+        now,
+        Pubkey::default(),
+    )
+    .is_err());
+}

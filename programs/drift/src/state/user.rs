@@ -9,26 +9,30 @@ use crate::math::constants::{
     QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
+use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{standardize_base_asset_amount, standardize_price};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
     calculate_base_asset_value_with_oracle_price,
 };
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
+use crate::math::spot_balance::{
+    get_signed_token_amount, get_strict_token_value, get_token_amount, get_token_value,
+};
 use crate::math::stats::calculate_rolling_sum;
-use crate::math_error;
-use crate::safe_increment;
-use crate::state::oracle::OraclePriceData;
+use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
 use crate::validate;
 use crate::{get_then_update_id, QUOTE_PRECISION_U64};
+use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
+use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 use std::cmp::max;
+use std::ops::Neg;
 use std::panic::Location;
 
 #[cfg(test)]
@@ -53,7 +57,7 @@ impl Size for User {
     const SIZE: usize = 4376;
 }
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct User {
@@ -391,7 +395,7 @@ impl User {
     }
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct UserFees {
@@ -415,7 +419,7 @@ pub struct UserFees {
     pub current_epoch_referrer_reward: u64,
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct SpotPosition {
@@ -470,6 +474,72 @@ impl SpotBalance for SpotPosition {
     }
 }
 
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug)]
+pub struct OrderFillSimulation {
+    pub token_amount: i128,
+    pub orders_value: i128,
+    pub token_value: i128,
+    pub weighted_token_value: i128,
+    pub free_collateral_contribution: i128,
+}
+
+impl OrderFillSimulation {
+    pub fn riskier_side(ask: Self, bid: Self) -> Self {
+        if ask.free_collateral_contribution <= bid.free_collateral_contribution {
+            ask
+        } else {
+            bid
+        }
+    }
+
+    pub fn risk_increasing(&self, after: Self) -> bool {
+        after.free_collateral_contribution < self.free_collateral_contribution
+    }
+
+    pub fn apply_user_custom_margin_ratio(
+        mut self,
+        spot_market: &SpotMarket,
+        oracle_price: i64,
+        user_custom_margin_ratio: u32,
+    ) -> DriftResult<Self> {
+        if user_custom_margin_ratio == 0 {
+            return Ok(self);
+        }
+
+        if self.weighted_token_value < 0 {
+            let max_liability_weight = spot_market
+                .get_liability_weight(
+                    self.token_amount.unsigned_abs(),
+                    &MarginRequirementType::Initial,
+                )?
+                .max(user_custom_margin_ratio.safe_add(SPOT_WEIGHT_PRECISION)?);
+
+            self.weighted_token_value = self
+                .token_value
+                .safe_mul(max_liability_weight.cast()?)?
+                .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
+        } else if self.weighted_token_value > 0 {
+            let min_asset_weight = spot_market
+                .get_asset_weight(
+                    self.token_amount.unsigned_abs(),
+                    oracle_price,
+                    &MarginRequirementType::Initial,
+                )?
+                .min(SPOT_WEIGHT_PRECISION.saturating_sub(user_custom_margin_ratio));
+
+            self.weighted_token_value = self
+                .token_value
+                .safe_mul(min_asset_weight.cast()?)?
+                .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
+        }
+
+        self.free_collateral_contribution =
+            self.weighted_token_value.safe_add(self.orders_value)?;
+
+        Ok(self)
+    }
+}
+
 impl SpotPosition {
     pub fn is_available(&self) -> bool {
         self.scaled_balance == 0 && self.open_orders == 0
@@ -499,37 +569,112 @@ impl SpotPosition {
     pub fn get_worst_case_token_amount(
         &self,
         spot_market: &SpotMarket,
-        oracle_price_data: &OraclePriceData,
-        twap_5min: Option<i64>,
+        strict_oracle_price: &StrictOraclePrice,
         token_amount: Option<i128>,
-    ) -> DriftResult<(i128, i128)> {
+        margin_type: MarginRequirementType,
+    ) -> DriftResult<OrderFillSimulation> {
+        let [bid_simulation, ask_simulation] = self.simulate_fills_both_sides(
+            spot_market,
+            strict_oracle_price,
+            token_amount,
+            margin_type,
+        )?;
+
+        Ok(OrderFillSimulation::riskier_side(
+            ask_simulation,
+            bid_simulation,
+        ))
+    }
+
+    pub fn simulate_fills_both_sides(
+        &self,
+        spot_market: &SpotMarket,
+        strict_oracle_price: &StrictOraclePrice,
+        token_amount: Option<i128>,
+        margin_type: MarginRequirementType,
+    ) -> DriftResult<[OrderFillSimulation; 2]> {
         let token_amount = match token_amount {
             Some(token_amount) => token_amount,
             None => self.get_signed_token_amount(spot_market)?,
         };
 
-        let token_amount_all_bids_fill = token_amount.safe_add(self.open_bids as i128)?;
+        let token_value =
+            get_strict_token_value(token_amount, spot_market.decimals, strict_oracle_price)?;
 
-        let token_amount_all_asks_fill = token_amount.safe_add(self.open_asks as i128)?;
+        let calculate_weighted_token_value = |token_amount: i128, token_value: i128| {
+            if token_value > 0 {
+                let asset_weight = spot_market.get_asset_weight(
+                    token_amount.unsigned_abs(),
+                    strict_oracle_price.current,
+                    &margin_type,
+                )?;
 
-        let oracle_price = match twap_5min {
-            Some(twap_5min) => twap_5min.max(oracle_price_data.price),
-            None => oracle_price_data.price,
+                token_value
+                    .safe_mul(asset_weight.cast()?)?
+                    .safe_div(SPOT_WEIGHT_PRECISION_I128)
+            } else if token_value < 0 {
+                let liability_weight =
+                    spot_market.get_liability_weight(token_amount.unsigned_abs(), &margin_type)?;
+
+                token_value
+                    .safe_mul(liability_weight.cast()?)?
+                    .safe_div(SPOT_WEIGHT_PRECISION_I128)
+            } else {
+                Ok(0)
+            }
         };
 
-        if token_amount_all_bids_fill.abs() > token_amount_all_asks_fill.abs() {
-            let worst_case_orders_value =
-                get_token_value(-self.open_bids as i128, spot_market.decimals, oracle_price)?;
-            Ok((token_amount_all_bids_fill, worst_case_orders_value))
-        } else {
-            let worst_case_orders_value =
-                get_token_value(-self.open_asks as i128, spot_market.decimals, oracle_price)?;
-            Ok((token_amount_all_asks_fill, worst_case_orders_value))
+        if self.open_bids == 0 && self.open_asks == 0 {
+            let weighted_token_value = calculate_weighted_token_value(token_amount, token_value)?;
+
+            let calculation = OrderFillSimulation {
+                token_amount,
+                orders_value: 0,
+                token_value,
+                weighted_token_value,
+                free_collateral_contribution: weighted_token_value,
+            };
+
+            return Ok([calculation, calculation]);
         }
+
+        let simulate_side = |strict_oracle_price: &StrictOraclePrice,
+                             token_amount: i128,
+                             open_orders: i128| {
+            let order_value = get_token_value(
+                -open_orders as i128,
+                spot_market.decimals,
+                strict_oracle_price.max(),
+            )?;
+            let token_amount_after_fill = token_amount.safe_add(open_orders)?;
+            let token_value_after_fill = token_value.safe_add(order_value.neg())?;
+
+            let weighted_token_value_after_fill =
+                calculate_weighted_token_value(token_amount_after_fill, token_value_after_fill)?;
+
+            let free_collateral_contribution =
+                weighted_token_value_after_fill.safe_add(order_value)?;
+
+            Ok(OrderFillSimulation {
+                token_amount: token_amount_after_fill,
+                orders_value: order_value,
+                token_value: token_value_after_fill,
+                weighted_token_value: weighted_token_value_after_fill,
+                free_collateral_contribution,
+            })
+        };
+
+        let bid_simulation =
+            simulate_side(strict_oracle_price, token_amount, self.open_bids.cast()?)?;
+
+        let ask_simulation =
+            simulate_side(strict_oracle_price, token_amount, self.open_asks.cast()?)?;
+
+        Ok([bid_simulation, ask_simulation])
     }
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Default, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct PerpPosition {
@@ -777,7 +922,7 @@ impl PerpPosition {
 
 pub type PerpPositions = [PerpPosition; 8];
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub struct Order {
@@ -1134,7 +1279,7 @@ impl Default for MarketType {
     }
 }
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct UserStats {
@@ -1298,7 +1443,7 @@ impl UserStats {
     }
 }
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct ReferrerName {

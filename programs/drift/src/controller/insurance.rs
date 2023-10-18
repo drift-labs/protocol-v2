@@ -454,7 +454,10 @@ pub fn admin_remove_insurance_fund_stake(
     spot_market.insurance_fund.total_shares =
         spot_market.insurance_fund.total_shares.safe_sub(n_shares)?;
 
-    let if_shares_after = spot_market.insurance_fund.total_shares;
+    let if_shares_after = spot_market
+        .insurance_fund
+        .total_shares
+        .safe_sub(user_if_shares_before)?;
 
     emit!(InsuranceFundStakeRecord {
         ts: now,
@@ -467,6 +470,90 @@ pub fn admin_remove_insurance_fund_stake(
         user_if_shares_before,
         total_if_shares_before,
         if_shares_after,
+        total_if_shares_after: spot_market.insurance_fund.total_shares,
+        user_if_shares_after: spot_market.insurance_fund.user_shares,
+    });
+
+    Ok(withdraw_amount)
+}
+
+pub fn transfer_protocol_insurance_fund_stake(
+    insurance_vault_amount: u64,
+    n_shares: u128,
+    target_insurance_fund_stake: &mut InsuranceFundStake,
+    user_stats: &mut UserStats,
+    spot_market: &mut SpotMarket,
+    now: i64,
+    signer_pubkey: Pubkey,
+) -> DriftResult<u64> {
+    apply_rebase_to_insurance_fund(insurance_vault_amount, spot_market)?;
+
+    let total_if_shares_before = spot_market.insurance_fund.total_shares;
+    let user_if_shares_before = spot_market.insurance_fund.user_shares;
+
+    let if_shares_before = total_if_shares_before.safe_sub(user_if_shares_before)?;
+    let target_if_shares_before = target_insurance_fund_stake.checked_if_shares(spot_market)?;
+    validate!(
+        if_shares_before >= n_shares,
+        ErrorCode::InsufficientIFShares,
+        "if_shares_before={} < n_shares={}",
+        if_shares_before,
+        n_shares
+    )?;
+
+    spot_market.insurance_fund.user_shares =
+        spot_market.insurance_fund.user_shares.safe_add(n_shares)?;
+
+    target_insurance_fund_stake.increase_if_shares(n_shares, spot_market)?;
+
+    let target_if_shares_after = target_insurance_fund_stake.checked_if_shares(spot_market)?;
+
+    if spot_market.market_index == 0 {
+        user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
+            target_if_shares_after,
+            spot_market.insurance_fund.total_shares,
+            insurance_vault_amount,
+        )?;
+    }
+
+    let withdraw_amount = if_shares_to_vault_amount(
+        n_shares,
+        spot_market.insurance_fund.total_shares,
+        insurance_vault_amount,
+    )?;
+    let user_if_shares_after = spot_market.insurance_fund.user_shares;
+
+    let protocol_if_shares_after = spot_market
+        .insurance_fund
+        .total_shares
+        .safe_sub(user_if_shares_after)?;
+
+    emit!(InsuranceFundStakeRecord {
+        ts: now,
+        user_authority: signer_pubkey,
+        action: StakeAction::UnstakeTransfer,
+        amount: withdraw_amount,
+        market_index: spot_market.market_index,
+        insurance_vault_amount_before: insurance_vault_amount,
+        if_shares_before,
+        user_if_shares_before,
+        total_if_shares_before,
+        if_shares_after: protocol_if_shares_after,
+        total_if_shares_after: spot_market.insurance_fund.total_shares,
+        user_if_shares_after: spot_market.insurance_fund.user_shares,
+    });
+
+    emit!(InsuranceFundStakeRecord {
+        ts: now,
+        user_authority: target_insurance_fund_stake.authority,
+        action: StakeAction::StakeTransfer,
+        amount: withdraw_amount,
+        market_index: spot_market.market_index,
+        insurance_vault_amount_before: insurance_vault_amount,
+        if_shares_before: target_if_shares_before,
+        user_if_shares_before,
+        total_if_shares_before,
+        if_shares_after: target_insurance_fund_stake.checked_if_shares(spot_market)?,
         total_if_shares_after: spot_market.insurance_fund.total_shares,
         user_if_shares_after: spot_market.insurance_fund.user_shares,
     });

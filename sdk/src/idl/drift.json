@@ -1,5 +1,5 @@
 {
-  "version": "2.38.0",
+  "version": "2.41.0",
   "name": "drift",
   "instructions": [
     {
@@ -2377,6 +2377,61 @@
       ]
     },
     {
+      "name": "transferProtocolIfShares",
+      "accounts": [
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "transferConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "shares",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "initialize",
       "accounts": [
         {
@@ -3539,6 +3594,32 @@
       ]
     },
     {
+      "name": "updateSpotMarketScaleInitialAssetWeightStart",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "scaleInitialAssetWeightStart",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketOracle",
       "accounts": [
         {
@@ -4342,6 +4423,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketFeeAdjustment",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feeAdjustment",
+          "type": "i16"
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -4514,6 +4621,76 @@
         {
           "name": "amount",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initializeProtocolIfSharesTransferConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "protocolIfSharesTransferConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateProtocolIfSharesTransferConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "protocolIfSharesTransferConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "whitelistedSigners",
+          "type": {
+            "option": {
+              "array": [
+                "publicKey",
+                4
+              ]
+            }
+          }
+        },
+        {
+          "name": "maxTransferPerEpoch",
+          "type": {
+            "option": "u128"
+          }
         }
       ]
     }
@@ -4700,6 +4877,44 @@
               "array": [
                 "u8",
                 14
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolIfSharesTransferConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "whitelistedSigners",
+            "type": {
+              "array": [
+                "publicKey",
+                4
+              ]
+            }
+          },
+          {
+            "name": "maxTransferPerEpoch",
+            "type": "u128"
+          },
+          {
+            "name": "currentEpochTransfer",
+            "type": "u128"
+          },
+          {
+            "name": "nextEpochTs",
+            "type": "i64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u128",
+                8
               ]
             }
           }
@@ -4920,7 +5135,7 @@
           },
           {
             "name": "padding1",
-            "type": "bool"
+            "type": "u8"
           },
           {
             "name": "quoteSpotMarketIndex",
@@ -4930,11 +5145,20 @@
             "type": "u16"
           },
           {
+            "name": "feeAdjustment",
+            "docs": [
+              "Between -100 and 100, represents what % to increase/decrease the fee by",
+              "E.g. if this is -50 and the fee is 5bps, the new fee will be 2.5bps",
+              "if this is 50 and the fee is 5bps, the new fee will be 7.5bps"
+            ],
+            "type": "i16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                48
+                46
               ]
             }
           }
@@ -4978,7 +5202,7 @@
           {
             "name": "name",
             "docs": [
-              "The encoded display name fo the market e.g. SOL"
+              "The encoded display name for the market e.g. SOL"
             ],
             "type": {
               "array": [
@@ -5358,11 +5582,20 @@
             "type": "u64"
           },
           {
+            "name": "scaleInitialAssetWeightStart",
+            "docs": [
+              "When to begin scaling down the initial asset weight",
+              "disabled when 0",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                56
+                48
               ]
             }
           }
@@ -6275,6 +6508,24 @@
           {
             "name": "cumulativeDepositInterestDelta",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketIdentifier",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
           }
         ]
       }
@@ -8122,6 +8373,12 @@
           },
           {
             "name": "Unstake"
+          },
+          {
+            "name": "UnstakeTransfer"
+          },
+          {
+            "name": "StakeTransfer"
           }
         ]
       }
@@ -8159,6 +8416,34 @@
           },
           {
             "name": "Match"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarginCalculationMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Standard"
+          },
+          {
+            "name": "Liquidation",
+            "fields": [
+              {
+                "name": "margin_buffer",
+                "type": "u128"
+              },
+              {
+                "name": "market_to_track_margin_requirement",
+                "type": {
+                  "option": {
+                    "defined": "MarketIdentifier"
+                  }
+                }
+              }
+            ]
           }
         ]
       }
@@ -10746,6 +11031,11 @@
       "code": 6254,
       "name": "UserReduceOnly",
       "msg": "UserReduceOnly"
+    },
+    {
+      "code": 6255,
+      "name": "InvalidMarginCalculation",
+      "msg": "InvalidMarginCalculation"
     }
   ]
 }

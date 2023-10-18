@@ -58,7 +58,8 @@ use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::oracle::OraclePriceData;
+use crate::state::margin_calculation::MarginContext;
+use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
@@ -93,7 +94,7 @@ pub fn place_perp_order(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     params: OrderParams,
-    options: PlaceOrderOptions,
+    mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -292,41 +293,28 @@ pub fn place_perp_order(
     let worst_case_base_asset_amount_after =
         user.perp_positions[position_index].worst_case_base_asset_amount()?;
 
-    let position_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
-    let base_asset_amount_unfilled = user.orders[new_order_index]
-        .get_base_asset_amount_unfilled(Some(position_base_asset_amount))?;
-    let order_risk_decreasing = is_order_risk_decreasing(
-        &params.direction,
-        base_asset_amount_unfilled,
-        position_base_asset_amount,
-    )?;
+    let risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
+        > worst_case_base_asset_amount_before.unsigned_abs();
 
-    let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
-        <= worst_case_base_asset_amount_before.unsigned_abs()
-        && order_risk_decreasing;
+    options.update_risk_increasing(risk_increasing);
 
     // when orders are placed in bulk, only need to check margin on last place
     if options.enforce_margin_check {
-        // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-        let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+        meets_place_order_margin_requirement(
             user,
             perp_market_map,
             spot_market_map,
             oracle_map,
-            risk_decreasing,
+            options.risk_increasing,
         )?;
-
-        if !meets_initial_margin_requirement {
-            return Err(ErrorCode::InvalidOrderForInitialMarginReq);
-        }
     }
 
-    if force_reduce_only && !risk_decreasing {
+    if force_reduce_only && risk_increasing {
         return Err(ErrorCode::InvalidOrderNotRiskReducing);
     }
 
     let max_oi = market.amm.max_open_interest;
-    if max_oi != 0 && !risk_decreasing {
+    if max_oi != 0 && risk_increasing {
         let oi_plus_order = match params.direction {
             PositionDirection::Long => market
                 .amm
@@ -1307,7 +1295,6 @@ fn get_maker_orders_info(
         settle_funding_payment(&mut maker, maker_key, &mut market, now)?;
 
         let initial_margin_ratio = market.margin_ratio_initial;
-        let maintenance_margin_ratio = market.margin_ratio_maintenance;
 
         drop(market);
 
@@ -1332,12 +1319,11 @@ fn get_maker_orders_info(
             }
 
             let breaches_oracle_price_limits = {
-                limit_price_breaches_oracle_price_bands(
+                limit_price_breaches_maker_oracle_price_bands(
                     maker_order_price,
                     maker_order.direction,
                     oracle_price,
                     initial_margin_ratio,
-                    maintenance_margin_ratio,
                 )?
             };
 
@@ -1621,24 +1607,24 @@ fn fulfill_perp_order(
         quote_asset_amount
     )?;
 
-    let (taker_margin_requirement, taker_total_collateral, _, _) =
-        calculate_margin_requirement_and_total_collateral(
+    let taker_margin_calculation =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
             perp_market_map,
-            if user_order_position_decreasing {
+            spot_market_map,
+            oracle_map,
+            MarginContext::standard(if user_order_position_decreasing {
                 MarginRequirementType::Maintenance
             } else {
                 MarginRequirementType::Fill
-            },
-            spot_market_map,
-            oracle_map,
-            None,
+            }),
         )?;
-    if taker_total_collateral < taker_margin_requirement.cast()? {
+
+    if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
             "taker breached fill requirements (margin requirement {}) (total_collateral {})",
-            taker_margin_requirement,
-            taker_total_collateral
+            taker_margin_calculation.margin_requirement,
+            taker_margin_calculation.total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
     }
@@ -1646,22 +1632,21 @@ fn fulfill_perp_order(
     for (maker_key, _) in makers_filled {
         let maker = makers_and_referrer.get_ref(&maker_key)?;
 
-        let (_, maker_total_collateral, maker_margin_requirement_plus_buffer, _) =
-            calculate_margin_requirement_and_total_collateral(
+        let maker_margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &maker,
                 perp_market_map,
-                MarginRequirementType::Fill,
                 spot_market_map,
                 oracle_map,
-                None,
+                MarginContext::standard(MarginRequirementType::Fill),
             )?;
 
-        if maker_total_collateral < maker_margin_requirement_plus_buffer.cast()? {
+        if !maker_margin_calculation.meets_margin_requirement() {
             msg!(
                 "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
                 maker_key,
-                maker_margin_requirement_plus_buffer,
-                maker_total_collateral
+                maker_margin_calculation.margin_requirement,
+                maker_margin_calculation.total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
@@ -1840,6 +1825,7 @@ pub fn fulfill_perp_order_with_amm(
         referrer_stats,
         quote_asset_amount_surplus,
         order_post_only,
+        market.fee_adjustment,
     )?;
 
     let user_position_delta =
@@ -2232,6 +2218,7 @@ pub fn fulfill_perp_order_with_match(
         reward_referrer,
         referrer_stats,
         &MarketType::Perp,
+        market.fee_adjustment,
     )?;
 
     // Increment the markets house's total fee variables
@@ -2484,6 +2471,10 @@ pub fn trigger_order(
     )?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
+    let worst_case_base_asset_amount_before = user
+        .get_perp_position(market_index)?
+        .worst_case_base_asset_amount()?;
+
     {
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
@@ -2551,37 +2542,34 @@ pub fn trigger_order(
 
     drop(perp_market);
 
-    // If order is position reducing and user is below initial margin, cancel it
-    let order_direction = user.orders[order_index].direction;
-    let position_base_asset_amount = user
-        .force_get_perp_position_mut(market_index)?
-        .base_asset_amount;
-    let order_base_asset_amount = user.orders[order_index]
-        .get_base_asset_amount_unfilled(Some(position_base_asset_amount))?;
-    let is_risk_increasing = is_order_risk_increasing(
-        &order_direction,
-        order_base_asset_amount,
-        position_base_asset_amount,
-    )?;
+    let worst_case_base_asset_amount_after = user
+        .get_perp_position(market_index)?
+        .worst_case_base_asset_amount()?;
 
-    let meets_initial_margin_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let is_risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
+        > worst_case_base_asset_amount_before.unsigned_abs();
 
-    if is_risk_increasing && !meets_initial_margin_requirement {
-        cancel_order(
-            order_index,
-            user,
-            &user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            now,
-            slot,
-            OrderActionExplanation::InsufficientFreeCollateral,
-            Some(&filler_key),
-            0,
-            false,
-        )?;
+    // If order increases risk and user is below initial margin, cancel it
+    if is_risk_increasing && !user.orders[order_index].reduce_only {
+        let meets_initial_margin_requirement =
+            meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+
+        if !meets_initial_margin_requirement {
+            cancel_order(
+                order_index,
+                user,
+                &user_key,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                now,
+                slot,
+                OrderActionExplanation::InsufficientFreeCollateral,
+                Some(&filler_key),
+                0,
+                false,
+            )?;
+        }
     }
 
     user.update_last_active_slot(slot);
@@ -2780,7 +2768,7 @@ pub fn place_spot_order(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     params: OrderParams,
-    options: PlaceOrderOptions,
+    mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -2863,13 +2851,26 @@ pub fn place_spot_order(
         .get_spot_position_index(market_index)
         .or_else(|_| user.add_spot_position(market_index, SpotBalanceType::Deposit))?;
 
-    let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle)?;
-    let (worst_case_token_amount_before, _) = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amount(spot_market, &oracle_price_data, None, None)?;
-
     let balance_type = user.spot_positions[spot_position_index].balance_type;
     let token_amount = user.spot_positions[spot_position_index].get_token_amount(spot_market)?;
     let signed_token_amount = get_signed_token_amount(token_amount, &balance_type)?;
+
+    let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle)?;
+    let strict_oracle_price = StrictOraclePrice::new(
+        oracle_price_data.price,
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        true,
+    );
+
+    let worst_case_simulation_before = user.spot_positions[spot_position_index]
+        .get_worst_case_token_amount(
+            spot_market,
+            &strict_oracle_price,
+            Some(signed_token_amount),
+            MarginRequirementType::Initial,
+        )?;
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
@@ -2982,40 +2983,32 @@ pub fn place_spot_order(
         )?;
     }
 
-    let (worst_case_token_amount_after, _) = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amount(spot_market, &oracle_price_data, None, None)?;
-
-    let order_direction = user.orders[new_order_index].direction;
-    let base_asset_amount_unfilled = user.orders[new_order_index]
-        .get_base_asset_amount_unfilled(Some(signed_token_amount.cast()?))?;
-    let order_risk_decreasing = is_order_risk_decreasing(
-        &order_direction,
-        base_asset_amount_unfilled,
-        signed_token_amount.cast()?,
-    )?;
+    let worst_case_simulation_after = user.spot_positions[spot_position_index]
+        .get_worst_case_token_amount(
+            spot_market,
+            &strict_oracle_price,
+            Some(signed_token_amount),
+            MarginRequirementType::Initial,
+        )?;
 
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let risk_decreasing = worst_case_token_amount_after.unsigned_abs()
-        <= worst_case_token_amount_before.unsigned_abs()
-        && order_risk_decreasing;
+    let risk_increasing = worst_case_simulation_before.risk_increasing(worst_case_simulation_after);
+
+    options.update_risk_increasing(risk_increasing);
 
     if options.enforce_margin_check {
-        let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+        meets_place_order_margin_requirement(
             user,
             perp_market_map,
             spot_market_map,
             oracle_map,
-            risk_decreasing,
+            options.risk_increasing,
         )?;
-
-        if !meets_initial_margin_requirement {
-            return Err(ErrorCode::InvalidOrderForInitialMarginReq);
-        }
     }
 
     validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
 
-    if force_reduce_only && !risk_decreasing {
+    if force_reduce_only && risk_increasing {
         return Err(ErrorCode::InvalidOrderNotRiskReducing);
     }
 
@@ -3445,15 +3438,12 @@ fn get_spot_maker_order<'a>(
     let breaches_oracle_price_limits = {
         let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?;
         let initial_margin_ratio = spot_market.get_margin_ratio(&MarginRequirementType::Initial)?;
-        let maintenance_margin_ratio =
-            spot_market.get_margin_ratio(&MarginRequirementType::Maintenance)?;
-        order_breaches_oracle_price_bands(
+        order_breaches_maker_oracle_price_bands(
             &maker.orders[maker_order_index],
             oracle_price.price,
             slot,
             spot_market.order_tick_size,
             initial_margin_ratio,
-            maintenance_margin_ratio,
         )?
     };
 
@@ -3623,13 +3613,28 @@ fn fulfill_spot_order(
     let quote_price = oracle_map.get_price_data(&quote_market.oracle)?.price;
     let base_price = oracle_map.get_price_data(&base_market.oracle)?.price;
 
+    let strict_quote_price = StrictOraclePrice::new(
+        quote_price,
+        quote_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        true,
+    );
+    let strict_base_price = StrictOraclePrice::new(
+        base_price,
+        base_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        true,
+    );
+
     let margin_type = if order_direction == PositionDirection::Long {
         // sell quote, buy base
         select_margin_type_for_swap(
             &quote_market,
             &base_market,
-            quote_price,
-            base_price,
+            &strict_quote_price,
+            &strict_base_price,
             quote_token_amount_before,
             base_token_amount_before,
             quote_token_amount_after,
@@ -3641,8 +3646,8 @@ fn fulfill_spot_order(
         select_margin_type_for_swap(
             &base_market,
             &quote_market,
-            base_price,
-            quote_price,
+            &strict_base_price,
+            &strict_quote_price,
             base_token_amount_before,
             quote_token_amount_before,
             base_token_amount_after,
@@ -3654,42 +3659,40 @@ fn fulfill_spot_order(
     drop(base_market);
     drop(quote_market);
 
-    let (taker_margin_requirement, taker_total_collateral, _, _) =
-        calculate_margin_requirement_and_total_collateral(
+    let taker_margin_calculation =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
             perp_market_map,
-            margin_type,
             spot_market_map,
             oracle_map,
-            None,
+            MarginContext::standard(margin_type),
         )?;
 
-    if taker_total_collateral < taker_margin_requirement.cast()? {
+    if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
             "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            taker_margin_requirement,
-            taker_total_collateral
+            taker_margin_calculation.margin_requirement,
+            taker_margin_calculation.total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
     }
 
     if let Some(maker) = maker {
-        let (maker_margin_requirement, maker_total_collateral, _, _) =
-            calculate_margin_requirement_and_total_collateral(
+        let maker_margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
                 maker,
                 perp_market_map,
-                MarginRequirementType::Fill,
                 spot_market_map,
                 oracle_map,
-                None,
+                MarginContext::standard(MarginRequirementType::Fill),
             )?;
 
-        if maker_total_collateral < maker_margin_requirement.cast()? {
+        if !maker_margin_calculation.meets_margin_requirement() {
             msg!(
                 "maker ({}) breached maintenance requirements (margin requirement {}) (total_collateral {})",
                 maker_key.safe_unwrap()?,
-                maker_margin_requirement,
-                maker_total_collateral
+                maker_margin_calculation.margin_requirement,
+                maker_margin_calculation.total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
@@ -3869,6 +3872,7 @@ pub fn fulfill_spot_order_with_match(
         false,
         &None,
         &MarketType::Spot,
+        0,
     )?;
 
     // Update taker state
@@ -4217,6 +4221,7 @@ pub fn fulfill_spot_order_with_external_market(
         external_market_fee,
         unsettled_referrer_rebate,
         fee_pool_amount.cast()?,
+        0,
     )?;
 
     let quote_spot_position_delta = match quote_update_direction {
@@ -4411,6 +4416,14 @@ pub fn trigger_spot_order(
         &spot_market.oracle,
         spot_market.historical_oracle_data.last_oracle_price_twap,
     )?;
+    let strict_oracle_price = StrictOraclePrice {
+        current: oracle_price_data.price,
+        twap_5min: Some(
+            spot_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
+        ),
+    };
 
     validate!(
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::TriggerOrder))?,
@@ -4426,6 +4439,18 @@ pub fn trigger_spot_order(
         oracle_price.unsigned_abs().cast()?,
     )?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
+
+    let position_index = user.get_spot_position_index(market_index)?;
+    let signed_token_amount =
+        user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
+
+    let worst_case_simulation_before = user.spot_positions[position_index]
+        .get_worst_case_token_amount(
+            &spot_market,
+            &strict_oracle_price,
+            Some(signed_token_amount),
+            MarginRequirementType::Initial,
+        )?;
 
     {
         let direction = user.orders[order_index].direction;
@@ -4492,42 +4517,42 @@ pub fn trigger_spot_order(
 
     emit!(order_action_record);
 
-    let position_index = user.get_spot_position_index(market_index)?;
-    let signed_token_amount = user.spot_positions[position_index]
-        .get_signed_token_amount(&spot_market)?
-        .cast::<i64>()?;
+    let worst_case_simulation_after = user
+        .get_spot_position(market_index)?
+        .get_worst_case_token_amount(
+            &spot_market,
+            &strict_oracle_price,
+            Some(signed_token_amount),
+            MarginRequirementType::Initial,
+        )?;
 
     drop(spot_market);
     drop(quote_market);
 
-    // If order is position increasing and user is below initial margin, cancel it
-    let direction = user.orders[order_index].direction;
-    let order_base_asset_amount_unfilled =
-        user.orders[order_index].get_base_asset_amount_unfilled(Some(signed_token_amount))?;
-    let is_risk_increasing = is_order_risk_increasing(
-        &direction,
-        order_base_asset_amount_unfilled,
-        signed_token_amount,
-    )?;
+    let is_risk_increasing =
+        worst_case_simulation_before.risk_increasing(worst_case_simulation_after);
 
-    let meets_initial_margin_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    // If order is risk increasing and user is below initial margin, cancel it
+    if is_risk_increasing && !user.orders[order_index].reduce_only {
+        let meets_initial_margin_requirement =
+            meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
 
-    if is_risk_increasing && !meets_initial_margin_requirement {
-        cancel_order(
-            order_index,
-            user,
-            &user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            now,
-            slot,
-            OrderActionExplanation::InsufficientFreeCollateral,
-            Some(&filler_key),
-            0,
-            false,
-        )?;
+        if !meets_initial_margin_requirement {
+            cancel_order(
+                order_index,
+                user,
+                &user_key,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                now,
+                slot,
+                OrderActionExplanation::InsufficientFreeCollateral,
+                Some(&filler_key),
+                0,
+                false,
+            )?;
+        }
     }
 
     user.update_last_active_slot(slot);

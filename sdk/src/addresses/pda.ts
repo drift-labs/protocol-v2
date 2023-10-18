@@ -214,3 +214,12 @@ export function getReferrerNamePublicKeySync(
 		programId
 	)[0];
 }
+
+export function getProtocolIfSharesTransferConfigPublicKey(
+	programId: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from(anchor.utils.bytes.utf8.encode('if_shares_transfer_config'))],
+		programId
+	)[0];
+}

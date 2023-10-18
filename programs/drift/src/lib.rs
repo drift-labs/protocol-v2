@@ -497,6 +497,14 @@ pub mod drift {
         handle_remove_insurance_fund_stake(ctx, market_index)
     }
 
+    pub fn transfer_protocol_if_shares(
+        ctx: Context<TransferProtocolIfShares>,
+        market_index: u16,
+        shares: u128,
+    ) -> Result<()> {
+        handle_transfer_protocol_if_shares(ctx, market_index, shares)
+    }
+
     // Admin Instructions
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -777,6 +785,16 @@ pub mod drift {
         handle_update_spot_market_max_token_deposits(ctx, max_token_deposits)
     }
 
+    pub fn update_spot_market_scale_initial_asset_weight_start(
+        ctx: Context<AdminUpdateSpotMarket>,
+        scale_initial_asset_weight_start: u64,
+    ) -> Result<()> {
+        handle_update_spot_market_scale_initial_asset_weight_start(
+            ctx,
+            scale_initial_asset_weight_start,
+        )
+    }
+
     pub fn update_spot_market_oracle(
         ctx: Context<AdminUpdateSpotMarketOracle>,
         oracle: Pubkey,
@@ -1000,6 +1018,13 @@ pub mod drift {
         handle_update_perp_market_max_open_interest(ctx, max_open_interest)
     }
 
+    pub fn update_perp_market_fee_adjustment(
+        ctx: Context<AdminUpdatePerpMarket>,
+        fee_adjustment: i16,
+    ) -> Result<()> {
+        handle_update_perp_market_fee_adjustment(ctx, fee_adjustment)
+    }
+
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         handle_update_admin(ctx, admin)
     }
@@ -1045,6 +1070,24 @@ pub mod drift {
         amount: u64,
     ) -> Result<()> {
         handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
+    }
+
+    pub fn initialize_protocol_if_shares_transfer_config(
+        ctx: Context<InitializeProtocolIfSharesTransferConfig>,
+    ) -> Result<()> {
+        handle_initialize_protocol_if_shares_transfer_config(ctx)
+    }
+
+    pub fn update_protocol_if_shares_transfer_config(
+        ctx: Context<UpdateProtocolIfSharesTransferConfig>,
+        whitelisted_signers: Option<[Pubkey; 4]>,
+        max_transfer_per_epoch: Option<u128>,
+    ) -> Result<()> {
+        handle_update_protocol_if_shares_transfer_config(
+            ctx,
+            whitelisted_signers,
+            max_transfer_per_epoch,
+        )
     }
 }
 

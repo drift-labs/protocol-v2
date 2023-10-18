@@ -471,12 +471,19 @@ export function calculateVolSpreadBN(
 		clampMax
 	);
 
+	// only consider confidence interval at full value when above 25 bps
+	let confComponent = lastOracleConfPct;
+
+	if (lastOracleConfPct.lte(PRICE_PRECISION.div(new BN(400)))) {
+		confComponent = lastOracleConfPct.div(new BN(10));
+	}
+
 	const longVolSpread = BN.max(
-		lastOracleConfPct,
+		confComponent,
 		volSpread.mul(longVolSpreadFactor).div(PERCENTAGE_PRECISION)
 	);
 	const shortVolSpread = BN.max(
-		lastOracleConfPct,
+		confComponent,
 		volSpread.mul(shortVolSpreadFactor).div(PERCENTAGE_PRECISION)
 	);
 

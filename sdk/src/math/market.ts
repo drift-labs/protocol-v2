@@ -129,17 +129,22 @@ export function calculateOracleSpread(
 export function calculateMarketMarginRatio(
 	market: PerpMarketAccount,
 	size: BN,
-	marginCategory: MarginCategory
+	marginCategory: MarginCategory,
+	customMarginRatio = 0
 ): number {
 	let marginRatio;
 	switch (marginCategory) {
 		case 'Initial': {
-			marginRatio = calculateSizePremiumLiabilityWeight(
-				size,
-				new BN(market.imfFactor),
-				new BN(market.marginRatioInitial),
-				MARGIN_PRECISION
-			).toNumber();
+			// use lowest leverage between max allowed and optional user custom max
+			marginRatio = Math.max(
+				calculateSizePremiumLiabilityWeight(
+					size,
+					new BN(market.imfFactor),
+					new BN(market.marginRatioInitial),
+					MARGIN_PRECISION
+				).toNumber(),
+				customMarginRatio
+			);
 			break;
 		}
 		case 'Maintenance': {
@@ -279,27 +284,22 @@ export function calculateAvailablePerpLiquidity(
 
 	asks = asks.abs();
 
-	const bidPrice = calculateBidPrice(market, oraclePriceData);
-	const askPrice = calculateAskPrice(market, oraclePriceData);
-
-	for (const bid of dlob.getMakerLimitBids(
+	for (const bid of dlob.getRestingLimitBids(
 		market.marketIndex,
 		slot,
 		MarketType.PERP,
-		oraclePriceData,
-		askPrice
+		oraclePriceData
 	)) {
 		bids = bids.add(
 			bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled)
 		);
 	}
 
-	for (const ask of dlob.getMakerLimitAsks(
+	for (const ask of dlob.getRestingLimitAsks(
 		market.marketIndex,
 		slot,
 		MarketType.PERP,
-		oraclePriceData,
-		bidPrice
+		oraclePriceData
 	)) {
 		asks = asks.add(
 			ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled)

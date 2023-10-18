@@ -13,6 +13,12 @@ import {
 	calculateAllEstimatedFundingRate,
 	calculateLongShortFundingRateAndLiveTwaps,
 	OraclePriceData,
+	getVammL2Generator,
+	BASE_PRECISION,
+	PerpMarketAccount,
+	L2Level,
+	calculateUpdatedAMM,
+	calculateMarketOpenBidAsk,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 
@@ -551,5 +557,403 @@ describe('AMM Tests', () => {
 		assert(oracleTwapLive.eq(new BN('1222586')));
 		assert(est1.eq(est2));
 		assert(est2.eq(new BN('-1550')));
+	});
+
+	it('orderbook L2 gen (no topOfBookQuoteAmounts, 10 numOrders, low liquidity)', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+
+		const mockMarket1: PerpMarketAccount = myMockPerpMarkets[0];
+		const cc = 38104569;
+		mockMarket1.amm.baseAssetReserve = new BN(cc).mul(BASE_PRECISION);
+		mockMarket1.amm.maxBaseAssetReserve = mockMarket1.amm.baseAssetReserve.add(
+			new BN(1234835)
+		);
+		mockMarket1.amm.minBaseAssetReserve =
+			mockMarket1.amm.baseAssetReserve.sub(BASE_PRECISION);
+		mockMarket1.amm.quoteAssetReserve = new BN(cc).mul(BASE_PRECISION);
+		mockMarket1.amm.pegMultiplier = new BN(18.32 * PEG_PRECISION.toNumber());
+		mockMarket1.amm.sqrtK = new BN(cc).mul(BASE_PRECISION);
+
+		const now = new BN(1688881915);
+
+		const oraclePriceData: OraclePriceData = {
+			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
+			slot: new BN(0),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
+			18.5535 * PRICE_PRECISION.toNumber()
+		);
+
+		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, oraclePriceData);
+
+		const [openBids, openAsks] = calculateMarketOpenBidAsk(
+			updatedAmm.baseAssetReserve,
+			updatedAmm.minBaseAssetReserve,
+			updatedAmm.maxBaseAssetReserve,
+			updatedAmm.orderStepSize
+		);
+
+		const generator = getVammL2Generator({
+			marketAccount: mockMarket1,
+			oraclePriceData,
+			numOrders: 10,
+			now,
+			topOfBookQuoteAmounts: [],
+		});
+
+		const bids = Array.from(generator.getL2Bids());
+		// console.log(bids);
+
+		const totalBidSize = bids.reduce((total: BN, order: L2Level) => {
+			return total.add(order.size);
+		}, ZERO);
+
+		console.log(
+			'totalBidSize:',
+			totalBidSize.toString(),
+			'openBids:',
+			openBids.toString()
+		);
+		assert(totalBidSize.sub(openBids).abs().lt(new BN(10))); // smol err
+		assert(totalBidSize.sub(openBids).lt(ZERO)); // under estimation
+
+		const asks = Array.from(generator.getL2Asks());
+		// console.log(asks);
+
+		const totalAskSize = asks.reduce((total: BN, order: L2Level) => {
+			return total.add(order.size);
+		}, ZERO);
+		console.log(
+			'totalAskSize:',
+			totalAskSize.toString(),
+			'openAsks:',
+			openAsks.toString()
+		);
+		assert(totalAskSize.sub(openAsks.abs()).lte(new BN(5))); // only tiny rounding errors
+	});
+
+	it('orderbook L2 gen (no topOfBookQuoteAmounts, 10 numOrders)', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+
+		const mockMarket1: PerpMarketAccount = myMockPerpMarkets[0];
+		const cc = 38104569;
+		mockMarket1.amm.baseAssetReserve = new BN(cc).mul(BASE_PRECISION);
+		mockMarket1.amm.maxBaseAssetReserve = mockMarket1.amm.baseAssetReserve.mul(
+			new BN(2)
+		);
+		mockMarket1.amm.minBaseAssetReserve = mockMarket1.amm.baseAssetReserve.div(
+			new BN(2)
+		);
+		mockMarket1.amm.quoteAssetReserve = new BN(cc).mul(BASE_PRECISION);
+		mockMarket1.amm.pegMultiplier = new BN(18.32 * PEG_PRECISION.toNumber());
+		mockMarket1.amm.sqrtK = new BN(cc).mul(BASE_PRECISION);
+
+		const now = new BN(1688881915);
+
+		const oraclePriceData: OraclePriceData = {
+			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
+			slot: new BN(0),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
+			18.5535 * PRICE_PRECISION.toNumber()
+		);
+
+		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, oraclePriceData);
+
+		const [openBids, openAsks] = calculateMarketOpenBidAsk(
+			updatedAmm.baseAssetReserve,
+			updatedAmm.minBaseAssetReserve,
+			updatedAmm.maxBaseAssetReserve,
+			updatedAmm.orderStepSize
+		);
+
+		const generator = getVammL2Generator({
+			marketAccount: mockMarket1,
+			oraclePriceData,
+			numOrders: 10,
+			now,
+			topOfBookQuoteAmounts: [],
+		});
+
+		const bids = Array.from(generator.getL2Bids());
+		// console.log(bids);
+
+		const totalBidSize = bids.reduce((total: BN, order: L2Level) => {
+			return total.add(order.size);
+		}, ZERO);
+
+		console.log(
+			'totalBidSize:',
+			totalBidSize.toString(),
+			'openBids:',
+			openBids.toString()
+		);
+		assert(totalBidSize.eq(openBids));
+
+		const asks = Array.from(generator.getL2Asks());
+		// console.log(asks);
+
+		const totalAskSize = asks.reduce((total: BN, order: L2Level) => {
+			return total.add(order.size);
+		}, ZERO);
+		console.log(
+			'totalAskSize:',
+			totalAskSize.toString(),
+			'openAsks:',
+			openAsks.toString()
+		);
+		assert(totalAskSize.sub(openAsks.abs()).lte(new BN(5))); // only tiny rounding errors
+	});
+
+	it('orderbook L2 gen (4 topOfBookQuoteAmounts, 10 numOrders)', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+
+		const mockMarket1: PerpMarketAccount = myMockPerpMarkets[0];
+		const cc = 38104569;
+		mockMarket1.amm.baseAssetReserve = new BN(cc).mul(BASE_PRECISION);
+		mockMarket1.amm.maxBaseAssetReserve = mockMarket1.amm.baseAssetReserve.mul(
+			new BN(2)
+		);
+		mockMarket1.amm.minBaseAssetReserve = mockMarket1.amm.baseAssetReserve.div(
+			new BN(2)
+		);
+		mockMarket1.amm.quoteAssetReserve = new BN(cc).mul(BASE_PRECISION);
+		mockMarket1.amm.pegMultiplier = new BN(18.32 * PEG_PRECISION.toNumber());
+		mockMarket1.amm.sqrtK = new BN(cc).mul(BASE_PRECISION);
+
+		const now = new BN(1688881915);
+
+		const oraclePriceData: OraclePriceData = {
+			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
+			slot: new BN(0),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
+			18.5535 * PRICE_PRECISION.toNumber()
+		);
+
+		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, oraclePriceData);
+
+		const [openBids, openAsks] = calculateMarketOpenBidAsk(
+			updatedAmm.baseAssetReserve,
+			updatedAmm.minBaseAssetReserve,
+			updatedAmm.maxBaseAssetReserve,
+			updatedAmm.orderStepSize
+		);
+
+		assert(!openAsks.eq(openBids));
+
+		const generator = getVammL2Generator({
+			marketAccount: mockMarket1,
+			oraclePriceData,
+			numOrders: 10,
+			now,
+			topOfBookQuoteAmounts: [
+				new BN(10).mul(QUOTE_PRECISION),
+				new BN(100).mul(QUOTE_PRECISION),
+				new BN(1000).mul(QUOTE_PRECISION),
+				new BN(10000).mul(QUOTE_PRECISION),
+			],
+		});
+
+		const bids = Array.from(generator.getL2Bids());
+		// console.log(bids);
+
+		const totalBidSize = bids.reduce((total: BN, order: L2Level) => {
+			return total.add(order.size);
+		}, ZERO);
+
+		console.log(
+			'totalBidSize:',
+			totalBidSize.toString(),
+			'openBids:',
+			openBids.toString()
+		);
+		assert(totalBidSize.eq(openBids));
+
+		const asks = Array.from(generator.getL2Asks());
+		// console.log(asks);
+
+		const totalAskSize = asks.reduce((total: BN, order: L2Level) => {
+			return total.add(order.size);
+		}, ZERO);
+		console.log(
+			'totalAskSize:',
+			totalAskSize.toString(),
+			'openAsks:',
+			openAsks.toString()
+		);
+		assert(totalAskSize.sub(openAsks.abs()).lte(new BN(5))); // only tiny rounding errors
+	});
+
+	it('orderbook L2 gen (4 topOfBookQuoteAmounts, 10 numOrders, low bid liquidity)', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+
+		const mockMarket1: PerpMarketAccount = myMockPerpMarkets[0];
+		const cc = 38104569;
+		mockMarket1.amm.baseAssetReserve = new BN(cc).mul(BASE_PRECISION);
+		mockMarket1.amm.maxBaseAssetReserve =
+			mockMarket1.amm.baseAssetReserve.add(BASE_PRECISION); // only 1 base
+		mockMarket1.amm.minBaseAssetReserve = mockMarket1.amm.baseAssetReserve.div(
+			new BN(2)
+		);
+		mockMarket1.amm.quoteAssetReserve = new BN(cc).mul(BASE_PRECISION);
+		mockMarket1.amm.pegMultiplier = new BN(18.32 * PEG_PRECISION.toNumber());
+		mockMarket1.amm.sqrtK = new BN(cc).mul(BASE_PRECISION);
+
+		const now = new BN(1688881915);
+
+		const oraclePriceData: OraclePriceData = {
+			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
+			slot: new BN(0),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
+			18.5535 * PRICE_PRECISION.toNumber()
+		);
+
+		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, oraclePriceData);
+
+		const [openBids, openAsks] = calculateMarketOpenBidAsk(
+			updatedAmm.baseAssetReserve,
+			updatedAmm.minBaseAssetReserve,
+			updatedAmm.maxBaseAssetReserve,
+			updatedAmm.orderStepSize
+		);
+
+		assert(!openAsks.eq(openBids));
+
+		const generator = getVammL2Generator({
+			marketAccount: mockMarket1,
+			oraclePriceData,
+			numOrders: 10,
+			now,
+			topOfBookQuoteAmounts: [
+				new BN(10).mul(QUOTE_PRECISION),
+				new BN(100).mul(QUOTE_PRECISION),
+				new BN(1000).mul(QUOTE_PRECISION),
+				new BN(10000).mul(QUOTE_PRECISION),
+			],
+		});
+
+		const bids = Array.from(generator.getL2Bids());
+		assert(bids.length == 2);
+		console.log(bids[0].size.toString());
+		console.log(bids[1].size.toString());
+
+		const totalBidSize = bids.reduce((total: BN, order: L2Level) => {
+			return total.add(order.size);
+		}, ZERO);
+
+		console.log(
+			'totalBidSize:',
+			totalBidSize.toString(),
+			'openBids:',
+			openBids.toString()
+		);
+		assert(totalBidSize.eq(openBids));
+
+		const asks = Array.from(generator.getL2Asks());
+		// console.log(asks);
+
+		const totalAskSize = asks.reduce((total: BN, order: L2Level) => {
+			return total.add(order.size);
+		}, ZERO);
+		console.log(
+			'totalAskSize:',
+			totalAskSize.toString(),
+			'openAsks:',
+			openAsks.toString()
+		);
+		assert(totalAskSize.sub(openAsks.abs()).lte(new BN(5))); // only tiny rounding errors
+	});
+
+	it('orderbook L2 gen (4 topOfBookQuoteAmounts, 10 numOrders, low ask liquidity)', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+
+		const mockMarket1: PerpMarketAccount = myMockPerpMarkets[0];
+		const cc = 38104569;
+		mockMarket1.amm.baseAssetReserve = new BN(cc).mul(BASE_PRECISION);
+		mockMarket1.amm.maxBaseAssetReserve = mockMarket1.amm.baseAssetReserve.add(
+			BASE_PRECISION.mul(new BN(1000))
+		); // 1000 base
+		mockMarket1.amm.minBaseAssetReserve = mockMarket1.amm.baseAssetReserve.sub(
+			BASE_PRECISION.div(new BN(2))
+		); // only .5 base
+		mockMarket1.amm.quoteAssetReserve = new BN(cc).mul(BASE_PRECISION);
+		mockMarket1.amm.pegMultiplier = new BN(18.32 * PEG_PRECISION.toNumber());
+		mockMarket1.amm.sqrtK = new BN(cc).mul(BASE_PRECISION);
+
+		const now = new BN(1688881915);
+
+		const oraclePriceData: OraclePriceData = {
+			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
+			slot: new BN(0),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
+			18.5535 * PRICE_PRECISION.toNumber()
+		);
+
+		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, oraclePriceData);
+
+		const [openBids, openAsks] = calculateMarketOpenBidAsk(
+			updatedAmm.baseAssetReserve,
+			updatedAmm.minBaseAssetReserve,
+			updatedAmm.maxBaseAssetReserve,
+			updatedAmm.orderStepSize
+		);
+
+		assert(!openAsks.eq(openBids));
+
+		const generator = getVammL2Generator({
+			marketAccount: mockMarket1,
+			oraclePriceData,
+			numOrders: 10,
+			now,
+			topOfBookQuoteAmounts: [
+				new BN(10).mul(QUOTE_PRECISION),
+				new BN(100).mul(QUOTE_PRECISION),
+				new BN(1000).mul(QUOTE_PRECISION),
+				new BN(10000).mul(QUOTE_PRECISION),
+			],
+		});
+
+		const bids = Array.from(generator.getL2Bids());
+
+		const totalBidSize = bids.reduce((total: BN, order: L2Level) => {
+			return total.add(order.size);
+		}, ZERO);
+
+		console.log(
+			'totalBidSize:',
+			totalBidSize.toString(),
+			'openBids:',
+			openBids.toString()
+		);
+		assert(totalBidSize.sub(openBids).abs().lt(new BN(5)));
+
+		const asks = Array.from(generator.getL2Asks());
+		// console.log(asks);
+
+		assert(asks.length == 1);
+		console.log(asks[0].size.toString());
+		const totalAskSize = asks.reduce((total: BN, order: L2Level) => {
+			return total.add(order.size);
+		}, ZERO);
+		console.log(
+			'totalAskSize:',
+			totalAskSize.toString(),
+			'openAsks:',
+			openAsks.toString()
+		);
+		assert(totalAskSize.sub(openAsks.abs()).lte(new BN(5))); // only tiny rounding errors
 	});
 });

@@ -25,6 +25,7 @@ import {
 	getSerumOpenOrdersPublicKey,
 	getSerumFulfillmentConfigPublicKey,
 	getPhoenixFulfillmentConfigPublicKey,
+	getProtocolIfSharesTransferConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -909,6 +910,29 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async updateSpotMarketScaleInitialAssetWeightStart(
+		spotMarketIndex: number,
+		scaleInitialAssetWeightStart: BN
+	): Promise<TransactionSignature> {
+		const tx =
+			this.program.transaction.updateSpotMarketScaleInitialAssetWeightStart(
+				scaleInitialAssetWeightStart,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						spotMarket: await getSpotMarketPublicKey(
+							this.program.programId,
+							spotMarketIndex
+						),
+					},
+				}
+			);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async updateInsuranceFundUnstakingPeriod(
 		spotMarketIndex: number,
 		insuranceWithdrawEscrowPeriod: BN
@@ -1440,6 +1464,22 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketFeeAdjustment(
+		perpMarketIndex: number,
+		feeAdjustment: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketFeeAdjustment(feeAdjustment, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
 	public async updateSerumVault(
 		srmVault: PublicKey
 	): Promise<TransactionSignature> {
@@ -1489,6 +1529,37 @@ export class AdminClient extends DriftClient {
 						this.program.programId,
 						spotMarketIndex
 					),
+				},
+			}
+		);
+	}
+
+	public async initializeProtocolIfSharesTransferConfig(): Promise<TransactionSignature> {
+		return await this.program.rpc.initializeProtocolIfSharesTransferConfig({
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+				protocolIfSharesTransferConfig:
+					getProtocolIfSharesTransferConfigPublicKey(this.program.programId),
+			},
+		});
+	}
+
+	public async updateProtocolIfSharesTransferConfig(
+		whitelistedSigners?: PublicKey[],
+		maxTransferPerEpoch?: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateProtocolIfSharesTransferConfig(
+			whitelistedSigners || null,
+			maxTransferPerEpoch,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					protocolIfSharesTransferConfig:
+						getProtocolIfSharesTransferConfigPublicKey(this.program.programId),
 				},
 			}
 		);

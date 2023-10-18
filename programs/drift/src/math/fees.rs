@@ -15,6 +15,7 @@ use crate::math::safe_math::SafeMath;
 use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
+use crate::{FEE_ADJUSTMENT_MAX, QUOTE_PRECISION_U64};
 use solana_program::msg;
 
 #[cfg(test)]
@@ -41,6 +42,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     referrer_stats: &Option<&mut UserStats>,
     quote_asset_amount_surplus: i64,
     is_post_only: bool,
+    fee_adjustment: i16,
 ) -> DriftResult<FillFees> {
     let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp)?;
 
@@ -75,7 +77,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             referee_discount: 0,
         })
     } else {
-        let fee = calculate_taker_fee(quote_asset_amount, fee_tier)?;
+        let fee = calculate_taker_fee(quote_asset_amount, fee_tier, fee_adjustment)?;
 
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
             calculate_referee_fee_and_referrer_reward(
@@ -121,20 +123,60 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     }
 }
 
-fn calculate_taker_fee(quote_asset_amount: u64, fee_tier: &FeeTier) -> DriftResult<u64> {
-    quote_asset_amount
+fn calculate_taker_fee(
+    quote_asset_amount: u64,
+    fee_tier: &FeeTier,
+    fee_adjustment: i16,
+) -> DriftResult<u64> {
+    let mut taker_fee = quote_asset_amount
         .cast::<u128>()?
         .safe_mul(fee_tier.fee_numerator.cast::<u128>()?)?
         .safe_div_ceil(fee_tier.fee_denominator.cast::<u128>()?)?
-        .cast()
+        .cast::<u64>()?;
+
+    if fee_adjustment < 0 {
+        taker_fee = taker_fee.saturating_sub(
+            taker_fee
+                .safe_mul(fee_adjustment.unsigned_abs().cast()?)?
+                .safe_div(FEE_ADJUSTMENT_MAX)?,
+        );
+    } else if fee_adjustment > 0 {
+        taker_fee = taker_fee.saturating_add(
+            taker_fee
+                .safe_mul(fee_adjustment.cast()?)?
+                .safe_div_ceil(FEE_ADJUSTMENT_MAX)?,
+        );
+    }
+
+    Ok(taker_fee)
 }
 
-fn calculate_maker_rebate(quote_asset_amount: u64, fee_tier: &FeeTier) -> DriftResult<u64> {
-    quote_asset_amount
+fn calculate_maker_rebate(
+    quote_asset_amount: u64,
+    fee_tier: &FeeTier,
+    fee_adjustment: i16,
+) -> DriftResult<u64> {
+    let mut maker_fee = quote_asset_amount
         .cast::<u128>()?
         .safe_mul(fee_tier.maker_rebate_numerator as u128)?
         .safe_div(fee_tier.maker_rebate_denominator as u128)?
-        .cast()
+        .cast::<u64>()?;
+
+    if fee_adjustment < 0 {
+        maker_fee = maker_fee.saturating_sub(
+            maker_fee
+                .safe_mul(fee_adjustment.unsigned_abs().cast()?)?
+                .safe_div_ceil(FEE_ADJUSTMENT_MAX)?,
+        );
+    } else if fee_adjustment > 0 {
+        maker_fee = maker_fee.saturating_add(
+            maker_fee
+                .safe_mul(fee_adjustment.cast()?)?
+                .safe_div(FEE_ADJUSTMENT_MAX)?,
+        );
+    }
+
+    Ok(maker_fee)
 }
 
 fn calculate_referee_fee_and_referrer_reward(
@@ -221,6 +263,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     reward_referrer: bool,
     referrer_stats: &Option<&mut UserStats>,
     market_type: &MarketType,
+    fee_adjustment: i16,
 ) -> DriftResult<FillFees> {
     let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure, market_type)?;
     let maker_fee_tier = if let Some(maker_stats) = maker_stats {
@@ -229,7 +272,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         determine_user_fee_tier(taker_stats, fee_structure, market_type)?
     };
 
-    let taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier)?;
+    let taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, fee_adjustment)?;
 
     let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
         calculate_referee_fee_and_referrer_reward(
@@ -242,7 +285,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         (taker_fee, 0, 0)
     };
 
-    let maker_rebate = calculate_maker_rebate(quote_asset_amount, maker_fee_tier)?;
+    let maker_rebate = calculate_maker_rebate(quote_asset_amount, maker_fee_tier, fee_adjustment)?;
 
     let filler_reward = if filler_multiplier == 0 {
         0_u64
@@ -291,10 +334,11 @@ pub fn calculate_fee_for_fulfillment_with_external_market(
     external_market_fee: u64,
     unsettled_referrer_rebate: u64,
     fee_pool_amount: u64,
+    fee_adjustment: i16,
 ) -> DriftResult<ExternalFillFees> {
     let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot)?;
 
-    let fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier)?;
+    let fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, fee_adjustment)?;
 
     let fee_plus_referrer_rebate = external_market_fee.safe_add(unsettled_referrer_rebate)?;
 
@@ -358,27 +402,31 @@ fn determine_perp_fee_tier<'a>(
     let staked_quote_asset_amount = user_stats.if_staked_quote_asset_amount;
 
     if total_30d_volume >= ONE_HUNDRED_MILLION_QUOTE
-        || staked_quote_asset_amount >= TEN_THOUSAND_QUOTE
+        || staked_quote_asset_amount >= TEN_THOUSAND_QUOTE - QUOTE_PRECISION_U64
     {
         return Ok(&fee_structure.fee_tiers[5]);
     }
 
     if total_30d_volume >= FIFTY_MILLION_QUOTE
-        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 5
+        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 5 - QUOTE_PRECISION_U64
     {
         return Ok(&fee_structure.fee_tiers[4]);
     }
 
-    if total_30d_volume >= TEN_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 2
+    if total_30d_volume >= TEN_MILLION_QUOTE
+        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 2 - QUOTE_PRECISION_U64
     {
         return Ok(&fee_structure.fee_tiers[3]);
     }
 
-    if total_30d_volume >= FIVE_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE {
+    if total_30d_volume >= FIVE_MILLION_QUOTE
+        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64
+    {
         return Ok(&fee_structure.fee_tiers[2]);
     }
 
-    if total_30d_volume >= ONE_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE / 2
+    if total_30d_volume >= ONE_MILLION_QUOTE
+        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE / 2 - QUOTE_PRECISION_U64
     {
         return Ok(&fee_structure.fee_tiers[1]);
     }

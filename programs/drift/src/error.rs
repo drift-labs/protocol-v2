@@ -515,6 +515,8 @@ pub enum ErrorCode {
     CantUpdatePerpBidAskTwap,
     #[msg("UserReduceOnly")]
     UserReduceOnly,
+    #[msg("InvalidMarginCalculation")]
+    InvalidMarginCalculation,
 }
 
 #[macro_export]

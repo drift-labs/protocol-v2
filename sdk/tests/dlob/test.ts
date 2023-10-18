@@ -23,7 +23,6 @@ import {
 	convertToNumber,
 	QUOTE_PRECISION,
 	isVariant,
-	TWO,
 } from '../../src';
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
@@ -3669,78 +3668,7 @@ describe('DLOB Perp Tests', () => {
 			vBid
 		);
 
-		expect(nodesToFillBefore.length).to.equal(0);
-
-		// insert a sell right above amm bid
-		insertOrderToDLOB(
-			dlob,
-			user0.publicKey,
-			OrderType.LIMIT,
-			MarketType.PERP,
-			5, // orderId
-			marketIndex,
-			vBid.add(PRICE_PRECISION.div(TWO)),
-			new BN(1).mul(BASE_PRECISION), // quantity
-			PositionDirection.SHORT,
-			ZERO,
-			ZERO,
-			new BN(slot),
-			new BN(200),
-			undefined,
-			undefined,
-			0
-		);
-
-		// insert a buy below the amm ask
-		insertOrderToDLOB(
-			dlob,
-			user1.publicKey,
-			OrderType.LIMIT,
-			MarketType.PERP,
-			6, // orderId
-			marketIndex,
-			vAsk.sub(PRICE_PRECISION.div(TWO)), // price,
-			new BN(8768).mul(BASE_PRECISION).div(new BN(10000)), // quantity
-			PositionDirection.LONG,
-			ZERO,
-			ZERO,
-			new BN(slot),
-			undefined,
-			undefined,
-			undefined,
-			0
-		);
-
-		const nodesToFillAfter = dlob.findTakingNodesToFill(
-			marketIndex,
-			slot,
-			MarketType.PERP,
-			oracle,
-			false,
-			10,
-			vAsk,
-			vBid
-		);
-
-		expect(nodesToFillAfter.length).to.equal(2);
-
-		expect(
-			nodesToFillAfter[0].node.order?.orderId,
-			'wrong taker orderId'
-		).to.equal(4);
-		expect(
-			nodesToFillAfter[0].makerNodes[0]?.order?.orderId,
-			'wrong maker orderId'
-		).to.equal(6);
-
-		expect(
-			nodesToFillAfter[1].node.order?.orderId,
-			'wrong taker orderId'
-		).to.equal(2);
-		expect(
-			nodesToFillAfter[1].makerNodes[0]?.order?.orderId,
-			'wrong maker orderId'
-		).to.equal(5);
+		expect(nodesToFillBefore.length).to.equal(2);
 	});
 
 	it('Test limit bid fills during auction', () => {
