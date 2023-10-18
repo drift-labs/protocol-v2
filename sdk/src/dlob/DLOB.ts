@@ -1146,37 +1146,6 @@ export class DLOB {
 		);
 	}
 
-	/**
-	 * Filters the limit asks that are resting and do not cross fallback bid
-	 * Taking orders can only fill against orders that meet this criteria
-	 *
-	 * @returns
-	 */
-	*getMakerLimitAsks(
-		marketIndex: number,
-		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
-		fallbackBid?: BN
-	): Generator<DLOBNode> {
-		const isPerpMarket = isVariant(marketType, 'perp');
-		for (const node of this.getRestingLimitAsks(
-			marketIndex,
-			slot,
-			marketType,
-			oraclePriceData
-		)) {
-			if (
-				isPerpMarket &&
-				fallbackBid &&
-				node.getPrice(oraclePriceData, slot).lte(fallbackBid)
-			) {
-				continue;
-			}
-			yield node;
-		}
-	}
-
 	*getRestingLimitBids(
 		marketIndex: number,
 		slot: number,
@@ -1211,37 +1180,6 @@ export class DLOB {
 					.gt(currentNode.getPrice(oraclePriceData, slot));
 			}
 		);
-	}
-
-	/**
-	 * Filters the limit bids that are post only, have been place for sufficiently long or are below the fallback ask
-	 * Market orders can only fill against orders that meet this criteria
-	 *
-	 * @returns
-	 */
-	*getMakerLimitBids(
-		marketIndex: number,
-		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
-		fallbackAsk?: BN
-	): Generator<DLOBNode> {
-		const isPerpMarket = isVariant(marketType, 'perp');
-		for (const node of this.getRestingLimitBids(
-			marketIndex,
-			slot,
-			marketType,
-			oraclePriceData
-		)) {
-			if (
-				isPerpMarket &&
-				fallbackAsk &&
-				node.getPrice(oraclePriceData, slot).gte(fallbackAsk)
-			) {
-				continue;
-			}
-			yield node;
-		}
 	}
 
 	*getAsks(
