@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+use std::cmp::max;
 
 use anchor_lang::prelude::*;
 use solana_program::clock::UnixTimestamp;
@@ -228,10 +228,8 @@ pub fn update_funding_rate(
 
         // clamp price divergence to 3% for funding rate calculation
         let max_price_spread = oracle_price_twap.safe_div(33)?; // 3%
-        let clamped_price_spread = max(
-            -max_price_spread,
-            min(price_spread_with_offset, max_price_spread),
-        );
+        let clamped_price_spread =
+            price_spread_with_offset.clamp(-max_price_spread, max_price_spread);
 
         let funding_rate = clamped_price_spread
             .cast::<i128>()?
