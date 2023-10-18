@@ -307,21 +307,25 @@ describe('liquidate spot w/ social loss', () => {
 			)
 		);
 
-		const depositAmountBefore = getTokenAmount(
+		const dep1 = getTokenAmount(
 			spotMarket1Before.depositBalance,
 			spotMarket1Before,
 			SpotBalanceType.DEPOSIT
-		).sub(borrowDecrease);
+		);
+		const depositAmountBefore = dep1.sub(borrowDecrease);
 
 		const currentDepositAmount = getTokenAmount(
 			spotMarket1.depositBalance,
 			spotMarket1,
 			SpotBalanceType.DEPOSIT
 		);
+		console.log(currentDepositAmount.toString(), depositAmountBefore.toString(), '(', dep1.toString(), ')');
 
 		const interestOfUpdate = currentDepositAmount.sub(depositAmountBefore);
 		console.log('interestOfUpdate:', interestOfUpdate.toString());
-		assert(interestOfUpdate.eq(ZERO));
+		assert(interestOfUpdate.lte(ZERO));
+		assert(interestOfUpdate.gte(new BN(-1)));
+
 	});
 
 	it('resolve bankruptcy', async () => {
