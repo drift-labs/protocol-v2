@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add swap price bands ([#611](https://github.com/drift-labs/protocol-v2/pull/611))
+
 ### Fixes
 
 ### Breaking
