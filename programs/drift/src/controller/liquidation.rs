@@ -41,8 +41,8 @@ use crate::math::margin::{
 };
 use crate::math::oracle::DriftAction;
 use crate::math::orders::{
-    get_position_delta_for_fill, is_multiple_of_step_size, standardize_base_asset_amount,
-    standardize_base_asset_amount_ceil, validate_fill_price_within_price_bands,
+    get_position_delta_for_fill, is_multiple_of_step_size, is_oracle_too_divergent_with_twap_5min,
+    standardize_base_asset_amount, standardize_base_asset_amount_ceil,
 };
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
@@ -286,20 +286,20 @@ pub fn liquidate_perp(
         "liquidator_max_base_asset_amount must be greater or equal to the step size",
     )?;
 
-    validate_fill_price_within_price_bands(
-        oracle_price.cast()?,
-        user.perp_positions[position_index].get_direction_to_close(),
+    let oracle_price_too_divergent = is_oracle_too_divergent_with_twap_5min(
         oracle_price,
         perp_market_map
             .get_ref(&market_index)?
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min,
-        perp_market_map.get_ref(&market_index)?.margin_ratio_initial,
         state
             .oracle_guard_rails
-            .max_oracle_twap_5min_percent_divergence(),
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
     )?;
+
+    validate!(!oracle_price_too_divergent, ErrorCode::PriceBandsBreached)?;
 
     let user_base_asset_amount = user.perp_positions[position_index]
         .base_asset_amount
@@ -989,20 +989,40 @@ pub fn liquidate_spot(
         return Err(ErrorCode::InvalidLiquidation);
     }
 
-    validate_fill_price_within_price_bands(
+    let liability_oracle_too_divergent = is_oracle_too_divergent_with_twap_5min(
         liability_price.cast()?,
-        PositionDirection::Long, // liability (borrow) always closes with long
-        liability_price,
         spot_market_map
             .get_ref(&liability_market_index)?
             .historical_oracle_data
             .last_oracle_price_twap_5min,
-        spot_market_map
-            .get_ref(&liability_market_index)?
-            .get_margin_ratio(&MarginRequirementType::Initial)?,
         state
             .oracle_guard_rails
-            .max_oracle_twap_5min_percent_divergence(),
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(
+        !liability_oracle_too_divergent,
+        ErrorCode::PriceBandsBreached,
+        "liability oracle too divergent"
+    )?;
+
+    let asset_oracle_too_divergent = is_oracle_too_divergent_with_twap_5min(
+        asset_price.cast()?,
+        spot_market_map
+            .get_ref(&asset_market_index)?
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(
+        !asset_oracle_too_divergent,
+        ErrorCode::PriceBandsBreached,
+        "asset oracle too divergent"
     )?;
 
     validate_transfer_satisfies_limit_price(
