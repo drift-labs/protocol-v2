@@ -22,7 +22,6 @@ import {
 	ZERO,
 	ContractTier,
 	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
-	calculateAssetWeight,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	PRICE_PRECISION,
 } from '../../src';

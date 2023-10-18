@@ -413,12 +413,12 @@ describe('User Tests', () => {
 		// $25
 		const strictOraclePrice = new StrictOraclePrice(PRICE_PRECISION.muln(25));
 
-		let spotPosition = Object.assign({}, myMockUserAccount.spotPositions[1], {
+		const spotPosition = Object.assign({}, myMockUserAccount.spotPositions[1], {
 			marketIndex: 1,
 			openBids: new BN(100).mul(LAMPORTS_PRECISION),
 		});
 
-		let worstCase = getWorstCaseTokenAmounts(
+		const worstCase = getWorstCaseTokenAmounts(
 			spotPosition,
 			solMarket,
 			strictOraclePrice,
@@ -433,7 +433,7 @@ describe('User Tests', () => {
 		myMockUserAccount.maxMarginRatio = MARGIN_PRECISION.toNumber(); // max 1x pls
 
 
-		let worstCaseAfter = getWorstCaseTokenAmounts(
+		const worstCaseAfter = getWorstCaseTokenAmounts(
 			spotPosition,
 			solMarket,
 			strictOraclePrice,
@@ -480,7 +480,6 @@ describe('User Tests', () => {
 
 		assert(mockUser.getFreeCollateral().gt(ZERO));
 
-		let uA = mockUser.getUserAccount();
 		let iLev = mockUser.getMaxLeverageForPerp(0, 'Initial').toNumber();
 		let mLev = mockUser.getMaxLeverageForPerp(0, 'Maintenance').toNumber();
 		console.log(iLev, mLev);
@@ -496,7 +495,6 @@ describe('User Tests', () => {
 			[1, 1, 1, 1, 1, 1, 1, 1],
 			[1, 1, 1, 1, 1, 1, 1, 1]
 		);
-		uA = mockUser2.getUserAccount();
 		iLev = mockUser2.getMaxLeverageForPerp(0, 'Initial').toNumber();
 		mLev = mockUser2.getMaxLeverageForPerp(0, 'Maintenance').toNumber();
 		console.log(iLev, mLev);
@@ -504,5 +502,5 @@ describe('User Tests', () => {
 		assert(iLev == 2000);
 		assert(mLev == 10000);
 
-	})
+	});
 });
