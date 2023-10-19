@@ -8384,6 +8384,23 @@
       }
     },
     {
+      "name": "FillMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Fill"
+          },
+          {
+            "name": "PlaceAndMake"
+          },
+          {
+            "name": "PlaceAndTake"
+          }
+        ]
+      }
+    },
+    {
       "name": "PerpFulfillmentMethod",
       "type": {
         "kind": "enum",

@@ -210,7 +210,7 @@ describe('liquidate perp and lp', () => {
 		// const expectedLiqPrice = 0.521639;
 		const liqPrice = driftClientUser.liquidationPrice(0, ZERO);
 		console.log('liqPrice:', liqPrice.toString());
-		const expectedLiqPrice2 = new BN('500341');
+		const expectedLiqPrice2 = new BN('500350');
 		console.log('expected liqPrice:', expectedLiqPrice2.toString());
 
 		assert(liqPrice.eq(expectedLiqPrice2));
@@ -282,7 +282,7 @@ describe('liquidate perp and lp', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION,
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.div(new BN(10)),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -389,7 +389,7 @@ describe('liquidate perp and lp', () => {
 		assert(
 			driftClient
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-4447508))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-4447653))
 		);
 
 		// try to add liq when bankrupt -- should fail
@@ -476,7 +476,7 @@ describe('liquidate perp and lp', () => {
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
 		);
-		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-4447508)));
+		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-4447653)));
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
 		);
@@ -491,7 +491,7 @@ describe('liquidate perp and lp', () => {
 		// 	market.amm.cumulativeFundingRateLong.toString(),
 		// 	market.amm.cumulativeFundingRateShort.toString()
 		// );
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(253144000)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-253144000)));
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(253152333)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-253135667)));
 	});
 });

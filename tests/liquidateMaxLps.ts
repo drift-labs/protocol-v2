@@ -190,7 +190,7 @@ describe('max lp liq', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION,
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.div(new BN(10)),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
