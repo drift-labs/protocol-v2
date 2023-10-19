@@ -568,7 +568,8 @@ describe('AMM Tests', () => {
 		mockMarket1.amm.maxBaseAssetReserve = mockMarket1.amm.baseAssetReserve.add(
 			new BN(1234835)
 		);
-		mockMarket1.amm.minBaseAssetReserve = mockMarket1.amm.baseAssetReserve.sub(BASE_PRECISION);
+		mockMarket1.amm.minBaseAssetReserve =
+			mockMarket1.amm.baseAssetReserve.sub(BASE_PRECISION);
 		mockMarket1.amm.quoteAssetReserve = new BN(cc).mul(BASE_PRECISION);
 		mockMarket1.amm.pegMultiplier = new BN(18.32 * PEG_PRECISION.toNumber());
 		mockMarket1.amm.sqrtK = new BN(cc).mul(BASE_PRECISION);
@@ -790,14 +791,14 @@ describe('AMM Tests', () => {
 		assert(totalAskSize.sub(openAsks.abs()).lte(new BN(5))); // only tiny rounding errors
 	});
 
-
 	it('orderbook L2 gen (4 topOfBookQuoteAmounts, 10 numOrders, low bid liquidity)', async () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 
 		const mockMarket1: PerpMarketAccount = myMockPerpMarkets[0];
 		const cc = 38104569;
 		mockMarket1.amm.baseAssetReserve = new BN(cc).mul(BASE_PRECISION);
-		mockMarket1.amm.maxBaseAssetReserve = mockMarket1.amm.baseAssetReserve.add(BASE_PRECISION); // only 1 base
+		mockMarket1.amm.maxBaseAssetReserve =
+			mockMarket1.amm.baseAssetReserve.add(BASE_PRECISION); // only 1 base
 		mockMarket1.amm.minBaseAssetReserve = mockMarket1.amm.baseAssetReserve.div(
 			new BN(2)
 		);
@@ -873,14 +874,15 @@ describe('AMM Tests', () => {
 		assert(totalAskSize.sub(openAsks.abs()).lte(new BN(5))); // only tiny rounding errors
 	});
 
-
 	it('orderbook L2 gen (4 topOfBookQuoteAmounts, 10 numOrders, low ask liquidity)', async () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 
 		const mockMarket1: PerpMarketAccount = myMockPerpMarkets[0];
 		const cc = 38104569;
 		mockMarket1.amm.baseAssetReserve = new BN(cc).mul(BASE_PRECISION);
-		mockMarket1.amm.maxBaseAssetReserve = mockMarket1.amm.baseAssetReserve.add(BASE_PRECISION.mul(new BN(1000))); // 1000 base
+		mockMarket1.amm.maxBaseAssetReserve = mockMarket1.amm.baseAssetReserve.add(
+			BASE_PRECISION.mul(new BN(1000))
+		); // 1000 base
 		mockMarket1.amm.minBaseAssetReserve = mockMarket1.amm.baseAssetReserve.sub(
 			BASE_PRECISION.div(new BN(2))
 		); // only .5 base

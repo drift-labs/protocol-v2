@@ -30,7 +30,7 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
 use crate::math::spot_swap;
-use crate::math::spot_swap::calculate_swap_price;
+use crate::math::spot_swap::{calculate_swap_price, validate_price_bands_for_swap};
 use crate::math_error;
 use crate::print_error;
 use crate::safe_decrement;
@@ -2856,6 +2856,18 @@ pub fn handle_end_swap(
             && in_spot_market.flash_loan_amount == 0,
         ErrorCode::InvalidSwap,
         "end_swap ended in invalid state"
+    )?;
+
+    validate_price_bands_for_swap(
+        &in_spot_market,
+        &out_spot_market,
+        amount_in,
+        amount_out,
+        in_oracle_price,
+        out_oracle_price,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence(),
     )?;
 
     Ok(())

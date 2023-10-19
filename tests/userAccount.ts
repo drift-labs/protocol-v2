@@ -28,7 +28,6 @@ import {
 	convertToNumber,
 	calculatePrice,
 	AMM_RESERVE_PRECISION,
-	MarketType,
 } from '../sdk/src';
 import { BulkAccountLoader } from '../sdk';
 
@@ -270,7 +269,6 @@ describe('User Account', () => {
 
 		const marketMarginRatio = calculateMarketMarginRatio(
 			market,
-			MarketType.PERP,
 			worstCaseBaseAssetAmount.abs(),
 			'Maintenance'
 		);

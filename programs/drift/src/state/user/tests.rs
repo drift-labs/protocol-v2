@@ -1382,6 +1382,119 @@ mod get_worst_case_token_amount {
     }
 }
 
+mod apply_user_custom_margin_ratio {
+    use crate::math::constants::{PRICE_PRECISION_I64, QUOTE_PRECISION_I128};
+    use crate::state::spot_market::SpotMarket;
+    use crate::state::user::OrderFillSimulation;
+    use crate::MARGIN_PRECISION;
+
+    #[test]
+    fn test() {
+        let sol = SpotMarket::default_base_market();
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let custom_margin_ratio = MARGIN_PRECISION / 2; // 2x
+        let deposit = OrderFillSimulation {
+            token_value: 100 * QUOTE_PRECISION_I128,
+            weighted_token_value: 80 * QUOTE_PRECISION_I128,
+            free_collateral_contribution: 80 * QUOTE_PRECISION_I128,
+            ..OrderFillSimulation::default()
+        };
+
+        let expected = OrderFillSimulation {
+            token_value: 100 * QUOTE_PRECISION_I128,
+            weighted_token_value: 50 * QUOTE_PRECISION_I128,
+            free_collateral_contribution: 50 * QUOTE_PRECISION_I128,
+            ..OrderFillSimulation::default()
+        };
+
+        let actual = deposit
+            .apply_user_custom_margin_ratio(&sol, oracle_price, custom_margin_ratio)
+            .unwrap();
+
+        assert_eq!(actual, expected);
+
+        let borrow = OrderFillSimulation {
+            token_value: -100 * QUOTE_PRECISION_I128,
+            weighted_token_value: -120 * QUOTE_PRECISION_I128,
+            free_collateral_contribution: -120 * QUOTE_PRECISION_I128,
+            ..OrderFillSimulation::default()
+        };
+
+        let expected = OrderFillSimulation {
+            token_value: -100 * QUOTE_PRECISION_I128,
+            weighted_token_value: -150 * QUOTE_PRECISION_I128,
+            free_collateral_contribution: -150 * QUOTE_PRECISION_I128,
+            ..OrderFillSimulation::default()
+        };
+
+        let actual = borrow
+            .apply_user_custom_margin_ratio(&sol, oracle_price, custom_margin_ratio)
+            .unwrap();
+
+        assert_eq!(actual, expected);
+
+        let bid = OrderFillSimulation {
+            token_value: 100 * QUOTE_PRECISION_I128,
+            weighted_token_value: 80 * QUOTE_PRECISION_I128,
+            orders_value: -100 * QUOTE_PRECISION_I128,
+            free_collateral_contribution: -20 * QUOTE_PRECISION_I128,
+            ..OrderFillSimulation::default()
+        };
+
+        let expected = OrderFillSimulation {
+            token_value: 100 * QUOTE_PRECISION_I128,
+            weighted_token_value: 50 * QUOTE_PRECISION_I128,
+            free_collateral_contribution: -50 * QUOTE_PRECISION_I128,
+            orders_value: -100 * QUOTE_PRECISION_I128,
+            ..OrderFillSimulation::default()
+        };
+
+        let actual = bid
+            .apply_user_custom_margin_ratio(&sol, oracle_price, custom_margin_ratio)
+            .unwrap();
+
+        assert_eq!(actual, expected);
+
+        let ask = OrderFillSimulation {
+            token_value: -100 * QUOTE_PRECISION_I128,
+            weighted_token_value: -120 * QUOTE_PRECISION_I128,
+            free_collateral_contribution: -20 * QUOTE_PRECISION_I128,
+            orders_value: 100 * QUOTE_PRECISION_I128,
+            ..OrderFillSimulation::default()
+        };
+
+        let expected = OrderFillSimulation {
+            token_value: -100 * QUOTE_PRECISION_I128,
+            weighted_token_value: -150 * QUOTE_PRECISION_I128,
+            free_collateral_contribution: -50 * QUOTE_PRECISION_I128,
+            orders_value: 100 * QUOTE_PRECISION_I128,
+            ..OrderFillSimulation::default()
+        };
+
+        let actual = ask
+            .apply_user_custom_margin_ratio(&sol, oracle_price, custom_margin_ratio)
+            .unwrap();
+
+        assert_eq!(actual, expected);
+
+        let no_custom_margin_ratio = OrderFillSimulation {
+            token_value: -100 * QUOTE_PRECISION_I128,
+            weighted_token_value: -120 * QUOTE_PRECISION_I128,
+            free_collateral_contribution: -20 * QUOTE_PRECISION_I128,
+            orders_value: 100 * QUOTE_PRECISION_I128,
+            ..OrderFillSimulation::default()
+        };
+
+        let expected = no_custom_margin_ratio;
+
+        let actual = no_custom_margin_ratio
+            .apply_user_custom_margin_ratio(&sol, oracle_price, 0)
+            .unwrap();
+
+        assert_eq!(actual, expected);
+    }
+}
+
 mod get_base_asset_amount_unfilled {
     use crate::controller::position::PositionDirection;
     use crate::state::user::Order;

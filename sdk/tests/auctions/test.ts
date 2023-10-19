@@ -1,9 +1,8 @@
-import {PRICE_PRECISION, BN, deriveOracleAuctionParams} from "../../src";
-import {assert} from "chai";
-import {PositionDirection} from "../../lib";
+import { PRICE_PRECISION, BN, deriveOracleAuctionParams } from '../../src';
+import { assert } from 'chai';
+import { PositionDirection } from '../../lib';
 
 describe('Auction Tests', () => {
-
 	it('deriveOracleAuctionParams', async () => {
 		let oraclePrice = new BN(100).mul(PRICE_PRECISION);
 		let auctionStartPrice = new BN(90).mul(PRICE_PRECISION);
@@ -18,9 +17,15 @@ describe('Auction Tests', () => {
 			limitPrice,
 		});
 
-		assert(oracleOrderParams.auctionStartPrice.eq(new BN(-10).mul(PRICE_PRECISION)));
-		assert(oracleOrderParams.auctionEndPrice.eq(new BN(10).mul(PRICE_PRECISION)));
-		assert(oracleOrderParams.oraclePriceOffset === 20 * PRICE_PRECISION.toNumber());
+		assert(
+			oracleOrderParams.auctionStartPrice.eq(new BN(-10).mul(PRICE_PRECISION))
+		);
+		assert(
+			oracleOrderParams.auctionEndPrice.eq(new BN(10).mul(PRICE_PRECISION))
+		);
+		assert(
+			oracleOrderParams.oraclePriceOffset === 20 * PRICE_PRECISION.toNumber()
+		);
 
 		oracleOrderParams = deriveOracleAuctionParams({
 			direction: PositionDirection.LONG,
@@ -47,9 +52,15 @@ describe('Auction Tests', () => {
 			limitPrice,
 		});
 
-		assert(oracleOrderParams.auctionStartPrice.eq(new BN(10).mul(PRICE_PRECISION)));
-		assert(oracleOrderParams.auctionEndPrice.eq(new BN(-10).mul(PRICE_PRECISION)));
-		assert(oracleOrderParams.oraclePriceOffset === -20 * PRICE_PRECISION.toNumber());
+		assert(
+			oracleOrderParams.auctionStartPrice.eq(new BN(10).mul(PRICE_PRECISION))
+		);
+		assert(
+			oracleOrderParams.auctionEndPrice.eq(new BN(-10).mul(PRICE_PRECISION))
+		);
+		assert(
+			oracleOrderParams.oraclePriceOffset === -20 * PRICE_PRECISION.toNumber()
+		);
 
 		oracleOrderParams = deriveOracleAuctionParams({
 			direction: PositionDirection.SHORT,

@@ -668,9 +668,7 @@ pub fn handle_liquidate_spot(
         &mut oracle_map,
         now,
         clock.slot,
-        state.liquidation_margin_buffer_ratio,
-        state.initial_pct_to_liquidate as u128,
-        state.liquidation_duration as u128,
+        state,
     )?;
 
     Ok(())

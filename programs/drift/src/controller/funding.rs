@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+use std::cmp::max;
 
 use anchor_lang::prelude::*;
 use solana_program::clock::UnixTimestamp;
@@ -11,7 +11,9 @@ use crate::error::DriftResult;
 use crate::get_then_update_id;
 use crate::math::amm;
 use crate::math::casting::Cast;
-use crate::math::constants::{FUNDING_RATE_BUFFER, ONE_HOUR_I128, TWENTY_FOUR_HOUR};
+use crate::math::constants::{
+    FUNDING_RATE_BUFFER, FUNDING_RATE_OFFSET_DENOMINATOR, ONE_HOUR_I128, TWENTY_FOUR_HOUR,
+};
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::helpers::on_the_hour_update;
 use crate::math::safe_math::SafeMath;
@@ -217,9 +219,17 @@ pub fn update_funding_rate(
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
         let price_spread = mid_price_twap.cast::<i64>()?.safe_sub(oracle_price_twap)?;
 
+        // add offset 1/FUNDING_RATE_OFFSET_DENOMINATOR*365. if FUNDING_RATE_OFFSET_DENOMINATOR = 5000 => 7.3% annualized rate
+        let price_spread_with_offset = price_spread.safe_add(
+            oracle_price_twap
+                .abs()
+                .safe_div(FUNDING_RATE_OFFSET_DENOMINATOR)?,
+        )?;
+
         // clamp price divergence to 3% for funding rate calculation
         let max_price_spread = oracle_price_twap.safe_div(33)?; // 3%
-        let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
+        let clamped_price_spread =
+            price_spread_with_offset.clamp(-max_price_spread, max_price_spread);
 
         let funding_rate = clamped_price_spread
             .cast::<i128>()?
