@@ -1,4 +1,5 @@
 pub mod events;
+pub mod fill_mode;
 pub mod fulfillment;
 pub mod fulfillment_params;
 pub mod insurance_fund_stake;

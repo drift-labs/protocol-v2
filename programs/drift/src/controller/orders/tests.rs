@@ -104,6 +104,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -121,6 +125,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -218,6 +223,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -235,6 +244,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -332,6 +342,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -349,6 +363,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -446,6 +461,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -463,6 +482,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -560,6 +580,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         let (base_asset_amount, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -577,6 +601,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -640,6 +665,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         let (base_asset_amount, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -657,6 +686,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -721,6 +751,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         let (base_asset_amount, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -738,6 +772,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -802,6 +837,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         let (base_asset_amount, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -819,6 +858,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -883,6 +923,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -900,6 +944,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -984,6 +1029,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1001,6 +1050,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -1088,6 +1138,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1105,6 +1159,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -1199,6 +1254,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1216,6 +1275,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -1311,6 +1371,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1328,6 +1392,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -1447,6 +1512,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         let (base_asset_amount, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1464,6 +1533,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -1558,6 +1628,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         let (base_asset_amount, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1575,6 +1649,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -1667,6 +1742,11 @@ pub mod fulfill_order_with_maker_order {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let valid_oracle_price = Some(oracle_price);
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1684,6 +1764,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             Some(oracle_price),
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -1823,6 +1904,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             Some(oracle_price),
+            taker_price,
             now,
             slot,
             &fee_structure,
@@ -1933,6 +2015,11 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let valid_oracle_price = Some(oracle_map.get_price_data(&oracle_price_key).unwrap().price);
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1950,6 +2037,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -2088,6 +2176,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_price,
             now,
             slot,
             &fee_structure,
@@ -2193,6 +2282,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -2210,6 +2303,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -2314,6 +2408,10 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let taker_limit_price = taker.orders[0]
+            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -2331,6 +2429,7 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             0,
             None,
+            taker_limit_price,
             now,
             slot,
             &fee_structure,
@@ -2390,6 +2489,7 @@ pub mod fulfill_order {
         PRICE_PRECISION_U64, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::state::fill_mode::FillMode;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -2674,6 +2774,7 @@ pub mod fulfill_order {
             slot,
             0,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -2916,6 +3017,7 @@ pub mod fulfill_order {
             slot,
             10,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -3104,6 +3206,7 @@ pub mod fulfill_order {
             slot,
             0,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -3308,6 +3411,7 @@ pub mod fulfill_order {
             slot,
             10,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -3472,6 +3576,7 @@ pub mod fulfill_order {
             slot,
             0,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -3666,6 +3771,7 @@ pub mod fulfill_order {
             slot,
             10,
             true,
+            FillMode::Fill,
         );
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
@@ -4209,6 +4315,7 @@ pub mod fulfill_order {
             slot,
             10,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -4321,6 +4428,7 @@ pub mod fill_order {
 
     use super::*;
     use crate::error::ErrorCode;
+    use crate::state::fill_mode::FillMode;
     use crate::state::user_map::{UserMap, UserStatsMap};
 
     #[test]
@@ -4517,6 +4625,7 @@ pub mod fill_order {
             &maker_and_referrer_stats,
             None,
             &clock,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -4724,6 +4833,7 @@ pub mod fill_order {
             &maker_and_referrer_stats,
             None,
             &clock,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -4852,6 +4962,7 @@ pub mod fill_order {
             &UserStatsMap::empty(),
             None,
             &clock,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -5019,6 +5130,7 @@ pub mod fill_order {
             &UserStatsMap::empty(),
             None,
             &clock,
+            FillMode::Fill,
         );
 
         assert_eq!(err, Err(ErrorCode::MaxOpenInterest));
