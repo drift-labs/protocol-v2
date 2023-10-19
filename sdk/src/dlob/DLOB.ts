@@ -497,7 +497,8 @@ export class DLOB {
 			? stateAccount.minPerpAuctionDuration
 			: 0;
 
-		const { makerRebateNumerator, makerRebateDenominator } = this.getMakerRebate(marketType, stateAccount, marketAccount);
+		const { makerRebateNumerator, makerRebateDenominator } =
+			this.getMakerRebate(marketType, stateAccount, marketAccount);
 
 		const restingLimitOrderNodesToFill: Array<NodeToFill> =
 			this.findRestingLimitOrderNodesToFill(
@@ -554,11 +555,13 @@ export class DLOB {
 		let makerRebateNumerator: BN;
 		let makerRebateDenominator: BN;
 		if (isVariant(marketType, 'perp')) {
-			makerRebateNumerator = stateAccount.perpFeeStructure.feeTiers[0].makerRebateNumerator;
+			makerRebateNumerator =
+				stateAccount.perpFeeStructure.feeTiers[0].makerRebateNumerator;
 			makerRebateDenominator =
 				stateAccount.perpFeeStructure.feeTiers[0].makerRebateDenominator;
 		} else {
-			makerRebateNumerator = stateAccount.spotFeeStructure.feeTiers[0].makerRebateNumerator;
+			makerRebateNumerator =
+				stateAccount.spotFeeStructure.feeTiers[0].makerRebateNumerator;
 			makerRebateDenominator =
 				stateAccount.spotFeeStructure.feeTiers[0].makerRebateDenominator;
 		}
@@ -566,7 +569,7 @@ export class DLOB {
 		// @ts-ignore
 		const feeAdjustment = marketAccount.feeAdjustment || 0;
 		if (feeAdjustment !== 0) {
-			makerRebateNumerator += makerRebateNumerator * feeAdjustment / 100;
+			makerRebateNumerator += (makerRebateNumerator * feeAdjustment) / 100;
 		}
 
 		return { makerRebateNumerator, makerRebateDenominator };
@@ -616,7 +619,7 @@ export class DLOB {
 		makerRebateNumerator: number,
 		makerRebateDenominator: number,
 		fallbackAsk: BN | undefined,
-		fallbackBid: BN | undefined,
+		fallbackBid: BN | undefined
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -639,7 +642,9 @@ export class DLOB {
 				oraclePriceData
 			);
 
-			const fallbackBidWithBuffer = fallbackBid.sub(fallbackBid.muln(makerRebateNumerator).divn(makerRebateDenominator));
+			const fallbackBidWithBuffer = fallbackBid.sub(
+				fallbackBid.muln(makerRebateNumerator).divn(makerRebateDenominator)
+			);
 
 			const asksCrossingFallback = this.findNodesCrossingFallbackLiquidity(
 				marketType,
@@ -665,7 +670,9 @@ export class DLOB {
 				oraclePriceData
 			);
 
-			const fallbackAskWithBuffer = fallbackAsk.add(fallbackAsk.muln(makerRebateNumerator).divn(makerRebateDenominator));
+			const fallbackAskWithBuffer = fallbackAsk.add(
+				fallbackAsk.muln(makerRebateNumerator).divn(makerRebateDenominator)
+			);
 
 			const bidsCrossingFallback = this.findNodesCrossingFallbackLiquidity(
 				marketType,
