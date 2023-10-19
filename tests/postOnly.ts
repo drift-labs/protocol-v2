@@ -310,7 +310,12 @@ describe('post only', () => {
 		assert(position.quoteBreakEvenAmount.eq(new BN(1000200)));
 		assert(driftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(driftClient.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO));
-		assert(driftClient.getUserStats().getAccount().fees.totalFeeRebate.eq(new BN(200)));
+		assert(
+			driftClient
+				.getUserStats()
+				.getAccount()
+				.fees.totalFeeRebate.eq(new BN(200))
+		);
 
 		await fillerDriftClient.fetchAccounts();
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];

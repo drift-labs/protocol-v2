@@ -193,7 +193,7 @@ describe('liquidate perp (no open orders)', () => {
 		console.log('deltaValueToLiq:', deltaValueToLiq.toString());
 		console.log('pp.base:', pp.baseAssetAmount.toString());
 
-		const expectedLiqPrice = 0.452190;
+		const expectedLiqPrice = 0.45219;
 		const liqPrice = driftClientUser.liquidationPrice(0, ZERO);
 		console.log('liqPrice:', liqPrice.toString());
 		assert(liqPrice.eq(new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())));
