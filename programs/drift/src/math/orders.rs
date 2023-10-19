@@ -71,34 +71,8 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         return Ok((0, limit_price));
     }
 
-    let limit_price_with_buffer = if !order.post_only {
-        limit_price
-    } else if let Some(limit_price) = limit_price {
-        let mut buffer = limit_price
-            .safe_mul(fee_tier.maker_rebate_numerator.cast()?)?
-            .safe_div(fee_tier.maker_rebate_denominator.cast()?)?;
-
-        if market.fee_adjustment < 0 {
-            buffer = buffer.saturating_sub(
-                buffer
-                    .safe_mul(market.fee_adjustment.abs().cast()?)?
-                    .safe_div(FEE_ADJUSTMENT_MAX)?,
-            );
-        } else if market.fee_adjustment > 0 {
-            buffer = buffer.saturating_add(
-                buffer
-                    .safe_mul(market.fee_adjustment.cast()?)?
-                    .safe_div(FEE_ADJUSTMENT_MAX)?,
-            );
-        }
-
-        match order.direction {
-            PositionDirection::Long => Some(limit_price.safe_sub(buffer)?),
-            PositionDirection::Short => Some(limit_price.safe_add(buffer)?),
-        }
-    } else {
-        None
-    };
+    let limit_price_with_buffer =
+        calculate_limit_price_with_buffer(order, limit_price, fee_tier, market.fee_adjustment)?;
 
     let base_asset_amount = calculate_base_asset_amount_to_fill_up_to_limit_price(
         order,
@@ -109,6 +83,42 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     let max_base_asset_amount = calculate_amm_available_liquidity(&market.amm, &order.direction)?;
 
     Ok((min(base_asset_amount, max_base_asset_amount), limit_price))
+}
+
+fn calculate_limit_price_with_buffer(
+    order: &Order,
+    limit_price: Option<u64>,
+    fee_tier: &FeeTier,
+    fee_adjustment: i16,
+) -> DriftResult<Option<u64>> {
+    if !order.post_only {
+        Ok(limit_price)
+    } else if let Some(limit_price) = limit_price {
+        let mut buffer = limit_price
+            .safe_mul(fee_tier.maker_rebate_numerator.cast()?)?
+            .safe_div(fee_tier.maker_rebate_denominator.cast()?)?;
+
+        if fee_adjustment < 0 {
+            buffer = buffer.saturating_sub(
+                buffer
+                    .safe_mul(fee_adjustment.abs().cast()?)?
+                    .safe_div(FEE_ADJUSTMENT_MAX)?,
+            );
+        } else if fee_adjustment > 0 {
+            buffer = buffer.saturating_add(
+                buffer
+                    .safe_mul(fee_adjustment.cast()?)?
+                    .safe_div(FEE_ADJUSTMENT_MAX)?,
+            );
+        }
+
+        match order.direction {
+            PositionDirection::Long => limit_price.safe_sub(buffer).map(Some),
+            PositionDirection::Short => limit_price.safe_add(buffer).map(Some),
+        }
+    } else {
+        Ok(None)
+    }
 }
 
 pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(

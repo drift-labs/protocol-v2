@@ -2782,3 +2782,132 @@ pub mod find_bids_and_asks_from_users {
         assert_eq!(asks, expected_asks);
     }
 }
+
+pub mod calculate_limit_price_with_buffer {
+    use crate::math::orders::calculate_limit_price_with_buffer;
+    use crate::state::user::Order;
+    use crate::{FeeTier, PositionDirection, PRICE_PRECISION_U64};
+
+    #[test]
+    fn test() {
+        // No limit price
+        let order = Order::default();
+        let fee_tier = FeeTier::default();
+        let fee_adjustment = 0_i16;
+        let limit_price = None;
+
+        let limit_price_with_buffer =
+            calculate_limit_price_with_buffer(&order, limit_price, &fee_tier, fee_adjustment)
+                .unwrap();
+
+        assert_eq!(limit_price_with_buffer, None);
+
+        // No post only
+        let order = Order {
+            post_only: false,
+            ..Order::default()
+        };
+        let limit_price = Some(100 * PRICE_PRECISION_U64);
+        let fee_tier = FeeTier {
+            maker_rebate_numerator: 2,
+            maker_rebate_denominator: 1000,
+            ..FeeTier::default()
+        };
+
+        let limit_price_with_buffer =
+            calculate_limit_price_with_buffer(&order, limit_price, &fee_tier, fee_adjustment)
+                .unwrap();
+
+        assert_eq!(limit_price_with_buffer, limit_price);
+
+        // Post only bid
+        let order = Order {
+            post_only: true,
+            direction: PositionDirection::Long,
+            ..Order::default()
+        };
+        let limit_price = Some(100 * PRICE_PRECISION_U64);
+        let fee_tier = FeeTier {
+            maker_rebate_numerator: 2,
+            maker_rebate_denominator: 10000, // 2bps
+            ..FeeTier::default()
+        };
+
+        let limit_price_with_buffer =
+            calculate_limit_price_with_buffer(&order, limit_price, &fee_tier, fee_adjustment)
+                .unwrap();
+
+        assert_eq!(
+            limit_price_with_buffer,
+            Some(100 * PRICE_PRECISION_U64 - PRICE_PRECISION_U64 / 50) // 99.98
+        );
+
+        // Post only bid
+        let order = Order {
+            post_only: true,
+            direction: PositionDirection::Short,
+            ..Order::default()
+        };
+        let limit_price = Some(100 * PRICE_PRECISION_U64);
+        let fee_tier = FeeTier {
+            maker_rebate_numerator: 2,
+            maker_rebate_denominator: 10000, // 2bps
+            ..FeeTier::default()
+        };
+
+        let limit_price_with_buffer =
+            calculate_limit_price_with_buffer(&order, limit_price, &fee_tier, fee_adjustment)
+                .unwrap();
+
+        assert_eq!(
+            limit_price_with_buffer,
+            Some(100 * PRICE_PRECISION_U64 + PRICE_PRECISION_U64 / 50) // 99.98
+        );
+
+        // Post only bid w fee adjustment
+        let order = Order {
+            post_only: true,
+            direction: PositionDirection::Long,
+            ..Order::default()
+        };
+        let limit_price = Some(100 * PRICE_PRECISION_U64);
+        let fee_tier = FeeTier {
+            maker_rebate_numerator: 2,
+            maker_rebate_denominator: 10000, // 2bps
+            ..FeeTier::default()
+        };
+        let fee_adjustment = -75;
+
+        let limit_price_with_buffer =
+            calculate_limit_price_with_buffer(&order, limit_price, &fee_tier, fee_adjustment)
+                .unwrap();
+
+        assert_eq!(
+            limit_price_with_buffer,
+            Some(100 * PRICE_PRECISION_U64 - PRICE_PRECISION_U64 / 50 / 4) // 99.995
+        );
+
+        // Post only ask w fee adjustment
+        let order = Order {
+            post_only: true,
+            direction: PositionDirection::Short,
+            ..Order::default()
+        };
+        let limit_price = Some(100 * PRICE_PRECISION_U64);
+        let fee_tier = FeeTier {
+            maker_rebate_numerator: 2,
+            maker_rebate_denominator: 10000, // 2bps
+            ..FeeTier::default()
+        };
+        let fee_adjustment = -75;
+
+        let limit_price_with_buffer =
+            calculate_limit_price_with_buffer(&order, limit_price, &fee_tier, fee_adjustment)
+                .unwrap();
+
+        assert_eq!(
+            limit_price_with_buffer,
+            Some(100 * PRICE_PRECISION_U64 + PRICE_PRECISION_U64 / 50 / 4) // 100.005
+        );
+    }
+}

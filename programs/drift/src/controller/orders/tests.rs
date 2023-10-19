@@ -3910,6 +3910,7 @@ pub mod fulfill_order {
             slot,
             0,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
