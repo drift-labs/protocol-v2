@@ -158,7 +158,7 @@ export async function calculateAllEstimatedFundingRate(
 
 	const twapSpread = markTwap.sub(oracleTwap);
 	const twapSpreadWithOffset = twapSpread.add(
-		BN.abs(oracleTwap).div(FUNDING_RATE_OFFSET_DENOMINATOR)
+		oracleTwap.abs().div(FUNDING_RATE_OFFSET_DENOMINATOR)
 	);
 
 	const twapSpreadPct = twapSpreadWithOffset
