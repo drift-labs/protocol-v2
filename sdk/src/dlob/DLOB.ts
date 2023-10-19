@@ -552,8 +552,8 @@ export class DLOB {
 		stateAccount: StateAccount,
 		marketAccount: PerpMarketAccount | SpotMarketAccount
 	): { makerRebateNumerator: number; makerRebateDenominator: number } {
-		let makerRebateNumerator: BN;
-		let makerRebateDenominator: BN;
+		let makerRebateNumerator: number;
+		let makerRebateDenominator: number;
 		if (isVariant(marketType, 'perp')) {
 			makerRebateNumerator =
 				stateAccount.perpFeeStructure.feeTiers[0].makerRebateNumerator;
