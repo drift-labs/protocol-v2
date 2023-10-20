@@ -1,11 +1,12 @@
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
 use crate::math::margin::MarginRequirementType;
+use crate::math::orders::{calculate_fill_price, validate_fill_price_within_price_bands};
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_strict_token_value;
+use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::spot_market::SpotMarket;
-use crate::{PRICE_PRECISION, SPOT_WEIGHT_PRECISION_U128};
+use crate::{PositionDirection, PRICE_PRECISION, SPOT_WEIGHT_PRECISION_U128};
 
 #[cfg(test)]
 mod tests;
@@ -88,4 +89,59 @@ pub fn select_margin_type_for_swap(
     };
 
     Ok(margin_type)
+}
+
+pub fn validate_price_bands_for_swap(
+    in_market: &SpotMarket,
+    out_market: &SpotMarket,
+    amount_in: u64,
+    amount_out: u64,
+    in_price: i64,
+    out_price: i64,
+    oracle_twap_5min_percent_divergence: u64,
+) -> DriftResult {
+    let (fill_price, direction, oracle_price, oracle_twap_5min, margin_ratio) = {
+        let in_market_margin_ratio = in_market.get_margin_ratio(&MarginRequirementType::Initial)?;
+
+        if in_market_margin_ratio != 0 {
+            // quote value for out amount
+            let out_value = get_token_value(amount_out.cast()?, out_market.decimals, out_price)?
+                .cast::<u64>()?;
+
+            // calculate fill price in quote
+            let fill_price = calculate_fill_price(out_value, amount_in, in_market.get_precision())?;
+
+            (
+                fill_price,
+                PositionDirection::Short,
+                in_price,
+                in_market.historical_oracle_data.last_oracle_price_twap_5min,
+                in_market_margin_ratio,
+            )
+        } else {
+            let fill_price =
+                calculate_fill_price(amount_in, amount_out, out_market.get_precision())?;
+
+            (
+                fill_price,
+                PositionDirection::Long,
+                out_price,
+                out_market
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min,
+                out_market.get_margin_ratio(&MarginRequirementType::Initial)?,
+            )
+        }
+    };
+
+    validate_fill_price_within_price_bands(
+        fill_price,
+        direction,
+        oracle_price,
+        oracle_twap_5min,
+        margin_ratio,
+        oracle_twap_5min_percent_divergence,
+    )?;
+
+    Ok(())
 }

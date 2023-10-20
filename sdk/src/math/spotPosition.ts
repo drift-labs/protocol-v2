@@ -1,5 +1,6 @@
 import { MarginCategory, SpotMarketAccount, SpotPosition } from '../types';
 import {
+	QUOTE_SPOT_MARKET_INDEX,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
@@ -31,7 +32,8 @@ export function getWorstCaseTokenAmounts(
 	spotPosition: SpotPosition,
 	spotMarketAccount: SpotMarketAccount,
 	strictOraclePrice: StrictOraclePrice,
-	marginCategory: MarginCategory
+	marginCategory: MarginCategory,
+	customMarginRatio?: number
 ): OrderFillSimulation {
 	const tokenAmount = getSignedTokenAmount(
 		getTokenAmount(
@@ -54,7 +56,8 @@ export function getWorstCaseTokenAmounts(
 			tokenValue,
 			strictOraclePrice.current,
 			spotMarketAccount,
-			marginCategory
+			marginCategory,
+			customMarginRatio
 		);
 		return {
 			tokenAmount,
@@ -72,7 +75,8 @@ export function getWorstCaseTokenAmounts(
 		spotPosition.openBids,
 		strictOraclePrice,
 		spotMarketAccount,
-		marginCategory
+		marginCategory,
+		customMarginRatio
 	);
 	const asksSimulation = simulateOrderFill(
 		tokenAmount,
@@ -80,7 +84,8 @@ export function getWorstCaseTokenAmounts(
 		spotPosition.openAsks,
 		strictOraclePrice,
 		spotMarketAccount,
-		marginCategory
+		marginCategory,
+		customMarginRatio
 	);
 
 	if (
@@ -99,7 +104,8 @@ export function calculateWeightedTokenValue(
 	tokenValue: BN,
 	oraclePrice: BN,
 	spotMarket: SpotMarketAccount,
-	marginCategory: MarginCategory
+	marginCategory: MarginCategory,
+	customMarginRatio?: number
 ): { weight: BN; weightedTokenValue: BN } {
 	let weight: BN;
 	if (tokenValue.gte(ZERO)) {
@@ -117,6 +123,20 @@ export function calculateWeightedTokenValue(
 		);
 	}
 
+	if (
+		marginCategory === 'Initial' &&
+		customMarginRatio &&
+		spotMarket.marketIndex !== QUOTE_SPOT_MARKET_INDEX
+	) {
+		const userCustomAssetWeight = tokenValue.gte(ZERO)
+			? BN.max(ZERO, SPOT_MARKET_WEIGHT_PRECISION.subn(customMarginRatio))
+			: SPOT_MARKET_WEIGHT_PRECISION.addn(customMarginRatio);
+
+		weight = tokenValue.gte(ZERO)
+			? BN.min(weight, userCustomAssetWeight)
+			: BN.max(weight, userCustomAssetWeight);
+	}
+
 	return {
 		weight: weight,
 		weightedTokenValue: tokenValue
@@ -131,7 +151,8 @@ export function simulateOrderFill(
 	openOrders: BN,
 	strictOraclePrice: StrictOraclePrice,
 	spotMarket: SpotMarketAccount,
-	marginCategory: MarginCategory
+	marginCategory: MarginCategory,
+	customMarginRatio?: number
 ): OrderFillSimulation {
 	const ordersValue = getTokenValue(openOrders.neg(), spotMarket.decimals, {
 		price: strictOraclePrice.max(),
@@ -145,7 +166,8 @@ export function simulateOrderFill(
 			tokenValueAfterFill,
 			strictOraclePrice.current,
 			spotMarket,
-			marginCategory
+			marginCategory,
+			customMarginRatio
 		);
 
 	const freeCollateralContribution =

@@ -895,9 +895,14 @@ describe('insurance fund stake', () => {
 			},
 		};
 
+		await driftClient.updateLiquidationDuration(1);
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
 		await setFeedPrice(anchor.workspace.Pyth, 22500 / 10000, solOracle); // down 99.99%
 		await sleep(2000);
+
+		const state = await driftClient.getStateAccount();
+		console.log('state.liquidationDuration', state.liquidationDuration);
+		assert(state.liquidationDuration > 0);
 
 		await driftClientUser.fetchAccounts();
 
