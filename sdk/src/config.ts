@@ -26,6 +26,7 @@ type DriftConfig = {
 	PERP_MARKETS: PerpMarketConfig[];
 	SPOT_MARKETS: SpotMarketConfig[];
 	MARKET_LOOKUP_TABLE: string;
+	SERUM_LOOKUP_TABLE?: string;
 };
 
 export type DriftEnv = 'devnet' | 'mainnet-beta';
@@ -60,6 +61,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		PERP_MARKETS: MainnetPerpMarkets,
 		SPOT_MARKETS: MainnetSpotMarkets,
 		MARKET_LOOKUP_TABLE: 'D9cnvzswDikQDf53k4HpQ3KJ9y1Fv3HGGDFYMXnK5T6c',
+		SERUM_LOOKUP_TABLE: 'GPZkp76cJtNL2mphCvT6FXkJCVPpouidnacckR6rzKDN',
 	},
 };
 
