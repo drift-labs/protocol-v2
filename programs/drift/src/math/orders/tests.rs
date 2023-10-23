@@ -109,6 +109,26 @@ pub mod standardize_base_asset_amount {
     }
 }
 
+pub mod is_multiple_of_step_size {
+    use crate::math::orders::is_multiple_of_step_size;
+
+    #[test]
+    fn reduce_step_size() {
+        let base_asset_amount: u64 = 200000;
+        let step_size: u64 = 100000;
+
+        let result = is_multiple_of_step_size(base_asset_amount, step_size).unwrap();
+
+        assert!(result);
+
+        let step_size = step_size / 10;
+
+        let result = is_multiple_of_step_size(base_asset_amount, step_size).unwrap();
+
+        assert!(result);
+    }
+}
+
 mod is_order_risk_increase {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{BASE_PRECISION_I64, BASE_PRECISION_U64};
