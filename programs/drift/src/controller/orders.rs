@@ -2856,21 +2856,9 @@ pub fn place_spot_order(
     let signed_token_amount = get_signed_token_amount(token_amount, &balance_type)?;
 
     let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle)?;
-    let strict_oracle_price = StrictOraclePrice::new(
-        oracle_price_data.price,
-        spot_market
-            .historical_oracle_data
-            .last_oracle_price_twap_5min,
-        true,
-    );
 
-    let worst_case_simulation_before = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amount(
-            spot_market,
-            &strict_oracle_price,
-            Some(signed_token_amount),
-            MarginRequirementType::Initial,
-        )?;
+    let worst_case_base_asset_amount_before = user.spot_positions[spot_position_index]
+        .get_worst_case_base_asset_amount(signed_token_amount)?;
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
@@ -2983,16 +2971,12 @@ pub fn place_spot_order(
         )?;
     }
 
-    let worst_case_simulation_after = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amount(
-            spot_market,
-            &strict_oracle_price,
-            Some(signed_token_amount),
-            MarginRequirementType::Initial,
-        )?;
+    let worst_case_base_asset_amount_after = user.spot_positions[spot_position_index]
+        .get_worst_case_base_asset_amount(signed_token_amount)?;
 
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let risk_increasing = worst_case_simulation_before.risk_increasing(worst_case_simulation_after);
+    let risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
+        > worst_case_base_asset_amount_before.unsigned_abs();
 
     options.update_risk_increasing(risk_increasing);
 
@@ -4445,7 +4429,7 @@ pub fn trigger_spot_order(
         user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
 
     let worst_case_simulation_before = user.spot_positions[position_index]
-        .get_worst_case_token_amount(
+        .get_worst_case_fill_simulation(
             &spot_market,
             &strict_oracle_price,
             Some(signed_token_amount),
@@ -4519,7 +4503,7 @@ pub fn trigger_spot_order(
 
     let worst_case_simulation_after = user
         .get_spot_position(market_index)?
-        .get_worst_case_token_amount(
+        .get_worst_case_fill_simulation(
             &spot_market,
             &strict_oracle_price,
             Some(signed_token_amount),

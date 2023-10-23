@@ -566,7 +566,7 @@ impl SpotPosition {
         )
     }
 
-    pub fn get_worst_case_token_amount(
+    pub fn get_worst_case_fill_simulation(
         &self,
         spot_market: &SpotMarket,
         strict_oracle_price: &StrictOraclePrice,
@@ -671,6 +671,21 @@ impl SpotPosition {
             simulate_side(strict_oracle_price, token_amount, self.open_asks.cast()?)?;
 
         Ok([bid_simulation, ask_simulation])
+    }
+
+    /// Doesnt account for asymmetric asset/liability weights
+    /// Only useful in place_spot_order when approximating if order is risk increasing
+    /// Use get_worst_case_fill_simulation for more accurate simulation if order is risk increasing
+    pub fn get_worst_case_base_asset_amount(&self, signed_token_amount: i128) -> DriftResult<i128> {
+        let token_amount_all_bids_fill = signed_token_amount.safe_add(self.open_bids as i128)?;
+
+        let token_amount_all_asks_fill = signed_token_amount.safe_add(self.open_asks as i128)?;
+
+        if token_amount_all_bids_fill.abs() > token_amount_all_asks_fill.abs() {
+            Ok(token_amount_all_bids_fill)
+        } else {
+            Ok(token_amount_all_asks_fill)
+        }
     }
 }
 
