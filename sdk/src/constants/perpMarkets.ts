@@ -166,7 +166,7 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 	},
 	{
 		fullName: 'INJ',
-		category: ['L1', 'Echange'],
+		category: ['L1', 'Exchange'],
 		symbol: 'INJ-PERP',
 		baseAssetSymbol: 'INJ',
 		marketIndex: 15,
@@ -339,7 +339,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	},
 	{
 		fullName: 'INJ',
-		category: ['L1', 'Echange'],
+		category: ['L1', 'Exchange'],
 		symbol: 'INJ-PERP',
 		baseAssetSymbol: 'INJ',
 		marketIndex: 15,
