@@ -129,91 +129,6 @@ pub mod is_multiple_of_step_size {
     }
 }
 
-mod is_order_risk_increase {
-    use crate::controller::position::PositionDirection;
-    use crate::math::constants::{BASE_PRECISION_I64, BASE_PRECISION_U64};
-    use crate::math::orders::is_order_risk_decreasing;
-
-    #[test]
-    fn no_position() {
-        let order_direction = PositionDirection::Long;
-        let order_base_asset_amount = BASE_PRECISION_U64;
-        let existing_position = 0;
-
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-
-        let order_direction = PositionDirection::Short;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-    }
-
-    #[test]
-    fn bid() {
-        // user long and bid
-        let order_direction = PositionDirection::Long;
-        let order_base_asset_amount = BASE_PRECISION_U64;
-        let existing_position = BASE_PRECISION_I64;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-
-        // user short and bid < 2 * position
-        let existing_position = -BASE_PRECISION_I64;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(risk_decreasing);
-
-        // user short and bid = 2 * position
-        let existing_position = -BASE_PRECISION_I64 / 2;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-    }
-
-    #[test]
-    fn ask() {
-        // user short and ask
-        let order_direction = PositionDirection::Short;
-        let order_base_asset_amount = BASE_PRECISION_U64;
-        let existing_position = -BASE_PRECISION_I64;
-
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-
-        // user long and ask < 2 * position
-        let existing_position = BASE_PRECISION_I64;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(risk_decreasing);
-
-        // user long and ask = 2 * position
-        let existing_position = BASE_PRECISION_I64 / 2;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-    }
-}
-
 mod order_breaches_oracle_price_limits {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
@@ -3006,11 +2921,173 @@ pub mod is_oracle_too_divergent_with_twap_5min {
     }
 }
 
+pub mod is_new_order_risk_increasing {
+    use crate::math::orders::is_new_order_risk_increasing;
+    use crate::state::user::Order;
+    use crate::PositionDirection;
+
+    #[test]
+    fn test() {
+        // reduce only case
+        let order = Order {
+            reduce_only: true,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 0_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(!risk_increasing);
+
+        // bid with no existing position
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Long,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 0_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+
+        // bid with with existing short
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Long,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = -1_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(!risk_increasing);
+
+        // bid with with existing short and existing bid
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Long,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = -1_i64;
+        let position_bids = 1_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+
+        // ask with no existing position
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Short,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 0_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+
+        // ask with with existing long
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Short,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 1_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(!risk_increasing);
+
+        // bid with with existing short and existing bid
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Short,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 1_i64;
+        let position_bids = 0_i64;
+        let position_asks = -1_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+    }
+}
+
 pub mod get_price_for_perp_order {
     use crate::math::orders::get_price_for_perp_order;
 
+    use crate::state::order_params::PostOnlyParam;
     use crate::state::perp_market::AMM;
-    use crate::{PositionDirection, PostOnlyParam, BID_ASK_SPREAD_PRECISION_U128};
+    use crate::{PositionDirection, BID_ASK_SPREAD_PRECISION_U128};
     use crate::{AMM_RESERVE_PRECISION, PEG_PRECISION};
 
     #[test]

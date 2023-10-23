@@ -6,6 +6,7 @@ use std::u64;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
+use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
@@ -23,7 +24,8 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::instructions::{OrderParams, PlaceOrderOptions};
+use crate::get_struct_values;
+use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
 use crate::math::auction::calculate_auction_prices;
@@ -47,9 +49,9 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
-use crate::{controller, PostOnlyParam};
-use crate::{get_struct_values, ModifyOrderParams};
-use crate::{get_then_update_id, ModifyOrderPolicy};
+use crate::state::order_params::{
+    ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
+};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -181,9 +183,6 @@ pub fn place_perp_order(
     let position_index = get_position_index(&user.perp_positions, market_index)
         .or_else(|_| add_new_position(&mut user.perp_positions, market_index))?;
 
-    let worst_case_base_asset_amount_before =
-        user.perp_positions[position_index].worst_case_base_asset_amount()?;
-
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
         validate!(
@@ -279,6 +278,13 @@ pub fn place_perp_order(
         Err(err) => return Err(err),
     };
 
+    let risk_increasing = is_new_order_risk_increasing(
+        &new_order,
+        user.perp_positions[position_index].base_asset_amount,
+        user.perp_positions[position_index].open_bids,
+        user.perp_positions[position_index].open_asks,
+    )?;
+
     user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.perp_positions[position_index].open_orders += 1;
@@ -289,12 +295,6 @@ pub fn place_perp_order(
             order_base_asset_amount,
         )?;
     }
-
-    let worst_case_base_asset_amount_after =
-        user.perp_positions[position_index].worst_case_base_asset_amount()?;
-
-    let risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
-        > worst_case_base_asset_amount_before.unsigned_abs();
 
     options.update_risk_increasing(risk_increasing);
 
@@ -309,7 +309,7 @@ pub fn place_perp_order(
         )?;
     }
 
-    if force_reduce_only && risk_increasing {
+    if force_reduce_only && !user.orders[new_order_index].reduce_only {
         return Err(ErrorCode::InvalidOrderNotRiskReducing);
     }
 
@@ -2857,9 +2857,6 @@ pub fn place_spot_order(
 
     let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle)?;
 
-    let worst_case_base_asset_amount_before = user.spot_positions[spot_position_index]
-        .get_worst_case_base_asset_amount(signed_token_amount)?;
-
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
         validate!(
@@ -2960,6 +2957,13 @@ pub fn place_spot_order(
         spot_market.min_order_size,
     )?;
 
+    let risk_increasing = is_new_order_risk_increasing(
+        &new_order,
+        signed_token_amount.cast()?,
+        user.spot_positions[spot_position_index].open_bids,
+        user.spot_positions[spot_position_index].open_asks,
+    )?;
+
     user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.spot_positions[spot_position_index].open_orders += 1;
@@ -2970,13 +2974,6 @@ pub fn place_spot_order(
             order_base_asset_amount,
         )?;
     }
-
-    let worst_case_base_asset_amount_after = user.spot_positions[spot_position_index]
-        .get_worst_case_base_asset_amount(signed_token_amount)?;
-
-    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
-        > worst_case_base_asset_amount_before.unsigned_abs();
 
     options.update_risk_increasing(risk_increasing);
 
@@ -2992,7 +2989,7 @@ pub fn place_spot_order(
 
     validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
 
-    if force_reduce_only && risk_increasing {
+    if force_reduce_only && !user.orders[new_order_index].reduce_only {
         return Err(ErrorCode::InvalidOrderNotRiskReducing);
     }
 
