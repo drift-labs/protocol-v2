@@ -192,7 +192,7 @@ describe('liquidate perp (no open orders)', () => {
 		console.log('deltaValueToLiq:', deltaValueToLiq.toString());
 		console.log('pp.base:', pp.baseAssetAmount.toString());
 
-		const expectedLiqPrice = 0.452181;
+		const expectedLiqPrice = 0.45219;
 		const liqPrice = driftClientUser.liquidationPrice(0, ZERO);
 		console.log('liqPrice:', liqPrice.toString());
 		assert(liqPrice.eq(new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())));
@@ -287,7 +287,7 @@ describe('liquidate perp (no open orders)', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION,
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.div(new BN(10)),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.muln(10),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -391,7 +391,7 @@ describe('liquidate perp (no open orders)', () => {
 		assert(
 			driftClient
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-5767508))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-5767653))
 		);
 
 		// try to add liq when bankrupt -- should fail
@@ -471,7 +471,11 @@ describe('liquidate perp (no open orders)', () => {
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
 		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex === 0);
-		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5767508)));
+		console.log(perpBankruptcyRecord.perpBankruptcy.pnl.toString());
+		console.log(
+			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
+		);
+		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5767653)));
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
 		);
@@ -486,7 +490,7 @@ describe('liquidate perp (no open orders)', () => {
 			market.amm.cumulativeFundingRateLong.toString(),
 			market.amm.cumulativeFundingRateShort.toString()
 		);
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(328572000)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-328572000)));
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(328580333)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-328563667)));
 	});
 });

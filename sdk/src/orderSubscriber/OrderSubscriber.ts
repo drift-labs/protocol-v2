@@ -30,6 +30,7 @@ export class OrderSubscriber {
 			this.subscription = new WebsocketSubscription({
 				orderSubscriber: this,
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
+				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
 			});
 		}
 		this.eventEmitter = new EventEmitter();
@@ -86,7 +87,12 @@ export class OrderSubscriber {
 					programAccount.account.data[1]
 				);
 				programAccountSet.add(key);
-				this.tryUpdateUserAccount(key, buffer, slot);
+				const userAccount =
+					this.driftClient.program.account.user.coder.accounts.decode(
+						'User',
+						buffer
+					) as UserAccount;
+				this.tryUpdateUserAccount(key, userAccount, slot);
 			}
 
 			for (const key of this.usersAccounts.keys()) {
@@ -102,14 +108,13 @@ export class OrderSubscriber {
 		}
 	}
 
-	tryUpdateUserAccount(key: string, buffer: Buffer, slot: number): void {
+	tryUpdateUserAccount(
+		key: string,
+		userAccount: UserAccount,
+		slot: number
+	): void {
 		const slotAndUserAccount = this.usersAccounts.get(key);
 		if (!slotAndUserAccount || slotAndUserAccount.slot < slot) {
-			const userAccount =
-				this.driftClient.program.account.user.coder.accounts.decode(
-					'User',
-					buffer
-				) as UserAccount;
 			const newOrders = userAccount.orders.filter(
 				(order) =>
 					order.slot.toNumber() > (slotAndUserAccount?.slot ?? 0) &&

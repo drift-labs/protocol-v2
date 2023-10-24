@@ -199,6 +199,8 @@ export class StakeAction {
 	static readonly UNSTAKE_REQUEST = { unstakeRequest: {} };
 	static readonly UNSTAKE_CANCEL_REQUEST = { unstakeCancelRequest: {} };
 	static readonly UNSTAKE = { unstake: {} };
+	static readonly UNSTAKE_TRANSFER = { unstakeTransfer: {} };
+	static readonly STAKE_TRANSFER = { stakeTransfer: {} };
 }
 
 export function isVariant(object: unknown, type: string) {
@@ -584,6 +586,7 @@ export type PerpMarketAccount = {
 		quoteMaxInsurance: BN;
 	};
 	quoteSpotMarketIndex: number;
+	feeAdjustment: number;
 };
 
 export type HistoricalOracleData = {

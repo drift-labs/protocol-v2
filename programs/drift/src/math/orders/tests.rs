@@ -109,95 +109,30 @@ pub mod standardize_base_asset_amount {
     }
 }
 
-mod is_order_risk_increase {
-    use crate::controller::position::PositionDirection;
-    use crate::math::constants::{BASE_PRECISION_I64, BASE_PRECISION_U64};
-    use crate::math::orders::is_order_risk_decreasing;
+pub mod is_multiple_of_step_size {
+    use crate::math::orders::is_multiple_of_step_size;
 
     #[test]
-    fn no_position() {
-        let order_direction = PositionDirection::Long;
-        let order_base_asset_amount = BASE_PRECISION_U64;
-        let existing_position = 0;
+    fn reduce_step_size() {
+        let base_asset_amount: u64 = 200000;
+        let step_size: u64 = 100000;
 
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
+        let result = is_multiple_of_step_size(base_asset_amount, step_size).unwrap();
 
-        assert!(!risk_decreasing);
+        assert!(result);
 
-        let order_direction = PositionDirection::Short;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
+        let step_size = step_size / 10;
 
-        assert!(!risk_decreasing);
-    }
+        let result = is_multiple_of_step_size(base_asset_amount, step_size).unwrap();
 
-    #[test]
-    fn bid() {
-        // user long and bid
-        let order_direction = PositionDirection::Long;
-        let order_base_asset_amount = BASE_PRECISION_U64;
-        let existing_position = BASE_PRECISION_I64;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-
-        // user short and bid < 2 * position
-        let existing_position = -BASE_PRECISION_I64;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(risk_decreasing);
-
-        // user short and bid = 2 * position
-        let existing_position = -BASE_PRECISION_I64 / 2;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-    }
-
-    #[test]
-    fn ask() {
-        // user short and ask
-        let order_direction = PositionDirection::Short;
-        let order_base_asset_amount = BASE_PRECISION_U64;
-        let existing_position = -BASE_PRECISION_I64;
-
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-
-        // user long and ask < 2 * position
-        let existing_position = BASE_PRECISION_I64;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(risk_decreasing);
-
-        // user long and ask = 2 * position
-        let existing_position = BASE_PRECISION_I64 / 2;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
+        assert!(result);
     }
 }
 
 mod order_breaches_oracle_price_limits {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
-    use crate::math::orders::order_breaches_oracle_price_bands;
+    use crate::math::orders::order_breaches_maker_oracle_price_bands;
     use crate::state::perp_market::PerpMarket;
     use crate::state::user::Order;
 
@@ -218,15 +153,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -250,15 +183,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -284,15 +215,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -318,15 +247,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -352,15 +279,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -386,15 +311,13 @@ mod order_breaches_oracle_price_limits {
         let slot = 0;
         let tick_size = 1;
 
-        let margin_ratio_initial = MARGIN_PRECISION / 10;
-        let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-        let result = order_breaches_oracle_price_bands(
+        let margin_ratio_initial = MARGIN_PRECISION / 20;
+        let result = order_breaches_maker_oracle_price_bands(
             &order,
             oracle_price,
             slot,
             tick_size,
             margin_ratio_initial,
-            margin_ratio_maintenance,
         )
         .unwrap();
 
@@ -1456,7 +1379,6 @@ mod calculate_max_spot_order_size {
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
 
-    use crate::create_anchor_account_info;
     use crate::state::margin_calculation::{MarginCalculation, MarginContext};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -1465,6 +1387,7 @@ mod calculate_max_spot_order_size {
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
     use crate::{create_account_info, PositionDirection};
+    use crate::{create_anchor_account_info, MARGIN_PRECISION};
 
     #[test]
     pub fn usdc_deposit_and_5x_sol_bid() {
@@ -1877,6 +1800,222 @@ mod calculate_max_spot_order_size {
 
         assert_eq!(max_order_size, 3227272272726);
     }
+
+    #[test]
+    pub fn usdc_deposit_and_max_sol_bid_custom_margin_ratio() {
+        let slot = 0_u64;
+
+        let mut sol_oracle_price = get_pyth_price(100, 6);
+        let sol_oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            sol_oracle_price,
+            &sol_oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let _market_map = PerpMarketMap::empty();
+
+        let mut usdc_spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
+        let mut sol_spot_market = SpotMarket {
+            market_index: 1,
+            oracle_source: OracleSource::Pyth,
+            oracle: sol_oracle_price_key,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap_5min: 100 * PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
+        let spot_market_account_infos = Vec::from([
+            &usdc_spot_market_account_info,
+            &sol_spot_market_account_info,
+        ]);
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        let mut user = User {
+            orders: [Order::default(); 32],
+            perp_positions: [PerpPosition::default(); 8],
+            spot_positions,
+            max_margin_ratio: MARGIN_PRECISION / 2, // 50% margin ratio or 2x leverage
+            ..User::default()
+        };
+
+        let max_order_size = calculate_max_spot_order_size(
+            &user,
+            1,
+            PositionDirection::Long,
+            &PerpMarketMap::empty(),
+            &spot_market_map,
+            &mut oracle_map,
+        )
+        .unwrap();
+
+        assert_eq!(max_order_size, 199999800000);
+
+        user.spot_positions[1].open_orders = 1;
+        user.spot_positions[1].open_bids = max_order_size as i64;
+
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &PerpMarketMap::empty(),
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        )
+        .unwrap();
+
+        assert_eq!(total_collateral.unsigned_abs(), margin_requirement);
+    }
+
+    #[test]
+    pub fn usdc_deposit_and_max_sol_sell_custom_margin_ratio() {
+        let slot = 0_u64;
+
+        let mut sol_oracle_price = get_pyth_price(100, 6);
+        let sol_oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            sol_oracle_price,
+            &sol_oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let _market_map = PerpMarketMap::empty();
+
+        let mut usdc_spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
+        let mut sol_spot_market = SpotMarket {
+            market_index: 1,
+            oracle_source: OracleSource::Pyth,
+            oracle: sol_oracle_price_key,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap_5min: 100 * PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
+        let spot_market_account_infos = Vec::from([
+            &usdc_spot_market_account_info,
+            &sol_spot_market_account_info,
+        ]);
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
+        };
+        let mut user = User {
+            orders: [Order::default(); 32],
+            perp_positions: [PerpPosition::default(); 8],
+            spot_positions,
+            max_margin_ratio: MARGIN_PRECISION / 2, // 2x
+            ..User::default()
+        };
+
+        let max_order_size = calculate_max_spot_order_size(
+            &user,
+            1,
+            PositionDirection::Short,
+            &PerpMarketMap::empty(),
+            &spot_market_map,
+            &mut oracle_map,
+        )
+        .unwrap();
+
+        assert_eq!(max_order_size, 199999800000);
+
+        user.spot_positions[1].open_orders = 1;
+        user.spot_positions[1].open_asks = -(max_order_size as i64);
+
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &PerpMarketMap::empty(),
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        )
+        .unwrap();
+
+        assert_eq!(total_collateral.unsigned_abs(), margin_requirement);
+    }
 }
 
 mod calculate_max_perp_order_size {
@@ -1904,7 +2043,7 @@ mod calculate_max_perp_order_size {
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
-    use crate::{create_account_info, PositionDirection, PRICE_PRECISION_I64};
+    use crate::{create_account_info, PositionDirection, MARGIN_PRECISION, PRICE_PRECISION_I64};
     use crate::{
         create_anchor_account_info, MarketStatus, AMM_RESERVE_PRECISION, PEG_PRECISION,
         PRICE_PRECISION,
@@ -2363,6 +2502,252 @@ mod calculate_max_perp_order_size {
 
         assert_eq!(max_order_size, 999999999000);
     }
+
+    #[test]
+    pub fn sol_perp_5x_bid_custom_margin_ratio() {
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 1000,
+                order_tick_size: 1,
+                oracle: oracle_price_key,
+                base_spread: 0, // 1 basis point
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..AMM::default()
+            },
+            margin_ratio_initial: 2000,
+            margin_ratio_maintenance: 1000,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
+        };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut usdc_spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
+        let spot_market_account_infos = Vec::from([&usdc_spot_market_account_info]);
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        let mut user = User {
+            orders: [Order::default(); 32],
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                ..PerpPosition::default()
+            }),
+            spot_positions,
+            max_margin_ratio: 2 * MARGIN_PRECISION,
+            ..User::default()
+        };
+
+        let max_order_size = calculate_max_perp_order_size(
+            &user,
+            0,
+            0,
+            PositionDirection::Long,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+        )
+        .unwrap();
+
+        assert_eq!(max_order_size, 49999950000);
+
+        user.perp_positions[0].open_orders = 1;
+        user.perp_positions[0].open_bids = max_order_size as i64;
+
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        )
+        .unwrap();
+
+        assert_eq!(total_collateral.unsigned_abs(), margin_requirement);
+    }
+
+    #[test]
+    pub fn sol_perp_5x_ask_custom_margin_ratio() {
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 1000,
+                order_tick_size: 1,
+                oracle: oracle_price_key,
+                base_spread: 0, // 1 basis point
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..AMM::default()
+            },
+            margin_ratio_initial: 2000,
+            margin_ratio_maintenance: 1000,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
+        };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut usdc_spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
+        let spot_market_account_infos = Vec::from([&usdc_spot_market_account_info]);
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        let mut user = User {
+            orders: [Order::default(); 32],
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                ..PerpPosition::default()
+            }),
+            spot_positions,
+            max_margin_ratio: 2 * MARGIN_PRECISION,
+            ..User::default()
+        };
+
+        let max_order_size = calculate_max_perp_order_size(
+            &user,
+            0,
+            0,
+            PositionDirection::Short,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+        )
+        .unwrap();
+
+        assert_eq!(max_order_size, 49999950000);
+
+        user.perp_positions[0].open_orders = 1;
+        user.perp_positions[0].open_asks = -(max_order_size as i64);
+
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        )
+        .unwrap();
+
+        assert_eq!(total_collateral.unsigned_abs(), margin_requirement);
+    }
 }
 
 pub mod validate_fill_price_within_price_bands {
@@ -2536,11 +2921,173 @@ pub mod is_oracle_too_divergent_with_twap_5min {
     }
 }
 
+pub mod is_new_order_risk_increasing {
+    use crate::math::orders::is_new_order_risk_increasing;
+    use crate::state::user::Order;
+    use crate::PositionDirection;
+
+    #[test]
+    fn test() {
+        // reduce only case
+        let order = Order {
+            reduce_only: true,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 0_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(!risk_increasing);
+
+        // bid with no existing position
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Long,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 0_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+
+        // bid with with existing short
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Long,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = -1_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(!risk_increasing);
+
+        // bid with with existing short and existing bid
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Long,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = -1_i64;
+        let position_bids = 1_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+
+        // ask with no existing position
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Short,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 0_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+
+        // ask with with existing long
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Short,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 1_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(!risk_increasing);
+
+        // bid with with existing short and existing bid
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Short,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 1_i64;
+        let position_bids = 0_i64;
+        let position_asks = -1_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+    }
+}
+
 pub mod get_price_for_perp_order {
     use crate::math::orders::get_price_for_perp_order;
 
+    use crate::state::order_params::PostOnlyParam;
     use crate::state::perp_market::AMM;
-    use crate::{PositionDirection, PostOnlyParam, BID_ASK_SPREAD_PRECISION_U128};
+    use crate::{PositionDirection, BID_ASK_SPREAD_PRECISION_U128};
     use crate::{AMM_RESERVE_PRECISION, PEG_PRECISION};
 
     #[test]

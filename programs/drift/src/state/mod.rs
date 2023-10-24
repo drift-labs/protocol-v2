@@ -1,10 +1,12 @@
 pub mod events;
+pub mod fill_mode;
 pub mod fulfillment;
 pub mod fulfillment_params;
 pub mod insurance_fund_stake;
 pub mod margin_calculation;
 pub mod oracle;
 pub mod oracle_map;
+pub mod order_params;
 pub mod perp_market;
 pub mod perp_market_map;
 pub mod spot_fulfillment_params;

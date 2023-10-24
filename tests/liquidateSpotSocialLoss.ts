@@ -28,7 +28,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant, UserStatus } from '../sdk';
+import { BulkAccountLoader, isVariant, UserStatus, PERCENTAGE_PRECISION } from '../sdk';
 
 describe('liquidate spot w/ social loss', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -101,6 +101,13 @@ describe('liquidate spot w/ social loss', () => {
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
+
+		const oracleGuardrails = await driftClient.getStateAccount()
+			.oracleGuardRails;
+		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
+			100
+		).mul(PERCENTAGE_PRECISION);
+		await driftClient.updateOracleGuardRails(oracleGuardrails);
 
 		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,

@@ -41,8 +41,8 @@ use crate::math::margin::{
 };
 use crate::math::oracle::DriftAction;
 use crate::math::orders::{
-    get_position_delta_for_fill, is_multiple_of_step_size, standardize_base_asset_amount,
-    standardize_base_asset_amount_ceil,
+    get_position_delta_for_fill, is_multiple_of_step_size, is_oracle_too_divergent_with_twap_5min,
+    standardize_base_asset_amount, standardize_base_asset_amount_ceil,
 };
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
@@ -283,8 +283,23 @@ pub fn liquidate_perp(
     validate!(
         liquidator_max_base_asset_amount != 0,
         ErrorCode::InvalidBaseAssetAmountForLiquidatePerp,
-        "liquidator_max_base_asset_amount cant be 0"
+        "liquidator_max_base_asset_amount must be greater or equal to the step size",
     )?;
+
+    let oracle_price_too_divergent = is_oracle_too_divergent_with_twap_5min(
+        oracle_price,
+        perp_market_map
+            .get_ref(&market_index)?
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(!oracle_price_too_divergent, ErrorCode::PriceBandsBreached)?;
 
     let user_base_asset_amount = user.perp_positions[position_index]
         .base_asset_amount
@@ -635,10 +650,12 @@ pub fn liquidate_spot(
     oracle_map: &mut OracleMap,
     now: i64,
     slot: u64,
-    liquidation_margin_buffer_ratio: u32,
-    initial_pct_to_liquidate: u128,
-    liquidation_duration: u128,
+    state: &State,
 ) -> DriftResult {
+    let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
+    let initial_pct_to_liquidate = state.initial_pct_to_liquidate as u128;
+    let liquidation_duration = state.liquidation_duration as u128;
+
     validate!(
         !user.is_bankrupt(),
         ErrorCode::UserBankrupt,
@@ -971,6 +988,42 @@ pub fn liquidate_spot(
         );
         return Err(ErrorCode::InvalidLiquidation);
     }
+
+    let liability_oracle_too_divergent = is_oracle_too_divergent_with_twap_5min(
+        liability_price.cast()?,
+        spot_market_map
+            .get_ref(&liability_market_index)?
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(
+        !liability_oracle_too_divergent,
+        ErrorCode::PriceBandsBreached,
+        "liability oracle too divergent"
+    )?;
+
+    let asset_oracle_too_divergent = is_oracle_too_divergent_with_twap_5min(
+        asset_price.cast()?,
+        spot_market_map
+            .get_ref(&asset_market_index)?
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(
+        !asset_oracle_too_divergent,
+        ErrorCode::PriceBandsBreached,
+        "asset oracle too divergent"
+    )?;
 
     validate_transfer_satisfies_limit_price(
         asset_transfer,

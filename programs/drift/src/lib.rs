@@ -11,6 +11,7 @@ use math::{bn, constants::*};
 use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
+use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
 use crate::state::spot_market::SpotFulfillmentConfigStatus;
@@ -495,6 +496,14 @@ pub mod drift {
         market_index: u16,
     ) -> Result<()> {
         handle_remove_insurance_fund_stake(ctx, market_index)
+    }
+
+    pub fn transfer_protocol_if_shares(
+        ctx: Context<TransferProtocolIfShares>,
+        market_index: u16,
+        shares: u128,
+    ) -> Result<()> {
+        handle_transfer_protocol_if_shares(ctx, market_index, shares)
     }
 
     // Admin Instructions
@@ -1010,6 +1019,13 @@ pub mod drift {
         handle_update_perp_market_max_open_interest(ctx, max_open_interest)
     }
 
+    pub fn update_perp_market_fee_adjustment(
+        ctx: Context<AdminUpdatePerpMarket>,
+        fee_adjustment: i16,
+    ) -> Result<()> {
+        handle_update_perp_market_fee_adjustment(ctx, fee_adjustment)
+    }
+
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         handle_update_admin(ctx, admin)
     }
@@ -1055,6 +1071,24 @@ pub mod drift {
         amount: u64,
     ) -> Result<()> {
         handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
+    }
+
+    pub fn initialize_protocol_if_shares_transfer_config(
+        ctx: Context<InitializeProtocolIfSharesTransferConfig>,
+    ) -> Result<()> {
+        handle_initialize_protocol_if_shares_transfer_config(ctx)
+    }
+
+    pub fn update_protocol_if_shares_transfer_config(
+        ctx: Context<UpdateProtocolIfSharesTransferConfig>,
+        whitelisted_signers: Option<[Pubkey; 4]>,
+        max_transfer_per_epoch: Option<u128>,
+    ) -> Result<()> {
+        handle_update_protocol_if_shares_transfer_config(
+            ctx,
+            whitelisted_signers,
+            max_transfer_per_epoch,
+        )
     }
 }
 

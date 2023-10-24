@@ -31,6 +31,7 @@ export class WebSocketDriftClientAccountSubscriber
 	oracleInfos: OracleInfo[];
 	oracleClientCache = new OracleClientCache();
 
+	resubTimeoutMs?: number;
 	shouldFindAllMarketsAndOracles: boolean;
 
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
@@ -54,7 +55,8 @@ export class WebSocketDriftClientAccountSubscriber
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
-		shouldFindAllMarketsAndOracles: boolean
+		shouldFindAllMarketsAndOracles: boolean,
+		resubTimeoutMs?: number
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -63,6 +65,7 @@ export class WebSocketDriftClientAccountSubscriber
 		this.spotMarketIndexes = spotMarketIndexes;
 		this.oracleInfos = oracleInfos;
 		this.shouldFindAllMarketsAndOracles = shouldFindAllMarketsAndOracles;
+		this.resubTimeoutMs = resubTimeoutMs;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -96,7 +99,9 @@ export class WebSocketDriftClientAccountSubscriber
 		this.stateAccountSubscriber = new WebSocketAccountSubscriber(
 			'state',
 			this.program,
-			statePublicKey
+			statePublicKey,
+			undefined,
+			this.resubTimeoutMs
 		);
 		await this.stateAccountSubscriber.subscribe((data: StateAccount) => {
 			this.eventEmitter.emit('stateAccountUpdate', data);
@@ -136,7 +141,9 @@ export class WebSocketDriftClientAccountSubscriber
 		const accountSubscriber = new WebSocketAccountSubscriber<PerpMarketAccount>(
 			'perpMarket',
 			this.program,
-			perpMarketPublicKey
+			perpMarketPublicKey,
+			undefined,
+			this.resubTimeoutMs
 		);
 		await accountSubscriber.subscribe((data: PerpMarketAccount) => {
 			this.eventEmitter.emit('perpMarketAccountUpdate', data);
@@ -161,7 +168,9 @@ export class WebSocketDriftClientAccountSubscriber
 		const accountSubscriber = new WebSocketAccountSubscriber<SpotMarketAccount>(
 			'spotMarket',
 			this.program,
-			marketPublicKey
+			marketPublicKey,
+			undefined,
+			this.resubTimeoutMs
 		);
 		await accountSubscriber.subscribe((data: SpotMarketAccount) => {
 			this.eventEmitter.emit('spotMarketAccountUpdate', data);
@@ -192,7 +201,8 @@ export class WebSocketDriftClientAccountSubscriber
 			oracleInfo.publicKey,
 			(buffer: Buffer) => {
 				return client.getOraclePriceDataFromBuffer(buffer);
-			}
+			},
+			this.resubTimeoutMs
 		);
 
 		await accountSubscriber.subscribe((data: OraclePriceData) => {

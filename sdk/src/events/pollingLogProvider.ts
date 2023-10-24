@@ -10,7 +10,7 @@ import { fetchLogs } from './fetchLogs';
 
 export class PollingLogProvider implements LogProvider {
 	private finality: Finality;
-	private intervalId: NodeJS.Timer;
+	private intervalId: ReturnType<typeof setTimeout>;
 	private mostRecentSeenTx?: TransactionSignature;
 	private mutex: number;
 	private firstFetch = true;

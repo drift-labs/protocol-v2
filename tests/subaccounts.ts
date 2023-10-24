@@ -174,10 +174,9 @@ describe('subaccounts', () => {
 	it('Update custom margin ratio', async () => {
 		const subAccountId = 0;
 		const customMarginRatio = MARGIN_PRECISION.toNumber() * 2;
-		await driftClient.updateUserCustomMarginRatio(
-			customMarginRatio,
-			subAccountId
-		);
+
+		const updates = [{ marginRatio: customMarginRatio, subAccountId }];
+		await driftClient.updateUserCustomMarginRatio(updates);
 
 		await driftClient.fetchAccounts();
 		assert(driftClient.getUserAccount().maxMarginRatio === customMarginRatio);
