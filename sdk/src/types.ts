@@ -27,11 +27,10 @@ export class MarketStatus {
 	static readonly DELISTED = { delisted: {} };
 }
 
-export class UserStatus {
-	static readonly ACTIVE = { active: {} };
-	static readonly BEING_LIQUIDATED = { beingLiquidated: {} };
-	static readonly BANKRUPT = { bankrupt: {} };
-	static readonly REDUCE_ONLY = { reduceOnly: {} };
+export enum UserStatus {
+	BEING_LIQUIDATED = 1,
+	BANKRUPT = 2,
+	REDUCE_ONLY = 4,
 }
 
 export class ContractType {
@@ -828,7 +827,7 @@ export type UserAccount = {
 	spotPositions: SpotPosition[];
 	perpPositions: PerpPosition[];
 	orders: Order[];
-	status: UserStatus;
+	status: number;
 	nextLiquidationId: number;
 	nextOrderId: number;
 	maxMarginRatio: number;

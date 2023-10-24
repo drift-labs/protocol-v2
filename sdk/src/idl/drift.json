@@ -5890,9 +5890,7 @@
             "docs": [
               "Whether the user is active, being liquidated or bankrupt"
             ],
-            "type": {
-              "defined": "UserStatus"
-            }
+            "type": "u8"
           },
           {
             "name": "isMarginTradingEnabled",
@@ -8648,9 +8646,6 @@
       "type": {
         "kind": "enum",
         "variants": [
-          {
-            "name": "Active"
-          },
           {
             "name": "BeingLiquidated"
           },

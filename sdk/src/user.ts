@@ -3,66 +3,66 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { DriftClient } from './driftClient';
 import {
+	HealthComponents,
 	isVariant,
 	MarginCategory,
 	Order,
-	UserAccount,
+	PerpMarketAccount,
 	PerpPosition,
 	SpotPosition,
-	isOneOfVariant,
-	PerpMarketAccount,
-	HealthComponents,
+	UserAccount,
+	UserStatus,
 	UserStatsAccount,
 } from './types';
 import { calculateEntryPrice, positionIsAvailable } from './math/position';
 import {
-	PRICE_PRECISION,
-	AMM_TO_QUOTE_PRECISION_RATIO,
-	ZERO,
-	TEN_THOUSAND,
-	BN_MAX,
-	QUOTE_PRECISION,
 	AMM_RESERVE_PRECISION,
-	MARGIN_PRECISION,
-	SPOT_MARKET_WEIGHT_PRECISION,
-	QUOTE_SPOT_MARKET_INDEX,
-	TEN,
-	OPEN_ORDER_MARGIN_REQUIREMENT,
-	FIVE_MINUTE,
-	BASE_PRECISION,
-	ONE,
-	TWO,
 	AMM_RESERVE_PRECISION_EXP,
+	AMM_TO_QUOTE_PRECISION_RATIO,
+	BASE_PRECISION,
+	BN_MAX,
+	FIVE_MINUTE,
+	MARGIN_PRECISION,
+	ONE,
+	OPEN_ORDER_MARGIN_REQUIREMENT,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	TEN,
+	TEN_THOUSAND,
+	TWO,
+	ZERO,
 } from './constants/numericConstants';
 import {
-	UserAccountSubscriber,
-	UserAccountEvents,
 	DataAndSlot,
+	UserAccountEvents,
+	UserAccountSubscriber,
 } from './accounts/types';
 import {
-	calculateReservePrice,
+	BN,
 	calculateBaseAssetValue,
+	calculateMarketMarginRatio,
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
+	calculateReservePrice,
+	calculateSpotMarketMarginRatio,
 	calculateUnrealizedAssetWeight,
-	calculateMarketMarginRatio,
-	PositionDirection,
-	BN,
-	SpotMarketAccount,
+	getBalance,
+	getSignedTokenAmount,
+	getStrictTokenValue,
 	getTokenValue,
 	MarketType,
-	getStrictTokenValue,
-	calculateSpotMarketMarginRatio,
-	getSignedTokenAmount,
-	SpotBalanceType,
+	PositionDirection,
 	sigNum,
-	getBalance,
+	SpotBalanceType,
+	SpotMarketAccount,
 } from '.';
 import {
-	getTokenAmount,
 	calculateAssetWeight,
 	calculateLiabilityWeight,
 	calculateWithdrawLimit,
+	getTokenAmount,
 } from './math/spotBalance';
 import { calculateMarketOpenBidAsk } from './math/amm';
 import {
@@ -1200,12 +1200,7 @@ export class User {
 	 * @returns : number (value from [0, 100])
 	 */
 	public getHealth(): number {
-		const userAccount = this.getUserAccount();
-
-		if (
-			isVariant(userAccount.status, 'beingLiquidated') ||
-			isVariant(userAccount.status, 'bankrupt')
-		) {
+		if (this.isBeingLiquidated()) {
 			return 0;
 		}
 
@@ -1821,14 +1816,15 @@ export class User {
 	}
 
 	public isBeingLiquidated(): boolean {
-		return isOneOfVariant(this.getUserAccount().status, [
-			'beingLiquidated',
-			'bankrupt',
-		]);
+		return (
+			(this.getUserAccount().status &
+				(UserStatus.BEING_LIQUIDATED | UserStatus.BANKRUPT)) >
+			0
+		);
 	}
 
 	public isBankrupt(): boolean {
-		return isVariant(this.getUserAccount().status, 'bankrupt');
+		return (this.getUserAccount().status & UserStatus.BANKRUPT) > 0;
 	}
 
 	/**

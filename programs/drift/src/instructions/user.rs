@@ -57,7 +57,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::traits::Size;
-use crate::state::user::{MarketType, OrderType, ReferrerName, User, UserStats, UserStatus};
+use crate::state::user::{MarketType, OrderType, ReferrerName, User, UserStats};
 use crate::state::user_map::load_user_maps;
 use crate::validate;
 use crate::validation::user::validate_user_deletion;
@@ -328,10 +328,8 @@ pub fn handle_deposit(
             state.liquidation_margin_buffer_ratio,
         )?;
 
-        if is_being_liquidated {
-            user.status = UserStatus::BeingLiquidated;
-        } else {
-            user.status = UserStatus::Active;
+        if !is_being_liquidated {
+            user.exit_liquidation();
         }
     }
 
@@ -487,7 +485,7 @@ pub fn handle_withdraw(
     validate_spot_margin_trading(user, &spot_market_map, &mut oracle_map)?;
 
     if user.is_being_liquidated() {
-        user.status = UserStatus::Active;
+        user.exit_liquidation();
     }
 
     user.update_last_active_slot(slot);
@@ -643,7 +641,7 @@ pub fn handle_transfer_deposit(
     validate_spot_margin_trading(from_user, &spot_market_map, &mut oracle_map)?;
 
     if from_user.is_being_liquidated() {
-        from_user.status = UserStatus::Active;
+        from_user.exit_liquidation();
     }
 
     from_user.update_last_active_slot(slot);
@@ -1802,6 +1800,9 @@ pub fn handle_update_user_reduce_only(
     reduce_only: bool,
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+
     user.update_reduce_only_status(reduce_only)?;
     Ok(())
 }
@@ -2690,6 +2691,13 @@ pub fn handle_end_swap(
             "reduce only violated. Out position before ({}) < amount out ({})",
             out_token_amount_before,
             amount_out
+        )?;
+
+        validate!(
+            !user.is_reduce_only(),
+            ErrorCode::UserReduceOnly,
+            "swap lead to increase in deposit for in market {}, can only pay off borrow",
+            out_market_index
         )?;
     }
 

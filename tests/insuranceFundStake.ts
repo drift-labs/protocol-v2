@@ -43,7 +43,7 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, PERCENTAGE_PRECISION } from '../sdk';
+import { BulkAccountLoader, PERCENTAGE_PRECISION, UserStatus } from '../sdk';
 
 describe('insurance fund stake', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -1088,14 +1088,12 @@ describe('insurance fund stake', () => {
 		// );
 
 		assert(
-			isVariant(
-				secondUserDriftClient.getUserAccount().status,
-				'beingLiquidated'
-			)
+			secondUserDriftClient.getUserAccount().status ===
+				UserStatus.BEING_LIQUIDATED
 		);
 
 		assert(
-			!isVariant(secondUserDriftClient.getUserAccount().status, 'bankrupt')
+			secondUserDriftClient.getUserAccount().status !== UserStatus.BANKRUPT
 		);
 
 		const liquidationRecord =

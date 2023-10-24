@@ -1721,46 +1721,44 @@ mod qualifies_for_withdraw_fee {
     }
 }
 
-mod update_reduce_only_status {
+mod update_user_status {
     use crate::state::user::{User, UserStatus};
 
     #[test]
     fn test() {
-        let mut bankrupt_user = User {
-            status: UserStatus::Bankrupt,
+        let mut user = User::default();
+        assert_eq!(user.status, 0);
+
+        user.enter_liquidation(0).unwrap();
+
+        assert_eq!(user.status, UserStatus::BeingLiquidated as u8);
+        assert!(user.is_being_liquidated());
+
+        user.enter_bankruptcy();
+
+        assert_eq!(user.status, UserStatus::Bankrupt as u8);
+        assert!(user.is_being_liquidated());
+        assert!(user.is_bankrupt());
+
+        let mut user = User {
+            status: UserStatus::ReduceOnly as u8,
             ..User::default()
         };
 
-        let result = bankrupt_user.update_reduce_only_status(true);
-        assert!(result.is_err());
-        let result = bankrupt_user.update_reduce_only_status(false);
-        assert!(result.is_err());
+        user.enter_liquidation(0).unwrap();
 
-        let mut liquidated_user = User {
-            status: UserStatus::BeingLiquidated,
-            ..User::default()
-        };
-        let result = liquidated_user.update_reduce_only_status(true);
-        assert!(result.is_err());
-        let result = liquidated_user.update_reduce_only_status(false);
-        assert!(result.is_err());
+        assert!(user.is_being_liquidated());
+        assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
 
-        let mut reduce_only_user = User {
-            status: UserStatus::ReduceOnly,
-            ..User::default()
-        };
-        let result = reduce_only_user.update_reduce_only_status(true);
-        assert!(result.is_err());
-        let result = reduce_only_user.update_reduce_only_status(false);
-        assert!(result.is_ok());
+        user.enter_bankruptcy();
 
-        let mut active_only_user = User {
-            status: UserStatus::Active,
-            ..User::default()
-        };
-        let result = active_only_user.update_reduce_only_status(false);
-        assert!(result.is_err());
-        let result = active_only_user.update_reduce_only_status(true);
-        assert!(result.is_ok());
+        assert!(user.is_being_liquidated());
+        assert!(user.is_bankrupt());
+        assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
+
+        user.exit_liquidation();
+        assert!(!user.is_being_liquidated());
+        assert!(!user.is_bankrupt());
+        assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
     }
 }
