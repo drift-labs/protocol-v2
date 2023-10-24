@@ -2412,7 +2412,7 @@ export class User {
 		);
 
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
-			this.getLeverageComponents(undefined, 'Initial');
+			this.getLeverageComponents();
 
 		if (!calculateSwap) {
 			calculateSwap = (inSwap: BN) => {
@@ -2708,7 +2708,7 @@ export class User {
 		);
 
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
-			this.getLeverageComponents(undefined, 'Initial');
+			this.getLeverageComponents();
 
 		const inPositionAfter = this.cloneAndUpdateSpotPosition(
 			inSpotPosition,
