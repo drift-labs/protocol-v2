@@ -1883,6 +1883,9 @@ pub fn handle_update_user_reduce_only(
     reduce_only: bool,
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+
     user.update_reduce_only_status(reduce_only)?;
     Ok(())
 }
