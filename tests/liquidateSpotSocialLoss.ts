@@ -28,7 +28,12 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant, UserStatus, PERCENTAGE_PRECISION } from '../sdk';
+import {
+	BulkAccountLoader,
+	isVariant,
+	UserStatus,
+	PERCENTAGE_PRECISION,
+} from '../sdk';
 
 describe('liquidate spot w/ social loss', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
