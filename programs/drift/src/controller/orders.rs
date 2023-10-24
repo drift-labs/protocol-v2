@@ -78,7 +78,9 @@ use crate::state::user::{MarketType, User};
 use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::validate;
 use crate::validation;
-use crate::validation::order::{validate_order, validate_spot_order};
+use crate::validation::order::{
+    validate_order, validate_order_for_force_reduce_only, validate_spot_order,
+};
 
 #[cfg(test)]
 mod tests;
@@ -309,8 +311,11 @@ pub fn place_perp_order(
         )?;
     }
 
-    if force_reduce_only && !user.orders[new_order_index].reduce_only {
-        return Err(ErrorCode::InvalidOrderNotRiskReducing);
+    if force_reduce_only {
+        validate_order_for_force_reduce_only(
+            &user.orders[new_order_index],
+            user.perp_positions[position_index].base_asset_amount,
+        )?;
     }
 
     let max_oi = market.amm.max_open_interest;
@@ -2989,8 +2994,11 @@ pub fn place_spot_order(
 
     validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
 
-    if force_reduce_only && !user.orders[new_order_index].reduce_only {
-        return Err(ErrorCode::InvalidOrderNotRiskReducing);
+    if force_reduce_only {
+        validate_order_for_force_reduce_only(
+            &user.orders[new_order_index],
+            signed_token_amount.cast()?,
+        )?;
     }
 
     let (taker, taker_order, maker, maker_order) =
