@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: make user status a bit flag ([#619](https://github.com/drift-labs/protocol-v2/pull/619))
 - program: place and take uses auction end price for market orders ([#650](https://github.com/drift-labs/protocol-v2/pull/650))
 - program: reduce cus for place_spot_order ([#662](https://github.com/drift-labs/protocol-v2/pull/662))
 - program: bump max sub accounts to 15k
