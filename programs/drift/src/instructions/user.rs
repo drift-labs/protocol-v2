@@ -2775,6 +2775,13 @@ pub fn handle_end_swap(
             out_token_amount_before,
             amount_out
         )?;
+
+        validate!(
+            !user.is_reduce_only(),
+            ErrorCode::UserReduceOnly,
+            "swap lead to increase in deposit for in market {}, can only pay off borrow",
+            out_market_index
+        )?;
     }
 
     math::spot_withdraw::validate_spot_market_vault_amount(&out_spot_market, out_vault.amount)?;
