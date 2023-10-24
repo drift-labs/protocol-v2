@@ -566,7 +566,7 @@ impl SpotPosition {
         )
     }
 
-    pub fn get_worst_case_token_amount(
+    pub fn get_worst_case_fill_simulation(
         &self,
         spot_market: &SpotMarket,
         strict_oracle_price: &StrictOraclePrice,
