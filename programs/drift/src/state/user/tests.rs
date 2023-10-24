@@ -593,7 +593,7 @@ mod get_claimable_pnl {
     }
 }
 
-mod get_worst_case_token_amount {
+mod get_worst_case_fill_simulation {
     use crate::math::constants::{
         PRICE_PRECISION_I64, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION_U64,
     };
@@ -634,7 +634,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -659,7 +659,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -684,7 +684,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -732,7 +732,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -758,7 +758,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -784,7 +784,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -831,7 +831,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -856,7 +856,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -881,7 +881,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -928,7 +928,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -953,7 +953,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -978,7 +978,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1025,7 +1025,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1050,7 +1050,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1075,7 +1075,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1122,7 +1122,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1147,7 +1147,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1172,7 +1172,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1219,7 +1219,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1244,7 +1244,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1269,7 +1269,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1316,7 +1316,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1341,7 +1341,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1366,7 +1366,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,

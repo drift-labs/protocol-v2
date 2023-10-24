@@ -19,7 +19,7 @@ export class BulkAccountLoader {
 	accountsToLoad = new Map<string, AccountToLoad>();
 	bufferAndSlotMap = new Map<string, BufferAndSlot>();
 	errorCallbacks = new Map<string, (e) => void>();
-	intervalId?: NodeJS.Timer;
+	intervalId?: ReturnType<typeof setTimeout>;
 	// to handle clients spamming load
 	loadPromise?: Promise<void>;
 	loadPromiseResolver: () => void;

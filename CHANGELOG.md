@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: place and take uses auction end price for market orders ([#650](https://github.com/drift-labs/protocol-v2/pull/650)) 
+- program: place and take uses auction end price for market orders ([#650](https://github.com/drift-labs/protocol-v2/pull/650))
+- program: reduce cus for place_spot_order ([#662](https://github.com/drift-labs/protocol-v2/pull/662))
+- program: bump max sub accounts to 15k
 - program: user custom margin ratio works with spot ([#633](https://github.com/drift-labs/protocol-v2/pull/633))
 - program: add swap price bands ([#611](https://github.com/drift-labs/protocol-v2/pull/611))
 - program: add 5min twap price bands to liquidate_perp and liquidate_spot ([#570](https://github.com/drift-labs/protocol-v2/pull/570)) 
@@ -20,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Breaking
 
 - sdk: remove getMakerLimitBids/Asks from DLOB
+- sdk: updateUserMarginEnabled and updateUserCustomMarginRatio now take in an array of params to allow multiple subaccounts to be update in a single tx
 
 ## [2.41.0] - 2023-10-05
 

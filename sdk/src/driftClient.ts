@@ -875,21 +875,48 @@ export class DriftClient {
 	}
 
 	public async updateUserCustomMarginRatio(
+		updates: { marginRatio: number; subAccountId: number }[]
+	): Promise<TransactionSignature> {
+		const ixs = await Promise.all(
+			updates.map(async ({ marginRatio, subAccountId }) => {
+				const ix = await this.getUpdateUserCustomMarginRatioIx(
+					marginRatio,
+					subAccountId
+				);
+				return ix;
+			})
+		);
+
+		const tx = await this.buildTransaction(ixs, this.txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateUserCustomMarginRatioIx(
 		marginRatio: number,
 		subAccountId = 0
-	): Promise<TransactionSignature> {
-		const tx = await this.program.transaction.updateUserCustomMarginRatio(
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			subAccountId
+		);
+
+		await this.addUser(subAccountId, this.wallet.publicKey);
+
+		const ix = this.program.instruction.updateUserCustomMarginRatio(
 			subAccountId,
 			marginRatio,
 			{
 				accounts: {
-					user: await this.getUserAccountPublicKey(),
+					user: userAccountPublicKey,
 					authority: this.wallet.publicKey,
 				},
 			}
 		);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
+
+		return ix;
 	}
 
 	public async getUpdateUserMarginTradingEnabledIx(
@@ -930,31 +957,18 @@ export class DriftClient {
 	}
 
 	public async updateUserMarginTradingEnabled(
-		marginTradingEnabled: boolean,
-		subAccountId = 0
+		updates: { marginTradingEnabled: boolean; subAccountId: number }[]
 	): Promise<TransactionSignature> {
-		const userAccountPublicKey = getUserAccountPublicKeySync(
-			this.program.programId,
-			this.wallet.publicKey,
-			subAccountId
+		const ixs = await Promise.all(
+			updates.map(async ({ marginTradingEnabled, subAccountId }) => {
+				return await this.getUpdateUserMarginTradingEnabledIx(
+					marginTradingEnabled,
+					subAccountId
+				);
+			})
 		);
 
-		await this.addUser(subAccountId, this.wallet.publicKey);
-		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
-		});
-
-		const tx = await this.program.transaction.updateUserMarginTradingEnabled(
-			subAccountId,
-			marginTradingEnabled,
-			{
-				accounts: {
-					user: userAccountPublicKey,
-					authority: this.wallet.publicKey,
-				},
-				remainingAccounts,
-			}
-		);
+		const tx = await this.buildTransaction(ixs, this.txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;

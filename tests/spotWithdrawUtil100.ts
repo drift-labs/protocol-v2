@@ -547,7 +547,9 @@ describe('test function when spot market at >= 100% util', () => {
 
 		const marketIndex = 1;
 
-		await firstUserDriftClient.updateUserMarginTradingEnabled(true, 0);
+		const updates = [{ marginTradingEnabled: true, subAccountId: 0 }];
+
+		await firstUserDriftClient.updateUserMarginTradingEnabled(updates);
 
 		const takerDriftClientUser = new User({
 			driftClient: firstUserDriftClient,

@@ -10,9 +10,9 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::{is_amm_available_liquidity_source, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::{
-    load, math, PostOnlyParam, State, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
-    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
+    load, math, State, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+    SPOT_WEIGHT_PRECISION_I128,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -28,6 +28,7 @@ use crate::print_error;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
+use crate::state::order_params::PostOnlyParam;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotMarket;
@@ -599,17 +600,36 @@ pub fn is_order_risk_decreasing(
     })
 }
 
-pub fn is_order_risk_increasing(
-    order_direction: &PositionDirection,
-    order_base_asset_amount: u64,
+pub fn is_new_order_risk_increasing(
+    order: &Order,
     position_base_asset_amount: i64,
+    position_bids: i64,
+    position_asks: i64,
 ) -> DriftResult<bool> {
-    is_order_risk_decreasing(
-        order_direction,
-        order_base_asset_amount,
-        position_base_asset_amount,
-    )
-    .map(|risk_decreasing| !risk_decreasing)
+    if order.reduce_only {
+        return Ok(false);
+    }
+
+    match order.direction {
+        PositionDirection::Long => {
+            if position_base_asset_amount >= 0 {
+                return Ok(true);
+            }
+
+            Ok(position_bids.safe_add(order.base_asset_amount.cast()?)?
+                > position_base_asset_amount.abs())
+        }
+        PositionDirection::Short => {
+            if position_base_asset_amount <= 0 {
+                return Ok(true);
+            }
+
+            Ok(position_asks
+                .safe_sub(order.base_asset_amount.cast()?)?
+                .abs()
+                > position_base_asset_amount)
+        }
+    }
 }
 
 pub fn is_order_position_reducing(

@@ -6,7 +6,7 @@ export class PriorityFeeSubscriber {
 	addresses: PublicKey[];
 	slotsToCheck: number;
 
-	intervalId?: NodeJS.Timer;
+	intervalId?: ReturnType<typeof setTimeout>;
 
 	latestPriorityFee = 0;
 	// avg of last {slotsToCheck} slots
