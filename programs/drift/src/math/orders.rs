@@ -45,29 +45,26 @@ mod tests;
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     order: &Order,
     market: &PerpMarket,
-    valid_oracle_price: Option<i64>,
-    slot: u64,
-    override_limit_price: Option<u64>,
+    limit_price: Option<u64>,
+    override_fill_price: Option<u64>,
     existing_base_asset_amount: i64,
 ) -> DriftResult<(u64, Option<u64>)> {
-    let limit_price = if let Some(override_limit_price) = override_limit_price {
-        if let Some(limit_price) =
-            order.get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?
-        {
+    let limit_price = if let Some(override_fill_price) = override_fill_price {
+        if let Some(limit_price) = limit_price {
             validate!(
-                (limit_price >= override_limit_price && order.direction == PositionDirection::Long)
-                    || (limit_price <= override_limit_price
+                (limit_price >= override_fill_price && order.direction == PositionDirection::Long)
+                    || (limit_price <= override_fill_price
                         && order.direction == PositionDirection::Short),
                 ErrorCode::InvalidAmmLimitPriceOverride,
                 "override_limit_price={} not better than order_limit_price={}",
-                override_limit_price,
+                override_fill_price,
                 limit_price
             )?;
         }
 
-        Some(override_limit_price)
+        Some(override_fill_price)
     } else {
-        order.get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?
+        limit_price
     };
 
     if order.must_be_triggered() && !order.triggered() {
