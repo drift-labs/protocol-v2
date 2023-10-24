@@ -1628,24 +1628,24 @@ mod update_user_status {
         assert!(user.is_bankrupt());
 
         let mut user = User {
-            status: UserStatus::ReduceLiabilityOnly as u8,
+            status: UserStatus::ReduceOnly as u8,
             ..User::default()
         };
 
         user.enter_liquidation(0).unwrap();
 
         assert!(user.is_being_liquidated());
-        assert!(user.status & UserStatus::ReduceLiabilityOnly as u8 > 0);
+        assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
 
         user.enter_bankruptcy();
 
         assert!(user.is_being_liquidated());
         assert!(user.is_bankrupt());
-        assert!(user.status & UserStatus::ReduceLiabilityOnly as u8 > 0);
+        assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
 
         user.exit_liquidation();
         assert!(!user.is_being_liquidated());
         assert!(!user.is_bankrupt());
-        assert!(user.status & UserStatus::ReduceLiabilityOnly as u8 > 0);
+        assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
     }
 }

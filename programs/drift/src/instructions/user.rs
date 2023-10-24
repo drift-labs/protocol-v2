@@ -54,7 +54,7 @@ use crate::state::spot_market_map::{
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::{
-    MarketType, OrderTriggerCondition, OrderType, ReferrerName, User, UserStats, UserStatus,
+    MarketType, OrderTriggerCondition, OrderType, ReferrerName, User, UserStats,
 };
 use crate::state::user_map::load_user_maps;
 use crate::validate;
@@ -1877,21 +1877,13 @@ pub fn handle_update_user_delegate(
     Ok(())
 }
 
-pub fn handle_update_user_reduce_liability_only(
+pub fn handle_update_user_reduce_only(
     ctx: Context<UpdateUser>,
     _sub_account_id: u16,
-    reduce_liability_only: bool,
+    reduce_only: bool,
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
-
-    validate!(user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
-
-    if reduce_liability_only {
-        user.add_user_status(UserStatus::ReduceLiabilityOnly);
-    } else {
-        user.remove_user_status(UserStatus::ReduceLiabilityOnly);
-    }
-
+    user.update_reduce_only_status(reduce_only)?;
     Ok(())
 }
 
@@ -2666,6 +2658,13 @@ pub fn handle_end_swap(
             "swap lead to increase in liability for in market {}",
             in_market_index
         )?;
+
+        validate!(
+            !user.is_reduce_only(),
+            ErrorCode::UserReduceOnly,
+            "swap lead to increase in liability for in market {}",
+            in_market_index
+        )?;
     }
 
     math::spot_withdraw::validate_spot_market_vault_amount(&in_spot_market, in_vault.amount)?;
@@ -2772,15 +2771,6 @@ pub fn handle_end_swap(
             "reduce only violated. Out position before ({}) < amount out ({})",
             out_token_amount_before,
             amount_out
-        )?;
-    }
-
-    if user.is_reduce_liability_only() {
-        validate!(
-            out_position_is_reduced,
-            ErrorCode::UserReduceLiabilityOnly,
-            "swap lead to increase in liability for out market {}",
-            out_market_index
         )?;
     }
 
