@@ -1,12 +1,12 @@
 use crate::controller::amm::SwapDirection;
-use crate::controller::position::{PositionDelta, PositionDirection};
+use crate::controller::position::PositionDelta;
 use crate::error::DriftResult;
 use crate::math::amm;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
+    AMM_RESERVE_PRECISION_I128, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
 };
 use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
@@ -16,33 +16,6 @@ use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
 
 pub fn calculate_base_asset_value_and_pnl(
-    market_position: &PerpPosition,
-    amm: &AMM,
-    use_spread: bool,
-) -> DriftResult<(u128, i128)> {
-    _calculate_base_asset_value_and_pnl(
-        market_position.base_asset_amount.cast()?,
-        market_position.quote_asset_amount.unsigned_abs().cast()?,
-        amm,
-        use_spread,
-    )
-}
-
-pub fn calculate_position_pnl(
-    market_position: &PerpPosition,
-    amm: &AMM,
-    use_spread: bool,
-) -> DriftResult<i128> {
-    let (_, pnl) = _calculate_base_asset_value_and_pnl(
-        market_position.base_asset_amount.cast()?,
-        market_position.quote_asset_amount.unsigned_abs().cast()?,
-        amm,
-        use_spread,
-    )?;
-    Ok(pnl)
-}
-
-pub fn _calculate_base_asset_value_and_pnl(
     base_asset_amount: i128,
     quote_asset_amount: u128,
     amm: &AMM,
@@ -164,31 +137,12 @@ pub fn calculate_base_asset_value_with_expiry_price(
         .cast::<i64>()
 }
 
-pub fn direction_to_close_position(base_asset_amount: i128) -> PositionDirection {
-    if base_asset_amount > 0 {
-        PositionDirection::Short
-    } else {
-        PositionDirection::Long
-    }
-}
-
 pub fn swap_direction_to_close_position(base_asset_amount: i128) -> SwapDirection {
     if base_asset_amount >= 0 {
         SwapDirection::Add
     } else {
         SwapDirection::Remove
     }
-}
-
-pub fn calculate_entry_price(
-    quote_asset_amount: u128,
-    base_asset_amount: u128,
-) -> DriftResult<u128> {
-    let price = quote_asset_amount
-        .safe_mul(PRICE_PRECISION * AMM_TO_QUOTE_PRECISION_RATIO)?
-        .safe_div(base_asset_amount)?;
-
-    Ok(price)
 }
 
 pub enum PositionUpdateType {

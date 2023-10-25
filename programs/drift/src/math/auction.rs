@@ -194,24 +194,6 @@ fn calculate_auction_price_for_oracle_offset_auction(
     Ok(price)
 }
 
-pub fn does_auction_satisfy_maker_order(
-    maker_order: &Order,
-    taker_order: &Order,
-    auction_price: u64,
-) -> bool {
-    // TODO more conditions to check?
-    if maker_order.direction == taker_order.direction
-        || maker_order.market_index != taker_order.market_index
-    {
-        return false;
-    }
-
-    match maker_order.direction {
-        PositionDirection::Long => auction_price <= maker_order.price,
-        PositionDirection::Short => auction_price >= maker_order.price,
-    }
-}
-
 pub fn is_auction_complete(order_slot: u64, auction_duration: u8, slot: u64) -> DriftResult<bool> {
     if auction_duration == 0 {
         return Ok(true);

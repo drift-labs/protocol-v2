@@ -7,7 +7,7 @@ use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_amm_available_liquidity;
-use crate::math::auction::{is_amm_available_liquidity_source, is_auction_complete};
+use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
 use crate::{
     load, math, State, BASE_PRECISION_I128, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
@@ -19,7 +19,6 @@ use crate::math::constants::MARGIN_PRECISION_U128;
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
 };
-use crate::math::position::calculate_entry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_strict_token_value;
 use crate::math::spot_withdraw::get_max_withdraw_for_market_with_token_amount;
@@ -116,30 +115,6 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
         min(base_asset_amount_unfilled, max_trade_base_asset_amount),
         market.amm.order_step_size,
     )
-}
-
-pub fn limit_price_satisfied(
-    limit_price: u128,
-    quote_asset_amount: u128,
-    base_asset_amount: u128,
-    direction: PositionDirection,
-) -> DriftResult<bool> {
-    let price = calculate_entry_price(quote_asset_amount, base_asset_amount)?;
-
-    match direction {
-        PositionDirection::Long => {
-            if price > limit_price {
-                return Ok(false);
-            }
-        }
-        PositionDirection::Short => {
-            if price < limit_price {
-                return Ok(false);
-            }
-        }
-    }
-
-    Ok(true)
 }
 
 pub fn calculate_quote_asset_amount_for_maker_order(
@@ -323,21 +298,6 @@ pub fn validate_perp_fill_possible(
     }
 
     Ok(())
-}
-
-#[inline(always)]
-pub fn should_cancel_market_order_after_fill(
-    user: &User,
-    user_order_index: usize,
-    slot: u64,
-) -> DriftResult<bool> {
-    let order = &user.orders[user_order_index];
-    if !order.is_market_order() || order.status != OrderStatus::Open {
-        return Ok(false);
-    }
-
-    Ok(order.has_limit_price(slot)?
-        && is_auction_complete(order.slot, order.auction_duration, slot)?)
 }
 
 #[inline(always)]
@@ -582,24 +542,6 @@ pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> Dr
     }
 }
 
-pub fn is_order_risk_decreasing(
-    order_direction: &PositionDirection,
-    order_base_asset_amount: u64,
-    position_base_asset_amount: i64,
-) -> DriftResult<bool> {
-    Ok(match order_direction {
-        // User is short and order is long
-        PositionDirection::Long if position_base_asset_amount < 0 => {
-            order_base_asset_amount < position_base_asset_amount.unsigned_abs().safe_mul(2)?
-        }
-        // User is long and order is short
-        PositionDirection::Short if position_base_asset_amount > 0 => {
-            order_base_asset_amount < position_base_asset_amount.unsigned_abs().safe_mul(2)?
-        }
-        _ => false,
-    })
-}
-
 pub fn is_new_order_risk_increasing(
     order: &Order,
     position_base_asset_amount: i64,
@@ -765,54 +707,6 @@ fn get_max_fill_amounts_for_market(
     let position_index = user.get_spot_position_index(market.market_index)?;
     let token_amount = user.spot_positions[position_index].get_signed_token_amount(market)?;
     get_max_withdraw_for_market_with_token_amount(market, token_amount, is_leaving_drift)
-}
-
-pub fn find_fallback_maker_order(
-    user: &User,
-    direction: &PositionDirection,
-    market_type: &MarketType,
-    market_index: u16,
-    valid_oracle_price: Option<i64>,
-    slot: u64,
-    tick_size: u64,
-) -> DriftResult<Option<usize>> {
-    let mut best_limit_price = match direction {
-        PositionDirection::Long => 0,
-        PositionDirection::Short => u64::MAX,
-    };
-    let mut fallback_maker_order_index = None;
-
-    for (order_index, order) in user.orders.iter().enumerate() {
-        if order.status != OrderStatus::Open {
-            continue;
-        }
-
-        // if order direction is not same or market type is not same or market index is the same, skip
-        if order.direction != *direction
-            || order.market_type != *market_type
-            || order.market_index != market_index
-        {
-            continue;
-        }
-
-        // if order is not limit order or must be triggered and not triggered, skip
-        if !order.is_limit_order() || (order.must_be_triggered() && !order.triggered()) {
-            continue;
-        }
-
-        let limit_price = order.force_get_limit_price(valid_oracle_price, None, slot, tick_size)?;
-
-        // if fallback maker order is not set, set it else check if this order is better
-        if fallback_maker_order_index.is_none()
-            || *direction == PositionDirection::Long && limit_price > best_limit_price
-            || *direction == PositionDirection::Short && limit_price < best_limit_price
-        {
-            best_limit_price = limit_price;
-            fallback_maker_order_index = Some(order_index);
-        }
-    }
-
-    Ok(fallback_maker_order_index)
 }
 
 pub fn find_maker_orders(
