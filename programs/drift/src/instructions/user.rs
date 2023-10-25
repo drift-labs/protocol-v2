@@ -1,5 +1,5 @@
+use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
-use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
 use anchor_spl::token::{Token, TokenAccount};
 
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
@@ -39,10 +39,14 @@ use crate::state::events::{
     DepositDirection, DepositExplanation, DepositRecord, LPAction, LPRecord, NewUserRecord,
     OrderActionExplanation, SwapRecord,
 };
+use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::oracle::StrictOraclePrice;
+use crate::state::order_params::{
+    ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
+};
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
@@ -53,9 +57,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::traits::Size;
-use crate::state::user::{
-    MarketType, OrderTriggerCondition, OrderType, ReferrerName, User, UserStats, UserStatus,
-};
+use crate::state::user::{MarketType, OrderType, ReferrerName, User, UserStats};
 use crate::state::user_map::load_user_maps;
 use crate::validate;
 use crate::validation::user::validate_user_deletion;
@@ -326,10 +328,8 @@ pub fn handle_deposit(
             state.liquidation_margin_buffer_ratio,
         )?;
 
-        if is_being_liquidated {
-            user.status = UserStatus::BeingLiquidated;
-        } else {
-            user.status = UserStatus::Active;
+        if !is_being_liquidated {
+            user.exit_liquidation();
         }
     }
 
@@ -485,7 +485,7 @@ pub fn handle_withdraw(
     validate_spot_margin_trading(user, &spot_market_map, &mut oracle_map)?;
 
     if user.is_being_liquidated() {
-        user.status = UserStatus::Active;
+        user.exit_liquidation();
     }
 
     user.update_last_active_slot(slot);
@@ -641,7 +641,7 @@ pub fn handle_transfer_deposit(
     validate_spot_margin_trading(from_user, &spot_market_map, &mut oracle_map)?;
 
     if from_user.is_being_liquidated() {
-        from_user.status = UserStatus::Active;
+        from_user.exit_liquidation();
     }
 
     from_user.update_last_active_slot(slot);
@@ -736,63 +736,6 @@ pub fn handle_transfer_deposit(
     )?;
 
     Ok(())
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy)]
-pub struct OrderParams {
-    pub order_type: OrderType,
-    pub market_type: MarketType,
-    pub direction: PositionDirection,
-    pub user_order_id: u8,
-    pub base_asset_amount: u64,
-    pub price: u64,
-    pub market_index: u16,
-    pub reduce_only: bool,
-    pub post_only: PostOnlyParam,
-    pub immediate_or_cancel: bool,
-    pub max_ts: Option<i64>,
-    pub trigger_price: Option<u64>,
-    pub trigger_condition: OrderTriggerCondition,
-    pub oracle_price_offset: Option<i32>,
-    pub auction_duration: Option<u8>,
-    pub auction_start_price: Option<i64>,
-    pub auction_end_price: Option<i64>,
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
-pub enum PostOnlyParam {
-    None,
-    MustPostOnly, // Tx fails if order can't be post only
-    TryPostOnly,  // Tx succeeds and order not placed if can't be post only
-    Slide,        // Modify price to be post only if can't be post only
-}
-
-impl Default for PostOnlyParam {
-    fn default() -> Self {
-        PostOnlyParam::None
-    }
-}
-
-pub struct PlaceOrderOptions {
-    pub try_expire_orders: bool,
-    pub enforce_margin_check: bool,
-    pub risk_increasing: bool,
-}
-
-impl Default for PlaceOrderOptions {
-    fn default() -> Self {
-        Self {
-            try_expire_orders: true,
-            enforce_margin_check: true,
-            risk_increasing: false,
-        }
-    }
-}
-
-impl PlaceOrderOptions {
-    pub fn update_risk_increasing(&mut self, risk_increasing: bool) {
-        self.risk_increasing = self.risk_increasing || risk_increasing;
-    }
 }
 
 #[access_control(
@@ -976,36 +919,6 @@ pub fn handle_cancel_orders(
     )?;
 
     Ok(())
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct ModifyOrderParams {
-    pub direction: Option<PositionDirection>,
-    pub base_asset_amount: Option<u64>,
-    pub price: Option<u64>,
-    pub reduce_only: Option<bool>,
-    pub post_only: Option<PostOnlyParam>,
-    pub immediate_or_cancel: Option<bool>,
-    pub max_ts: Option<i64>,
-    pub trigger_price: Option<u64>,
-    pub trigger_condition: Option<OrderTriggerCondition>,
-    pub oracle_price_offset: Option<i32>,
-    pub auction_duration: Option<u8>,
-    pub auction_start_price: Option<i64>,
-    pub auction_end_price: Option<i64>,
-    pub policy: Option<ModifyOrderPolicy>,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq)]
-pub enum ModifyOrderPolicy {
-    TryModify,
-    MustModify,
-}
-
-impl Default for ModifyOrderPolicy {
-    fn default() -> Self {
-        Self::TryModify
-    }
 }
 
 #[access_control(
@@ -1225,6 +1138,7 @@ pub fn handle_place_and_take_perp_order<'info>(
         &makers_and_referrer_stats,
         None,
         &Clock::get()?,
+        FillMode::PlaceAndTake,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1322,6 +1236,7 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         &makers_and_referrer_stats,
         Some(order_id),
         clock,
+        FillMode::PlaceAndMake,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1885,6 +1800,9 @@ pub fn handle_update_user_reduce_only(
     reduce_only: bool,
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+
     user.update_reduce_only_status(reduce_only)?;
     Ok(())
 }
@@ -2773,6 +2691,13 @@ pub fn handle_end_swap(
             "reduce only violated. Out position before ({}) < amount out ({})",
             out_token_amount_before,
             amount_out
+        )?;
+
+        validate!(
+            !user.is_reduce_only(),
+            ErrorCode::UserReduceOnly,
+            "swap lead to increase in deposit for in market {}, can only pay off borrow",
+            out_market_index
         )?;
     }
 

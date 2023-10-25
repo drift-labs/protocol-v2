@@ -30,7 +30,7 @@ pub mod liquidate_perp {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{
-        Order, OrderStatus, OrderType, PerpPosition, SpotPosition, User, UserStats, UserStatus,
+        Order, OrderStatus, OrderType, PerpPosition, SpotPosition, User, UserStats,
     };
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
@@ -1675,7 +1675,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        assert_eq!(user.status, UserStatus::Active);
+        assert_eq!(user.status, 0);
         assert_eq!(user.last_active_slot, 1);
         assert_eq!(user.liquidation_margin_freed, 0);
         assert_eq!(user.perp_positions[0].base_asset_amount, 200000000);
@@ -6003,7 +6003,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         .unwrap();
         assert_eq!(user.perp_positions[0].quote_asset_amount, -50000000);
         assert_eq!(user.spot_positions[0].scaled_balance, 49394850000); // <$50
-        assert_eq!(user.status, UserStatus::BeingLiquidated);
+        assert_eq!(user.status, UserStatus::BeingLiquidated as u8);
 
         liquidate_perp_pnl_for_deposit(
             0,
@@ -6028,7 +6028,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         assert_eq!(user.spot_positions[1].scaled_balance, 0);
 
         assert_eq!(user.perp_positions[0].quote_asset_amount, -1099098);
-        assert_eq!(user.status, UserStatus::Bankrupt);
+        assert_eq!(user.status, UserStatus::Bankrupt as u8);
     }
 
     #[test]
@@ -6396,7 +6396,7 @@ pub mod resolve_perp_bankruptcy {
                 ..PerpPosition::default()
             }),
             spot_positions: [SpotPosition::default(); 8],
-            status: UserStatus::Bankrupt,
+            status: UserStatus::Bankrupt as u8,
             next_liquidation_id: 2,
             ..User::default()
         };
@@ -6415,7 +6415,7 @@ pub mod resolve_perp_bankruptcy {
         let liquidator_key = Pubkey::default();
 
         let mut expected_user = user;
-        expected_user.status = UserStatus::Active;
+        expected_user.status = 0;
         expected_user.perp_positions[0].quote_asset_amount = 0;
         expected_user.total_social_loss = 100000000;
 
@@ -6607,7 +6607,7 @@ pub mod resolve_perp_bankruptcy {
                 ..PerpPosition::default()
             }),
             spot_positions: [SpotPosition::default(); 8],
-            status: UserStatus::Bankrupt,
+            status: UserStatus::Bankrupt as u8,
             next_liquidation_id: 2,
             ..User::default()
         };
@@ -6626,7 +6626,7 @@ pub mod resolve_perp_bankruptcy {
         let liquidator_key = Pubkey::default();
 
         let mut expected_user = user;
-        expected_user.status = UserStatus::Active;
+        expected_user.status = 0;
         expected_user.perp_positions[0].quote_asset_amount = 0;
         expected_user.total_social_loss = 100000000;
 
@@ -6843,7 +6843,7 @@ pub mod resolve_spot_bankruptcy {
                 balance_type: SpotBalanceType::Borrow,
                 ..SpotPosition::default()
             }),
-            status: UserStatus::Bankrupt,
+            status: UserStatus::Bankrupt as u8,
             next_liquidation_id: 2,
             ..User::default()
         };
@@ -6862,7 +6862,7 @@ pub mod resolve_spot_bankruptcy {
         let liquidator_key = Pubkey::default();
 
         let mut expected_user = user;
-        expected_user.status = UserStatus::Active;
+        expected_user.status = 0;
         expected_user.spot_positions[0].scaled_balance = 0;
         expected_user.spot_positions[0].cumulative_deposits = 100 * QUOTE_PRECISION_I64;
         expected_user.total_social_loss = 100000000;

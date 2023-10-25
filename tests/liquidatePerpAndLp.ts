@@ -32,7 +32,7 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, PERCENTAGE_PRECISION } from '../sdk';
+import { BulkAccountLoader, PERCENTAGE_PRECISION, UserStatus } from '../sdk';
 
 describe('liquidate perp and lp', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -210,7 +210,7 @@ describe('liquidate perp and lp', () => {
 		// const expectedLiqPrice = 0.521639;
 		const liqPrice = driftClientUser.liquidationPrice(0, ZERO);
 		console.log('liqPrice:', liqPrice.toString());
-		const expectedLiqPrice2 = new BN('500341');
+		const expectedLiqPrice2 = new BN('500350');
 		console.log('expected liqPrice:', expectedLiqPrice2.toString());
 
 		assert(liqPrice.eq(expectedLiqPrice2));
@@ -282,7 +282,7 @@ describe('liquidate perp and lp', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION,
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.div(new BN(10)),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -316,7 +316,7 @@ describe('liquidate perp and lp', () => {
 				.perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
 		);
 
-		assert(isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
+		assert(driftClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED);
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 
 		// try to add liq when being liquidated -- should fail
@@ -382,14 +382,14 @@ describe('liquidate perp and lp', () => {
 		);
 
 		await driftClient.fetchAccounts();
-		assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
+		assert(driftClient.getUserAccount().status === UserStatus.BANKRUPT);
 		console.log(
 			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
 		);
 		assert(
 			driftClient
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-4447508))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-4447653))
 		);
 
 		// try to add liq when bankrupt -- should fail
@@ -456,11 +456,11 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(4430007)));
 
-		// assert(!driftClient.getUserAccount().isBankrupt);
-		// assert(!driftClient.getUserAccount().isBeingLiquidated);
-		assert(!isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
-		assert(!isVariant(driftClient.getUserAccount().status, 'bankrupt'));
-		assert(isVariant(driftClient.getUserAccount().status, 'active'));
+		assert(
+			(driftClient.getUserAccount().status &
+				(UserStatus.BANKRUPT | UserStatus.BEING_LIQUIDATED)) ===
+				0
+		);
 
 		assert(
 			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
@@ -476,7 +476,7 @@ describe('liquidate perp and lp', () => {
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
 		);
-		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-4447508)));
+		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-4447653)));
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
 		);
@@ -491,7 +491,7 @@ describe('liquidate perp and lp', () => {
 		// 	market.amm.cumulativeFundingRateLong.toString(),
 		// 	market.amm.cumulativeFundingRateShort.toString()
 		// );
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(253144000)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-253144000)));
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(253152333)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-253135667)));
 	});
 });

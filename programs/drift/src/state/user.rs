@@ -40,16 +40,10 @@ mod tests;
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum UserStatus {
-    Active,
-    BeingLiquidated,
-    Bankrupt,
-    ReduceOnly,
-}
-
-impl Default for UserStatus {
-    fn default() -> Self {
-        UserStatus::Active
-    }
+    // Active = 0
+    BeingLiquidated = 0b00000001,
+    Bankrupt = 0b00000010,
+    ReduceOnly = 0b00000100,
 }
 
 // implement SIZE const for User
@@ -108,7 +102,7 @@ pub struct User {
     /// The sub account id for this user
     pub sub_account_id: u16,
     /// Whether the user is active, being liquidated or bankrupt
-    pub status: UserStatus,
+    pub status: u8,
     /// Whether the user has enabled margin trading
     pub is_margin_trading_enabled: bool,
     /// User is idle if they haven't interacted with the protocol in 1 week and they have no orders, perp positions or borrows
@@ -127,18 +121,23 @@ pub struct User {
 
 impl User {
     pub fn is_being_liquidated(&self) -> bool {
-        matches!(
-            self.status,
-            UserStatus::BeingLiquidated | UserStatus::Bankrupt
-        )
+        self.status & (UserStatus::BeingLiquidated as u8 | UserStatus::Bankrupt as u8) > 0
     }
 
     pub fn is_bankrupt(&self) -> bool {
-        self.status == UserStatus::Bankrupt
+        self.status & (UserStatus::Bankrupt as u8) > 0
     }
 
     pub fn is_reduce_only(&self) -> bool {
-        self.status == UserStatus::ReduceOnly
+        self.status & (UserStatus::ReduceOnly as u8) > 0
+    }
+
+    pub fn add_user_status(&mut self, status: UserStatus) {
+        self.status |= status as u8;
+    }
+
+    pub fn remove_user_status(&mut self, status: UserStatus) {
+        self.status &= !(status as u8);
     }
 
     pub fn get_spot_position_index(&self, market_index: u16) -> DriftResult<usize> {
@@ -317,23 +316,26 @@ impl User {
             return self.next_liquidation_id.safe_sub(1);
         }
 
-        self.status = UserStatus::BeingLiquidated;
+        self.add_user_status(UserStatus::BeingLiquidated);
         self.liquidation_margin_freed = 0;
         self.last_active_slot = slot;
         Ok(get_then_update_id!(self, next_liquidation_id))
     }
 
     pub fn exit_liquidation(&mut self) {
-        self.status = UserStatus::Active;
+        self.remove_user_status(UserStatus::BeingLiquidated);
+        self.remove_user_status(UserStatus::Bankrupt);
         self.liquidation_margin_freed = 0;
     }
 
     pub fn enter_bankruptcy(&mut self) {
-        self.status = UserStatus::Bankrupt;
+        self.remove_user_status(UserStatus::BeingLiquidated);
+        self.add_user_status(UserStatus::Bankrupt);
     }
 
     pub fn exit_bankruptcy(&mut self) {
-        self.status = UserStatus::Active;
+        self.remove_user_status(UserStatus::BeingLiquidated);
+        self.remove_user_status(UserStatus::Bankrupt);
         self.liquidation_margin_freed = 0;
     }
 
@@ -377,20 +379,11 @@ impl User {
 
     pub fn update_reduce_only_status(&mut self, reduce_only: bool) -> DriftResult {
         if reduce_only {
-            validate!(
-                self.status == UserStatus::Active,
-                ErrorCode::UserReduceOnly,
-                "user status needs to be active to enter reduce only"
-            )?;
-            self.status = UserStatus::ReduceOnly;
+            self.add_user_status(UserStatus::ReduceOnly);
         } else {
-            validate!(
-                self.status == UserStatus::ReduceOnly,
-                ErrorCode::UserReduceOnly,
-                "user status needs to be reduce only to exit reduce only"
-            )?;
-            self.status = UserStatus::Active;
+            self.remove_user_status(UserStatus::ReduceOnly);
         }
+
         Ok(())
     }
 }
@@ -566,7 +559,7 @@ impl SpotPosition {
         )
     }
 
-    pub fn get_worst_case_token_amount(
+    pub fn get_worst_case_fill_simulation(
         &self,
         spot_market: &SpotMarket,
         strict_oracle_price: &StrictOraclePrice,

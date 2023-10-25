@@ -150,6 +150,7 @@ pub fn update_spot_balances_and_cumulative_deposits_with_limits(
     Ok(())
 }
 
+#[cfg(test)]
 pub fn transfer_spot_position_deposit(
     token_amount: i128,
     spot_market: &mut SpotMarket,

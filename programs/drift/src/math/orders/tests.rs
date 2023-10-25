@@ -129,91 +129,6 @@ pub mod is_multiple_of_step_size {
     }
 }
 
-mod is_order_risk_increase {
-    use crate::controller::position::PositionDirection;
-    use crate::math::constants::{BASE_PRECISION_I64, BASE_PRECISION_U64};
-    use crate::math::orders::is_order_risk_decreasing;
-
-    #[test]
-    fn no_position() {
-        let order_direction = PositionDirection::Long;
-        let order_base_asset_amount = BASE_PRECISION_U64;
-        let existing_position = 0;
-
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-
-        let order_direction = PositionDirection::Short;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-    }
-
-    #[test]
-    fn bid() {
-        // user long and bid
-        let order_direction = PositionDirection::Long;
-        let order_base_asset_amount = BASE_PRECISION_U64;
-        let existing_position = BASE_PRECISION_I64;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-
-        // user short and bid < 2 * position
-        let existing_position = -BASE_PRECISION_I64;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(risk_decreasing);
-
-        // user short and bid = 2 * position
-        let existing_position = -BASE_PRECISION_I64 / 2;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-    }
-
-    #[test]
-    fn ask() {
-        // user short and ask
-        let order_direction = PositionDirection::Short;
-        let order_base_asset_amount = BASE_PRECISION_U64;
-        let existing_position = -BASE_PRECISION_I64;
-
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-
-        // user long and ask < 2 * position
-        let existing_position = BASE_PRECISION_I64;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(risk_decreasing);
-
-        // user long and ask = 2 * position
-        let existing_position = BASE_PRECISION_I64 / 2;
-        let risk_decreasing =
-            is_order_risk_decreasing(&order_direction, order_base_asset_amount, existing_position)
-                .unwrap();
-
-        assert!(!risk_decreasing);
-    }
-}
-
 mod order_breaches_oracle_price_limits {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
@@ -784,331 +699,6 @@ mod get_max_fill_amounts {
 
         assert_eq!(max_base, None);
         assert_eq!(max_quote, Some(16666666));
-    }
-}
-
-mod find_fallback_maker_order {
-    use crate::controller::position::PositionDirection;
-    use crate::math::constants::{PRICE_PRECISION_I64, PRICE_PRECISION_U64};
-    use crate::math::orders::find_fallback_maker_order;
-    use crate::state::user::{
-        MarketType, Order, OrderStatus, OrderTriggerCondition, OrderType, User,
-    };
-
-    #[test]
-    fn no_open_orders() {
-        let user = User::default();
-        let direction = PositionDirection::Long;
-        let market_type = MarketType::Perp;
-        let market_index = 0;
-        let oracle_price = PRICE_PRECISION_I64;
-        let slot = 0;
-        let tick_size = 1;
-
-        let order_index = find_fallback_maker_order(
-            &user,
-            &direction,
-            &market_type,
-            market_index,
-            Some(oracle_price),
-            slot,
-            tick_size,
-        )
-        .unwrap();
-
-        assert_eq!(order_index, None);
-    }
-
-    #[test]
-    fn no_limit_orders() {
-        let user = User {
-            orders: [Order {
-                status: OrderStatus::Open,
-                order_type: OrderType::Market,
-                market_index: 0,
-                market_type: MarketType::Perp,
-                direction: PositionDirection::Long,
-                ..Order::default()
-            }; 32],
-            ..User::default()
-        };
-        let direction = PositionDirection::Long;
-        let market_type = MarketType::Perp;
-        let market_index = 0;
-        let oracle_price = PRICE_PRECISION_I64;
-        let slot = 0;
-        let tick_size = 1;
-
-        let order_index = find_fallback_maker_order(
-            &user,
-            &direction,
-            &market_type,
-            market_index,
-            Some(oracle_price),
-            slot,
-            tick_size,
-        )
-        .unwrap();
-
-        assert_eq!(order_index, None);
-    }
-
-    #[test]
-    fn no_triggered_trigger_limit_orders() {
-        let user = User {
-            orders: [Order {
-                status: OrderStatus::Open,
-                order_type: OrderType::TriggerLimit,
-                trigger_condition: OrderTriggerCondition::Above,
-                market_index: 0,
-                market_type: MarketType::Perp,
-                direction: PositionDirection::Long,
-                ..Order::default()
-            }; 32],
-            ..User::default()
-        };
-        let direction = PositionDirection::Long;
-        let market_type = MarketType::Perp;
-        let market_index = 0;
-        let oracle_price = PRICE_PRECISION_I64;
-        let slot = 0;
-        let tick_size = 1;
-
-        let order_index = find_fallback_maker_order(
-            &user,
-            &direction,
-            &market_type,
-            market_index,
-            Some(oracle_price),
-            slot,
-            tick_size,
-        )
-        .unwrap();
-
-        assert_eq!(order_index, None);
-    }
-
-    #[test]
-    fn wrong_direction() {
-        let user = User {
-            orders: [Order {
-                status: OrderStatus::Open,
-                order_type: OrderType::Limit,
-                market_index: 0,
-                market_type: MarketType::Perp,
-                direction: PositionDirection::Short,
-                price: PRICE_PRECISION_U64,
-                ..Order::default()
-            }; 32],
-            ..User::default()
-        };
-        let direction = PositionDirection::Long;
-        let market_type = MarketType::Perp;
-        let market_index = 0;
-        let oracle_price = PRICE_PRECISION_I64;
-        let slot = 0;
-        let tick_size = 1;
-
-        let order_index = find_fallback_maker_order(
-            &user,
-            &direction,
-            &market_type,
-            market_index,
-            Some(oracle_price),
-            slot,
-            tick_size,
-        )
-        .unwrap();
-
-        assert_eq!(order_index, None);
-    }
-
-    #[test]
-    fn wrong_market_index() {
-        let user = User {
-            orders: [Order {
-                status: OrderStatus::Open,
-                order_type: OrderType::Limit,
-                market_index: 1,
-                market_type: MarketType::Perp,
-                direction: PositionDirection::Long,
-                price: PRICE_PRECISION_U64,
-                ..Order::default()
-            }; 32],
-            ..User::default()
-        };
-        let direction = PositionDirection::Long;
-        let market_type = MarketType::Perp;
-        let market_index = 0;
-        let oracle_price = PRICE_PRECISION_I64;
-        let slot = 0;
-        let tick_size = 1;
-
-        let order_index = find_fallback_maker_order(
-            &user,
-            &direction,
-            &market_type,
-            market_index,
-            Some(oracle_price),
-            slot,
-            tick_size,
-        )
-        .unwrap();
-
-        assert_eq!(order_index, None);
-    }
-
-    #[test]
-    fn wrong_market_type() {
-        let user = User {
-            orders: [Order {
-                status: OrderStatus::Open,
-                order_type: OrderType::Limit,
-                market_index: 0,
-                market_type: MarketType::Spot,
-                direction: PositionDirection::Long,
-                price: PRICE_PRECISION_U64,
-                ..Order::default()
-            }; 32],
-            ..User::default()
-        };
-        let direction = PositionDirection::Long;
-        let market_type = MarketType::Perp;
-        let market_index = 0;
-        let oracle_price = PRICE_PRECISION_I64;
-        let slot = 0;
-        let tick_size = 1;
-
-        let order_index = find_fallback_maker_order(
-            &user,
-            &direction,
-            &market_type,
-            market_index,
-            Some(oracle_price),
-            slot,
-            tick_size,
-        )
-        .unwrap();
-
-        assert_eq!(order_index, None);
-    }
-
-    #[test]
-    fn only_one_fallback_bid() {
-        let mut orders = [Order::default(); 32];
-        orders[0] = Order {
-            status: OrderStatus::Open,
-            order_type: OrderType::Limit,
-            market_index: 0,
-            market_type: MarketType::Perp,
-            direction: PositionDirection::Long,
-            price: PRICE_PRECISION_U64,
-            ..Order::default()
-        };
-
-        let user = User {
-            orders,
-            ..User::default()
-        };
-        let direction = PositionDirection::Long;
-        let market_type = MarketType::Perp;
-        let market_index = 0;
-        let oracle_price = PRICE_PRECISION_I64;
-        let slot = 0;
-        let tick_size = 1;
-
-        let order_index = find_fallback_maker_order(
-            &user,
-            &direction,
-            &market_type,
-            market_index,
-            Some(oracle_price),
-            slot,
-            tick_size,
-        )
-        .unwrap();
-
-        assert_eq!(order_index, Some(0));
-    }
-
-    #[test]
-    fn find_best_bid() {
-        let mut orders = [Order::default(); 32];
-        for (i, order) in orders.iter_mut().enumerate() {
-            *order = Order {
-                status: OrderStatus::Open,
-                order_type: OrderType::Limit,
-                market_index: 0,
-                market_type: MarketType::Perp,
-                direction: PositionDirection::Long,
-                price: (i as u64 + 1) * PRICE_PRECISION_U64,
-                ..Order::default()
-            }
-        }
-
-        let user = User {
-            orders,
-            ..User::default()
-        };
-        let direction = PositionDirection::Long;
-        let market_type = MarketType::Perp;
-        let market_index = 0;
-        let oracle_price = PRICE_PRECISION_I64;
-        let slot = 0;
-        let tick_size = 1;
-
-        let order_index = find_fallback_maker_order(
-            &user,
-            &direction,
-            &market_type,
-            market_index,
-            Some(oracle_price),
-            slot,
-            tick_size,
-        )
-        .unwrap();
-
-        assert_eq!(order_index, Some(31));
-    }
-
-    #[test]
-    fn find_best_ask() {
-        let mut orders = [Order::default(); 32];
-        for (i, order) in orders.iter_mut().enumerate() {
-            *order = Order {
-                status: OrderStatus::Open,
-                order_type: OrderType::Limit,
-                market_index: 0,
-                market_type: MarketType::Perp,
-                direction: PositionDirection::Short,
-                price: (i as u64 + 1) * PRICE_PRECISION_U64,
-                ..Order::default()
-            }
-        }
-
-        let user = User {
-            orders,
-            ..User::default()
-        };
-        let direction = PositionDirection::Short;
-        let market_type = MarketType::Perp;
-        let market_index = 0;
-        let oracle_price = PRICE_PRECISION_I64;
-        let slot = 0;
-        let tick_size = 1;
-
-        let order_index = find_fallback_maker_order(
-            &user,
-            &direction,
-            &market_type,
-            market_index,
-            Some(oracle_price),
-            slot,
-            tick_size,
-        )
-        .unwrap();
-
-        assert_eq!(order_index, Some(0));
     }
 }
 
@@ -3006,11 +2596,173 @@ pub mod is_oracle_too_divergent_with_twap_5min {
     }
 }
 
+pub mod is_new_order_risk_increasing {
+    use crate::math::orders::is_new_order_risk_increasing;
+    use crate::state::user::Order;
+    use crate::PositionDirection;
+
+    #[test]
+    fn test() {
+        // reduce only case
+        let order = Order {
+            reduce_only: true,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 0_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(!risk_increasing);
+
+        // bid with no existing position
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Long,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 0_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+
+        // bid with with existing short
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Long,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = -1_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(!risk_increasing);
+
+        // bid with with existing short and existing bid
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Long,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = -1_i64;
+        let position_bids = 1_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+
+        // ask with no existing position
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Short,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 0_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+
+        // ask with with existing long
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Short,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 1_i64;
+        let position_bids = 0_i64;
+        let position_asks = 0_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(!risk_increasing);
+
+        // bid with with existing short and existing bid
+        let order = Order {
+            reduce_only: false,
+            direction: PositionDirection::Short,
+            base_asset_amount: 1,
+            ..Order::default()
+        };
+
+        let position_base_asset_amount = 1_i64;
+        let position_bids = 0_i64;
+        let position_asks = -1_i64;
+
+        let risk_increasing = is_new_order_risk_increasing(
+            &order,
+            position_base_asset_amount,
+            position_bids,
+            position_asks,
+        )
+        .unwrap();
+
+        assert!(risk_increasing);
+    }
+}
+
 pub mod get_price_for_perp_order {
     use crate::math::orders::get_price_for_perp_order;
 
+    use crate::state::order_params::PostOnlyParam;
     use crate::state::perp_market::AMM;
-    use crate::{PositionDirection, PostOnlyParam, BID_ASK_SPREAD_PRECISION_U128};
+    use crate::{PositionDirection, BID_ASK_SPREAD_PRECISION_U128};
     use crate::{AMM_RESERVE_PRECISION, PEG_PRECISION};
 
     #[test]

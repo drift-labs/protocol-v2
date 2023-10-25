@@ -314,7 +314,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 weighted_token_value: worst_case_weighted_token_value,
                 ..
             } = spot_position
-                .get_worst_case_token_amount(
+                .get_worst_case_fill_simulation(
                     &spot_market,
                     &strict_oracle_price,
                     Some(signed_token_amount),

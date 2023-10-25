@@ -466,3 +466,31 @@ fn validate_spot_limit_order(order: &Order, step_size: u64, min_order_size: u64)
 
     Ok(())
 }
+
+pub fn validate_order_for_force_reduce_only(order: &Order, existing_position: i64) -> DriftResult {
+    validate!(
+        order.reduce_only,
+        ErrorCode::InvalidOrderNotRiskReducing,
+        "order must be reduce only",
+    )?;
+
+    validate!(
+        existing_position != 0,
+        ErrorCode::InvalidOrderNotRiskReducing,
+        "user must have position to submit order",
+    )?;
+
+    let existing_position_direction = if existing_position > 0 {
+        PositionDirection::Long
+    } else {
+        PositionDirection::Short
+    };
+
+    validate!(
+        order.direction != existing_position_direction,
+        ErrorCode::InvalidOrderNotRiskReducing,
+        "order direction must be opposite of existing position in reduce only mode",
+    )?;
+
+    Ok(())
+}

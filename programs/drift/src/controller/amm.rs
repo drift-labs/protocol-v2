@@ -16,7 +16,7 @@ use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     CONCENTRATION_PRECISION, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, K_BPS_UPDATE_SCALE,
-    MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K, PRICE_TO_PEG_PRECISION_RATIO,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -149,35 +149,6 @@ pub fn calculate_base_swap_output_with_spread(
         new_quote_asset_reserve,
         quote_asset_amount.cast::<u64>()?,
         quote_asset_amount_surplus.cast::<u64>()?,
-    ))
-}
-
-#[allow(dead_code)]
-fn calculate_base_swap_output_without_spread(
-    amm: &mut AMM,
-    base_asset_swap_amount: u128,
-    direction: SwapDirection,
-) -> DriftResult<(u128, u128, u128, u128)> {
-    let initial_quote_asset_reserve = amm.quote_asset_reserve;
-    let (new_quote_asset_reserve, new_base_asset_reserve) = amm::calculate_swap_output(
-        base_asset_swap_amount,
-        amm.base_asset_reserve,
-        direction,
-        amm.sqrt_k,
-    )?;
-
-    let quote_asset_amount = calculate_quote_asset_amount_swapped(
-        initial_quote_asset_reserve,
-        new_quote_asset_reserve,
-        direction,
-        amm.peg_multiplier,
-    )?;
-
-    Ok((
-        new_base_asset_reserve,
-        new_quote_asset_reserve,
-        quote_asset_amount,
-        0,
     ))
 }
 
@@ -382,6 +353,7 @@ pub fn get_fee_pool_tokens(
     )?
     .cast()
 }
+
 fn calculate_revenue_pool_transfer(
     market: &PerpMarket,
     spot_market: &SpotMarket,
@@ -761,25 +733,6 @@ pub fn move_price(
 
     let reserve_price_after = amm.reserve_price()?;
     update_spreads(amm, reserve_price_after)?;
-
-    Ok(())
-}
-
-#[allow(dead_code)]
-pub fn move_to_price(amm: &mut AMM, target_price: u128) -> DriftResult {
-    let sqrt_k = bn::U256::from(amm.sqrt_k);
-    let k = sqrt_k.safe_mul(sqrt_k)?;
-
-    let new_base_asset_amount_squared = k
-        .safe_mul(bn::U256::from(amm.peg_multiplier))?
-        .safe_mul(bn::U256::from(PRICE_TO_PEG_PRECISION_RATIO))?
-        .safe_div(bn::U256::from(target_price))?;
-
-    let new_base_asset_amount = new_base_asset_amount_squared.integer_sqrt();
-    let new_quote_asset_amount = k.safe_div(new_base_asset_amount)?;
-
-    amm.base_asset_reserve = new_base_asset_amount.try_to_u128()?;
-    amm.quote_asset_reserve = new_quote_asset_amount.try_to_u128()?;
 
     Ok(())
 }

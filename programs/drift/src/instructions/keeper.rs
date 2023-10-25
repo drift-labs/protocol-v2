@@ -10,6 +10,7 @@ use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
+use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
@@ -107,6 +108,7 @@ fn fill_order(ctx: Context<FillOrder>, order_id: u32, market_index: u16) -> Resu
         &makers_and_referrer_stats,
         None,
         clock,
+        FillMode::Fill,
     )?;
 
     Ok(())
