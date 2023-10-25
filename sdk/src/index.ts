@@ -34,6 +34,8 @@ export * from './factory/bigNum';
 export * from './events/types';
 export * from './events/eventSubscriber';
 export * from './events/fetchLogs';
+export * from './events/pollingLogProvider';
+export * from './events/webSocketLogProvider';
 export * from './jupiter/jupiterClient';
 export * from './math/auction';
 export * from './math/spotMarket';
