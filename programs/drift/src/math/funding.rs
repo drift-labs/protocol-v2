@@ -18,6 +18,7 @@ use crate::state::user::PerpPosition;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
 pub fn calculate_funding_rate(
     mid_price_twap: u128,
     oracle_price_twap: i128,
