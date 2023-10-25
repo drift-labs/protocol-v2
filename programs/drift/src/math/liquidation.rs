@@ -208,14 +208,6 @@ pub fn is_user_being_liquidated(
     Ok(is_being_liquidated)
 }
 
-pub fn get_margin_requirement_plus_buffer(
-    margin_requirement: u128,
-    liquidation_margin_buffer_ratio: u8,
-) -> DriftResult<u128> {
-    margin_requirement
-        .safe_add(margin_requirement.safe_div(liquidation_margin_buffer_ratio as u128)?)
-}
-
 pub fn validate_user_not_being_liquidated(
     user: &mut User,
     market_map: &PerpMarketMap,

@@ -9,7 +9,7 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_TO_QUOTE_PRECISION_RATIO_I128, K_BPS_UPDATE_SCALE,
     MAX_K_BPS_DECREASE, MAX_SQRT_K, PEG_PRECISION, PERCENTAGE_PRECISION_I128, QUOTE_PRECISION,
 };
-use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
+use crate::math::position::{calculate_base_asset_value, calculate_base_asset_value_and_pnl};
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::{MarketStatus, PerpMarket};
@@ -175,7 +175,7 @@ pub fn adjust_k_cost(
     let mut market_clone = *market;
 
     // Find the net market value before adjusting k
-    let (current_net_market_value, _) = _calculate_base_asset_value_and_pnl(
+    let (current_net_market_value, _) = calculate_base_asset_value_and_pnl(
         market_clone.amm.base_asset_amount_with_amm,
         0,
         &market_clone.amm,
@@ -184,7 +184,7 @@ pub fn adjust_k_cost(
 
     update_k(&mut market_clone, update_k_result)?;
 
-    let (_new_net_market_value, cost) = _calculate_base_asset_value_and_pnl(
+    let (_new_net_market_value, cost) = calculate_base_asset_value_and_pnl(
         market_clone.amm.base_asset_amount_with_amm,
         current_net_market_value,
         &market_clone.amm,
@@ -207,7 +207,7 @@ pub fn adjust_k_cost_and_update(
 
     update_k(market, update_k_result)?;
 
-    let (_new_net_market_value, cost) = _calculate_base_asset_value_and_pnl(
+    let (_new_net_market_value, cost) = calculate_base_asset_value_and_pnl(
         market.amm.base_asset_amount_with_amm,
         current_net_market_value,
         &market.amm,
