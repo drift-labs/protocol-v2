@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+use std::cmp::max;
 
 use solana_program::msg;
 
@@ -7,7 +7,7 @@ use crate::math::bn;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO, AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER,
-    ONE_HOUR_I128, PRICE_PRECISION, QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
+    PRICE_PRECISION, QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
 };
 use crate::math::repeg::{calculate_fee_pool, get_total_fee_lower_bound};
 use crate::math::safe_math::SafeMath;
@@ -17,32 +17,6 @@ use crate::state::user::PerpPosition;
 
 #[cfg(test)]
 mod tests;
-
-#[cfg(test)]
-pub fn calculate_funding_rate(
-    mid_price_twap: u128,
-    oracle_price_twap: i128,
-    funding_period: i64,
-) -> DriftResult<i128> {
-    // funding period = 1 hour, window = 1 day
-    // low periodicity => quickly updating/settled funding rates
-    //                 => lower funding rate payment per interval
-    let period_adjustment = (24_i128)
-        .safe_mul(ONE_HOUR_I128)?
-        .safe_div(max(ONE_HOUR_I128, funding_period as i128))?;
-
-    let price_spread = mid_price_twap.cast::<i128>()?.safe_sub(oracle_price_twap)?;
-
-    // clamp price divergence to 3% for funding rate calculation
-    let max_price_spread = oracle_price_twap.safe_div(33)?; // 3%
-    let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
-
-    let funding_rate = clamped_price_spread
-        .safe_mul(FUNDING_RATE_BUFFER.cast()?)?
-        .safe_div(period_adjustment.cast()?)?;
-
-    Ok(funding_rate)
-}
 
 /// With a virtual AMM, there can be an imbalance between longs and shorts and thus funding can be asymmetric.
 /// To account for this, amm keeps track of the cumulative funding rate for both longs and shorts.
