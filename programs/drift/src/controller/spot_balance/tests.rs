@@ -34,6 +34,24 @@ use crate::state::user::{Order, PerpPosition, SpotPosition, User};
 use crate::test_utils::*;
 use crate::test_utils::{get_pyth_price, get_spot_positions};
 
+pub fn check_perp_market_valid(
+    perp_market: &PerpMarket,
+    spot_market: &SpotMarket,
+    spot_balance: &mut dyn SpotBalance,
+    current_slot: u64,
+) -> DriftResult {
+    // todo
+
+    if perp_market.amm.oracle == spot_market.oracle
+        && spot_balance.balance_type() == &SpotBalanceType::Borrow
+        && (perp_market.amm.last_update_slot != current_slot || !perp_market.amm.last_oracle_valid)
+    {
+        return Err(ErrorCode::InvalidOracle);
+    }
+
+    Ok(())
+}
+
 #[test]
 fn test_daily_withdraw_limits() {
     let now = 0_i64;
