@@ -450,7 +450,7 @@ pub fn calculate_spread_reserves(
 
     let quote_asset_reserve_delta = if spread > 0 {
         amm.quote_asset_reserve
-            .safe_div(BID_ASK_SPREAD_PRECISION_U128 / (spread.cast::<u128>()? / 2))?
+            .safe_div(BID_ASK_SPREAD_PRECISION_U128 / (spread.cast::<u128>()?.safe_div_ceil(2)?))?
     } else {
         0
     };
