@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.42.0] - 2023-10-26
+
+### Features
+
 - program: add accelerated user update idle ([#669](https://github.com/drift-labs/protocol-v2/pull/669)) 
 - program: make user status a bit flag ([#619](https://github.com/drift-labs/protocol-v2/pull/619))
 - program: place and take uses auction end price for market orders ([#650](https://github.com/drift-labs/protocol-v2/pull/650))
