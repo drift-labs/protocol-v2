@@ -3154,7 +3154,8 @@ export class User {
 			return false;
 		}
 
-		const { totalAssetValue, totalLiabilityValue } = this.getSpotMarketAssetAndLiabilityValue();
+		const { totalAssetValue, totalLiabilityValue } =
+			this.getSpotMarketAssetAndLiabilityValue();
 		const equity = totalAssetValue.sub(totalLiabilityValue);
 
 		let slotsBeforeIdle: BN;
