@@ -669,6 +669,7 @@ impl SpotPosition {
 
 #[zero_copy(unsafe)]
 #[derive(Default, Debug, Eq, PartialEq)]
+#[cfg_attr(fuzzing, derive(arbitrary::Arbitrary))]
 #[repr(C)]
 pub struct PerpPosition {
     /// The perp market's last cumulative funding rate. Used to calculate the funding payment owed to user
