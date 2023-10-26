@@ -1424,6 +1424,9 @@ pub fn handle_update_perp_market_max_imbalances(
     perp_market.unrealized_pnl_max_imbalance = unrealized_max_imbalance;
     perp_market.insurance_claim.quote_max_insurance = quote_max_insurance;
 
+    // ensure altered max_revenue_withdraw_per_period doesn't break invariant check
+    crate::validation::perp_market::validate_perp_market(perp_market)?;
+
     Ok(())
 }
 

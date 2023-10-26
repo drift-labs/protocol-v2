@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: add positive perp funding rate offset ([#576](https://github.com/drift-labs/protocol-v2/pull/576/files))
 
 ### Fixes
+- program: add validation check in update max imbalances ([#667](https://github.com/drift-labs/protocol-v2/pull/667))
 
 ### Breaking
 
