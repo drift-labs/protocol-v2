@@ -3148,10 +3148,20 @@ export class User {
 		};
 	}
 
-	public canMakeIdle(slot: BN, slotsBeforeIdle: BN): boolean {
+	public canMakeIdle(slot: BN): boolean {
 		const userAccount = this.getUserAccount();
 		if (userAccount.idle) {
 			return false;
+		}
+
+		const { totalAssetValue, totalLiabilityValue } = this.getSpotMarketAssetAndLiabilityValue();
+		const equity = totalAssetValue.sub(totalLiabilityValue);
+
+		let slotsBeforeIdle: BN;
+		if (equity.lt(QUOTE_PRECISION)) {
+			slotsBeforeIdle = new BN(3600);
+		} else {
+			slotsBeforeIdle = new BN(1512000);
 		}
 
 		const userLastActiveSlot = userAccount.lastActiveSlot;
