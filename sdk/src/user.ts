@@ -3159,9 +3159,9 @@ export class User {
 
 		let slotsBeforeIdle: BN;
 		if (equity.lt(QUOTE_PRECISION)) {
-			slotsBeforeIdle = new BN(3600);
+			slotsBeforeIdle = new BN(9000); // 1 hour
 		} else {
-			slotsBeforeIdle = new BN(1512000);
+			slotsBeforeIdle = new BN(1512000); // 1 week
 		}
 
 		const userLastActiveSlot = userAccount.lastActiveSlot;
