@@ -6,7 +6,11 @@ import {
 	initialize,
 	BulkAccountLoader,
 	getMarketsAndOraclesForSubscription,
+	EventSubscriber,
+	isVariant,
 } from '..';
+
+import { sleep } from '../../../tests/testHelpers';
 
 const env = 'mainnet-beta';
 
@@ -59,28 +63,40 @@ const main = async () => {
 	console.log('Subscribing drift client...');
 	await driftClient.subscribe();
 
-	console.log('Loading user map...');
-	const userMap = new UserMap(driftClient, {
-		type: 'polling',
-		accountLoader: bulkAccountLoader,
+    // TODO: this doesnt filter all margin/read instances
+	// listen to this market account only (mainnet perp marketIndex=0 is SOL-PERP)
+	const address = driftClient.getPerpMarketAccount(0).pubkey;
+
+	const eventSubscriber = new EventSubscriber(connection, driftClient.program, {
+		address: address,
+		commitment: 'recent',
+		eventTypes: [
+			// Order and Order Action records are handled by polling the history server now
+			// 'DepositRecord',
+			// 'FundingPaymentRecord',
+			// 'LiquidationRecord',
+			// 'SettlePnlRecord',
+			// 'SwapRecord',
+			'OrderActionRecord',
+			// 'OrderRecord',
+		],
 	});
+	eventSubscriber.subscribe();
 
-	// fetches all users and subscribes for updates
-	await userMap.subscribe();
-
-	console.log('Loading dlob from user map...');
-	const dlob = new DLOB();
-	await dlob.initFromUserMap(userMap, bulkAccountLoader.mostRecentSlot);
-
-	console.log('number of orders', dlob.getDLOBOrders().length);
-
-	dlob.clear();
-
-	console.log('Unsubscribing users...');
-	await userMap.unsubscribe();
-
-	console.log('Unsubscribing drift client...');
-	await driftClient.unsubscribe();
+	let lastLength = 0;
+	while (1) {
+		const eventArray = eventSubscriber.getEventsArray('OrderActionRecord');
+		if (eventArray.length != lastLength) {
+			for (let i = 0; i < eventArray.length - lastLength; i++) {
+				const item = eventArray[i];
+				if (isVariant(item.action, 'fill')) {
+					console.log(eventArray[i]);
+				}
+			}
+			lastLength = eventArray.length;
+		}
+		await sleep(1000); // wait 1 second
+	}
 };
 
 main();
