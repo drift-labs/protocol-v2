@@ -1711,3 +1711,99 @@ mod revenue_pool_transfer_tests {
         assert_eq!(spot_market.revenue_pool.scaled_balance, 9870000000000);
     }
 }
+
+
+
+mod funding_rate_tests {
+    use crate::controller::amm::*;
+    use crate::controller::funding::*;
+    use std::str::FromStr;
+
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+    use crate::create_account_info;
+    use crate::create_anchor_account_info;
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_U64,
+        FUNDING_RATE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION, QUOTE_PRECISION,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+    };
+    use crate::math::spot_balance::get_token_amount;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
+    use crate::state::oracle_map::OracleMap;
+    use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
+    use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::spot_market_map::SpotMarketMap;
+    use crate::state::user::{
+        Order, OrderStatus, OrderType, PerpPosition, SpotPosition, User, UserStatus,
+    };
+    use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
+
+    use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
+
+    #[test]
+    fn le_update_funding_tests() {
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 512295081967,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                terminal_quote_asset_reserve: 500 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000000,
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+                base_asset_amount_long: 12295081967 * 2,
+                base_asset_amount_short: -12295081967,
+
+                base_asset_amount_with_amm: -12295081967,
+                total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+                curve_update_intensity: 100,
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+        let state = State {
+            oracle_guard_rails: OracleGuardRails {
+                validity: ValidityGuardRails {
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
+                    confidence_interval_max_size: 1000,
+                    too_volatile_ratio: 5,
+                },
+                ..OracleGuardRails::default()
+            },
+            ..State::default()
+        };
+        let now = 12448910359;
+        
+        let res = update_funding_rate(0, &mut market, &mut oracle_map, 
+            now, 
+            &state.oracle_guard_rails, 
+            true, None
+        ).unwrap();
+
+        assert_eq!(res, false);
+
+        let res = update_funding_rate(0, &mut market, &mut oracle_map, 
+            now, 
+            &state.oracle_guard_rails, 
+            false, None
+        ).unwrap();
+
+        assert_eq!(res, true);
+
+    }
+}
