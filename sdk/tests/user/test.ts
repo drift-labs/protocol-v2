@@ -289,8 +289,9 @@ describe('User Tests', () => {
 			mockUser.getMaxLeverageForPerp(0).toString()
 		);
 		assert(mockUser.getMaxLeverageForPerp(0).eq(new BN('50000'))); // 5x
-		assert(mockUser.getMaxLeverageForPerp(0, 'Maintenance').eq(new BN('100000'))); // 10x
-
+		assert(
+			mockUser.getMaxLeverageForPerp(0, 'Maintenance').eq(new BN('100000'))
+		); // 10x
 	});
 
 	it('worst case token amount', async () => {
@@ -399,8 +400,7 @@ describe('User Tests', () => {
 		); // -$2k
 	});
 
-
-	it('custom margin ratio (sol spot)', async() => {
+	it('custom margin ratio (sol spot)', async () => {
 		const myMockUserAccount = _.cloneDeep(mockUserAccount);
 
 		const solMarket = Object.assign({}, _.cloneDeep(mockSpotMarkets[1]), {
@@ -427,11 +427,9 @@ describe('User Tests', () => {
 		);
 
 		console.log(worstCase);
-		assert(worstCase.weight.eq(new BN(8000))); 
-
+		assert(worstCase.weight.eq(new BN(8000)));
 
 		myMockUserAccount.maxMarginRatio = MARGIN_PRECISION.toNumber(); // max 1x pls
-
 
 		const worstCaseAfter = getWorstCaseTokenAmounts(
 			spotPosition,
@@ -443,10 +441,9 @@ describe('User Tests', () => {
 
 		console.log(worstCaseAfter);
 		assert(worstCaseAfter.weight.eq(new BN(0))); // not allowed to increase exposure
-
 	});
 
-	it('custom margin ratio (sol perp)', async() => {
+	it('custom margin ratio (sol perp)', async () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
 		const myMockUserAccount = _.cloneDeep(mockUserAccount);
@@ -469,7 +466,6 @@ describe('User Tests', () => {
 			[1, 1, 1, 1, 1, 1, 1, 1]
 		);
 
-
 		assert(mockUser.getTokenAmount(0).eq(new BN('10000000000')));
 		assert(mockUser.getNetSpotMarketValue().eq(new BN('10000000000')));
 		assert(
@@ -486,7 +482,9 @@ describe('User Tests', () => {
 		assert(iLev == 5000);
 		assert(mLev == 10000);
 
-		myMockUserAccount.maxMarginRatio = MARGIN_PRECISION.div(new BN(2)).toNumber(); // 2x max pls
+		myMockUserAccount.maxMarginRatio = MARGIN_PRECISION.div(
+			new BN(2)
+		).toNumber(); // 2x max pls
 
 		const mockUser2: User = await makeMockUser(
 			myMockPerpMarkets,
@@ -498,9 +496,8 @@ describe('User Tests', () => {
 		iLev = mockUser2.getMaxLeverageForPerp(0, 'Initial').toNumber();
 		mLev = mockUser2.getMaxLeverageForPerp(0, 'Maintenance').toNumber();
 		console.log(iLev, mLev);
-		
+
 		assert(iLev == 2000);
 		assert(mLev == 10000);
-
 	});
 });
