@@ -1111,7 +1111,7 @@ export class DLOB {
 					continue;
 				}
 
-				if (filterFcn && filterFcn(bestGenerator.next.value)) {
+				if (filterFcn && !filterFcn(bestGenerator.next.value)) {
 					bestGenerator.next = bestGenerator.generator.next();
 					continue;
 				}
