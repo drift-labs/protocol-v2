@@ -164,12 +164,21 @@ export function getVammL2Generator({
 
 	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, oraclePriceData);
 
-	const [openBids, openAsks] = calculateMarketOpenBidAsk(
+	let [openBids, openAsks] = calculateMarketOpenBidAsk(
 		updatedAmm.baseAssetReserve,
 		updatedAmm.minBaseAssetReserve,
 		updatedAmm.maxBaseAssetReserve,
 		updatedAmm.orderStepSize
 	);
+
+	const minOrderSize = marketAccount.amm.orderStepSize;
+	if (openBids.lt(minOrderSize.muln(2))) {
+		openBids = ZERO;
+	}
+
+	if (openAsks.abs().lt(minOrderSize.muln(2))) {
+		openAsks = ZERO;
+	}
 
 	now = now ?? new BN(Date.now() / 1000);
 	const [bidReserves, askReserves] = calculateSpreadReserves(
