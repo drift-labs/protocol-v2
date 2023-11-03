@@ -29,6 +29,7 @@ export type L2Level = {
 export type L2OrderBook = {
 	asks: L2Level[];
 	bids: L2Level[];
+	slot?: number;
 };
 
 export interface L2OrderBookGenerator {
@@ -46,6 +47,7 @@ export type L3Level = {
 export type L3OrderBook = {
 	asks: L3Level[];
 	bids: L3Level[];
+	slot?: number;
 };
 
 export const DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS = [
