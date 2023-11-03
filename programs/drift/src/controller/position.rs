@@ -20,6 +20,8 @@ use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket};
 use crate::state::user::{PerpPosition, PerpPositions, User};
 use crate::validate;
 
+#[cfg(fuzzing)]
+mod fuzz;
 #[cfg(test)]
 mod tests;
 
@@ -75,7 +77,7 @@ pub fn get_position_index(user_positions: &PerpPositions, market_index: u16) -> 
     }
 }
 
-#[derive(Default, PartialEq, Debug)]
+#[derive(Default, PartialEq, Copy, Clone, Debug)]
 pub struct PositionDelta {
     pub quote_asset_amount: i64,
     pub base_asset_amount: i64,

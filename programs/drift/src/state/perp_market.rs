@@ -30,6 +30,9 @@ use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
+#[cfg(feature = "arbitrary")]
+use arbitrary::{Arbitrary, Result, Unstructured};
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
     /// warm up period for initialization, fills are paused
@@ -203,6 +206,13 @@ pub struct PerpMarket {
     /// if this is 50 and the fee is 5bps, the new fee will be 7.5bps
     pub fee_adjustment: i16,
     pub padding: [u8; 46],
+}
+
+#[cfg(feature = "arbitrary")]
+impl<'a> Arbitrary<'a> for PerpMarket {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(PerpMarket::default())
+    }
 }
 
 impl Default for PerpMarket {
