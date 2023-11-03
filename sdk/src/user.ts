@@ -2884,8 +2884,11 @@ export class User {
 			includeOpenOrders
 		);
 
+		// current side is short if position base asset amount is negative OR there is no position open but open orders are short
 		const currentSide =
-			currentPosition && currentPosition.baseAssetAmount.isNeg()
+			currentPosition.baseAssetAmount.isNeg() ||
+			(currentPosition.baseAssetAmount.eq(ZERO) &&
+				currentPosition.openAsks.abs().gt(currentPosition.openBids.abs()))
 				? PositionDirection.SHORT
 				: PositionDirection.LONG;
 
