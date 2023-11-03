@@ -77,11 +77,11 @@ pub struct SpotInterestRecord {
     pub borrow_balance: u128,
     /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
     pub cumulative_borrow_interest: u128,
-    // precision: PERCENTAGE_PRECISION
+    /// precision: PERCENTAGE_PRECISION
     pub optimal_utilization: u32,
-    // precision: PERCENTAGE_PRECISION
+    /// precision: PERCENTAGE_PRECISION
     pub optimal_borrow_rate: u32,
-    // precision: PERCENTAGE_PRECISION
+    /// precision: PERCENTAGE_PRECISION
     pub max_borrow_rate: u32,
 }
 
@@ -523,17 +523,17 @@ pub struct InsuranceFundRecord {
     pub ts: i64,
     pub spot_market_index: u16,
     pub perp_market_index: u16,
-    // precision: PERCENTAGE_PRECISION
+    /// precision: PERCENTAGE_PRECISION
     pub user_if_factor: u32,
-    // precision: PERCENTAGE_PRECISION
+    /// precision: PERCENTAGE_PRECISION
     pub total_if_factor: u32,
-    // precision: token mint precision
+    /// precision: token mint precision
     pub vault_amount_before: u64,
-    // precision: token mint precision
+    /// precision: token mint precision
     pub insurance_vault_amount_before: u64,
     pub total_if_shares_before: u128,
     pub total_if_shares_after: u128,
-    // precision: token mint precision
+    /// precision: token mint precision
     pub amount: i64,
 }
 
@@ -543,11 +543,11 @@ pub struct InsuranceFundStakeRecord {
     pub ts: i64,
     pub user_authority: Pubkey,
     pub action: StakeAction,
-    // precision: token mint precision
+    /// precision: token mint precision
     pub amount: u64,
     pub market_index: u16,
 
-    // precision: token mint precision
+    /// precision: token mint precision
     pub insurance_vault_amount_before: u64,
     pub if_shares_before: u128,
     pub user_if_shares_before: u128,
@@ -578,15 +578,15 @@ impl Default for StakeAction {
 pub struct SwapRecord {
     pub ts: i64,
     pub user: Pubkey,
-    // precision: out market mint precision
+    /// precision: out market mint precision
     pub amount_out: u64,
-    // precision: in market mint precision
+    /// precision: in market mint precision
     pub amount_in: u64,
     pub out_market_index: u16,
     pub in_market_index: u16,
-    // precision: PRICE_PRECISION
+    /// precision: PRICE_PRECISION
     pub out_oracle_price: i64,
-    // precision: PRICE_PRECISION
+    /// precision: PRICE_PRECISION
     pub in_oracle_price: i64,
     pub fee: u64,
 }
