@@ -1735,6 +1735,7 @@ pub fn fulfill_perp_order_with_amm(
     liquidity_split: AMMLiquiditySplit,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
+    let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
 
     // Determine the base asset amount the market can fill
     let (base_asset_amount, limit_price, fill_price) = match override_base_asset_amount {
@@ -1742,7 +1743,6 @@ pub fn fulfill_perp_order_with_amm(
             (override_base_asset_amount, limit_price, override_fill_price)
         }
         None => {
-            let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
                 &user.orders[order_index],
                 market,
@@ -1761,7 +1761,15 @@ pub fn fulfill_perp_order_with_amm(
         }
     };
 
-    if base_asset_amount < market.amm.min_order_size {
+    // if user position is less than min order size, step size is the threshold
+    let amm_size_threshold =
+        if existing_base_asset_amount.unsigned_abs() > market.amm.min_order_size {
+            market.amm.min_order_size
+        } else {
+            market.amm.order_step_size
+        };
+
+    if base_asset_amount < amm_size_threshold {
         // if is an actual swap (and not amm jit order) then msg!
         if override_base_asset_amount.is_none() {
             msg!(
