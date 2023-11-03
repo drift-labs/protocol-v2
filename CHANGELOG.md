@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: allow amm to fill step size ([#672](https://github.com/drift-labs/protocol-v2/pull/672))
+
 ### Breaking
 
 ## [2.42.0] - 2023-10-26
