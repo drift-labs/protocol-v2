@@ -2884,8 +2884,12 @@ export class User {
 			includeOpenOrders
 		);
 
+		const worstCaseBase = calculateWorstCaseBaseAssetAmount(currentPosition);
+
+		// current side is short if position base asset amount is negative OR there is no position open but open orders are short
 		const currentSide =
-			currentPosition && currentPosition.baseAssetAmount.isNeg()
+			currentPosition.baseAssetAmount.isNeg() ||
+			(currentPosition.baseAssetAmount.eq(ZERO) && worstCaseBase.isNeg())
 				? PositionDirection.SHORT
 				: PositionDirection.LONG;
 

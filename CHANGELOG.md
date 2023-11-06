@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 ### Fixes
+- sdk: fix bug which incorrectly calculated leverage after trade for a market with no position but short orders open
 
 ### Breaking
 
