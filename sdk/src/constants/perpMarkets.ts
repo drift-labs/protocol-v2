@@ -184,6 +184,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1698074659000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Rollbit',
+		category: ['Exchange'],
+		symbol: 'RLB-PERP',
+		baseAssetSymbol: 'RLB',
+		marketIndex: 17,
+		oracle: new PublicKey('6BmJozusMugAySsfNfMFsU1YRWcGwyP3oycNX9Pv9oCz'),
+		launchTs: 11699265968000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -355,6 +365,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 16,
 		oracle: new PublicKey('ALdkqQDMfHNg77oCNskfX751kHys4KE7SFuZzuKaN536'),
 		launchTs: 1698074659000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Rollbit',
+		category: ['Exchange'],
+		symbol: 'RLB-PERP',
+		baseAssetSymbol: 'RLB',
+		marketIndex: 17,
+		oracle: new PublicKey('4BA3RcS4zE32WWgp49vvvre2t6nXY1W1kMyKZxeeuUey'),
+		launchTs: 11699265968000,
 		oracleSource: OracleSource.PYTH,
 	},
 ];
