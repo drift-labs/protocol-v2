@@ -127,6 +127,7 @@ impl AMMLiquiditySplit {
     }
 }
 
+#[assert_no_slop]
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]

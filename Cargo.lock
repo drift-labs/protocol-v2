@@ -670,9 +670,10 @@ dependencies = [
 [[package]]
 name = "drift-macros"
 version = "0.1.0"
-source = "git+https://github.com/drift-labs/drift-macros.git?rev=c57d87#c57d87e073d13d43f4d1fb09fe6822915a4ccc11"
+source = "git+https://github.com/drift-labs/drift-macros.git?rev=a8acc4#a8acc48b1f74f4f2128dbfc33000812ec3856f1f"
 dependencies = [
  "quote",
+ "static_assertions",
  "syn 1.0.92",
 ]
 
