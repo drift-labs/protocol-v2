@@ -316,7 +316,7 @@ pub fn calculate_spread(
     long_intensity_volume: u64,
     short_intensity_volume: u64,
     volume_24h: u64,
-    // reservation_price_offset: i32,
+    reservation_price_offset: i32,
 ) -> DriftResult<(u32, u32)> {
     let (long_vol_spread, short_vol_spread) = calculate_long_short_vol_spread(
         last_oracle_conf_pct,
@@ -379,18 +379,18 @@ pub fn calculate_spread(
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
     }
 
-    // if reservation_price_offset != 0 {
-    //     let spread_shrinkage = reservation_price_offset.abs().cast::<u64>()?.safe_div(2)?;
-    //     if reservation_price_offset > 0 {
-    //         long_spread = long_spread
-    //             .saturating_sub(spread_shrinkage)
-    //             .max(half_base_spread_u64);
-    //     } else {
-    //         short_spread = short_spread
-    //             .saturating_sub(spread_shrinkage)
-    //             .max(half_base_spread_u64);
-    //     }
-    // }
+    if reservation_price_offset != 0 {
+        let spread_shrinkage = reservation_price_offset.abs().cast::<u64>()?;
+        if reservation_price_offset > 0 {
+            long_spread = long_spread
+                .saturating_sub(spread_shrinkage)
+                .max(half_base_spread_u64);
+        } else {
+            short_spread = short_spread
+                .saturating_sub(spread_shrinkage)
+                .max(half_base_spread_u64);
+        }
+    }
 
     if total_fee_minus_distributions <= 0 {
         long_spread = long_spread

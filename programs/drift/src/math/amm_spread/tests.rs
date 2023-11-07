@@ -201,6 +201,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, (base_spread * 10 / 2));
@@ -230,6 +231,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread2, 16667);
@@ -259,6 +261,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -294,6 +297,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert!(short_spread4 < long_spread4);
@@ -323,6 +327,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -371,6 +376,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -397,6 +403,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -450,6 +457,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -498,6 +506,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
@@ -525,6 +534,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 345);
@@ -551,6 +561,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 110);
@@ -600,6 +611,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 199926);
@@ -625,6 +637,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 199951);
@@ -650,6 +663,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 199815);
@@ -1006,6 +1020,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -1046,6 +1061,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -1072,6 +1088,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 195556);
@@ -1097,6 +1114,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 1639);
@@ -1196,6 +1214,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -1236,6 +1255,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -1262,6 +1282,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 197138); // big cause of oracel pct
@@ -1287,6 +1308,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 1639);
@@ -1315,6 +1337,7 @@ mod test {
             12358265776,
             72230366233,
             432067603632,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 4262);
@@ -1340,6 +1363,7 @@ mod test {
             9520659647,
             53979922148,
             427588331503,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 4390);

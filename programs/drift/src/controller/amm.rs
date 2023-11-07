@@ -168,9 +168,9 @@ pub fn update_spread_reserves(amm: &mut AMM) -> DriftResult {
 
 pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u32)> {
     let max_offset =
-        (amm.max_spread.cast::<i64>()? / 10).max(PERCENTAGE_PRECISION.cast::<i64>()? / 1000);
+        (amm.max_spread.cast::<i64>()? / 2).max(PERCENTAGE_PRECISION.cast::<i64>()? / 1000);
 
-    let _reservation_price_offset = if amm.curve_update_intensity > 0 {
+    let reservation_price_offset = if amm.curve_update_intensity > 0 {
         amm_spread::calculate_reservation_price_offset(
             reserve_price,
             amm.last_24h_avg_funding_rate,
@@ -205,7 +205,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u3
             amm.long_intensity_volume,
             amm.short_intensity_volume,
             amm.volume_24h,
-            // reservation_price_offset,
+            reservation_price_offset,
         )?
     } else {
         let half_base_spread = amm.base_spread.safe_div(2)?;
