@@ -22,7 +22,7 @@ pub fn validate_order(
             validate_market_order(order, market.amm.order_step_size, market.amm.min_order_size)?
         }
         OrderType::Limit => validate_limit_order(order, market, valid_oracle_price, slot)?,
-        OrderType::TriggerMarket => validate_trigger_market_order(
+        OrderType::TriggerMarket | OrderType::TriggerOracle => validate_trigger_market_order(
             order,
             market.amm.order_step_size,
             market.amm.min_order_size,
@@ -426,7 +426,7 @@ pub fn validate_spot_order(order: &Order, step_size: u64, min_order_size: u64) -
     match order.order_type {
         OrderType::Market => validate_market_order(order, step_size, min_order_size)?,
         OrderType::Limit => validate_spot_limit_order(order, step_size, min_order_size)?,
-        OrderType::TriggerMarket => {
+        OrderType::TriggerMarket | OrderType::TriggerOracle => {
             validate_trigger_market_order(order, step_size, min_order_size)?
         }
         OrderType::TriggerLimit => validate_trigger_limit_order(order, step_size, min_order_size)?,

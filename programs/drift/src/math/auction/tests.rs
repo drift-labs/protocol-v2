@@ -165,6 +165,216 @@ mod calculate_auction_prices {
     }
 }
 
+mod calculate_trigger_oracle_auction_prices {
+    use crate::controller::position::PositionDirection;
+    use crate::math::auction::calculate_trigger_oracle_auction_prices;
+    use crate::{MarketType, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+
+    #[test]
+    fn test() {
+        // oracle btwn bid/ask
+        let oracle_twap = 100 * PRICE_PRECISION_I64;
+        let bid_twap = 99 * PRICE_PRECISION_U64;
+        let ask_twap = 101 * PRICE_PRECISION_U64;
+
+        let direction = PositionDirection::Long;
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Perp,
+        )
+        .unwrap();
+
+        assert_eq!(auction_start_price, PRICE_PRECISION_I64);
+        assert_eq!(auction_end_price, 5 * PRICE_PRECISION_I64);
+
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Spot,
+        )
+        .unwrap();
+
+        assert_eq!(
+            auction_start_price,
+            PRICE_PRECISION_I64 + oracle_twap / 2000
+        );
+        assert_eq!(
+            auction_end_price,
+            5 * PRICE_PRECISION_I64 + oracle_twap / 2000
+        );
+
+        let direction = PositionDirection::Short;
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Perp,
+        )
+        .unwrap();
+
+        assert_eq!(auction_start_price, -PRICE_PRECISION_I64);
+        assert_eq!(auction_end_price, -5 * PRICE_PRECISION_I64);
+
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Spot,
+        )
+        .unwrap();
+
+        assert_eq!(
+            auction_start_price,
+            -PRICE_PRECISION_I64 - oracle_twap / 2000
+        );
+        assert_eq!(
+            auction_end_price,
+            -5 * PRICE_PRECISION_I64 - oracle_twap / 2000
+        );
+
+        // oracle below bid
+        let oracle_twap = 100 * PRICE_PRECISION_I64;
+        let bid_twap = 101 * PRICE_PRECISION_U64;
+        let ask_twap = 102 * PRICE_PRECISION_U64;
+
+        let direction = PositionDirection::Long;
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Perp,
+        )
+        .unwrap();
+
+        assert_eq!(auction_start_price, 2 * PRICE_PRECISION_I64);
+        assert_eq!(auction_end_price, 10 * PRICE_PRECISION_I64);
+
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Spot,
+        )
+        .unwrap();
+
+        assert_eq!(
+            auction_start_price,
+            2 * PRICE_PRECISION_I64 + oracle_twap / 2000
+        );
+        assert_eq!(
+            auction_end_price,
+            10 * PRICE_PRECISION_I64 + oracle_twap / 2000
+        );
+
+        let direction = PositionDirection::Short;
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Perp,
+        )
+        .unwrap();
+
+        assert_eq!(auction_start_price, PRICE_PRECISION_I64);
+        assert_eq!(auction_end_price, -3 * PRICE_PRECISION_I64);
+
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Spot,
+        )
+        .unwrap();
+
+        assert_eq!(
+            auction_start_price,
+            PRICE_PRECISION_I64 - oracle_twap / 2000
+        );
+        assert_eq!(
+            auction_end_price,
+            -3 * PRICE_PRECISION_I64 - oracle_twap / 2000
+        );
+
+        // oracle above ask
+        let oracle_twap = 100 * PRICE_PRECISION_I64;
+        let bid_twap = 98 * PRICE_PRECISION_U64;
+        let ask_twap = 99 * PRICE_PRECISION_U64;
+
+        let direction = PositionDirection::Long;
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Perp,
+        )
+        .unwrap();
+
+        assert_eq!(auction_start_price, -PRICE_PRECISION_I64);
+        assert_eq!(auction_end_price, 3 * PRICE_PRECISION_I64);
+
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Spot,
+        )
+        .unwrap();
+
+        assert_eq!(
+            auction_start_price,
+            -PRICE_PRECISION_I64 + oracle_twap / 2000
+        );
+        assert_eq!(
+            auction_end_price,
+            3 * PRICE_PRECISION_I64 + oracle_twap / 2000
+        );
+
+        let direction = PositionDirection::Short;
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Perp,
+        )
+        .unwrap();
+
+        assert_eq!(auction_start_price, -2 * PRICE_PRECISION_I64);
+        assert_eq!(auction_end_price, -10 * PRICE_PRECISION_I64);
+
+        let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+            direction,
+            oracle_twap,
+            bid_twap,
+            ask_twap,
+            MarketType::Spot,
+        )
+        .unwrap();
+
+        assert_eq!(
+            auction_start_price,
+            -2 * PRICE_PRECISION_I64 - oracle_twap / 2000
+        );
+        assert_eq!(
+            auction_end_price,
+            -10 * PRICE_PRECISION_I64 - oracle_twap / 2000
+        );
+    }
+}
+
 mod calculate_auction_price {
     use crate::math::auction::calculate_auction_price;
     use crate::math::constants::{PRICE_PRECISION_I64, PRICE_PRECISION_U64};
