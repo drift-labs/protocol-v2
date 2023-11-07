@@ -30,6 +30,9 @@ use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use drift_macros::assert_no_slop;
+use static_assertions::const_assert_eq;
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
     /// warm up period for initialization, fills are paused
@@ -477,6 +480,7 @@ impl SpotBalance for PoolBalance {
     }
 }
 
+#[assert_no_slop]
 #[zero_copy(unsafe)]
 #[derive(Debug, PartialEq, Eq)]
 #[repr(C)]
@@ -654,7 +658,10 @@ pub struct AMM {
     pub padding1: u8,
     pub padding2: u16,
     pub total_fee_earned_per_lp: u64,
-    pub padding: [u8; 32],
+    pub net_unsettled_funding_pnl: i64,
+    pub quote_asset_amount_with_unsettled_lp: i64,
+    pub reservation_price_offset: i32,
+    pub padding: [u8; 12],
 }
 
 impl Default for AMM {
@@ -740,7 +747,10 @@ impl Default for AMM {
             padding1: 0,
             padding2: 0,
             total_fee_earned_per_lp: 0,
-            padding: [0; 32],
+            net_unsettled_funding_pnl: 0,
+            quote_asset_amount_with_unsettled_lp: 0,
+            reservation_price_offset: 0,
+            padding: [0; 12],
         }
     }
 }
