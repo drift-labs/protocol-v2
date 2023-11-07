@@ -38,6 +38,37 @@ mod test {
     }
 
     #[test]
+    fn calculate_reservation_offset_tests() {
+        let res = calculate_reservation_price_offset(0, 0, 0, 0, 0).unwrap();
+        assert_eq!(res, 0);
+
+        let res =
+            calculate_reservation_price_offset(43_000, 10, 1, 4216 * 10000, 4218 * 10000).unwrap();
+        assert_eq!(res, 1032);
+
+        let res =
+            calculate_reservation_price_offset(-43_000, 10, 1, 4216 * 10000, 4218 * 10000).unwrap();
+        assert_eq!(res, 0); // none, wrong 24h_avg sign
+
+        let res = calculate_reservation_price_offset(-43_000, -10, 1, 4216 * 10000, 4218 * 10000)
+            .unwrap();
+        assert_eq!(res, 0); // none, wrong 24h_avg / base inventory sign
+
+        let res = calculate_reservation_price_offset(-43_000, -10, 1, 4216 * 10000, 4214 * 10000)
+            .unwrap();
+        assert_eq!(res, -1032); // flipped
+
+        let res = calculate_reservation_price_offset(10_000_000, 10, 1, 4216 * 10000, 4223 * 10000)
+            .unwrap();
+        assert_eq!(res, 2500); // upper bound
+
+        let res =
+            calculate_reservation_price_offset(-10_000_000, -10, 1, 4216 * 10000, 4123 * 10000)
+                .unwrap();
+        assert_eq!(res, -2500); // lower bound
+    }
+
+    #[test]
     fn calculate_spread_tests() {
         let base_spread = 1000; // .1%
         let mut last_oracle_reserve_price_spread_pct = 0;

@@ -11,7 +11,7 @@ use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
     DEFAULT_LARGE_BID_ASK_FACTOR, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
+    FUNDING_RATE_BUFFER, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
     PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
@@ -448,6 +448,8 @@ pub fn calculate_spread_reserves(
         PositionDirection::Short => amm.short_spread,
     };
 
+    // spread = spread.safe_add(amm.reservation_price_offset)?;
+
     let quote_asset_reserve_delta = if spread > 0 {
         amm.quote_asset_reserve
             .safe_div(BID_ASK_SPREAD_PRECISION_U128 / (spread.cast::<u128>()? / 2))?
@@ -472,4 +474,56 @@ pub fn calculate_spread_reserves(
         .try_to_u128()?;
 
     Ok((base_asset_reserve, quote_asset_reserve))
+}
+
+#[allow(clippy::comparison_chain)]
+pub fn calculate_reservation_price_offset(
+    last_24h_avg_funding_rate: i64,
+    base_inventory: i128,
+    min_order_size: u64,
+    oracle_twap: i64,
+    mark_twap: u64,
+) -> DriftResult<i32> {
+    let mut offset: i64 = 0;
+    let max_offset: i64 = (PERCENTAGE_PRECISION_I128 / 400).cast()?; // 25 bps
+    let base_inventory_threshold: i128 = (min_order_size * 5).cast()?;
+    // calculate quote denominated market premium
+    let mark_premium_fast: i64 = mark_twap.cast::<i64>()?.safe_sub(oracle_twap)?;
+
+    // convert last_24h_avg_funding_rate to quote denominated premium
+    let mark_premium_slow: i64 = last_24h_avg_funding_rate
+        .safe_div(FUNDING_RATE_BUFFER.cast()?)?
+        .safe_mul(24)?;
+
+    // only apply when inventory is consistent with recent and 24h market premium
+    if mark_premium_fast > 0 && mark_premium_slow > 0 && base_inventory > base_inventory_threshold {
+        offset = mark_premium_fast.min(mark_premium_slow);
+        validate!(
+            offset > 0,
+            ErrorCode::InvalidAmmDetected,
+            "offset non-positive {}",
+            offset
+        )?;
+    }
+    if mark_premium_fast < 0 && mark_premium_slow < 0 && base_inventory < -base_inventory_threshold
+    {
+        offset = mark_premium_fast.max(mark_premium_slow);
+        validate!(
+            offset < 0,
+            ErrorCode::InvalidAmmDetected,
+            "offset non-negative {}",
+            offset
+        )?;
+    }
+
+    let clamped_offset = offset.clamp(-max_offset, max_offset);
+
+    validate!(
+        clamped_offset.abs() <= max_offset,
+        ErrorCode::InvalidAmmDetected,
+        "clamp offset failed {}",
+        clamped_offset
+    )?;
+
+    clamped_offset.cast()
 }

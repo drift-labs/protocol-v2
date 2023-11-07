@@ -197,6 +197,15 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u3
     amm.long_spread = long_spread;
     amm.short_spread = short_spread;
 
+    // TODO
+    // amm.reservation_price_offset = amm_spread::calculate_reservation_price_offset(
+    //     amm.last_24h_avg_funding_rate,
+    //     amm.base_asset_amount_with_amm,
+    //     amm.min_order_size,
+    //     amm.historical_oracle_data.last_oracle_price_twap_5min,
+    //     amm.last_mark_price_twap_5min,
+    // )?;
+
     update_spread_reserves(amm)?;
 
     Ok((long_spread, short_spread))
