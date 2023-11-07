@@ -2448,6 +2448,7 @@ export class DriftClient {
 	 * @param makerInfo
 	 * @param txParams
 	 * @param bracketOrdersParams
+	 * @param cancelExistingOrders - Builds and returns an extra transaciton to cancel the existing orders in the same market. Intended use is to auto-cancel TP/SL orders when closing a position
 	 * @returns
 	 */
 	public async sendMarketOrderAndGetSignedFillTx(
@@ -2457,8 +2458,13 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
-		referrerInfo?: ReferrerInfo
-	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
+		referrerInfo?: ReferrerInfo,
+		cancelExistingOrders?: boolean
+	): Promise<{
+		txSig: TransactionSignature;
+		signedFillTx: Transaction;
+		signedCancelExistingOrdersTx: Transaction;
+	}> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
 		const bracketOrderIxs = [];
@@ -2483,6 +2489,22 @@ export class DriftClient {
 			referrerInfo
 		);
 
+		let cancelOrdersIx: TransactionInstruction;
+		let cancelExistingOrdersTx: Transaction;
+		if (cancelExistingOrders) {
+			console.log('cancel existing orders');
+			cancelOrdersIx = await this.getCancelOrdersIx(
+				orderParams.marketType,
+				orderParams.marketIndex,
+				null
+			);
+			cancelExistingOrdersTx = (await this.buildTransaction(
+				[cancelOrdersIx],
+				txParams,
+				this.txVersion
+			)) as Transaction;
+		}
+
 		// use versioned transactions if there is a lookup table account and wallet is compatible
 		if (this.txVersion === 0) {
 			const versionedMarketOrderTx = await this.buildTransaction(
@@ -2495,21 +2517,31 @@ export class DriftClient {
 				txParams,
 				0
 			);
-			const [signedVersionedMarketOrderTx, signedVersionedFillTx] =
-				await this.provider.wallet.signAllTransactions([
-					//@ts-ignore
+
+			const [
+				signedVersionedMarketOrderTx,
+				signedVersionedFillTx,
+				signedCancelExistingOrdersTx,
+			] = await this.provider.wallet.signAllTransactions(
+				[
 					versionedMarketOrderTx,
-					//@ts-ignore
 					versionedFillTx,
-				]);
+					cancelExistingOrdersTx,
+				].filter((tx) => tx !== undefined)
+			);
 			const { txSig, slot } = await this.txSender.sendRawTransaction(
 				signedVersionedMarketOrderTx.serialize(),
 				this.opts
 			);
 			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
-			// @ts-ignore
-			return { txSig, signedFillTx: signedVersionedFillTx };
+			return {
+				txSig,
+				// @ts-ignore
+				signedFillTx: signedVersionedFillTx,
+				// @ts-ignore
+				signedCancelExistingOrdersTx,
+			};
 		} else {
 			const marketOrderTx = wrapInTx(
 				placePerpOrderIx,
@@ -2537,8 +2569,12 @@ export class DriftClient {
 			marketOrderTx.feePayer = userAccount.authority;
 			fillTx.feePayer = userAccount.authority;
 
-			const [signedMarketOrderTx, signedFillTx] =
-				await this.provider.wallet.signAllTransactions([marketOrderTx, fillTx]);
+			const [signedMarketOrderTx, signedFillTx, signedCancelExistingOrdersTx] =
+				await this.provider.wallet.signAllTransactions(
+					[marketOrderTx, fillTx, cancelExistingOrdersTx].filter(
+						(tx) => tx !== undefined
+					)
+				);
 			const { txSig, slot } = await this.sendTransaction(
 				signedMarketOrderTx,
 				[],
@@ -2547,7 +2583,7 @@ export class DriftClient {
 			);
 			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
-			return { txSig, signedFillTx };
+			return { txSig, signedFillTx, signedCancelExistingOrdersTx };
 		}
 	}
 
