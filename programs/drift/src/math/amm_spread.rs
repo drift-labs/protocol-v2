@@ -463,22 +463,25 @@ pub fn calculate_spread_reserves(
         PositionDirection::Short => amm.short_spread,
     };
 
-    // spread = spread.safe_add(amm.reservation_price_offset)?;
+    let spread_with_offset: i32 = spread
+        .cast::<i32>()?
+        .safe_add(amm.reservation_price_offset)?;
 
     let quote_asset_reserve_delta = if spread > 0 {
         amm.quote_asset_reserve
-            .safe_div(BID_ASK_SPREAD_PRECISION_U128 / (spread.cast::<u128>()? / 2))?
+            .safe_div(BID_ASK_SPREAD_PRECISION_U128 / (spread_with_offset.cast::<u128>()? / 2))?
     } else {
         0
     };
 
-    let quote_asset_reserve = match direction {
-        PositionDirection::Long => amm
-            .quote_asset_reserve
-            .safe_add(quote_asset_reserve_delta)?,
-        PositionDirection::Short => amm
-            .quote_asset_reserve
-            .safe_sub(quote_asset_reserve_delta)?,
+    let quote_asset_reserve = if spread_with_offset > 0 && direction == PositionDirection::Long
+        || spread_with_offset < 0 && direction == PositionDirection::Short
+    {
+        amm.quote_asset_reserve
+            .safe_add(quote_asset_reserve_delta)?
+    } else {
+        amm.quote_asset_reserve
+            .safe_sub(quote_asset_reserve_delta)?
     };
 
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);

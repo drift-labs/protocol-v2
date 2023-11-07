@@ -167,6 +167,7 @@ pub fn update_spread_reserves(amm: &mut AMM) -> DriftResult {
 }
 
 pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u32)> {
+    // always allow 10 bps of price offset, up to half the market's max_spread
     let max_offset =
         (amm.max_spread.cast::<i64>()? / 2).max(PERCENTAGE_PRECISION.cast::<i64>()? / 1000);
 
@@ -214,9 +215,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u3
 
     amm.long_spread = long_spread;
     amm.short_spread = short_spread;
-
-    // TODO
-    // amm.reservation_price_offset = reservation_price_offset;
+    amm.reservation_price_offset = reservation_price_offset;
 
     update_spread_reserves(amm)?;
 
