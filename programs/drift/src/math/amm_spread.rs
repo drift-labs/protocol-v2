@@ -12,14 +12,13 @@ use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
     DEFAULT_LARGE_BID_ASK_FACTOR, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
     FUNDING_RATE_BUFFER, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
+    PRICE_PRECISION_I64,
 };
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::AMM;
 use crate::validate;
-
-use super::constants::PERCENTAGE_PRECISION_I128;
 
 #[cfg(test)]
 mod tests;
@@ -317,6 +316,7 @@ pub fn calculate_spread(
     long_intensity_volume: u64,
     short_intensity_volume: u64,
     volume_24h: u64,
+    // reservation_price_offset: i32,
 ) -> DriftResult<(u32, u32)> {
     let (long_vol_spread, short_vol_spread) = calculate_long_short_vol_spread(
         last_oracle_conf_pct,
@@ -328,8 +328,10 @@ pub fn calculate_spread(
         volume_24h,
     )?;
 
-    let mut long_spread = max((base_spread / 2) as u64, long_vol_spread);
-    let mut short_spread = max((base_spread / 2) as u64, short_vol_spread);
+    let half_base_spread_u64 = (base_spread / 2) as u64;
+
+    let mut long_spread = max(half_base_spread_u64, long_vol_spread);
+    let mut short_spread = max(half_base_spread_u64, short_vol_spread);
 
     let max_target_spread = max_spread
         .cast::<u64>()?
@@ -376,6 +378,19 @@ pub fn calculate_spread(
             .safe_mul(inventory_scale_capped)?
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
     }
+
+    // if reservation_price_offset != 0 {
+    //     let spread_shrinkage = reservation_price_offset.abs().cast::<u64>()?.safe_div(2)?;
+    //     if reservation_price_offset > 0 {
+    //         long_spread = long_spread
+    //             .saturating_sub(spread_shrinkage)
+    //             .max(half_base_spread_u64);
+    //     } else {
+    //         short_spread = short_spread
+    //             .saturating_sub(spread_shrinkage)
+    //             .max(half_base_spread_u64);
+    //     }
+    // }
 
     if total_fee_minus_distributions <= 0 {
         long_spread = long_spread
@@ -478,14 +493,15 @@ pub fn calculate_spread_reserves(
 
 #[allow(clippy::comparison_chain)]
 pub fn calculate_reservation_price_offset(
+    reserve_price: u64,
     last_24h_avg_funding_rate: i64,
     base_inventory: i128,
     min_order_size: u64,
     oracle_twap: i64,
     mark_twap: u64,
+    max_offset: i64,
 ) -> DriftResult<i32> {
     let mut offset: i64 = 0;
-    let max_offset: i64 = (PERCENTAGE_PRECISION_I128 / 400).cast()?; // 25 bps
     let base_inventory_threshold: i128 = (min_order_size * 5).cast()?;
     // calculate quote denominated market premium
     let mark_premium_fast: i64 = mark_twap.cast::<i64>()?.safe_sub(oracle_twap)?;
@@ -516,14 +532,19 @@ pub fn calculate_reservation_price_offset(
         )?;
     }
 
-    let clamped_offset = offset.clamp(-max_offset, max_offset);
+    // TODO: convert quote offset to percent offset
+    let offset_pct: i64 = offset
+        .safe_mul(PRICE_PRECISION_I64)?
+        .safe_div(reserve_price.cast()?)?;
+
+    let clamped_offset_pct = offset_pct.clamp(-max_offset, max_offset);
 
     validate!(
-        clamped_offset.abs() <= max_offset,
+        clamped_offset_pct.abs() <= max_offset,
         ErrorCode::InvalidAmmDetected,
-        "clamp offset failed {}",
-        clamped_offset
+        "clamp offset pct failed {}",
+        clamped_offset_pct
     )?;
 
-    clamped_offset.cast()
+    clamped_offset_pct.cast()
 }

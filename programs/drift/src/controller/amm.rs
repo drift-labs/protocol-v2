@@ -16,7 +16,7 @@ use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     CONCENTRATION_PRECISION, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, K_BPS_UPDATE_SCALE,
-    MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K, PERCENTAGE_PRECISION,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -167,6 +167,23 @@ pub fn update_spread_reserves(amm: &mut AMM) -> DriftResult {
 }
 
 pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u32)> {
+    let max_offset =
+        (amm.max_spread.cast::<i64>()? / 10).max(PERCENTAGE_PRECISION.cast::<i64>()? / 1000);
+
+    let _reservation_price_offset = if amm.curve_update_intensity > 0 {
+        amm_spread::calculate_reservation_price_offset(
+            reserve_price,
+            amm.last_24h_avg_funding_rate,
+            amm.base_asset_amount_with_amm,
+            amm.min_order_size,
+            amm.historical_oracle_data.last_oracle_price_twap_5min,
+            amm.last_mark_price_twap_5min,
+            max_offset,
+        )?
+    } else {
+        0
+    };
+
     let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
         amm_spread::calculate_spread(
             amm.base_spread,
@@ -188,6 +205,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u3
             amm.long_intensity_volume,
             amm.short_intensity_volume,
             amm.volume_24h,
+            // reservation_price_offset,
         )?
     } else {
         let half_base_spread = amm.base_spread.safe_div(2)?;
@@ -198,13 +216,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u3
     amm.short_spread = short_spread;
 
     // TODO
-    // amm.reservation_price_offset = amm_spread::calculate_reservation_price_offset(
-    //     amm.last_24h_avg_funding_rate,
-    //     amm.base_asset_amount_with_amm,
-    //     amm.min_order_size,
-    //     amm.historical_oracle_data.last_oracle_price_twap_5min,
-    //     amm.last_mark_price_twap_5min,
-    // )?;
+    // amm.reservation_price_offset = reservation_price_offset;
 
     update_spread_reserves(amm)?;
 
