@@ -303,7 +303,7 @@ export function isOrderExpired(
 }
 
 export function isMarketOrder(order: Order): boolean {
-	return isOneOfVariant(order.orderType, ['market', 'triggerMarket', 'oracle']);
+	return isOneOfVariant(order.orderType, ['market', 'triggerMarket', 'oracle', 'triggerOracle']);
 }
 
 export function isLimitOrder(order: Order): boolean {
@@ -311,7 +311,7 @@ export function isLimitOrder(order: Order): boolean {
 }
 
 export function mustBeTriggered(order: Order): boolean {
-	return isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']);
+	return isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit', 'triggerOracle']);
 }
 
 export function isTriggered(order: Order): boolean {
