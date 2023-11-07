@@ -11,6 +11,7 @@ import {
 	getLimitPrice,
 	getVariant,
 	isFallbackAvailableLiquiditySource,
+	isMarketOrder,
 	isOneOfVariant,
 	isOrderExpired,
 	isRestingLimitOrder,
@@ -96,6 +97,7 @@ const SUPPORTED_ORDER_TYPES = [
 	'triggerMarket',
 	'triggerLimit',
 	'oracle',
+	'triggerOracle',
 ];
 
 export class DLOB {
@@ -391,9 +393,7 @@ export class DLOB {
 		let type: DLOBNodeType;
 		if (isInactiveTriggerOrder) {
 			type = 'trigger';
-		} else if (
-			isOneOfVariant(order.orderType, ['market', 'triggerMarket', 'oracle'])
-		) {
+		} else if (isMarketOrder(order)) {
 			type = 'market';
 		} else if (order.oraclePriceOffset !== 0) {
 			type = 'floatingLimit';

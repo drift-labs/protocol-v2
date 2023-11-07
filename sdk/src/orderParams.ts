@@ -26,6 +26,17 @@ export function getTriggerMarketOrderParams(
 	});
 }
 
+export function getTriggerOracleOrderParams(
+	params: Omit<OptionalOrderParams, 'orderType'> & {
+		triggerCondition: OrderTriggerCondition;
+		triggerPrice: BN;
+	}
+): OptionalOrderParams {
+	return Object.assign({}, params, {
+		orderType: OrderType.TRIGGER_ORACLE,
+	});
+}
+
 export function getTriggerLimitOrderParams(
 	params: Omit<OptionalOrderParams, 'orderType'> & {
 		triggerCondition: OrderTriggerCondition;

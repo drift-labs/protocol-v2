@@ -8728,6 +8728,9 @@
           },
           {
             "name": "Oracle"
+          },
+          {
+            "name": "TriggerOracle"
           }
         ]
       }

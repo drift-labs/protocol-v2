@@ -89,6 +89,7 @@ export class OrderType {
 	static readonly TRIGGER_LIMIT = { triggerLimit: {} };
 	static readonly MARKET = { market: {} };
 	static readonly ORACLE = { oracle: {} };
+	static readonly TRIGGER_ORACLE = { triggerOracle: {} };
 }
 
 export declare type MarketTypeStr = 'perp' | 'spot';

@@ -17,6 +17,7 @@ import {
 	getTriggerMarketOrderParams,
 	getTriggerLimitOrderParams,
 	OracleGuardRails,
+	getTriggerOracleOrderParams,
 } from '../sdk/src';
 
 import {
@@ -256,6 +257,105 @@ describe('trigger orders', () => {
 		await driftClientUser.unsubscribe();
 	});
 
+	it('stop market oracle for long', async () => {
+		const keypair = new Keypair();
+		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider,
+			keypair.publicKey
+		);
+		const driftClient = new TestClient({
+			connection,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const driftClientUser = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		});
+		await driftClientUser.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const marketOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+		});
+		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+
+		const stopOrderParams = getTriggerOracleOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			triggerPrice: PRICE_PRECISION.div(new BN(2)),
+			triggerCondition: OrderTriggerCondition.BELOW,
+			userOrderId: 1,
+		});
+		await driftClient.placePerpOrder(stopOrderParams);
+
+		await driftClientUser.fetchAccounts();
+		const order = driftClientUser.getOrderByUserOrderId(1);
+
+		try {
+			// fill should fail since price is above trigger
+			await fillerDriftClient.fillPerpOrder(
+				await driftClientUser.getUserAccountPublicKey(),
+				driftClientUser.getUserAccount(),
+				order
+			);
+			assert(false);
+		} catch (e) {
+			// no op
+		}
+
+		const newOraclePrice = 0.49;
+		await fillerDriftClient.moveAmmToPrice(
+			marketIndex,
+			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
+		);
+		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
+
+		await fillerDriftClient.triggerOrder(
+			await driftClientUser.getUserAccountPublicKey(),
+			driftClientUser.getUserAccount(),
+			order
+		);
+		await fillerDriftClient.fillPerpOrder(
+			await driftClientUser.getUserAccountPublicKey(),
+			driftClientUser.getUserAccount(),
+			order
+		);
+
+		await driftClientUser.fetchAccounts();
+
+		assert(
+			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+		);
+
+		await driftClient.unsubscribe();
+		await driftClientUser.unsubscribe();
+	});
+
 	it('stop limit for long', async () => {
 		const keypair = new Keypair();
 		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
@@ -405,6 +505,105 @@ describe('trigger orders', () => {
 		await driftClient.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			triggerPrice: PRICE_PRECISION.mul(new BN(2)),
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			userOrderId: 1,
+		});
+		await driftClient.placePerpOrder(stopOrderParams);
+
+		await driftClientUser.fetchAccounts();
+		const order = driftClientUser.getOrderByUserOrderId(1);
+
+		try {
+			// fill should fail since price is above trigger
+			await fillerDriftClient.fillPerpOrder(
+				await driftClientUser.getUserAccountPublicKey(),
+				driftClientUser.getUserAccount(),
+				order
+			);
+			assert(false);
+		} catch (e) {
+			// no op
+		}
+
+		const newOraclePrice = 2.01;
+		await fillerDriftClient.moveAmmToPrice(
+			marketIndex,
+			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
+		);
+		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
+
+		await fillerDriftClient.triggerOrder(
+			await driftClientUser.getUserAccountPublicKey(),
+			driftClientUser.getUserAccount(),
+			order
+		);
+		await fillerDriftClient.fillPerpOrder(
+			await driftClientUser.getUserAccountPublicKey(),
+			driftClientUser.getUserAccount(),
+			order
+		);
+
+		await driftClientUser.fetchAccounts();
+
+		assert(
+			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+		);
+
+		await driftClient.unsubscribe();
+		await driftClientUser.unsubscribe();
+	});
+
+	it('stop market oracle for short', async () => {
+		const keypair = new Keypair();
+		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider,
+			keypair.publicKey
+		);
+		const driftClient = new TestClient({
+			connection,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const driftClientUser = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		});
+		await driftClientUser.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const marketOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+		});
+		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+
+		const stopOrderParams = getTriggerOracleOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
@@ -675,6 +874,105 @@ describe('trigger orders', () => {
 		await driftClientUser.unsubscribe();
 	});
 
+	it('take profit oracle for long', async () => {
+		const keypair = new Keypair();
+		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider,
+			keypair.publicKey
+		);
+		const driftClient = new TestClient({
+			connection,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const driftClientUser = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		});
+		await driftClientUser.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const marketOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+		});
+		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+
+		const stopOrderParams = getTriggerOracleOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			triggerPrice: PRICE_PRECISION.mul(new BN(2)),
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			userOrderId: 1,
+		});
+		await driftClient.placePerpOrder(stopOrderParams);
+
+		await driftClientUser.fetchAccounts();
+		const order = driftClientUser.getOrderByUserOrderId(1);
+
+		try {
+			// fill should fail since price is above trigger
+			await fillerDriftClient.fillPerpOrder(
+				await driftClientUser.getUserAccountPublicKey(),
+				driftClientUser.getUserAccount(),
+				order
+			);
+			assert(false);
+		} catch (e) {
+			// no op
+		}
+
+		await fillerDriftClient.moveAmmPrice(
+			marketIndex,
+			ammInitialBaseAssetReserve.div(new BN(10)),
+			ammInitialQuoteAssetReserve
+		);
+		await setFeedPrice(anchor.workspace.Pyth, 2.01, solUsd);
+
+		await fillerDriftClient.triggerOrder(
+			await driftClientUser.getUserAccountPublicKey(),
+			driftClientUser.getUserAccount(),
+			order
+		);
+		await fillerDriftClient.fillPerpOrder(
+			await driftClientUser.getUserAccountPublicKey(),
+			driftClientUser.getUserAccount(),
+			order
+		);
+
+		await driftClientUser.fetchAccounts();
+
+		assert(
+			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+		);
+
+		await driftClient.unsubscribe();
+		await driftClientUser.unsubscribe();
+	});
+
 	it('take profit limit for long', async () => {
 		const keypair = new Keypair();
 		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
@@ -824,6 +1122,105 @@ describe('trigger orders', () => {
 		await driftClient.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			triggerPrice: PRICE_PRECISION.div(new BN(2)),
+			triggerCondition: OrderTriggerCondition.BELOW,
+			userOrderId: 1,
+		});
+		await driftClient.placePerpOrder(stopOrderParams);
+
+		await driftClientUser.fetchAccounts();
+		const order = driftClientUser.getOrderByUserOrderId(1);
+
+		try {
+			// fill should fail since price is above trigger
+			await fillerDriftClient.fillPerpOrder(
+				await driftClientUser.getUserAccountPublicKey(),
+				driftClientUser.getUserAccount(),
+				order
+			);
+			assert(false);
+		} catch (e) {
+			// no op
+		}
+
+		await fillerDriftClient.moveAmmPrice(
+			marketIndex,
+			ammInitialBaseAssetReserve.mul(new BN(10)),
+			ammInitialQuoteAssetReserve
+		);
+		await setFeedPrice(anchor.workspace.Pyth, 0.49, solUsd);
+
+		await fillerDriftClient.triggerOrder(
+			await driftClientUser.getUserAccountPublicKey(),
+			driftClientUser.getUserAccount(),
+			order
+		);
+		await fillerDriftClient.fillPerpOrder(
+			await driftClientUser.getUserAccountPublicKey(),
+			driftClientUser.getUserAccount(),
+			order
+		);
+
+		await driftClientUser.fetchAccounts();
+
+		assert(
+			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+		);
+
+		await driftClient.unsubscribe();
+		await driftClientUser.unsubscribe();
+	});
+
+	it('take profit oracle for short', async () => {
+		const keypair = new Keypair();
+		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider,
+			keypair.publicKey
+		);
+		const driftClient = new TestClient({
+			connection,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const driftClientUser = new User({
+			driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		});
+		await driftClientUser.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const marketOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+		});
+		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+
+		const stopOrderParams = getTriggerOracleOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,

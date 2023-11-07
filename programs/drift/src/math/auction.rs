@@ -8,6 +8,7 @@ use crate::state::oracle::OraclePriceData;
 use crate::state::user::{Order, OrderType};
 use solana_program::msg;
 
+use crate::MarketType;
 use std::cmp::min;
 
 #[cfg(test)]
@@ -78,6 +79,39 @@ pub fn calculate_auction_prices(
     Ok((oracle_price, auction_end_price))
 }
 
+pub fn calculate_trigger_oracle_auction_prices(
+    direction: PositionDirection,
+    oracle: i64,
+    bid: u64,
+    ask: u64,
+    market_type: MarketType,
+) -> DriftResult<(i64, i64)> {
+    let (mut auction_start, mut auction_end) = if direction == PositionDirection::Long {
+        let auction_start = ask.cast::<i64>()?.safe_sub(oracle)?;
+        let auction_end = auction_start.abs().safe_mul(4)?.safe_add(auction_start)?;
+        (auction_start, auction_end)
+    } else {
+        let auction_start = bid.cast::<i64>()?.safe_sub(oracle)?;
+        let auction_end = auction_start.safe_sub(auction_start.abs().safe_mul(4)?)?;
+        (auction_start, auction_end)
+    };
+
+    // Add 5pbs to auction start and end price for spot to adjust for slower updating oracle/bid/ask
+    if market_type == MarketType::Spot {
+        let oracle_5pbs = oracle / 2000;
+
+        if direction == PositionDirection::Long {
+            auction_start = auction_start.safe_add(oracle_5pbs)?;
+            auction_end = auction_end.safe_add(oracle_5pbs)?;
+        } else {
+            auction_start = auction_start.safe_sub(oracle_5pbs)?;
+            auction_end = auction_end.safe_sub(oracle_5pbs)?;
+        }
+    }
+
+    Ok((auction_start, auction_end))
+}
+
 pub fn calculate_auction_price(
     order: &Order,
     slot: u64,
@@ -88,12 +122,14 @@ pub fn calculate_auction_price(
         OrderType::Market | OrderType::TriggerMarket | OrderType::Limit => {
             calculate_auction_price_for_fixed_auction(order, slot, tick_size)
         }
-        OrderType::Oracle => calculate_auction_price_for_oracle_offset_auction(
-            order,
-            slot,
-            tick_size,
-            valid_oracle_price,
-        ),
+        OrderType::Oracle | OrderType::TriggerOracle => {
+            calculate_auction_price_for_oracle_offset_auction(
+                order,
+                slot,
+                tick_size,
+                valid_oracle_price,
+            )
+        }
         _ => unreachable!(),
     }
 }

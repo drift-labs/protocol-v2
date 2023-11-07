@@ -1141,7 +1141,7 @@ impl Order {
     pub fn must_be_triggered(&self) -> bool {
         matches!(
             self.order_type,
-            OrderType::TriggerMarket | OrderType::TriggerLimit
+            OrderType::TriggerMarket | OrderType::TriggerLimit | OrderType::TriggerOracle
         )
     }
 
@@ -1174,7 +1174,10 @@ impl Order {
     pub fn is_market_order(&self) -> bool {
         matches!(
             self.order_type,
-            OrderType::Market | OrderType::TriggerMarket | OrderType::Oracle
+            OrderType::Market
+                | OrderType::TriggerMarket
+                | OrderType::Oracle
+                | OrderType::TriggerOracle
         )
     }
 
@@ -1238,6 +1241,8 @@ pub enum OrderType {
     TriggerLimit,
     /// Market order where the auction prices are oracle offsets
     Oracle,
+    /// Trigger order where the auction prices are oracle offsets
+    TriggerOracle,
 }
 
 impl Default for OrderType {

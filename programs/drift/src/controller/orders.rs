@@ -28,7 +28,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
-use crate::math::auction::calculate_auction_prices;
+use crate::math::auction::{calculate_auction_prices, calculate_trigger_oracle_auction_prices};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
@@ -2501,10 +2501,24 @@ pub fn trigger_order(
 
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
-        if let OrderType::TriggerMarket = order_type {
+        if order_type == OrderType::TriggerMarket {
             user.orders[order_index].auction_duration = state.min_perp_auction_duration;
             let (auction_start_price, auction_end_price) =
                 calculate_auction_prices(oracle_price_data, direction, 0)?;
+            user.orders[order_index].auction_start_price = auction_start_price;
+            user.orders[order_index].auction_end_price = auction_end_price;
+        } else if order_type == OrderType::TriggerOracle {
+            user.orders[order_index].auction_duration = 40;
+            let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+                direction,
+                perp_market
+                    .amm
+                    .historical_oracle_data
+                    .last_oracle_price_twap,
+                perp_market.amm.last_bid_price_twap,
+                perp_market.amm.last_ask_price_twap,
+                MarketType::Perp,
+            )?;
             user.orders[order_index].auction_start_price = auction_start_price;
             user.orders[order_index].auction_end_price = auction_end_price;
         }
@@ -4461,10 +4475,21 @@ pub fn trigger_spot_order(
             };
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
-        if let OrderType::TriggerMarket = order_type {
+        if order_type == OrderType::TriggerMarket {
             user.orders[order_index].auction_duration = state.default_spot_auction_duration;
             let (auction_start_price, auction_end_price) =
                 calculate_auction_prices(oracle_price_data, direction, 0)?;
+            user.orders[order_index].auction_start_price = auction_start_price;
+            user.orders[order_index].auction_end_price = auction_end_price;
+        } else if order_type == OrderType::TriggerOracle {
+            user.orders[order_index].auction_duration = 40;
+            let (auction_start_price, auction_end_price) = calculate_trigger_oracle_auction_prices(
+                direction,
+                spot_market.historical_oracle_data.last_oracle_price,
+                spot_market.historical_index_data.last_index_bid_price,
+                spot_market.historical_index_data.last_index_ask_price,
+                MarketType::Spot,
+            )?;
             user.orders[order_index].auction_start_price = auction_start_price;
             user.orders[order_index].auction_end_price = auction_end_price;
         }
