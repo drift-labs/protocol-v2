@@ -365,6 +365,7 @@ export function groupL2(
 	return {
 		bids: groupL2Levels(l2.bids, grouping, PositionDirection.LONG, depth),
 		asks: groupL2Levels(l2.asks, grouping, PositionDirection.SHORT, depth),
+		slot: l2.slot,
 	};
 }
 
