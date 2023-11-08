@@ -249,6 +249,8 @@ impl Size for PerpMarket {
     const SIZE: usize = 1216;
 }
 
+const_assert_eq!(PerpMarket::SIZE, std::mem::size_of::<PerpMarket>() + 8);
+
 impl MarketIndexOffset for PerpMarket {
     const MARKET_INDEX_OFFSET: usize = 1160;
 }
