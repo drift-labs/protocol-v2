@@ -15,6 +15,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	listenerId?: number;
 	resubTimeoutMs?: number;
 	isUnsubscribing = false;
+
 	timeoutId?: NodeJS.Timeout;
 
 	receivingData: boolean;
@@ -165,13 +166,15 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		this.timeoutId = undefined;
 
 		if (this.listenerId) {
-			const promise =
-				this.program.provider.connection.removeAccountChangeListener(
-					this.listenerId
-				);
-			this.listenerId = undefined;
-			this.isUnsubscribing = false;
+			const promise = this.program.provider.connection
+				.removeAccountChangeListener(this.listenerId)
+				.then(() => {
+					this.listenerId = undefined;
+					this.isUnsubscribing = false;
+				});
 			return promise;
+		} else {
+			this.isUnsubscribing = false;
 		}
 	}
 }

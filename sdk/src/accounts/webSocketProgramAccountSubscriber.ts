@@ -151,13 +151,15 @@ export class WebSocketProgramAccountSubscriber<T>
 		this.timeoutId = undefined;
 
 		if (this.listenerId) {
-			const promise =
-				this.program.provider.connection.removeAccountChangeListener(
-					this.listenerId
-				);
-			this.listenerId = undefined;
-			this.isUnsubscribing = false;
+			const promise = this.program.provider.connection
+				.removeAccountChangeListener(this.listenerId)
+				.then(() => {
+					this.listenerId = undefined;
+					this.isUnsubscribing = false;
+				});
 			return promise;
+		} else {
+			this.isUnsubscribing = false;
 		}
 	}
 }
