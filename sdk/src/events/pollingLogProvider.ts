@@ -48,7 +48,9 @@ export class PollingLogProvider implements LogProvider {
 					this.mostRecentSeenTx,
 					// If skipping history, only fetch one log back, not the maximum amount available
 					skipHistory && this.firstFetch ? 1 : undefined,
-					this.batchSize
+					this.batchSize,
+					100_000,
+					0
 				);
 
 				if (response === undefined) {
