@@ -5484,7 +5484,7 @@ export class DriftClient {
 		 */
 		fromSubaccount?: boolean;
 	}): Promise<TransactionSignature> {
-		const tx = new Transaction();
+		const addIfStakeIxs = [];
 
 		const additionalSigners: Array<Signer> = [];
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -5501,7 +5501,7 @@ export class DriftClient {
 			);
 			tokenAccount = pubkey;
 			ixs.forEach((ix) => {
-				tx.add(ix);
+				addIfStakeIxs.push(ix);
 			});
 		} else {
 			tokenAccount = collateralAccountPublicKey;
@@ -5513,14 +5513,14 @@ export class DriftClient {
 				marketIndex,
 				tokenAccount
 			);
-			tx.add(withdrawIx);
+			addIfStakeIxs.push(withdrawIx);
 		}
 
 		if (initializeStakeAccount) {
 			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
 				marketIndex
 			);
-			tx.add(initializeIx);
+			addIfStakeIxs.push(initializeIx);
 		}
 
 		const addFundsIx = await this.getAddInsuranceFundStakeIx(
@@ -5529,10 +5529,10 @@ export class DriftClient {
 			tokenAccount
 		);
 
-		tx.add(addFundsIx);
+		addIfStakeIxs.push(addFundsIx);
 
 		if (createWSOLTokenAccount) {
-			tx.add(
+			addIfStakeIxs.push(
 				createCloseAccountInstruction(
 					tokenAccount,
 					this.wallet.publicKey,
@@ -5541,6 +5541,8 @@ export class DriftClient {
 				)
 			);
 		}
+
+		const tx = await this.buildTransaction(addIfStakeIxs);
 
 		const { txSig } = await this.sendTransaction(
 			tx,
@@ -5568,7 +5570,7 @@ export class DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
-		const tx = await this.program.transaction.requestRemoveInsuranceFundStake(
+		const ix = await this.program.instruction.requestRemoveInsuranceFundStake(
 			marketIndex,
 			amount,
 			{
@@ -5583,6 +5585,8 @@ export class DriftClient {
 				remainingAccounts,
 			}
 		);
+
+		const tx = await this.buildTransaction(ix);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -5604,8 +5608,8 @@ export class DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
-		const tx =
-			await this.program.transaction.cancelRequestRemoveInsuranceFundStake(
+		const ix =
+			await this.program.instruction.cancelRequestRemoveInsuranceFundStake(
 				marketIndex,
 				{
 					accounts: {
@@ -5620,6 +5624,8 @@ export class DriftClient {
 				}
 			);
 
+		const tx = await this.buildTransaction(ix);
+
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
 	}
@@ -5628,7 +5634,7 @@ export class DriftClient {
 		marketIndex: number,
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		const tx = new Transaction();
+		const removeIfStakeIxs = [];
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
@@ -5650,7 +5656,7 @@ export class DriftClient {
 			);
 			tokenAccount = pubkey;
 			ixs.forEach((ix) => {
-				tx.add(ix);
+				removeIfStakeIxs.push(ix);
 			});
 		} else {
 			tokenAccount = collateralAccountPublicKey;
@@ -5678,11 +5684,11 @@ export class DriftClient {
 				remainingAccounts,
 			});
 
-		tx.add(removeStakeIx);
+		removeIfStakeIxs.push(removeStakeIx);
 
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
-			tx.add(
+			removeIfStakeIxs.push(
 				createCloseAccountInstruction(
 					tokenAccount,
 					this.wallet.publicKey,
@@ -5691,6 +5697,8 @@ export class DriftClient {
 				)
 			);
 		}
+
+		const tx = await this.buildTransaction(removeIfStakeIxs);
 
 		const { txSig } = await this.sendTransaction(
 			tx,
@@ -5711,7 +5719,7 @@ export class DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
-		const tx = await this.program.transaction.settleRevenueToInsuranceFund(
+		const ix = await this.program.instruction.settleRevenueToInsuranceFund(
 			marketIndex,
 			{
 				accounts: {
@@ -5725,6 +5733,8 @@ export class DriftClient {
 				remainingAccounts,
 			}
 		);
+
+		const tx = await this.buildTransaction(ix);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
