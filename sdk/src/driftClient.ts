@@ -1819,15 +1819,14 @@ export class DriftClient {
 		const isSolMarket = spotMarket.mint.equals(WRAPPED_SOL_MINT);
 
 		let params: TxParams = {
-			computeUnits: txParams?.computeUnits ?? 600_000
+			computeUnits: txParams?.computeUnits ?? 600_000,
 		};
 
-		
 		if (txParams?.computeUnitsPrice) {
 			params = {
 				...params,
-				computeUnitsPrice: txParams.computeUnitsPrice
-			}
+				computeUnitsPrice: txParams.computeUnitsPrice,
+			};
 		}
 
 		const authority = this.wallet.publicKey;
@@ -1999,7 +1998,7 @@ export class DriftClient {
 						associatedTokenAddress
 					);
 
-					withdrawIxs.push(createAssociatedTokenAccountIx);
+				withdrawIxs.push(createAssociatedTokenAccountIx);
 			}
 		}
 
@@ -4759,8 +4758,8 @@ export class DriftClient {
 		marketIndexes: number[]
 	): Promise<TransactionSignature> {
 		const ixs = await this.getSettlePNLsIxs(users, marketIndexes);
-		
-		const tx = await this.buildTransaction(ixs, {computeUnits: 1_000_000 });
+
+		const tx = await this.buildTransaction(ixs, { computeUnits: 1_000_000 });
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
