@@ -12,6 +12,7 @@ import {
 	PRICE_DIV_PEG,
 	PERCENTAGE_PRECISION,
 	DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
+	FUNDING_RATE_BUFFER_PRECISION,
 	TWO,
 } from '../constants/numericConstants';
 import {
@@ -402,6 +403,50 @@ export function calculateInventoryScale(
 	return inventoryScaleCapped;
 }
 
+export function calculateReservationPriceOffset(
+	reservePrice: BN,
+	last24hAvgFundingRate: BN,
+	baseInventory: BN,
+	minOrderSize: BN,
+	oracleTwap: BN,
+	markTwap: BN,
+	maxOffset: BN
+): BN {
+	let offset: BN = ZERO;
+	const baseInventoryThreshold = minOrderSize.mul(new BN(5));
+	// Calculate quote denominated market premium
+	const markPremiumFast = markTwap.sub(oracleTwap);
+
+	// Convert last_24h_avg_funding_rate to quote denominated premium
+	const markPremiumSlow = last24hAvgFundingRate
+		.div(FUNDING_RATE_BUFFER_PRECISION)
+		.mul(new BN(24));
+
+	// Only apply when inventory is consistent with recent and 24h market premium
+	if (
+		markPremiumFast.gt(ZERO) &&
+		markPremiumSlow.gt(ZERO) &&
+		baseInventory.gt(baseInventoryThreshold)
+	) {
+		offset = BN.min(markPremiumFast, markPremiumSlow);
+	} else if (
+		markPremiumFast.lt(ZERO) &&
+		markPremiumSlow.lt(ZERO) &&
+		baseInventory.lt(baseInventoryThreshold.mul(new BN(-1)))
+	) {
+		offset = BN.min(markPremiumFast, markPremiumSlow);
+	}
+
+	const offsetPct: BN = offset.mul(PRICE_PRECISION).div(reservePrice);
+	const clampedOffsetPct = clampBN(
+		offsetPct,
+		maxOffset.mul(new BN(-1)),
+		maxOffset
+	);
+
+	return clampedOffsetPct;
+}
+
 export function calculateEffectiveLeverage(
 	baseSpread: number,
 	quoteAssetReserve: BN,
@@ -510,6 +555,7 @@ export function calculateSpreadBN(
 	longIntensity: BN,
 	shortIntensity: BN,
 	volume24H: BN,
+	reservationPriceOffset: BN,
 	returnTerms = false
 ) {
 	assert(Number.isInteger(baseSpread));
@@ -532,6 +578,8 @@ export function calculateSpreadBN(
 		halfRevenueRetreatAmount: 0,
 		longSpreadwRevRetreat: 0,
 		shortSpreadwRevRetreat: 0,
+		longSpreadwRevOffsetShrink: 0,
+		shortSpreadwRevOffsetShrink: 0,
 		totalSpread: 0,
 		longSpread: 0,
 		shortSpread: 0,
@@ -664,6 +712,20 @@ export function calculateSpreadBN(
 	spreadTerms.longSpreadwRevRetreat = longSpread;
 	spreadTerms.shortSpreadwRevRetreat = shortSpread;
 
+	if (!reservationPriceOffset.eq(ZERO)) {
+		const spreadSkrinkage = reservationPriceOffset.abs().toNumber();
+		if (reservationPriceOffset.gt(ZERO)) {
+			longSpread -= spreadSkrinkage;
+			longSpread = Math.max(longSpread, baseSpread / 2);
+		} else {
+			shortSpread -= spreadSkrinkage;
+			shortSpread = Math.max(shortSpread, baseSpread / 2);
+		}
+	}
+
+	spreadTerms.longSpreadwOffsetShrink = longSpread;
+	spreadTerms.shortSpreadwOffsetShrink = shortSpread;
+
 	const totalSpread = longSpread + shortSpread;
 	if (totalSpread > maxTargetSpread) {
 		if (longSpread > shortSpread) {
@@ -688,17 +750,21 @@ export function calculateSpreadBN(
 export function calculateSpread(
 	amm: AMM,
 	oraclePriceData: OraclePriceData,
-	now?: BN
+	now?: BN,
+	reservePrice?: BN,
+	reservationPriceOffset = ZERO
 ): [number, number] {
 	if (amm.baseSpread == 0 || amm.curveUpdateIntensity == 0) {
 		return [amm.baseSpread / 2, amm.baseSpread / 2];
 	}
 
-	const reservePrice = calculatePrice(
-		amm.baseAssetReserve,
-		amm.quoteAssetReserve,
-		amm.pegMultiplier
-	);
+	if (!reservePrice) {
+		reservePrice = calculatePrice(
+			amm.baseAssetReserve,
+			amm.quoteAssetReserve,
+			amm.pegMultiplier
+		);
+	}
 
 	const targetPrice = oraclePriceData?.price || reservePrice;
 	const confInterval = oraclePriceData.confidence || ZERO;
@@ -733,7 +799,8 @@ export function calculateSpread(
 		liveOracleStd,
 		amm.longIntensityVolume,
 		amm.shortIntensityVolume,
-		amm.volume24H
+		amm.volume24H,
+		reservationPriceOffset
 	);
 	const longSpread = spreads[0];
 	const shortSpread = spreads[1];
@@ -779,7 +846,31 @@ export function calculateSpreadReserves(
 		};
 	}
 
-	const [longSpread, shortSpread] = calculateSpread(amm, oraclePriceData, now);
+	const reservePrice = calculatePrice(
+		amm.baseAssetReserve,
+		amm.quoteAssetReserve,
+		amm.pegMultiplier
+	);
+
+	const maxOffset = Math.max(amm.maxSpread / 2, 1000);
+
+	const reservationPriceOffset = calculateReservationPriceOffset(
+		reservePrice,
+		amm.last24hAvgFundingRate,
+		amm.baseAssetAmountWithAmm,
+		amm.minOrderSize,
+		amm.historicalOracleData.lastOraclePriceTwap5Min,
+		amm.lastMarkPriceTwap5Min,
+		maxOffset
+	);
+
+	const [longSpread, shortSpread] = calculateSpread(
+		amm,
+		oraclePriceData,
+		now,
+		reservePrice,
+		reservationPriceOffset
+	);
 	const askReserves = calculateSpreadReserve(
 		longSpread,
 		PositionDirection.LONG,

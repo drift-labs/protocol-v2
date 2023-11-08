@@ -24,6 +24,7 @@ import { mockPerpMarkets } from '../dlob/helpers';
 
 import { assert } from '../../src/assert/assert';
 import * as _ from 'lodash';
+import { zeros } from '@project-serum/serum/lib/layout';
 
 class AMMSpreadTerms {
 	longVolSpread: number;
@@ -264,7 +265,8 @@ describe('AMM Tests', () => {
 			oracleStd,
 			longIntensity,
 			shortIntensity,
-			volume24H
+			volume24H,
+			ZERO
 		);
 		const l1 = spreads[0];
 		const s1 = spreads[1];
@@ -291,6 +293,7 @@ describe('AMM Tests', () => {
 			longIntensity,
 			shortIntensity,
 			volume24H,
+			ZERO,
 			true
 		);
 		console.log(terms1);
@@ -323,6 +326,7 @@ describe('AMM Tests', () => {
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
+			ZERO,
 			true
 		);
 
@@ -356,6 +360,7 @@ describe('AMM Tests', () => {
 			new BN(768323534),
 			new BN(243875031),
 			new BN(130017761029),
+			ZERO,
 			true
 		);
 
@@ -967,8 +972,9 @@ describe('AMM Tests', () => {
 		mockMarket1.amm.maxBaseAssetReserve = mockMarket1.amm.baseAssetReserve.add(
 			new BN(9)
 		);
-		mockMarket1.amm.minBaseAssetReserve =
-			mockMarket1.amm.baseAssetReserve.sub(new BN(9));
+		mockMarket1.amm.minBaseAssetReserve = mockMarket1.amm.baseAssetReserve.sub(
+			new BN(9)
+		);
 		mockMarket1.amm.quoteAssetReserve = new BN(cc).mul(BASE_PRECISION);
 		mockMarket1.amm.pegMultiplier = new BN(18.32 * PEG_PRECISION.toNumber());
 		mockMarket1.amm.sqrtK = new BN(cc).mul(BASE_PRECISION);

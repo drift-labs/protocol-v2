@@ -379,19 +379,6 @@ pub fn calculate_spread(
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
     }
 
-    if reservation_price_offset != 0 {
-        let spread_shrinkage = reservation_price_offset.abs().cast::<u64>()?;
-        if reservation_price_offset > 0 {
-            long_spread = long_spread
-                .saturating_sub(spread_shrinkage)
-                .max(half_base_spread_u64);
-        } else {
-            short_spread = short_spread
-                .saturating_sub(spread_shrinkage)
-                .max(half_base_spread_u64);
-        }
-    }
-
     if total_fee_minus_distributions <= 0 {
         long_spread = long_spread
             .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR)?
@@ -436,6 +423,19 @@ pub fn calculate_spread(
         } else {
             long_spread = long_spread.safe_add(revenue_retreat_amount.safe_div(2)?)?;
             short_spread = short_spread.safe_add(revenue_retreat_amount.safe_div(2)?)?;
+        }
+    }
+
+    if reservation_price_offset != 0 {
+        let spread_shrinkage = reservation_price_offset.abs().cast::<u64>()?;
+        if reservation_price_offset > 0 {
+            long_spread = long_spread
+                .saturating_sub(spread_shrinkage)
+                .max(half_base_spread_u64);
+        } else {
+            short_spread = short_spread
+                .saturating_sub(spread_shrinkage)
+                .max(half_base_spread_u64);
         }
     }
 
