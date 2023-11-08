@@ -2463,7 +2463,7 @@ export class DriftClient {
 	): Promise<{
 		txSig: TransactionSignature;
 		signedFillTx: Transaction;
-		signedCancelExistingOrdersTx: Transaction;
+		signedCancelExistingOrdersTx?: Transaction;
 	}> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
@@ -2492,17 +2492,18 @@ export class DriftClient {
 		let cancelOrdersIx: TransactionInstruction;
 		let cancelExistingOrdersTx: Transaction;
 		if (cancelExistingOrders) {
-			console.log('cancel existing orders');
 			cancelOrdersIx = await this.getCancelOrdersIx(
 				orderParams.marketType,
 				orderParams.marketIndex,
 				null
 			);
-			cancelExistingOrdersTx = (await this.buildTransaction(
+
+			//@ts-ignore
+			cancelExistingOrdersTx = await this.buildTransaction(
 				[cancelOrdersIx],
 				txParams,
 				this.txVersion
-			)) as Transaction;
+			);
 		}
 
 		// use versioned transactions if there is a lookup table account and wallet is compatible
