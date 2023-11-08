@@ -1317,6 +1317,8 @@ mod test {
 
     #[test]
     fn various_spread_tests() {
+        // should match typescript sdk tests in sdk/tests/amm/test.ts
+
         let (long_spread, short_spread) = calculate_spread(
             300,
             0,
@@ -1342,6 +1344,62 @@ mod test {
         .unwrap();
         assert_eq!(long_spread, 4262);
         assert_eq!(short_spread, 43238);
+
+        // terms 3
+        let (long_spread, short_spread) = calculate_spread(
+            300,
+            0,
+            484,
+            47500,
+            923807816209694,
+            925117623772584,
+            13731157,
+            -1314027016625,
+            13667686,
+            115876379475,
+            91316628,
+            928097825691666,
+            907979542352912,
+            945977491145601,
+            161188,
+            1459632439,
+            12358265776,
+            72230366233,
+            432067603632,
+            1_000_000 / 1000,
+        )
+        .unwrap();
+        assert_eq!(long_spread, 4257);
+        assert_eq!(short_spread, 43243);
+
+        // terms 4
+        let (long_spread, short_spread) = calculate_spread(
+            300,
+            0,
+            484,
+            47500,
+            923807816209694,
+            925117623772584,
+            13731157,
+            -1314027016625,
+            13667686,
+            115876379475,
+            91316628,
+            928097825691666,
+            907979542352912,
+            945977491145601,
+            161188,
+            1459632439,
+            12358265776,
+            72230366233,
+            432067603632,
+            -1_000_000 / 1000,
+        )
+        .unwrap();
+        assert_eq!(long_spread, 4263);
+        assert_eq!(short_spread, 43237);
+
+        // extra one?
 
         let (long_spread, short_spread) = calculate_spread(
             300,

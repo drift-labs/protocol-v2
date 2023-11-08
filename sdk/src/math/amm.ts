@@ -410,7 +410,7 @@ export function calculateReservationPriceOffset(
 	minOrderSize: BN,
 	oracleTwap: BN,
 	markTwap: BN,
-	maxOffset: BN
+	maxOffset: number
 ): BN {
 	let offset: BN = ZERO;
 	const baseInventoryThreshold = minOrderSize.mul(new BN(5));
@@ -440,8 +440,8 @@ export function calculateReservationPriceOffset(
 	const offsetPct: BN = offset.mul(PRICE_PRECISION).div(reservePrice);
 	const clampedOffsetPct = clampBN(
 		offsetPct,
-		maxOffset.mul(new BN(-1)),
-		maxOffset
+		new BN(-maxOffset),
+		new BN(maxOffset)
 	);
 
 	return clampedOffsetPct;
@@ -578,8 +578,8 @@ export function calculateSpreadBN(
 		halfRevenueRetreatAmount: 0,
 		longSpreadwRevRetreat: 0,
 		shortSpreadwRevRetreat: 0,
-		longSpreadwRevOffsetShrink: 0,
-		shortSpreadwRevOffsetShrink: 0,
+		longSpreadwOffsetShrink: 0,
+		shortSpreadwOffsetShrink: 0,
 		totalSpread: 0,
 		longSpread: 0,
 		shortSpread: 0,
@@ -852,7 +852,11 @@ export function calculateSpreadReserves(
 		amm.pegMultiplier
 	);
 
-	const maxOffset = Math.max(amm.maxSpread / 2, 1000);
+	// always allow 10 bps of price offset, up to a fifth of the market's max_spread
+	const maxOffset = Math.max(
+		amm.maxSpread / 5,
+		PERCENTAGE_PRECISION.toNumber() / 1000
+	);
 
 	const reservationPriceOffset = calculateReservationPriceOffset(
 		reservePrice,

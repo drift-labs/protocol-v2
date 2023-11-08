@@ -296,7 +296,7 @@ describe('AMM Tests', () => {
 			ZERO,
 			true
 		);
-		console.log(terms1);
+		// console.log(terms1);
 
 		console.log('long/short spread:', l1, s1);
 		assert(l1 == 14864);
@@ -330,11 +330,79 @@ describe('AMM Tests', () => {
 			true
 		);
 
-		console.log(terms2);
+		// console.log(terms2);
 		assert(terms2.effectiveLeverageCapped >= 1.0002);
 		assert(terms2.inventorySpreadScale == 1.73492);
 		assert(terms2.longSpread == 4262);
 		assert(terms2.shortSpread == 43238);
+
+		// add spread offset
+		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+		// @ts-ignore
+		const terms3: AMMSpreadTerms = calculateSpreadBN(
+			300,
+			new BN(0),
+			new BN(484),
+			47500,
+			new BN(923807816209694),
+			new BN(925117623772584),
+			new BN(13731157),
+			new BN(-1314027016625),
+			new BN(13667686),
+			new BN(115876379475),
+			new BN(91316628),
+			new BN(928097825691666),
+			new BN(907979542352912),
+			new BN(945977491145601),
+			new BN(161188),
+			new BN(1459632439),
+			new BN(12358265776),
+			new BN(72230366233),
+			new BN(432067603632),
+			new BN(1_000_000 / 1000), // .1% offset
+			true
+		);
+
+		// console.log(terms3);
+		assert(terms3.effectiveLeverageCapped >= 1.0002);
+		assert(terms3.inventorySpreadScale == 1.73492);
+		assert(terms3.longSpread == 4257);
+		assert(terms3.shortSpread == 43243);
+		assert(terms3.longSpread + terms3.shortSpread == 47500);
+
+		// add spread offset
+		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+		// @ts-ignore
+		const terms4: AMMSpreadTerms = calculateSpreadBN(
+			300,
+			new BN(0),
+			new BN(484),
+			47500,
+			new BN(923807816209694),
+			new BN(925117623772584),
+			new BN(13731157),
+			new BN(-1314027016625),
+			new BN(13667686),
+			new BN(115876379475),
+			new BN(91316628),
+			new BN(928097825691666),
+			new BN(907979542352912),
+			new BN(945977491145601),
+			new BN(161188),
+			new BN(1459632439),
+			new BN(12358265776),
+			new BN(72230366233),
+			new BN(432067603632),
+			new BN(-1_000_000 / 1000), // .1% offset
+			true
+		);
+
+		console.log(terms4);
+		assert(terms4.effectiveLeverageCapped >= 1.0002);
+		assert(terms4.inventorySpreadScale == 1.73492);
+		assert(terms4.longSpread == 4263);
+		assert(terms4.shortSpread == 43237);
+		assert(terms4.longSpread + terms4.shortSpread == 47500);
 	});
 
 	it('Corner Case Spreads', () => {
