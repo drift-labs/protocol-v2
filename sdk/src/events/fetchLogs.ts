@@ -30,6 +30,29 @@ function mapTransactionResponseToLog(
 	};
 }
 
+function batchArrays(arrays : any[], batchSize: number) {
+    const result = [];
+    let batch = [];
+
+    for (const array of arrays) {
+        batch.push(array);
+        if (batch.length === batchSize) {
+            result.push(batch);
+            batch = [];
+        }
+    }
+
+    if (batch.length > 0) {
+        result.push(batch);
+    }
+
+    return result;
+}
+
+export async function sleep(ms:number) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function fetchLogs(
 	connection: Connection,
 	address: PublicKey,
@@ -37,7 +60,9 @@ export async function fetchLogs(
 	beforeTx?: TransactionSignature,
 	untilTx?: TransactionSignature,
 	limit?: number,
-	batchSize = 25
+	signatureChunkSize = 25,
+	parallelFetchBatchSize = 10,
+	fetchDelayMs = 1000,
 ): Promise<FetchLogsResponse> {
 	const signatures = await connection.getSignaturesForAddress(
 		address,
@@ -61,19 +86,25 @@ export async function fetchLogs(
 		return undefined;
 	}
 
-	const chunkedSignatures = chunk(filteredSignatures, batchSize);
+	const chunkedSignatures = chunk(filteredSignatures, signatureChunkSize);
 
-	const transactionLogs = (
-		await Promise.all(
-			chunkedSignatures.map(async (chunk) => {
-				return await fetchTransactionLogs(
-					connection,
-					chunk.map((confirmedSignature) => confirmedSignature.signature),
-					finality
-				);
-			})
-		)
-	).flat();
+	const fetchBatches = batchArrays(chunkedSignatures, parallelFetchBatchSize);
+
+	let transactionLogs : Log[] = [];
+
+	for (const batch of fetchBatches) {
+		const logs = await Promise.all(batch.map(async (chunk) => {
+			return await fetchTransactionLogs(
+				connection,
+				chunk.map((confirmedSignature) => confirmedSignature.signature),
+				finality
+			);
+		}));
+
+		await sleep(fetchDelayMs);
+
+		transactionLogs = transactionLogs.concat(logs);
+	}
 
 	const earliest = filteredSignatures[0];
 	const mostRecent = filteredSignatures[filteredSignatures.length - 1];
