@@ -141,7 +141,11 @@ export class EventSubscriber {
 				this.address,
 				this.options.commitment === 'finalized' ? 'finalized' : 'confirmed',
 				beforeTx,
-				untilTx
+				untilTx,
+				undefined,
+				undefined,
+				100_000,
+				0
 			);
 
 			if (response === undefined) {
