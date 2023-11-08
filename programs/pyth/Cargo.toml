@@ -16,6 +16,6 @@ default = ["mainnet-beta"]
 mainnet-beta=[]
 
 [dependencies]
-anchor-lang = "0.26.0"
+anchor-lang = "0.27.0"
 arrayref = "0.3.6"
 bytemuck = { version = "1.4.0" }

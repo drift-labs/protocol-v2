@@ -1,9 +1,35 @@
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION, ONE_HOUR_I128, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
 use crate::math::funding::*;
 use crate::state::oracle::HistoricalOracleData;
 use crate::state::perp_market::{PerpMarket, AMM};
+use std::cmp::min;
+
+fn calculate_funding_rate(
+    mid_price_twap: u128,
+    oracle_price_twap: i128,
+    funding_period: i64,
+) -> DriftResult<i128> {
+    // funding period = 1 hour, window = 1 day
+    // low periodicity => quickly updating/settled funding rates
+    //                 => lower funding rate payment per interval
+    let period_adjustment = (24_i128)
+        .safe_mul(ONE_HOUR_I128)?
+        .safe_div(max(ONE_HOUR_I128, funding_period as i128))?;
+
+    let price_spread = mid_price_twap.cast::<i128>()?.safe_sub(oracle_price_twap)?;
+
+    // clamp price divergence to 3% for funding rate calculation
+    let max_price_spread = oracle_price_twap.safe_div(33)?; // 3%
+    let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
+
+    let funding_rate = clamped_price_spread
+        .safe_mul(FUNDING_RATE_BUFFER.cast()?)?
+        .safe_div(period_adjustment.cast()?)?;
+
+    Ok(funding_rate)
+}
 
 #[test]
 fn balanced_funding_test() {

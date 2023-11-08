@@ -16,13 +16,14 @@ use crate::math::constants::{
     SPOT_UTILIZATION_PRECISION_U32, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::margin::{
-    calculate_margin_requirement_and_total_collateral, MarginRequirementType,
+    calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
 };
 use crate::math::spot_withdraw::{
     calculate_max_borrow_token_amount, calculate_min_deposit_token_amount,
     calculate_token_utilization_limits, check_withdraw_limits,
 };
 use crate::math::stats::calculate_weighted_average;
+use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -32,6 +33,24 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{Order, PerpPosition, SpotPosition, User};
 use crate::test_utils::*;
 use crate::test_utils::{get_pyth_price, get_spot_positions};
+
+pub fn check_perp_market_valid(
+    perp_market: &PerpMarket,
+    spot_market: &SpotMarket,
+    spot_balance: &mut dyn SpotBalance,
+    current_slot: u64,
+) -> DriftResult {
+    // todo
+
+    if perp_market.amm.oracle == spot_market.oracle
+        && spot_balance.balance_type() == &SpotBalanceType::Borrow
+        && (perp_market.amm.last_update_slot != current_slot || !perp_market.amm.last_oracle_valid)
+    {
+        return Err(ErrorCode::InvalidOracle);
+    }
+
+    Ok(())
+}
 
 #[test]
 fn test_daily_withdraw_limits() {
@@ -1455,30 +1474,34 @@ fn attempt_borrow_with_massive_upnl() {
         ..User::default()
     };
 
-    let (margin_requirement, total_collateral, _, _) =
-        calculate_margin_requirement_and_total_collateral(
-            &user,
-            &perp_market_map,
-            MarginRequirementType::Initial,
-            &spot_market_map,
-            &mut oracle_map,
-            None,
-        )
-        .unwrap();
+    let MarginCalculation {
+        margin_requirement,
+        total_collateral,
+        ..
+    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        MarginContext::standard(MarginRequirementType::Initial),
+    )
+    .unwrap();
 
     assert_eq!(margin_requirement, 10_000_000_000);
     assert_eq!(total_collateral, 8_000_000_000); //100 * 100 *.8
 
-    let (margin_requirement, total_collateral, _, _) =
-        calculate_margin_requirement_and_total_collateral(
-            &user,
-            &perp_market_map,
-            MarginRequirementType::Maintenance,
-            &spot_market_map,
-            &mut oracle_map,
-            None,
-        )
-        .unwrap();
+    let MarginCalculation {
+        margin_requirement,
+        total_collateral,
+        ..
+    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        MarginContext::standard(MarginRequirementType::Maintenance),
+    )
+    .unwrap();
 
     assert_eq!(margin_requirement, 5_000_000_000);
     assert_eq!(total_collateral, 108_900_000_000); //100* 100 *.9 + upnl = $108_900
@@ -1488,16 +1511,18 @@ fn attempt_borrow_with_massive_upnl() {
     market.unrealized_pnl_initial_asset_weight = SPOT_WEIGHT_PRECISION as u32;
     drop(market);
 
-    let (margin_requirement, total_collateral, _, _) =
-        calculate_margin_requirement_and_total_collateral(
-            &user,
-            &perp_market_map,
-            MarginRequirementType::Initial,
-            &spot_market_map,
-            &mut oracle_map,
-            None,
-        )
-        .unwrap();
+    let MarginCalculation {
+        margin_requirement,
+        total_collateral,
+        ..
+    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        MarginContext::standard(MarginRequirementType::Initial),
+    )
+    .unwrap();
 
     assert_eq!(margin_requirement, 10_000_000_000);
     assert_eq!(total_collateral, 8_100_000_000); //100 * 100 *.8 + 100 (cap of upnl for initial margin)

@@ -30,7 +30,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant } from '../sdk';
+import { BulkAccountLoader, isVariant, UserStatus } from '../sdk';
 
 describe('liquidate borrow for perp pnl', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -109,12 +109,13 @@ describe('liquidate borrow for perp pnl', () => {
 		await driftClient.updateInitialPctToLiquidate(
 			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
+		// await driftClient.updateLiquidationDuration(1);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
-		const periodicity = new BN(0);
+		const periodicity = new BN(3600);
 
 		await driftClient.initializePerpMarket(
 			0,
@@ -216,7 +217,7 @@ describe('liquidate borrow for perp pnl', () => {
 				.logMessages
 		);
 
-		assert(isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
+		assert(driftClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED);
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
 			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)

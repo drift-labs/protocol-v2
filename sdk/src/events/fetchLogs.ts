@@ -117,8 +117,7 @@ export async function fetchTransactionLogs(
 	}
 
 	const logs = new Array<Log>();
-	for (const i in rpcResponses) {
-		const rpcResponse = rpcResponses[i];
+	for (const rpcResponse of rpcResponses) {
 		if (rpcResponse.result) {
 			logs.push(mapTransactionResponseToLog(rpcResponse.result));
 		}
@@ -151,6 +150,9 @@ export class LogParser {
 
 	public parseEventsFromLogs(event: Log): WrappedEvents {
 		const records: WrappedEvents = [];
+
+		if (!event.logs) return records;
+
 		// @ts-ignore
 		const eventGenerator = this.program._events._eventParser.parseLogs(
 			event.logs,

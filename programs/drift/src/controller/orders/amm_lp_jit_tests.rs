@@ -45,6 +45,7 @@ pub mod amm_lp_jit {
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
+    use crate::state::fill_mode::FillMode;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -485,6 +486,7 @@ pub mod amm_lp_jit {
             slot,
             0,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -686,6 +688,7 @@ pub mod amm_lp_jit {
             slot,
             10,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -894,6 +897,7 @@ pub mod amm_lp_jit {
             slot,
             10,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -1109,6 +1113,7 @@ pub mod amm_lp_jit {
             slot,
             10,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -1327,6 +1332,7 @@ pub mod amm_lp_jit {
             slot,
             10,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -1533,6 +1539,7 @@ pub mod amm_lp_jit {
             slot,
             0,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -1748,6 +1755,7 @@ pub mod amm_lp_jit {
             slot,
             0,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -1955,6 +1963,7 @@ pub mod amm_lp_jit {
             slot,
             0,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -2144,6 +2153,7 @@ pub mod amm_lp_jit {
             slot,
             10,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -2345,6 +2355,7 @@ pub mod amm_lp_jit {
             slot,
             10,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -2595,6 +2606,7 @@ pub mod amm_lp_jit {
                 slot,
                 auction_duration,
                 true,
+                FillMode::Fill,
             )
             .unwrap();
 
@@ -2878,6 +2890,7 @@ pub mod amm_lp_jit {
                 slot,
                 10,
                 true,
+                FillMode::Fill,
             )
             .unwrap();
 
@@ -3108,6 +3121,7 @@ pub mod amm_lp_jit {
             slot,
             0,
             true,
+            FillMode::Fill,
         )
         .unwrap();
 

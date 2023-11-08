@@ -2,9 +2,9 @@ name: main
 
 on:
   push:
-    branches: master
+    branches: [master]
   pull_request:
-    branches: master
+    branches: [master]
 
 defaults:
   run:
@@ -13,8 +13,8 @@ defaults:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_TOOLCHAIN: 1.60.0
-  SOLANA_VERSION: '1.13.7'
+  RUST_TOOLCHAIN: 1.62.0
+  SOLANA_VERSION: "1.14.16"
 
 jobs:
   fmt-clippy:
@@ -73,8 +73,8 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: '16.x'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "16.x"
+          registry-url: "https://registry.npmjs.org"
       - name: Install yarn
         run: yarn
       - name: Print prettier version
@@ -88,8 +88,8 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: '16.x'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "16.x"
+          registry-url: "https://registry.npmjs.org"
       - name: Install yarn
         run: yarn
       - name: Run lint
@@ -109,7 +109,7 @@ jobs:
       - name: Cache build artefacts
         uses: Swatinem/rust-cache@v1
         with:
-          cache-on-failure: 'true'
+          cache-on-failure: "true"
 
       - uses: ./.github/actions/setup-solana/
 
@@ -119,8 +119,8 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: '16.x'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "16.x"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Setup yarn
         run: npm install -g yarn
@@ -154,29 +154,43 @@ jobs:
         with:
           filters: |
             sdk:
-              - 'sdk/src/**'
+              - 'sdk/**'
   release:
     runs-on: ubuntu-latest
-    needs: [fmt-clippy, unit, cargo-audit, yarn-prettier, yarn-lint, check-for-sdk-changes]
+    needs:
+      [
+        fmt-clippy,
+        unit,
+        cargo-audit,
+        yarn-prettier,
+        yarn-lint,
+        check-for-sdk-changes,
+      ]
     if: ${{ github.ref == 'refs/heads/master' && needs.check-for-sdk-changes.outputs.sdk == 'true' }}
     defaults:
       run:
         working-directory: ./sdk
+    outputs:
+      version: ${{ steps.git-commit.outputs.version }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: '16.x'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "16.x"
+          registry-url: "https://registry.npmjs.org"
       - name: Build sdk
         run: yarn
       - run: yarn build
       - name: Update package version
-        run: npm version prerelease --preid=beta
-      - name: Git commit
         run: |
           VERSION=$(node -e "console.log(require('./package.json').version);")
+          [[ "$VERSION" == *beta* ]] && npm version prerelease --preid=beta || npm version preminor --preid=beta
+      - name: Git commit
+        id: git-commit
+        run: |
+          VERSION=$(node -e "console.log(require('./package.json').version);")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           git config user.name "GitHub Actions"
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add ..
@@ -186,6 +200,36 @@ jobs:
         run: npm publish --access=public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  emit-dispatch-events:
+    runs-on: ubuntu-latest
+    needs: [release, check-for-sdk-changes]
+    if: ${{ github.ref == 'refs/heads/master' && needs.check-for-sdk-changes.outputs.sdk == 'true' }}
+    strategy:
+      matrix:
+        repo:
+          [
+            "jit-proxy",
+            "internal-keeper-bot",
+            "dlob-server",
+            "drift-competitions",
+          ]
+    steps:
+      - name: Checkout code with new updated version
+        uses: actions/checkout@v2
+      - name: Emit dispatch event
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token ${{ secrets.GH_PAT }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/drift-labs/${{ matrix.repo }}/dispatches" \
+            -d "{\"event_type\": \"sdk-update\", \"client_payload\": {
+              \"version\": \"$VERSION\"
+            }}"
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          VERSION: ${{ needs.release.outputs.version }}
+        working-directory: ./sdk
   verified-build:
     name: Build Verifiable Artifact
     runs-on: ubuntu-latest

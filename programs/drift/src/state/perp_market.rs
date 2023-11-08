@@ -11,9 +11,8 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
 };
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, BASE_PRECISION, BID_ASK_SPREAD_PRECISION_U128,
-    LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION,
-    TWENTY_FOUR_HOUR,
+    AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128, LP_FEE_SLICE_DENOMINATOR,
+    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -125,7 +124,7 @@ impl AMMLiquiditySplit {
     }
 }
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct PerpMarket {
@@ -196,10 +195,14 @@ pub struct PerpMarket {
     /// The contract tier determines how much insurance a market can receive, with more speculative markets receiving less insurance
     /// It also influences the order perp markets can be liquidated, with less speculative markets being liquidated first
     pub contract_tier: ContractTier,
-    pub padding1: bool,
+    pub padding1: u8,
     /// The spot market that pnl is settled in
     pub quote_spot_market_index: u16,
-    pub padding: [u8; 48],
+    /// Between -100 and 100, represents what % to increase/decrease the fee by
+    /// E.g. if this is -50 and the fee is 5bps, the new fee will be 2.5bps
+    /// if this is 50 and the fee is 5bps, the new fee will be 7.5bps
+    pub fee_adjustment: i16,
+    pub padding: [u8; 46],
 }
 
 impl Default for PerpMarket {
@@ -230,9 +233,10 @@ impl Default for PerpMarket {
             status: MarketStatus::default(),
             contract_type: ContractType::default(),
             contract_tier: ContractTier::default(),
-            padding1: false,
+            padding1: 0,
             quote_spot_market_index: 0,
-            padding: [0; 48],
+            fee_adjustment: 0,
+            padding: [0; 46],
         }
     }
 }
@@ -410,7 +414,7 @@ impl PerpMarket {
     }
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct InsuranceClaim {
@@ -432,7 +436,7 @@ pub struct InsuranceClaim {
     pub last_revenue_withdraw_ts: i64,
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct PoolBalance {
@@ -473,7 +477,7 @@ impl SpotBalance for PoolBalance {
     }
 }
 
-#[zero_copy]
+#[zero_copy(unsafe)]
 #[derive(Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct AMM {
@@ -840,7 +844,9 @@ impl AMM {
             .base_asset_amount_per_lp
             .safe_sub(self.get_target_base_asset_amount_per_lp()?)?;
 
-        get_proportion_i128(target_lp_gap, self.user_lp_shares, BASE_PRECISION)
+        let base_unit = self.get_per_lp_base_unit()?.cast()?;
+
+        get_proportion_i128(target_lp_gap, self.user_lp_shares, base_unit)
     }
 
     pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> DriftResult<bool> {

@@ -9,11 +9,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- sdk: updated anchor to 0.28.1-beta.2
+### Fixes
+- sdk: fix bug which incorrectly calculated leverage after trade for a market with no position but short orders open
+
+### Breaking
+
+## [2.42.0] - 2023-10-26
+
+### Features
+
+- program: add accelerated user update idle ([#669](https://github.com/drift-labs/protocol-v2/pull/669)) 
+- program: make user status a bit flag ([#619](https://github.com/drift-labs/protocol-v2/pull/619))
+- program: place and take uses auction end price for market orders ([#650](https://github.com/drift-labs/protocol-v2/pull/650))
+- program: reduce cus for place_spot_order ([#662](https://github.com/drift-labs/protocol-v2/pull/662))
+- program: bump max sub accounts to 15k
+- program: user custom margin ratio works with spot ([#633](https://github.com/drift-labs/protocol-v2/pull/633))
+- program: add swap price bands ([#611](https://github.com/drift-labs/protocol-v2/pull/611))
+- program: add 5min twap price bands to liquidate_perp and liquidate_spot ([#570](https://github.com/drift-labs/protocol-v2/pull/570)) 
+- program: add positive perp funding rate offset ([#576](https://github.com/drift-labs/protocol-v2/pull/576/files))
+
+### Fixes
+- program: add validation check in update max imbalances ([#667](https://github.com/drift-labs/protocol-v2/pull/667))
+
+### Breaking
+
+- sdk: remove getMakerLimitBids/Asks from DLOB
+- sdk: updateUserMarginEnabled and updateUserCustomMarginRatio now take in an array of params to allow multiple subaccounts to be update in a single tx
+
+## [2.41.0] - 2023-10-05
+
+### Features
+
+- program: order_breaches_maker_oracle_price_bands only uses init margin ratio ([#636](https://github.com/drift-labs/protocol-v2/pull/636))
+- program: add fee_adjustment to perp market ([#629](https://github.com/drift-labs/protocol-v2/pull/629))
+- program: add buffer to calculating max perp if fee ([#635](https://github.com/drift-labs/protocol-v2/pull/635))
+- sdk: remove getMakerLimitBids/Asks ([#632](https://github.com/drift-labs/protocol-v2/pull/632))
+- program: add ix to transfer protocol if shares ([#612](https://github.com/drift-labs/protocol-v2/pull/612))
 
 ### Fixes
 
+- program: fix if staking rounding for fee tier selection ([#643](https://github.com/drift-labs/protocol-v2/pull/643))
+
+### Breaking
+
+## [2.40.0] - 2023-09-28
+
+### Features
+
+- program: add dynamic liquidation fee ([#601](https://github.com/drift-labs/protocol-v2/pull/601))
+- sdk: add deriveOracleAuctionParams
+- program: update to anchor 0.27.0 ([#617](https://github.com/drift-labs/protocol-v2/pull/617))
+
+### Fixes
+
+### Breaking
+
+## [2.39.0] - 2023-09-07
+
+### Features
+
+- sdk: updated anchor to 0.28.1-beta.2
+- sdk: add priorityFeeSubscriber
+- program: allow up to 12500 users
+- program: scale initial asset weight for spot markets based on total deposits ([#575](https://github.com/drift-labs/protocol-v2/pull/575))
+
+### Fixes
+
+- program: let auction start/end be the same ([#597](https://github.com/drift-labs/protocol-v2/pull/597))
 - program: account for reduce only when checking margin in trigger order ([#583](https://github.com/drift-labs/protocol-v2/pull/583))
+- program: use per_lp_base_unit for calculating base imbalance for lp jit ([#604](https://github.com/drift-labs/protocol-v2/pull/604))
 
 ### Breaking
 

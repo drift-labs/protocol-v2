@@ -28,7 +28,12 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant } from '../sdk';
+import {
+	BulkAccountLoader,
+	isVariant,
+	UserStatus,
+	PERCENTAGE_PRECISION,
+} from '../sdk';
 
 describe('liquidate spot w/ social loss', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -102,6 +107,13 @@ describe('liquidate spot w/ social loss', () => {
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
 
+		const oracleGuardrails = await driftClient.getStateAccount()
+			.oracleGuardRails;
+		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
+			100
+		).mul(PERCENTAGE_PRECISION);
+		await driftClient.updateOracleGuardRails(oracleGuardrails);
+
 		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
@@ -170,7 +182,7 @@ describe('liquidate spot w/ social loss', () => {
 
 		console.log(driftClient.getUserAccount().status);
 		// assert(driftClient.getUserAccount().isBeingLiquidated);
-		assert(isVariant(driftClient.getUserAccount().status, 'bankrupt'));
+		assert(driftClient.getUserAccount().status === UserStatus.BANKRUPT);
 
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
@@ -193,8 +205,34 @@ describe('liquidate spot w/ social loss', () => {
 		assert(
 			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(500000000))
 		);
+		console.log(liquidationRecord.liquidateSpot.ifFee.toString());
+		console.log(spotMarketBefore.liquidatorFee.toString());
+		console.log(spotMarketBefore.ifLiquidationFee.toString());
+		console.log(
+			liquidationRecord.liquidateSpot.liabilityTransfer
+				.div(new BN(100))
+				.toString()
+		);
+
+		// if liq fee is 0 since user is bankrupt
+		assert(
+			liquidationRecord.liquidateSpot.ifFee.lt(
+				new BN(spotMarketBefore.ifLiquidationFee)
+			)
+		);
+
+		// if liquidator fee is non-zero, it should be equal to that
 		assert(
 			liquidationRecord.liquidateSpot.ifFee.eq(
+				new BN(spotMarketBefore.liquidatorFee)
+			)
+		);
+
+		// but it is zero
+		assert(liquidationRecord.liquidateSpot.ifFee.eq(ZERO));
+
+		assert(
+			new BN(5000000).eq(
 				liquidationRecord.liquidateSpot.liabilityTransfer.div(new BN(100))
 			)
 		);
@@ -306,8 +344,7 @@ describe('liquidate spot w/ social loss', () => {
 
 		await driftClient.fetchAccounts();
 
-		assert(!isVariant(driftClient.getUserAccount().status, 'beingLiquidated'));
-		assert(!isVariant(driftClient.getUserAccount().status, 'bankrupt'));
+		assert(driftClient.getUserAccount().status === 0);
 
 		// assert(!driftClient.getUserAccount().isBankrupt);
 		assert(

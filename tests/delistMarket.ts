@@ -322,7 +322,7 @@ describe('delist market', () => {
 
 		await driftClient.fetchAccounts();
 		const perpMarket = await driftClient.getPerpMarketAccount(marketIndex);
-		console.log(perpMarket.amm.cumulativeFundingRateLong.toString());
+		// console.log(perpMarket.amm.cumulativeFundingRateLong.toString());
 		assert(!perpMarket.amm.cumulativeFundingRateLong.eq(ZERO));
 
 		await liquidatorDriftClient.addPerpLpShares(BASE_PRECISION, marketIndex);
@@ -583,11 +583,26 @@ describe('delist market', () => {
 		assert(loserUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
 		const marketAfter0 = driftClient.getPerpMarketAccount(marketIndex);
 
-		const finalPnlResultMin0 = new BN(1000021789000 - 100090);
+		const finalPnlResultMin0 = new BN(1000020719000 - 100090);
 		console.log(marketAfter0.pnlPool.scaledBalance.toString());
+		console.log(marketAfter0.pnlPool.scaledBalance.toString());
+		console.log(marketAfter0.pnlPool.scaledBalance.toString());
+
+		// console.log(
+		// 	'lastFundingRateLong:',
+		// 	marketAfter0.amm.lastFundingRateLong.toString()
+		// );
+		// console.log(
+		// 	'lastFundingRateShort:',
+		// 	marketAfter0.amm.lastFundingRateShort.toString()
+		// );
+
+		assert(marketAfter0.amm.lastFundingRateLong.toString() === '24205208');
+		assert(marketAfter0.amm.lastFundingRateShort.toString() === '24205208');
+
 		assert(marketAfter0.pnlPool.scaledBalance.gt(finalPnlResultMin0));
 		assert(
-			marketAfter0.pnlPool.scaledBalance.lt(new BN(1000021789000 + 1000000))
+			marketAfter0.pnlPool.scaledBalance.lt(new BN(1000020719000 + 1000000))
 		);
 
 		const txSig2 = await driftClient.settlePNL(
@@ -610,10 +625,10 @@ describe('delist market', () => {
 
 		const marketAfter = driftClient.getPerpMarketAccount(marketIndex);
 
-		const finalPnlResultMin = new BN(969700933000 - 109000);
+		const finalPnlResultMin = new BN(969699125000 - 109000);
 		console.log('pnlPool:', marketAfter.pnlPool.scaledBalance.toString());
 		assert(marketAfter.pnlPool.scaledBalance.gt(finalPnlResultMin));
-		assert(marketAfter.pnlPool.scaledBalance.lt(new BN(969700933000 + 109000)));
+		assert(marketAfter.pnlPool.scaledBalance.lt(new BN(969699125000 + 109000)));
 
 		console.log('feePool:', marketAfter.amm.feePool.scaledBalance.toString());
 		console.log(
@@ -684,10 +699,10 @@ describe('delist market', () => {
 		console.log(usdcMarket.revenuePool.scaledBalance.toString());
 		assert(usdcMarket.revenuePool.scaledBalance.gt(ZERO));
 		assert(
-			usdcMarket.revenuePool.scaledBalance.gt(new BN(969765629000 - 100000))
+			usdcMarket.revenuePool.scaledBalance.gt(new BN(969763827000 - 100000))
 		);
 		assert(
-			usdcMarket.revenuePool.scaledBalance.lt(new BN(969765629000 + 100000))
+			usdcMarket.revenuePool.scaledBalance.lt(new BN(969763827000 + 100000))
 		);
 
 		console.log('works');

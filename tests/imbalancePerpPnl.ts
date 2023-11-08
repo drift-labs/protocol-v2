@@ -757,14 +757,30 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			market0.marketIndex
 		);
 		oraclePriceData0.confidence = new BN(0); //oraclePriceData0.price.div(new BN(1000));
+		console.log(
+			'market0.amm.totalFeeMinusDistributions:',
+			market0.amm.totalFeeMinusDistributions.toString()
+		);
+		assert(market0.amm.totalFeeMinusDistributions.lt(new BN('0')));
 
+		// assert(market0.amm.totalFeeMinusDistributions.eq(new BN('254313115')));
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData0);
 		const [bid, ask] = examineSpread(market0, oraclePriceData0);
+		console.log(
+			'prepegAMM.totalFeeMinusDistributions:',
+			prepegAMM.totalFeeMinusDistributions.toString()
+		);
+		assert(
+			prepegAMM.totalFeeMinusDistributions.eq(
+				market0.amm.totalFeeMinusDistributions
+			)
+		);
+
 		console.log(prepegAMM.pegMultiplier.toString());
 		console.log(bid.toString());
 		console.log(ask.toString());
 		assert(bid.eq(new BN('254194105')));
-		assert(prepegAMM.pegMultiplier.eq(new BN('254313115')));
+		assert(prepegAMM.pegMultiplier.eq(new BN('254313114'))); // lowered by 1 for funding offset change
 		assert(oraclePriceData0.price.eq(new BN('260500000')));
 		assert(ask.eq(new BN('266567441')));
 
@@ -794,7 +810,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		const prepegAMM1 = calculateUpdatedAMM(market0.amm, oraclePriceData1);
 		console.log(prepegAMM1.pegMultiplier.toString());
-		assert(prepegAMM1.pegMultiplier.eq(new BN(254313115)));
+		assert(prepegAMM1.pegMultiplier.eq(new BN(254313114))); // lower by 1 for funding offset change
 	});
 
 	it('resolvePerpPnlDeficit', async () => {
@@ -890,8 +906,9 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.lt(new BN(43454561797 + 20000))); //44k still :o
-		assert(imbalance.gt(new BN(43454561797 - 20000))); //44k still :o
+		const expectedOffset = 43454489193; // used to be 43454561797
+		assert(imbalance.lt(new BN(expectedOffset + 20000))); //44k still :o
+		assert(imbalance.gt(new BN(expectedOffset - 20000))); //44k still :o
 
 		console.log(
 			'revenueWithdrawSinceLastSettle:',

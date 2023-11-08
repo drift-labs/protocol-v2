@@ -29,10 +29,11 @@ use solana_program::account_info::AccountInfo;
 use solana_program::instruction::Instruction;
 use solana_program::msg;
 use std::cell::Ref;
+use std::convert::TryFrom;
 use std::num::NonZeroU64;
 use std::ops::{Deref, DerefMut};
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Default, PartialEq, Eq, Debug)]
 #[repr(C)]
 pub struct SerumV3FulfillmentConfig {
@@ -284,7 +285,7 @@ impl<'a, 'b> SerumFulfillmentParams<'a, 'b> {
                 ErrorCode::InvalidFulfillmentConfig
             })?);
 
-        let token_program: Program<Token> = Program::try_from(token_program).map_err(|e| {
+        let token_program: Program<Token> = Program::try_from(*token_program).map_err(|e| {
             msg!("{:?}", e);
             ErrorCode::InvalidFulfillmentConfig
         })?;
