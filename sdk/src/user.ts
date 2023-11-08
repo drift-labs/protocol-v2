@@ -48,6 +48,7 @@ import {
 	calculateReservePrice,
 	calculateSpotMarketMarginRatio,
 	calculateUnrealizedAssetWeight,
+	divCeil,
 	getBalance,
 	getSignedTokenAmount,
 	getStrictTokenValue,
@@ -3054,14 +3055,17 @@ export class User {
 			'Initial'
 		);
 
-		const amountWithdrawable = assetWeight.eq(ZERO)
-			? userDepositAmount
-			: freeCollateral
-					.mul(MARGIN_PRECISION)
-					.div(assetWeight)
-					.mul(PRICE_PRECISION)
-					.div(oracleData.price)
-					.mul(precisionIncrease);
+		let amountWithdrawable;
+		if (assetWeight.eq(ZERO)) {
+			amountWithdrawable = userDepositAmount;
+		} else {
+			amountWithdrawable = divCeil(
+				divCeil(freeCollateral.mul(MARGIN_PRECISION), assetWeight).mul(
+					PRICE_PRECISION
+				),
+				oracleData.price
+			).mul(precisionIncrease);
+		}
 
 		const maxWithdrawValue = BN.min(
 			BN.min(amountWithdrawable, userDepositAmount),
