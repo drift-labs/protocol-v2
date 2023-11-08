@@ -14,6 +14,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	onChange: (data: T) => void;
 	listenerId?: number;
 	resubTimeoutMs?: number;
+	isUnsubscribing = false;
 	timeoutId?: NodeJS.Timeout;
 
 	receivingData: boolean;
@@ -34,7 +35,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	}
 
 	async subscribe(onChange: (data: T) => void): Promise<void> {
-		if (this.listenerId) {
+		if (this.listenerId || this.isUnsubscribing) {
 			return;
 		}
 
@@ -80,6 +81,11 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			throw new Error('onChange callback function must be set');
 		}
 		this.timeoutId = setTimeout(async () => {
+			if (this.isUnsubscribing) {
+				// If we are in the process of unsubscribing, do not attempt to resubscribe
+				return;
+			}
+
 			if (this.receivingData) {
 				console.log(
 					`No ws data from ${this.accountName} in ${this.resubTimeoutMs}ms, resubscribing`
@@ -154,12 +160,17 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	}
 
 	unsubscribe(): Promise<void> {
+		this.isUnsubscribing = true;
+		clearTimeout(this.timeoutId);
+		this.timeoutId = undefined;
+
 		if (this.listenerId) {
 			const promise =
 				this.program.provider.connection.removeAccountChangeListener(
 					this.listenerId
 				);
 			this.listenerId = undefined;
+			this.isUnsubscribing = false;
 			return promise;
 		}
 	}
