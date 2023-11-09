@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.42.1] - 2023-11-09
+
+### Features
+
+### Fixes
+
+- program: account for fee pool when settling positive pnl ([#687](https://github.com/drift-labs/protocol-v2/pull/687))
+
+### Breaking
+
 ## [2.42.0] - 2023-10-26
 
 ### Features
