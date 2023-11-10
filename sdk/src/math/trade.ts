@@ -649,15 +649,15 @@ export function calculateEstimatedPerpEntryPrice(
 		}
 	}
 
-	const entryPrice = cumulativeQuoteFilled
-		.mul(BASE_PRECISION)
-		.div(cumulativeBaseFilled);
+	const entryPrice =
+		cumulativeBaseFilled && cumulativeBaseFilled.gt(ZERO)
+			? cumulativeQuoteFilled.mul(BASE_PRECISION).div(cumulativeBaseFilled)
+			: ZERO;
 
-	const priceImpact = entryPrice
-		.sub(bestPrice)
-		.mul(PRICE_PRECISION)
-		.div(bestPrice)
-		.abs();
+	const priceImpact =
+		bestPrice && bestPrice.gt(ZERO)
+			? entryPrice.sub(bestPrice).mul(PRICE_PRECISION).div(bestPrice).abs()
+			: ZERO;
 
 	return {
 		entryPrice,
@@ -858,15 +858,15 @@ export function calculateEstimatedSpotEntryPrice(
 		}
 	}
 
-	const entryPrice = cumulativeQuoteFilled
-		.mul(basePrecision)
-		.div(cumulativeBaseFilled);
+	const entryPrice =
+		cumulativeBaseFilled && cumulativeBaseFilled.gt(ZERO)
+			? cumulativeQuoteFilled.mul(basePrecision).div(cumulativeBaseFilled)
+			: ZERO;
 
-	const priceImpact = entryPrice
-		.sub(bestPrice)
-		.mul(PRICE_PRECISION)
-		.div(bestPrice)
-		.abs();
+	const priceImpact =
+		bestPrice && bestPrice.gt(ZERO)
+			? entryPrice.sub(bestPrice).mul(PRICE_PRECISION).div(bestPrice).abs()
+			: ZERO;
 
 	return {
 		entryPrice,
@@ -900,8 +900,8 @@ export function calculateEstimatedEntryPriceWithL2(
 	const levels = [...(takerIsLong ? l2.asks : l2.bids)];
 	let nextLevel = levels.shift();
 
-	let bestPrice;
-	let worstPrice;
+	let bestPrice: BN;
+	let worstPrice: BN;
 	if (nextLevel) {
 		bestPrice = nextLevel.price;
 		worstPrice = nextLevel.price;
@@ -945,15 +945,15 @@ export function calculateEstimatedEntryPriceWithL2(
 		}
 	}
 
-	const entryPrice = cumulativeQuoteFilled
-		.mul(basePrecision)
-		.div(cumulativeBaseFilled);
+	const entryPrice =
+		cumulativeBaseFilled && cumulativeBaseFilled.gt(ZERO)
+			? cumulativeQuoteFilled.mul(basePrecision).div(cumulativeBaseFilled)
+			: ZERO;
 
-	const priceImpact = entryPrice
-		.sub(bestPrice)
-		.mul(PRICE_PRECISION)
-		.div(bestPrice)
-		.abs();
+	const priceImpact =
+		bestPrice && bestPrice.gt(ZERO)
+			? entryPrice.sub(bestPrice).mul(PRICE_PRECISION).div(bestPrice).abs()
+			: ZERO;
 
 	return {
 		entryPrice,
