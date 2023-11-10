@@ -24,7 +24,6 @@ import { mockPerpMarkets } from '../dlob/helpers';
 
 import { assert } from '../../src/assert/assert';
 import * as _ from 'lodash';
-import { zeros } from '@project-serum/serum/lib/layout';
 
 class AMMSpreadTerms {
 	longVolSpread: number;

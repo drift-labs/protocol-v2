@@ -7273,11 +7273,23 @@
             "type": "u64"
           },
           {
+            "name": "netUnsettledFundingPnl",
+            "type": "i64"
+          },
+          {
+            "name": "quoteAssetAmountWithUnsettledLp",
+            "type": "i64"
+          },
+          {
+            "name": "reservationPriceOffset",
+            "type": "i32"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                32
+                12
               ]
             }
           }

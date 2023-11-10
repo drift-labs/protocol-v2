@@ -812,7 +812,7 @@ export function calculateSpreadReserves(
 	amm: AMM,
 	oraclePriceData: OraclePriceData,
 	now?: BN
-) {
+): [BN, BN] {
 	function calculateSpreadReserve(
 		spread: number,
 		direction: PositionDirection,
@@ -857,10 +857,10 @@ export function calculateSpreadReserves(
 		amm.maxSpread / 5,
 		PERCENTAGE_PRECISION.toNumber() / 1000
 	);
-
+	console.log(amm);
 	const reservationPriceOffset = calculateReservationPriceOffset(
 		reservePrice,
-		amm.last24hAvgFundingRate,
+		amm.last24HAvgFundingRate,
 		amm.baseAssetAmountWithAmm,
 		amm.minOrderSize,
 		amm.historicalOracleData.lastOraclePriceTwap5Min,

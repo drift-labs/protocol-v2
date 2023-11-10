@@ -4,7 +4,7 @@ if [ "$1" != "--skip-build" ]
     cp target/idl/drift.json sdk/src/idl/
 fi
 
-test_files=(liquidityProvider.ts)
+test_files=(perpLpJit.ts)
 
 for test_file in ${test_files[@]}; do
   ANCHOR_TEST_FILE=${test_file} anchor test --skip-build || exit 1;
