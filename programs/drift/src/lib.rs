@@ -933,6 +933,13 @@ pub mod drift {
         handle_update_liquidation_duration(ctx, liquidation_duration)
     }
 
+    pub fn update_liquidation_margin_buffer_ratio(
+        ctx: Context<AdminUpdateState>,
+        liquidation_margin_buffer_ratio: u32,
+    ) -> Result<()> {
+        handle_update_liquidation_margin_buffer_ratio(ctx, liquidation_margin_buffer_ratio)
+    }
+
     pub fn update_oracle_guard_rails(
         ctx: Context<AdminUpdateState>,
         oracle_guard_rails: OracleGuardRails,
