@@ -338,8 +338,12 @@ export class JupiterClient {
 		).json();
 		const { swapTransaction } = resp;
 
-		const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
-		return VersionedTransaction.deserialize(swapTransactionBuf);
+		try {
+			const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
+			return VersionedTransaction.deserialize(swapTransactionBuf);
+		} catch (err) {
+			throw new Error("Something went wrong with creating the Jupiter swap transaction. Please try again.");
+		}
 	}
 
 	/**
