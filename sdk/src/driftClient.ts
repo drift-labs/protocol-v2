@@ -3733,6 +3733,10 @@ export class DriftClient {
 			quote = fetchedQuote;
 		}
 
+		if (!quote) {
+			throw new Error("Could not fetch Jupiter's quote. Please try again.");
+		}
+		
 		const transaction = await jupiterClient.getSwap({
 			quote,
 			userPublicKey: this.provider.wallet.publicKey,
