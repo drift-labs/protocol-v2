@@ -319,6 +319,10 @@ export class JupiterClient {
 		userPublicKey: PublicKey;
 		slippageBps?: number;
 	}): Promise<VersionedTransaction> {
+		if (!quote) {
+			throw new Error("Jupiter swap quote not provided. Please try again.");
+		}
+
 		const resp = await (
 			await fetch(`${this.url}/v6/swap`, {
 				method: 'POST',
@@ -334,8 +338,12 @@ export class JupiterClient {
 		).json();
 		const { swapTransaction } = resp;
 
-		const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
-		return VersionedTransaction.deserialize(swapTransactionBuf);
+		try {
+			const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
+			return VersionedTransaction.deserialize(swapTransactionBuf);
+		} catch (err) {
+			throw new Error("Something went wrong with creating the Jupiter swap transaction. Please try again.");
+		}
 	}
 
 	/**

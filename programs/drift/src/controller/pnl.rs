@@ -109,11 +109,23 @@ pub fn settle_pnl(
         perp_market.pnl_pool.scaled_balance,
         spot_market,
         perp_market.pnl_pool.balance_type(),
+    )?;
+
+    let fraction_of_fee_pool_token_amount = get_token_amount(
+        perp_market.amm.fee_pool.scaled_balance,
+        spot_market,
+        perp_market.amm.fee_pool.balance_type(),
     )?
-    .cast()?;
+    .safe_div(5)?;
+
+    // add a buffer from fee pool for pnl pool balance
+    let pnl_tokens_available: i128 = pnl_pool_token_amount
+        .safe_add(fraction_of_fee_pool_token_amount)?
+        .cast()?;
+
     let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price)?;
-    let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
-        pnl_pool_token_amount.safe_sub(net_user_pnl.max(0))?
+    let max_pnl_pool_excess = if net_user_pnl < pnl_tokens_available {
+        pnl_tokens_available.safe_sub(net_user_pnl.max(0))?
     } else {
         0
     };
