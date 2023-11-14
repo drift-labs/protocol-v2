@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: boost max sub accounts to 20k
+
 ### Fixes
 
 - program: account for fee pool when settling positive pnl ([#687](https://github.com/drift-labs/protocol-v2/pull/687))
