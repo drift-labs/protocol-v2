@@ -787,6 +787,20 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateLiquidationMarginBufferRatio(
+		updateLiquidationMarginBufferRatio: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateLiquidationMarginBufferRatio(
+			updateLiquidationMarginBufferRatio,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateOracleGuardRails(
 		oracleGuardRails: OracleGuardRails
 	): Promise<TransactionSignature> {
