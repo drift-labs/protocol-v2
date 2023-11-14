@@ -280,6 +280,7 @@ export class JupiterClient {
 		swapMode = 'ExactIn',
 		onlyDirectRoutes = false,
 		excludeDexes = [],
+		asLegacyTransaction
 	}: {
 		inputMint: PublicKey;
 		outputMint: PublicKey;
@@ -289,6 +290,7 @@ export class JupiterClient {
 		swapMode?: SwapMode;
 		onlyDirectRoutes?: boolean;
 		excludeDexes?: string[];
+		asLegacyTransaction?:boolean
 	}): Promise<QuoteResponse> {
 		const params = new URLSearchParams({
 			inputMint: inputMint.toString(),
@@ -300,7 +302,8 @@ export class JupiterClient {
 			maxAccounts: maxAccounts.toString(),
 			excludeDexes: excludeDexes.join(','),
 		}).toString();
-		const quote = await (await fetch(`${this.url}/v6/quote?${params}`)).json();
+
+		const quote = await (await fetch(`${this.url}/v6/quote?${params}${asLegacyTransaction ? '&asLegacyTransaction=true':''}`)).json();
 		return quote;
 	}
 
@@ -314,17 +317,19 @@ export class JupiterClient {
 		quote,
 		userPublicKey,
 		slippageBps = 50,
+		asLegacyTransaction
 	}: {
 		quote: QuoteResponse;
 		userPublicKey: PublicKey;
 		slippageBps?: number;
+		asLegacyTransaction?:boolean;
 	}): Promise<VersionedTransaction> {
 		if (!quote) {
 			throw new Error("Jupiter swap quote not provided. Please try again.");
 		}
 
 		const resp = await (
-			await fetch(`${this.url}/v6/swap`, {
+			await fetch(`${this.url}/v6/swap?${asLegacyTransaction ? 'asLegacyTransaction=true':''}`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',

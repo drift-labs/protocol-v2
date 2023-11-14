@@ -3729,6 +3729,7 @@ export class DriftClient {
 				slippageBps,
 				swapMode,
 				onlyDirectRoutes,
+				asLegacyTransaction: this.txVersion === 'legacy'
 			});
 
 			quote = fetchedQuote;
@@ -3742,6 +3743,7 @@ export class DriftClient {
 			quote,
 			userPublicKey: this.provider.wallet.publicKey,
 			slippageBps,
+			asLegacyTransaction: this.txVersion === 'legacy'
 		});
 
 		const { transactionMessage, lookupTables } =
