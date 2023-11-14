@@ -48,6 +48,7 @@ import {
 	calculateReservePrice,
 	calculateSpotMarketMarginRatio,
 	calculateUnrealizedAssetWeight,
+	divCeil,
 	getBalance,
 	getSignedTokenAmount,
 	getStrictTokenValue,
@@ -2884,8 +2885,12 @@ export class User {
 			includeOpenOrders
 		);
 
+		const worstCaseBase = calculateWorstCaseBaseAssetAmount(currentPosition);
+
+		// current side is short if position base asset amount is negative OR there is no position open but open orders are short
 		const currentSide =
-			currentPosition && currentPosition.baseAssetAmount.isNeg()
+			currentPosition.baseAssetAmount.isNeg() ||
+			(currentPosition.baseAssetAmount.eq(ZERO) && worstCaseBase.isNeg())
 				? PositionDirection.SHORT
 				: PositionDirection.LONG;
 
@@ -3050,14 +3055,17 @@ export class User {
 			'Initial'
 		);
 
-		const amountWithdrawable = assetWeight.eq(ZERO)
-			? userDepositAmount
-			: freeCollateral
-					.mul(MARGIN_PRECISION)
-					.div(assetWeight)
-					.mul(PRICE_PRECISION)
-					.div(oracleData.price)
-					.mul(precisionIncrease);
+		let amountWithdrawable;
+		if (assetWeight.eq(ZERO)) {
+			amountWithdrawable = userDepositAmount;
+		} else {
+			amountWithdrawable = divCeil(
+				divCeil(freeCollateral.mul(MARGIN_PRECISION), assetWeight).mul(
+					PRICE_PRECISION
+				),
+				oracleData.price
+			).mul(precisionIncrease);
+		}
 
 		const maxWithdrawValue = BN.min(
 			BN.min(amountWithdrawable, userDepositAmount),

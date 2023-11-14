@@ -1725,6 +1725,7 @@ export class DLOB {
 		return {
 			bids,
 			asks,
+			slot,
 		};
 	}
 
@@ -1785,6 +1786,7 @@ export class DLOB {
 		return {
 			bids,
 			asks,
+			slot,
 		};
 	}
 

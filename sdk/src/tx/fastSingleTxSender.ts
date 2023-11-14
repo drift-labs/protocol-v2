@@ -54,9 +54,13 @@ export class FastSingleTxSender extends BaseTxSender {
 
 	startBlockhashRefreshLoop(): void {
 		setInterval(async () => {
-			this.recentBlockhash = (
-				await this.connection.getLatestBlockhash(this.opts)
-			).blockhash;
+			try {
+				this.recentBlockhash = (
+					await this.connection.getLatestBlockhash(this.opts)
+				).blockhash;
+			} catch (e) {
+				console.error('Error in startBlockhashRefreshLoop: ', e);
+			}
 		}, this.blockhashRefreshInterval);
 	}
 
