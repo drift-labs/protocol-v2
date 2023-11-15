@@ -24,6 +24,7 @@ export type L2Level = {
 	price: BN;
 	size: BN;
 	sources: { [key in liquiditySource]?: BN };
+	hasPostOnly?: boolean;
 };
 
 export type L2OrderBook = {
@@ -78,6 +79,7 @@ export function* getL2GeneratorFromDLOBNodes(
 			sources: {
 				dlob: size,
 			},
+			hasPostOnly: dlobNode.order.postOnly,
 		};
 	}
 }
@@ -126,9 +128,12 @@ export function createL2Levels(
 	for (const level of generator) {
 		const price = level.price;
 		const size = level.size;
+		const hasPostOnly = level.hasPostOnly;
+
 		if (levels.length > 0 && levels[levels.length - 1].price.eq(price)) {
 			const currentLevel = levels[levels.length - 1];
 			currentLevel.size = currentLevel.size.add(size);
+			currentLevel.hasPostOnly = currentLevel.hasPostOnly || hasPostOnly;
 			for (const [source, size] of Object.entries(level.sources)) {
 				if (currentLevel.sources[source]) {
 					currentLevel.sources[source] = currentLevel.sources[source].add(size);
@@ -379,12 +384,14 @@ function groupL2Levels(
 	for (const level of levels) {
 		const price = standardizePrice(level.price, grouping, direction);
 		const size = level.size;
+		const hasPostOnly = level.hasPostOnly;
 		if (
 			groupedLevels.length > 0 &&
 			groupedLevels[groupedLevels.length - 1].price.eq(price)
 		) {
 			const currentLevel = groupedLevels[groupedLevels.length - 1];
 			currentLevel.size = currentLevel.size.add(size);
+			currentLevel.hasPostOnly = currentLevel.hasPostOnly || hasPostOnly;
 			for (const [source, size] of Object.entries(level.sources)) {
 				if (currentLevel.sources[source]) {
 					currentLevel.sources[source] = currentLevel.sources[source].add(size);
@@ -397,6 +404,7 @@ function groupL2Levels(
 				price: price,
 				size,
 				sources: level.sources,
+				hasPostOnly: level.hasPostOnly ? true : false,
 			};
 			groupedLevels.push(groupedLevel);
 		}
