@@ -325,7 +325,7 @@ export class JupiterClient {
 		asLegacyTransaction?:boolean;
 	}): Promise<VersionedTransaction> {
 		if (!quote) {
-			throw new Error("Jupiter swap quote not provided. Please try again.");
+			throw new Error('Jupiter swap quote not provided. Please try again.');
 		}
 
 		const resp = await (
@@ -347,7 +347,9 @@ export class JupiterClient {
 			const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
 			return VersionedTransaction.deserialize(swapTransactionBuf);
 		} catch (err) {
-			throw new Error("Something went wrong with creating the Jupiter swap transaction. Please try again.");
+			throw new Error(
+				'Something went wrong with creating the Jupiter swap transaction. Please try again.'
+			);
 		}
 	}
 
