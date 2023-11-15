@@ -3547,9 +3547,9 @@ export class DriftClient {
 		const tx = (await this.buildTransaction(
 			ixs,
 			txParams,
-			0,
+			this.txVersion,
 			lookupTables
-		)) as VersionedTransaction;
+		));
 
 		const { txSig, slot } = await this.sendTransaction(tx);
 		this.spotMarketLastSlotCache.set(outMarketIndex, slot);
@@ -3617,6 +3617,7 @@ export class DriftClient {
 		const { transactionMessage, lookupTables } =
 			await jupiterClient.getTransactionMessageAndLookupTables({
 				transaction,
+				asLegacyTransaction: this.txVersion === 'legacy'
 			});
 
 		const jupiterInstructions = jupiterClient.getJupiterInstructions({
@@ -3749,6 +3750,7 @@ export class DriftClient {
 		const { transactionMessage, lookupTables } =
 			await jupiterClient.getTransactionMessageAndLookupTables({
 				transaction,
+				asLegacyTransaction: this.txVersion === 'legacy'
 			});
 
 		const jupiterInstructions = jupiterClient.getJupiterInstructions({

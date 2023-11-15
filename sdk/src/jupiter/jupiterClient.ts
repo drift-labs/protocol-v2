@@ -11,6 +11,8 @@ import { BN } from '@coral-xyz/anchor';
 
 export type SwapMode = 'ExactIn' | 'ExactOut';
 
+const MAX_ACCOUNTS_FOR_LEGACY_TX = 10;
+
 export interface MarketInfo {
 	id: string;
 	inAmount: number;
@@ -275,7 +277,7 @@ export class JupiterClient {
 		inputMint,
 		outputMint,
 		amount,
-		maxAccounts = 50, // 50 is an estimated amount with buffer
+		maxAccounts,
 		slippageBps = 50,
 		swapMode = 'ExactIn',
 		onlyDirectRoutes = false,
@@ -292,6 +294,17 @@ export class JupiterClient {
 		excludeDexes?: string[];
 		asLegacyTransaction?:boolean
 	}): Promise<QuoteResponse> {
+
+		let maxAccountsToUse = maxAccounts ?? 50;
+
+		if (asLegacyTransaction) {
+			onlyDirectRoutes = true;
+			if (maxAccounts && maxAccounts > MAX_ACCOUNTS_FOR_LEGACY_TX) {
+				throw new Error(`Can't use maxAccounts > ${MAX_ACCOUNTS_FOR_LEGACY_TX} for a jupter quote using legacy tx`);
+			}
+			maxAccountsToUse = Math.min(maxAccountsToUse, MAX_ACCOUNTS_FOR_LEGACY_TX);
+		}
+
 		const params = new URLSearchParams({
 			inputMint: inputMint.toString(),
 			outputMint: outputMint.toString(),
@@ -299,7 +312,7 @@ export class JupiterClient {
 			slippageBps: slippageBps.toString(),
 			swapMode,
 			onlyDirectRoutes: onlyDirectRoutes.toString(),
-			maxAccounts: maxAccounts.toString(),
+			maxAccounts: maxAccountsToUse.toString(),
 			excludeDexes: excludeDexes.join(','),
 		}).toString();
 
@@ -329,7 +342,7 @@ export class JupiterClient {
 		}
 
 		const resp = await (
-			await fetch(`${this.url}/v6/swap?${asLegacyTransaction ? 'asLegacyTransaction=true':''}`, {
+			await fetch(`${this.url}/v6/swap`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -338,6 +351,7 @@ export class JupiterClient {
 					quoteResponse: quote,
 					userPublicKey,
 					slippageBps,
+					asLegacyTransaction
 				}),
 			})
 		).json();
@@ -395,15 +409,17 @@ export class JupiterClient {
 	 */
 	public async getTransactionMessageAndLookupTables({
 		transaction,
+		asLegacyTransaction
 	}: {
 		transaction: VersionedTransaction;
+		asLegacyTransaction?:boolean;
 	}): Promise<{
 		transactionMessage: TransactionMessage;
 		lookupTables: AddressLookupTableAccount[];
 	}> {
 		const message = transaction.message;
 
-		const lookupTables = (
+		const lookupTables = asLegacyTransaction ? undefined : (
 			await Promise.all(
 				message.addressTableLookups.map(async (lookup) => {
 					return await this.getLookupTable(lookup.accountKey);
