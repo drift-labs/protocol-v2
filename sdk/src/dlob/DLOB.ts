@@ -1430,14 +1430,12 @@ export class DLOB {
 
 	public getBestAsk(
 		marketIndex: number,
-		fallbackAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getAsks(
+		return this.getRestingLimitAsks(
 			marketIndex,
-			fallbackAsk,
 			slot,
 			marketType,
 			oraclePriceData
@@ -1448,14 +1446,12 @@ export class DLOB {
 
 	public getBestBid(
 		marketIndex: number,
-		fallbackBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getBids(
+		return this.getRestingLimitBids(
 			marketIndex,
-			fallbackBid,
 			slot,
 			marketType,
 			oraclePriceData
@@ -1525,19 +1521,15 @@ export class DLOB {
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
 				driftClient.getOracleDataForPerpMarket(marketIndex);
-			const fallbackAsk = calculateAskPrice(market, oraclePriceData);
-			const fallbackBid = calculateBidPrice(market, oraclePriceData);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
-				fallbackAsk,
 				slot,
 				marketType,
 				oraclePriceData
 			);
 			const bestBid = this.getBestBid(
 				marketIndex,
-				fallbackBid,
 				slot,
 				marketType,
 				oraclePriceData
@@ -1574,14 +1566,12 @@ export class DLOB {
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
-				undefined,
 				slot,
 				marketType,
 				oraclePriceData
 			);
 			const bestBid = this.getBestBid(
 				marketIndex,
-				undefined,
 				slot,
 				marketType,
 				oraclePriceData
