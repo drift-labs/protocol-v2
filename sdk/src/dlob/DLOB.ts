@@ -2,9 +2,8 @@ import { getOrderSignature, getVammNodeGenerator, NodeList } from './NodeList';
 import {
 	BASE_PRECISION,
 	BN,
-	calculateAskPrice,
-	calculateBidPrice,
 	convertToNumber,
+	decodeName,
 	DLOBNode,
 	DLOBNodeType,
 	DriftClient,
@@ -1460,6 +1459,108 @@ export class DLOB {
 			.value.getPrice(oraclePriceData, slot);
 	}
 
+	public *getStopLosses(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+		const marketNodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		if (isVariant(direction, 'long') && marketNodeLists.trigger.below) {
+			for (const node of marketNodeLists.trigger.below.getGenerator()) {
+				if (isVariant(node.order.direction, 'short')) {
+					yield node;
+				}
+			}
+		} else if (isVariant(direction, 'short') && marketNodeLists.trigger.above) {
+			for (const node of marketNodeLists.trigger.above.getGenerator()) {
+				if (isVariant(node.order.direction, 'long')) {
+					yield node;
+				}
+			}
+		}
+	}
+
+	public *getStopLossMarkets(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getStopLosses(marketIndex, marketType, direction)) {
+			if (isVariant(node.order.orderType, 'triggerMarket')) {
+				yield node;
+			}
+		}
+	}
+
+	public *getStopLossLimits(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getStopLosses(marketIndex, marketType, direction)) {
+			if (isVariant(node.order.orderType, 'triggerLimit')) {
+				yield node;
+			}
+		}
+	}
+
+	public *getTakeProfits(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+		const marketNodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		if (isVariant(direction, 'long') && marketNodeLists.trigger.above) {
+			for (const node of marketNodeLists.trigger.above.getGenerator()) {
+				if (isVariant(node.order.direction, 'short')) {
+					yield node;
+				}
+			}
+		} else if (isVariant(direction, 'short') && marketNodeLists.trigger.below) {
+			for (const node of marketNodeLists.trigger.below.getGenerator()) {
+				if (isVariant(node.order.direction, 'long')) {
+					yield node;
+				}
+			}
+		}
+	}
+
+	public *getTakeProfitMarkets(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getTakeProfits(
+			marketIndex,
+			marketType,
+			direction
+		)) {
+			if (isVariant(node.order.orderType, 'triggerMarket')) {
+				yield node;
+			}
+		}
+	}
+
+	public *getTakeProfitLimits(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getTakeProfits(
+			marketIndex,
+			marketType,
+			direction
+		)) {
+			if (isVariant(node.order.orderType, 'triggerLimit')) {
+				yield node;
+			}
+		}
+	}
+
 	public findNodesToTrigger(
 		marketIndex: number,
 		slot: number,
@@ -1508,16 +1609,13 @@ export class DLOB {
 		return nodesToTrigger;
 	}
 
-	public printTopOfOrderLists(
-		sdkConfig: any,
+	public printTop(
 		driftClient: DriftClient,
 		slotSubscriber: SlotSubscriber,
 		marketIndex: number,
 		marketType: MarketType
 	) {
 		if (isVariant(marketType, 'perp')) {
-			const market = driftClient.getPerpMarketAccount(marketIndex);
-
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
 				driftClient.getOracleDataForPerpMarket(marketIndex);
@@ -1547,7 +1645,10 @@ export class DLOB {
 					1) *
 				100.0;
 
-			console.log(`Market ${sdkConfig.MARKETS[marketIndex].symbol} Orders`);
+			const name = decodeName(
+				driftClient.getPerpMarketAccount(marketIndex).name
+			);
+			console.log(`Market ${name} Orders`);
 			console.log(
 				`  Ask`,
 				convertToNumber(bestAsk, PRICE_PRECISION).toFixed(3),
@@ -1589,7 +1690,10 @@ export class DLOB {
 					1) *
 				100.0;
 
-			console.log(`Market ${sdkConfig.MARKETS[marketIndex].symbol} Orders`);
+			const name = decodeName(
+				driftClient.getSpotMarketAccount(marketIndex).name
+			);
+			console.log(`Market ${name} Orders`);
 			console.log(
 				`  Ask`,
 				convertToNumber(bestAsk, PRICE_PRECISION).toFixed(3),
