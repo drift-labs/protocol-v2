@@ -13,6 +13,7 @@ watch_cargo = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c 
 [programs.localnet]
 drift = "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
 pyth = "FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"
+token_faucet = "V4v1mQiAdLz4qwckEb45WqHYceYizoib39cDBHSWfaB"
 
 [[test.genesis]]
 address = "srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"
