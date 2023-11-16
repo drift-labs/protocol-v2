@@ -4,6 +4,8 @@ import {
 	calculateSpotMarketBorrowCapacity,
 	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	calculateSizePremiumLiabilityWeight,
+	calculateBorrowRate,
+	calculateDepositRate,
 } from '../../src';
 import { mockSpotMarkets } from '../dlob/helpers';
 import * as _ from 'lodash';
@@ -171,5 +173,44 @@ describe('Spot Tests', () => {
 			calculateSpotMarketBorrowCapacity(mockSpot, new BN(1));
 		// console.log('belowOptAmount3:', belowOptAmount4.toNumber());
 		assert(belowOptAmount4.eq(new BN('0')));
+	});
+
+	it('borrow rates', () => {
+		const mockSpot = _.cloneDeep(mockSpotMarkets[0]);
+		mockSpot.maxBorrowRate = 1000000;
+		mockSpot.optimalBorrowRate = 70000;
+		mockSpot.optimalUtilization = 700000;
+
+		mockSpot.decimals = 9;
+		mockSpot.cumulativeDepositInterest = new BN(
+			1.0154217042 * SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION.toNumber()
+		);
+		mockSpot.cumulativeBorrowInterest = new BN(
+			1.0417153549 * SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION.toNumber()
+		);
+
+		mockSpot.depositBalance = new BN(88522.734106451 * 1e9);
+		mockSpot.borrowBalance = new BN(17089.91675884 * 1e9);
+
+		const noDeltad = calculateDepositRate(mockSpot);
+		// console.log(noDeltad.toNumber());
+		assert(noDeltad.eqn(3922));
+		const noDelta = calculateBorrowRate(mockSpot);
+		// console.log(noDelta.toNumber());
+		assert(noDelta.eqn(19805));
+
+		const addDep1d = calculateDepositRate(mockSpot, new BN(10000 * 1e9));
+		// console.log(addDep1d.toNumber());
+		assert(addDep1d.eqn(3176)); // went down
+		const addDep1 = calculateBorrowRate(mockSpot, new BN(10000 * 1e9));
+		// console.log(addDep1.toNumber());
+		assert(addDep1.eqn(17822)); // went down
+
+		const addBord1 = calculateDepositRate(mockSpot, new BN(-1000 * 1e9));
+		// console.log(addBord1.toNumber());
+		assert(addBord1.eqn(4375)); // went up
+		const addBor1 = calculateBorrowRate(mockSpot, new BN(-1000 * 1e9));
+		// console.log(addBor1.toNumber());
+		assert(addBor1.eqn(20918)); // went up
 	});
 });
