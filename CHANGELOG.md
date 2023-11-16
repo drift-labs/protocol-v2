@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+## [2.43.0] - 2023-11-16
+
+### Features
+
 - program: accelerate liquidations for tiny accounts ([#698](https://github.com/drift-labs/protocol-v2/pull/698))
 - program: boost max sub accounts to 20k
 
