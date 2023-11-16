@@ -199,6 +199,16 @@ describe('Spot Tests', () => {
 		// console.log(noDelta.toNumber());
 		assert(noDelta.eqn(19805));
 
+		// manually update deposits
+		mockSpot.depositBalance = new BN((88522.734106451 + 9848.12512736) * 1e9);
+		const noDeltad2 = calculateDepositRate(mockSpot);
+		console.log(noDeltad2.toNumber());
+		assert(noDeltad2.eqn(3176));
+		const noDelta2 = calculateBorrowRate(mockSpot);
+		console.log(noDelta2.toNumber());
+		assert(noDelta2.eqn(17822));
+
+		mockSpot.depositBalance = new BN(88522.734106451 * 1e9);
 		const addDep1d = calculateDepositRate(mockSpot, new BN(10000 * 1e9));
 		// console.log(addDep1d.toNumber());
 		assert(addDep1d.eqn(3176)); // went down
