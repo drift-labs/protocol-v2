@@ -60,8 +60,8 @@ export async function fetchLogs(
 	beforeTx?: TransactionSignature,
 	untilTx?: TransactionSignature,
 	limit?: number,
-	signatureChunkSize = 25,
-	parallelFetchBatchSize = 10,
+	signatureChunkSize = 100,
+	parallelFetchBatchSize = 4,
 	fetchDelayMs = 1000
 ): Promise<FetchLogsResponse> {
 	const signatures = await connection.getSignaturesForAddress(
@@ -93,7 +93,7 @@ export async function fetchLogs(
 	let transactionLogs: Log[] = [];
 
 	for (const batch of fetchBatches) {
-		const logs = await Promise.all(
+		const logs = (await Promise.all(
 			batch.map(async (chunk) => {
 				return await fetchTransactionLogs(
 					connection,
@@ -101,7 +101,7 @@ export async function fetchLogs(
 					finality
 				);
 			})
-		);
+		)).flat();
 
 		await sleep(fetchDelayMs);
 
