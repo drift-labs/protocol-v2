@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: exhaustively search for referrer account on fill ([#702](https://github.com/drift-labs/protocol-v2/pull/702))
+
 ## [2.43.0] - 2023-11-16
 
 ### Features
