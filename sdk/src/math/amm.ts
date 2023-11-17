@@ -760,9 +760,9 @@ export function calculateSpreadReserves(
 				quoteAssetReserve: amm.quoteAssetReserve,
 			};
 		}
-
+		const spreadFraction = BN.max(new BN(spread / 2), ONE);
 		const quoteAssetReserveDelta = amm.quoteAssetReserve.div(
-			BID_ASK_SPREAD_PRECISION.div(new BN(spread / 2))
+			BID_ASK_SPREAD_PRECISION.div(spreadFraction)
 		);
 
 		let quoteAssetReserve;

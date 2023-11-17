@@ -2,9 +2,8 @@ import { getOrderSignature, getVammNodeGenerator, NodeList } from './NodeList';
 import {
 	BASE_PRECISION,
 	BN,
-	calculateAskPrice,
-	calculateBidPrice,
 	convertToNumber,
+	decodeName,
 	DLOBNode,
 	DLOBNodeType,
 	DriftClient,
@@ -1430,14 +1429,12 @@ export class DLOB {
 
 	public getBestAsk(
 		marketIndex: number,
-		fallbackAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getAsks(
+		return this.getRestingLimitAsks(
 			marketIndex,
-			fallbackAsk,
 			slot,
 			marketType,
 			oraclePriceData
@@ -1448,20 +1445,120 @@ export class DLOB {
 
 	public getBestBid(
 		marketIndex: number,
-		fallbackBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getBids(
+		return this.getRestingLimitBids(
 			marketIndex,
-			fallbackBid,
 			slot,
 			marketType,
 			oraclePriceData
 		)
 			.next()
 			.value.getPrice(oraclePriceData, slot);
+	}
+
+	public *getStopLosses(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+		const marketNodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		if (isVariant(direction, 'long') && marketNodeLists.trigger.below) {
+			for (const node of marketNodeLists.trigger.below.getGenerator()) {
+				if (isVariant(node.order.direction, 'short')) {
+					yield node;
+				}
+			}
+		} else if (isVariant(direction, 'short') && marketNodeLists.trigger.above) {
+			for (const node of marketNodeLists.trigger.above.getGenerator()) {
+				if (isVariant(node.order.direction, 'long')) {
+					yield node;
+				}
+			}
+		}
+	}
+
+	public *getStopLossMarkets(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getStopLosses(marketIndex, marketType, direction)) {
+			if (isVariant(node.order.orderType, 'triggerMarket')) {
+				yield node;
+			}
+		}
+	}
+
+	public *getStopLossLimits(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getStopLosses(marketIndex, marketType, direction)) {
+			if (isVariant(node.order.orderType, 'triggerLimit')) {
+				yield node;
+			}
+		}
+	}
+
+	public *getTakeProfits(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+		const marketNodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		if (isVariant(direction, 'long') && marketNodeLists.trigger.above) {
+			for (const node of marketNodeLists.trigger.above.getGenerator()) {
+				if (isVariant(node.order.direction, 'short')) {
+					yield node;
+				}
+			}
+		} else if (isVariant(direction, 'short') && marketNodeLists.trigger.below) {
+			for (const node of marketNodeLists.trigger.below.getGenerator()) {
+				if (isVariant(node.order.direction, 'long')) {
+					yield node;
+				}
+			}
+		}
+	}
+
+	public *getTakeProfitMarkets(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getTakeProfits(
+			marketIndex,
+			marketType,
+			direction
+		)) {
+			if (isVariant(node.order.orderType, 'triggerMarket')) {
+				yield node;
+			}
+		}
+	}
+
+	public *getTakeProfitLimits(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getTakeProfits(
+			marketIndex,
+			marketType,
+			direction
+		)) {
+			if (isVariant(node.order.orderType, 'triggerLimit')) {
+				yield node;
+			}
+		}
 	}
 
 	public findNodesToTrigger(
@@ -1512,32 +1609,25 @@ export class DLOB {
 		return nodesToTrigger;
 	}
 
-	public printTopOfOrderLists(
-		sdkConfig: any,
+	public printTop(
 		driftClient: DriftClient,
 		slotSubscriber: SlotSubscriber,
 		marketIndex: number,
 		marketType: MarketType
 	) {
 		if (isVariant(marketType, 'perp')) {
-			const market = driftClient.getPerpMarketAccount(marketIndex);
-
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
 				driftClient.getOracleDataForPerpMarket(marketIndex);
-			const fallbackAsk = calculateAskPrice(market, oraclePriceData);
-			const fallbackBid = calculateBidPrice(market, oraclePriceData);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
-				fallbackAsk,
 				slot,
 				marketType,
 				oraclePriceData
 			);
 			const bestBid = this.getBestBid(
 				marketIndex,
-				fallbackBid,
 				slot,
 				marketType,
 				oraclePriceData
@@ -1555,7 +1645,10 @@ export class DLOB {
 					1) *
 				100.0;
 
-			console.log(`Market ${sdkConfig.MARKETS[marketIndex].symbol} Orders`);
+			const name = decodeName(
+				driftClient.getPerpMarketAccount(marketIndex).name
+			);
+			console.log(`Market ${name} Orders`);
 			console.log(
 				`  Ask`,
 				convertToNumber(bestAsk, PRICE_PRECISION).toFixed(3),
@@ -1574,14 +1667,12 @@ export class DLOB {
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
-				undefined,
 				slot,
 				marketType,
 				oraclePriceData
 			);
 			const bestBid = this.getBestBid(
 				marketIndex,
-				undefined,
 				slot,
 				marketType,
 				oraclePriceData
@@ -1599,7 +1690,10 @@ export class DLOB {
 					1) *
 				100.0;
 
-			console.log(`Market ${sdkConfig.MARKETS[marketIndex].symbol} Orders`);
+			const name = decodeName(
+				driftClient.getSpotMarketAccount(marketIndex).name
+			);
+			console.log(`Market ${name} Orders`);
 			console.log(
 				`  Ask`,
 				convertToNumber(bestAsk, PRICE_PRECISION).toFixed(3),

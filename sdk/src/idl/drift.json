@@ -1,5 +1,5 @@
 {
-  "version": "2.42.0",
+  "version": "2.43.0",
   "name": "drift",
   "instructions": [
     {
@@ -4095,6 +4095,27 @@
         {
           "name": "liquidationDuration",
           "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateLiquidationMarginBufferRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidationMarginBufferRatio",
+          "type": "u32"
         }
       ]
     },

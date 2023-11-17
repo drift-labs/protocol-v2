@@ -1937,6 +1937,14 @@ pub fn handle_update_liquidation_duration(
     Ok(())
 }
 
+pub fn handle_update_liquidation_margin_buffer_ratio(
+    ctx: Context<AdminUpdateState>,
+    liquidation_margin_buffer_ratio: u32,
+) -> Result<()> {
+    ctx.accounts.state.liquidation_margin_buffer_ratio = liquidation_margin_buffer_ratio;
+    Ok(())
+}
+
 pub fn handle_update_oracle_guard_rails(
     ctx: Context<AdminUpdateState>,
     oracle_guard_rails: OracleGuardRails,

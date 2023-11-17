@@ -2448,7 +2448,7 @@ export class DriftClient {
 	 * @param makerInfo
 	 * @param txParams
 	 * @param bracketOrdersParams
-	 * @param cancelExistingOrders - Builds and returns an extra transaciton to cancel the existing orders in the same market. Intended use is to auto-cancel TP/SL orders when closing a position
+	 * @param cancelExistingOrders - Builds and returns an extra transaciton to cancel the existing orders in the same perp market. Intended use is to auto-cancel TP/SL orders when closing a position. Ignored if orderParams.marketType is not MarketType.PERP
 	 * @returns
 	 */
 	public async sendMarketOrderAndGetSignedFillTx(
@@ -2491,7 +2491,7 @@ export class DriftClient {
 
 		let cancelOrdersIx: TransactionInstruction;
 		let cancelExistingOrdersTx: Transaction;
-		if (cancelExistingOrders) {
+		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
 			cancelOrdersIx = await this.getCancelOrdersIx(
 				orderParams.marketType,
 				orderParams.marketIndex,
@@ -2896,7 +2896,8 @@ export class DriftClient {
 
 		let readablePerpMarketIndex = undefined;
 		let readableSpotMarketIndexes = undefined;
-		if (marketIndex) {
+
+		if (typeof marketIndex === 'number') {
 			if (marketType && isVariant(marketType, 'perp')) {
 				readablePerpMarketIndex = marketIndex;
 			} else if (marketType && isVariant(marketType, 'spot')) {
@@ -3736,7 +3737,7 @@ export class DriftClient {
 		if (!quote) {
 			throw new Error("Could not fetch Jupiter's quote. Please try again.");
 		}
-		
+
 		const transaction = await jupiterClient.getSwap({
 			quote,
 			userPublicKey: this.provider.wallet.publicKey,
@@ -4648,12 +4649,12 @@ export class DriftClient {
 			oraclePriceOffset: newOraclePriceOffset || null,
 			triggerPrice: newTriggerPrice || null,
 			triggerCondition: newTriggerCondition || null,
-			auctionDuration: auctionDuration || null,
-			auctionStartPrice: auctionStartPrice || null,
-			auctionEndPrice: auctionEndPrice || null,
-			reduceOnly: reduceOnly || null,
+			auctionDuration: auctionDuration || 0,
+			auctionStartPrice: auctionStartPrice || ZERO,
+			auctionEndPrice: auctionEndPrice || ZERO,
+			reduceOnly: reduceOnly || false,
 			postOnly: postOnly || null,
-			immediateOrCancel: immediateOrCancel || null,
+			immediateOrCancel: immediateOrCancel || false,
 			policy: policy || null,
 			maxTs: maxTs || null,
 		};
@@ -4766,12 +4767,12 @@ export class DriftClient {
 			oraclePriceOffset: newOraclePriceOffset || null,
 			triggerPrice: newTriggerPrice || null,
 			triggerCondition: newTriggerCondition || null,
-			auctionDuration: auctionDuration || null,
-			auctionStartPrice: auctionStartPrice || null,
-			auctionEndPrice: auctionEndPrice || null,
-			reduceOnly: reduceOnly || null,
+			auctionDuration: auctionDuration || 0,
+			auctionStartPrice: auctionStartPrice || ZERO,
+			auctionEndPrice: auctionEndPrice || ZERO,
+			reduceOnly: reduceOnly || false,
 			postOnly: postOnly || null,
-			immediateOrCancel: immediateOrCancel || null,
+			immediateOrCancel: immediateOrCancel || false,
 			policy: policy || null,
 			maxTs: maxTs || null,
 		};
