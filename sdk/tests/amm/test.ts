@@ -967,9 +967,8 @@ describe('AMM Tests', () => {
 		mockMarket1.amm.maxBaseAssetReserve = mockMarket1.amm.baseAssetReserve.add(
 			new BN(9)
 		);
-		mockMarket1.amm.minBaseAssetReserve = mockMarket1.amm.baseAssetReserve.sub(
-			new BN(9)
-		);
+		mockMarket1.amm.minBaseAssetReserve =
+			mockMarket1.amm.baseAssetReserve.sub(new BN(9));
 		mockMarket1.amm.quoteAssetReserve = new BN(cc).mul(BASE_PRECISION);
 		mockMarket1.amm.pegMultiplier = new BN(18.32 * PEG_PRECISION.toNumber());
 		mockMarket1.amm.sqrtK = new BN(cc).mul(BASE_PRECISION);
