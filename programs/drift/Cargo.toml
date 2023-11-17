@@ -1,6 +1,6 @@
 [package]
 name = "drift"
-version = "2.43.0"
+version = "2.44.0"
 description = "Created with Anchor"
 edition = "2018"
 
