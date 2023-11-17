@@ -93,15 +93,17 @@ export async function fetchLogs(
 	let transactionLogs: Log[] = [];
 
 	for (const batch of fetchBatches) {
-		const logs = (await Promise.all(
-			batch.map(async (chunk) => {
-				return await fetchTransactionLogs(
-					connection,
-					chunk.map((confirmedSignature) => confirmedSignature.signature),
-					finality
-				);
-			})
-		)).flat();
+		const logs = (
+			await Promise.all(
+				batch.map(async (chunk) => {
+					return await fetchTransactionLogs(
+						connection,
+						chunk.map((confirmedSignature) => confirmedSignature.signature),
+						finality
+					);
+				})
+			)
+		).flat();
 
 		await sleep(fetchDelayMs);
 
