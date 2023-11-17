@@ -60,8 +60,8 @@ export async function fetchLogs(
 	beforeTx?: TransactionSignature,
 	untilTx?: TransactionSignature,
 	limit?: number,
-	signatureChunkSize = 100,
-	parallelFetchBatchSize = 4,
+	signatureChunkSize = 250,
+	parallelFetchBatchSize = 2,
 	fetchDelayMs = 1000
 ): Promise<FetchLogsResponse> {
 	const signatures = await connection.getSignaturesForAddress(
