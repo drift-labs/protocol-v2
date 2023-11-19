@@ -147,6 +147,17 @@ describe('BigNum Tests', () => {
 			'-1.0000000000000'
 		);
 		expect(BigNum.from('-100', 6).print()).to.equal('-0.000100');
+
+		// Case 7: really large numbers + switching between scientific/financial
+		expect(BigNum.fromPrint('123000000000').toMillified(3)).to.equal('123B');
+		expect(BigNum.fromPrint('123000000000').toMillified(3, undefined, 'scientific')).to.equal('123G'); // (G = Giga)
+		expect(BigNum.fromPrint('123000000000000').toMillified(3)).to.equal('123T');
+		expect(BigNum.fromPrint('123000000000000').toMillified(3, undefined, 'scientific')).to.equal('123T'); // (T = Tera)
+		expect(BigNum.fromPrint('123000000000000000').toMillified(3)).to.equal('123Q');
+		expect(BigNum.fromPrint('123000000000000000').toMillified(3, undefined, 'scientific')).to.equal('123P'); // (P = Peta)
+
+		// TODO : Need to make the appropriate changes for the next line to pass
+		// expect(BigNum.fromPrint('123000000000000000000').toMillified(3)).to.equal('123000Q');
 	});
 
 	it('can initialise from string values correctly', () => {
