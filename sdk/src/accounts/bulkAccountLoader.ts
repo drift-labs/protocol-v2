@@ -249,6 +249,10 @@ export class BulkAccountLoader {
 		return this.bufferAndSlotMap.get(publicKey.toString());
 	}
 
+	public getSlot() : number {
+		return this.mostRecentSlot;
+	}
+
 	public startPolling(): void {
 		if (this.intervalId) {
 			return;
