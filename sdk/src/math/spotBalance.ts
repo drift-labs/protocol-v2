@@ -398,7 +398,10 @@ export function calculateInterestRate(
 	return interestRate;
 }
 
-export function calculateDepositRate(bank: SpotMarketAccount, delta = ZERO): BN {
+export function calculateDepositRate(
+	bank: SpotMarketAccount,
+	delta = ZERO
+): BN {
 	// positive delta => adding to deposit
 	// negative delta => adding to borrow
 

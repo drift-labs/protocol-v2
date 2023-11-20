@@ -249,7 +249,7 @@ export class BulkAccountLoader {
 		return this.bufferAndSlotMap.get(publicKey.toString());
 	}
 
-	public getSlot() : number {
+	public getSlot(): number {
 		return this.mostRecentSlot;
 	}
 
