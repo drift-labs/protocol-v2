@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: account for fee pool when settling positive pnl ([#687](https://github.com/drift-labs/protocol-v2/pull/687))
 - sdk: fix bug which incorrectly calculated leverage after trade for a market with no position but short orders open
 - sdk: fix bug in modifying an order that previously had auction params to a non-auction order
+- sdk: add delta to calculateDepositRate function
 
 ### Breaking
 
