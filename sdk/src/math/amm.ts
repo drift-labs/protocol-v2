@@ -812,7 +812,7 @@ export function calculateSpreadReserves(
 	amm: AMM,
 	oraclePriceData: OraclePriceData,
 	now?: BN
-): [BN, BN] {
+) {
 	function calculateSpreadReserve(
 		spread: number,
 		direction: PositionDirection,
