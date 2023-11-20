@@ -371,3 +371,126 @@ mod calculate_auction_price {
         assert_eq!(price, 3 * PRICE_PRECISION_U64 / 2);
     }
 }
+
+mod calculate_auction_params_for_trigger_order {
+    use crate::math::auction::calculate_auction_params_for_trigger_order;
+    use crate::state::oracle::OraclePriceData;
+    use crate::state::user::OrderType;
+    use crate::{PositionDirection, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+
+    #[test]
+    fn trigger_limit() {
+        let order_type = OrderType::TriggerLimit;
+        let oracle_price_data = OraclePriceData {
+            price: 100 * PRICE_PRECISION_I64,
+            ..OraclePriceData::default()
+        };
+        let direction = PositionDirection::Long;
+        let limit_price = 90 * PRICE_PRECISION_U64;
+        let min_auction_duration = 10;
+
+        let (auction_duration, auction_start_price, auction_end_price) =
+            calculate_auction_params_for_trigger_order(
+                order_type,
+                &oracle_price_data,
+                direction,
+                limit_price,
+                min_auction_duration,
+            )
+            .unwrap();
+        assert_eq!(auction_duration, 0);
+        assert_eq!(auction_start_price, 0);
+        assert_eq!(auction_end_price, 0);
+
+        let direction = PositionDirection::Short;
+        let limit_price = 110 * PRICE_PRECISION_U64;
+
+        let (auction_duration, auction_start_price, auction_end_price) =
+            calculate_auction_params_for_trigger_order(
+                order_type,
+                &oracle_price_data,
+                direction,
+                limit_price,
+                min_auction_duration,
+            )
+            .unwrap();
+        assert_eq!(auction_duration, 0);
+        assert_eq!(auction_start_price, 0);
+        assert_eq!(auction_end_price, 0);
+
+        let direction = PositionDirection::Long;
+        let limit_price = 110 * PRICE_PRECISION_U64;
+
+        let (auction_duration, auction_start_price, auction_end_price) =
+            calculate_auction_params_for_trigger_order(
+                order_type,
+                &oracle_price_data,
+                direction,
+                limit_price,
+                min_auction_duration,
+            )
+            .unwrap();
+        assert_eq!(auction_duration, 10);
+        assert_eq!(auction_start_price, 100000000);
+        assert_eq!(auction_end_price, 100500000);
+
+        let direction = PositionDirection::Short;
+        let limit_price = 90 * PRICE_PRECISION_U64;
+
+        let (auction_duration, auction_start_price, auction_end_price) =
+            calculate_auction_params_for_trigger_order(
+                order_type,
+                &oracle_price_data,
+                direction,
+                limit_price,
+                min_auction_duration,
+            )
+            .unwrap();
+
+        assert_eq!(auction_duration, 10);
+        assert_eq!(auction_start_price, 100000000);
+        assert_eq!(auction_end_price, 99500000);
+    }
+
+    #[test]
+    fn trigger_market() {
+        let order_type = OrderType::TriggerMarket;
+        let oracle_price_data = OraclePriceData {
+            price: 100 * PRICE_PRECISION_I64,
+            ..OraclePriceData::default()
+        };
+        let direction = PositionDirection::Long;
+        let limit_price = 0;
+        let min_auction_duration = 10;
+
+        let (auction_duration, auction_start_price, auction_end_price) =
+            calculate_auction_params_for_trigger_order(
+                order_type,
+                &oracle_price_data,
+                direction,
+                limit_price,
+                min_auction_duration,
+            )
+            .unwrap();
+
+        assert_eq!(auction_duration, 10);
+        assert_eq!(auction_start_price, 100000000);
+        assert_eq!(auction_end_price, 100500000);
+
+        let direction = PositionDirection::Short;
+
+        let (auction_duration, auction_start_price, auction_end_price) =
+            calculate_auction_params_for_trigger_order(
+                order_type,
+                &oracle_price_data,
+                direction,
+                limit_price,
+                min_auction_duration,
+            )
+            .unwrap();
+
+        assert_eq!(auction_duration, 10);
+        assert_eq!(auction_start_price, 100000000);
+        assert_eq!(auction_end_price, 99500000);
+    }
+}
