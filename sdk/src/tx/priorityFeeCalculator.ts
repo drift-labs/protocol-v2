@@ -89,7 +89,7 @@ export class PriorityFeeCalculator {
 	/**
 	 * This method generates a list of transaction instructions for the ComputeBudget program, and includes a priority fee if it's required
 	 * @param computeUnitLimit - The maximum number of compute units that can be used by the transaction.
-	 * @param usePriorityFee - A boolean indicating whether to include a priority fee in the transaction, this should be from `this.updatePriorityFee()` or `this.priorityFeeTriggered()`.
+	 * @param usePriorityFee - A boolean indicating whether to include a priority fee in the transaction, this should be from `this.updatePriorityFee()` or `this.priorityFeeTriggered`.
 	 * @param additionalFeeMicroLamports - The additional fee to be paid, in micro lamports, the actual price will be calculated.
 	 * @returns An array of transaction instructions.
 	 */
