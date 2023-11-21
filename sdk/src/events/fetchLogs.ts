@@ -30,7 +30,7 @@ function mapTransactionResponseToLog(
 	};
 }
 
-function batchArrays(arrays: any[], batchSize: number) {
+function batchArrays<T>(arrays: T[], batchSize: number) : T[][] {
 	const result = [];
 	let batch = [];
 
