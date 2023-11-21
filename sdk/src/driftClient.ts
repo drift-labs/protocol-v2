@@ -2563,8 +2563,10 @@ export class DriftClient {
 
 			marketOrderTx.feePayer = userAccount.authority;
 
-			cancelExistingOrdersTx.recentBlockhash = currentBlockHash;
-			cancelExistingOrdersTx.feePayer = userAccount.authority;
+			if (cancelExistingOrdersTx) {
+				cancelExistingOrdersTx.recentBlockhash = currentBlockHash;
+				cancelExistingOrdersTx.feePayer = userAccount.authority;
+			}
 
 			const [signedMarketOrderTx, signedCancelExistingOrdersTx] =
 				await this.provider.wallet.signAllTransactions(
