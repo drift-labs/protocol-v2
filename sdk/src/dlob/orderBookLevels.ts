@@ -299,9 +299,7 @@ export function getVammL2Generator({
 
 				baseSwapped = askAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
 				if (remainingBaseLiquidity.lt(baseSwapped)) {
-					console.log('last mile liq', remainingBaseLiquidity.toString(), baseSwapped.toString());
 					baseSwapped = remainingBaseLiquidity;
-					
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
 						calculateAmmReservesAfterSwap(
 							askAmm,
@@ -338,7 +336,6 @@ export function getVammL2Generator({
 				);
 			}
 
-			console.log('ask:', quoteSwapped.toString(), baseSwapped.toString());
 			const price = quoteSwapped.mul(BASE_PRECISION).div(baseSwapped);
 
 			askAmm.baseAssetReserve = afterSwapBaseReserves;
