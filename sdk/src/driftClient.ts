@@ -2462,7 +2462,7 @@ export class DriftClient {
 		cancelExistingOrders?: boolean
 	): Promise<{
 		txSig: TransactionSignature;
-		signedFillTx: Transaction;
+		signedFillTx?: Transaction;
 		signedCancelExistingOrdersTx?: Transaction;
 	}> {
 		const marketIndex = orderParams.marketIndex;
@@ -2477,17 +2477,6 @@ export class DriftClient {
 			);
 			bracketOrderIxs.push(placeBracketOrderIx);
 		}
-
-		const fillPerpOrderIx = await this.getFillPerpOrderIx(
-			userAccountPublicKey,
-			userAccount,
-			{
-				orderId,
-				marketIndex,
-			},
-			makerInfo,
-			referrerInfo
-		);
 
 		let cancelOrdersIx: TransactionInstruction;
 		let cancelExistingOrdersTx: Transaction;
@@ -2513,6 +2502,18 @@ export class DriftClient {
 				txParams,
 				0
 			);
+
+			const fillPerpOrderIx = await this.getFillPerpOrderIx(
+				userAccountPublicKey,
+				userAccount,
+				{
+					orderId,
+					marketIndex,
+				},
+				makerInfo,
+				referrerInfo
+			);
+
 			const versionedFillTx = await this.buildTransaction(
 				[fillPerpOrderIx],
 				txParams,
@@ -2554,25 +2555,22 @@ export class DriftClient {
 				marketOrderTx.add(...bracketOrderIxs);
 			}
 
-			const fillTx = wrapInTx(
-				fillPerpOrderIx,
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
-			);
-
 			// Apply the latest blockhash to the txs so that we can sign before sending them
 			const currentBlockHash = (
 				await this.connection.getLatestBlockhash('finalized')
 			).blockhash;
 			marketOrderTx.recentBlockhash = currentBlockHash;
-			fillTx.recentBlockhash = currentBlockHash;
 
 			marketOrderTx.feePayer = userAccount.authority;
-			fillTx.feePayer = userAccount.authority;
 
-			const [signedMarketOrderTx, signedFillTx, signedCancelExistingOrdersTx] =
+			if (cancelExistingOrdersTx) {
+				cancelExistingOrdersTx.recentBlockhash = currentBlockHash;
+				cancelExistingOrdersTx.feePayer = userAccount.authority;
+			}
+
+			const [signedMarketOrderTx, signedCancelExistingOrdersTx] =
 				await this.provider.wallet.signAllTransactions(
-					[marketOrderTx, fillTx, cancelExistingOrdersTx].filter(
+					[marketOrderTx, cancelExistingOrdersTx].filter(
 						(tx) => tx !== undefined
 					)
 				);
@@ -2584,7 +2582,7 @@ export class DriftClient {
 			);
 			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
-			return { txSig, signedFillTx, signedCancelExistingOrdersTx };
+			return { txSig, signedFillTx: undefined, signedCancelExistingOrdersTx };
 		}
 	}
 

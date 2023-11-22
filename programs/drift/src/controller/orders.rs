@@ -1240,7 +1240,7 @@ pub fn validate_market_within_price_band(
 
     // if oracle-mark divergence outside limit and risk-increasing, block order
     if is_oracle_mark_too_divergent_after && breach_increases && potentially_risk_increasing {
-        msg!("risk-increasing outside bounds: last_oracle_price_twap_5min={} vs mark_price={}, (breach spread {})", 
+        msg!("risk-increasing outside bounds: last_oracle_price_twap_5min={} vs mark_price={}, (breach spread {})",
                 market.amm.historical_oracle_data.last_oracle_price_twap_5min,
                 reserve_price_after,
                 oracle_reserve_price_spread_pct_after,
@@ -1443,15 +1443,11 @@ fn get_referrer_info(
             continue;
         }
 
-        validate!(
-            referrer.sub_account_id == 0,
-            ErrorCode::InvalidReferrer,
-            "Referrer must be user id 0"
-        )?;
-
-        referrer.update_last_active_slot(slot);
-
-        referrer_user_key = *referrer_key;
+        if referrer.sub_account_id == 0 {
+            referrer.update_last_active_slot(slot);
+            referrer_user_key = *referrer_key;
+            break;
+        }
     }
 
     if referrer_user_key == Pubkey::default() {

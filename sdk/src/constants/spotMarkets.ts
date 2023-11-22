@@ -137,6 +137,16 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: NINE,
 		serumMarket: new PublicKey('DkbVbMhFxswS32xnn1K2UY4aoBugXooBTxdzkWWDWRkH'),
 	},
+	{
+		symbol: 'PYTH',
+		marketIndex: 7,
+		oracle: new PublicKey('nrYkQQQur7z8rYTST3G9GqATviK5SxTDkrqd21MW6Ue'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		serumMarket: new PublicKey('4E17F3BxtNVqzVsirxguuqkpYLtFgCR6NfTpccPh82WE'),
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
