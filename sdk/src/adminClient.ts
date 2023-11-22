@@ -832,6 +832,20 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateStateMaxNumberOfSubAccounts(
+		maxNumberOfSubAccounts: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateStateMaxNumberOfSubAccounts(
+			maxNumberOfSubAccounts,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateWithdrawGuardThreshold(
 		spotMarketIndex: number,
 		withdrawGuardThreshold: BN

@@ -35,7 +35,8 @@ pub struct State {
     pub exchange_status: u8,
     pub liquidation_duration: u8,
     pub initial_pct_to_liquidate: u16,
-    pub padding: [u8; 14],
+    pub max_number_of_sub_accounts: u64,
+    pub padding: [u8; 14 - 9],
 }
 
 #[derive(BitFlags, Clone, Copy, PartialEq, Debug, Eq)]

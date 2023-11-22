@@ -83,7 +83,8 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         lp_cooldown_time: 0,
         liquidation_duration: 0,
         initial_pct_to_liquidate: 0,
-        padding: [0; 14],
+        max_number_of_sub_accounts: 0, // init allowed
+        padding: [0; 14 - 9],
     };
 
     Ok(())
@@ -1958,6 +1959,14 @@ pub fn handle_update_state_settlement_duration(
     settlement_duration: u16,
 ) -> Result<()> {
     ctx.accounts.state.settlement_duration = settlement_duration;
+    Ok(())
+}
+
+pub fn handle_update_state_max_number_of_sub_accounts(
+    ctx: Context<AdminUpdateState>,
+    max_number_of_sub_accounts: u64,
+) -> Result<()> {
+    ctx.accounts.state.max_number_of_sub_accounts = max_number_of_sub_accounts;
     Ok(())
 }
 
