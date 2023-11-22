@@ -9942,3 +9942,80 @@ pub mod get_maker_orders_info {
         assert_eq!(maker_order_price_and_indexes.len(), 64);
     }
 }
+
+pub mod update_trigger_order_params {
+    use crate::controller::orders::update_trigger_order_params;
+    use crate::state::oracle::OraclePriceData;
+    use crate::state::user::{Order, OrderTriggerCondition, OrderType};
+    use crate::{PositionDirection, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+
+    #[test]
+    fn test() {
+        let mut order = Order {
+            order_type: OrderType::TriggerMarket,
+            direction: PositionDirection::Long,
+            trigger_condition: OrderTriggerCondition::Above,
+            ..Order::default()
+        };
+        let oracle_price_data = OraclePriceData {
+            price: 100 * PRICE_PRECISION_I64,
+            confidence: 100 * PRICE_PRECISION_U64,
+            ..OraclePriceData::default()
+        };
+        let slot = 10;
+        let min_auction_duration = 10;
+
+        update_trigger_order_params(&mut order, &oracle_price_data, slot, min_auction_duration)
+            .unwrap();
+
+        assert_eq!(order.slot, slot);
+        assert_eq!(order.auction_duration, min_auction_duration);
+        assert_eq!(
+            order.trigger_condition,
+            OrderTriggerCondition::TriggeredAbove
+        );
+        assert_eq!(order.auction_start_price, 100000000);
+        assert_eq!(order.auction_end_price, 100500000);
+
+        let mut order = Order {
+            order_type: OrderType::TriggerMarket,
+            direction: PositionDirection::Short,
+            trigger_condition: OrderTriggerCondition::Below,
+            ..Order::default()
+        };
+
+        update_trigger_order_params(&mut order, &oracle_price_data, slot, min_auction_duration)
+            .unwrap();
+
+        assert_eq!(order.slot, slot);
+        assert_eq!(order.auction_duration, min_auction_duration);
+        assert_eq!(
+            order.trigger_condition,
+            OrderTriggerCondition::TriggeredBelow
+        );
+        assert_eq!(order.auction_start_price, 100000000);
+        assert_eq!(order.auction_end_price, 99500000);
+
+        let mut order = Order {
+            order_type: OrderType::TriggerMarket,
+            direction: PositionDirection::Short,
+            trigger_condition: OrderTriggerCondition::TriggeredAbove,
+            ..Order::default()
+        };
+
+        let err =
+            update_trigger_order_params(&mut order, &oracle_price_data, slot, min_auction_duration);
+        assert!(err.is_err());
+
+        let mut order = Order {
+            order_type: OrderType::TriggerMarket,
+            direction: PositionDirection::Short,
+            trigger_condition: OrderTriggerCondition::TriggeredBelow,
+            ..Order::default()
+        };
+
+        let err =
+            update_trigger_order_params(&mut order, &oracle_price_data, slot, min_auction_duration);
+        assert!(err.is_err());
+    }
+}

@@ -2491,31 +2491,15 @@ pub fn trigger_order(
         .worst_case_base_asset_amount()?;
 
     {
+        update_trigger_order_params(
+            &mut user.orders[order_index],
+            oracle_price_data,
+            slot,
+            state.min_perp_auction_duration,
+        )?;
+
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
-
-        user.orders[order_index].trigger_condition =
-            match user.orders[order_index].trigger_condition {
-                OrderTriggerCondition::Above => OrderTriggerCondition::TriggeredAbove,
-                OrderTriggerCondition::Below => OrderTriggerCondition::TriggeredBelow,
-                _ => {
-                    return Err(print_error!(ErrorCode::InvalidTriggerOrderCondition)());
-                }
-            };
-
-        user.orders[order_index].slot = slot;
-        let order_type = user.orders[order_index].order_type;
-        let (auction_duration, auction_start_price, auction_end_price) =
-            calculate_auction_params_for_trigger_order(
-                order_type,
-                oracle_price_data,
-                direction,
-                user.orders[order_index].trigger_price,
-                state.min_perp_auction_duration,
-            )?;
-        user.orders[order_index].auction_duration = auction_duration;
-        user.orders[order_index].auction_start_price = auction_start_price;
-        user.orders[order_index].auction_end_price = auction_end_price;
 
         let user_position = user.get_perp_position_mut(market_index)?;
         increase_open_bids_and_asks(user_position, &direction, base_asset_amount)?;
@@ -2592,6 +2576,32 @@ pub fn trigger_order(
     }
 
     user.update_last_active_slot(slot);
+
+    Ok(())
+}
+
+fn update_trigger_order_params(
+    order: &mut Order,
+    oracle_price_data: &OraclePriceData,
+    slot: u64,
+    min_auction_duration: u8,
+) -> DriftResult {
+    order.trigger_condition = match order.trigger_condition {
+        OrderTriggerCondition::Above => OrderTriggerCondition::TriggeredAbove,
+        OrderTriggerCondition::Below => OrderTriggerCondition::TriggeredBelow,
+        _ => {
+            return Err(print_error!(ErrorCode::InvalidTriggerOrderCondition)());
+        }
+    };
+
+    order.slot = slot;
+
+    let (auction_duration, auction_start_price, auction_end_price) =
+        calculate_auction_params_for_trigger_order(order, oracle_price_data, min_auction_duration)?;
+
+    order.auction_duration = auction_duration;
+    order.auction_start_price = auction_start_price;
+    order.auction_end_price = auction_end_price;
 
     Ok(())
 }
@@ -4456,30 +4466,15 @@ pub fn trigger_spot_order(
         )?;
 
     {
+        update_trigger_order_params(
+            &mut user.orders[order_index],
+            oracle_price_data,
+            slot,
+            state.default_spot_auction_duration,
+        )?;
+
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
-
-        user.orders[order_index].trigger_condition =
-            match user.orders[order_index].trigger_condition {
-                OrderTriggerCondition::Above => OrderTriggerCondition::TriggeredAbove,
-                OrderTriggerCondition::Below => OrderTriggerCondition::TriggeredBelow,
-                _ => {
-                    return Err(print_error!(ErrorCode::InvalidTriggerOrderCondition)());
-                }
-            };
-        user.orders[order_index].slot = slot;
-        let order_type = user.orders[order_index].order_type;
-        let (auction_duration, auction_start_price, auction_end_price) =
-            calculate_auction_params_for_trigger_order(
-                order_type,
-                oracle_price_data,
-                direction,
-                user.orders[order_index].trigger_price,
-                state.min_perp_auction_duration,
-            )?;
-        user.orders[order_index].auction_duration = auction_duration;
-        user.orders[order_index].auction_start_price = auction_start_price;
-        user.orders[order_index].auction_end_price = auction_end_price;
 
         let user_position = user.force_get_spot_position_mut(market_index)?;
         increase_spot_open_bids_and_asks(user_position, &direction, base_asset_amount.cast()?)?;
