@@ -35,8 +35,8 @@ pub struct State {
     pub exchange_status: u8,
     pub liquidation_duration: u8,
     pub initial_pct_to_liquidate: u16,
-    pub max_number_of_sub_accounts: u32,
-    pub padding: [u8; 14 - 4],
+    pub max_number_of_sub_accounts: u16,
+    pub padding: [u8; 12],
 }
 
 #[derive(BitFlags, Clone, Copy, PartialEq, Debug, Eq)]
@@ -73,6 +73,12 @@ impl State {
         Ok(self
             .get_exchange_status()?
             .contains(ExchangeStatus::FundingPaused))
+    }
+
+    pub fn max_number_of_sub_accounts(&self) -> u64 {
+        (self.max_number_of_sub_accounts as u64)
+            .saturating_mul(100)
+            .max(25000)
     }
 }
 

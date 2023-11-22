@@ -543,7 +543,7 @@ export type StateAccount = {
 	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
 	settlementDuration: number;
-	maxNumberOfSubAccounts: BN;
+	maxNumberOfSubAccounts: number;
 	signer: PublicKey;
 	signerNonce: number;
 	srmVault: PublicKey;
