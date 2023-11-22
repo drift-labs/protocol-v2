@@ -833,7 +833,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async updateStateMaxNumberOfSubAccounts(
-		maxNumberOfSubAccounts: BN
+		maxNumberOfSubAccounts: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateStateMaxNumberOfSubAccounts(
 			maxNumberOfSubAccounts,

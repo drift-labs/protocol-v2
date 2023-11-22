@@ -138,7 +138,7 @@ pub fn handle_initialize_user(
     safe_increment!(state.number_of_sub_accounts, 1);
 
     validate!(
-        state.number_of_sub_accounts <= state.max_number_of_sub_accounts.max(25000),
+        state.number_of_sub_accounts <= state.max_number_of_sub_accounts.max(25000).cast::<u64>()?,
         ErrorCode::MaxNumberOfUsers
     )?;
 
