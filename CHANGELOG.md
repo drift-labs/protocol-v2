@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 ### Fixes
+
+### Breaking
+
+## [2.44.0] - 2023-11-22
+
+### Features
+
+- program: trigger limits cant make if limit crosses trigger ([#707](https://github.com/drift-labs/protocol-v2/pull/702))
+
+### Fixes
+
 - sdk: fix vamm L2asks by using askAmm ([#708](https://github.com/drift-labs/protocol-v2/pull/708))
 - program: add max_number_of_sub_accounts onto state account ([#710](https://github.com/drift-labs/protocol-v2/pull/710))
 
@@ -18,8 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.44.0] - 2023-11-17
 
 ### Features
-
-- program: trigger limits cant make if limit crosses trigger ([#707](https://github.com/drift-labs/protocol-v2/pull/702))
 
 ### Fixes
 
