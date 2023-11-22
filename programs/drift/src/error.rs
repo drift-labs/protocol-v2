@@ -447,7 +447,7 @@ pub enum ErrorCode {
     UnableToGetLimitPrice,
     #[msg("Invalid Liquidation")]
     InvalidLiquidation,
-    #[msg("Spot Fulfullment Config Disabled")]
+    #[msg("Spot Fulfillment Config Disabled")]
     SpotFulfillmentConfigDisabled,
     #[msg("Invalid Maker")]
     InvalidMaker,
