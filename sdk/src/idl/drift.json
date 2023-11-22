@@ -4164,6 +4164,27 @@
       ]
     },
     {
+      "name": "updateStateMaxNumberOfSubAccounts",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxNumberOfSubAccounts",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketOracle",
       "accounts": [
         {
@@ -5723,11 +5744,15 @@
             "type": "u16"
           },
           {
+            "name": "maxNumberOfSubAccounts",
+            "type": "u16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                14
+                12
               ]
             }
           }
