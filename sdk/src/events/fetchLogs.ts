@@ -49,6 +49,10 @@ export async function fetchLogs(
 		finality
 	);
 
+	if (signatures.length === 0) {
+		return undefined;
+	}
+
 	const sortedSignatures = signatures.sort((a, b) =>
 		a.slot === b.slot ? 0 : a.slot < b.slot ? -1 : 1
 	);
@@ -58,7 +62,18 @@ export async function fetchLogs(
 	);
 
 	if (filteredSignatures.length === 0) {
-		return undefined;
+		console.log(`All ${sortedSignatures.length} signatures fetched were errored transactions`);
+		const earliest = sortedSignatures[0];
+		const mostRecent = sortedSignatures[sortedSignatures.length - 1];
+
+		return {
+			earliestTx: earliest.signature,
+			mostRecentTx: mostRecent.signature,
+			earliestSlot: earliest.slot,
+			mostRecentSlot: mostRecent.slot,
+			transactionLogs: [],
+			mostRecentBlockTime: mostRecent.blockTime,
+		};
 	}
 
 	const chunkedSignatures = chunk(filteredSignatures, batchSize);
