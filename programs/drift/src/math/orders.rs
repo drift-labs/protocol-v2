@@ -1247,3 +1247,22 @@ pub fn estimate_price_from_side(side: &Side, depth: u64) -> DriftResult<Option<u
 
     Ok(price)
 }
+
+pub fn select_margin_type_for_perp_maker(
+    maker: &User,
+    based_asset_amount_filled: i64,
+    market_index: u16,
+) -> DriftResult<MarginRequirementType> {
+    let current_position = maker
+        .get_perp_position(market_index)
+        .map_or(0, |p| p.base_asset_amount);
+    let position_before = current_position.safe_sub(based_asset_amount_filled)?;
+
+    if current_position.signum() == position_before.signum()
+        && current_position.abs() < position_before.abs()
+    {
+        return Ok(MarginRequirementType::Maintenance);
+    }
+
+    Ok(MarginRequirementType::Fill)
+}

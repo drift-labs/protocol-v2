@@ -3481,3 +3481,111 @@ pub mod find_bids_and_asks_from_users {
         assert_eq!(asks, expected_asks);
     }
 }
+
+mod select_margin_type_for_perp_maker {
+    use crate::math::margin::MarginRequirementType;
+    use crate::math::orders::select_margin_type_for_perp_maker;
+    use crate::state::user::{PerpPosition, User};
+    use crate::test_utils::get_positions;
+
+    #[test]
+    fn test() {
+        let market_index = 1;
+
+        // Long reduced position to 0
+        let position_before = -100;
+        let base_asset_amount_filled = 100;
+        let user = User {
+            perp_positions: get_positions(PerpPosition {
+                market_index,
+                base_asset_amount: position_before + base_asset_amount_filled,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+        let margin_type =
+            select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
+                .unwrap();
+        assert_eq!(margin_type, MarginRequirementType::Fill);
+
+        // Short reduced position to 0
+        let position_before = 100;
+        let base_asset_amount_filled = -100;
+        let user = User {
+            perp_positions: get_positions(PerpPosition {
+                market_index,
+                base_asset_amount: position_before + base_asset_amount_filled,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+        let margin_type =
+            select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
+                .unwrap();
+        assert_eq!(margin_type, MarginRequirementType::Fill);
+
+        // Long flipped short long
+        let position_before = -80;
+        let base_asset_amount_filled = 100;
+        let user = User {
+            perp_positions: get_positions(PerpPosition {
+                market_index,
+                base_asset_amount: position_before + base_asset_amount_filled,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+        let margin_type =
+            select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
+                .unwrap();
+        assert_eq!(margin_type, MarginRequirementType::Fill);
+
+        // Short flipped long short
+        let position_before = 80;
+        let base_asset_amount_filled = -100;
+        let user = User {
+            perp_positions: get_positions(PerpPosition {
+                market_index,
+                base_asset_amount: position_before + base_asset_amount_filled,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+        let margin_type =
+            select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
+                .unwrap();
+        assert_eq!(margin_type, MarginRequirementType::Fill);
+
+        // Long reduced short
+        let position_before = -100;
+        let base_asset_amount_filled = 50;
+        let user = User {
+            perp_positions: get_positions(PerpPosition {
+                market_index,
+                base_asset_amount: position_before + base_asset_amount_filled,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+        let margin_type =
+            select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
+                .unwrap();
+        assert_eq!(margin_type, MarginRequirementType::Maintenance);
+
+        // Short reduced long
+        let position_before = 100;
+        let base_asset_amount_filled = -50;
+        let user = User {
+            perp_positions: get_positions(PerpPosition {
+                market_index,
+                base_asset_amount: position_before + base_asset_amount_filled,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+        let margin_type =
+            select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
+                .unwrap();
+        assert_eq!(margin_type, MarginRequirementType::Maintenance);
+    }
+}

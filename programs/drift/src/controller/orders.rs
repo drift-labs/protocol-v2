@@ -1516,7 +1516,8 @@ fn fulfill_perp_order(
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
-    let mut makers_filled: BTreeMap<Pubkey, bool> = BTreeMap::new();
+    let mut makers_filled: BTreeMap<Pubkey, i64> = BTreeMap::new();
+    let maker_direction = user.orders[user_order_index].direction.opposite();
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
             break;
@@ -1573,7 +1574,7 @@ fn fulfill_perp_order(
                     Some(&maker),
                 )?;
 
-                let (fill_base_asset_amount, fill_quote_asset_amount) =
+                let (fill_base_asset_amount, fill_quote_asset_amount, maker_fill_base_asset_amount) =
                     fulfill_perp_order_with_match(
                         market.deref_mut(),
                         user,
@@ -1598,8 +1599,18 @@ fn fulfill_perp_order(
                         oracle_map,
                     )?;
 
-                if fill_base_asset_amount != 0 {
-                    makers_filled.insert(*maker_key, true);
+                if maker_fill_base_asset_amount != 0 {
+                    let signed_maker_fill_base_asset_amount = match maker_direction {
+                        PositionDirection::Long => maker_fill_base_asset_amount.cast::<i64>()?,
+                        PositionDirection::Short => -maker_fill_base_asset_amount.cast::<i64>()?,
+                    };
+
+                    if let Some(maker_filled) = makers_filled.get_mut(maker_key) {
+                        *maker_filled =
+                            maker_filled.safe_add(signed_maker_fill_base_asset_amount)?;
+                    } else {
+                        makers_filled.insert(*maker_key, signed_maker_fill_base_asset_amount);
+                    }
                 }
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1643,8 +1654,14 @@ fn fulfill_perp_order(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    for (maker_key, _) in makers_filled {
+    for (maker_key, maker_base_asset_amount_filled) in makers_filled {
         let maker = makers_and_referrer.get_ref(&maker_key)?;
+
+        let margin_type = select_margin_type_for_perp_maker(
+            &maker,
+            maker_base_asset_amount_filled,
+            market_index,
+        )?;
 
         let maker_margin_calculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
@@ -1652,7 +1669,7 @@ fn fulfill_perp_order(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::standard(MarginRequirementType::Fill),
+                MarginContext::standard(margin_type),
             )?;
 
         if !maker_margin_calculation.meets_margin_requirement() {
@@ -2006,12 +2023,12 @@ pub fn fulfill_perp_order_with_match(
     slot: u64,
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
-) -> DriftResult<(u64, u64)> {
+) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
         &taker.orders[taker_order_index],
     ) {
-        return Ok((0_u64, 0_u64));
+        return Ok((0_u64, 0_u64, 0_u64));
     }
 
     let (bid_price, ask_price) = market.amm.bid_ask_price(market.amm.reserve_price()?)?;
@@ -2060,7 +2077,7 @@ pub fn fulfill_perp_order_with_match(
             maker_price,
             taker_price
         );
-        return Ok((0_u64, 0_u64));
+        return Ok((0_u64, 0_u64, 0_u64));
     }
 
     let (base_asset_amount, _) = calculate_fill_for_matched_orders(
@@ -2072,7 +2089,7 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     if base_asset_amount == 0 {
-        return Ok((0_u64, 0_u64));
+        return Ok((0_u64, 0_u64, 0_u64));
     }
 
     let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
@@ -2133,17 +2150,18 @@ pub fn fulfill_perp_order_with_match(
     let taker_base_asset_amount = taker.orders[taker_order_index]
         .get_base_asset_amount_unfilled(Some(taker_existing_position))?;
 
-    let (base_asset_amount_fulfilled, quote_asset_amount) = calculate_fill_for_matched_orders(
-        maker_base_asset_amount,
-        maker_price,
-        taker_base_asset_amount,
-        PERP_DECIMALS,
-        maker_direction,
-    )?;
+    let (base_asset_amount_fulfilled_by_maker, quote_asset_amount) =
+        calculate_fill_for_matched_orders(
+            maker_base_asset_amount,
+            maker_price,
+            taker_base_asset_amount,
+            PERP_DECIMALS,
+            maker_direction,
+        )?;
 
     validate_fill_price(
         quote_asset_amount,
-        base_asset_amount_fulfilled,
+        base_asset_amount_fulfilled_by_maker,
         BASE_PRECISION_U64,
         taker_direction,
         taker_price,
@@ -2152,14 +2170,15 @@ pub fn fulfill_perp_order_with_match(
 
     validate_fill_price(
         quote_asset_amount,
-        base_asset_amount_fulfilled,
+        base_asset_amount_fulfilled_by_maker,
         BASE_PRECISION_U64,
         maker_direction,
         maker_price,
         false,
     )?;
 
-    total_base_asset_amount = total_base_asset_amount.safe_add(base_asset_amount_fulfilled)?;
+    total_base_asset_amount =
+        total_base_asset_amount.safe_add(base_asset_amount_fulfilled_by_maker)?;
     total_quote_asset_amount = total_quote_asset_amount.safe_add(quote_asset_amount)?;
 
     let maker_position_index = get_position_index(
@@ -2168,7 +2187,7 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     let maker_position_delta = get_position_delta_for_fill(
-        base_asset_amount_fulfilled,
+        base_asset_amount_fulfilled_by_maker,
         quote_asset_amount,
         maker.orders[maker_order_index].direction,
     )?;
@@ -2192,7 +2211,7 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     let taker_position_delta = get_position_delta_for_fill(
-        base_asset_amount_fulfilled,
+        base_asset_amount_fulfilled_by_maker,
         quote_asset_amount,
         taker.orders[taker_order_index].direction,
     )?;
@@ -2304,26 +2323,26 @@ pub fn fulfill_perp_order_with_match(
 
     update_order_after_fill(
         &mut taker.orders[taker_order_index],
-        base_asset_amount_fulfilled,
+        base_asset_amount_fulfilled_by_maker,
         quote_asset_amount,
     )?;
 
     decrease_open_bids_and_asks(
         &mut taker.perp_positions[taker_position_index],
         &taker.orders[taker_order_index].direction,
-        base_asset_amount_fulfilled,
+        base_asset_amount_fulfilled_by_maker,
     )?;
 
     update_order_after_fill(
         &mut maker.orders[maker_order_index],
-        base_asset_amount_fulfilled,
+        base_asset_amount_fulfilled_by_maker,
         quote_asset_amount,
     )?;
 
     decrease_open_bids_and_asks(
         &mut maker.perp_positions[maker_position_index],
         &maker.orders[maker_order_index].direction,
-        base_asset_amount_fulfilled,
+        base_asset_amount_fulfilled_by_maker,
     )?;
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
@@ -2340,7 +2359,7 @@ pub fn fulfill_perp_order_with_match(
         Some(*filler_key),
         Some(fill_record_id),
         Some(filler_reward),
-        Some(base_asset_amount_fulfilled),
+        Some(base_asset_amount_fulfilled_by_maker),
         Some(quote_asset_amount),
         Some(taker_fee),
         Some(maker_rebate),
@@ -2369,7 +2388,11 @@ pub fn fulfill_perp_order_with_match(
         market_position.open_orders -= 1;
     }
 
-    Ok((total_base_asset_amount, total_quote_asset_amount))
+    Ok((
+        total_base_asset_amount,
+        total_quote_asset_amount,
+        base_asset_amount_fulfilled_by_maker,
+    ))
 }
 
 pub fn update_order_after_fill(

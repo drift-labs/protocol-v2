@@ -584,7 +584,7 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size)
             .unwrap();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -669,7 +669,7 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size)
             .unwrap();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -755,7 +755,7 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size)
             .unwrap();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -841,7 +841,7 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size)
             .unwrap();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -1516,7 +1516,7 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size)
             .unwrap();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -1632,7 +1632,7 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size)
             .unwrap();
 
-        let (base_asset_amount, _) = fulfill_perp_order_with_match(
+        let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
