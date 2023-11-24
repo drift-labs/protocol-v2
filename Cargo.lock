@@ -642,7 +642,7 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.45.0"
+version = "2.46.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
