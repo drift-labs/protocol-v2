@@ -3506,7 +3506,7 @@ mod select_margin_type_for_perp_maker {
         let margin_type =
             select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
                 .unwrap();
-        assert_eq!(margin_type, MarginRequirementType::Fill);
+        assert_eq!(margin_type, MarginRequirementType::Maintenance);
 
         // Short reduced position to 0
         let position_before = 100;
@@ -3522,7 +3522,7 @@ mod select_margin_type_for_perp_maker {
         let margin_type =
             select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
                 .unwrap();
-        assert_eq!(margin_type, MarginRequirementType::Fill);
+        assert_eq!(margin_type, MarginRequirementType::Maintenance);
 
         // Long flipped short long
         let position_before = -80;

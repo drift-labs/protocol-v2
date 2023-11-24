@@ -1258,6 +1258,10 @@ pub fn select_margin_type_for_perp_maker(
         .map_or(0, |p| p.base_asset_amount);
     let position_before = current_position.safe_sub(based_asset_amount_filled)?;
 
+    if current_position == 0 {
+        return Ok(MarginRequirementType::Maintenance);
+    }
+
     if current_position.signum() == position_before.signum()
         && current_position.abs() < position_before.abs()
     {
