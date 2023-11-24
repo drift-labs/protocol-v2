@@ -1516,7 +1516,7 @@ fn fulfill_perp_order(
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
-    let mut makers_filled: BTreeMap<Pubkey, i64> = BTreeMap::new();
+    let mut maker_fills: BTreeMap<Pubkey, i64> = BTreeMap::new();
     let maker_direction = user.orders[user_order_index].direction.opposite();
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -1600,17 +1600,12 @@ fn fulfill_perp_order(
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
-                    let signed_maker_fill_base_asset_amount = match maker_direction {
-                        PositionDirection::Long => maker_fill_base_asset_amount.cast::<i64>()?,
-                        PositionDirection::Short => -maker_fill_base_asset_amount.cast::<i64>()?,
-                    };
-
-                    if let Some(maker_filled) = makers_filled.get_mut(maker_key) {
-                        *maker_filled =
-                            maker_filled.safe_add(signed_maker_fill_base_asset_amount)?;
-                    } else {
-                        makers_filled.insert(*maker_key, signed_maker_fill_base_asset_amount);
-                    }
+                    update_maker_fills_map(
+                        &mut maker_fills,
+                        maker_key,
+                        maker_direction,
+                        maker_fill_base_asset_amount,
+                    )?;
                 }
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1654,7 +1649,7 @@ fn fulfill_perp_order(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    for (maker_key, maker_base_asset_amount_filled) in makers_filled {
+    for (maker_key, maker_base_asset_amount_filled) in maker_fills {
         let maker = makers_and_referrer.get_ref(&maker_key)?;
 
         let margin_type = select_margin_type_for_perp_maker(
@@ -1708,6 +1703,27 @@ fn get_referrer<'a>(
     let referrer_stats = makers_and_referrer_stats.get_ref_mut(referrer_authority_key)?;
 
     Ok((Some(referrer), Some(referrer_stats)))
+}
+
+#[inline(always)]
+fn update_maker_fills_map(
+    map: &mut BTreeMap<Pubkey, i64>,
+    maker_key: &Pubkey,
+    maker_direction: PositionDirection,
+    fill: u64,
+) -> DriftResult {
+    let signed_fill = match maker_direction {
+        PositionDirection::Long => fill.cast::<i64>()?,
+        PositionDirection::Short => -fill.cast::<i64>()?,
+    };
+
+    if let Some(maker_filled) = map.get_mut(maker_key) {
+        *maker_filled = maker_filled.safe_add(signed_fill)?;
+    } else {
+        map.insert(*maker_key, signed_fill);
+    }
+
+    Ok(())
 }
 
 fn determine_if_user_order_is_position_decreasing(

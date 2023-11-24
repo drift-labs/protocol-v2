@@ -10019,3 +10019,36 @@ pub mod update_trigger_order_params {
         assert!(err.is_err());
     }
 }
+
+mod update_maker_fills_map {
+    use crate::controller::orders::update_maker_fills_map;
+    use crate::PositionDirection;
+    use solana_program::pubkey::Pubkey;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn test() {
+        let mut map: BTreeMap<Pubkey, i64> = BTreeMap::new();
+
+        let maker_key = Pubkey::new_unique();
+        let fill = 100;
+        let direction = PositionDirection::Long;
+        update_maker_fills_map(&mut map, &maker_key, direction, fill).unwrap();
+
+        assert_eq!(*map.get(&maker_key).unwrap(), fill as i64);
+
+        update_maker_fills_map(&mut map, &maker_key, direction, fill).unwrap();
+
+        assert_eq!(*map.get(&maker_key).unwrap(), 2 * fill as i64);
+
+        let maker_key = Pubkey::new_unique();
+        let direction = PositionDirection::Short;
+        update_maker_fills_map(&mut map, &maker_key, direction, fill).unwrap();
+
+        assert_eq!(*map.get(&maker_key).unwrap(), -(fill as i64));
+
+        update_maker_fills_map(&mut map, &maker_key, direction, fill).unwrap();
+
+        assert_eq!(*map.get(&maker_key).unwrap(), -2 * fill as i64);
+    }
+}
