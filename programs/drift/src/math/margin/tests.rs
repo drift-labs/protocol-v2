@@ -176,7 +176,6 @@ mod test {
             .get_asset_weight(size, price, &MarginRequirementType::Maintenance)
             .unwrap();
         assert_eq!(asset_weight, 337);
-        assert_eq!(asset_weight, 3371);
     }
 
     #[test]
