@@ -1253,17 +1253,17 @@ pub fn select_margin_type_for_perp_maker(
     based_asset_amount_filled: i64,
     market_index: u16,
 ) -> DriftResult<MarginRequirementType> {
-    let current_position = maker
+    let position_after_fill = maker
         .get_perp_position(market_index)
         .map_or(0, |p| p.base_asset_amount);
-    let position_before = current_position.safe_sub(based_asset_amount_filled)?;
+    let position_before = position_after_fill.safe_sub(based_asset_amount_filled)?;
 
-    if current_position == 0 {
+    if position_after_fill == 0 {
         return Ok(MarginRequirementType::Maintenance);
     }
 
-    if current_position.signum() == position_before.signum()
-        && current_position.abs() < position_before.abs()
+    if position_after_fill.signum() == position_before.signum()
+        && position_after_fill.abs() < position_before.abs()
     {
         return Ok(MarginRequirementType::Maintenance);
     }
