@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: fill asset weight between init and maintenance ([#713](https://github.com/drift-labs/protocol-v2/pull/713))
 - program: if order reduces maker position, check maintenance margin requirement ([#714](https://github.com/drift-labs/protocol-v2/pull/714))
 
 ### Fixes
