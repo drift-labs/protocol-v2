@@ -137,7 +137,6 @@ mod test {
             .unwrap();
         assert_eq!(maint_lib_weight, 31622);
 
-
         let mut spot_market2 = SpotMarket {
             initial_asset_weight: 1500,
             maintenance_asset_weight: 7500,
@@ -149,36 +148,35 @@ mod test {
         };
 
         let size = 100000 * QUOTE_PRECISION;
-        let price = QUOTE_PRECISION_I64/2;
+        let price = QUOTE_PRECISION_I64 / 2;
         let asset_weight = spot_market2
             .get_asset_weight(size, price, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 1500);
         let asset_weight = spot_market2
-        .get_asset_weight(size, price, &MarginRequirementType::Fill)
-        .unwrap();
+            .get_asset_weight(size, price, &MarginRequirementType::Fill)
+            .unwrap();
         assert_eq!(asset_weight, 4500);
         let asset_weight = spot_market2
-                .get_asset_weight(size, price, &MarginRequirementType::Maintenance)
-                .unwrap();
+            .get_asset_weight(size, price, &MarginRequirementType::Maintenance)
+            .unwrap();
         assert_eq!(asset_weight, 7500);
 
         spot_market2.imf_factor = SPOT_IMF_PRECISION / 10;
 
         let asset_weight = spot_market2
-        .get_asset_weight(size, price, &MarginRequirementType::Initial)
-        .unwrap();
+            .get_asset_weight(size, price, &MarginRequirementType::Initial)
+            .unwrap();
         assert_eq!(asset_weight, 337);
         let asset_weight = spot_market2
-        .get_asset_weight(size, price, &MarginRequirementType::Fill)
-        .unwrap();
+            .get_asset_weight(size, price, &MarginRequirementType::Fill)
+            .unwrap();
         assert_eq!(asset_weight, 337);
         let asset_weight = spot_market2
-                .get_asset_weight(size, price, &MarginRequirementType::Maintenance)
-                .unwrap();
+            .get_asset_weight(size, price, &MarginRequirementType::Maintenance)
+            .unwrap();
         assert_eq!(asset_weight, 337);
         assert_eq!(asset_weight, 3371);
-
     }
 
     #[test]
