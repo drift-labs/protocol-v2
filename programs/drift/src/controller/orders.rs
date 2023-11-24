@@ -1627,6 +1627,16 @@ fn fulfill_perp_order(
         quote_asset_amount
     )?;
 
+    let total_maker_fill = maker_fills.values().sum::<i64>();
+
+    validate!(
+        total_maker_fill.unsigned_abs() <= base_asset_amount,
+        ErrorCode::DefaultError,
+        "invalid total maker fill {} total fill {}",
+        total_maker_fill,
+        base_asset_amount
+    )?;
+
     let taker_margin_calculation =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
