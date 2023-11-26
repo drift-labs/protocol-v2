@@ -336,6 +336,13 @@ export class JupiterClient {
 				}),
 			})
 		).json();
+		if (!('swapTransaction' in resp)) {
+			throw new Error(
+				`swapTransaction not found, error from Jupiter: ${resp.error} ${
+					', ' + resp.message ?? ''
+				}`
+			);
+		}
 		const { swapTransaction } = resp;
 
 		try {
