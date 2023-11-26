@@ -1,4 +1,5 @@
 import {
+	Commitment,
 	ConfirmOptions,
 	Connection,
 	PublicKey,
@@ -37,6 +38,7 @@ export type DriftClientSubscriptionConfig =
 	| {
 			type: 'websocket';
 			resubTimeoutMs?: number;
+			commitment?: Commitment;
 	  }
 	| {
 			type: 'polling';
