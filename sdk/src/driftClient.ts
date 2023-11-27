@@ -5699,6 +5699,17 @@ export class DriftClient {
 			});
 		} else {
 			tokenAccount = collateralAccountPublicKey;
+			const tokenAccountExists = await this.checkIfAccountExists(tokenAccount);
+			if (!tokenAccountExists) {
+				const createTokenAccountIx =
+					await this.createAssociatedTokenAccountIdempotentInstruction(
+						tokenAccount,
+						this.wallet.publicKey,
+						this.wallet.publicKey,
+						spotMarketAccount.mint
+					);
+				removeIfStakeIxs.push(createTokenAccountIx);
+			}
 		}
 
 		const remainingAccounts = this.getRemainingAccounts({
