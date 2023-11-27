@@ -9,15 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.47.0] - 2023-11-26
+
+### Features
+
 - program: accelerated idle update for users with <$1000 equity
 
 ### Fixes
 
 ### Breaking
 
-## [2.45.0] - 2023-11-24
-
-## [Unreleased]
+## [2.46.0] - 2023-11-24
 
 ### Features
 
