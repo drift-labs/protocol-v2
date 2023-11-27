@@ -4654,9 +4654,10 @@ export class DriftClient {
 			auctionDuration: auctionDuration || 0,
 			auctionStartPrice: auctionStartPrice || ZERO,
 			auctionEndPrice: auctionEndPrice || ZERO,
-			reduceOnly: reduceOnly || false,
-			postOnly: postOnly || null,
-			immediateOrCancel: immediateOrCancel || false,
+			reduceOnly: reduceOnly != undefined ? reduceOnly : null,
+			postOnly: postOnly != undefined ? postOnly : null,
+			immediateOrCancel:
+				immediateOrCancel != undefined ? immediateOrCancel : null,
 			policy: policy || null,
 			maxTs: maxTs || null,
 		};
