@@ -93,17 +93,15 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	}
 
 	async fetch(): Promise<void> {
-		await this.accountLoader.load();
-		const { buffer, slot } = this.accountLoader.getBufferAndSlot(
-			this.userAccountPublicKey
+		const dataAndContext = await this.program.account.user.fetchAndContext(
+			this.userAccountPublicKey,
+			this.accountLoader.commitment
 		);
-		const currentSlot = this.user?.slot ?? 0;
-		if (buffer && slot > currentSlot) {
-			const account = this.program.account.user.coder.accounts.decode(
-				'User',
-				buffer
-			);
-			this.user = { data: account, slot };
+		if (dataAndContext.context.slot > this.user?.slot ?? 0) {
+			this.user = {
+				data: dataAndContext.data as UserAccount,
+				slot: dataAndContext.context.slot,
+			};
 		}
 	}
 

@@ -211,7 +211,6 @@ export class UserStatsMap {
 			await this.addUserStat(account, undefined, true);
 		}
 
-		//
 		await this.bulkAccountLoader.load();
 	}
 
