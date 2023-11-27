@@ -1762,3 +1762,127 @@ mod update_user_status {
         assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
     }
 }
+
+mod resting_limit_order {
+    use crate::state::user::{Order, OrderType};
+    use crate::PositionDirection;
+
+    #[test]
+    fn test() {
+        let order = Order {
+            order_type: OrderType::Market,
+            ..Order::default()
+        };
+        let slot = 0;
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        let order = Order {
+            order_type: OrderType::TriggerMarket,
+            ..Order::default()
+        };
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        let order = Order {
+            order_type: OrderType::Oracle,
+            ..Order::default()
+        };
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        // limit order before end of auction
+        let order = Order {
+            order_type: OrderType::Limit,
+            post_only: false,
+            auction_duration: 10,
+            slot: 1,
+            ..Order::default()
+        };
+        let slot = 2;
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        // limit order after end of auction
+        let order = Order {
+            order_type: OrderType::Limit,
+            post_only: false,
+            auction_duration: 10,
+            slot: 1,
+            ..Order::default()
+        };
+        let slot = 12;
+
+        assert!(order.is_resting_limit_order(slot).unwrap());
+
+        // limit order post only
+        let order = Order {
+            order_type: OrderType::Limit,
+            post_only: true,
+            ..Order::default()
+        };
+        let slot = 1;
+
+        assert!(order.is_resting_limit_order(slot).unwrap());
+
+        // trigger order long crosses trigger, auction complete
+        let order = Order {
+            order_type: OrderType::TriggerLimit,
+            direction: PositionDirection::Long,
+            trigger_price: 100,
+            price: 110,
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let slot = 12;
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        // trigger order long doesnt cross trigger, auction complete
+        let order = Order {
+            order_type: OrderType::TriggerLimit,
+            direction: PositionDirection::Long,
+            trigger_price: 100,
+            price: 90,
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let slot = 12;
+
+        assert!(order.is_resting_limit_order(slot).unwrap());
+
+        // trigger order short crosses trigger, auction complete
+        let order = Order {
+            order_type: OrderType::TriggerLimit,
+            direction: PositionDirection::Short,
+            trigger_price: 100,
+            price: 90,
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let slot = 12;
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        // trigger order long doesnt cross trigger, auction complete
+        let order = Order {
+            order_type: OrderType::TriggerLimit,
+            direction: PositionDirection::Short,
+            trigger_price: 100,
+            price: 110,
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let slot = 12;
+
+        assert!(order.is_resting_limit_order(slot).unwrap());
+    }
+}

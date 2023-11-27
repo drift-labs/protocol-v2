@@ -787,6 +787,20 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateLiquidationMarginBufferRatio(
+		updateLiquidationMarginBufferRatio: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateLiquidationMarginBufferRatio(
+			updateLiquidationMarginBufferRatio,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateOracleGuardRails(
 		oracleGuardRails: OracleGuardRails
 	): Promise<TransactionSignature> {
@@ -809,6 +823,20 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateStateSettlementDuration(
 			settlementDuration,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async updateStateMaxNumberOfSubAccounts(
+		maxNumberOfSubAccounts: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateStateMaxNumberOfSubAccounts(
+			maxNumberOfSubAccounts,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

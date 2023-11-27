@@ -109,10 +109,12 @@ export class User {
 			);
 		} else if (config.accountSubscription?.type === 'custom') {
 			this.accountSubscriber = config.accountSubscription.userAccountSubscriber;
-		} else {
+		} else if (config.accountSubscription?.type === 'websocket') {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,
-				config.userAccountPublicKey
+				config.userAccountPublicKey,
+				config.accountSubscription.resubTimeoutMs,
+				config.accountSubscription.commitment
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -3167,7 +3169,7 @@ export class User {
 		const equity = totalAssetValue.sub(totalLiabilityValue);
 
 		let slotsBeforeIdle: BN;
-		if (equity.lt(QUOTE_PRECISION)) {
+		if (equity.lt(QUOTE_PRECISION.muln(1000))) {
 			slotsBeforeIdle = new BN(9000); // 1 hour
 		} else {
 			slotsBeforeIdle = new BN(1512000); // 1 week

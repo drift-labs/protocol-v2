@@ -474,8 +474,8 @@ pub fn calculate_spread_reserves(
         0
     };
 
-    let quote_asset_reserve = if spread_with_offset > 0 && direction == PositionDirection::Long
-        || spread_with_offset < 0 && direction == PositionDirection::Short
+    let quote_asset_reserve = if spread_with_offset >= 0 && direction == PositionDirection::Long
+        || spread_with_offset <= 0 && direction == PositionDirection::Short
     {
         amm.quote_asset_reserve
             .safe_add(quote_asset_reserve_delta)?
@@ -495,7 +495,7 @@ pub fn calculate_spread_reserves(
 }
 
 #[allow(clippy::comparison_chain)]
-pub fn calculate_reservation_price_offset(
+pub fn calculate_reference_price_offset(
     reserve_price: u64,
     last_24h_avg_funding_rate: i64,
     base_inventory: i128,

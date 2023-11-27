@@ -19,37 +19,26 @@ pub fn calculate_base_asset_value_and_pnl(
     base_asset_amount: i128,
     quote_asset_amount: u128,
     amm: &AMM,
-    use_spread: bool,
 ) -> DriftResult<(u128, i128)> {
     if base_asset_amount == 0 {
         return Ok((0, 0));
     }
     let swap_direction = swap_direction_to_close_position(base_asset_amount);
-    let base_asset_value = calculate_base_asset_value(base_asset_amount, amm, use_spread)?;
+    let base_asset_value = calculate_base_asset_value(base_asset_amount, amm)?;
     let pnl = calculate_pnl(base_asset_value, quote_asset_amount, swap_direction)?;
 
     Ok((base_asset_value, pnl))
 }
 
-pub fn calculate_base_asset_value(
-    base_asset_amount: i128,
-    amm: &AMM,
-    use_spread: bool,
-) -> DriftResult<u128> {
+pub fn calculate_base_asset_value(base_asset_amount: i128, amm: &AMM) -> DriftResult<u128> {
     if base_asset_amount == 0 {
         return Ok(0);
     }
 
     let swap_direction = swap_direction_to_close_position(base_asset_amount);
 
-    let (base_asset_reserve, quote_asset_reserve) = if use_spread && amm.base_spread > 0 {
-        match swap_direction {
-            SwapDirection::Add => (amm.bid_base_asset_reserve, amm.bid_quote_asset_reserve),
-            SwapDirection::Remove => (amm.ask_base_asset_reserve, amm.ask_quote_asset_reserve),
-        }
-    } else {
-        (amm.base_asset_reserve, amm.quote_asset_reserve)
-    };
+    let (base_asset_reserve, quote_asset_reserve) =
+        (amm.base_asset_reserve, amm.quote_asset_reserve);
 
     let amm_lp_shares = amm.sqrt_k.safe_sub(amm.user_lp_shares)?;
 

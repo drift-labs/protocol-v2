@@ -1534,7 +1534,7 @@ fn test_transfer_protocol_owned_stake() {
     .unwrap();
     if_balance -= amount_returned;
 
-    assert_eq!(amount_returned, (99500000000_u64) as u64);
+    assert_eq!(amount_returned, 99500000000_u64);
     assert_eq!(spot_market.insurance_fund.user_shares, 0);
     assert_eq!(spot_market.insurance_fund.total_shares, 21105203599);
 

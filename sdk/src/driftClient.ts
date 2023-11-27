@@ -235,9 +235,13 @@ export class DriftClient {
 		} else {
 			this.userAccountSubscriptionConfig = {
 				type: 'websocket',
+				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+				commitment: config.accountSubscription?.commitment,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
+				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+				commitment: config.accountSubscription?.commitment,
 			};
 		}
 
@@ -2448,7 +2452,7 @@ export class DriftClient {
 	 * @param makerInfo
 	 * @param txParams
 	 * @param bracketOrdersParams
-	 * @param cancelExistingOrders - Builds and returns an extra transaciton to cancel the existing orders in the same market. Intended use is to auto-cancel TP/SL orders when closing a position
+	 * @param cancelExistingOrders - Builds and returns an extra transaciton to cancel the existing orders in the same perp market. Intended use is to auto-cancel TP/SL orders when closing a position. Ignored if orderParams.marketType is not MarketType.PERP
 	 * @returns
 	 */
 	public async sendMarketOrderAndGetSignedFillTx(
@@ -2462,7 +2466,7 @@ export class DriftClient {
 		cancelExistingOrders?: boolean
 	): Promise<{
 		txSig: TransactionSignature;
-		signedFillTx: Transaction;
+		signedFillTx?: Transaction;
 		signedCancelExistingOrdersTx?: Transaction;
 	}> {
 		const marketIndex = orderParams.marketIndex;
@@ -2478,20 +2482,9 @@ export class DriftClient {
 			bracketOrderIxs.push(placeBracketOrderIx);
 		}
 
-		const fillPerpOrderIx = await this.getFillPerpOrderIx(
-			userAccountPublicKey,
-			userAccount,
-			{
-				orderId,
-				marketIndex,
-			},
-			makerInfo,
-			referrerInfo
-		);
-
 		let cancelOrdersIx: TransactionInstruction;
 		let cancelExistingOrdersTx: Transaction;
-		if (cancelExistingOrders) {
+		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
 			cancelOrdersIx = await this.getCancelOrdersIx(
 				orderParams.marketType,
 				orderParams.marketIndex,
@@ -2513,6 +2506,18 @@ export class DriftClient {
 				txParams,
 				0
 			);
+
+			const fillPerpOrderIx = await this.getFillPerpOrderIx(
+				userAccountPublicKey,
+				userAccount,
+				{
+					orderId,
+					marketIndex,
+				},
+				makerInfo,
+				referrerInfo
+			);
+
 			const versionedFillTx = await this.buildTransaction(
 				[fillPerpOrderIx],
 				txParams,
@@ -2554,25 +2559,22 @@ export class DriftClient {
 				marketOrderTx.add(...bracketOrderIxs);
 			}
 
-			const fillTx = wrapInTx(
-				fillPerpOrderIx,
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
-			);
-
 			// Apply the latest blockhash to the txs so that we can sign before sending them
 			const currentBlockHash = (
 				await this.connection.getLatestBlockhash('finalized')
 			).blockhash;
 			marketOrderTx.recentBlockhash = currentBlockHash;
-			fillTx.recentBlockhash = currentBlockHash;
 
 			marketOrderTx.feePayer = userAccount.authority;
-			fillTx.feePayer = userAccount.authority;
 
-			const [signedMarketOrderTx, signedFillTx, signedCancelExistingOrdersTx] =
+			if (cancelExistingOrdersTx) {
+				cancelExistingOrdersTx.recentBlockhash = currentBlockHash;
+				cancelExistingOrdersTx.feePayer = userAccount.authority;
+			}
+
+			const [signedMarketOrderTx, signedCancelExistingOrdersTx] =
 				await this.provider.wallet.signAllTransactions(
-					[marketOrderTx, fillTx, cancelExistingOrdersTx].filter(
+					[marketOrderTx, cancelExistingOrdersTx].filter(
 						(tx) => tx !== undefined
 					)
 				);
@@ -2584,7 +2586,7 @@ export class DriftClient {
 			);
 			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
-			return { txSig, signedFillTx, signedCancelExistingOrdersTx };
+			return { txSig, signedFillTx: undefined, signedCancelExistingOrdersTx };
 		}
 	}
 
@@ -2896,7 +2898,8 @@ export class DriftClient {
 
 		let readablePerpMarketIndex = undefined;
 		let readableSpotMarketIndexes = undefined;
-		if (marketIndex) {
+
+		if (typeof marketIndex === 'number') {
 			if (marketType && isVariant(marketType, 'perp')) {
 				readablePerpMarketIndex = marketIndex;
 			} else if (marketType && isVariant(marketType, 'spot')) {
@@ -3731,6 +3734,10 @@ export class DriftClient {
 			});
 
 			quote = fetchedQuote;
+		}
+
+		if (!quote) {
+			throw new Error("Could not fetch Jupiter's quote. Please try again.");
 		}
 
 		const transaction = await jupiterClient.getSwap({
@@ -4644,12 +4651,12 @@ export class DriftClient {
 			oraclePriceOffset: newOraclePriceOffset || null,
 			triggerPrice: newTriggerPrice || null,
 			triggerCondition: newTriggerCondition || null,
-			auctionDuration: auctionDuration || null,
-			auctionStartPrice: auctionStartPrice || null,
-			auctionEndPrice: auctionEndPrice || null,
-			reduceOnly: reduceOnly || null,
+			auctionDuration: auctionDuration || 0,
+			auctionStartPrice: auctionStartPrice || ZERO,
+			auctionEndPrice: auctionEndPrice || ZERO,
+			reduceOnly: reduceOnly || false,
 			postOnly: postOnly || null,
-			immediateOrCancel: immediateOrCancel || null,
+			immediateOrCancel: immediateOrCancel || false,
 			policy: policy || null,
 			maxTs: maxTs || null,
 		};
@@ -4762,12 +4769,12 @@ export class DriftClient {
 			oraclePriceOffset: newOraclePriceOffset || null,
 			triggerPrice: newTriggerPrice || null,
 			triggerCondition: newTriggerCondition || null,
-			auctionDuration: auctionDuration || null,
-			auctionStartPrice: auctionStartPrice || null,
-			auctionEndPrice: auctionEndPrice || null,
-			reduceOnly: reduceOnly || null,
+			auctionDuration: auctionDuration || 0,
+			auctionStartPrice: auctionStartPrice || ZERO,
+			auctionEndPrice: auctionEndPrice || ZERO,
+			reduceOnly: reduceOnly || false,
 			postOnly: postOnly || null,
-			immediateOrCancel: immediateOrCancel || null,
+			immediateOrCancel: immediateOrCancel || false,
 			policy: policy || null,
 			maxTs: maxTs || null,
 		};

@@ -42,10 +42,10 @@ mod test {
         let rev_price = 4216 * 10000;
         let max_offset: i64 = 2500; // 25 bps
 
-        let res = calculate_reservation_price_offset(rev_price, 0, 0, 0, 0, 0, max_offset).unwrap();
+        let res = calculate_reference_price_offset(rev_price, 0, 0, 0, 0, 0, max_offset).unwrap();
         assert_eq!(res, 0);
 
-        let res = calculate_reservation_price_offset(
+        let res = calculate_reference_price_offset(
             rev_price,
             430_000_000,
             10,
@@ -56,7 +56,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(res, 237); // 1 penny divergence
-        let res = calculate_reservation_price_offset(
+        let res = calculate_reference_price_offset(
             rev_price,
             430_000_000,
             10,
@@ -68,7 +68,7 @@ mod test {
         .unwrap();
         assert_eq!(res, 237 * 3); // 3 penny divergence
 
-        let res = calculate_reservation_price_offset(
+        let res = calculate_reference_price_offset(
             rev_price,
             -43_000_000,
             10,
@@ -80,7 +80,7 @@ mod test {
         .unwrap();
         assert_eq!(res, 0); // none, wrong 24h_avg sign
 
-        let res = calculate_reservation_price_offset(
+        let res = calculate_reference_price_offset(
             rev_price,
             -43_000_000,
             -10,
@@ -92,7 +92,7 @@ mod test {
         .unwrap();
         assert_eq!(res, 0); // none, wrong 24h_avg / base inventory sign
 
-        let res = calculate_reservation_price_offset(
+        let res = calculate_reference_price_offset(
             rev_price,
             -43_000_000,
             -10,
@@ -104,7 +104,7 @@ mod test {
         .unwrap();
         assert_eq!(res, -474); // flipped
 
-        let res = calculate_reservation_price_offset(
+        let res = calculate_reference_price_offset(
             rev_price,
             10_000_000,
             10,
@@ -116,7 +116,7 @@ mod test {
         .unwrap();
         assert_eq!(res, 1660); // 7 penny divergence
 
-        let res = calculate_reservation_price_offset(
+        let res = calculate_reference_price_offset(
             rev_price,
             10_000_000,
             10,
@@ -128,7 +128,7 @@ mod test {
         .unwrap();
         assert_eq!(res, 2500); // upper bound
 
-        let res = calculate_reservation_price_offset(
+        let res = calculate_reference_price_offset(
             rev_price,
             -10_000_000,
             -10,
@@ -141,7 +141,7 @@ mod test {
         assert_eq!(res, -2500); // lower bound
 
         // max offset = 0
-        let res = calculate_reservation_price_offset(
+        let res = calculate_reference_price_offset(
             rev_price,
             -10_000_000,
             -10,

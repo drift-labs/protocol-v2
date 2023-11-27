@@ -12,7 +12,8 @@ use crate::math::constants::{
 };
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128, LP_FEE_SLICE_DENOMINATOR,
-    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION, SPOT_WEIGHT_PRECISION,
+    TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -756,6 +757,14 @@ impl Default for AMM {
 }
 
 impl AMM {
+    pub fn get_max_reference_price_offset(self) -> DriftResult<i64> {
+        // always allow 10 bps of price offset, up to a fifth of the market's max_spread
+        let ten_bps = PERCENTAGE_PRECISION.cast::<i64>()? / 1000;
+        let max_offset = (self.max_spread.cast::<i64>()? / 5).max(ten_bps);
+
+        Ok(max_offset)
+    }
+
     pub fn get_per_lp_base_unit(self) -> DriftResult<i128> {
         let scalar: i128 = 10_i128.pow(self.per_lp_base.abs().cast()?);
 

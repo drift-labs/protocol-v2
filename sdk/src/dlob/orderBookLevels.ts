@@ -302,15 +302,15 @@ export function getVammL2Generator({
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
 						calculateAmmReservesAfterSwap(
-							bidAmm,
+							askAmm,
 							'base',
 							baseSwapped,
 							SwapDirection.REMOVE
 						);
 
 					quoteSwapped = calculateQuoteAssetAmountSwapped(
-						bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
-						bidAmm.pegMultiplier,
+						askAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+						askAmm.pegMultiplier,
 						SwapDirection.REMOVE
 					);
 				}

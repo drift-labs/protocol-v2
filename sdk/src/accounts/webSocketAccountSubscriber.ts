@@ -1,6 +1,6 @@
 import { DataAndSlot, BufferAndSlot, AccountSubscriber } from './types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
-import { AccountInfo, Context, PublicKey } from '@solana/web3.js';
+import { AccountInfo, Commitment, Context, PublicKey } from '@solana/web3.js';
 import { capitalize } from './utils';
 import * as Buffer from 'buffer';
 
@@ -14,6 +14,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	onChange: (data: T) => void;
 	listenerId?: number;
 	resubTimeoutMs?: number;
+	commitment?: Commitment;
 	isUnsubscribing = false;
 
 	timeoutId?: NodeJS.Timeout;
@@ -25,7 +26,8 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		program: Program,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
-		resubTimeoutMs?: number
+		resubTimeoutMs?: number,
+		commitment?: Commitment
 	) {
 		this.accountName = accountName;
 		this.program = program;
@@ -33,6 +35,8 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		this.decodeBufferFn = decodeBuffer;
 		this.resubTimeoutMs = resubTimeoutMs;
 		this.receivingData = false;
+		this.commitment =
+			commitment ?? (this.program.provider as AnchorProvider).opts.commitment;
 	}
 
 	async subscribe(onChange: (data: T) => void): Promise<void> {
@@ -57,7 +61,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 					this.handleRpcResponse(context, accountInfo);
 				}
 			},
-			(this.program.provider as AnchorProvider).opts.commitment
+			this.commitment
 		);
 
 		if (this.resubTimeoutMs) {

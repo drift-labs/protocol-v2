@@ -1183,7 +1183,23 @@ impl Order {
     }
 
     pub fn is_resting_limit_order(&self, slot: u64) -> DriftResult<bool> {
-        Ok(self.is_limit_order() && (self.post_only || self.is_auction_complete(slot)?))
+        if !self.is_limit_order() {
+            return Ok(false);
+        }
+
+        if self.order_type == OrderType::TriggerLimit {
+            return match self.direction {
+                PositionDirection::Long if self.trigger_price < self.price => {
+                    return Ok(false);
+                }
+                PositionDirection::Short if self.trigger_price > self.price => {
+                    return Ok(false);
+                }
+                _ => self.is_auction_complete(slot),
+            };
+        }
+
+        Ok(self.post_only || self.is_auction_complete(slot)?)
     }
 }
 

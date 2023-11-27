@@ -211,3 +211,28 @@ pub fn is_amm_available_liquidity_source(
 ) -> DriftResult<bool> {
     is_auction_complete(order.slot, min_auction_duration, slot)
 }
+
+pub fn calculate_auction_params_for_trigger_order(
+    order: &Order,
+    oracle_price_data: &OraclePriceData,
+    min_auction_duration: u8,
+) -> DriftResult<(u8, i64, i64)> {
+    // if trigger limit doesn't cross oracle, no auction
+    if order.order_type == OrderType::TriggerLimit {
+        let limit_doesnt_cross_trigger = match order.direction {
+            PositionDirection::Long => order.price < order.trigger_price,
+            PositionDirection::Short => order.price > order.trigger_price,
+        };
+
+        if limit_doesnt_cross_trigger {
+            return Ok((0, 0, 0));
+        }
+    }
+
+    let auction_duration = min_auction_duration;
+
+    let (auction_start_price, auction_end_price) =
+        calculate_auction_prices(oracle_price_data, order.direction, order.price)?;
+
+    Ok((auction_duration, auction_start_price, auction_end_price))
+}

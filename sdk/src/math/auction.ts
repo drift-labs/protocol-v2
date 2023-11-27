@@ -1,5 +1,5 @@
 import { isOneOfVariant, isVariant, Order, PositionDirection } from '../types';
-import { BN, ONE, ZERO } from '../.';
+import { BN, getVariant, ONE, ZERO } from '../.';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
 	if (order.auctionDuration === 0) {
@@ -31,7 +31,9 @@ export function getAuctionPrice(
 	} else if (isVariant(order.orderType, 'oracle')) {
 		return getAuctionPriceForOracleOffsetAuction(order, slot, oraclePrice);
 	} else {
-		throw Error(`Cant get auction price for order type ${order.orderType}`);
+		throw Error(
+			`Cant get auction price for order type ${getVariant(order.orderType)}`
+		);
 	}
 }
 

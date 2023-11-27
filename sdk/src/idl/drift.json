@@ -1,5 +1,5 @@
 {
-  "version": "2.42.0",
+  "version": "2.47.0",
   "name": "drift",
   "instructions": [
     {
@@ -4099,6 +4099,27 @@
       ]
     },
     {
+      "name": "updateLiquidationMarginBufferRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidationMarginBufferRatio",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "updateOracleGuardRails",
       "accounts": [
         {
@@ -4138,6 +4159,27 @@
       "args": [
         {
           "name": "settlementDuration",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateStateMaxNumberOfSubAccounts",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxNumberOfSubAccounts",
           "type": "u16"
         }
       ]
@@ -5702,11 +5744,15 @@
             "type": "u16"
           },
           {
+            "name": "maxNumberOfSubAccounts",
+            "type": "u16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                14
+                12
               ]
             }
           }
@@ -10889,7 +10935,7 @@
     {
       "code": 6221,
       "name": "SpotFulfillmentConfigDisabled",
-      "msg": "Spot Fulfullment Config Disabled"
+      "msg": "Spot Fulfillment Config Disabled"
     },
     {
       "code": 6222,

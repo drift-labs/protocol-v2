@@ -584,6 +584,7 @@ export const mockStateAccount: StateAccount = {
 	},
 	srmVault: PublicKey.default,
 	whitelistMint: PublicKey.default,
+	maxNumberOfSubAccounts: 0,
 };
 
 export class MockUserMap implements UserMapInterface {
