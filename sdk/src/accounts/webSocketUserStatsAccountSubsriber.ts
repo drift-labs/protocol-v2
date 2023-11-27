@@ -68,6 +68,8 @@ export class WebSocketUserStatsAccountSubscriber
 		return true;
 	}
 
+	async addToAccountLoader(): Promise<void> {}
+
 	async fetch(): Promise<void> {
 		await Promise.all([this.userStatsAccountSubscriber.fetch()]);
 	}

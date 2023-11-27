@@ -28,13 +28,6 @@ export class UserStatsMap {
 	private userStatsMap = new Map<string, UserStats>();
 	private driftClient: DriftClient;
 	private accountSubscription: UserStatsSubscriptionConfig;
-	private lastNumberOfAuthorities;
-	private syncCallback = async (state: StateAccount) => {
-		if (state.numberOfAuthorities !== this.lastNumberOfAuthorities) {
-			await this.sync();
-			this.lastNumberOfAuthorities = state.numberOfAuthorities;
-		}
-	};
 
 	constructor(
 		driftClient: DriftClient,
@@ -44,22 +37,19 @@ export class UserStatsMap {
 		this.accountSubscription = accountSubscription;
 	}
 
-	public async subscribe() {
+	public async subscribe(authorities: PublicKey[]) {
 		if (this.size() > 0) {
 			return;
 		}
 
 		await this.driftClient.subscribe();
-		this.lastNumberOfAuthorities =
-			this.driftClient.getStateAccount().numberOfAuthorities;
-		this.driftClient.eventEmitter.on('stateAccountUpdate', this.syncCallback);
-
-		await this.sync();
+		await this.sync(authorities);
 	}
 
 	public async addUserStat(
 		authority: PublicKey,
-		userStatsAccount?: UserStatsAccount
+		userStatsAccount?: UserStatsAccount,
+		skipFetch?: boolean
 	) {
 		const userStat = new UserStats({
 			driftClient: this.driftClient,
@@ -69,7 +59,11 @@ export class UserStatsMap {
 			),
 			accountSubscription: this.accountSubscription,
 		});
-		await userStat.subscribe(userStatsAccount);
+		if (skipFetch) {
+			await userStat.addToAccountLoader();
+		} else {
+			await userStat.subscribe(userStatsAccount);
+		}
 
 		this.userStatsMap.set(authority.toString(), userStat);
 	}
@@ -77,7 +71,7 @@ export class UserStatsMap {
 	public async updateWithOrderRecord(record: OrderRecord, userMap: UserMap) {
 		const user = await userMap.mustGet(record.user.toString());
 		if (!this.has(user.getUserAccount().authority.toString())) {
-			await this.addUserStat(user.getUserAccount().authority);
+			await this.addUserStat(user.getUserAccount().authority, undefined, false);
 		}
 	}
 
@@ -156,9 +150,19 @@ export class UserStatsMap {
 		return this.userStatsMap.get(authorityPublicKey);
 	}
 
+	/**
+	 * Enforce that a UserStats will exist for the given authorityPublicKey,
+	 * reading one from the blockchain if necessary.
+	 * @param authorityPublicKey
+	 * @returns
+	 */
 	public async mustGet(authorityPublicKey: string): Promise<UserStats> {
 		if (!this.has(authorityPublicKey)) {
-			await this.addUserStat(new PublicKey(authorityPublicKey));
+			await this.addUserStat(
+				new PublicKey(authorityPublicKey),
+				undefined,
+				false
+			);
 		}
 		return this.get(authorityPublicKey);
 	}
@@ -171,38 +175,26 @@ export class UserStatsMap {
 		return this.userStatsMap.size;
 	}
 
-	public async sync() {
-		const programAccounts =
-			await this.driftClient.connection.getProgramAccounts(
-				this.driftClient.program.programId,
-				{
-					commitment: this.driftClient.connection.commitment,
-					filters: [
-						{
-							memcmp:
-								this.driftClient.program.coder.accounts.memcmp('UserStats'),
-						},
-					],
-				}
-			);
-
-		const programAccountMap = new Map<string, AccountInfo<Buffer>>();
-		for (const programAccount of programAccounts) {
-			programAccountMap.set(
-				new PublicKey(programAccount.account.data.slice(8, 40)).toString(),
-				programAccount.account
-			);
+	/**
+	 * Sync the UserStatsMap
+	 * @param authorities list of authorities to derive UserStatsAccount public keys from.
+	 * You may want to get this list from UserMap in order to filter out idle users
+	 */
+	public async sync(authorities: PublicKey[]) {
+		const userStatsMapAccounts = new Set(
+			authorities.map((authority) =>
+				getUserStatsAccountPublicKey(
+					this.driftClient.program.programId,
+					authority
+				)
+			)
+		);
+		for (const account of userStatsMapAccounts) {
+			await this.addUserStat(account, undefined, true);
 		}
 
-		for (const key of programAccountMap.keys()) {
-			if (!this.has(key)) {
-				const userStatsAccount =
-					this.driftClient.program.account.userStats.coder.accounts.decode(
-						'UserStats',
-						programAccountMap.get(key).data
-					);
-				await this.addUserStat(new PublicKey(key), userStatsAccount);
-			}
+		if (this.accountSubscription.type === 'polling') {
+			await this.accountSubscription.accountLoader.load();
 		}
 	}
 
@@ -210,14 +202,6 @@ export class UserStatsMap {
 		for (const [key, userStats] of this.userStatsMap.entries()) {
 			await userStats.unsubscribe();
 			this.userStatsMap.delete(key);
-		}
-
-		if (this.lastNumberOfAuthorities) {
-			this.driftClient.eventEmitter.removeListener(
-				'stateAccountUpdate',
-				this.syncCallback
-			);
-			this.lastNumberOfAuthorities = undefined;
 		}
 	}
 }
