@@ -32,18 +32,25 @@ export interface UserMapInterface {
 	values(): IterableIterator<User>;
 }
 
+// filter users that meet these criteria when passing into syncCallback
+export type SyncCallbackCriteria = {
+	hasOpenOrders: boolean;
+};
+
 export class UserMap implements UserMapInterface {
 	private userMap = new Map<string, User>();
 	private driftClient: DriftClient;
 	private accountSubscription: UserSubscriptionConfig;
 	private includeIdle: boolean;
 	private lastNumberOfSubAccounts;
-	private syncCallback = async (state: StateAccount) => {
+	private stateAccountUpdateCallback = async (state: StateAccount) => {
 		if (state.numberOfSubAccounts !== this.lastNumberOfSubAccounts) {
 			await this.sync();
 			this.lastNumberOfSubAccounts = state.numberOfSubAccounts;
 		}
 	};
+	private syncCallback: (authorities: PublicKey[]) => Promise<void>;
+	private syncCallbackCriteria: SyncCallbackCriteria;
 
 	/**
 	 *
@@ -54,11 +61,15 @@ export class UserMap implements UserMapInterface {
 	constructor(
 		driftClient: DriftClient,
 		accountSubscription: UserSubscriptionConfig,
-		includeIdle = false
+		includeIdle = false,
+		syncCallback?: (authorities: PublicKey[]) => Promise<void>,
+		syncCallbackCriteria: SyncCallbackCriteria = { hasOpenOrders: true }
 	) {
 		this.driftClient = driftClient;
 		this.accountSubscription = accountSubscription;
 		this.includeIdle = includeIdle;
+		this.syncCallback = syncCallback;
+		this.syncCallbackCriteria = syncCallbackCriteria;
 	}
 
 	public async subscribe() {
@@ -69,7 +80,10 @@ export class UserMap implements UserMapInterface {
 		await this.driftClient.subscribe();
 		this.lastNumberOfSubAccounts =
 			this.driftClient.getStateAccount().numberOfSubAccounts;
-		this.driftClient.eventEmitter.on('stateAccountUpdate', this.syncCallback);
+		this.driftClient.eventEmitter.on(
+			'stateAccountUpdate',
+			this.stateAccountUpdateCallback
+		);
 
 		await this.sync();
 	}
@@ -256,6 +270,27 @@ export class UserMap implements UserMapInterface {
 				user.accountSubscriber.updateData(userAccount, slot);
 			}
 		}
+
+		if (this.syncCallback) {
+			const usersMeetingCriteria = Array.from(this.userMap.values()).filter(
+				(user) => {
+					let pass = true;
+					if (this.syncCallbackCriteria.hasOpenOrders) {
+						pass = pass && user.getUserAccount().hasOpenOrder;
+					}
+					return pass;
+				}
+			);
+			const userAuths = new Set(
+				usersMeetingCriteria.map((user) =>
+					user.getUserAccount().authority.toBase58()
+				)
+			);
+			const userAuthKeys = Array.from(userAuths).map(
+				(userAuth) => new PublicKey(userAuth)
+			);
+			await this.syncCallback(userAuthKeys);
+		}
 	}
 
 	public async unsubscribe() {
@@ -267,7 +302,7 @@ export class UserMap implements UserMapInterface {
 		if (this.lastNumberOfSubAccounts) {
 			this.driftClient.eventEmitter.removeListener(
 				'stateAccountUpdate',
-				this.syncCallback
+				this.stateAccountUpdateCallback
 			);
 			this.lastNumberOfSubAccounts = undefined;
 		}
