@@ -156,7 +156,6 @@ export interface UserStatsAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;
 	isSubscribed: boolean;
 
-	addToAccountLoader(): Promise<void>;
 	subscribe(userStatsAccount?: UserStatsAccount): Promise<boolean>;
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;

@@ -48,10 +48,6 @@ export class UserStats {
 		return this.isSubscribed;
 	}
 
-	public async addToAccountLoader(): Promise<void> {
-		this.accountSubscriber.addToAccountLoader();
-	}
-
 	public async fetchAccounts(): Promise<void> {
 		await this.accountSubscriber.fetch();
 	}

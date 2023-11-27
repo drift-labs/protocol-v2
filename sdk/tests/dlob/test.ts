@@ -27,7 +27,7 @@ import {
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
 import { DLOBOrdersCoder } from '../../src/dlob/DLOBOrders';
-import {isAuctionComplete, isRestingLimitOrder} from "../../lib";
+import { isAuctionComplete, isRestingLimitOrder } from '../../lib';
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -2537,18 +2537,21 @@ describe('DLOB Perp Tests', () => {
 			OrderTriggerCondition.TRIGGERED_ABOVE, // triggerCondition: OrderTriggerCondition,
 			vBid,
 			vAsk,
-			new BN(1), // slot
+			new BN(1) // slot
 		);
 
-		const restingLimitBids = Array.from(dlob.getRestingLimitBids(marketIndex, slot, MarketType.PERP, oracle));
+		const restingLimitBids = Array.from(
+			dlob.getRestingLimitBids(marketIndex, slot, MarketType.PERP, oracle)
+		);
 		expect(restingLimitBids.length).to.equal(0);
 
-		const takingBids = Array.from(dlob.getTakingBids(marketIndex, MarketType.PERP, slot, oracle));
+		const takingBids = Array.from(
+			dlob.getTakingBids(marketIndex, MarketType.PERP, slot, oracle)
+		);
 		expect(takingBids.length).to.equal(1);
 		const triggerLimitBid = takingBids[0];
 		expect(isAuctionComplete(triggerLimitBid.order, slot)).to.equal(true);
 		expect(isRestingLimitOrder(triggerLimitBid.order, slot)).to.equal(false);
-
 	});
 
 	it('Test will return expired market orders to fill', () => {

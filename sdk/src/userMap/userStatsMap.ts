@@ -4,7 +4,6 @@ import {
 	OrderRecord,
 	UserStatsAccount,
 	UserStats,
-	UserStatsSubscriptionConfig,
 	WrappedEvent,
 	DepositRecord,
 	FundingPaymentRecord,
@@ -14,12 +13,12 @@ import {
 	NewUserRecord,
 	LPRecord,
 	InsuranceFundStakeRecord,
-	StateAccount,
+	BulkAccountLoader,
+	PollingUserStatsAccountSubscriber,
 } from '..';
-import { AccountInfo, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import { UserMap } from './userMap';
-import { Buffer } from 'buffer';
 
 export class UserStatsMap {
 	/**
@@ -27,14 +26,24 @@ export class UserStatsMap {
 	 */
 	private userStatsMap = new Map<string, UserStats>();
 	private driftClient: DriftClient;
-	private accountSubscription: UserStatsSubscriptionConfig;
+	private bulkAccountLoader: BulkAccountLoader;
 
-	constructor(
-		driftClient: DriftClient,
-		accountSubscription: UserStatsSubscriptionConfig
-	) {
+	/**
+	 * Creates a new UserStatsMap instance.
+	 *
+	 * @param {DriftClient} driftClient - The DriftClient instance.
+	 * @param {BulkAccountLoader} [bulkAccountLoader] - If not provided, a new BulkAccountLoader with polling disabled will be created.
+	 */
+	constructor(driftClient: DriftClient, bulkAccountLoader?: BulkAccountLoader) {
 		this.driftClient = driftClient;
-		this.accountSubscription = accountSubscription;
+		if (!bulkAccountLoader) {
+			bulkAccountLoader = new BulkAccountLoader(
+				driftClient.connection,
+				driftClient.opts.commitment,
+				0
+			);
+		}
+		this.bulkAccountLoader = bulkAccountLoader;
 	}
 
 	public async subscribe(authorities: PublicKey[]) {
@@ -46,6 +55,12 @@ export class UserStatsMap {
 		await this.sync(authorities);
 	}
 
+	/**
+	 *
+	 * @param authority that owns the UserStatsAccount
+	 * @param userStatsAccount optional UserStatsAccount to subscribe to, if undefined will be fetched later
+	 * @param skipFetch if true, will not immediately fetch the UserStatsAccount
+	 */
 	public async addUserStat(
 		authority: PublicKey,
 		userStatsAccount?: UserStatsAccount,
@@ -57,10 +72,15 @@ export class UserStatsMap {
 				this.driftClient.program.programId,
 				authority
 			),
-			accountSubscription: this.accountSubscription,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: this.bulkAccountLoader,
+			},
 		});
 		if (skipFetch) {
-			await userStat.addToAccountLoader();
+			await (
+				userStat.accountSubscriber as PollingUserStatsAccountSubscriber
+			).addToAccountLoader();
 		} else {
 			await userStat.subscribe(userStatsAccount);
 		}
@@ -181,21 +201,18 @@ export class UserStatsMap {
 	 * You may want to get this list from UserMap in order to filter out idle users
 	 */
 	public async sync(authorities: PublicKey[]) {
-		const userStatsMapAccounts = new Set(
-			authorities.map((authority) =>
-				getUserStatsAccountPublicKey(
-					this.driftClient.program.programId,
-					authority
-				)
+		const userStatsMapAccounts = authorities.map((authority) =>
+			getUserStatsAccountPublicKey(
+				this.driftClient.program.programId,
+				authority
 			)
 		);
 		for (const account of userStatsMapAccounts) {
 			await this.addUserStat(account, undefined, true);
 		}
 
-		if (this.accountSubscription.type === 'polling') {
-			await this.accountSubscription.accountLoader.load();
-		}
+		//
+		await this.bulkAccountLoader.load();
 	}
 
 	public async unsubscribe() {
