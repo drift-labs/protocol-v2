@@ -201,7 +201,6 @@ export class UserStatsMap {
 	 * You may want to get this list from UserMap in order to filter out idle users
 	 */
 	public async sync(authorities: PublicKey[]) {
-		console.log(`USER MAP SIYCING AUTHS: ${authorities.length}`);
 		await Promise.all(
 			authorities.map((authority) =>
 				this.addUserStat(authority, undefined, true)
