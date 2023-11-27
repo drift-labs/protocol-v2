@@ -201,16 +201,11 @@ export class UserStatsMap {
 	 * You may want to get this list from UserMap in order to filter out idle users
 	 */
 	public async sync(authorities: PublicKey[]) {
-		const userStatsMapAccounts = authorities.map((authority) =>
-			getUserStatsAccountPublicKey(
-				this.driftClient.program.programId,
-				authority
+		await Promise.all(
+			authorities.map((authority) =>
+				this.addUserStat(authority, undefined, true)
 			)
 		);
-		for (const account of userStatsMapAccounts) {
-			await this.addUserStat(account, undefined, true);
-		}
-
 		await this.bulkAccountLoader.load();
 	}
 

@@ -135,7 +135,11 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	}
 
 	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
-		this.assertIsSubscribed();
+		if (!this.doesAccountExist()) {
+			throw new NotSubscribedError(
+				'You must call `subscribe` or `fetch` before using this function'
+			);
+		}
 		return this.user;
 	}
 
