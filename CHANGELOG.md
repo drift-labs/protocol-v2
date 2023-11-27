@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- ts-sdk: fix to modify order booleans
+
 ### Breaking
 
 ## [2.46.0] - 2023-11-24
