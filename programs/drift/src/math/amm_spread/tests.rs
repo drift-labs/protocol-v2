@@ -42,31 +42,38 @@ mod test {
         let rev_price = 4216 * 10000;
         let max_offset: i64 = 2500; // 25 bps
 
-        let res = calculate_reference_price_offset(rev_price, 0, 0, 0, 0, 0, max_offset).unwrap();
+        let res = calculate_reference_price_offset(rev_price, 
+            0, 0, 0, 0, 0,
+            0,0,
+             max_offset).unwrap();
         assert_eq!(res, 0);
 
         let res = calculate_reference_price_offset(
             rev_price,
-            430_000_000,
+            1,
             10,
             1,
+            4216 * 10000,
+            4217 * 10000,
             4216 * 10000,
             4217 * 10000,
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, 237); // 1 penny divergence
+        assert_eq!(res, 158); // 237*2/3); // 1 penny divergence
         let res = calculate_reference_price_offset(
             rev_price,
-            430_000_000,
+            1,
             10,
             1,
+            4216 * 10000,
+            4219 * 10000,
             4216 * 10000,
             4219 * 10000,
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, 237 * 3); // 3 penny divergence
+        assert_eq!(res, 237 * 2); // 3 penny divergence
 
         let res = calculate_reference_price_offset(
             rev_price,
@@ -75,22 +82,26 @@ mod test {
             1,
             4216 * 10000,
             4218 * 10000,
-            max_offset,
-        )
-        .unwrap();
-        assert_eq!(res, 0); // none, wrong 24h_avg sign
-
-        let res = calculate_reference_price_offset(
-            rev_price,
-            -43_000_000,
-            -10,
-            1,
             4216 * 10000,
             4218 * 10000,
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, 0); // none, wrong 24h_avg / base inventory sign
+        assert_eq!(res, -517); // counter acting 24h_avg sign
+
+        let res = calculate_reference_price_offset(
+            rev_price,
+            -43_000_000,
+            -10000,
+            1,
+            4216 * 10000,
+            4218 * 10000,
+            4216 * 10000,
+            4218 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, -542); // counteracting 24h_avg / base inventory sign
 
         let res = calculate_reference_price_offset(
             rev_price,
@@ -99,10 +110,26 @@ mod test {
             1,
             4216 * 10000,
             4214 * 10000,
+            4216 * 10000,
+            4214 * 10000,
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, -474); // flipped
+        assert_eq!(res, -1149); // flipped
+
+        let res = calculate_reference_price_offset(
+            rev_price,
+            1,
+            10,
+            1,
+            4216 * 10000,
+            4223 * 10000,
+            4216 * 10000,
+            4223 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, 1660 * 2/3); // 7 penny divergence
 
         let res = calculate_reference_price_offset(
             rev_price,
@@ -110,17 +137,7 @@ mod test {
             10,
             1,
             4216 * 10000,
-            4223 * 10000,
-            max_offset,
-        )
-        .unwrap();
-        assert_eq!(res, 1660); // 7 penny divergence
-
-        let res = calculate_reference_price_offset(
-            rev_price,
-            10_000_000,
-            10,
-            1,
+            4233 * 10000,
             4216 * 10000,
             4233 * 10000,
             max_offset,
@@ -135,6 +152,8 @@ mod test {
             1,
             4216 * 10000,
             4123 * 10000,
+            4216 * 10000,
+            4123 * 10000,
             max_offset,
         )
         .unwrap();
@@ -147,6 +166,8 @@ mod test {
             -10,
             1,
             4216 * 10000,
+            4123 * 10000,
+            6 * 10000,
             4123 * 10000,
             0,
         )

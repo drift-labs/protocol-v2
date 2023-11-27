@@ -661,7 +661,7 @@ pub struct AMM {
     pub total_fee_earned_per_lp: u64,
     pub net_unsettled_funding_pnl: i64,
     pub quote_asset_amount_with_unsettled_lp: i64,
-    pub reservation_price_offset: i32,
+    pub reference_price_offset: i32,
     pub padding: [u8; 12],
 }
 
@@ -750,7 +750,7 @@ impl Default for AMM {
             total_fee_earned_per_lp: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
-            reservation_price_offset: 0,
+            reference_price_offset: 0,
             padding: [0; 12],
         }
     }
