@@ -353,21 +353,12 @@ export function calculateMarketOpenBidAsk(
 	return [openBids, openAsks];
 }
 
-export function calculateInventoryScale(
+export function calculateInventoryLiquidityRatio(
 	baseAssetAmountWithAmm: BN,
 	baseAssetReserve: BN,
 	minBaseAssetReserve: BN,
-	maxBaseAssetReserve: BN,
-	directionalSpread: number,
-	maxSpread: number
-): number {
-	if (baseAssetAmountWithAmm.eq(ZERO)) {
-		return 1;
-	}
-
-	const MAX_BID_ASK_INVENTORY_SKEW_FACTOR = BID_ASK_SPREAD_PRECISION.mul(
-		new BN(10)
-	);
+	maxBaseAssetReserve: BN
+): BN {
 	// inventory skew
 	const [openBids, openAsks] = calculateMarketOpenBidAsk(
 		baseAssetReserve,
@@ -383,6 +374,31 @@ export function calculateInventoryScale(
 			.div(BN.max(minSideLiquidity, ONE))
 			.abs(),
 		PERCENTAGE_PRECISION
+	);
+	return inventoryScaleBN;
+}
+
+export function calculateInventoryScale(
+	baseAssetAmountWithAmm: BN,
+	baseAssetReserve: BN,
+	minBaseAssetReserve: BN,
+	maxBaseAssetReserve: BN,
+	directionalSpread: number,
+	maxSpread: number
+): number {
+	if (baseAssetAmountWithAmm.eq(ZERO)) {
+		return 1;
+	}
+
+	const MAX_BID_ASK_INVENTORY_SKEW_FACTOR = BID_ASK_SPREAD_PRECISION.mul(
+		new BN(10)
+	);
+
+	const inventoryScaleBN = calculateInventoryLiquidityRatio(
+		baseAssetAmountWithAmm,
+		baseAssetReserve,
+		minBaseAssetReserve,
+		maxBaseAssetReserve
 	);
 
 	const inventoryScaleMaxBN = BN.max(
@@ -404,61 +420,69 @@ export function calculateInventoryScale(
 }
 
 function calculateReferencePriceOffset(
-    reservePrice: BN,
-    last24hAvgFundingRate: BN,
-    liquidityFraction: BN,
-    minOrderSize: BN,
-    oracleTwapFast: BN,
-    markTwapFast: BN,
-    oracleTwapSlow: BN,
-    markTwapSlow: BN,
-    maxOffsetPct: number
+	reservePrice: BN,
+	last24hAvgFundingRate: BN,
+	liquidityFraction: BN,
+	oracleTwapFast: BN,
+	markTwapFast: BN,
+	oracleTwapSlow: BN,
+	markTwapSlow: BN,
+	maxOffsetPct: number
 ): BN {
+	if (last24hAvgFundingRate.eq(ZERO)) {
+		return ZERO;
+	}
 
-    if (last24hAvgFundingRate.eq(ZERO)) {
-        return ZERO;
-    }
+	const maxOffsetInPrice = new BN(maxOffsetPct)
+		.mul(reservePrice)
+		.div(PERCENTAGE_PRECISION);
 
-    const maxOffsetInPrice = new BN(maxOffsetPct)
-        .mul(reservePrice)
-        .div(PERCENTAGE_PRECISION);
+	// Calculate quote denominated market premium
+	const markPremiumMinute = clampBN(
+		markTwapFast.sub(oracleTwapFast),
+		maxOffsetInPrice.mul(new BN(-1)),
+		maxOffsetInPrice
+	);
 
-    // Calculate quote denominated market premium
-    const markPremiumMinute = clampBN(markTwapFast
-        .sub(oracleTwapFast), maxOffsetInPrice.mul(new BN(-1)), maxOffsetInPrice);
+	const markPremiumHour = clampBN(
+		markTwapSlow.sub(oracleTwapSlow),
+		maxOffsetInPrice.mul(new BN(-1)),
+		maxOffsetInPrice
+	);
 
-    const markPremiumHour = clampBN(markTwapSlow
-        .sub(oracleTwapSlow), maxOffsetInPrice.mul(new BN(-1)), maxOffsetInPrice);
+	// Convert last24hAvgFundingRate to quote denominated premium
+	const markPremiumDay = clampBN(
+		last24hAvgFundingRate.div(FUNDING_RATE_BUFFER_PRECISION).mul(new BN(24)),
+		maxOffsetInPrice.mul(new BN(-1)),
+		maxOffsetInPrice
+	);
 
-    // Convert last24hAvgFundingRate to quote denominated premium
-    const markPremiumDay = clampBN(last24hAvgFundingRate
-        .div(FUNDING_RATE_BUFFER_PRECISION)
-        .mul(new BN(24)), maxOffsetInPrice.mul(new BN(-1)), maxOffsetInPrice);
+	// Take average clamped premium as the price-based offset
+	const markPremiumAvg = markPremiumMinute
+		.add(markPremiumHour)
+		.add(markPremiumDay)
+		.div(new BN(3));
 
-    // Take average clamped premium as the price-based offset
-    const markPremiumAvg = markPremiumMinute
-        .add(markPremiumHour)
-        .add(markPremiumDay)
-        .div(new BN(3));
+	const markPremiumAvgPct = markPremiumAvg
+		.mul(PRICE_PRECISION)
+		.div(reservePrice);
 
-    const markPremiumAvgPct = markPremiumAvg
-        .mul(PRICE_PRECISION)
-        .div(reservePrice);
+	const inventoryPct = clampBN(
+		liquidityFraction.mul(new BN(maxOffsetPct)).div(PERCENTAGE_PRECISION),
+		maxOffsetInPrice.mul(new BN(-1)),
+		maxOffsetInPrice
+	);
 
-    const inventoryPct = clampBN(liquidityFraction
-        .mul(new BN(maxOffsetPct))
-        .div(PERCENTAGE_PRECISION), maxOffsetInPrice.mul(new BN(-1)), maxOffsetInPrice);
+	// Only apply when inventory is consistent with recent and 24h market premium
+	const offsetPct = markPremiumAvgPct.add(inventoryPct);
 
-    // Only apply when inventory is consistent with recent and 24h market premium
-    const offsetPct = markPremiumAvgPct.add(inventoryPct);
-
-    const clampedOffsetPct = clampBN(
+	const clampedOffsetPct = clampBN(
 		offsetPct,
 		new BN(-maxOffsetPct),
 		new BN(maxOffsetPct)
 	);
 
-    return clampedOffsetPct;
+	return clampedOffsetPct;
 }
 
 export function calculateEffectiveLeverage(
@@ -798,7 +822,7 @@ export function calculateSpread(
 		liveOracleStd,
 		amm.longIntensityVolume,
 		amm.shortIntensityVolume,
-		amm.volume24H,
+		amm.volume24H
 	);
 	const longSpread = spreads[0];
 	const shortSpread = spreads[1];
@@ -855,11 +879,16 @@ export function calculateSpreadReserves(
 		amm.maxSpread / 5,
 		PERCENTAGE_PRECISION.toNumber() / 1000
 	);
+	const liquidityFraction = calculateInventoryLiquidityRatio(
+		amm.baseAssetAmountWithAmm,
+		amm.baseAssetReserve,
+		amm.minBaseAssetReserve,
+		amm.maxBaseAssetReserve
+	);
 	const reservationPriceOffset = calculateReferencePriceOffset(
 		reservePrice,
 		amm.last24HAvgFundingRate,
-		amm.baseAssetAmountWithAmm,
-		amm.minOrderSize,
+		liquidityFraction,
 		amm.historicalOracleData.lastOraclePriceTwap5Min,
 		amm.lastMarkPriceTwap5Min,
 		amm.historicalOracleData.lastOraclePriceTwap,
