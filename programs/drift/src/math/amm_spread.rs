@@ -316,7 +316,6 @@ pub fn calculate_spread(
     long_intensity_volume: u64,
     short_intensity_volume: u64,
     volume_24h: u64,
-    reference_price_offset: i32,
 ) -> DriftResult<(u32, u32)> {
     let (long_vol_spread, short_vol_spread) = calculate_long_short_vol_spread(
         last_oracle_conf_pct,
@@ -425,19 +424,6 @@ pub fn calculate_spread(
             short_spread = short_spread.safe_add(revenue_retreat_amount.safe_div(2)?)?;
         }
     }
-
-    // if reference_price_offset != 0 {
-    //     let spread_shrinkage = reference_price_offset.abs().cast::<u64>()?;
-    //     if reference_price_offset > 0 {
-    //         long_spread = long_spread
-    //             .saturating_sub(spread_shrinkage)
-    //             .max(half_base_spread_u64);
-    //     } else {
-    //         short_spread = short_spread
-    //             .saturating_sub(spread_shrinkage)
-    //             .max(half_base_spread_u64);
-    //     }
-    // }
 
     let (long_spread, short_spread) =
         cap_to_max_spread(long_spread, short_spread, max_target_spread)?;

@@ -569,7 +569,6 @@ export function calculateSpreadBN(
 	longIntensity: BN,
 	shortIntensity: BN,
 	volume24H: BN,
-	referencePriceOffset: BN,
 	returnTerms = false
 ) {
 	assert(Number.isInteger(baseSpread));
@@ -726,20 +725,6 @@ export function calculateSpreadBN(
 	spreadTerms.longSpreadwRevRetreat = longSpread;
 	spreadTerms.shortSpreadwRevRetreat = shortSpread;
 
-	// if (!referencePriceOffset.eq(ZERO)) {
-	// 	const spreadSkrinkage = referencePriceOffset.abs().toNumber();
-	// 	if (referencePriceOffset.gt(ZERO)) {
-	// 		longSpread -= spreadSkrinkage;
-	// 		longSpread = Math.max(longSpread, baseSpread / 2);
-	// 	} else {
-	// 		shortSpread -= spreadSkrinkage;
-	// 		shortSpread = Math.max(shortSpread, baseSpread / 2);
-	// 	}
-	// }
-
-	// spreadTerms.longSpreadwOffsetShrink = longSpread;
-	// spreadTerms.shortSpreadwOffsetShrink = shortSpread;
-
 	const totalSpread = longSpread + shortSpread;
 	if (totalSpread > maxTargetSpread) {
 		if (longSpread > shortSpread) {
@@ -814,7 +799,6 @@ export function calculateSpread(
 		amm.longIntensityVolume,
 		amm.shortIntensityVolume,
 		amm.volume24H,
-		reservationPriceOffset
 	);
 	const longSpread = spreads[0];
 	const shortSpread = spreads[1];

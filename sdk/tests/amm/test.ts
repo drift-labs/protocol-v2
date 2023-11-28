@@ -292,7 +292,6 @@ describe('AMM Tests', () => {
 			longIntensity,
 			shortIntensity,
 			volume24H,
-			ZERO,
 			true
 		);
 		// console.log(terms1);
@@ -325,7 +324,6 @@ describe('AMM Tests', () => {
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
-			ZERO,
 			true
 		);
 
@@ -358,7 +356,6 @@ describe('AMM Tests', () => {
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
-			new BN(1_000_000 / 1000), // .1% offset
 			true
 		);
 
@@ -392,7 +389,6 @@ describe('AMM Tests', () => {
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
-			new BN(-1_000_000 / 1000), // .1% offset
 			true
 		);
 
@@ -427,7 +423,6 @@ describe('AMM Tests', () => {
 			new BN(768323534),
 			new BN(243875031),
 			new BN(130017761029),
-			ZERO,
 			true
 		);
 

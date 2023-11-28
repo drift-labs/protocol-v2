@@ -213,7 +213,6 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u3
             amm.long_intensity_volume,
             amm.short_intensity_volume,
             amm.volume_24h,
-            reference_price_offset,
         )?
     } else {
         let half_base_spread = amm.base_spread.safe_div(2)?;
