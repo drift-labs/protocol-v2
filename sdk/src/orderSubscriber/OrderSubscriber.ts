@@ -19,6 +19,8 @@ export class OrderSubscriber {
 	fetchPromise?: Promise<void>;
 	fetchPromiseResolver: () => void;
 
+	mostRecentSlot: number;
+
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
 		if (config.subscriptionConfig.type === 'polling') {
@@ -113,6 +115,10 @@ export class OrderSubscriber {
 		userAccount: UserAccount,
 		slot: number
 	): void {
+		if (!this.mostRecentSlot || slot > this.mostRecentSlot) {
+			this.mostRecentSlot = slot;
+		}
+
 		const slotAndUserAccount = this.usersAccounts.get(key);
 		if (!slotAndUserAccount || slotAndUserAccount.slot < slot) {
 			const newOrders = userAccount.orders.filter(
@@ -146,6 +152,10 @@ export class OrderSubscriber {
 			}
 		}
 		return dlob;
+	}
+
+	public getSlot(): number {
+		return this.mostRecentSlot ?? 0;
 	}
 
 	public async unsubscribe(): Promise<void> {
