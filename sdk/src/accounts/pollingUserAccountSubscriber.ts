@@ -97,7 +97,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 			this.userAccountPublicKey,
 			this.accountLoader.commitment
 		);
-		if (dataAndContext.context.slot > this.user?.slot ?? 0) {
+		if (dataAndContext.context.slot > (this.user?.slot ?? 0)) {
 			this.user = {
 				data: dataAndContext.data as UserAccount,
 				slot: dataAndContext.context.slot,

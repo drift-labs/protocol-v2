@@ -101,7 +101,7 @@ export class PollingUserStatsAccountSubscriber
 			this.userStatsAccountPublicKey,
 			this.accountLoader.commitment
 		);
-		if (dataAndContext.context.slot > this.userStats?.slot ?? 0) {
+		if (dataAndContext.context.slot > (this.userStats?.slot ?? 0)) {
 			this.userStats = {
 				data: dataAndContext.data as UserStatsAccount,
 				slot: dataAndContext.context.slot,
