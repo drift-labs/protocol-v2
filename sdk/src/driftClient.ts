@@ -2028,7 +2028,7 @@ export class DriftClient {
 		}
 
 		const tx = await this.buildTransaction(withdrawIxs, {
-			computeUnits: 600_000,
+			computeUnits: 1_400_000,
 		});
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
