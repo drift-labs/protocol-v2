@@ -79,6 +79,14 @@ export class UserMap implements UserMapInterface {
 		this.syncCallbackCriteria = syncCallbackCriteria;
 	}
 
+	public addSyncCallback(
+		syncCallback?: (authorities: PublicKey[]) => Promise<void>,
+		syncCallbackCriteria: SyncCallbackCriteria = { hasOpenOrders: false }
+	) {
+		this.syncCallback = syncCallback;
+		this.syncCallbackCriteria = syncCallbackCriteria;
+	}
+
 	public async subscribe() {
 		if (this.size() > 0) {
 			return;

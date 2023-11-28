@@ -109,7 +109,7 @@ export class User {
 			);
 		} else if (config.accountSubscription?.type === 'custom') {
 			this.accountSubscriber = config.accountSubscription.userAccountSubscriber;
-		} else if (config.accountSubscription?.type === 'websocket') {
+		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,
 				config.userAccountPublicKey,
