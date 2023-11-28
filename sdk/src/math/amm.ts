@@ -848,13 +848,19 @@ export function calculateSpreadReserves(
 				quoteAssetReserve: amm.quoteAssetReserve,
 			};
 		}
-		const spreadFraction = BN.max(new BN(spread / 2), ONE);
+		let spreadFraction = new BN(spread / 2);
+		
+		// make non-zero
+		if(spreadFraction.eq(ZERO)) {
+			spreadFraction = spread >= 0 ? new BN(1) : new BN(-1);
+		}
+
 		const quoteAssetReserveDelta = amm.quoteAssetReserve.div(
 			BID_ASK_SPREAD_PRECISION.div(spreadFraction)
 		);
 
 		let quoteAssetReserve;
-		if (isVariant(direction, 'long')) {
+		if (spread >=0 && isVariant(direction, 'long') || spread <=0 && isVariant(direction, 'short')) {
 			quoteAssetReserve = amm.quoteAssetReserve.add(quoteAssetReserveDelta);
 		} else {
 			quoteAssetReserve = amm.quoteAssetReserve.sub(quoteAssetReserveDelta);
@@ -884,7 +890,7 @@ export function calculateSpreadReserves(
 		amm.minBaseAssetReserve,
 		amm.maxBaseAssetReserve
 	);
-	const reservationPriceOffset = calculateReferencePriceOffset(
+	const referencePriceOffset = calculateReferencePriceOffset(
 		reservePrice,
 		amm.last24HAvgFundingRate,
 		liquidityFraction,
@@ -902,12 +908,12 @@ export function calculateSpreadReserves(
 		reservePrice
 	);
 	const askReserves = calculateSpreadReserve(
-		longSpread,
+		longSpread + referencePriceOffset.toNumber(),
 		PositionDirection.LONG,
 		amm
 	);
 	const bidReserves = calculateSpreadReserve(
-		shortSpread,
+		shortSpread + referencePriceOffset.toNumber(),
 		PositionDirection.SHORT,
 		amm
 	);
