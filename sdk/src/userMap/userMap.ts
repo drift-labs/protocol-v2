@@ -216,6 +216,30 @@ export class UserMap implements UserMapInterface {
 		return this.userMap.size;
 	}
 
+	public getUniqueAuthorities(useSyncCallbackCriteria = true): PublicKey[] {
+		const usersMeetingCriteria = Array.from(this.userMap.values()).filter(
+			(user) => {
+				let pass = true;
+				if (
+					useSyncCallbackCriteria &&
+					this.syncCallbackCriteria.hasOpenOrders
+				) {
+					pass = pass && user.getUserAccount().hasOpenOrder;
+				}
+				return pass;
+			}
+		);
+		const userAuths = new Set(
+			usersMeetingCriteria.map((user) =>
+				user.getUserAccount().authority.toBase58()
+			)
+		);
+		const userAuthKeys = Array.from(userAuths).map(
+			(userAuth) => new PublicKey(userAuth)
+		);
+		return userAuthKeys;
+	}
+
 	public async sync() {
 		if (this.syncPromise) {
 			return this.syncPromise;
@@ -296,24 +320,7 @@ export class UserMap implements UserMapInterface {
 			}
 
 			if (this.syncCallback) {
-				const usersMeetingCriteria = Array.from(this.userMap.values()).filter(
-					(user) => {
-						let pass = true;
-						if (this.syncCallbackCriteria.hasOpenOrders) {
-							pass = pass && user.getUserAccount().hasOpenOrder;
-						}
-						return pass;
-					}
-				);
-				const userAuths = new Set(
-					usersMeetingCriteria.map((user) =>
-						user.getUserAccount().authority.toBase58()
-					)
-				);
-				const userAuthKeys = Array.from(userAuths).map(
-					(userAuth) => new PublicKey(userAuth)
-				);
-				await this.syncCallback(userAuthKeys);
+				await this.syncCallback(this.getUniqueAuthorities());
 			}
 		} catch (e) {
 			console.error(`Error in UserMap.sync()`);
