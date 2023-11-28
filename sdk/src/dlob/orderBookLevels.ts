@@ -173,7 +173,7 @@ export function getVammL2Generator({
 		updatedAmm.orderStepSize
 	);
 
-	const minOrderSize = marketAccount.amm.orderStepSize;
+	const minOrderSize = marketAccount.amm.minOrderSize;
 	if (openBids.lt(minOrderSize.muln(2))) {
 		openBids = ZERO;
 	}
