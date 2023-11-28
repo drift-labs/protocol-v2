@@ -28,6 +28,7 @@ export type EventSubscriptionOptions = {
 	// when the subscription starts, client might want to backtrack and fetch old tx's
 	// this specifies how far to backtrack
 	untilTx?: TransactionSignature;
+	resubTimeoutMs?: number;
 };
 
 export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
