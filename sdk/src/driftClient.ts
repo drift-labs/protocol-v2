@@ -2028,7 +2028,7 @@ export class DriftClient {
 		}
 
 		const tx = await this.buildTransaction(withdrawIxs, {
-			computeUnits: 600_000,
+			computeUnits: 1_400_000,
 		});
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
@@ -4654,9 +4654,10 @@ export class DriftClient {
 			auctionDuration: auctionDuration || 0,
 			auctionStartPrice: auctionStartPrice || ZERO,
 			auctionEndPrice: auctionEndPrice || ZERO,
-			reduceOnly: reduceOnly || false,
-			postOnly: postOnly || null,
-			immediateOrCancel: immediateOrCancel || false,
+			reduceOnly: reduceOnly != undefined ? reduceOnly : null,
+			postOnly: postOnly != undefined ? postOnly : null,
+			immediateOrCancel:
+				immediateOrCancel != undefined ? immediateOrCancel : null,
 			policy: policy || null,
 			maxTs: maxTs || null,
 		};
@@ -4769,9 +4770,9 @@ export class DriftClient {
 			oraclePriceOffset: newOraclePriceOffset || null,
 			triggerPrice: newTriggerPrice || null,
 			triggerCondition: newTriggerCondition || null,
-			auctionDuration: auctionDuration || 0,
-			auctionStartPrice: auctionStartPrice || ZERO,
-			auctionEndPrice: auctionEndPrice || ZERO,
+			auctionDuration: auctionDuration || null,
+			auctionStartPrice: auctionStartPrice || null,
+			auctionEndPrice: auctionEndPrice || null,
 			reduceOnly: reduceOnly || false,
 			postOnly: postOnly || null,
 			immediateOrCancel: immediateOrCancel || false,
@@ -5699,6 +5700,17 @@ export class DriftClient {
 			});
 		} else {
 			tokenAccount = collateralAccountPublicKey;
+			const tokenAccountExists = await this.checkIfAccountExists(tokenAccount);
+			if (!tokenAccountExists) {
+				const createTokenAccountIx =
+					await this.createAssociatedTokenAccountIdempotentInstruction(
+						tokenAccount,
+						this.wallet.publicKey,
+						this.wallet.publicKey,
+						spotMarketAccount.mint
+					);
+				removeIfStakeIxs.push(createTokenAccountIx);
+			}
 		}
 
 		const remainingAccounts = this.getRemainingAccounts({
