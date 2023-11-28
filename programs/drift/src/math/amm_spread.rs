@@ -491,7 +491,7 @@ pub fn calculate_reference_price_offset(
     max_offset_pct: i64,
 ) -> DriftResult<i32> {
     if last_24h_avg_funding_rate == 0 {
-        return Ok(0)
+        return Ok(0);
     }
 
     let max_offset_in_price = max_offset_pct
@@ -523,7 +523,8 @@ pub fn calculate_reference_price_offset(
         .safe_mul(PRICE_PRECISION_I64)?
         .safe_div(reserve_price.cast()?)?;
 
-    let inventory_pct = liquidity_fraction.cast::<i64>()?
+    let inventory_pct = liquidity_fraction
+        .cast::<i64>()?
         .safe_mul(max_offset_pct)?
         .safe_div(PERCENTAGE_PRECISION.cast::<i64>()?)?
         .clamp(-max_offset_pct, max_offset_pct);

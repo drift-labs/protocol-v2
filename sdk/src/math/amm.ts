@@ -774,7 +774,7 @@ export function calculateSpread(
 	amm: AMM,
 	oraclePriceData: OraclePriceData,
 	now?: BN,
-	reservePrice?: BN,
+	reservePrice?: BN
 ): [number, number] {
 	if (amm.baseSpread == 0 || amm.curveUpdateIntensity == 0) {
 		return [amm.baseSpread / 2, amm.baseSpread / 2];
@@ -899,7 +899,7 @@ export function calculateSpreadReserves(
 		amm,
 		oraclePriceData,
 		now,
-		reservePrice,
+		reservePrice
 	);
 	const askReserves = calculateSpreadReserve(
 		longSpread,
