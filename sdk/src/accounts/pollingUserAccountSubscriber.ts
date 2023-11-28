@@ -93,15 +93,21 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	}
 
 	async fetch(): Promise<void> {
-		const dataAndContext = await this.program.account.user.fetchAndContext(
-			this.userAccountPublicKey,
-			this.accountLoader.commitment
-		);
-		if (dataAndContext.context.slot > (this.user?.slot ?? 0)) {
-			this.user = {
-				data: dataAndContext.data as UserAccount,
-				slot: dataAndContext.context.slot,
-			};
+		try {
+			const dataAndContext = await this.program.account.user.fetchAndContext(
+				this.userAccountPublicKey,
+				this.accountLoader.commitment
+			);
+			if (dataAndContext.context.slot > (this.user?.slot ?? 0)) {
+				this.user = {
+					data: dataAndContext.data as UserAccount,
+					slot: dataAndContext.context.slot,
+				};
+			}
+		} catch (e) {
+			console.log(
+				`PollingUserAccountSubscriber.fetch() UserAccount does not exist: ${e.message}`
+			);
 		}
 	}
 
