@@ -426,18 +426,18 @@ pub fn calculate_spread(
         }
     }
 
-    if reference_price_offset != 0 {
-        let spread_shrinkage = reference_price_offset.abs().cast::<u64>()?;
-        if reference_price_offset > 0 {
-            long_spread = long_spread
-                .saturating_sub(spread_shrinkage)
-                .max(half_base_spread_u64);
-        } else {
-            short_spread = short_spread
-                .saturating_sub(spread_shrinkage)
-                .max(half_base_spread_u64);
-        }
-    }
+    // if reference_price_offset != 0 {
+    //     let spread_shrinkage = reference_price_offset.abs().cast::<u64>()?;
+    //     if reference_price_offset > 0 {
+    //         long_spread = long_spread
+    //             .saturating_sub(spread_shrinkage)
+    //             .max(half_base_spread_u64);
+    //     } else {
+    //         short_spread = short_spread
+    //             .saturating_sub(spread_shrinkage)
+    //             .max(half_base_spread_u64);
+    //     }
+    // }
 
     let (long_spread, short_spread) =
         cap_to_max_spread(long_spread, short_spread, max_target_spread)?;

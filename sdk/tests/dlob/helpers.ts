@@ -84,7 +84,7 @@ export const mockAMM: AMM = {
 	baseAssetAmountWithUnsettledLp: new BN(0),
 	orderStepSize: new BN(0),
 	orderTickSize: new BN(1),
-	last24hAvgFundingRate: new BN(0),
+	last24HAvgFundingRate: new BN(0),
 	lastFundingRateShort: new BN(0),
 	lastFundingRateLong: new BN(0),
 	concentrationCoef: new BN(0),

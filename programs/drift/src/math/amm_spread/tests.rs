@@ -38,7 +38,7 @@ mod test {
     }
 
     #[test]
-    fn calculate_reservation_offset_tests() {
+    fn calculate_reference_price_offset_tests() {
         let rev_price = 4216 * 10000;
         let max_offset: i64 = 2500; // 25 bps
 
@@ -173,6 +173,21 @@ mod test {
         )
         .unwrap();
         assert_eq!(res, 0); // zero bound
+
+        // counteracting fast/slow twaps to 0
+        let res = calculate_reference_price_offset(
+            rev_price,
+            -1,
+            1,
+            1,
+            4216 * 10000,
+            4123 * 10000,
+            4123 * 10000,
+            4216 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, 0);
     }
 
     #[test]
@@ -1390,8 +1405,8 @@ mod test {
             1_000_000 / 1000,
         )
         .unwrap();
-        assert_eq!(long_spread, 4257);
-        assert_eq!(short_spread, 43243);
+        assert_eq!(long_spread, 4262);
+        assert_eq!(short_spread, 43238);
 
         // terms 4
         let (long_spread, short_spread) = calculate_spread(
@@ -1417,8 +1432,8 @@ mod test {
             -1_000_000 / 1000,
         )
         .unwrap();
-        assert_eq!(long_spread, 4263);
-        assert_eq!(short_spread, 43237);
+        assert_eq!(long_spread, 4262);
+        assert_eq!(short_spread, 43238);
 
         // extra one?
 

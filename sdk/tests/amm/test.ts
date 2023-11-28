@@ -362,7 +362,7 @@ describe('AMM Tests', () => {
 			true
 		);
 
-		// console.log(terms3);
+		console.log(terms3);
 		assert(terms3.effectiveLeverageCapped >= 1.0002);
 		assert(terms3.inventorySpreadScale == 1.73492);
 		assert(terms3.longSpread == 4257);
@@ -399,8 +399,8 @@ describe('AMM Tests', () => {
 		console.log(terms4);
 		assert(terms4.effectiveLeverageCapped >= 1.0002);
 		assert(terms4.inventorySpreadScale == 1.73492);
-		assert(terms4.longSpread == 4263);
-		assert(terms4.shortSpread == 43237);
+		assert(terms4.longSpread == 4262);
+		assert(terms4.shortSpread == 43238);
 		assert(terms4.longSpread + terms4.shortSpread == 47500);
 	});
 

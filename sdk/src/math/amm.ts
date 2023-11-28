@@ -403,48 +403,62 @@ export function calculateInventoryScale(
 	return inventoryScaleCapped;
 }
 
-export function calculateReservationPriceOffset(
-	reservePrice: BN,
-	last24hAvgFundingRate: BN,
-	baseInventory: BN,
-	minOrderSize: BN,
-	oracleTwap: BN,
-	markTwap: BN,
-	maxOffset: number
+function calculateReferencePriceOffset(
+    reservePrice: BN,
+    last24hAvgFundingRate: BN,
+    liquidityFraction: BN,
+    minOrderSize: BN,
+    oracleTwapFast: BN,
+    markTwapFast: BN,
+    oracleTwapSlow: BN,
+    markTwapSlow: BN,
+    maxOffsetPct: number
 ): BN {
-	let offset: BN = ZERO;
-	const baseInventoryThreshold = minOrderSize.mul(new BN(5));
-	// Calculate quote denominated market premium
-	const markPremiumFast = markTwap.sub(oracleTwap);
 
-	// Convert last_24h_avg_funding_rate to quote denominated premium
-	const markPremiumSlow = last24hAvgFundingRate
-		.div(FUNDING_RATE_BUFFER_PRECISION)
-		.mul(new BN(24));
+    if (last24hAvgFundingRate.eq(ZERO)) {
+        return ZERO;
+    }
 
-	// Only apply when inventory is consistent with recent and 24h market premium
-	if (
-		markPremiumFast.gt(ZERO) &&
-		markPremiumSlow.gt(ZERO) &&
-		baseInventory.gt(baseInventoryThreshold)
-	) {
-		offset = BN.min(markPremiumFast, markPremiumSlow);
-	} else if (
-		markPremiumFast.lt(ZERO) &&
-		markPremiumSlow.lt(ZERO) &&
-		baseInventory.lt(baseInventoryThreshold.mul(new BN(-1)))
-	) {
-		offset = BN.min(markPremiumFast, markPremiumSlow);
-	}
+    const maxOffsetInPrice = new BN(maxOffsetPct)
+        .mul(reservePrice)
+        .div(PERCENTAGE_PRECISION);
 
-	const offsetPct: BN = offset.mul(PRICE_PRECISION).div(reservePrice);
-	const clampedOffsetPct = clampBN(
+    // Calculate quote denominated market premium
+    const markPremiumMinute = clampBN(markTwapFast
+        .sub(oracleTwapFast), maxOffsetInPrice.mul(new BN(-1)), maxOffsetInPrice);
+
+    const markPremiumHour = clampBN(markTwapSlow
+        .sub(oracleTwapSlow), maxOffsetInPrice.mul(new BN(-1)), maxOffsetInPrice);
+
+    // Convert last24hAvgFundingRate to quote denominated premium
+    const markPremiumDay = clampBN(last24hAvgFundingRate
+        .div(FUNDING_RATE_BUFFER_PRECISION)
+        .mul(new BN(24)), maxOffsetInPrice.mul(new BN(-1)), maxOffsetInPrice);
+
+    // Take average clamped premium as the price-based offset
+    const markPremiumAvg = markPremiumMinute
+        .add(markPremiumHour)
+        .add(markPremiumDay)
+        .div(new BN(3));
+
+    const markPremiumAvgPct = markPremiumAvg
+        .mul(PRICE_PRECISION)
+        .div(reservePrice);
+
+    const inventoryPct = clampBN(liquidityFraction
+        .mul(new BN(maxOffsetPct))
+        .div(PERCENTAGE_PRECISION), maxOffsetInPrice.mul(new BN(-1)), maxOffsetInPrice);
+
+    // Only apply when inventory is consistent with recent and 24h market premium
+    const offsetPct = markPremiumAvgPct.add(inventoryPct);
+
+    const clampedOffsetPct = clampBN(
 		offsetPct,
-		new BN(-maxOffset),
-		new BN(maxOffset)
+		new BN(-maxOffsetPct),
+		new BN(maxOffsetPct)
 	);
 
-	return clampedOffsetPct;
+    return clampedOffsetPct;
 }
 
 export function calculateEffectiveLeverage(
@@ -555,7 +569,7 @@ export function calculateSpreadBN(
 	longIntensity: BN,
 	shortIntensity: BN,
 	volume24H: BN,
-	reservationPriceOffset: BN,
+	referencePriceOffset: BN,
 	returnTerms = false
 ) {
 	assert(Number.isInteger(baseSpread));
@@ -712,19 +726,19 @@ export function calculateSpreadBN(
 	spreadTerms.longSpreadwRevRetreat = longSpread;
 	spreadTerms.shortSpreadwRevRetreat = shortSpread;
 
-	if (!reservationPriceOffset.eq(ZERO)) {
-		const spreadSkrinkage = reservationPriceOffset.abs().toNumber();
-		if (reservationPriceOffset.gt(ZERO)) {
-			longSpread -= spreadSkrinkage;
-			longSpread = Math.max(longSpread, baseSpread / 2);
-		} else {
-			shortSpread -= spreadSkrinkage;
-			shortSpread = Math.max(shortSpread, baseSpread / 2);
-		}
-	}
+	// if (!referencePriceOffset.eq(ZERO)) {
+	// 	const spreadSkrinkage = referencePriceOffset.abs().toNumber();
+	// 	if (referencePriceOffset.gt(ZERO)) {
+	// 		longSpread -= spreadSkrinkage;
+	// 		longSpread = Math.max(longSpread, baseSpread / 2);
+	// 	} else {
+	// 		shortSpread -= spreadSkrinkage;
+	// 		shortSpread = Math.max(shortSpread, baseSpread / 2);
+	// 	}
+	// }
 
-	spreadTerms.longSpreadwOffsetShrink = longSpread;
-	spreadTerms.shortSpreadwOffsetShrink = shortSpread;
+	// spreadTerms.longSpreadwOffsetShrink = longSpread;
+	// spreadTerms.shortSpreadwOffsetShrink = shortSpread;
 
 	const totalSpread = longSpread + shortSpread;
 	if (totalSpread > maxTargetSpread) {
@@ -857,14 +871,15 @@ export function calculateSpreadReserves(
 		amm.maxSpread / 5,
 		PERCENTAGE_PRECISION.toNumber() / 1000
 	);
-	console.log(amm);
-	const reservationPriceOffset = calculateReservationPriceOffset(
+	const reservationPriceOffset = calculateReferencePriceOffset(
 		reservePrice,
 		amm.last24HAvgFundingRate,
 		amm.baseAssetAmountWithAmm,
 		amm.minOrderSize,
 		amm.historicalOracleData.lastOraclePriceTwap5Min,
 		amm.lastMarkPriceTwap5Min,
+		amm.historicalOracleData.lastOraclePriceTwap,
+		amm.lastMarkPriceTwap,
 		maxOffset
 	);
 
