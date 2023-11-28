@@ -2550,8 +2550,9 @@ describe('DLOB Perp Tests', () => {
 		);
 		expect(takingBids.length).to.equal(1);
 		const triggerLimitBid = takingBids[0];
-		expect(isAuctionComplete(triggerLimitBid.order, slot)).to.equal(true);
-		expect(isRestingLimitOrder(triggerLimitBid.order, slot)).to.equal(false);
+		expect(triggerLimitBid!==undefined);
+		expect(isAuctionComplete(triggerLimitBid.order as Order, slot)).to.equal(true);
+		expect(isRestingLimitOrder(triggerLimitBid.order as Order, slot)).to.equal(false);
 	});
 
 	it('Test will return expired market orders to fill', () => {

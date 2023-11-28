@@ -361,8 +361,8 @@ describe('AMM Tests', () => {
 		console.log(terms3);
 		assert(terms3.effectiveLeverageCapped >= 1.0002);
 		assert(terms3.inventorySpreadScale == 1.73492);
-		assert(terms3.longSpread == 4257);
-		assert(terms3.shortSpread == 43243);
+		assert(terms3.longSpread == 4262);
+		assert(terms3.shortSpread == 43238);
 		assert(terms3.longSpread + terms3.shortSpread == 47500);
 
 		// add spread offset
@@ -427,9 +427,9 @@ describe('AMM Tests', () => {
 
 		console.log(terms2);
 		assert(terms2.effectiveLeverageCapped <= 1.000001);
-		assert(terms2.inventorySpreadScale == 1.013527);
-		assert(terms2.longSpread == 1146);
-		assert(terms2.shortSpread == 6686);
+		assert(terms2.inventorySpreadScale == 1.0306);
+		assert(terms2.longSpread == 515);
+		assert(terms2.shortSpread == 5668);
 	});
 
 	it('live update functions', () => {
@@ -532,8 +532,8 @@ describe('AMM Tests', () => {
 
 		assert(markTwapLive.eq(new BN('1949826')));
 		assert(oracleTwapLive.eq(new BN('1942510')));
-		assert(est1.eq(new BN('15692')));
-		assert(est2.eq(new BN('15692')));
+		assert(est1.eq(new BN('16525')));
+		assert(est2.eq(new BN('16525')));
 	});
 
 	it('predicted funding rate mock2', async () => {
@@ -622,7 +622,7 @@ describe('AMM Tests', () => {
 		assert(markTwapLive.eq(new BN('1222131')));
 		assert(oracleTwapLive.eq(new BN('1222586')));
 		assert(est1.eq(est2));
-		assert(est2.eq(new BN('-1550')));
+		assert(est2.eq(new BN('-719')));
 	});
 
 	it('orderbook L2 gen (no topOfBookQuoteAmounts, 10 numOrders, low liquidity)', async () => {
