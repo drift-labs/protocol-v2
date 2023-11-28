@@ -97,15 +97,22 @@ export class PollingUserStatsAccountSubscriber
 	}
 
 	async fetch(): Promise<void> {
-		const dataAndContext = await this.program.account.userStats.fetchAndContext(
-			this.userStatsAccountPublicKey,
-			this.accountLoader.commitment
-		);
-		if (dataAndContext.context.slot > (this.userStats?.slot ?? 0)) {
-			this.userStats = {
-				data: dataAndContext.data as UserStatsAccount,
-				slot: dataAndContext.context.slot,
-			};
+		try {
+			const dataAndContext =
+				await this.program.account.userStats.fetchAndContext(
+					this.userStatsAccountPublicKey,
+					this.accountLoader.commitment
+				);
+			if (dataAndContext.context.slot > (this.userStats?.slot ?? 0)) {
+				this.userStats = {
+					data: dataAndContext.data as UserStatsAccount,
+					slot: dataAndContext.context.slot,
+				};
+			}
+		} catch (e) {
+			console.log(
+				`PollingUserStatsAccountSubscriber.fetch() UserStatsAccount does not exist: ${e.message}`
+			);
 		}
 	}
 
