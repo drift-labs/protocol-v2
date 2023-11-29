@@ -760,6 +760,8 @@ export function calculateSpreadBN(
 		}
 	}
 
+	console.log(maxTargetSpread, totalSpread);
+
 	spreadTerms.totalSpread = totalSpread;
 	spreadTerms.longSpread = longSpread;
 	spreadTerms.shortSpread = shortSpread;
@@ -823,6 +825,7 @@ export function calculateSpread(
 		amm.shortIntensityVolume,
 		amm.volume24H
 	);
+	console.log('amm.maxSpread:', amm.maxSpread.toFixed(2));
 	const longSpread = spreads[0];
 	const shortSpread = spreads[1];
 
@@ -853,6 +856,10 @@ export function calculateSpreadReserves(
 		// make non-zero
 		if(spreadFraction.eq(ZERO)) {
 			spreadFraction = spread >= 0 ? new BN(1) : new BN(-1);
+			console.log('spreadFractioN:', spreadFraction);
+		}
+		if(spreadFraction.gt(BID_ASK_SPREAD_PRECISION)) {
+			console.log('spreadFractioN ERRR:', spreadFraction.toNumber());
 		}
 
 		const quoteAssetReserveDelta = amm.quoteAssetReserve.div(
@@ -901,12 +908,17 @@ export function calculateSpreadReserves(
 		maxOffset
 	);
 
+	console.log('referencePriceOffset:', referencePriceOffset.toNumber());
+
 	const [longSpread, shortSpread] = calculateSpread(
 		amm,
 		oraclePriceData,
 		now,
 		reservePrice
 	);
+	console.log('longSpread:', longSpread);
+	console.log('shortSpread:', shortSpread);
+
 	const askReserves = calculateSpreadReserve(
 		longSpread + referencePriceOffset.toNumber(),
 		PositionDirection.LONG,

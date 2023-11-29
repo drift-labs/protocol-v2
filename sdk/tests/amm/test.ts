@@ -4,6 +4,7 @@ import {
 	PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
+	calculateSpread,
 	calculateSpreadBN,
 	ZERO,
 	ONE,
@@ -19,6 +20,7 @@ import {
 	L2Level,
 	calculateUpdatedAMM,
 	calculateMarketOpenBidAsk,
+	calculateSpreadReserves,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 
@@ -432,8 +434,73 @@ describe('AMM Tests', () => {
 		assert(terms2.shortSpread == 5668);
 	});
 
+
+	it('Spread Reserves (with offset)', () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const mockMarket1 = myMockPerpMarkets[0];
+		let mockAmm = mockMarket1.amm;
+		const now = new BN(new Date().getTime() / 1000); //todo
+
+		const oraclePriceData = {
+			price: new BN(13.553 * PRICE_PRECISION.toNumber()),
+			slot: new BN(68 + 1),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		const reserves = calculateSpreadReserves(
+			mockAmm,
+			oraclePriceData,
+			now
+		);
+		assert(reserves[0].baseAssetReserve.eq(new BN('1000000000')));
+		assert(reserves[0].quoteAssetReserve.eq(new BN('12000000000')));
+		assert(reserves[1].baseAssetReserve.eq(new BN('1000000000')));
+		assert(reserves[1].quoteAssetReserve.eq(new BN('12000000000')));
+
+		mockAmm.ammJitIntensity = 100;
+		mockAmm.curveUpdateIntensity = 200;
+		mockAmm.baseSpread = 2500;
+		mockAmm.maxSpread = 25000;
+		
+		mockAmm.last24HAvgFundingRate = new BN(7590328523);
+
+		mockAmm.lastMarkPriceTwap = new BN((oraclePriceData.price.toNumber()/1e6 - .01) * 1e6);
+		mockAmm.historicalOracleData.lastOraclePriceTwap = new BN((oraclePriceData.price.toNumber()/1e6 + .015) * 1e6);
+
+		mockAmm.historicalOracleData.lastOraclePriceTwap5Min = new BN((oraclePriceData.price.toNumber()/1e6 + .005) * 1e6);
+		mockAmm.lastMarkPriceTwap5Min = new BN((oraclePriceData.price.toNumber()/1e6 - .005) * 1e6);
+
+
+
+		const tt = calculateSpread(
+			mockAmm,
+			oraclePriceData,
+			now
+		);
+		console.log(tt);
+
+		const reserves2 = calculateSpreadReserves(
+			mockAmm,
+			oraclePriceData,
+			now
+		);
+		console.log(reserves2);
+
+
+		assert(reserves2[0].baseAssetReserve.eq(new BN('1000000000')));
+		assert(reserves2[0].quoteAssetReserve.eq(new BN('12000000000')));
+		assert(reserves2[1].baseAssetReserve.eq(new BN('1000000000')));
+		assert(reserves2[1].quoteAssetReserve.eq(new BN('12000000000')));
+
+
+	})
+
+
 	it('live update functions', () => {
-		const mockAmm = mockPerpMarkets[0].amm;
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const mockMarket1 = myMockPerpMarkets[0];
+		const mockAmm = mockMarket1.amm;
 		const now = new BN(new Date().getTime() / 1000); //todo
 
 		const oraclePriceData = {
