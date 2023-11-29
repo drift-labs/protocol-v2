@@ -41,8 +41,10 @@ export class SlotSubscriber {
 		this.currentSlot = await this.connection.getSlot('confirmed');
 
 		this.subscriptionId = this.wsConnection.onSlotChange((slotInfo) => {
-			this.currentSlot = slotInfo.slot;
-			this.eventEmitter.emit('newSlot', slotInfo.slot);
+			if (!this.currentSlot || this.currentSlot < slotInfo.slot) {
+				this.currentSlot = slotInfo.slot;
+				this.eventEmitter.emit('newSlot', slotInfo.slot);
+			}
 		});
 	}
 

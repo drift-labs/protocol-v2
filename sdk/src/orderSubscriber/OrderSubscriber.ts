@@ -83,18 +83,13 @@ export class OrderSubscriber {
 			const programAccountSet = new Set<string>();
 			for (const programAccount of rpcResponseAndContext.value) {
 				const key = programAccount.pubkey.toString();
-				// @ts-ignore
-				const buffer = Buffer.from(
-					programAccount.account.data[0],
-					programAccount.account.data[1]
-				);
 				programAccountSet.add(key);
-				const userAccount =
-					this.driftClient.program.account.user.coder.accounts.decode(
-						'User',
-						buffer
-					) as UserAccount;
-				this.tryUpdateUserAccount(key, userAccount, slot);
+				this.tryUpdateUserAccount(
+					key,
+					'raw',
+					programAccount.account.data,
+					slot
+				);
 			}
 
 			for (const key of this.usersAccounts.keys()) {
@@ -112,7 +107,8 @@ export class OrderSubscriber {
 
 	tryUpdateUserAccount(
 		key: string,
-		userAccount: UserAccount,
+		dataType: 'raw' | 'decoded',
+		data: string[] | UserAccount,
 		slot: number
 	): void {
 		if (!this.mostRecentSlot || slot > this.mostRecentSlot) {
@@ -121,6 +117,21 @@ export class OrderSubscriber {
 
 		const slotAndUserAccount = this.usersAccounts.get(key);
 		if (!slotAndUserAccount || slotAndUserAccount.slot < slot) {
+			let userAccount: UserAccount;
+			// Polling leads to a lot of redundant decoding, so we only decode if data is from a fresh slot
+			if (dataType === 'raw') {
+				// @ts-ignore
+				const buffer = Buffer.from(data[0], data[1]);
+
+				userAccount =
+					this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
+						'User',
+						buffer
+					) as UserAccount;
+			} else {
+				userAccount = data as UserAccount;
+			}
+
 			const newOrders = userAccount.orders.filter(
 				(order) =>
 					order.slot.toNumber() > (slotAndUserAccount?.slot ?? 0) &&
