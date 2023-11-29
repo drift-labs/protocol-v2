@@ -124,7 +124,7 @@ export class OrderSubscriber {
 				const buffer = Buffer.from(data[0], data[1]);
 
 				userAccount =
-					this.driftClient.program.account.user.coder.accounts.decode(
+					this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
 						'User',
 						buffer
 					) as UserAccount;
