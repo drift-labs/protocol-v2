@@ -84,12 +84,14 @@ export class OrderSubscriber {
 			for (const programAccount of rpcResponseAndContext.value) {
 				const key = programAccount.pubkey.toString();
 				programAccountSet.add(key);
-				this.tryUpdateUserAccount(
-					key,
-					'raw',
-					programAccount.account.data,
-					slot
-				);
+				if (!this.mostRecentSlot || slot > this.mostRecentSlot) {
+					this.tryUpdateUserAccount(
+						key,
+						'raw',
+						programAccount.account.data,
+						slot
+					);
+				}
 			}
 
 			for (const key of this.usersAccounts.keys()) {
@@ -111,10 +113,6 @@ export class OrderSubscriber {
 		data: string[] | UserAccount,
 		slot: number
 	): void {
-		if (!this.mostRecentSlot || slot > this.mostRecentSlot) {
-			this.mostRecentSlot = slot;
-		}
-
 		const slotAndUserAccount = this.usersAccounts.get(key);
 		if (!slotAndUserAccount || slotAndUserAccount.slot <= slot) {
 			let userAccount: UserAccount;
