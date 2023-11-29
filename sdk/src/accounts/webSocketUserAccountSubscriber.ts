@@ -94,7 +94,7 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	public updateData(userAccount: UserAccount, slot: number) {
 		const currentDataSlot =
 			this.userDataAccountSubscriber.dataAndSlot?.slot || 0;
-		if (currentDataSlot < slot) {
+		if (currentDataSlot <= slot) {
 			this.userDataAccountSubscriber.setData(userAccount, slot);
 			this.eventEmitter.emit('userAccountUpdate', userAccount);
 			this.eventEmitter.emit('update');
