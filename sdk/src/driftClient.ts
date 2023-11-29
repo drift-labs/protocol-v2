@@ -707,7 +707,6 @@ export class DriftClient {
 		return result;
 	}
 
-
 	public async initializeUserAccount(
 		subAccountId = 0,
 		name = undefined,
@@ -729,12 +728,12 @@ export class DriftClient {
 				initializeIxs.push(await this.getInitializeUserStatsIx());
 			}
 		}
-					
+
 		if (name === undefined) {
 			if (subAccountId === 0) {
 				name = DEFAULT_USER_NAME;
 			} else {
-				name = "SubAccount "+(subAccountId+1).toString()
+				name = 'SubAccount ' + (subAccountId + 1).toString();
 			}
 		}
 
