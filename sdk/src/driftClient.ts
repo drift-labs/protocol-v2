@@ -707,9 +707,10 @@ export class DriftClient {
 		return result;
 	}
 
+
 	public async initializeUserAccount(
 		subAccountId = 0,
-		name = DEFAULT_USER_NAME,
+		name = undefined,
 		referrerInfo?: ReferrerInfo
 	): Promise<[TransactionSignature, PublicKey]> {
 		const initializeIxs = [];
@@ -728,6 +729,15 @@ export class DriftClient {
 				initializeIxs.push(await this.getInitializeUserStatsIx());
 			}
 		}
+					
+		if (name === undefined) {
+			if (subAccountId === 0) {
+				name = DEFAULT_USER_NAME;
+			} else {
+				name = "SubAccount "+(subAccountId+1).toString()
+			}
+		}
+
 		initializeIxs.push(initializeUserAccountIx);
 		const tx = await this.buildTransaction(initializeIxs);
 
