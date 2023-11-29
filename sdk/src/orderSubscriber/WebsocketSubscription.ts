@@ -47,6 +47,7 @@ export class WebsocketSubscription {
 				const userKey = accountId.toBase58();
 				this.orderSubscriber.tryUpdateUserAccount(
 					userKey,
+					'decoded',
 					account,
 					context.slot
 				);
