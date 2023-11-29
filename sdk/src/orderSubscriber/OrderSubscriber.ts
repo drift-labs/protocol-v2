@@ -116,7 +116,7 @@ export class OrderSubscriber {
 		}
 
 		const slotAndUserAccount = this.usersAccounts.get(key);
-		if (!slotAndUserAccount || slotAndUserAccount.slot < slot) {
+		if (!slotAndUserAccount || slotAndUserAccount.slot <= slot) {
 			let userAccount: UserAccount;
 			// Polling leads to a lot of redundant decoding, so we only decode if data is from a fresh slot
 			if (dataType === 'raw') {
