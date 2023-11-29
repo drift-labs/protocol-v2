@@ -10,6 +10,13 @@ import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 
+type ProgramAccount = {
+	pubkey: PublicKey;
+	account: {
+		data: [string, string];
+	};
+};
+
 export class OrderSubscriber {
 	driftClient: DriftClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
@@ -81,17 +88,20 @@ export class OrderSubscriber {
 			const slot: number = rpcResponseAndContext.context.slot;
 
 			const programAccountSet = new Set<string>();
-			for (const programAccount of rpcResponseAndContext.value) {
-				const key = programAccount.pubkey.toString();
-				programAccountSet.add(key);
-				this.tryUpdateUserAccount(
-					key,
-					'raw',
-					programAccount.account.data,
-					slot
-				);
-			}
-
+			await this.updateUserAccountsInChunks(
+				rpcResponseAndContext.value,
+				(programAccount: ProgramAccount) => {
+					const key = programAccount.pubkey.toString();
+					programAccountSet.add(key);
+					this.tryUpdateUserAccount(
+						key,
+						'raw',
+						programAccount.account.data,
+						slot
+					);
+				},
+				5
+			);
 			for (const key of this.usersAccounts.keys()) {
 				if (!programAccountSet.has(key)) {
 					this.usersAccounts.delete(key);
@@ -102,6 +112,21 @@ export class OrderSubscriber {
 		} finally {
 			this.fetchPromiseResolver();
 			this.fetchPromise = undefined;
+		}
+	}
+
+	async updateUserAccountsInChunks(
+		rpcResponseValue: ProgramAccount[],
+		processFunction: (programAccount: ProgramAccount) => void,
+		chunkSize: number
+	): Promise<void> {
+		for (let i = 0; i < rpcResponseValue.length; i += chunkSize) {
+			const programAccountChunk = rpcResponseValue.slice(i, i + chunkSize);
+			programAccountChunk.forEach((programAccount) =>
+				processFunction(programAccount)
+			);
+			// Yield control back to the event loop
+			await new Promise((resolve) => setImmediate(resolve));
 		}
 	}
 
