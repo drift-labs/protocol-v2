@@ -160,7 +160,6 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: NINE,
 		serumMarket: new PublicKey('ARjaHVxGCQfTvvKjLd7U7srvk6orthZSE6uqWchCczZc'),
 	},
-
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
