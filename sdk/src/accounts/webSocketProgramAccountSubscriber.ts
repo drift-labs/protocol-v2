@@ -2,6 +2,7 @@ import { DataAndSlot, BufferAndSlot, ProgramAccountSubscriber } from './types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import {
 	Commitment,
+	Connection,
 	Context,
 	KeyedAccountInfo,
 	MemcmpFilter,
@@ -26,6 +27,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	options: { filters: MemcmpFilter[]; commitment?: Commitment };
 
 	receivingData = false;
+	wsConnection?: Connection;
 
 	public constructor(
 		subscriptionName: string,
@@ -35,7 +37,8 @@ export class WebSocketProgramAccountSubscriber<T>
 		options: { filters: MemcmpFilter[]; commitment?: Commitment } = {
 			filters: [],
 		},
-		resubTimeoutMs?: number
+		resubTimeoutMs?: number,
+		useWhirligig = false
 	) {
 		this.subscriptionName = subscriptionName;
 		this.accountDiscriminator = accountDiscriminator;
@@ -44,6 +47,16 @@ export class WebSocketProgramAccountSubscriber<T>
 		this.resubTimeoutMs = resubTimeoutMs;
 		this.options = options;
 		this.receivingData = false;
+
+		if (useWhirligig) {
+			this.wsConnection = new Connection(
+				this.program.provider.connection.rpcEndpoint + '/whirligig',
+				this.options.commitment ??
+					(this.program.provider as AnchorProvider).opts.commitment
+			);
+		} else {
+			this.wsConnection = this.program.provider.connection;
+		}
 	}
 
 	async subscribe(
@@ -55,7 +68,7 @@ export class WebSocketProgramAccountSubscriber<T>
 
 		this.onChange = onChange;
 
-		this.listenerId = this.program.provider.connection.onProgramAccountChange(
+		this.listenerId = this.wsConnection.onProgramAccountChange(
 			this.program.programId,
 			(keyedAccountInfo, context) => {
 				if (this.resubTimeoutMs) {

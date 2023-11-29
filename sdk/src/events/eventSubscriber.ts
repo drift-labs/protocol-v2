@@ -56,7 +56,8 @@ export class EventSubscriber {
 			this.logProvider = new WebSocketLogProvider(
 				this.connection,
 				this.address,
-				this.options.commitment
+				this.options.commitment,
+				this.options.logProviderConfig.useWhirligig
 			);
 		} else {
 			this.logProvider = new PollingLogProvider(

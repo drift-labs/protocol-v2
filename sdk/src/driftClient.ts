@@ -237,11 +237,13 @@ export class DriftClient {
 				type: 'websocket',
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 				commitment: config.accountSubscription?.commitment,
+				useWhirligig: config.accountSubscription?.useWhirligig
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 				commitment: config.accountSubscription?.commitment,
+				useWhirligig: config.accountSubscription?.useWhirligig
 			};
 		}
 

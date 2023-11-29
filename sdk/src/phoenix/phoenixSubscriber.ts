@@ -23,6 +23,7 @@ export type PhoenixMarketSubscriberConfig = {
 		  }
 		| {
 				type: 'websocket';
+				useWhirligig?: boolean;
 		  };
 };
 
@@ -41,6 +42,8 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 	lastSlot: number;
 	lastUnixTimestamp: number;
 
+	wsConnection?: Connection;
+
 	public constructor(config: PhoenixMarketSubscriberConfig) {
 		this.connection = config.connection;
 		this.programId = config.programId;
@@ -50,6 +53,14 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 			this.accountLoader = config.accountSubscription.accountLoader;
 		} else {
 			this.subscriptionType = 'websocket';
+			if (config.accountSubscription.useWhirligig) {
+				this.wsConnection = new Connection(
+					this.connection.rpcEndpoint + '/whirligig',
+					'confirmed'
+				);
+			} else {
+				this.wsConnection = this.connection;
+			}
 		}
 		this.lastSlot = 0;
 		this.lastUnixTimestamp = 0;
@@ -72,7 +83,7 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 		this.lastUnixTimestamp = toNum(clock.unixTimestamp);
 
 		if (this.subscriptionType === 'websocket') {
-			this.marketCallbackId = this.connection.onAccountChange(
+			this.marketCallbackId = this.wsConnection.onAccountChange(
 				this.marketAddress,
 				(accountInfo, _ctx) => {
 					try {
@@ -82,7 +93,7 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 					}
 				}
 			);
-			this.clockCallbackId = this.connection.onAccountChange(
+			this.clockCallbackId = this.wsConnection.onAccountChange(
 				SYSVAR_CLOCK_PUBKEY,
 				(accountInfo, ctx) => {
 					try {

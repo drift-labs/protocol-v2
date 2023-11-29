@@ -14,6 +14,7 @@ export type UserSubscriptionConfig =
 			type: 'websocket';
 			resubTimeoutMs?: number;
 			commitment?: Commitment;
+			useWhirligig?: boolean;
 	  }
 	| {
 			type: 'polling';

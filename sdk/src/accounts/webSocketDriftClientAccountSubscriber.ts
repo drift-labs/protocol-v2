@@ -32,6 +32,7 @@ export class WebSocketDriftClientAccountSubscriber
 	oracleClientCache = new OracleClientCache();
 
 	resubTimeoutMs?: number;
+	useWhirligig?: boolean;
 	shouldFindAllMarketsAndOracles: boolean;
 
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
@@ -56,7 +57,8 @@ export class WebSocketDriftClientAccountSubscriber
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
 		shouldFindAllMarketsAndOracles: boolean,
-		resubTimeoutMs?: number
+		resubTimeoutMs?: number,
+		useWhirligig = false
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -66,6 +68,7 @@ export class WebSocketDriftClientAccountSubscriber
 		this.oracleInfos = oracleInfos;
 		this.shouldFindAllMarketsAndOracles = shouldFindAllMarketsAndOracles;
 		this.resubTimeoutMs = resubTimeoutMs;
+		this.useWhirligig = useWhirligig;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -101,7 +104,9 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program,
 			statePublicKey,
 			undefined,
-			this.resubTimeoutMs
+			this.resubTimeoutMs,
+			undefined,
+			this.useWhirligig
 		);
 		await this.stateAccountSubscriber.subscribe((data: StateAccount) => {
 			this.eventEmitter.emit('stateAccountUpdate', data);
@@ -143,7 +148,9 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program,
 			perpMarketPublicKey,
 			undefined,
-			this.resubTimeoutMs
+			this.resubTimeoutMs,
+			undefined,
+			this.useWhirligig
 		);
 		await accountSubscriber.subscribe((data: PerpMarketAccount) => {
 			this.eventEmitter.emit('perpMarketAccountUpdate', data);
@@ -170,7 +177,9 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program,
 			marketPublicKey,
 			undefined,
-			this.resubTimeoutMs
+			this.resubTimeoutMs,
+			undefined,
+			this.useWhirligig
 		);
 		await accountSubscriber.subscribe((data: SpotMarketAccount) => {
 			this.eventEmitter.emit('spotMarketAccountUpdate', data);
@@ -202,7 +211,9 @@ export class WebSocketDriftClientAccountSubscriber
 			(buffer: Buffer) => {
 				return client.getOraclePriceDataFromBuffer(buffer);
 			},
-			this.resubTimeoutMs
+			this.resubTimeoutMs,
+			undefined,
+			this.useWhirligig
 		);
 
 		await accountSubscriber.subscribe((data: OraclePriceData) => {

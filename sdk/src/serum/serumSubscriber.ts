@@ -25,6 +25,7 @@ export class SerumSubscriber implements L2OrderBookGenerator {
 	bids: Orderbook;
 	bidsCallbackId: string | number;
 	lastBidsSlot: number;
+	wsConnection?: Connection;
 
 	public constructor(config: SerumMarketSubscriberConfig) {
 		this.connection = config.connection;
@@ -35,6 +36,14 @@ export class SerumSubscriber implements L2OrderBookGenerator {
 			this.accountLoader = config.accountSubscription.accountLoader;
 		} else {
 			this.subscriptionType = 'websocket';
+			if (config.accountSubscription.useWhirligig) {
+				this.wsConnection = new Connection(
+					this.connection.rpcEndpoint + '/whirligig',
+					'confirmed'
+				);
+			} else {
+				this.wsConnection = this.connection;
+			}
 		}
 	}
 
@@ -54,7 +63,7 @@ export class SerumSubscriber implements L2OrderBookGenerator {
 		this.asks = await this.market.loadAsks(this.connection);
 
 		if (this.subscriptionType === 'websocket') {
-			this.asksCallbackId = this.connection.onAccountChange(
+			this.asksCallbackId = this.wsConnection.onAccountChange(
 				this.asksAddress,
 				(accountInfo, ctx) => {
 					this.lastAsksSlot = ctx.slot;
@@ -75,7 +84,7 @@ export class SerumSubscriber implements L2OrderBookGenerator {
 		this.bids = await this.market.loadBids(this.connection);
 
 		if (this.subscriptionType === 'websocket') {
-			this.bidsCallbackId = this.connection.onAccountChange(
+			this.bidsCallbackId = this.wsConnection.onAccountChange(
 				this.bidsAddress,
 				(accountInfo, ctx) => {
 					this.lastBidsSlot = ctx.slot;

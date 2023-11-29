@@ -13,6 +13,7 @@ export type OrderSubscriberConfig = {
 				type: 'websocket';
 				skipInitialLoad?: boolean;
 				resubTimeoutMs?: number;
+				useWhirligig?: boolean;
 		  };
 };
 

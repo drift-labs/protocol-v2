@@ -8,6 +8,7 @@ export class WebsocketSubscription {
 	private orderSubscriber: OrderSubscriber;
 	private skipInitialLoad: boolean;
 	private resubTimeoutMs?: number;
+	private useWhirligig?: boolean;
 
 	private subscriber: WebSocketProgramAccountSubscriber<UserAccount>;
 
@@ -15,14 +16,17 @@ export class WebsocketSubscription {
 		orderSubscriber,
 		skipInitialLoad = false,
 		resubTimeoutMs,
+		useWhirligig = false,
 	}: {
 		orderSubscriber: OrderSubscriber;
 		skipInitialLoad?: boolean;
 		resubTimeoutMs?: number;
+		useWhirligig?: boolean;
 	}) {
 		this.orderSubscriber = orderSubscriber;
 		this.skipInitialLoad = skipInitialLoad;
 		this.resubTimeoutMs = resubTimeoutMs;
+		this.useWhirligig = useWhirligig;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -38,7 +42,8 @@ export class WebsocketSubscription {
 					filters: [getUserFilter(), getNonIdleUserFilter()],
 					commitment: this.orderSubscriber.driftClient.opts.commitment,
 				},
-				this.resubTimeoutMs
+				this.resubTimeoutMs,
+				this.useWhirligig
 			);
 		}
 

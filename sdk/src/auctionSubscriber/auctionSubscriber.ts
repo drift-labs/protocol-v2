@@ -11,15 +11,22 @@ export class AuctionSubscriber {
 	private driftClient: DriftClient;
 	private opts: ConfirmOptions;
 	private resubTimeoutMs?: number;
+	private useWhirligig?: boolean;
 
 	eventEmitter: StrictEventEmitter<EventEmitter, AuctionSubscriberEvents>;
 	private subscriber: WebSocketProgramAccountSubscriber<UserAccount>;
 
-	constructor({ driftClient, opts, resubTimeoutMs }: AuctionSubscriberConfig) {
+	constructor({
+		driftClient,
+		opts,
+		resubTimeoutMs,
+		useWhirligig,
+	}: AuctionSubscriberConfig) {
 		this.driftClient = driftClient;
 		this.opts = opts || this.driftClient.opts;
 		this.eventEmitter = new EventEmitter();
 		this.resubTimeoutMs = resubTimeoutMs;
+		this.useWhirligig = useWhirligig;
 	}
 
 	public async subscribe() {
@@ -35,7 +42,8 @@ export class AuctionSubscriber {
 					filters: [getUserFilter(), getUserWithAuctionFilter()],
 					commitment: this.driftClient.opts.commitment,
 				},
-				this.resubTimeoutMs
+				this.resubTimeoutMs,
+				this.useWhirligig
 			);
 		}
 

@@ -1,6 +1,12 @@
 import { DataAndSlot, BufferAndSlot, AccountSubscriber } from './types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
-import { AccountInfo, Commitment, Context, PublicKey } from '@solana/web3.js';
+import {
+	AccountInfo,
+	Commitment,
+	Connection,
+	Context,
+	PublicKey,
+} from '@solana/web3.js';
 import { capitalize } from './utils';
 import * as Buffer from 'buffer';
 
@@ -20,6 +26,8 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	timeoutId?: NodeJS.Timeout;
 
 	receivingData: boolean;
+	wsConnection?: Connection;
+	useWhirligig?: boolean;
 
 	public constructor(
 		accountName: string,
@@ -27,7 +35,8 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
 		resubTimeoutMs?: number,
-		commitment?: Commitment
+		commitment?: Commitment,
+		useWhirligig = false
 	) {
 		this.accountName = accountName;
 		this.program = program;
@@ -37,6 +46,15 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		this.receivingData = false;
 		this.commitment =
 			commitment ?? (this.program.provider as AnchorProvider).opts.commitment;
+
+		if (useWhirligig) {
+			this.wsConnection = new Connection(
+				this.program.provider.connection.rpcEndpoint + '/whirligig',
+				this.commitment
+			);
+		} else {
+			this.wsConnection = this.program.provider.connection;
+		}
 	}
 
 	async subscribe(onChange: (data: T) => void): Promise<void> {
@@ -49,7 +67,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			await this.fetch();
 		}
 
-		this.listenerId = this.program.provider.connection.onAccountChange(
+		this.listenerId = this.wsConnection.onAccountChange(
 			this.accountPublicKey,
 			(accountInfo, context) => {
 				if (this.resubTimeoutMs) {

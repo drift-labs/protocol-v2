@@ -18,6 +18,7 @@ export class WebSocketUserStatsAccountSubscriber
 	isSubscribed: boolean;
 	reconnectTimeoutMs?: number;
 	commitment?: Commitment;
+	useWhirligig: boolean;
 	program: Program;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;
 	userStatsAccountPublicKey: PublicKey;
@@ -28,7 +29,8 @@ export class WebSocketUserStatsAccountSubscriber
 		program: Program,
 		userStatsAccountPublicKey: PublicKey,
 		reconnectTimeoutMs?: number,
-		commitment?: Commitment
+		commitment?: Commitment,
+		useWhirligig = false
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -36,6 +38,7 @@ export class WebSocketUserStatsAccountSubscriber
 		this.eventEmitter = new EventEmitter();
 		this.reconnectTimeoutMs = reconnectTimeoutMs;
 		this.commitment = commitment;
+		this.useWhirligig = useWhirligig;
 	}
 
 	async subscribe(userStatsAccount?: UserStatsAccount): Promise<boolean> {
@@ -49,7 +52,8 @@ export class WebSocketUserStatsAccountSubscriber
 			this.userStatsAccountPublicKey,
 			undefined,
 			this.reconnectTimeoutMs,
-			this.commitment
+			this.commitment,
+			this.useWhirligig
 		);
 
 		if (userStatsAccount) {

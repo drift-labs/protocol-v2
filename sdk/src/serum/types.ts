@@ -13,5 +13,6 @@ export type SerumMarketSubscriberConfig = {
 		  }
 		| {
 				type: 'websocket';
+				useWhirligig?: boolean;
 		  };
 };

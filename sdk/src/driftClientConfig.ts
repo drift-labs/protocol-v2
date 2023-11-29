@@ -39,6 +39,7 @@ export type DriftClientSubscriptionConfig =
 			type: 'websocket';
 			resubTimeoutMs?: number;
 			commitment?: Commitment;
+			useWhirligig?: boolean;
 	  }
 	| {
 			type: 'polling';

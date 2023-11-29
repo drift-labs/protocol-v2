@@ -103,7 +103,7 @@ async function createNewUser(
 					accountLoader: bulkAccountLoader,
 			  }
 			: {
-					type: 'websocket',
+					type: 'websocket'
 			  },
 	});
 

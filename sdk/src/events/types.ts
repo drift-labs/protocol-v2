@@ -54,6 +54,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 	maxTx: 4096,
 	logProviderConfig: {
 		type: 'websocket',
+		useWhirligig: false,
 	},
 };
 
@@ -132,6 +133,7 @@ export interface LogProvider {
 
 export type WebSocketLogProviderConfig = {
 	type: 'websocket';
+	useWhirligig?: boolean;
 };
 
 export type PollingLogProviderConfig = {

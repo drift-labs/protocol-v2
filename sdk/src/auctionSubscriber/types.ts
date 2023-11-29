@@ -6,6 +6,7 @@ export type AuctionSubscriberConfig = {
 	driftClient: DriftClient;
 	opts?: ConfirmOptions;
 	resubTimeoutMs?: number;
+	useWhirligig?: boolean;
 };
 
 export interface AuctionSubscriberEvents {
