@@ -134,7 +134,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			return;
 		}
 
-		if (newSlot <= this.bufferAndSlot.slot) {
+		if (newSlot < this.bufferAndSlot.slot) {
 			return;
 		}
 
