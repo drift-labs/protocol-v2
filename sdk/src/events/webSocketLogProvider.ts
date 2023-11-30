@@ -50,6 +50,10 @@ export class WebSocketLogProvider implements LogProvider {
 					this.receivingData = true;
 					clearTimeout(this.timeoutId);
 					this.setTimeout();
+					if (this.reconnectAttempts > 0) {
+						console.log('Resetting reconnect attempts to 0');
+					}
+					this.reconnectAttempts = 0;
 				}
 				callback(logs.signature, ctx.slot, logs.logs, undefined);
 			},
