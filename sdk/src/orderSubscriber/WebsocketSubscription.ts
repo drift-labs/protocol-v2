@@ -2,10 +2,11 @@ import { OrderSubscriber } from './OrderSubscriber';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 import { UserAccount } from '../types';
-import { Context, PublicKey } from '@solana/web3.js';
+import { Commitment, Context, PublicKey } from '@solana/web3.js';
 
 export class WebsocketSubscription {
 	private orderSubscriber: OrderSubscriber;
+	private commitment: Commitment;
 	private skipInitialLoad: boolean;
 	private resubTimeoutMs?: number;
 
@@ -13,14 +14,17 @@ export class WebsocketSubscription {
 
 	constructor({
 		orderSubscriber,
+		commitment,
 		skipInitialLoad = false,
 		resubTimeoutMs,
 	}: {
 		orderSubscriber: OrderSubscriber;
+		commitment: Commitment;
 		skipInitialLoad?: boolean;
 		resubTimeoutMs?: number;
 	}) {
 		this.orderSubscriber = orderSubscriber;
+		this.commitment = commitment;
 		this.skipInitialLoad = skipInitialLoad;
 		this.resubTimeoutMs = resubTimeoutMs;
 	}
@@ -36,7 +40,7 @@ export class WebsocketSubscription {
 				),
 				{
 					filters: [getUserFilter(), getNonIdleUserFilter()],
-					commitment: this.orderSubscriber.driftClient.opts.commitment,
+					commitment: this.commitment,
 				},
 				this.resubTimeoutMs
 			);
