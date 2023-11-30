@@ -8,6 +8,7 @@ import {
 	EventMap,
 	LogProvider,
 	EventSubscriberEvents,
+	WebSocketLogProviderConfig,
 } from './types';
 import { TxEventCache } from './txEventCache';
 import { EventList } from './eventList';
@@ -57,8 +58,32 @@ export class EventSubscriber {
 				this.connection,
 				this.address,
 				this.options.commitment,
-				this.options.resubTimeoutMs
+				this.options.logProviderConfig.resubTimeoutMs
 			);
+			if (this.options.logProviderConfig.resubTimeoutMs) {
+				const logProviderConfig = this.options
+					.logProviderConfig as WebSocketLogProviderConfig;
+				this.logProvider.eventEmitter.on('reconnect', (reconnectAttempts) => {
+					if (reconnectAttempts > logProviderConfig.maxReconnectAttempts) {
+						this.logProvider.eventEmitter.removeAllListeners('reconnect');
+						this.unsubscribe().then(() => {
+							this.logProvider = new PollingLogProvider(
+								this.connection,
+								this.address,
+								options.commitment,
+								logProviderConfig.fallbackFrequency,
+								logProviderConfig.fallbackBatchSize
+							);
+							this.logProvider.subscribe(
+								(txSig, slot, logs, mostRecentBlockTime) => {
+									this.handleTxLogs(txSig, slot, logs, mostRecentBlockTime);
+								},
+								true
+							);
+						});
+					}
+				});
+			}
 		} else {
 			this.logProvider = new PollingLogProvider(
 				this.connection,
@@ -159,7 +184,7 @@ export class EventSubscriber {
 	}
 
 	public async unsubscribe(): Promise<boolean> {
-		return await this.logProvider.unsubscribe();
+		return await this.logProvider.unsubscribe(true);
 	}
 
 	private parseEventsFromLogs(
