@@ -3041,6 +3041,7 @@ export class User {
 		);
 
 		const freeCollateral = this.getFreeCollateral();
+		const initialMarginRequirement = this.getInitialMarginRequirement();
 		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
 		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
 
@@ -3059,6 +3060,8 @@ export class User {
 
 		let amountWithdrawable;
 		if (assetWeight.eq(ZERO)) {
+			amountWithdrawable = userDepositAmount;
+		} else if (initialMarginRequirement.eq(ZERO)) {
 			amountWithdrawable = userDepositAmount;
 		} else {
 			amountWithdrawable = divCeil(
