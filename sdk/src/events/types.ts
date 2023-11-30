@@ -131,7 +131,7 @@ export interface LogProvider {
 		callback: logProviderCallback,
 		skipHistory?: boolean
 	): Promise<boolean>;
-	unsubscribe(external: boolean): Promise<boolean>;
+	unsubscribe(external?: boolean): Promise<boolean>;
 	eventEmitter?: EventEmitter;
 }
 
