@@ -91,6 +91,7 @@ export class EventSubscriber {
 								if (
 									reconnectAttempts > logProviderConfig.maxReconnectAttempts
 								) {
+									console.log('Failing over to polling');
 									this.logProvider.eventEmitter.removeAllListeners('reconnect');
 									this.unsubscribe().then(() => {
 										this.logProvider = new PollingLogProvider(
