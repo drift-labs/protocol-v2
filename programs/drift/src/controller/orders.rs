@@ -1037,8 +1037,14 @@ pub fn fill_perp_order(
     let position_index =
         get_position_index(&user.perp_positions, user.orders[order_index].market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
-    let should_cancel_reduce_only =
-        should_cancel_reduce_only_order(&user.orders[order_index], existing_base_asset_amount)?;
+    let should_cancel_reduce_only = should_cancel_reduce_only_order(
+        &user.orders[order_index],
+        existing_base_asset_amount,
+        perp_market_map
+            .get_ref_mut(&market_index)?
+            .amm
+            .order_step_size,
+    )?;
 
     if should_expire_order || should_cancel_reduce_only {
         let filler_reward = {
@@ -1118,8 +1124,14 @@ pub fn fill_perp_order(
     }
 
     let base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
-    let should_cancel_reduce_only =
-        should_cancel_reduce_only_order(&user.orders[order_index], base_asset_amount_after)?;
+    let should_cancel_reduce_only = should_cancel_reduce_only_order(
+        &user.orders[order_index],
+        base_asset_amount_after,
+        perp_market_map
+            .get_ref_mut(&market_index)?
+            .amm
+            .order_step_size,
+    )?;
 
     if should_cancel_reduce_only {
         let filler_reward = {
@@ -1303,6 +1315,7 @@ fn get_maker_orders_info(
         settle_funding_payment(&mut maker, maker_key, &mut market, now)?;
 
         let initial_margin_ratio = market.margin_ratio_initial;
+        let step_size = market.amm.order_step_size;
 
         drop(market);
 
@@ -1343,6 +1356,7 @@ fn get_maker_orders_info(
             let should_cancel_reduce_only_order = should_cancel_reduce_only_order(
                 &maker.orders[maker_order_index],
                 existing_base_asset_amount,
+                step_size,
             )?;
 
             if breaches_oracle_price_limits
@@ -3264,7 +3278,11 @@ pub fn fill_spot_order(
         let spot_market = spot_market_map.get_ref(&market_index)?;
         let signed_token_amount =
             user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
-        should_cancel_reduce_only_order(&user.orders[order_index], signed_token_amount.cast()?)?
+        should_cancel_reduce_only_order(
+            &user.orders[order_index],
+            signed_token_amount.cast()?,
+            spot_market.order_step_size,
+        )?
     } else {
         false
     };
@@ -3356,7 +3374,11 @@ pub fn fill_spot_order(
         let spot_market = spot_market_map.get_ref(&market_index)?;
         let signed_token_amount =
             user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
-        should_cancel_reduce_only_order(&user.orders[order_index], signed_token_amount.cast()?)?
+        should_cancel_reduce_only_order(
+            &user.orders[order_index],
+            signed_token_amount.cast()?,
+            spot_market.order_step_size,
+        )?
     } else {
         false
     };
@@ -3519,6 +3541,7 @@ fn get_spot_maker_order<'a>(
         should_cancel_reduce_only_order(
             &maker.orders[maker_order_index],
             signed_token_amount.cast()?,
+            spot_market.order_step_size,
         )?
     } else {
         false

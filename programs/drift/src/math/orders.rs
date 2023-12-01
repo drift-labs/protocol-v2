@@ -331,10 +331,11 @@ pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> Dr
 pub fn should_cancel_reduce_only_order(
     order: &Order,
     existing_base_asset_amount: i64,
+    step_size: u64,
 ) -> DriftResult<bool> {
     let should_cancel = order.status == OrderStatus::Open
         && order.reduce_only
-        && order.get_base_asset_amount_unfilled(Some(existing_base_asset_amount))? == 0;
+        && order.get_base_asset_amount_unfilled(Some(existing_base_asset_amount))? < step_size;
 
     Ok(should_cancel)
 }
