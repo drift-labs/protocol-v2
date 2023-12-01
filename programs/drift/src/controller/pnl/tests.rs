@@ -3,7 +3,7 @@ use std::str::FromStr;
 use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
 
-use crate::controller::pnl::settle_pnl;
+use crate::controller::pnl::settle_pnls;
 use crate::create_account_info;
 use crate::create_anchor_account_info;
 use crate::error::ErrorCode;
@@ -121,8 +121,8 @@ pub fn user_no_position() {
     let user_key = Pubkey::default();
     let authority = Pubkey::default();
 
-    let result = settle_pnl(
-        0,
+    let result = settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
@@ -239,8 +239,8 @@ pub fn user_does_not_meet_maintenance_requirement() {
     let user_key = Pubkey::default();
     let authority = Pubkey::default();
 
-    let result = settle_pnl(
-        0,
+    let result = settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
@@ -367,8 +367,8 @@ pub fn user_unsettled_negative_pnl() {
     expected_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
-    settle_pnl(
-        0,
+    settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
@@ -495,8 +495,8 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
     expected_market.pnl_pool.scaled_balance = 0;
     expected_market.amm.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
 
-    settle_pnl(
-        0,
+    settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
@@ -625,8 +625,8 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
     expected_market.amm.quote_asset_amount = -175 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
-    settle_pnl(
-        0,
+    settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
@@ -757,8 +757,8 @@ pub fn market_fee_pool_receives_portion() {
     expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
-    settle_pnl(
-        0,
+    settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
@@ -894,8 +894,8 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
     expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
-    settle_pnl(
-        0,
+    settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
@@ -1025,8 +1025,8 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
     expected_market.pnl_pool.scaled_balance = 0;
     expected_market.amm.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
 
-    settle_pnl(
-        0,
+    settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
@@ -1156,8 +1156,8 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
     expected_market.pnl_pool.scaled_balance = 0;
     expected_market.amm.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
 
-    assert!(settle_pnl(
-        0,
+    assert!(settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
@@ -1284,8 +1284,8 @@ pub fn user_long_negative_unrealized_pnl() {
     expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
     expected_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
 
-    settle_pnl(
-        0,
+    settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
@@ -1415,8 +1415,8 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
     expected_market.pnl_pool.scaled_balance = 0;
     expected_market.amm.quote_asset_amount = 100 * QUOTE_PRECISION_I128;
 
-    settle_pnl(
-        0,
+    settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
@@ -1546,8 +1546,8 @@ pub fn user_short_negative_unrealized_pnl() {
     expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
     expected_market.amm.quote_asset_amount = 200 * QUOTE_PRECISION_I128;
 
-    settle_pnl(
-        0,
+    settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,
