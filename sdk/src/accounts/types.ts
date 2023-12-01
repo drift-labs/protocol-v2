@@ -5,6 +5,7 @@ import {
 	StateAccount,
 	UserAccount,
 	UserStatsAccount,
+	InsuranceFundStake,
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -103,6 +104,26 @@ export interface TokenAccountSubscriber {
 	unsubscribe(): Promise<void>;
 
 	getTokenAccountAndSlot(): DataAndSlot<Account>;
+}
+
+export interface InsuranceFundStakeAccountSubscriber {
+	eventEmitter: StrictEventEmitter<
+		EventEmitter,
+		InsuranceFundStakeAccountEvents
+	>;
+	isSubscribed: boolean;
+
+	subscribe(): Promise<boolean>;
+	fetch(): Promise<void>;
+	unsubscribe(): Promise<void>;
+
+	getInsuranceFundStakeAccountAndSlot(): DataAndSlot<InsuranceFundStake>;
+}
+
+export interface InsuranceFundStakeAccountEvents {
+	insuranceFundStakeAccountUpdate: (payload: InsuranceFundStake) => void;
+	update: void;
+	error: (e: Error) => void;
 }
 
 export interface OracleEvents {
