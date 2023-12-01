@@ -133,7 +133,7 @@ export class OrderSubscriber {
 					'le'
 				);
 				if (
-					slotAndUserAccount.userAccount &&
+					slotAndUserAccount &&
 					slotAndUserAccount.userAccount.lastActiveSlot.gt(newLastActiveSlot)
 				) {
 					return;
