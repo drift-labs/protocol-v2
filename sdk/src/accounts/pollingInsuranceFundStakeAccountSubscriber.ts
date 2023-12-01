@@ -28,8 +28,9 @@ export class PollingInsuranceFundStakeAccountSubscriber
 
 	insuranceFundStakeAccountAndSlot?: DataAndSlot<InsuranceFundStake>;
 
-	public constructor(publicKey: PublicKey, accountLoader: BulkAccountLoader) {
+	public constructor(program: Program, publicKey: PublicKey, accountLoader: BulkAccountLoader) {
 		this.isSubscribed = false;
+		this.program = program;
 		this.publicKey = publicKey;
 		this.accountLoader = accountLoader;
 		this.eventEmitter = new EventEmitter();
