@@ -9,7 +9,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './bulkAccountLoader';
-import { InsuranceFundStake } from '../types';
+import {InsuranceFundStake, UserAccount} from '../types';
 
 export class PollingInsuranceFundStakeAccountSubscriber
 	implements InsuranceFundStakeAccountSubscriber
@@ -20,7 +20,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 		EventEmitter,
 		InsuranceFundStakeAccountEvents
 	>;
-	publicKey: PublicKey;
+	insuranceFundStakeAccountPublicKey: PublicKey;
 
 	accountLoader: BulkAccountLoader;
 	callbackId?: string;
@@ -31,7 +31,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 	public constructor(program: Program, publicKey: PublicKey, accountLoader: BulkAccountLoader) {
 		this.isSubscribed = false;
 		this.program = program;
-		this.publicKey = publicKey;
+		this.insuranceFundStakeAccountPublicKey = publicKey;
 		this.accountLoader = accountLoader;
 		this.eventEmitter = new EventEmitter();
 	}
@@ -58,7 +58,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 		}
 
 		this.callbackId = await this.accountLoader.addAccount(
-			this.publicKey,
+			this.insuranceFundStakeAccountPublicKey,
 			(buffer, slot: number) => {
 				if (!buffer) {
 					return;
@@ -96,7 +96,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 		try {
 			const dataAndContext =
 				await this.program.account.insuranceFundStake.fetchAndContext(
-					this.publicKey,
+					this.insuranceFundStakeAccountPublicKey,
 					this.accountLoader.commitment
 				);
 			if (
@@ -124,7 +124,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 			return;
 		}
 
-		this.accountLoader.removeAccount(this.publicKey, this.callbackId);
+		this.accountLoader.removeAccount(this.insuranceFundStakeAccountPublicKey, this.callbackId);
 		this.callbackId = undefined;
 
 		this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
@@ -148,5 +148,13 @@ export class PollingInsuranceFundStakeAccountSubscriber
 
 	didSubscriptionSucceed(): boolean {
 		return !!this.insuranceFundStakeAccountAndSlot;
+	}
+
+	public updateData(insuranceFundStake: InsuranceFundStake, slot: number): void {
+		if (!this.insuranceFundStakeAccountAndSlot || this.insuranceFundStakeAccountAndSlot.slot < slot) {
+			this.insuranceFundStakeAccountAndSlot = { data: insuranceFundStake, slot };
+			this.eventEmitter.emit('insuranceFundStakeAccountUpdate', insuranceFundStake);
+			this.eventEmitter.emit('update');
+		}
 	}
 }
