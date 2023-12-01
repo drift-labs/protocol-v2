@@ -9,6 +9,7 @@ import { PollingSubscription } from './PollingSubscription';
 import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
+import { BN } from '../index';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
@@ -125,6 +126,17 @@ export class OrderSubscriber {
 			if (dataType === 'raw') {
 				// @ts-ignore
 				const buffer = Buffer.from(data[0], data[1]);
+
+				const newLastActiveSlot = new BN(
+					buffer.subarray(4328, 4328 + 8),
+					undefined,
+					'le'
+				);
+				if (
+					slotAndUserAccount.userAccount.lastActiveSlot.gte(newLastActiveSlot)
+				) {
+					return;
+				}
 
 				userAccount =
 					this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
