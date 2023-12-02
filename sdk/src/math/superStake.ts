@@ -14,6 +14,38 @@ import { LAMPORTS_PRECISION, ZERO } from '../constants/numericConstants';
 import fetch from 'node-fetch';
 import { checkSameDate } from './utils';
 
+export type BSOL_STATS_API_RESPONSE = {
+	success: boolean;
+	stats?: {
+		conversion: {
+			bsol_to_sol: number;
+			sol_to_bsol: number;
+		},
+		apy: {
+			base: number;
+			blze: number;
+			total: number;
+			lending: number;
+			liquidity: number;
+		}
+	}
+};
+
+export type BSOL_EMISSIONS_API_RESPONSE = {
+	success: boolean;
+	emissions?: {
+		lend: number;
+	}
+};
+
+export async function fetchBSolMetrics() {
+	return await fetch('https://stake.solblaze.org/api/v1/stats');
+}
+
+export async function fetchBSolDriftEmissions() {
+	return await fetch('https://stake.solblaze.org/api/v1/drift_emissions');
+}
+
 export async function findBestSuperStakeIxs({
 	marketIndex,
 	amount,
@@ -51,6 +83,15 @@ export async function findBestSuperStakeIxs({
 	} else if (marketIndex === 6) {
 		return findBestJitoSolSuperStakeIxs({
 			amount,
+			jupiterClient,
+			driftClient,
+			userAccountPublicKey,
+			onlyDirectRoutes,
+		});
+	} else if (marketIndex === 8) {
+		return findBestLstSuperStakeIxs({
+			amount,
+			lstMint: driftClient.getSpotMarketAccount(8).mint,
 			jupiterClient,
 			driftClient,
 			userAccountPublicKey,
@@ -154,15 +195,49 @@ export async function findBestJitoSolSuperStakeIxs({
 	method: 'jupiter' | 'marinade';
 	price: number;
 }> {
+	return await findBestLstSuperStakeIxs({
+		amount,
+		jupiterClient,
+		driftClient,
+		userAccountPublicKey,
+		onlyDirectRoutes,
+		lstMint: driftClient.getSpotMarketAccount(6).mint,
+	});
+}
+
+/**
+ * Finds best Jupiter Swap instructions for a generic lstMint
+ * 
+ * Without doing any extra steps like checking if you can get a better rate by staking directly with that LST platform
+ */
+export async function findBestLstSuperStakeIxs({
+	amount,
+	lstMint,
+	jupiterClient,
+	driftClient,
+	userAccountPublicKey,
+	onlyDirectRoutes,
+}: {
+	amount: BN;
+	lstMint: PublicKey;
+	jupiterClient: JupiterClient;
+	driftClient: DriftClient;
+	userAccountPublicKey?: PublicKey;
+	onlyDirectRoutes?: boolean;
+}): Promise<{
+	ixs: TransactionInstruction[];
+	lookupTables: AddressLookupTableAccount[];
+	method: 'jupiter' | 'marinade';
+	price: number;
+}> {
 	const solMint = driftClient.getSpotMarketAccount(1).mint;
-	const JitoSolMint = driftClient.getSpotMarketAccount(6).mint;
 
 	let jupiterPrice;
 	let bestRoute;
 	try {
 		const jupiterRoutes = await jupiterClient.getRoutes({
 			inputMint: solMint,
-			outputMint: JitoSolMint,
+			outputMint: lstMint,
 			amount,
 			onlyDirectRoutes,
 		});
@@ -321,11 +396,29 @@ export async function calculateSolEarned({
 			lstRatios.set(timestamp, data);
 		}
 	};
+	
 
+	const getBSolPrice = async (timestamps: number[]) => {
+		// Currently there's only one bSOL price, no timestamped data
+		// So just use the same price for every timestamp for now
+		const response = await fetchBSolMetrics();
+		if (response.status === 200) {
+			const data = await response.json() as BSOL_STATS_API_RESPONSE;
+			const bSolRatio = data?.stats?.conversion?.bsol_to_sol;
+			if (bSolRatio) {
+				timestamps.forEach((timestamp) => lstRatios.set(timestamp, bSolRatio));
+			}
+		}
+	};
+
+	// This block kind of assumes the record are all from the same market
+	// Otherwise the following code that checks the record.marketIndex would break
 	if (marketIndex === 2) {
 		await Promise.all(timestamps.map(getMsolPrice));
 	} else if (marketIndex === 6) {
 		lstRatios = await getJitoSolHistoricalPriceMap(timestamps);
+	} else if (marketIndex === 8) {
+		await getBSolPrice(timestamps);
 	}
 
 	let solEarned = ZERO;
@@ -336,22 +429,12 @@ export async function calculateSolEarned({
 			} else {
 				solEarned = solEarned.add(record.amount);
 			}
-		} else if (record.marketIndex === 2) {
-			const msolRatio = lstRatios.get(record.ts.toNumber());
-			const msolRatioBN = new BN(msolRatio * LAMPORTS_PER_SOL);
-
-			const solAmount = record.amount.mul(msolRatioBN).div(LAMPORTS_PRECISION);
-			if (isVariant(record.direction, 'deposit')) {
-				solEarned = solEarned.sub(solAmount);
-			} else {
-				solEarned = solEarned.add(solAmount);
-			}
-		} else if (record.marketIndex === 6) {
-			const jitoSolRatio = lstRatios.get(record.ts.toNumber());
-			const jitoSolRatioBN = new BN(jitoSolRatio * LAMPORTS_PER_SOL);
+		} else if (record.marketIndex === 2 || record.marketIndex === 6 || record.marketIndex === 8) {
+			const lstRatio = lstRatios.get(record.ts.toNumber());
+			const lstRatioBN = new BN(lstRatio * LAMPORTS_PER_SOL);
 
 			const solAmount = record.amount
-				.mul(jitoSolRatioBN)
+				.mul(lstRatioBN)
 				.div(LAMPORTS_PRECISION);
 			if (isVariant(record.direction, 'deposit')) {
 				solEarned = solEarned.sub(solAmount);
