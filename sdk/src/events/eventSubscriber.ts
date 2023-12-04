@@ -8,6 +8,7 @@ import {
 	EventMap,
 	LogProvider,
 	EventSubscriberEvents,
+	WebSocketLogProviderConfig,
 } from './types';
 import { TxEventCache } from './txEventCache';
 import { EventList } from './eventList';
@@ -46,7 +47,7 @@ export class EventSubscriber {
 				new EventList(
 					eventType,
 					this.options.maxEventsPerType,
-					getSortFn(this.options.orderBy, this.options.orderDir, eventType),
+					getSortFn(this.options.orderBy, this.options.orderDir),
 					this.options.orderDir
 				)
 			);
@@ -57,7 +58,7 @@ export class EventSubscriber {
 				this.connection,
 				this.address,
 				this.options.commitment,
-				this.options.resubTimeoutMs
+				this.options.logProviderConfig.resubTimeoutMs
 			);
 		} else {
 			this.logProvider = new PollingLogProvider(
@@ -76,6 +77,48 @@ export class EventSubscriber {
 				return true;
 			}
 
+			if (this.options.logProviderConfig.type === 'websocket') {
+				if (this.options.logProviderConfig.resubTimeoutMs) {
+					if (
+						this.options.logProviderConfig.maxReconnectAttempts &&
+						this.options.logProviderConfig.maxReconnectAttempts > 0
+					) {
+						const logProviderConfig = this.options
+							.logProviderConfig as WebSocketLogProviderConfig;
+						this.logProvider.eventEmitter.on(
+							'reconnect',
+							(reconnectAttempts) => {
+								if (
+									reconnectAttempts > logProviderConfig.maxReconnectAttempts
+								) {
+									console.log('Failing over to polling');
+									this.logProvider.eventEmitter.removeAllListeners('reconnect');
+									this.unsubscribe().then(() => {
+										this.logProvider = new PollingLogProvider(
+											this.connection,
+											this.address,
+											this.options.commitment,
+											logProviderConfig.fallbackFrequency,
+											logProviderConfig.fallbackBatchSize
+										);
+										this.logProvider.subscribe(
+											(txSig, slot, logs, mostRecentBlockTime) => {
+												this.handleTxLogs(
+													txSig,
+													slot,
+													logs,
+													mostRecentBlockTime
+												);
+											},
+											true
+										);
+									});
+								}
+							}
+						);
+					}
+				}
+			}
 			this.logProvider.subscribe((txSig, slot, logs, mostRecentBlockTime) => {
 				this.handleTxLogs(txSig, slot, logs, mostRecentBlockTime);
 			}, true);
@@ -116,6 +159,7 @@ export class EventSubscriber {
 
 		if (!this.lastSeenSlot || slot > this.lastSeenSlot) {
 			this.lastSeenTxSig = txSig;
+			this.lastSeenSlot = slot;
 		}
 
 		if (
@@ -159,7 +203,7 @@ export class EventSubscriber {
 	}
 
 	public async unsubscribe(): Promise<boolean> {
-		return await this.logProvider.unsubscribe();
+		return await this.logProvider.unsubscribe(true);
 	}
 
 	private parseEventsFromLogs(

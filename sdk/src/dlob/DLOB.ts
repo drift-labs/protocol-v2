@@ -504,6 +504,9 @@ export class DLOB {
 			? stateAccount.minPerpAuctionDuration
 			: 0;
 
+		const { makerRebateNumerator, makerRebateDenominator } =
+			this.getMakerRebate(marketType, stateAccount, marketAccount);
+
 		const restingLimitOrderNodesToFill: Array<NodeToFill> =
 			this.findRestingLimitOrderNodesToFill(
 				marketIndex,
@@ -512,6 +515,8 @@ export class DLOB {
 				oraclePriceData,
 				isAmmPaused,
 				minAuctionDuration,
+				makerRebateNumerator,
+				makerRebateDenominator,
 				fallbackAsk,
 				fallbackBid
 			);
@@ -547,6 +552,34 @@ export class DLOB {
 			restingLimitOrderNodesToFill,
 			takingOrderNodesToFill
 		).concat(expiredNodesToFill);
+	}
+
+	getMakerRebate(
+		marketType: MarketType,
+		stateAccount: StateAccount,
+		marketAccount: PerpMarketAccount | SpotMarketAccount
+	): { makerRebateNumerator: number; makerRebateDenominator: number } {
+		let makerRebateNumerator: number;
+		let makerRebateDenominator: number;
+		if (isVariant(marketType, 'perp')) {
+			makerRebateNumerator =
+				stateAccount.perpFeeStructure.feeTiers[0].makerRebateNumerator;
+			makerRebateDenominator =
+				stateAccount.perpFeeStructure.feeTiers[0].makerRebateDenominator;
+		} else {
+			makerRebateNumerator =
+				stateAccount.spotFeeStructure.feeTiers[0].makerRebateNumerator;
+			makerRebateDenominator =
+				stateAccount.spotFeeStructure.feeTiers[0].makerRebateDenominator;
+		}
+
+		// @ts-ignore
+		const feeAdjustment = marketAccount.feeAdjustment || 0;
+		if (feeAdjustment !== 0) {
+			makerRebateNumerator += (makerRebateNumerator * feeAdjustment) / 100;
+		}
+
+		return { makerRebateNumerator, makerRebateDenominator };
 	}
 
 	mergeNodesToFill(
@@ -590,6 +623,8 @@ export class DLOB {
 		oraclePriceData: OraclePriceData,
 		isAmmPaused: boolean,
 		minAuctionDuration: number,
+		makerRebateNumerator: number,
+		makerRebateDenominator: number,
 		fallbackAsk: BN | undefined,
 		fallbackBid: BN | undefined
 	): NodeToFill[] {
@@ -613,14 +648,18 @@ export class DLOB {
 				marketType,
 				oraclePriceData
 			);
+
+			const fallbackBidWithBuffer = fallbackBid.sub(
+				fallbackBid.muln(makerRebateNumerator).divn(makerRebateDenominator)
+			);
+
 			const asksCrossingFallback = this.findNodesCrossingFallbackLiquidity(
 				marketType,
 				slot,
 				oraclePriceData,
 				askGenerator,
-				fallbackBid,
-				(askPrice, fallbackPrice) => {
-					return askPrice.lte(fallbackPrice);
+				(askPrice) => {
+					return askPrice.lte(fallbackBidWithBuffer);
 				},
 				minAuctionDuration
 			);
@@ -637,14 +676,18 @@ export class DLOB {
 				marketType,
 				oraclePriceData
 			);
+
+			const fallbackAskWithBuffer = fallbackAsk.add(
+				fallbackAsk.muln(makerRebateNumerator).divn(makerRebateDenominator)
+			);
+
 			const bidsCrossingFallback = this.findNodesCrossingFallbackLiquidity(
 				marketType,
 				slot,
 				oraclePriceData,
 				bidGenerator,
-				fallbackAsk,
-				(bidPrice, fallbackPrice) => {
-					return bidPrice.gte(fallbackPrice);
+				(bidPrice) => {
+					return bidPrice.gte(fallbackAskWithBuffer);
 				},
 				minAuctionDuration
 			);
@@ -713,9 +756,8 @@ export class DLOB {
 					slot,
 					oraclePriceData,
 					takingOrderGenerator,
-					fallbackBid,
-					(takerPrice, fallbackPrice) => {
-						return takerPrice === undefined || takerPrice.lte(fallbackPrice);
+					(takerPrice) => {
+						return takerPrice === undefined || takerPrice.lte(fallbackBid);
 					},
 					minAuctionDuration
 				);
@@ -771,9 +813,8 @@ export class DLOB {
 					slot,
 					oraclePriceData,
 					takingOrderGenerator,
-					fallbackAsk,
-					(takerPrice, fallbackPrice) => {
-						return takerPrice === undefined || takerPrice.gte(fallbackPrice);
+					(takerPrice) => {
+						return takerPrice === undefined || takerPrice.gte(fallbackAsk);
 					},
 					minAuctionDuration
 				);
@@ -875,8 +916,7 @@ export class DLOB {
 		slot: number,
 		oraclePriceData: OraclePriceData,
 		nodeGenerator: Generator<DLOBNode>,
-		fallbackPrice: BN,
-		doesCross: (nodePrice: BN | undefined, fallbackPrice: BN) => boolean,
+		doesCross: (nodePrice: BN | undefined) => boolean,
 		minAuctionDuration: number
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
@@ -893,7 +933,7 @@ export class DLOB {
 			const nodePrice = getLimitPrice(node.order, oraclePriceData, slot);
 
 			// order crosses if there is no limit price or it crosses fallback price
-			const crosses = doesCross(nodePrice, fallbackPrice);
+			const crosses = doesCross(nodePrice);
 
 			// fallback is available if auction is complete or it's a spot order
 			const fallbackAvailable =

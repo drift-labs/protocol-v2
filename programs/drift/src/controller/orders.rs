@@ -34,7 +34,7 @@ use crate::math::constants::{
     BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
     QUOTE_SPOT_MARKET_INDEX,
 };
-use crate::math::fees::{ExternalFillFees, FillFees};
+use crate::math::fees::{determine_user_fee_tier, ExternalFillFees, FillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
 };
@@ -1037,8 +1037,14 @@ pub fn fill_perp_order(
     let position_index =
         get_position_index(&user.perp_positions, user.orders[order_index].market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
-    let should_cancel_reduce_only =
-        should_cancel_reduce_only_order(&user.orders[order_index], existing_base_asset_amount)?;
+    let should_cancel_reduce_only = should_cancel_reduce_only_order(
+        &user.orders[order_index],
+        existing_base_asset_amount,
+        perp_market_map
+            .get_ref_mut(&market_index)?
+            .amm
+            .order_step_size,
+    )?;
 
     if should_expire_order || should_cancel_reduce_only {
         let filler_reward = {
@@ -1118,8 +1124,14 @@ pub fn fill_perp_order(
     }
 
     let base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
-    let should_cancel_reduce_only =
-        should_cancel_reduce_only_order(&user.orders[order_index], base_asset_amount_after)?;
+    let should_cancel_reduce_only = should_cancel_reduce_only_order(
+        &user.orders[order_index],
+        base_asset_amount_after,
+        perp_market_map
+            .get_ref_mut(&market_index)?
+            .amm
+            .order_step_size,
+    )?;
 
     if should_cancel_reduce_only {
         let filler_reward = {
@@ -1303,6 +1315,7 @@ fn get_maker_orders_info(
         settle_funding_payment(&mut maker, maker_key, &mut market, now)?;
 
         let initial_margin_ratio = market.margin_ratio_initial;
+        let step_size = market.amm.order_step_size;
 
         drop(market);
 
@@ -1343,6 +1356,7 @@ fn get_maker_orders_info(
             let should_cancel_reduce_only_order = should_cancel_reduce_only_order(
                 &maker.orders[maker_order_index],
                 existing_base_asset_amount,
+                step_size,
             )?;
 
             if breaches_oracle_price_limits
@@ -1782,12 +1796,14 @@ pub fn fulfill_perp_order_with_amm(
             (override_base_asset_amount, limit_price, override_fill_price)
         }
         None => {
+            let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp)?;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
                 &user.orders[order_index],
                 market,
                 limit_price,
                 override_fill_price,
                 existing_base_asset_amount,
+                fee_tier,
             )?;
 
             let fill_price = if user.orders[order_index].post_only {
@@ -1870,7 +1886,7 @@ pub fn fulfill_perp_order_with_amm(
         referee_discount,
         referrer_reward,
         fee_to_market_for_lp,
-        ..
+        maker_rebate,
     } = fees::calculate_fee_for_fulfillment_with_amm(
         user_stats,
         quote_asset_amount,
@@ -1929,6 +1945,7 @@ pub fn fulfill_perp_order_with_amm(
 
     // Increment the user's total fee variables
     user_stats.increment_total_fees(user_fee)?;
+    user_stats.increment_total_rebate(maker_rebate)?;
     user_stats.increment_total_referee_discount(referee_discount)?;
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
@@ -1942,11 +1959,21 @@ pub fn fulfill_perp_order_with_amm(
 
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
 
-    controller::position::update_quote_asset_and_break_even_amount(
-        &mut user.perp_positions[position_index],
-        market,
-        -user_fee.cast()?,
-    )?;
+    if user_fee != 0 {
+        controller::position::update_quote_asset_and_break_even_amount(
+            &mut user.perp_positions[position_index],
+            market,
+            -user_fee.cast()?,
+        )?;
+    }
+
+    if maker_rebate != 0 {
+        controller::position::update_quote_asset_and_break_even_amount(
+            &mut user.perp_positions[position_index],
+            market,
+            maker_rebate.cast()?,
+        )?;
+    }
 
     if order_post_only {
         user_stats.update_maker_volume_30d(quote_asset_amount, now)?;
@@ -3264,7 +3291,11 @@ pub fn fill_spot_order(
         let spot_market = spot_market_map.get_ref(&market_index)?;
         let signed_token_amount =
             user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
-        should_cancel_reduce_only_order(&user.orders[order_index], signed_token_amount.cast()?)?
+        should_cancel_reduce_only_order(
+            &user.orders[order_index],
+            signed_token_amount.cast()?,
+            spot_market.order_step_size,
+        )?
     } else {
         false
     };
@@ -3356,7 +3387,11 @@ pub fn fill_spot_order(
         let spot_market = spot_market_map.get_ref(&market_index)?;
         let signed_token_amount =
             user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
-        should_cancel_reduce_only_order(&user.orders[order_index], signed_token_amount.cast()?)?
+        should_cancel_reduce_only_order(
+            &user.orders[order_index],
+            signed_token_amount.cast()?,
+            spot_market.order_step_size,
+        )?
     } else {
         false
     };
@@ -3519,6 +3554,7 @@ fn get_spot_maker_order<'a>(
         should_cancel_reduce_only_order(
             &maker.orders[maker_order_index],
             signed_token_amount.cast()?,
+            spot_market.order_step_size,
         )?
     } else {
         false

@@ -9,7 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: vamm gives maker rebate ([#653](https://github.com/drift-labs/protocol-v2/pull/653))
+
 ### Fixes
+
+### Breaking
+
+## [2.48.0] - 2023-12-01
+
+### Features
+
+### Fixes
+
+- program: account for step size when canceling reduce only orders
 
 ### Breaking
 - sdk: UserStatsMap use bulkAccountLoader (`UserStatsMap.subscribe` and `UserStatsMap.sync` now requires list of authorities) ([#716](https://github.com/drift-labs/protocol-v2/pull/716))
