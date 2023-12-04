@@ -1000,8 +1000,6 @@ export interface IVersionedWallet {
 
 export type FeeStructure = {
 	feeTiers: FeeTier[];
-	makerRebateNumerator: BN;
-	makerRebateDenominator: BN;
 	fillerRewardStructure: OrderFillerRewardStructure;
 	flatFillerFee: BN;
 	referrerRewardEpochUpperBound: BN;
