@@ -9,7 +9,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './bulkAccountLoader';
-import {InsuranceFundStake, UserAccount} from '../types';
+import { InsuranceFundStake } from '../types';
 
 export class PollingInsuranceFundStakeAccountSubscriber
 	implements InsuranceFundStakeAccountSubscriber
@@ -28,7 +28,11 @@ export class PollingInsuranceFundStakeAccountSubscriber
 
 	insuranceFundStakeAccountAndSlot?: DataAndSlot<InsuranceFundStake>;
 
-	public constructor(program: Program, publicKey: PublicKey, accountLoader: BulkAccountLoader) {
+	public constructor(
+		program: Program,
+		publicKey: PublicKey,
+		accountLoader: BulkAccountLoader
+	) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.insuranceFundStakeAccountPublicKey = publicKey;
@@ -124,7 +128,10 @@ export class PollingInsuranceFundStakeAccountSubscriber
 			return;
 		}
 
-		this.accountLoader.removeAccount(this.insuranceFundStakeAccountPublicKey, this.callbackId);
+		this.accountLoader.removeAccount(
+			this.insuranceFundStakeAccountPublicKey,
+			this.callbackId
+		);
 		this.callbackId = undefined;
 
 		this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
@@ -150,10 +157,22 @@ export class PollingInsuranceFundStakeAccountSubscriber
 		return !!this.insuranceFundStakeAccountAndSlot;
 	}
 
-	public updateData(insuranceFundStake: InsuranceFundStake, slot: number): void {
-		if (!this.insuranceFundStakeAccountAndSlot || this.insuranceFundStakeAccountAndSlot.slot < slot) {
-			this.insuranceFundStakeAccountAndSlot = { data: insuranceFundStake, slot };
-			this.eventEmitter.emit('insuranceFundStakeAccountUpdate', insuranceFundStake);
+	public updateData(
+		insuranceFundStake: InsuranceFundStake,
+		slot: number
+	): void {
+		if (
+			!this.insuranceFundStakeAccountAndSlot ||
+			this.insuranceFundStakeAccountAndSlot.slot < slot
+		) {
+			this.insuranceFundStakeAccountAndSlot = {
+				data: insuranceFundStake,
+				slot,
+			};
+			this.eventEmitter.emit(
+				'insuranceFundStakeAccountUpdate',
+				insuranceFundStake
+			);
 			this.eventEmitter.emit('update');
 		}
 	}

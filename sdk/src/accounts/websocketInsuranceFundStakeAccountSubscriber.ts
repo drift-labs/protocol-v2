@@ -106,7 +106,10 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 		return this.insuranceFundStakeDataAccountSubscriber.dataAndSlot;
 	}
 
-	public updateData(insuranceFundStake: InsuranceFundStake, slot: number) : void {
+	public updateData(
+		insuranceFundStake: InsuranceFundStake,
+		slot: number
+	): void {
 		const currentDataSlot =
 			this.insuranceFundStakeDataAccountSubscriber.dataAndSlot?.slot || 0;
 		if (currentDataSlot <= slot) {
