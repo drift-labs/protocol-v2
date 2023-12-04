@@ -1811,6 +1811,9 @@ export class DriftClient {
 	 * @param subAccountId
 	 * @param name
 	 * @param fromSubAccountId
+	 * @param referrerInfo
+	 * @param donate
+	 * @param txParams
 	 * @returns
 	 */
 	public async initializeUserAccountAndDepositCollateral(
@@ -1821,6 +1824,7 @@ export class DriftClient {
 		name?: string,
 		fromSubAccountId?: number,
 		referrerInfo?: ReferrerInfo,
+		donate?: true,
 		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const ixs = [];
@@ -1856,13 +1860,23 @@ export class DriftClient {
 			fromSubAccountId !== undefined &&
 			!isNaN(fromSubAccountId);
 
-		const createWSOLTokenAccount =
-			isSolMarket && userTokenAccount.equals(authority) && !isFromSubaccount;
+		const donateAmount = donate ? new BN(LAMPORTS_PER_SOL / 100) : new BN(0);
 
+		const createWSOLTokenAccount =
+			(isSolMarket &&
+				userTokenAccount.equals(authority) &&
+				!isFromSubaccount) ||
+			donate;
+
+		let wsolTokenAccount: PublicKey;
 		if (createWSOLTokenAccount) {
 			const { ixs: startIxs, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(amount, true);
+				await this.getWrappedSolAccountCreationIxs(
+					amount.add(donateAmount),
+					true
+				);
 
+			wsolTokenAccount = pubkey;
 			userTokenAccount = pubkey;
 
 			ixs.push(...startIxs);
@@ -1892,6 +1906,16 @@ export class DriftClient {
 			}
 		}
 		ixs.push(initializeUserAccountIx, depositCollateralIx);
+
+		if (donate) {
+			const donateIx = this.depositIntoSpotMarketRevenuePool(
+				1,
+				donateAmount,
+				wsolTokenAccount
+			);
+
+			ixs.push(donateIx);
+		}
 
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
