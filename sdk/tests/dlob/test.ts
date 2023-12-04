@@ -1914,8 +1914,8 @@ describe('DLOB Perp Tests', () => {
 			},
 			false,
 			10,
-			new BN(0),
-			new BN(1),
+			0,
+			1,
 			undefined,
 			undefined
 		);
@@ -2061,8 +2061,8 @@ describe('DLOB Perp Tests', () => {
 			},
 			false,
 			10,
-			new BN(0),
-			new BN(1),
+			0,
+			1,
 			undefined,
 			undefined
 		);
@@ -3089,8 +3089,8 @@ describe('DLOB Perp Tests', () => {
 			oracle,
 			false,
 			10,
-			new BN(0),
-			new BN(1),
+			0,
+			1,
 			undefined,
 			undefined
 		);
