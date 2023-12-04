@@ -10,7 +10,7 @@ import { fetchLogs } from './fetchLogs';
 
 export class PollingLogProvider implements LogProvider {
 	private finality: Finality;
-	private intervalId: NodeJS.Timer;
+	private intervalId: ReturnType<typeof setTimeout>;
 	private mostRecentSeenTx?: TransactionSignature;
 	private mutex: number;
 	private firstFetch = true;
@@ -25,10 +25,10 @@ export class PollingLogProvider implements LogProvider {
 		this.finality = commitment === 'finalized' ? 'finalized' : 'confirmed';
 	}
 
-	public subscribe(
+	public async subscribe(
 		callback: logProviderCallback,
 		skipHistory?: boolean
-	): boolean {
+	): Promise<boolean> {
 		if (this.intervalId) {
 			return true;
 		}

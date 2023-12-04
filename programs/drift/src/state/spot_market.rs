@@ -291,8 +291,11 @@ impl SpotMarket {
         };
 
         let default_asset_weight = match margin_requirement_type {
-            MarginRequirementType::Initial | MarginRequirementType::Fill => {
+            MarginRequirementType::Initial => self.get_scaled_initial_asset_weight(oracle_price)?,
+            MarginRequirementType::Fill => {
                 self.get_scaled_initial_asset_weight(oracle_price)?
+                    .safe_add(self.maintenance_asset_weight)?
+                    / 2
             }
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };

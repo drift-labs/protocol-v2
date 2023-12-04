@@ -4,7 +4,7 @@ export class PollingSubscription {
 	private orderSubscriber: OrderSubscriber;
 	private frequency: number;
 
-	intervalId?: NodeJS.Timer;
+	intervalId?: ReturnType<typeof setTimeout>;
 
 	constructor({
 		orderSubscriber,

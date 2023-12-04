@@ -778,3 +778,26 @@ mod calculate_spot_if_fee {
         assert_eq!(fee, 0);
     }
 }
+
+mod calculate_max_pct_to_liquidate {
+    use crate::math::liquidation::calculate_max_pct_to_liquidate;
+    use crate::state::user::User;
+    use crate::{LIQUIDATION_PCT_PRECISION, QUOTE_PRECISION};
+
+    #[test]
+    fn test() {
+        let user = User::default();
+        let margin_shortage = 49 * QUOTE_PRECISION;
+
+        let pct = calculate_max_pct_to_liquidate(
+            &user,
+            margin_shortage,
+            1,
+            LIQUIDATION_PCT_PRECISION / 10,
+            10,
+        )
+        .unwrap();
+
+        assert_eq!(pct, LIQUIDATION_PCT_PRECISION);
+    }
+}

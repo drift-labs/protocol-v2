@@ -95,6 +95,7 @@ pub fn on_the_hour_update(now: i64, last_update_ts: i64, update_period: i64) -> 
     Ok(time_remaining_until_update)
 }
 
+#[cfg(test)]
 #[allow(clippy::comparison_chain)]
 pub fn log10(n: u128) -> u128 {
     if n < 10 {

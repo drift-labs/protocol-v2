@@ -208,14 +208,6 @@ pub fn is_user_being_liquidated(
     Ok(is_being_liquidated)
 }
 
-pub fn get_margin_requirement_plus_buffer(
-    margin_requirement: u128,
-    liquidation_margin_buffer_ratio: u8,
-) -> DriftResult<u128> {
-    margin_requirement
-        .safe_add(margin_requirement.safe_div(liquidation_margin_buffer_ratio as u128)?)
-}
-
 pub fn validate_user_not_being_liquidated(
     user: &mut User,
     market_map: &PerpMarketMap,
@@ -333,6 +325,11 @@ pub fn calculate_max_pct_to_liquidate(
     initial_pct_to_liquidate: u128,
     liquidation_duration: u128,
 ) -> DriftResult<u128> {
+    // if margin shortage is tiny, accelerate liquidation
+    if margin_shortage < 50 * QUOTE_PRECISION {
+        return Ok(LIQUIDATION_PCT_PRECISION);
+    }
+
     let slots_elapsed = slot.safe_sub(user.last_active_slot)?;
 
     let pct_freeable = slots_elapsed

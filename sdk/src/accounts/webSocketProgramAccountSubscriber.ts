@@ -21,6 +21,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	onChange: (accountId: PublicKey, data: T, context: Context) => void;
 	listenerId?: number;
 	resubTimeoutMs?: number;
+	isUnsubscribing = false;
 	timeoutId?: NodeJS.Timeout;
 	options: { filters: MemcmpFilter[]; commitment?: Commitment };
 
@@ -48,7 +49,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	async subscribe(
 		onChange: (accountId: PublicKey, data: T, context: Context) => void
 	): Promise<void> {
-		if (this.listenerId) {
+		if (this.listenerId || this.isUnsubscribing) {
 			return;
 		}
 
@@ -81,6 +82,11 @@ export class WebSocketProgramAccountSubscriber<T>
 			throw new Error('onChange callback function must be set');
 		}
 		this.timeoutId = setTimeout(async () => {
+			if (this.isUnsubscribing) {
+				// If we are in the process of unsubscribing, do not attempt to resubscribe
+				return;
+			}
+
 			if (this.receivingData) {
 				console.log(
 					`No ws data from ${this.subscriptionName} in ${this.resubTimeoutMs}ms, resubscribing`
@@ -119,7 +125,7 @@ export class WebSocketProgramAccountSubscriber<T>
 			return;
 		}
 
-		if (newSlot <= this.bufferAndSlot.slot) {
+		if (newSlot < this.bufferAndSlot.slot) {
 			return;
 		}
 
@@ -140,13 +146,20 @@ export class WebSocketProgramAccountSubscriber<T>
 	}
 
 	unsubscribe(): Promise<void> {
+		this.isUnsubscribing = true;
+		clearTimeout(this.timeoutId);
+		this.timeoutId = undefined;
+
 		if (this.listenerId) {
-			const promise =
-				this.program.provider.connection.removeAccountChangeListener(
-					this.listenerId
-				);
-			this.listenerId = undefined;
+			const promise = this.program.provider.connection
+				.removeAccountChangeListener(this.listenerId)
+				.then(() => {
+					this.listenerId = undefined;
+					this.isUnsubscribing = false;
+				});
 			return promise;
+		} else {
+			this.isUnsubscribing = false;
 		}
 	}
 }

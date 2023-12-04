@@ -1534,7 +1534,7 @@ fn test_transfer_protocol_owned_stake() {
     .unwrap();
     if_balance -= amount_returned;
 
-    assert_eq!(amount_returned, (99500000000) as u64);
+    assert_eq!(amount_returned, 99500000000);
     assert_eq!(spot_market.insurance_fund.user_shares, 0);
     assert_eq!(spot_market.insurance_fund.total_shares, 21105203599);
 
@@ -1597,7 +1597,7 @@ fn test_transfer_protocol_owned_stake() {
 
     let mut expected_if_stake_2 = InsuranceFundStake::new(Pubkey::default(), 0, 0);
     expected_if_stake_2
-        .increase_if_shares(21105203599 as u128, &spot_market)
+        .increase_if_shares(21105203599, &spot_market)
         .unwrap();
 
     assert_eq!(user_stats_2.if_staked_quote_asset_amount, 99500000000);

@@ -7,10 +7,10 @@ use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_amm_available_liquidity;
-use crate::math::auction::{is_amm_available_liquidity_source, is_auction_complete};
+use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
 use crate::{
-    load, math, FeeTier, PostOnlyParam, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
+    load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
     OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64,
     PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
 };
@@ -19,7 +19,6 @@ use crate::math::constants::MARGIN_PRECISION_U128;
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
 };
-use crate::math::position::calculate_entry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_strict_token_value;
 use crate::math::spot_withdraw::get_max_withdraw_for_market_with_token_amount;
@@ -28,6 +27,7 @@ use crate::print_error;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
+use crate::state::order_params::PostOnlyParam;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotMarket;
@@ -155,30 +155,6 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
         min(base_asset_amount_unfilled, max_trade_base_asset_amount),
         market.amm.order_step_size,
     )
-}
-
-pub fn limit_price_satisfied(
-    limit_price: u128,
-    quote_asset_amount: u128,
-    base_asset_amount: u128,
-    direction: PositionDirection,
-) -> DriftResult<bool> {
-    let price = calculate_entry_price(quote_asset_amount, base_asset_amount)?;
-
-    match direction {
-        PositionDirection::Long => {
-            if price > limit_price {
-                return Ok(false);
-            }
-        }
-        PositionDirection::Short => {
-            if price < limit_price {
-                return Ok(false);
-            }
-        }
-    }
-
-    Ok(true)
 }
 
 pub fn calculate_quote_asset_amount_for_maker_order(
@@ -365,21 +341,6 @@ pub fn validate_perp_fill_possible(
 }
 
 #[inline(always)]
-pub fn should_cancel_market_order_after_fill(
-    user: &User,
-    user_order_index: usize,
-    slot: u64,
-) -> DriftResult<bool> {
-    let order = &user.orders[user_order_index];
-    if !order.is_market_order() || order.status != OrderStatus::Open {
-        return Ok(false);
-    }
-
-    Ok(order.has_limit_price(slot)?
-        && is_auction_complete(order.slot, order.auction_duration, slot)?)
-}
-
-#[inline(always)]
 pub fn should_expire_order_before_fill(
     user: &User,
     order_index: usize,
@@ -410,10 +371,11 @@ pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> Dr
 pub fn should_cancel_reduce_only_order(
     order: &Order,
     existing_base_asset_amount: i64,
+    step_size: u64,
 ) -> DriftResult<bool> {
     let should_cancel = order.status == OrderStatus::Open
         && order.reduce_only
-        && order.get_base_asset_amount_unfilled(Some(existing_base_asset_amount))? == 0;
+        && order.get_base_asset_amount_unfilled(Some(existing_base_asset_amount))? < step_size;
 
     Ok(should_cancel)
 }
@@ -621,35 +583,36 @@ pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> Dr
     }
 }
 
-pub fn is_order_risk_decreasing(
-    order_direction: &PositionDirection,
-    order_base_asset_amount: u64,
+pub fn is_new_order_risk_increasing(
+    order: &Order,
     position_base_asset_amount: i64,
+    position_bids: i64,
+    position_asks: i64,
 ) -> DriftResult<bool> {
-    Ok(match order_direction {
-        // User is short and order is long
-        PositionDirection::Long if position_base_asset_amount < 0 => {
-            order_base_asset_amount < position_base_asset_amount.unsigned_abs().safe_mul(2)?
-        }
-        // User is long and order is short
-        PositionDirection::Short if position_base_asset_amount > 0 => {
-            order_base_asset_amount < position_base_asset_amount.unsigned_abs().safe_mul(2)?
-        }
-        _ => false,
-    })
-}
+    if order.reduce_only {
+        return Ok(false);
+    }
 
-pub fn is_order_risk_increasing(
-    order_direction: &PositionDirection,
-    order_base_asset_amount: u64,
-    position_base_asset_amount: i64,
-) -> DriftResult<bool> {
-    is_order_risk_decreasing(
-        order_direction,
-        order_base_asset_amount,
-        position_base_asset_amount,
-    )
-    .map(|risk_decreasing| !risk_decreasing)
+    match order.direction {
+        PositionDirection::Long => {
+            if position_base_asset_amount >= 0 {
+                return Ok(true);
+            }
+
+            Ok(position_bids.safe_add(order.base_asset_amount.cast()?)?
+                > position_base_asset_amount.abs())
+        }
+        PositionDirection::Short => {
+            if position_base_asset_amount <= 0 {
+                return Ok(true);
+            }
+
+            Ok(position_asks
+                .safe_sub(order.base_asset_amount.cast()?)?
+                .abs()
+                > position_base_asset_amount)
+        }
+    }
 }
 
 pub fn is_order_position_reducing(
@@ -787,54 +750,6 @@ fn get_max_fill_amounts_for_market(
     get_max_withdraw_for_market_with_token_amount(market, token_amount, is_leaving_drift)
 }
 
-pub fn find_fallback_maker_order(
-    user: &User,
-    direction: &PositionDirection,
-    market_type: &MarketType,
-    market_index: u16,
-    valid_oracle_price: Option<i64>,
-    slot: u64,
-    tick_size: u64,
-) -> DriftResult<Option<usize>> {
-    let mut best_limit_price = match direction {
-        PositionDirection::Long => 0,
-        PositionDirection::Short => u64::MAX,
-    };
-    let mut fallback_maker_order_index = None;
-
-    for (order_index, order) in user.orders.iter().enumerate() {
-        if order.status != OrderStatus::Open {
-            continue;
-        }
-
-        // if order direction is not same or market type is not same or market index is the same, skip
-        if order.direction != *direction
-            || order.market_type != *market_type
-            || order.market_index != market_index
-        {
-            continue;
-        }
-
-        // if order is not limit order or must be triggered and not triggered, skip
-        if !order.is_limit_order() || (order.must_be_triggered() && !order.triggered()) {
-            continue;
-        }
-
-        let limit_price = order.force_get_limit_price(valid_oracle_price, None, slot, tick_size)?;
-
-        // if fallback maker order is not set, set it else check if this order is better
-        if fallback_maker_order_index.is_none()
-            || *direction == PositionDirection::Long && limit_price > best_limit_price
-            || *direction == PositionDirection::Short && limit_price < best_limit_price
-        {
-            best_limit_price = limit_price;
-            fallback_maker_order_index = Some(order_index);
-        }
-    }
-
-    Ok(fallback_maker_order_index)
-}
-
 pub fn find_maker_orders(
     user: &User,
     direction: &PositionDirection,
@@ -951,37 +866,41 @@ pub fn calculate_max_perp_order_size(
         );
     }
 
-    let mut order_size = free_collateral
-        .safe_sub(OPEN_ORDER_MARGIN_REQUIREMENT.cast()?)?
-        .safe_mul(BASE_PRECISION_I128 / QUOTE_PRECISION_I128)?
-        .safe_mul(MARGIN_PRECISION_U128.cast()?)?
-        .safe_div(margin_ratio.cast()?)?
-        .safe_mul(PRICE_PRECISION_I128)?
-        .safe_div(oracle_price_data_price.cast()?)?
-        .safe_mul(PRICE_PRECISION_I128)?
-        .safe_div(quote_oracle_price.cast()?)?
-        .cast::<u64>()?;
-
-    let updated_margin_ratio = perp_market
-        .get_margin_ratio(
-            worst_case_base_asset_amount
-                .unsigned_abs()
-                .safe_add(order_size.cast()?)?,
-            MarginRequirementType::Initial,
-        )?
-        .max(user_custom_margin_ratio);
-
-    if updated_margin_ratio != margin_ratio {
-        order_size = free_collateral
+    let calculate_order_size_and_margin_ratio = |margin_ratio: u32| {
+        let new_order_size = free_collateral
             .safe_sub(OPEN_ORDER_MARGIN_REQUIREMENT.cast()?)?
             .safe_mul(BASE_PRECISION_I128 / QUOTE_PRECISION_I128)?
             .safe_mul(MARGIN_PRECISION_U128.cast()?)?
-            .safe_div(updated_margin_ratio.cast()?)?
+            .safe_div(margin_ratio.cast()?)?
             .safe_mul(PRICE_PRECISION_I128)?
             .safe_div(oracle_price_data_price.cast()?)?
             .safe_mul(PRICE_PRECISION_I128)?
             .safe_div(quote_oracle_price.cast()?)?
             .cast::<u64>()?;
+
+        let new_margin_ratio = perp_market
+            .get_margin_ratio(
+                worst_case_base_asset_amount
+                    .unsigned_abs()
+                    .safe_add(new_order_size.cast()?)?,
+                MarginRequirementType::Initial,
+            )?
+            .max(user_custom_margin_ratio);
+
+        Ok((new_order_size, new_margin_ratio))
+    };
+
+    let mut order_size = 0_u64;
+    let mut updated_margin_ratio = margin_ratio;
+    for _ in 0..6 {
+        let (new_order_size, new_margin_ratio) =
+            calculate_order_size_and_margin_ratio(updated_margin_ratio)?;
+        order_size = new_order_size;
+        updated_margin_ratio = new_margin_ratio;
+
+        if new_margin_ratio == margin_ratio {
+            break;
+        }
     }
 
     standardize_base_asset_amount(
@@ -1182,37 +1101,43 @@ pub fn calculate_max_spot_order_size(
 
     let precision_increase = 10i128.pow(spot_market.decimals - 6);
 
-    let mut order_size = free_collateral
-        .safe_sub(OPEN_ORDER_MARGIN_REQUIREMENT.cast()?)?
-        .safe_mul(precision_increase)?
-        .safe_mul(SPOT_WEIGHT_PRECISION.cast()?)?
-        .safe_div(free_collateral_delta.cast()?)?
-        .safe_mul(PRICE_PRECISION_I128)?
-        .safe_div(max_oracle_price.cast()?)?
-        .cast::<u64>()?;
-
-    // increasing the worst case token amount with new order size may increase margin ration,
-    // so need to recalculate free collateral delta with updated margin ratio
-    let updated_free_collateral_delta = calculate_free_collateral_delta_for_spot(
-        &spot_market,
-        worst_case_token_amount
-            .unsigned_abs()
-            .safe_add(order_size.cast()?)?,
-        &strict_oracle_price,
-        direction,
-        user_custom_liability_weight,
-        user_custom_asset_weight,
-    )?;
-
-    if updated_free_collateral_delta != free_collateral_delta {
-        order_size = free_collateral
+    let calculate_order_size_and_free_collateral_delta = |free_collateral_delta: u32| {
+        let new_order_size = free_collateral
             .safe_sub(OPEN_ORDER_MARGIN_REQUIREMENT.cast()?)?
             .safe_mul(precision_increase)?
             .safe_mul(SPOT_WEIGHT_PRECISION.cast()?)?
-            .safe_div(updated_free_collateral_delta.cast()?)?
+            .safe_div(free_collateral_delta.cast()?)?
             .safe_mul(PRICE_PRECISION_I128)?
             .safe_div(max_oracle_price.cast()?)?
             .cast::<u64>()?;
+
+        // increasing the worst case token amount with new order size may increase margin ratio,
+        // so need to recalculate free collateral delta with updated margin ratio
+        let new_free_collateral_delta = calculate_free_collateral_delta_for_spot(
+            &spot_market,
+            worst_case_token_amount
+                .unsigned_abs()
+                .safe_add(new_order_size.cast()?)?,
+            &strict_oracle_price,
+            direction,
+            user_custom_liability_weight,
+            user_custom_asset_weight,
+        )?;
+
+        Ok((new_order_size, new_free_collateral_delta))
+    };
+
+    let mut order_size = 0_u64;
+    let mut updated_free_collateral_delta = free_collateral_delta;
+    for _ in 0..6 {
+        let (new_order_size, new_free_collateral_delta) =
+            calculate_order_size_and_free_collateral_delta(updated_free_collateral_delta)?;
+        order_size = new_order_size;
+        updated_free_collateral_delta = new_free_collateral_delta;
+
+        if updated_free_collateral_delta == free_collateral_delta {
+            break;
+        }
     }
 
     standardize_base_asset_amount(
@@ -1362,4 +1287,27 @@ pub fn estimate_price_from_side(side: &Side, depth: u64) -> DriftResult<Option<u
     };
 
     Ok(price)
+}
+
+pub fn select_margin_type_for_perp_maker(
+    maker: &User,
+    base_asset_amount_filled: i64,
+    market_index: u16,
+) -> DriftResult<MarginRequirementType> {
+    let position_after_fill = maker
+        .get_perp_position(market_index)
+        .map_or(0, |p| p.base_asset_amount);
+    let position_before = position_after_fill.safe_sub(base_asset_amount_filled)?;
+
+    if position_after_fill == 0 {
+        return Ok(MarginRequirementType::Maintenance);
+    }
+
+    if position_after_fill.signum() == position_before.signum()
+        && position_after_fill.abs() < position_before.abs()
+    {
+        return Ok(MarginRequirementType::Maintenance);
+    }
+
+    Ok(MarginRequirementType::Fill)
 }

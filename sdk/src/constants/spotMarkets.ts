@@ -135,7 +135,30 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		mint: new PublicKey('J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
-		serumMarket: new PublicKey('JAmhJbmBzLp2aTp9mNJodPsTcpCJsmq5jpr6CuCbWHvR'),
+		serumMarket: new PublicKey('DkbVbMhFxswS32xnn1K2UY4aoBugXooBTxdzkWWDWRkH'),
+	},
+	{
+		symbol: 'PYTH',
+		marketIndex: 7,
+		oracle: new PublicKey('nrYkQQQur7z8rYTST3G9GqATviK5SxTDkrqd21MW6Ue'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		serumMarket: new PublicKey('4E17F3BxtNVqzVsirxguuqkpYLtFgCR6NfTpccPh82WE'),
+		phoenixMarket: new PublicKey(
+			'2sTMN9A1D1qeZLF95XQgJCUPiKe5DiV52jLfZGqMP46m'
+		),
+	},
+	{
+		symbol: 'bSOL',
+		marketIndex: 8,
+		oracle: new PublicKey('AFrYBhb5wKQtxRS9UA9YRS4V3dwFm7SqmS6DHKq6YVgo'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		serumMarket: new PublicKey('ARjaHVxGCQfTvvKjLd7U7srvk6orthZSE6uqWchCczZc'),
 	},
 ];
 

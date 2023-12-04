@@ -111,7 +111,8 @@ describe('modify orders', () => {
 			marketIndex: 0,
 			baseAssetAmount: BASE_PRECISION,
 			direction: PositionDirection.LONG,
-			orderType: OrderType.MARKET,
+			orderType: OrderType.LIMIT,
+			price: PRICE_PRECISION,
 		});
 
 		await driftClient.modifyOrder({
@@ -133,7 +134,8 @@ describe('modify orders', () => {
 			marketIndex: 0,
 			baseAssetAmount: BASE_PRECISION,
 			direction: PositionDirection.LONG,
-			orderType: OrderType.MARKET,
+			orderType: OrderType.LIMIT,
+			price: PRICE_PRECISION,
 		});
 
 		await driftClient.modifyOrderByUserOrderId({

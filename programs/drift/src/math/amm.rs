@@ -62,26 +62,6 @@ pub fn calculate_bid_ask_bounds(
     Ok((bid_bounded_base, ask_bounded_base))
 }
 
-pub fn calculate_terminal_price(amm: &mut AMM) -> DriftResult<u64> {
-    let swap_direction = if amm.base_asset_amount_with_amm > 0 {
-        SwapDirection::Add
-    } else {
-        SwapDirection::Remove
-    };
-    let (new_quote_asset_amount, new_base_asset_amount) = calculate_swap_output(
-        amm.base_asset_amount_with_amm.unsigned_abs(),
-        amm.base_asset_reserve,
-        swap_direction,
-        amm.sqrt_k,
-    )?;
-
-    calculate_price(
-        new_quote_asset_amount,
-        new_base_asset_amount,
-        amm.peg_multiplier,
-    )
-}
-
 pub fn calculate_market_open_bids_asks(amm: &AMM) -> DriftResult<(i128, i128)> {
     let base_asset_reserve = amm.base_asset_reserve;
     let min_base_asset_reserve = amm.min_base_asset_reserve;
@@ -653,7 +633,6 @@ pub fn calculate_quote_asset_amount_swapped(
 ) -> DriftResult<u128> {
     let mut quote_asset_reserve_change = match swap_direction {
         SwapDirection::Add => quote_asset_reserve_before.safe_sub(quote_asset_reserve_after)?,
-
         SwapDirection::Remove => quote_asset_reserve_after.safe_sub(quote_asset_reserve_before)?,
     };
 

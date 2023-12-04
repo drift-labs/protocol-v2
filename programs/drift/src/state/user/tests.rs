@@ -593,7 +593,7 @@ mod get_claimable_pnl {
     }
 }
 
-mod get_worst_case_token_amount {
+mod get_worst_case_fill_simulation {
     use crate::math::constants::{
         PRICE_PRECISION_I64, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION_U64,
     };
@@ -634,7 +634,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -659,7 +659,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -684,7 +684,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -732,7 +732,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -758,7 +758,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -784,7 +784,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -831,7 +831,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -856,7 +856,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -881,7 +881,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -928,7 +928,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -953,7 +953,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -978,7 +978,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1025,7 +1025,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1050,7 +1050,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1075,7 +1075,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1122,7 +1122,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1147,7 +1147,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1172,7 +1172,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1219,7 +1219,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1244,7 +1244,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1269,7 +1269,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1316,7 +1316,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1341,7 +1341,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1366,7 +1366,7 @@ mod get_worst_case_token_amount {
             weighted_token_value: worst_case_weighted_token_value,
             free_collateral_contribution,
         } = spot_position
-            .get_worst_case_token_amount(
+            .get_worst_case_fill_simulation(
                 &spot_market,
                 &strict_price,
                 None,
@@ -1721,46 +1721,168 @@ mod qualifies_for_withdraw_fee {
     }
 }
 
-mod update_reduce_only_status {
+mod update_user_status {
     use crate::state::user::{User, UserStatus};
 
     #[test]
     fn test() {
-        let mut bankrupt_user = User {
-            status: UserStatus::Bankrupt,
+        let mut user = User::default();
+        assert_eq!(user.status, 0);
+
+        user.enter_liquidation(0).unwrap();
+
+        assert_eq!(user.status, UserStatus::BeingLiquidated as u8);
+        assert!(user.is_being_liquidated());
+
+        user.enter_bankruptcy();
+
+        assert_eq!(user.status, UserStatus::Bankrupt as u8);
+        assert!(user.is_being_liquidated());
+        assert!(user.is_bankrupt());
+
+        let mut user = User {
+            status: UserStatus::ReduceOnly as u8,
             ..User::default()
         };
 
-        let result = bankrupt_user.update_reduce_only_status(true);
-        assert!(result.is_err());
-        let result = bankrupt_user.update_reduce_only_status(false);
-        assert!(result.is_err());
+        user.enter_liquidation(0).unwrap();
 
-        let mut liquidated_user = User {
-            status: UserStatus::BeingLiquidated,
-            ..User::default()
-        };
-        let result = liquidated_user.update_reduce_only_status(true);
-        assert!(result.is_err());
-        let result = liquidated_user.update_reduce_only_status(false);
-        assert!(result.is_err());
+        assert!(user.is_being_liquidated());
+        assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
 
-        let mut reduce_only_user = User {
-            status: UserStatus::ReduceOnly,
-            ..User::default()
-        };
-        let result = reduce_only_user.update_reduce_only_status(true);
-        assert!(result.is_err());
-        let result = reduce_only_user.update_reduce_only_status(false);
-        assert!(result.is_ok());
+        user.enter_bankruptcy();
 
-        let mut active_only_user = User {
-            status: UserStatus::Active,
-            ..User::default()
+        assert!(user.is_being_liquidated());
+        assert!(user.is_bankrupt());
+        assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
+
+        user.exit_liquidation();
+        assert!(!user.is_being_liquidated());
+        assert!(!user.is_bankrupt());
+        assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
+    }
+}
+
+mod resting_limit_order {
+    use crate::state::user::{Order, OrderType};
+    use crate::PositionDirection;
+
+    #[test]
+    fn test() {
+        let order = Order {
+            order_type: OrderType::Market,
+            ..Order::default()
         };
-        let result = active_only_user.update_reduce_only_status(false);
-        assert!(result.is_err());
-        let result = active_only_user.update_reduce_only_status(true);
-        assert!(result.is_ok());
+        let slot = 0;
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        let order = Order {
+            order_type: OrderType::TriggerMarket,
+            ..Order::default()
+        };
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        let order = Order {
+            order_type: OrderType::Oracle,
+            ..Order::default()
+        };
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        // limit order before end of auction
+        let order = Order {
+            order_type: OrderType::Limit,
+            post_only: false,
+            auction_duration: 10,
+            slot: 1,
+            ..Order::default()
+        };
+        let slot = 2;
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        // limit order after end of auction
+        let order = Order {
+            order_type: OrderType::Limit,
+            post_only: false,
+            auction_duration: 10,
+            slot: 1,
+            ..Order::default()
+        };
+        let slot = 12;
+
+        assert!(order.is_resting_limit_order(slot).unwrap());
+
+        // limit order post only
+        let order = Order {
+            order_type: OrderType::Limit,
+            post_only: true,
+            ..Order::default()
+        };
+        let slot = 1;
+
+        assert!(order.is_resting_limit_order(slot).unwrap());
+
+        // trigger order long crosses trigger, auction complete
+        let order = Order {
+            order_type: OrderType::TriggerLimit,
+            direction: PositionDirection::Long,
+            trigger_price: 100,
+            price: 110,
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let slot = 12;
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        // trigger order long doesnt cross trigger, auction complete
+        let order = Order {
+            order_type: OrderType::TriggerLimit,
+            direction: PositionDirection::Long,
+            trigger_price: 100,
+            price: 90,
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let slot = 12;
+
+        assert!(order.is_resting_limit_order(slot).unwrap());
+
+        // trigger order short crosses trigger, auction complete
+        let order = Order {
+            order_type: OrderType::TriggerLimit,
+            direction: PositionDirection::Short,
+            trigger_price: 100,
+            price: 90,
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let slot = 12;
+
+        assert!(!order.is_resting_limit_order(slot).unwrap());
+
+        // trigger order long doesnt cross trigger, auction complete
+        let order = Order {
+            order_type: OrderType::TriggerLimit,
+            direction: PositionDirection::Short,
+            trigger_price: 100,
+            price: 110,
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let slot = 12;
+
+        assert!(order.is_resting_limit_order(slot).unwrap());
     }
 }

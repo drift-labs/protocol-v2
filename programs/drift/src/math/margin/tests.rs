@@ -9,9 +9,7 @@ mod test {
         QUOTE_PRECISION_I64, SPOT_IMF_PRECISION,
     };
     use crate::math::margin::{calculate_perp_position_value_and_pnl, MarginRequirementType};
-    use crate::math::position::{
-        calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
-    };
+    use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
     use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
     use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
     use crate::state::spot_market::{AssetTier, SpotMarket};
@@ -138,6 +136,46 @@ mod test {
             .get_liability_weight(size, &MarginRequirementType::Maintenance)
             .unwrap();
         assert_eq!(maint_lib_weight, 31622);
+
+        let mut spot_market2 = SpotMarket {
+            initial_asset_weight: 1500,
+            maintenance_asset_weight: 7500,
+            initial_liability_weight: 15000,
+            maintenance_liability_weight: 12500,
+            decimals: 6,
+            imf_factor: 0,
+            ..SpotMarket::default()
+        };
+
+        let size = 100000 * QUOTE_PRECISION;
+        let price = QUOTE_PRECISION_I64 / 2;
+        let asset_weight = spot_market2
+            .get_asset_weight(size, price, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, 1500);
+        let asset_weight = spot_market2
+            .get_asset_weight(size, price, &MarginRequirementType::Fill)
+            .unwrap();
+        assert_eq!(asset_weight, 4500);
+        let asset_weight = spot_market2
+            .get_asset_weight(size, price, &MarginRequirementType::Maintenance)
+            .unwrap();
+        assert_eq!(asset_weight, 7500);
+
+        spot_market2.imf_factor = SPOT_IMF_PRECISION / 10;
+
+        let asset_weight = spot_market2
+            .get_asset_weight(size, price, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, 337);
+        let asset_weight = spot_market2
+            .get_asset_weight(size, price, &MarginRequirementType::Fill)
+            .unwrap();
+        assert_eq!(asset_weight, 337);
+        let asset_weight = spot_market2
+            .get_asset_weight(size, price, &MarginRequirementType::Maintenance)
+            .unwrap();
+        assert_eq!(asset_weight, 337);
     }
 
     #[test]
@@ -226,16 +264,11 @@ mod test {
 
         let margin_requirement_type = MarginRequirementType::Initial;
 
-        let position_unrealized_pnl =
-            calculate_position_pnl(&market_position, &market.amm, false).unwrap();
-
-        assert_eq!(position_unrealized_pnl, 22699050905);
-
         // sqrt of oracle price = 149
         market.unrealized_pnl_imf_factor = market.imf_factor;
 
         let uaw = market
-            .get_unrealized_asset_weight(position_unrealized_pnl, MarginRequirementType::Initial)
+            .get_unrealized_asset_weight(22699050905, MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(uaw, 9559);
 
@@ -251,7 +284,6 @@ mod test {
         .unwrap();
 
         assert_eq!(upnl, 100000000);
-        assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
         assert_eq!(pmr, 13555327867);

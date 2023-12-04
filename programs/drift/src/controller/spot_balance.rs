@@ -20,7 +20,7 @@ use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 
 use crate::state::events::SpotInterestRecord;
 use crate::state::oracle::OraclePriceData;
-use crate::state::perp_market::{MarketStatus, PerpMarket};
+use crate::state::perp_market::MarketStatus;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::validate;
 
@@ -378,23 +378,6 @@ pub fn transfer_spot_balance_to_revenue_pool(
     Ok(())
 }
 
-pub fn check_perp_market_valid(
-    perp_market: &PerpMarket,
-    spot_market: &SpotMarket,
-    spot_balance: &mut dyn SpotBalance,
-    current_slot: u64,
-) -> DriftResult {
-    // todo
-
-    if perp_market.amm.oracle == spot_market.oracle
-        && spot_balance.balance_type() == &SpotBalanceType::Borrow
-        && (perp_market.amm.last_update_slot != current_slot || !perp_market.amm.last_oracle_valid)
-    {
-        return Err(ErrorCode::InvalidOracle);
-    }
-
-    Ok(())
-}
 pub fn update_spot_market_and_check_validity(
     spot_market: &mut SpotMarket,
     oracle_price_data: &OraclePriceData,

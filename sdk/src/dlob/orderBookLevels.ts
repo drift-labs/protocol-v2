@@ -29,6 +29,7 @@ export type L2Level = {
 export type L2OrderBook = {
 	asks: L2Level[];
 	bids: L2Level[];
+	slot?: number;
 };
 
 export interface L2OrderBookGenerator {
@@ -46,6 +47,7 @@ export type L3Level = {
 export type L3OrderBook = {
 	asks: L3Level[];
 	bids: L3Level[];
+	slot?: number;
 };
 
 export const DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS = [
@@ -164,12 +166,21 @@ export function getVammL2Generator({
 
 	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, oraclePriceData);
 
-	const [openBids, openAsks] = calculateMarketOpenBidAsk(
+	let [openBids, openAsks] = calculateMarketOpenBidAsk(
 		updatedAmm.baseAssetReserve,
 		updatedAmm.minBaseAssetReserve,
 		updatedAmm.maxBaseAssetReserve,
 		updatedAmm.orderStepSize
 	);
+
+	const minOrderSize = marketAccount.amm.minOrderSize;
+	if (openBids.lt(minOrderSize.muln(2))) {
+		openBids = ZERO;
+	}
+
+	if (openAsks.abs().lt(minOrderSize.muln(2))) {
+		openAsks = ZERO;
+	}
 
 	now = now ?? new BN(Date.now() / 1000);
 	const [bidReserves, askReserves] = calculateSpreadReserves(
@@ -291,15 +302,15 @@ export function getVammL2Generator({
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
 						calculateAmmReservesAfterSwap(
-							bidAmm,
+							askAmm,
 							'base',
 							baseSwapped,
 							SwapDirection.REMOVE
 						);
 
 					quoteSwapped = calculateQuoteAssetAmountSwapped(
-						bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
-						bidAmm.pegMultiplier,
+						askAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+						askAmm.pegMultiplier,
 						SwapDirection.REMOVE
 					);
 				}
@@ -354,6 +365,7 @@ export function groupL2(
 	return {
 		bids: groupL2Levels(l2.bids, grouping, PositionDirection.LONG, depth),
 		asks: groupL2Levels(l2.asks, grouping, PositionDirection.SHORT, depth),
+		slot: l2.slot,
 	};
 }
 

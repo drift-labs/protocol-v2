@@ -11,6 +11,7 @@ use math::{bn, constants::*};
 use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
+use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
 use crate::state::spot_market::SpotFulfillmentConfigStatus;
@@ -932,6 +933,13 @@ pub mod drift {
         handle_update_liquidation_duration(ctx, liquidation_duration)
     }
 
+    pub fn update_liquidation_margin_buffer_ratio(
+        ctx: Context<AdminUpdateState>,
+        liquidation_margin_buffer_ratio: u32,
+    ) -> Result<()> {
+        handle_update_liquidation_margin_buffer_ratio(ctx, liquidation_margin_buffer_ratio)
+    }
+
     pub fn update_oracle_guard_rails(
         ctx: Context<AdminUpdateState>,
         oracle_guard_rails: OracleGuardRails,
@@ -944,6 +952,13 @@ pub mod drift {
         settlement_duration: u16,
     ) -> Result<()> {
         handle_update_state_settlement_duration(ctx, settlement_duration)
+    }
+
+    pub fn update_state_max_number_of_sub_accounts(
+        ctx: Context<AdminUpdateState>,
+        max_number_of_sub_accounts: u16,
+    ) -> Result<()> {
+        handle_update_state_max_number_of_sub_accounts(ctx, max_number_of_sub_accounts)
     }
 
     pub fn update_perp_market_oracle(

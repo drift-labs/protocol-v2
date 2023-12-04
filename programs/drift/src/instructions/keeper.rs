@@ -8,6 +8,7 @@ use crate::instructions::optional_accounts::{
 };
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
+use crate::math::margin::calculate_user_equity;
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::fill_mode::FillMode;
@@ -29,10 +30,10 @@ use crate::state::spot_market_map::{
 use crate::state::state::State;
 use crate::state::user::{MarketType, OrderStatus, User, UserStats};
 use crate::state::user_map::load_user_maps;
-use crate::validate;
 use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math};
 use crate::{load_mut, QUOTE_PRECISION_U64};
+use crate::{validate, QUOTE_PRECISION_I128};
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -357,7 +358,25 @@ pub fn handle_update_user_idle<'info>(ctx: Context<UpdateUserIdle>) -> Result<()
     let mut user = load_mut!(ctx.accounts.user)?;
     let clock = Clock::get()?;
 
-    validate_user_is_idle(&user, clock.slot)?;
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    let (equity, _) =
+        calculate_user_equity(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+
+    // user flipped to idle faster if equity is less than 1000
+    let accelerated = equity < QUOTE_PRECISION_I128 * 1000;
+
+    validate_user_is_idle(&user, clock.slot, accelerated)?;
 
     user.idle = true;
 

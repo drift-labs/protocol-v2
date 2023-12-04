@@ -52,13 +52,14 @@ pub fn validate_user_deletion(user: &User, user_stats: &UserStats) -> DriftResul
     Ok(())
 }
 
-pub fn validate_user_is_idle(user: &User, slot: u64) -> DriftResult {
+pub fn validate_user_is_idle(user: &User, slot: u64, accelerated: bool) -> DriftResult {
     let slots_since_last_active = slot.saturating_sub(user.last_active_slot);
 
-    #[cfg(feature = "mainnet-beta")]
-    let slots_before_idle = 1512000_u64;
-    #[cfg(not(feature = "mainnet-beta"))]
-    let slots_before_idle = 0_u64;
+    let slots_before_idle = if accelerated {
+        9000_u64 // 60 * 60 / .4 (~1 hour)
+    } else {
+        1512000_u64 // 60 * 60 * 24 * 7 / .4 (~1 week)
+    };
 
     validate!(
         slots_since_last_active >= slots_before_idle,

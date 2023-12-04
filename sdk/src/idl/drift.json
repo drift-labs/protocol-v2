@@ -1,5 +1,5 @@
 {
-  "version": "2.41.0",
+  "version": "2.48.0",
   "name": "drift",
   "instructions": [
     {
@@ -4099,6 +4099,27 @@
       ]
     },
     {
+      "name": "updateLiquidationMarginBufferRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidationMarginBufferRatio",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "updateOracleGuardRails",
       "accounts": [
         {
@@ -4138,6 +4159,27 @@
       "args": [
         {
           "name": "settlementDuration",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateStateMaxNumberOfSubAccounts",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxNumberOfSubAccounts",
           "type": "u16"
         }
       ]
@@ -5702,11 +5744,15 @@
             "type": "u16"
           },
           {
+            "name": "maxNumberOfSubAccounts",
+            "type": "u16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                14
+                12
               ]
             }
           }
@@ -5890,9 +5936,7 @@
             "docs": [
               "Whether the user is active, being liquidated or bankrupt"
             ],
-            "type": {
-              "defined": "UserStatus"
-            }
+            "type": "u8"
           },
           {
             "name": "isMarginTradingEnabled",
@@ -6106,204 +6150,6 @@
     }
   ],
   "types": [
-    {
-      "name": "OrderParams",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "orderType",
-            "type": {
-              "defined": "OrderType"
-            }
-          },
-          {
-            "name": "marketType",
-            "type": {
-              "defined": "MarketType"
-            }
-          },
-          {
-            "name": "direction",
-            "type": {
-              "defined": "PositionDirection"
-            }
-          },
-          {
-            "name": "userOrderId",
-            "type": "u8"
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "u64"
-          },
-          {
-            "name": "price",
-            "type": "u64"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "reduceOnly",
-            "type": "bool"
-          },
-          {
-            "name": "postOnly",
-            "type": {
-              "defined": "PostOnlyParam"
-            }
-          },
-          {
-            "name": "immediateOrCancel",
-            "type": "bool"
-          },
-          {
-            "name": "maxTs",
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "triggerPrice",
-            "type": {
-              "option": "u64"
-            }
-          },
-          {
-            "name": "triggerCondition",
-            "type": {
-              "defined": "OrderTriggerCondition"
-            }
-          },
-          {
-            "name": "oraclePriceOffset",
-            "type": {
-              "option": "i32"
-            }
-          },
-          {
-            "name": "auctionDuration",
-            "type": {
-              "option": "u8"
-            }
-          },
-          {
-            "name": "auctionStartPrice",
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "auctionEndPrice",
-            "type": {
-              "option": "i64"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "ModifyOrderParams",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "direction",
-            "type": {
-              "option": {
-                "defined": "PositionDirection"
-              }
-            }
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": {
-              "option": "u64"
-            }
-          },
-          {
-            "name": "price",
-            "type": {
-              "option": "u64"
-            }
-          },
-          {
-            "name": "reduceOnly",
-            "type": {
-              "option": "bool"
-            }
-          },
-          {
-            "name": "postOnly",
-            "type": {
-              "option": {
-                "defined": "PostOnlyParam"
-              }
-            }
-          },
-          {
-            "name": "immediateOrCancel",
-            "type": {
-              "option": "bool"
-            }
-          },
-          {
-            "name": "maxTs",
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "triggerPrice",
-            "type": {
-              "option": "u64"
-            }
-          },
-          {
-            "name": "triggerCondition",
-            "type": {
-              "option": {
-                "defined": "OrderTriggerCondition"
-              }
-            }
-          },
-          {
-            "name": "oraclePriceOffset",
-            "type": {
-              "option": "i32"
-            }
-          },
-          {
-            "name": "auctionDuration",
-            "type": {
-              "option": "u8"
-            }
-          },
-          {
-            "name": "auctionStartPrice",
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "auctionEndPrice",
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "policy",
-            "type": {
-              "option": {
-                "defined": "ModifyOrderPolicy"
-              }
-            }
-          }
-        ]
-      }
-    },
     {
       "name": "LiquidatePerpRecord",
       "type": {
@@ -6610,6 +6456,204 @@
           {
             "name": "lastIndexPriceTwapTs",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "orderType",
+            "type": {
+              "defined": "OrderType"
+            }
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "userOrderId",
+            "type": "u8"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "reduceOnly",
+            "type": "bool"
+          },
+          {
+            "name": "postOnly",
+            "type": {
+              "defined": "PostOnlyParam"
+            }
+          },
+          {
+            "name": "immediateOrCancel",
+            "type": "bool"
+          },
+          {
+            "name": "maxTs",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "triggerPrice",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "triggerCondition",
+            "type": {
+              "defined": "OrderTriggerCondition"
+            }
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": {
+              "option": "i32"
+            }
+          },
+          {
+            "name": "auctionDuration",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "auctionStartPrice",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "auctionEndPrice",
+            "type": {
+              "option": "i64"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ModifyOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "direction",
+            "type": {
+              "option": {
+                "defined": "PositionDirection"
+              }
+            }
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "price",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "reduceOnly",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "postOnly",
+            "type": {
+              "option": {
+                "defined": "PostOnlyParam"
+              }
+            }
+          },
+          {
+            "name": "immediateOrCancel",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "maxTs",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "triggerPrice",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "triggerCondition",
+            "type": {
+              "option": {
+                "defined": "OrderTriggerCondition"
+              }
+            }
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": {
+              "option": "i32"
+            }
+          },
+          {
+            "name": "auctionDuration",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "auctionStartPrice",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "auctionEndPrice",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "policy",
+            "type": {
+              "option": {
+                "defined": "ModifyOrderPolicy"
+              }
+            }
           }
         ]
       }
@@ -8008,40 +8052,6 @@
       }
     },
     {
-      "name": "PostOnlyParam",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "None"
-          },
-          {
-            "name": "MustPostOnly"
-          },
-          {
-            "name": "TryPostOnly"
-          },
-          {
-            "name": "Slide"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ModifyOrderPolicy",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "TryModify"
-          },
-          {
-            "name": "MustModify"
-          }
-        ]
-      }
-    },
-    {
       "name": "SwapReduceOnly",
       "type": {
         "kind": "enum",
@@ -8492,6 +8502,40 @@
       }
     },
     {
+      "name": "PostOnlyParam",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "MustPostOnly"
+          },
+          {
+            "name": "TryPostOnly"
+          },
+          {
+            "name": "Slide"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ModifyOrderPolicy",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "TryModify"
+          },
+          {
+            "name": "MustModify"
+          }
+        ]
+      }
+    },
+    {
       "name": "MarketStatus",
       "type": {
         "kind": "enum",
@@ -8665,9 +8709,6 @@
       "type": {
         "kind": "enum",
         "variants": [
-          {
-            "name": "Active"
-          },
           {
             "name": "BeingLiquidated"
           },
@@ -10882,7 +10923,7 @@
     {
       "code": 6221,
       "name": "SpotFulfillmentConfigDisabled",
-      "msg": "Spot Fulfullment Config Disabled"
+      "msg": "Spot Fulfillment Config Disabled"
     },
     {
       "code": 6222,

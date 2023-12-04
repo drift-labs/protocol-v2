@@ -1,4 +1,4 @@
-import { PublicKey } from '@solana/web3.js';
+import { Commitment, PublicKey } from '@solana/web3.js';
 import { Order, UserAccount } from '../types';
 import { DriftClient } from '../driftClient';
 
@@ -8,11 +8,13 @@ export type OrderSubscriberConfig = {
 		| {
 				type: 'polling';
 				frequency: number;
+				commitment?: Commitment;
 		  }
 		| {
 				type: 'websocket';
 				skipInitialLoad?: boolean;
 				resubTimeoutMs?: number;
+				commitment?: Commitment;
 		  };
 };
 

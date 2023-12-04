@@ -19,7 +19,7 @@ export class BulkAccountLoader {
 	accountsToLoad = new Map<string, AccountToLoad>();
 	bufferAndSlotMap = new Map<string, BufferAndSlot>();
 	errorCallbacks = new Map<string, (e) => void>();
-	intervalId?: NodeJS.Timer;
+	intervalId?: ReturnType<typeof setTimeout>;
 	// to handle clients spamming load
 	loadPromise?: Promise<void>;
 	loadPromiseResolver: () => void;
@@ -193,7 +193,7 @@ export class BulkAccountLoader {
 				const key = accountToLoad.publicKey.toBase58();
 				const oldRPCResponse = this.bufferAndSlotMap.get(key);
 
-				if (oldRPCResponse && newSlot <= oldRPCResponse.slot) {
+				if (oldRPCResponse && newSlot < oldRPCResponse.slot) {
 					return;
 				}
 
@@ -247,6 +247,10 @@ export class BulkAccountLoader {
 
 	public getBufferAndSlot(publicKey: PublicKey): BufferAndSlot | undefined {
 		return this.bufferAndSlotMap.get(publicKey.toString());
+	}
+
+	public getSlot(): number {
+		return this.mostRecentSlot;
 	}
 
 	public startPolling(): void {

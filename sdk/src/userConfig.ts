@@ -1,5 +1,5 @@
 import { DriftClient } from './driftClient';
-import { PublicKey } from '@solana/web3.js';
+import { Commitment, PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { UserAccountSubscriber } from './accounts/types';
 
@@ -12,6 +12,8 @@ export type UserConfig = {
 export type UserSubscriptionConfig =
 	| {
 			type: 'websocket';
+			resubTimeoutMs?: number;
+			commitment?: Commitment;
 	  }
 	| {
 			type: 'polling';

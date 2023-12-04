@@ -83,7 +83,8 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         lp_cooldown_time: 0,
         liquidation_duration: 0,
         initial_pct_to_liquidate: 0,
-        padding: [0; 14],
+        max_number_of_sub_accounts: 0,
+        padding: [0; 12],
     };
 
     Ok(())
@@ -1424,6 +1425,9 @@ pub fn handle_update_perp_market_max_imbalances(
     perp_market.unrealized_pnl_max_imbalance = unrealized_max_imbalance;
     perp_market.insurance_claim.quote_max_insurance = quote_max_insurance;
 
+    // ensure altered max_revenue_withdraw_per_period doesn't break invariant check
+    crate::validation::perp_market::validate_perp_market(perp_market)?;
+
     Ok(())
 }
 
@@ -1934,6 +1938,14 @@ pub fn handle_update_liquidation_duration(
     Ok(())
 }
 
+pub fn handle_update_liquidation_margin_buffer_ratio(
+    ctx: Context<AdminUpdateState>,
+    liquidation_margin_buffer_ratio: u32,
+) -> Result<()> {
+    ctx.accounts.state.liquidation_margin_buffer_ratio = liquidation_margin_buffer_ratio;
+    Ok(())
+}
+
 pub fn handle_update_oracle_guard_rails(
     ctx: Context<AdminUpdateState>,
     oracle_guard_rails: OracleGuardRails,
@@ -1947,6 +1959,14 @@ pub fn handle_update_state_settlement_duration(
     settlement_duration: u16,
 ) -> Result<()> {
     ctx.accounts.state.settlement_duration = settlement_duration;
+    Ok(())
+}
+
+pub fn handle_update_state_max_number_of_sub_accounts(
+    ctx: Context<AdminUpdateState>,
+    max_number_of_sub_accounts: u16,
+) -> Result<()> {
+    ctx.accounts.state.max_number_of_sub_accounts = max_number_of_sub_accounts;
     Ok(())
 }
 

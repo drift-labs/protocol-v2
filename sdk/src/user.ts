@@ -3,66 +3,67 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { DriftClient } from './driftClient';
 import {
+	HealthComponents,
 	isVariant,
 	MarginCategory,
 	Order,
-	UserAccount,
+	PerpMarketAccount,
 	PerpPosition,
 	SpotPosition,
-	isOneOfVariant,
-	PerpMarketAccount,
-	HealthComponents,
+	UserAccount,
+	UserStatus,
 	UserStatsAccount,
 } from './types';
 import { calculateEntryPrice, positionIsAvailable } from './math/position';
 import {
-	PRICE_PRECISION,
-	AMM_TO_QUOTE_PRECISION_RATIO,
-	ZERO,
-	TEN_THOUSAND,
-	BN_MAX,
-	QUOTE_PRECISION,
 	AMM_RESERVE_PRECISION,
-	MARGIN_PRECISION,
-	SPOT_MARKET_WEIGHT_PRECISION,
-	QUOTE_SPOT_MARKET_INDEX,
-	TEN,
-	OPEN_ORDER_MARGIN_REQUIREMENT,
-	FIVE_MINUTE,
-	BASE_PRECISION,
-	ONE,
-	TWO,
 	AMM_RESERVE_PRECISION_EXP,
+	AMM_TO_QUOTE_PRECISION_RATIO,
+	BASE_PRECISION,
+	BN_MAX,
+	FIVE_MINUTE,
+	MARGIN_PRECISION,
+	ONE,
+	OPEN_ORDER_MARGIN_REQUIREMENT,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	TEN,
+	TEN_THOUSAND,
+	TWO,
+	ZERO,
 } from './constants/numericConstants';
 import {
-	UserAccountSubscriber,
-	UserAccountEvents,
 	DataAndSlot,
+	UserAccountEvents,
+	UserAccountSubscriber,
 } from './accounts/types';
 import {
-	calculateReservePrice,
+	BN,
 	calculateBaseAssetValue,
+	calculateMarketMarginRatio,
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
+	calculateReservePrice,
+	calculateSpotMarketMarginRatio,
 	calculateUnrealizedAssetWeight,
-	calculateMarketMarginRatio,
-	PositionDirection,
-	BN,
-	SpotMarketAccount,
+	divCeil,
+	getBalance,
+	getSignedTokenAmount,
+	getStrictTokenValue,
 	getTokenValue,
 	MarketType,
-	getStrictTokenValue,
-	calculateSpotMarketMarginRatio,
-	getSignedTokenAmount,
-	SpotBalanceType,
+	PositionDirection,
 	sigNum,
-	getBalance,
+	SpotBalanceType,
+	SpotMarketAccount,
 } from '.';
 import {
-	getTokenAmount,
 	calculateAssetWeight,
 	calculateLiabilityWeight,
 	calculateWithdrawLimit,
+	getTokenAmount,
 } from './math/spotBalance';
 import { calculateMarketOpenBidAsk } from './math/amm';
 import {
@@ -111,7 +112,9 @@ export class User {
 		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,
-				config.userAccountPublicKey
+				config.userAccountPublicKey,
+				config.accountSubscription?.resubTimeoutMs,
+				config.accountSubscription?.commitment
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -1200,12 +1203,7 @@ export class User {
 	 * @returns : number (value from [0, 100])
 	 */
 	public getHealth(): number {
-		const userAccount = this.getUserAccount();
-
-		if (
-			isVariant(userAccount.status, 'beingLiquidated') ||
-			isVariant(userAccount.status, 'bankrupt')
-		) {
+		if (this.isBeingLiquidated()) {
 			return 0;
 		}
 
@@ -1821,14 +1819,15 @@ export class User {
 	}
 
 	public isBeingLiquidated(): boolean {
-		return isOneOfVariant(this.getUserAccount().status, [
-			'beingLiquidated',
-			'bankrupt',
-		]);
+		return (
+			(this.getUserAccount().status &
+				(UserStatus.BEING_LIQUIDATED | UserStatus.BANKRUPT)) >
+			0
+		);
 	}
 
 	public isBankrupt(): boolean {
-		return isVariant(this.getUserAccount().status, 'bankrupt');
+		return (this.getUserAccount().status & UserStatus.BANKRUPT) > 0;
 	}
 
 	/**
@@ -2412,7 +2411,7 @@ export class User {
 		);
 
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
-			this.getLeverageComponents(undefined, 'Initial');
+			this.getLeverageComponents();
 
 		if (!calculateSwap) {
 			calculateSwap = (inSwap: BN) => {
@@ -2708,7 +2707,7 @@ export class User {
 		);
 
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
-			this.getLeverageComponents(undefined, 'Initial');
+			this.getLeverageComponents();
 
 		const inPositionAfter = this.cloneAndUpdateSpotPosition(
 			inSpotPosition,
@@ -2888,8 +2887,12 @@ export class User {
 			includeOpenOrders
 		);
 
+		const worstCaseBase = calculateWorstCaseBaseAssetAmount(currentPosition);
+
+		// current side is short if position base asset amount is negative OR there is no position open but open orders are short
 		const currentSide =
-			currentPosition && currentPosition.baseAssetAmount.isNeg()
+			currentPosition.baseAssetAmount.isNeg() ||
+			(currentPosition.baseAssetAmount.eq(ZERO) && worstCaseBase.isNeg())
 				? PositionDirection.SHORT
 				: PositionDirection.LONG;
 
@@ -3038,6 +3041,7 @@ export class User {
 		);
 
 		const freeCollateral = this.getFreeCollateral();
+		const initialMarginRequirement = this.getInitialMarginRequirement();
 		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
 		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
 
@@ -3054,14 +3058,19 @@ export class User {
 			'Initial'
 		);
 
-		const amountWithdrawable = assetWeight.eq(ZERO)
-			? userDepositAmount
-			: freeCollateral
-					.mul(MARGIN_PRECISION)
-					.div(assetWeight)
-					.mul(PRICE_PRECISION)
-					.div(oracleData.price)
-					.mul(precisionIncrease);
+		let amountWithdrawable;
+		if (assetWeight.eq(ZERO)) {
+			amountWithdrawable = userDepositAmount;
+		} else if (initialMarginRequirement.eq(ZERO)) {
+			amountWithdrawable = userDepositAmount;
+		} else {
+			amountWithdrawable = divCeil(
+				divCeil(freeCollateral.mul(MARGIN_PRECISION), assetWeight).mul(
+					PRICE_PRECISION
+				),
+				oracleData.price
+			).mul(precisionIncrease);
+		}
 
 		const maxWithdrawValue = BN.min(
 			BN.min(amountWithdrawable, userDepositAmount),
@@ -3152,10 +3161,21 @@ export class User {
 		};
 	}
 
-	public canMakeIdle(slot: BN, slotsBeforeIdle: BN): boolean {
+	public canMakeIdle(slot: BN): boolean {
 		const userAccount = this.getUserAccount();
 		if (userAccount.idle) {
 			return false;
+		}
+
+		const { totalAssetValue, totalLiabilityValue } =
+			this.getSpotMarketAssetAndLiabilityValue();
+		const equity = totalAssetValue.sub(totalLiabilityValue);
+
+		let slotsBeforeIdle: BN;
+		if (equity.lt(QUOTE_PRECISION.muln(1000))) {
+			slotsBeforeIdle = new BN(9000); // 1 hour
+		} else {
+			slotsBeforeIdle = new BN(1512000); // 1 week
 		}
 
 		const userLastActiveSlot = userAccount.lastActiveSlot;
