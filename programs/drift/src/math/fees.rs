@@ -54,9 +54,12 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             .cast::<u64>()?
             .safe_sub(maker_rebate)
             .map_err(|e| {
-                msg!("quote_asset_amount_surplus {}", quote_asset_amount_surplus);
-                msg!("quote_asset_amount {}", quote_asset_amount);
-                msg!("maker_rebate {}", maker_rebate);
+                msg!(
+                    "quote_asset_amount_surplus {} quote_asset_amount {} maker_rebate {}",
+                    quote_asset_amount_surplus,
+                    quote_asset_amount,
+                    maker_rebate
+                );
                 e
             })?;
 

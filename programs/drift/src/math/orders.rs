@@ -99,17 +99,15 @@ fn calculate_limit_price_with_buffer(
             .safe_div(fee_tier.maker_rebate_denominator.cast()?)?;
 
         if fee_adjustment < 0 {
-            buffer = buffer.saturating_sub(
-                buffer
-                    .safe_mul(fee_adjustment.abs().cast()?)?
-                    .safe_div(FEE_ADJUSTMENT_MAX)?,
-            );
+            let buffer_adjustment = buffer
+                .safe_mul(fee_adjustment.abs().cast()?)?
+                .safe_div(FEE_ADJUSTMENT_MAX)?;
+            buffer = buffer.saturating_sub(buffer_adjustment);
         } else if fee_adjustment > 0 {
-            buffer = buffer.saturating_add(
-                buffer
-                    .safe_mul(fee_adjustment.cast()?)?
-                    .safe_div(FEE_ADJUSTMENT_MAX)?,
-            );
+            let buffer_adjustment = buffer
+                .safe_mul(fee_adjustment.cast()?)?
+                .safe_div(FEE_ADJUSTMENT_MAX)?;
+            buffer = buffer.saturating_add(buffer_adjustment);
         }
 
         match order.direction {
