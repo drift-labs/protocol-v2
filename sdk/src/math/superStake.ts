@@ -20,22 +20,22 @@ export type BSOL_STATS_API_RESPONSE = {
 		conversion: {
 			bsol_to_sol: number;
 			sol_to_bsol: number;
-		},
+		};
 		apy: {
 			base: number;
 			blze: number;
 			total: number;
 			lending: number;
 			liquidity: number;
-		}
-	}
+		};
+	};
 };
 
 export type BSOL_EMISSIONS_API_RESPONSE = {
 	success: boolean;
 	emissions?: {
 		lend: number;
-	}
+	};
 };
 
 export async function fetchBSolMetrics() {
@@ -92,6 +92,7 @@ export async function findBestSuperStakeIxs({
 		return findBestLstSuperStakeIxs({
 			amount,
 			lstMint: driftClient.getSpotMarketAccount(8).mint,
+			lstMarketIndex: 8,
 			jupiterClient,
 			driftClient,
 			userAccountPublicKey,
@@ -202,12 +203,13 @@ export async function findBestJitoSolSuperStakeIxs({
 		userAccountPublicKey,
 		onlyDirectRoutes,
 		lstMint: driftClient.getSpotMarketAccount(6).mint,
+		lstMarketIndex: 6,
 	});
 }
 
 /**
  * Finds best Jupiter Swap instructions for a generic lstMint
- * 
+ *
  * Without doing any extra steps like checking if you can get a better rate by staking directly with that LST platform
  */
 export async function findBestLstSuperStakeIxs({
@@ -217,9 +219,11 @@ export async function findBestLstSuperStakeIxs({
 	driftClient,
 	userAccountPublicKey,
 	onlyDirectRoutes,
+	lstMarketIndex,
 }: {
 	amount: BN;
 	lstMint: PublicKey;
+	lstMarketIndex: number;
 	jupiterClient: JupiterClient;
 	driftClient: DriftClient;
 	userAccountPublicKey?: PublicKey;
@@ -251,7 +255,7 @@ export async function findBestLstSuperStakeIxs({
 
 	const { ixs, lookupTables } = await driftClient.getJupiterSwapIx({
 		inMarketIndex: 1,
-		outMarketIndex: 6,
+		outMarketIndex: lstMarketIndex,
 		route: bestRoute,
 		jupiterClient,
 		amount,
@@ -396,14 +400,13 @@ export async function calculateSolEarned({
 			lstRatios.set(timestamp, data);
 		}
 	};
-	
 
 	const getBSolPrice = async (timestamps: number[]) => {
 		// Currently there's only one bSOL price, no timestamped data
 		// So just use the same price for every timestamp for now
 		const response = await fetchBSolMetrics();
 		if (response.status === 200) {
-			const data = await response.json() as BSOL_STATS_API_RESPONSE;
+			const data = (await response.json()) as BSOL_STATS_API_RESPONSE;
 			const bSolRatio = data?.stats?.conversion?.bsol_to_sol;
 			if (bSolRatio) {
 				timestamps.forEach((timestamp) => lstRatios.set(timestamp, bSolRatio));
@@ -429,13 +432,15 @@ export async function calculateSolEarned({
 			} else {
 				solEarned = solEarned.add(record.amount);
 			}
-		} else if (record.marketIndex === 2 || record.marketIndex === 6 || record.marketIndex === 8) {
+		} else if (
+			record.marketIndex === 2 ||
+			record.marketIndex === 6 ||
+			record.marketIndex === 8
+		) {
 			const lstRatio = lstRatios.get(record.ts.toNumber());
 			const lstRatioBN = new BN(lstRatio * LAMPORTS_PER_SOL);
 
-			const solAmount = record.amount
-				.mul(lstRatioBN)
-				.div(LAMPORTS_PRECISION);
+			const solAmount = record.amount.mul(lstRatioBN).div(LAMPORTS_PRECISION);
 			if (isVariant(record.direction, 'deposit')) {
 				solEarned = solEarned.sub(solAmount);
 			} else {
