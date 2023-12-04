@@ -159,6 +159,7 @@ export class EventSubscriber {
 
 		if (!this.lastSeenSlot || slot > this.lastSeenSlot) {
 			this.lastSeenTxSig = txSig;
+			this.lastSeenSlot = slot;
 		}
 
 		if (
