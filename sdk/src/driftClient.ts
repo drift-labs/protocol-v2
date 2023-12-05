@@ -1229,8 +1229,11 @@ export class DriftClient {
 		return this.getUser(subAccountId).getUserAccountAndSlot();
 	}
 
-	public getSpotPosition(marketIndex: number): SpotPosition | undefined {
-		return this.getUserAccount().spotPositions.find(
+	public getSpotPosition(
+		marketIndex: number,
+		subAccountId?: number
+	): SpotPosition | undefined {
+		return this.getUserAccount(subAccountId).spotPositions.find(
 			(spotPosition) => spotPosition.marketIndex === marketIndex
 		);
 	}
@@ -1531,14 +1534,17 @@ export class DriftClient {
 		};
 	}
 
-	public getOrder(orderId: number): Order | undefined {
-		return this.getUserAccount()?.orders.find(
+	public getOrder(orderId: number, subAccountId?: number): Order | undefined {
+		return this.getUserAccount(subAccountId)?.orders.find(
 			(order) => order.orderId === orderId
 		);
 	}
 
-	public getOrderByUserId(userOrderId: number): Order | undefined {
-		return this.getUserAccount()?.orders.find(
+	public getOrderByUserId(
+		userOrderId: number,
+		subAccountId?: number
+	): Order | undefined {
+		return this.getUserAccount(subAccountId)?.orders.find(
 			(order) => order.userOrderId === userOrderId
 		);
 	}
@@ -2052,7 +2058,7 @@ export class DriftClient {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: true,
 			writableSpotMarketIndexes: [marketIndex],
 			readableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
@@ -2330,13 +2336,13 @@ export class DriftClient {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
 		if (sharesToBurn == undefined) {
-			const userAccount = this.getUserAccount();
+			const userAccount = this.getUserAccount(subAccountId);
 			const perpPosition = userAccount.perpPositions.filter(
 				(position) => position.marketIndex === marketIndex
 			)[0];
@@ -2383,7 +2389,7 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [marketIndex],
 		});
@@ -2640,7 +2646,7 @@ export class DriftClient {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: true,
 			readablePerpMarketIndex: orderParams.marketIndex,
 		});
@@ -2813,7 +2819,7 @@ export class DriftClient {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: true,
 		});
 
@@ -2853,7 +2859,7 @@ export class DriftClient {
 		const oracle = this.getPerpMarketAccount(order.marketIndex).amm.oracle;
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: true,
 		});
 
@@ -2891,7 +2897,7 @@ export class DriftClient {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: true,
 		});
 
@@ -2948,7 +2954,7 @@ export class DriftClient {
 		}
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [this.getUserAccount(subAccountId)],
 			readablePerpMarketIndex,
 			readableSpotMarketIndexes,
 			useMarketLastSlotCache: true,
