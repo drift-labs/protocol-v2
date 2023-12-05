@@ -1668,7 +1668,7 @@ export class DriftClient {
 		reduceOnly = false,
 		userInitialized = true
 	): Promise<TransactionInstruction> {
-		const user = getUserAccountPublicKeySync(
+		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
 			this.authority,
 			subAccountId
@@ -1699,7 +1699,7 @@ export class DriftClient {
 					state: await this.getStatePublicKey(),
 					spotMarket: spotMarketAccount.pubkey,
 					spotMarketVault: spotMarketAccount.vault,
-					user,
+					user: userAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
 					userTokenAccount: userTokenAccount,
 					authority: this.wallet.publicKey,
