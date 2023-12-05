@@ -40,9 +40,16 @@ export class PollingInsuranceFundStakeAccountSubscriber
 		this.eventEmitter = new EventEmitter();
 	}
 
-	async subscribe(): Promise<boolean> {
+	async subscribe(insuranceFundStake?: InsuranceFundStake): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
+		}
+
+		if (insuranceFundStake) {
+			this.insuranceFundStakeAccountAndSlot = {
+				data: insuranceFundStake,
+				slot: undefined,
+			};
 		}
 
 		await this.addToAccountLoader();
