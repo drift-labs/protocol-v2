@@ -1,4 +1,4 @@
-import { Commitment, PublicKey } from '@solana/web3.js';
+import { Commitment, Connection, PublicKey } from '@solana/web3.js';
 import { DriftClient } from '../driftClient';
 
 // filter users that meet these criteria when passing into syncCallback
@@ -9,6 +9,8 @@ export type SyncCallbackCriteria = {
 
 export type UserMapConfig = {
 	driftClient: DriftClient;
+	// connection object to use specifically for the UserMap. If undefined, will use the driftClient's connection
+	connection?: Connection;
 	subscriptionConfig:
 		| {
 				type: 'polling';

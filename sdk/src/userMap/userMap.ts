@@ -39,6 +39,7 @@ export interface UserMapInterface {
 export class UserMap implements UserMapInterface {
 	private userMap = new Map<string, User>();
 	driftClient: DriftClient;
+	private connection: Connection;
 	private commitment: Commitment;
 	private includeIdle: boolean;
 	private lastNumberOfSubAccounts: BN;
@@ -55,12 +56,18 @@ export class UserMap implements UserMapInterface {
 
 	private syncPromise?: Promise<void>;
 	private syncPromiseResolver: () => void;
+	private syncPromiseRejecter: (reason?: any) => void;
 
 	/**
 	 * Constructs a new UserMap instance.
 	 */
 	constructor(config: UserMapConfig) {
 		this.driftClient = config.driftClient;
+		if (config.connection) {
+			this.connection = config.connection;
+		} else {
+			this.connection = this.driftClient.connection;
+		}
 		this.commitment =
 			config.subscriptionConfig.commitment ?? this.driftClient.opts.commitment;
 		this.includeIdle = config.includeIdle ?? false;
@@ -257,8 +264,9 @@ export class UserMap implements UserMapInterface {
 		if (this.syncPromise) {
 			return this.syncPromise;
 		}
-		this.syncPromise = new Promise((resolver) => {
+		this.syncPromise = new Promise((resolver, rejecter) => {
 			this.syncPromiseResolver = resolver;
+			this.syncPromiseRejecter = rejecter;
 		});
 
 		try {
@@ -280,10 +288,7 @@ export class UserMap implements UserMapInterface {
 			// local measuremeant start
 			const rpcJSONResponse: any =
 				// @ts-ignore
-				await this.driftClient.connection._rpcRequest(
-					'getProgramAccounts',
-					rpcRequestArgs
-				);
+				await this.connection._rpcRequest('getProgramAccounts', rpcRequestArgs);
 			// local measuremeant stop, took 3050 ms
 
 			const rpcResponseAndContext: RpcResponseAndContext<
@@ -297,7 +302,7 @@ export class UserMap implements UserMapInterface {
 
 			const slot = rpcResponseAndContext.context.slot;
 
-			// local measuremeant start
+			// local measuremeant start, load rpc response into map
 			const programAccountBufferMap = new Map<string, Buffer>();
 			for (const programAccount of rpcResponseAndContext.value) {
 				programAccountBufferMap.set(
@@ -311,7 +316,7 @@ export class UserMap implements UserMapInterface {
 			}
 			// local measuremeant stop, took 138 ms
 
-			// local measuremeant start
+			// local measuremeant start, add map into userMap
 			for (const [key, buffer] of programAccountBufferMap.entries()) {
 				if (!this.has(key)) {
 					const userAccount =
@@ -321,10 +326,12 @@ export class UserMap implements UserMapInterface {
 						);
 					await this.addPubkey(new PublicKey(key), userAccount);
 				}
+				// give event loop a chance to breathe
+				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
-			// local measuremeant stop, took 8964 ms
+			// local measuremeant stop, took 8964 ms (w/o eventLoop break)
 
-			// local measuremeant start
+			// local measuremeant start, update userMap, remove users that no longer exist
 			for (const [key, user] of this.userMap.entries()) {
 				if (!programAccountBufferMap.has(key)) {
 					await user.unsubscribe();
@@ -337,17 +344,26 @@ export class UserMap implements UserMapInterface {
 						);
 					user.accountSubscriber.updateData(userAccount, slot);
 				}
+				// give event loop a chance to breathe
+				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
-			// local measuremeant stop, took 11464 ms
+			// local measuremeant stop, took 11464 ms (w/o eventLoop break)
 
-			if (this.syncCallback) {
-				await this.syncCallback(this.getUniqueAuthorities());
+			try {
+				if (this.syncCallback) {
+					await this.syncCallback(this.getUniqueAuthorities());
+				}
+			} catch (e) {
+				console.error(`Error caught in UserMap.syncCallback():`);
+				console.error(e);
 			}
-		} catch (e) {
-			console.error(`Error in UserMap.sync()`);
-			console.error(e);
-		} finally {
+
 			this.syncPromiseResolver();
+		} catch (e) {
+			console.error(`Error in UserMap.sync():`);
+			console.error(e);
+			this.syncPromiseRejecter(e);
+		} finally {
 			this.syncPromise = undefined;
 		}
 	}
