@@ -714,6 +714,14 @@ export class DriftClient {
 	): Promise<[TransactionSignature, PublicKey]> {
 		const initializeIxs = [];
 
+		if (name === undefined) {
+			if (subAccountId === 0) {
+				name = DEFAULT_USER_NAME;
+			} else {
+				name = `Subaccount ${subAccountId + 1}`;
+			}
+		}
+
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(
 				subAccountId,
@@ -726,14 +734,6 @@ export class DriftClient {
 				!(await this.checkIfAccountExists(this.getUserStatsAccountPublicKey()))
 			) {
 				initializeIxs.push(await this.getInitializeUserStatsIx());
-			}
-		}
-
-		if (name === undefined) {
-			if (subAccountId === 0) {
-				name = DEFAULT_USER_NAME;
-			} else {
-				name = 'SubAccount ' + (subAccountId + 1).toString();
 			}
 		}
 
