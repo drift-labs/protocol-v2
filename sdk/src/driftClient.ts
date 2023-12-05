@@ -1812,7 +1812,7 @@ export class DriftClient {
 	 * @param name
 	 * @param fromSubAccountId
 	 * @param referrerInfo
-	 * @param donate
+	 * @param donateAmount
 	 * @param txParams
 	 * @returns
 	 */
@@ -1824,7 +1824,7 @@ export class DriftClient {
 		name?: string,
 		fromSubAccountId?: number,
 		referrerInfo?: ReferrerInfo,
-		donate?: true,
+		donateAmount?: BN,
 		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const ixs = [];
@@ -1860,13 +1860,13 @@ export class DriftClient {
 			fromSubAccountId !== undefined &&
 			!isNaN(fromSubAccountId);
 
-		const donateAmount = donate ? new BN(LAMPORTS_PER_SOL / 100) : new BN(0);
+		donateAmount = donateAmount ? donateAmount : new BN(LAMPORTS_PER_SOL / 100);
 
 		const createWSOLTokenAccount =
 			(isSolMarket &&
 				userTokenAccount.equals(authority) &&
 				!isFromSubaccount) ||
-			donate;
+			!donateAmount.eq(ZERO);
 
 		let wsolTokenAccount: PublicKey;
 		if (createWSOLTokenAccount) {
@@ -1907,7 +1907,7 @@ export class DriftClient {
 		}
 		ixs.push(initializeUserAccountIx, depositCollateralIx);
 
-		if (donate) {
+		if (!donateAmount.eq(ZERO)) {
 			const donateIx = this.depositIntoSpotMarketRevenuePool(
 				1,
 				donateAmount,
