@@ -20,7 +20,7 @@ export * from './accounts/pollingTokenAccountSubscriber';
 export * from './accounts/pollingUserAccountSubscriber';
 export * from './accounts/pollingUserStatsAccountSubscriber';
 export * from './accounts/pollingInsuranceFundStakeAccountSubscriber';
-export * from './accounts/mockUserAccountSubscriber';
+export * from './accounts/basicUserAccountSubscriber';
 export * from './accounts/types';
 export * from './addresses/pda';
 export * from './adminClient';

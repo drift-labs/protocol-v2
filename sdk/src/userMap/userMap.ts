@@ -13,7 +13,7 @@ import {
 	LPRecord,
 	StateAccount,
 	DLOB,
-	MockUserAccountSubscriber,
+	BasicUserAccountSubscriber,
 	BN,
 } from '..';
 
@@ -125,7 +125,7 @@ export class UserMap implements UserMapInterface {
 			userAccountPublicKey,
 			accountSubscription: {
 				type: 'custom',
-				userAccountSubscriber: new MockUserAccountSubscriber(
+				userAccountSubscriber: new BasicUserAccountSubscriber(
 					userAccountPublicKey,
 					userAccount,
 					slot
@@ -285,11 +285,9 @@ export class UserMap implements UserMapInterface {
 				},
 			];
 
-			// local measuremeant start
 			const rpcJSONResponse: any =
 				// @ts-ignore
 				await this.connection._rpcRequest('getProgramAccounts', rpcRequestArgs);
-			// local measuremeant stop, took 3050 ms
 
 			const rpcResponseAndContext: RpcResponseAndContext<
 				Array<{
@@ -302,7 +300,6 @@ export class UserMap implements UserMapInterface {
 
 			const slot = rpcResponseAndContext.context.slot;
 
-			// local measuremeant start, load rpc response into map
 			const programAccountBufferMap = new Map<string, Buffer>();
 			for (const programAccount of rpcResponseAndContext.value) {
 				programAccountBufferMap.set(
@@ -314,13 +311,11 @@ export class UserMap implements UserMapInterface {
 					)
 				);
 			}
-			// local measuremeant stop, took 138 ms
 
-			// local measuremeant start, add map into userMap
 			for (const [key, buffer] of programAccountBufferMap.entries()) {
 				if (!this.has(key)) {
 					const userAccount =
-						this.driftClient.program.account.user.coder.accounts.decode(
+						this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
 							'User',
 							buffer
 						);
@@ -329,16 +324,14 @@ export class UserMap implements UserMapInterface {
 				// give event loop a chance to breathe
 				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
-			// local measuremeant stop, took 8964 ms (w/o eventLoop break)
 
-			// local measuremeant start, update userMap, remove users that no longer exist
 			for (const [key, user] of this.userMap.entries()) {
 				if (!programAccountBufferMap.has(key)) {
 					await user.unsubscribe();
 					this.userMap.delete(key);
 				} else {
 					const userAccount =
-						this.driftClient.program.account.user.coder.accounts.decode(
+						this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
 							'User',
 							programAccountBufferMap.get(key)
 						);
@@ -347,7 +340,6 @@ export class UserMap implements UserMapInterface {
 				// give event loop a chance to breathe
 				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
-			// local measuremeant stop, took 11464 ms (w/o eventLoop break)
 
 			try {
 				if (this.syncCallback) {
