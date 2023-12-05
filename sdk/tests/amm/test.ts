@@ -361,7 +361,10 @@ describe('AMM Tests', () => {
 
 		console.log(terms2);
 		assert(terms2.effectiveLeverageCapped <= 1.000001);
-		assert(terms2.inventorySpreadScale == 1.013527);
+		assert(
+			terms2.inventorySpreadScale == 1.013527,
+			`got: ${terms2.inventorySpreadScale}`
+		);
 		assert(terms2.longSpread == 1146);
 		assert(terms2.shortSpread == 6686);
 	});
@@ -466,7 +469,7 @@ describe('AMM Tests', () => {
 
 		assert(markTwapLive.eq(new BN('1949826')));
 		assert(oracleTwapLive.eq(new BN('1942510')));
-		assert(est1.eq(new BN('15692')));
+		assert(est1.eq(new BN('15692')), `got: ${est1}`);
 		assert(est2.eq(new BN('15692')));
 	});
 
@@ -556,7 +559,7 @@ describe('AMM Tests', () => {
 		assert(markTwapLive.eq(new BN('1222131')));
 		assert(oracleTwapLive.eq(new BN('1222586')));
 		assert(est1.eq(est2));
-		assert(est2.eq(new BN('-1550')));
+		assert(est2.eq(new BN('-1550')), `got: ${est2}`);
 	});
 
 	it('orderbook L2 gen (no topOfBookQuoteAmounts, 10 numOrders, low liquidity)', async () => {

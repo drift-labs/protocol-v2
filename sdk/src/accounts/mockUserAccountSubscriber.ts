@@ -16,8 +16,8 @@ export class MockUserAccountSubscriber implements UserAccountSubscriber {
 
 	public constructor(
 		userAccountPublicKey: PublicKey,
-		data: UserAccount,
-		slot: number
+		data?: UserAccount,
+		slot?: number
 	) {
 		this.isSubscribed = true;
 		this.eventEmitter = new EventEmitter();
@@ -46,8 +46,10 @@ export class MockUserAccountSubscriber implements UserAccountSubscriber {
 	}
 
 	public updateData(userAccount: UserAccount, slot: number): void {
-		this.user = { data: userAccount, slot };
-		this.eventEmitter.emit('userAccountUpdate', userAccount);
-		this.eventEmitter.emit('update');
+		if (!this.user || slot >= (this.user.slot ?? 0)) {
+			this.user = { data: userAccount, slot };
+			this.eventEmitter.emit('userAccountUpdate', userAccount);
+			this.eventEmitter.emit('update');
+		}
 	}
 }
