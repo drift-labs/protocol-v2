@@ -1,7 +1,7 @@
 import { DriftClient } from '../driftClient';
 import { UserAccount } from '../types';
 import { getUserFilter, getUserWithOrderFilter } from '../memcmp';
-import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
+import { Commitment, PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { DLOB } from '../dlob/DLOB';
 import { OrderSubscriberConfig, OrderSubscriberEvents } from './types';
@@ -9,11 +9,13 @@ import { PollingSubscription } from './PollingSubscription';
 import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
+import { BN } from '../index';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
 	subscription: PollingSubscription | WebsocketSubscription;
+	commitment: Commitment;
 	eventEmitter: StrictEventEmitter<EventEmitter, OrderSubscriberEvents>;
 
 	fetchPromise?: Promise<void>;
@@ -23,6 +25,7 @@ export class OrderSubscriber {
 
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
+		this.commitment = config.subscriptionConfig.commitment || 'processed';
 		if (config.subscriptionConfig.type === 'polling') {
 			this.subscription = new PollingSubscription({
 				orderSubscriber: this,
@@ -31,6 +34,7 @@ export class OrderSubscriber {
 		} else {
 			this.subscription = new WebsocketSubscription({
 				orderSubscriber: this,
+				commitment: this.commitment,
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
 				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
 			});
@@ -55,7 +59,7 @@ export class OrderSubscriber {
 			const rpcRequestArgs = [
 				this.driftClient.program.programId.toBase58(),
 				{
-					commitment: this.driftClient.opts.commitment,
+					commitment: this.commitment,
 					filters: [getUserFilter(), getUserWithOrderFilter()],
 					encoding: 'base64',
 					withContext: true,
@@ -116,12 +120,24 @@ export class OrderSubscriber {
 		}
 
 		const slotAndUserAccount = this.usersAccounts.get(key);
-		if (!slotAndUserAccount || slotAndUserAccount.slot < slot) {
+		if (!slotAndUserAccount || slotAndUserAccount.slot <= slot) {
 			let userAccount: UserAccount;
 			// Polling leads to a lot of redundant decoding, so we only decode if data is from a fresh slot
 			if (dataType === 'raw') {
 				// @ts-ignore
 				const buffer = Buffer.from(data[0], data[1]);
+
+				const newLastActiveSlot = new BN(
+					buffer.subarray(4328, 4328 + 8),
+					undefined,
+					'le'
+				);
+				if (
+					slotAndUserAccount &&
+					slotAndUserAccount.userAccount.lastActiveSlot.gt(newLastActiveSlot)
+				) {
+					return;
+				}
 
 				userAccount =
 					this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
