@@ -1686,7 +1686,7 @@ export class DriftClient {
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
 			this.authority,
-			subAccountId
+			subAccountId ?? this.activeSubAccountId
 		);
 
 		let remainingAccounts = [];
