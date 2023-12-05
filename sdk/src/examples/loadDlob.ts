@@ -1,5 +1,5 @@
 import { AnchorProvider } from '@coral-xyz/anchor';
-import { DLOB, UserMap, Wallet } from '..';
+import { UserMap, Wallet } from '..';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	DriftClient,
