@@ -2031,7 +2031,11 @@ pub fn fulfill_perp_order_with_amm(
         Some(base_asset_amount),
         Some(quote_asset_amount),
         Some(user_fee),
-        None,
+        if maker_rebate != 0 {
+            Some(maker_rebate)
+        } else {
+            None
+        },
         Some(referrer_reward),
         Some(quote_asset_amount_surplus),
         None,
