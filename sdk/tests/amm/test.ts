@@ -21,6 +21,8 @@ import {
 	calculateUpdatedAMM,
 	calculateMarketOpenBidAsk,
 	calculateSpreadReserves,
+	calculatePrice,
+	BID_ASK_SPREAD_PRECISION
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 
@@ -458,6 +460,11 @@ describe('AMM Tests', () => {
 		assert(reserves[1].baseAssetReserve.eq(new BN('1000000000')));
 		assert(reserves[1].quoteAssetReserve.eq(new BN('12000000000')));
 
+
+		mockAmm.baseAssetReserve = new BN(1000000000);
+		mockAmm.quoteAssetReserve = new BN(1000000000);
+		mockAmm.baseAssetAmountWithAmm = new BN(0);
+		mockAmm.pegMultiplier = new BN(13553);
 		mockAmm.ammJitIntensity = 100;
 		mockAmm.curveUpdateIntensity = 200;
 		mockAmm.baseSpread = 2500;
@@ -471,7 +478,34 @@ describe('AMM Tests', () => {
 		mockAmm.historicalOracleData.lastOraclePriceTwap5Min = new BN((oraclePriceData.price.toNumber()/1e6 + .005) * 1e6);
 		mockAmm.lastMarkPriceTwap5Min = new BN((oraclePriceData.price.toNumber()/1e6 - .005) * 1e6);
 
+		console.log('starting rr:');
+		let reservePrice = undefined
+		if (!reservePrice) {
+			reservePrice = calculatePrice(
+				mockAmm.baseAssetReserve,
+				mockAmm.quoteAssetReserve,
+				mockAmm.pegMultiplier
+			);
+		}
+	
+		const targetPrice = oraclePriceData?.price || reservePrice;
+		const confInterval = oraclePriceData.confidence || ZERO;
+		const targetMarkSpreadPct = reservePrice
+			.sub(targetPrice)
+			.mul(BID_ASK_SPREAD_PRECISION)
+			.div(reservePrice);
+	
+		const confIntervalPct = confInterval
+			.mul(BID_ASK_SPREAD_PRECISION)
+			.div(reservePrice);
+	
+		// now = now || new BN(new Date().getTime() / 1000); //todo
+		const liveOracleStd = calculateLiveOracleStd(mockAmm, oraclePriceData, now);
+		console.log('reservePrice:', reservePrice.toString());
+		console.log('targetMarkSpreadPct:', targetMarkSpreadPct.toString());
+		console.log('confIntervalPct:', confIntervalPct.toString());
 
+		console.log('liveOracleStd:', liveOracleStd.toString());
 
 		const tt = calculateSpread(
 			mockAmm,
@@ -495,6 +529,7 @@ describe('AMM Tests', () => {
 
 
 	})
+	return 0;
 
 
 	it('live update functions', () => {

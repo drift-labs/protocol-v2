@@ -750,6 +750,7 @@ export function calculateSpreadBN(
 	spreadTerms.shortSpreadwRevRetreat = shortSpread;
 
 	const totalSpread = longSpread + shortSpread;
+	console.log(totalSpread, maxTargetSpread);
 	if (totalSpread > maxTargetSpread) {
 		if (longSpread > shortSpread) {
 			longSpread = Math.ceil((longSpread * maxTargetSpread) / totalSpread);
@@ -765,7 +766,7 @@ export function calculateSpreadBN(
 	spreadTerms.totalSpread = totalSpread;
 	spreadTerms.longSpread = longSpread;
 	spreadTerms.shortSpread = shortSpread;
-
+	console.log(spreadTerms);
 	if (returnTerms) {
 		return spreadTerms;
 	}
