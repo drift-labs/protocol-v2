@@ -17,7 +17,12 @@ import {
 	BN,
 } from '..';
 
-import { Commitment, PublicKey, RpcResponseAndContext } from '@solana/web3.js';
+import {
+	Commitment,
+	Connection,
+	PublicKey,
+	RpcResponseAndContext,
+} from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 import { SyncCallbackCriteria, UserMapConfig } from './userMapConfig';
