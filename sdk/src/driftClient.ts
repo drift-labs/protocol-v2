@@ -1879,7 +1879,10 @@ export class DriftClient {
 				);
 
 			wsolTokenAccount = pubkey;
-			userTokenAccount = pubkey;
+
+			if (isSolMarket) {
+				userTokenAccount = pubkey;
+			}
 
 			ixs.push(...startIxs);
 		}
