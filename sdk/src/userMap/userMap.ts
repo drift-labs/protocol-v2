@@ -25,7 +25,10 @@ import {
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
-import { SyncCallbackCriteria, UserMapConfig } from './userMapConfig';
+import {
+	UserAccountFilterCriteria as UserFilterCriteria,
+	UserMapConfig,
+} from './userMapConfig';
 import { WebsocketSubscription } from './WebsocketSubscription';
 import { PollingSubscription } from './PollingSubscription';
 
@@ -56,12 +59,8 @@ export class UserMap implements UserMapInterface {
 		}
 	};
 
-	private syncCallback: (authorities: PublicKey[]) => Promise<void>;
-	private syncCallbackCriteria: SyncCallbackCriteria;
-
 	private syncPromise?: Promise<void>;
 	private syncPromiseResolver: () => void;
-	private syncPromiseRejecter: (reason?: any) => void;
 
 	/**
 	 * Constructs a new UserMap instance.
@@ -90,18 +89,6 @@ export class UserMap implements UserMapInterface {
 				skipInitialLoad: config.skipInitialLoad,
 			});
 		}
-		this.syncCallback = config.syncCallback;
-		this.syncCallbackCriteria = config.syncCallbackCriteria ?? {
-			hasOpenOrders: false,
-		};
-	}
-
-	public addSyncCallback(
-		syncCallback?: (authorities: PublicKey[]) => Promise<void>,
-		syncCallbackCriteria: SyncCallbackCriteria = { hasOpenOrders: false }
-	) {
-		this.syncCallback = syncCallback;
-		this.syncCallbackCriteria = syncCallbackCriteria;
 	}
 
 	public async subscribe() {
@@ -241,14 +228,18 @@ export class UserMap implements UserMapInterface {
 		return this.userMap.size;
 	}
 
-	public getUniqueAuthorities(useSyncCallbackCriteria = true): PublicKey[] {
+	/**
+	 * Returns a unique list of authorities for all users in the UserMap that meet the filter criteria
+	 * @param filterCriteria: Users must meet these criteria to be included
+	 * @returns
+	 */
+	public getUniqueAuthorities(
+		filterCriteria?: UserFilterCriteria
+	): PublicKey[] {
 		const usersMeetingCriteria = Array.from(this.userMap.values()).filter(
 			(user) => {
 				let pass = true;
-				if (
-					useSyncCallbackCriteria &&
-					this.syncCallbackCriteria.hasOpenOrders
-				) {
+				if (filterCriteria && filterCriteria.hasOpenOrders) {
 					pass = pass && user.getUserAccount().hasOpenOrder;
 				}
 				return pass;
@@ -269,9 +260,8 @@ export class UserMap implements UserMapInterface {
 		if (this.syncPromise) {
 			return this.syncPromise;
 		}
-		this.syncPromise = new Promise((resolver, rejecter) => {
+		this.syncPromise = new Promise((resolver) => {
 			this.syncPromiseResolver = resolver;
-			this.syncPromiseRejecter = rejecter;
 		});
 
 		try {
@@ -345,22 +335,11 @@ export class UserMap implements UserMapInterface {
 				// give event loop a chance to breathe
 				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
-
-			try {
-				if (this.syncCallback) {
-					await this.syncCallback(this.getUniqueAuthorities());
-				}
-			} catch (e) {
-				console.error(`Error caught in UserMap.syncCallback():`);
-				console.error(e);
-			}
-
-			this.syncPromiseResolver();
 		} catch (e) {
 			console.error(`Error in UserMap.sync():`);
 			console.error(e);
-			this.syncPromiseRejecter(e);
 		} finally {
+			this.syncPromiseResolver();
 			this.syncPromise = undefined;
 		}
 	}
