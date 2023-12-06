@@ -1,5 +1,5 @@
 import { OrderSubscriber } from './OrderSubscriber';
-import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
+import { getUserFilter, getUserWithOrderFilter } from '../memcmp';
 import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 import { UserAccount } from '../types';
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
@@ -42,7 +42,7 @@ export class WebsocketSubscription {
 				this.orderSubscriber.driftClient.program.account.user.coder.accounts
 			),
 			{
-				filters: [getUserFilter(), getNonIdleUserFilter()],
+				filters: [getUserFilter(), getUserWithOrderFilter()],
 				commitment: this.commitment,
 			},
 			this.resubTimeoutMs
