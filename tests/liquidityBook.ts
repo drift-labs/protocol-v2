@@ -20,8 +20,10 @@ export function liquidityBook(
 	N = 5,
 	incrementSize = 0.1
 ) {
-	const defaultSlippageBN = new BN(incrementSize * PRICE_PRECISION.toNumber());
-	const baseAssetPriceWithMantissa = calculateReservePrice(market);
+	const defaultSlippageBN: BN = new BN(
+		incrementSize * PRICE_PRECISION.toNumber()
+	);
+	const baseAssetPriceWithMantissa = calculateReservePrice(market, undefined);
 	const bidsPrice = [];
 	const bidsCumSize = [];
 	const asksPrice = [];

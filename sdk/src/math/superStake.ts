@@ -438,7 +438,7 @@ export async function calculateSolEarned({
 			record.marketIndex === 8
 		) {
 			const lstRatio = lstRatios.get(record.ts.toNumber());
-			const lstRatioBN = new BN(lstRatio * LAMPORTS_PER_SOL);
+			const lstRatioBN: BN = new BN(lstRatio * LAMPORTS_PER_SOL);
 
 			const solAmount = record.amount.mul(lstRatioBN).div(LAMPORTS_PRECISION);
 			if (isVariant(record.direction, 'deposit')) {
@@ -451,7 +451,7 @@ export async function calculateSolEarned({
 
 	const currentLstTokenAmount = await user.getTokenAmount(marketIndex);
 	const currentLstRatio = lstRatios.get(now);
-	const currentLstRatioBN = new BN(currentLstRatio * LAMPORTS_PER_SOL);
+	const currentLstRatioBN: BN = new BN(currentLstRatio * LAMPORTS_PER_SOL);
 
 	solEarned = solEarned.add(
 		currentLstTokenAmount.mul(currentLstRatioBN).div(LAMPORTS_PRECISION)

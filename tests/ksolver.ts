@@ -142,7 +142,7 @@ describe('AMM Curve', () => {
 	// 		'pctMax'
 	// 	);
 
-	// 	const targetSlippageBN = new BN(
+	// 	const targetSlippageBN: BN = new BN(
 	// 		TARGET_MAX_SLIPPAGE * PRICE_PRECISION.toNumber()
 	// 	);
 	// 	let kSqrtI: BN;
@@ -184,7 +184,9 @@ describe('AMM Curve', () => {
 
 	let solUsdOracle;
 	const marketIndex = 0;
-	const initialSOLPriceBN = new BN(initialSOLPrice * PEG_PRECISION.toNumber());
+	const initialSOLPriceBN: BN = new BN(
+		initialSOLPrice * PEG_PRECISION.toNumber()
+	);
 	function normAssetAmount(assetAmount: BN, pegMultiplier: BN): BN {
 		// assetAmount is scaled to offer comparable slippage
 		return assetAmount.mul(PRICE_PRECISION).div(pegMultiplier);

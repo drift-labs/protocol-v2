@@ -191,7 +191,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		);
 
 		const newOraclePrice = 0.98 * 32.821;
-		const newOraclePriceBN = new BN(
+		const newOraclePriceBN: BN = new BN(
 			newOraclePrice * PRICE_PRECISION.toNumber()
 		);
 		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
