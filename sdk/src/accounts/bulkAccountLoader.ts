@@ -76,6 +76,7 @@ export class BulkAccountLoader {
 	public removeAccount(publicKey: PublicKey, callbackId: string): void {
 		const existingAccountToLoad = this.accountsToLoad.get(publicKey.toString());
 		if (existingAccountToLoad) {
+			this.bufferAndSlotMap.delete(publicKey.toString());
 			existingAccountToLoad.callbacks.delete(callbackId);
 			if (existingAccountToLoad.callbacks.size === 0) {
 				this.accountsToLoad.delete(existingAccountToLoad.publicKey.toString());
