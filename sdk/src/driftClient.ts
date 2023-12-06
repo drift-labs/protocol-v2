@@ -1860,7 +1860,7 @@ export class DriftClient {
 			fromSubAccountId !== undefined &&
 			!isNaN(fromSubAccountId);
 
-		donateAmount = donateAmount ? donateAmount : new BN(LAMPORTS_PER_SOL / 100);
+		donateAmount = donateAmount ? donateAmount : ZERO;
 
 		const createWSOLTokenAccount =
 			(isSolMarket &&
