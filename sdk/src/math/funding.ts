@@ -114,12 +114,12 @@ function shrinkStaleTwaps(
  * @param periodAdjustment
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
-export async function calculateAllEstimatedFundingRate(
+export function calculateAllEstimatedFundingRate(
 	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
 	markPrice?: BN,
 	now?: BN
-): Promise<[BN, BN, BN, BN, BN]> {
+): [BN, BN, BN, BN, BN] {
 	if (isVariant(market.status, 'uninitialized')) {
 		return [ZERO, ZERO, ZERO, ZERO, ZERO];
 	}
@@ -241,19 +241,18 @@ export async function calculateAllEstimatedFundingRate(
  * @param periodAdjustment
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
-export async function calculateLongShortFundingRate(
+export function calculateLongShortFundingRate(
 	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
 	markPrice?: BN,
 	now?: BN
-): Promise<[BN, BN]> {
-	const [_1, _2, _, cappedAltEst, interpEst] =
-		await calculateAllEstimatedFundingRate(
-			market,
-			oraclePriceData,
-			markPrice,
-			now
-		);
+): [BN, BN] {
+	const [_1, _2, _, cappedAltEst, interpEst] = calculateAllEstimatedFundingRate(
+		market,
+		oraclePriceData,
+		markPrice,
+		now
+	);
 
 	if (market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort)) {
 		return [cappedAltEst, interpEst];
@@ -273,19 +272,14 @@ export async function calculateLongShortFundingRate(
  * @param periodAdjustment
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
-export async function calculateLongShortFundingRateAndLiveTwaps(
+export function calculateLongShortFundingRateAndLiveTwaps(
 	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
 	markPrice?: BN,
 	now?: BN
-): Promise<[BN, BN, BN, BN]> {
+): [BN, BN, BN, BN] {
 	const [markTwapLive, oracleTwapLive, _2, cappedAltEst, interpEst] =
-		await calculateAllEstimatedFundingRate(
-			market,
-			oraclePriceData,
-			markPrice,
-			now
-		);
+		calculateAllEstimatedFundingRate(market, oraclePriceData, markPrice, now);
 
 	if (
 		market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort.abs())
