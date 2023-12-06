@@ -1,5 +1,5 @@
 import { AnchorProvider } from '@coral-xyz/anchor';
-import { DLOB, UserMap, Wallet } from '..';
+import { UserMap, Wallet } from '..';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	DriftClient,
@@ -55,17 +55,22 @@ const main = async () => {
 	await driftClient.subscribe();
 
 	console.log('Loading user map...');
-	const userMap = new UserMap(driftClient, {
-		type: 'polling',
-		accountLoader: bulkAccountLoader,
+	const userMap = new UserMap({
+		driftClient,
+		subscriptionConfig: {
+			type: 'websocket',
+			commitment: 'processed',
+		},
+		skipInitialLoad: false,
+		includeIdle: false,
 	});
 
 	// fetches all users and subscribes for updates
 	await userMap.subscribe();
 
 	console.log('Loading dlob from user map...');
-	const dlob = new DLOB();
-	await dlob.initFromUserMap(userMap, bulkAccountLoader.mostRecentSlot);
+	const slot = await driftClient.connection.getSlot();
+	const dlob = await userMap.getDLOB(slot);
 
 	console.log('number of orders', dlob.getDLOBOrders().length);
 

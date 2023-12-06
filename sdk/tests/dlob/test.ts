@@ -2323,7 +2323,9 @@ describe('DLOB Perp Tests', () => {
 		expect(nodesToFillBefore.length).to.equal(0);
 
 		// post only bid crosses ask
-		const price = vAsk.add(vAsk.muln(makerRebateNumerator).divn(makerRebateDenominator));
+		const price = vAsk.add(
+			vAsk.muln(makerRebateNumerator).divn(makerRebateDenominator)
+		);
 		insertOrderToDLOB(
 			dlob,
 			user0.publicKey,
@@ -2415,7 +2417,9 @@ describe('DLOB Perp Tests', () => {
 		expect(nodesToFillBefore.length).to.equal(0);
 
 		// post only bid crosses ask
-		const price = vBid.sub(vAsk.muln(makerRebateNumerator).divn(makerRebateDenominator));
+		const price = vBid.sub(
+			vAsk.muln(makerRebateNumerator).divn(makerRebateDenominator)
+		);
 		insertOrderToDLOB(
 			dlob,
 			user0.publicKey,
