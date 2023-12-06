@@ -1829,12 +1829,16 @@ export class DriftClient {
 	): Promise<[TransactionSignature, PublicKey]> {
 		const ixs = [];
 
+		console.log('initializeUserAccountAndDepositCollateral');
+
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(
 				subAccountId,
 				name,
 				referrerInfo
 			);
+
+		console.log(userAccountPublicKey.toBase58());
 
 		const additionalSigners: Array<Signer> = [];
 
@@ -1868,11 +1872,13 @@ export class DriftClient {
 				!isFromSubaccount) ||
 			!donateAmount.eq(ZERO);
 
+		const wSolAmount = isSolMarket ? amount.add(donateAmount) : donateAmount;
+
 		let wsolTokenAccount: PublicKey;
 		if (createWSOLTokenAccount) {
 			const { ixs: startIxs, pubkey } =
 				await this.getWrappedSolAccountCreationIxs(
-					amount.add(donateAmount),
+					wSolAmount,
 					true
 				);
 
@@ -1908,7 +1914,7 @@ export class DriftClient {
 		ixs.push(initializeUserAccountIx, depositCollateralIx);
 
 		if (!donateAmount.eq(ZERO)) {
-			const donateIx = this.depositIntoSpotMarketRevenuePool(
+			const donateIx = await this.getDepositIntoSpotMarketRevenuePoolIx(
 				1,
 				donateAmount,
 				wsolTokenAccount
@@ -1928,6 +1934,8 @@ export class DriftClient {
 				)
 			);
 		}
+
+		console.log(ixs, params);
 
 		const tx = await this.buildTransaction(ixs, params);
 
@@ -6019,13 +6027,13 @@ export class DriftClient {
 		);
 	}
 
-	public async depositIntoSpotMarketRevenuePool(
+	public async getDepositIntoSpotMarketRevenuePoolIx(
 		marketIndex: number,
 		amount: BN,
 		userTokenAccountPublicKey: PublicKey
-	): Promise<TransactionSignature> {
+	): Promise<TransactionInstruction> {
 		const spotMarket = await this.getSpotMarketAccount(marketIndex);
-		const tx = await this.program.transaction.depositIntoSpotMarketRevenuePool(
+		const ix = await this.program.instruction.depositIntoSpotMarketRevenuePool(
 			amount,
 			{
 				accounts: {
@@ -6038,6 +6046,17 @@ export class DriftClient {
 				},
 			}
 		);
+
+		return ix;
+	}
+
+	public async depositIntoSpotMarketRevenuePool(
+		marketIndex: number,
+		amount: BN,
+		userTokenAccountPublicKey: PublicKey
+	): Promise<TransactionSignature> {
+		const ix = await this.getDepositIntoSpotMarketRevenuePoolIx(marketIndex, amount, userTokenAccountPublicKey);
+		const tx = await this.buildTransaction([ix]);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
