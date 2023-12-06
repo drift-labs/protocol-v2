@@ -1829,16 +1829,12 @@ export class DriftClient {
 	): Promise<[TransactionSignature, PublicKey]> {
 		const ixs = [];
 
-		console.log('initializeUserAccountAndDepositCollateral');
-
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(
 				subAccountId,
 				name,
 				referrerInfo
 			);
-
-		console.log(userAccountPublicKey.toBase58());
 
 		const additionalSigners: Array<Signer> = [];
 
@@ -1934,8 +1930,6 @@ export class DriftClient {
 				)
 			);
 		}
-
-		console.log(ixs, params);
 
 		const tx = await this.buildTransaction(ixs, params);
 
