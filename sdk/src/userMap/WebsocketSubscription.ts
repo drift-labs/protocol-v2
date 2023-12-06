@@ -43,7 +43,7 @@ export class WebsocketSubscription {
 				'UserMap',
 				'User',
 				this.userMap.driftClient.program,
-				this.userMap.driftClient.program.account.user.coder.accounts.decode.bind(
+				this.userMap.driftClient.program.account.user.coder.accounts.decodeUnchecked.bind(
 					this.userMap.driftClient.program.account.user.coder.accounts
 				),
 				{
