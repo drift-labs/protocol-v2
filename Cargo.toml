@@ -1,10 +1,12 @@
 [workspace]
 members = [
 	"programs/*",
+	"sdk-rs"
 ]
 exclude = [
 	"deps/serum-dex"
 ]
+resolver = "2"
 
 [profile.release]
 lto = "fat"
