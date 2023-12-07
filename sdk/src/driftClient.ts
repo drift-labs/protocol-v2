@@ -1923,7 +1923,7 @@ export class DriftClient {
 		if (createWSOLTokenAccount) {
 			ixs.push(
 				createCloseAccountInstruction(
-					userTokenAccount,
+					wsolTokenAccount,
 					authority,
 					authority,
 					[]
