@@ -163,7 +163,8 @@ export class OrderSubscriber {
 					userAccount,
 					newOrders,
 					new PublicKey(key),
-					slot
+					slot,
+					dataType
 				);
 			}
 			if (userAccount.hasOpenOrder) {

@@ -23,6 +23,7 @@ export interface OrderSubscriberEvents {
 		account: UserAccount,
 		updatedOrders: Order[],
 		pubkey: PublicKey,
-		slot: number
+		slot: number,
+		dataType: 'raw' | 'decoded'
 	) => void;
 }
