@@ -1873,10 +1873,7 @@ export class DriftClient {
 		let wsolTokenAccount: PublicKey;
 		if (createWSOLTokenAccount) {
 			const { ixs: startIxs, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(
-					wSolAmount,
-					true
-				);
+				await this.getWrappedSolAccountCreationIxs(wSolAmount, true);
 
 			wsolTokenAccount = pubkey;
 
@@ -6052,7 +6049,11 @@ export class DriftClient {
 		amount: BN,
 		userTokenAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		const ix = await this.getDepositIntoSpotMarketRevenuePoolIx(marketIndex, amount, userTokenAccountPublicKey);
+		const ix = await this.getDepositIntoSpotMarketRevenuePoolIx(
+			marketIndex,
+			amount,
+			userTokenAccountPublicKey
+		);
 		const tx = await this.buildTransaction([ix]);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);

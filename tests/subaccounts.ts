@@ -23,8 +23,14 @@ import {
 } from './testHelpers';
 import { decodeName } from '../sdk/src/userName';
 import { assert } from 'chai';
-import {BulkAccountLoader, getTokenAmount, LAMPORTS_PRECISION, MARGIN_PRECISION, SpotBalanceType} from '../sdk';
-import {PublicKey} from "@solana/web3.js";
+import {
+	BulkAccountLoader,
+	getTokenAmount,
+	LAMPORTS_PRECISION,
+	MARGIN_PRECISION,
+	SpotBalanceType,
+} from '../sdk';
+import { PublicKey } from '@solana/web3.js';
 
 describe('subaccounts', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -93,7 +99,16 @@ describe('subaccounts', () => {
 		const donationAmount = LAMPORTS_PRECISION;
 		const subAccountId = 0;
 		const name = 'CRISP';
-		await driftClient.initializeUserAccountAndDepositCollateral(LAMPORTS_PRECISION, provider.wallet.publicKey, 1, subAccountId, name, undefined, undefined, donationAmount);
+		await driftClient.initializeUserAccountAndDepositCollateral(
+			LAMPORTS_PRECISION,
+			provider.wallet.publicKey,
+			1,
+			subAccountId,
+			name,
+			undefined,
+			undefined,
+			donationAmount
+		);
 		await driftClient.fetchAccounts();
 		assert(driftClient.getUserAccount().subAccountId === subAccountId);
 		assert(decodeName(driftClient.getUserAccount().name) === name);
@@ -106,7 +121,11 @@ describe('subaccounts', () => {
 
 		const solSpotMarket = driftClient.getSpotMarketAccount(1);
 		const revenuePool = solSpotMarket.revenuePool;
-		const tokenAmount = getTokenAmount(revenuePool.scaledBalance, solSpotMarket, SpotBalanceType.DEPOSIT);
+		const tokenAmount = getTokenAmount(
+			revenuePool.scaledBalance,
+			solSpotMarket,
+			SpotBalanceType.DEPOSIT
+		);
 		assert(tokenAmount.eq(donationAmount));
 	});
 
@@ -114,7 +133,16 @@ describe('subaccounts', () => {
 		const donationAmount = LAMPORTS_PRECISION;
 		const subAccountId = 1;
 		const name = 'LIL PERP';
-		await driftClient.initializeUserAccountAndDepositCollateral(usdcAmount, usdcAccount.publicKey, 0,  1, name, undefined, undefined, donationAmount);
+		await driftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			usdcAccount.publicKey,
+			0,
+			1,
+			name,
+			undefined,
+			undefined,
+			donationAmount
+		);
 		await driftClient.addUser(1);
 		await driftClient.switchActiveUser(1);
 
@@ -130,7 +158,11 @@ describe('subaccounts', () => {
 
 		const solSpotMarket = driftClient.getSpotMarketAccount(1);
 		const revenuePool = solSpotMarket.revenuePool;
-		const tokenAmount = getTokenAmount(revenuePool.scaledBalance, solSpotMarket, SpotBalanceType.DEPOSIT);
+		const tokenAmount = getTokenAmount(
+			revenuePool.scaledBalance,
+			solSpotMarket,
+			SpotBalanceType.DEPOSIT
+		);
 		assert(tokenAmount.eq(donationAmount.muln(2)));
 	});
 
