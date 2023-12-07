@@ -3,16 +3,26 @@ import {
 	LAMPORTS_PER_SOL,
 	PublicKey,
 	TransactionInstruction,
-} from '@solana/web3.js';
-import { JupiterClient } from '../jupiter/jupiterClient';
-import { DriftClient } from '../driftClient';
-import { getMarinadeFinanceProgram, getMarinadeMSolPrice } from '../marinade';
-import { BN } from '@coral-xyz/anchor';
-import { User } from '../user';
-import { DepositRecord, isVariant } from '../types';
-import { LAMPORTS_PRECISION, ZERO } from '../constants/numericConstants';
-import fetch from 'node-fetch';
-import { checkSameDate } from './utils';
+  } from "@solana/web3.js";
+  import { JupiterClient } from "../jupiter/jupiterClient";
+  import { DriftClient } from "../driftClient";
+  import { getMarinadeFinanceProgram, getMarinadeMSolPrice } from "../marinade";
+  import { BN } from "@coral-xyz/anchor";
+  import { User } from "../user";
+  import { DepositRecord, isVariant } from "../types";
+  import {
+	FIVE_MINUTE,
+	LAMPORTS_PRECISION,
+	MARGIN_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	ZERO,
+  } from "../constants/numericConstants";
+  import fetch from "node-fetch";
+  import { checkSameDate } from "./utils";
+  import { calculateLiveOracleTwap } from "./oracles";
+  import { StrictOraclePrice } from "../oracles/strictOraclePrice";
+  import { calculateAssetWeight, getStrictTokenValue } from "./spotBalance";
+  
 
 export type BSOL_STATS_API_RESPONSE = {
 	success: boolean;
@@ -477,3 +487,82 @@ export function calculateEstimatedSuperStakeLiquidationPrice(
 	const liquidationPrice = lstPriceRatio * liquidationDivergence;
 	return liquidationPrice;
 }
+
+/**
+ * Calculates a hypothetical borrow limit for a single deposit and borrow market for superstake
+ *
+ * Does not take into account existing assets or liabilities for a user, only the amount that can be borrowed with the given deposit amount
+ *
+ * @param driftClient
+ * @param borrowtMarketIndex
+ * @param depositMarketIndex
+ * @param depositAmount
+ */
+export function calculateSuperStakeMaxLeverage(
+	driftClient: DriftClient,
+	borrowtMarketIndex: number,
+	depositMarketIndex: number,
+	depositAmount: BN
+  ) {
+	// TODO need to make this recursive
+
+	const nowTs = new BN(Math.floor(Date.now() / 1000));
+  
+	const depositMarket = driftClient.getSpotMarketAccount(depositMarketIndex);
+	const depositMarketOracleData = driftClient.getOraclePriceDataAndSlot(
+	  depositMarket.oracle
+	).data;
+  
+	const twap5min = calculateLiveOracleTwap(
+	  depositMarket.historicalOracleData,
+	  depositMarketOracleData,
+	  nowTs,
+	  FIVE_MINUTE
+	);
+  
+	const strictOraclePrice = new StrictOraclePrice(
+	  depositMarketOracleData.price,
+	  twap5min
+	);
+  
+	const depositValue = getStrictTokenValue(
+	  depositAmount,
+	  depositMarket.decimals,
+	  strictOraclePrice
+	);
+  
+	const depositAssetWeight = calculateAssetWeight(
+	  depositAmount,
+	  depositMarketOracleData.price,
+	  depositMarket,
+	  "Initial"
+	);
+  
+	console.log(
+	  depositAmount.toNumber(),
+	  depositMarket.decimals,
+	  strictOraclePrice.current.toNumber(),
+	  depositValue.toNumber(),
+	  depositAssetWeight.toNumber()
+	);
+  
+	const weightedDepositValue = depositValue
+	  .mul(depositAssetWeight)
+	  .div(SPOT_MARKET_WEIGHT_PRECISION);
+  
+	const borrowMarket = driftClient.getSpotMarketAccount(borrowtMarketIndex);
+  
+	const maxBorrowValue = weightedDepositValue
+	  .mul(MARGIN_PRECISION)
+	  .div(new BN(borrowMarket.initialLiabilityWeight));
+  
+	const maxLeverage =
+	  (weightedDepositValue.toNumber() + maxBorrowValue.toNumber()) /
+	  weightedDepositValue.toNumber();
+  
+	return {
+	  weightedDepositValue,
+	  maxBorrowValue,
+	  maxLeverage,
+	};
+  }
