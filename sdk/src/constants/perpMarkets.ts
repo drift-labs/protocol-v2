@@ -214,6 +214,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1701880540000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Jito',
+		category: ['MEV'],
+		symbol: 'JTO-PERP',
+		baseAssetSymbol: 'JTO',
+		marketIndex: 20,
+		oracle: new PublicKey('29xQnTzyyuRtgJ7RtSKEgBWwRzZqtrrKmyQQ5m3x629f'),
+		launchTs: 1701967240000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -415,6 +425,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 19,
 		oracle: new PublicKey('funeUsHgi2QKkLdUPASRLuYkaK8JaazCEz3HikbkhVt'),
 		launchTs: 1701880540000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Jito',
+		category: ['MEV'],
+		symbol: 'JTO-PERP',
+		baseAssetSymbol: 'JTO',
+		marketIndex: 20,
+		oracle: new PublicKey('D8UUgr8a3aR3yUeHLu7v8FWK7E8Y5sSU7qrYBXUJXBQ5'),
+		launchTs: 1701967240000,
 		oracleSource: OracleSource.PYTH,
 	},
 ];
