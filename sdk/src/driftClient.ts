@@ -1811,6 +1811,9 @@ export class DriftClient {
 	 * @param subAccountId
 	 * @param name
 	 * @param fromSubAccountId
+	 * @param referrerInfo
+	 * @param donateAmount
+	 * @param txParams
 	 * @returns
 	 */
 	public async initializeUserAccountAndDepositCollateral(
@@ -1821,6 +1824,7 @@ export class DriftClient {
 		name?: string,
 		fromSubAccountId?: number,
 		referrerInfo?: ReferrerInfo,
+		donateAmount?: BN,
 		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const ixs = [];
@@ -1856,14 +1860,26 @@ export class DriftClient {
 			fromSubAccountId !== undefined &&
 			!isNaN(fromSubAccountId);
 
-		const createWSOLTokenAccount =
-			isSolMarket && userTokenAccount.equals(authority) && !isFromSubaccount;
+		donateAmount = donateAmount ? donateAmount : ZERO;
 
+		const createWSOLTokenAccount =
+			(isSolMarket &&
+				userTokenAccount.equals(authority) &&
+				!isFromSubaccount) ||
+			!donateAmount.eq(ZERO);
+
+		const wSolAmount = isSolMarket ? amount.add(donateAmount) : donateAmount;
+
+		let wsolTokenAccount: PublicKey;
 		if (createWSOLTokenAccount) {
 			const { ixs: startIxs, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(amount, true);
+				await this.getWrappedSolAccountCreationIxs(wSolAmount, true);
 
-			userTokenAccount = pubkey;
+			wsolTokenAccount = pubkey;
+
+			if (isSolMarket) {
+				userTokenAccount = pubkey;
+			}
 
 			ixs.push(...startIxs);
 		}
@@ -1893,11 +1909,21 @@ export class DriftClient {
 		}
 		ixs.push(initializeUserAccountIx, depositCollateralIx);
 
+		if (!donateAmount.eq(ZERO)) {
+			const donateIx = await this.getDepositIntoSpotMarketRevenuePoolIx(
+				1,
+				donateAmount,
+				wsolTokenAccount
+			);
+
+			ixs.push(donateIx);
+		}
+
 		// Close the wrapped sol account at the end of the transaction
 		if (createWSOLTokenAccount) {
 			ixs.push(
 				createCloseAccountInstruction(
-					userTokenAccount,
+					wsolTokenAccount,
 					authority,
 					authority,
 					[]
@@ -5995,13 +6021,13 @@ export class DriftClient {
 		);
 	}
 
-	public async depositIntoSpotMarketRevenuePool(
+	public async getDepositIntoSpotMarketRevenuePoolIx(
 		marketIndex: number,
 		amount: BN,
 		userTokenAccountPublicKey: PublicKey
-	): Promise<TransactionSignature> {
+	): Promise<TransactionInstruction> {
 		const spotMarket = await this.getSpotMarketAccount(marketIndex);
-		const tx = await this.program.transaction.depositIntoSpotMarketRevenuePool(
+		const ix = await this.program.instruction.depositIntoSpotMarketRevenuePool(
 			amount,
 			{
 				accounts: {
@@ -6014,6 +6040,21 @@ export class DriftClient {
 				},
 			}
 		);
+
+		return ix;
+	}
+
+	public async depositIntoSpotMarketRevenuePool(
+		marketIndex: number,
+		amount: BN,
+		userTokenAccountPublicKey: PublicKey
+	): Promise<TransactionSignature> {
+		const ix = await this.getDepositIntoSpotMarketRevenuePoolIx(
+			marketIndex,
+			amount,
+			userTokenAccountPublicKey
+		);
+		const tx = await this.buildTransaction([ix]);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
