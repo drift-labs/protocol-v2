@@ -1886,3 +1886,33 @@ mod resting_limit_order {
         assert!(order.is_resting_limit_order(slot).unwrap());
     }
 }
+
+mod get_user_stats_age_ts {
+    use crate::state::user::UserStats;
+
+    #[test]
+    fn test() {
+        let user_stats = UserStats::default();
+
+        let now = 1;
+
+        let age = user_stats.get_age_ts(now);
+
+        assert_eq!(age, 1);
+
+        let user_stats = UserStats {
+            last_filler_volume_30d_ts: 2,
+            last_maker_volume_30d_ts: 3,
+            last_taker_volume_30d_ts: 4,
+            ..UserStats::default()
+        };
+
+        let now = 5;
+        let age = user_stats.get_age_ts(now);
+        assert_eq!(age, 3);
+
+        let now = 1;
+        let age = user_stats.get_age_ts(now);
+        assert_eq!(age, 0);
+    }
+}
