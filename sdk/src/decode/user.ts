@@ -164,7 +164,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 8;
 		const auctionEndPrice = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
-		const maxTs = new BN(buffer.readBigUInt64LE(offset).toString());
+		const maxTs = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
 		const oraclePriceOffset = buffer.readInt32LE(offset);
 		offset += 4;

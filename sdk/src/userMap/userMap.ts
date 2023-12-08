@@ -83,7 +83,9 @@ export class UserMap implements UserMapInterface {
 			decodeFn = (name, buffer) => decodeUser(buffer);
 		} else {
 			decodeFn =
-				this.driftClient.program.account.user.coder.accounts.decodeUnchecked;
+				this.driftClient.program.account.user.coder.accounts.decodeUnchecked.bind(
+					this.driftClient.program.account.user.coder.accounts
+				);
 		}
 		this.decode = decodeFn;
 
@@ -308,7 +310,6 @@ export class UserMap implements UserMapInterface {
 
 			const slot = rpcResponseAndContext.context.slot;
 
-			const totalAccounts = rpcResponseAndContext.value.length;
 			const programAccountBufferMap = new Map<string, Buffer>();
 			for (const programAccount of rpcResponseAndContext.value) {
 				programAccountBufferMap.set(
