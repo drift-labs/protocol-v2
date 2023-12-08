@@ -8,12 +8,13 @@ export function calculateInitUserFee(stateAccount: StateAccount): BN {
 	const targetUtilization = PERCENTAGE_PRECISION.muln(8).divn(10);
 
 	const accountSpaceUtilization = stateAccount.numberOfSubAccounts
+		.addn(1)
 		.mul(PERCENTAGE_PRECISION)
 		.div(getMaxNumberOfSubAccounts(stateAccount));
 
-	if (targetUtilization.gt(accountSpaceUtilization)) {
+	if (accountSpaceUtilization.gt(targetUtilization)) {
 		return maxInitFee
-			.mul(targetUtilization.sub(accountSpaceUtilization))
+			.mul(accountSpaceUtilization.sub(targetUtilization))
 			.div(PERCENTAGE_PRECISION.sub(targetUtilization));
 	} else {
 		return ZERO;
@@ -21,5 +22,8 @@ export function calculateInitUserFee(stateAccount: StateAccount): BN {
 }
 
 export function getMaxNumberOfSubAccounts(stateAccount: StateAccount): BN {
+	if (stateAccount.maxNumberOfSubAccounts < 100) {
+		return new BN(stateAccount.maxNumberOfSubAccounts);
+	}
 	return new BN(stateAccount.maxNumberOfSubAccounts).muln(100);
 }

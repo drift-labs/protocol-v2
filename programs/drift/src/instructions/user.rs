@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use anchor_spl::token::{Token, TokenAccount};
+use solana_program::program::invoke;
+use solana_program::system_instruction::transfer;
 
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
@@ -135,7 +137,6 @@ pub fn handle_initialize_user(
         user_stats.number_of_sub_accounts_created.safe_add(1)?;
 
     let state = &mut ctx.accounts.state;
-    let init_fee = state.get_init_user_fee()?;
     safe_increment!(state.number_of_sub_accounts, 1);
 
     let max_number_of_sub_accounts = state.max_number_of_sub_accounts();
@@ -157,16 +158,28 @@ pub fn handle_initialize_user(
 
     drop(user);
 
-    **ctx
-        .accounts
-        .user
-        .to_account_info()
-        .try_borrow_mut_lamports()? += init_fee;
-    **ctx
-        .accounts
-        .payer
-        .to_account_info()
-        .try_borrow_mut_lamports()? -= init_fee;
+    let init_fee = state.get_init_user_fee()?;
+
+    if init_fee > 0 {
+        let payer_lamports = ctx.accounts.payer.to_account_info().try_lamports()?;
+        if payer_lamports < init_fee {
+            msg!("payer lamports {} init fee {}", payer_lamports, init_fee);
+            return Err(ErrorCode::CantPayUserInitFee.into());
+        }
+
+        invoke(
+            &transfer(
+                &ctx.accounts.payer.key(),
+                &ctx.accounts.user.key(),
+                init_fee,
+            ),
+            &[
+                ctx.accounts.payer.to_account_info().clone(),
+                ctx.accounts.user.to_account_info().clone(),
+                ctx.accounts.system_program.to_account_info().clone(),
+            ],
+        )?;
+    }
 
     Ok(())
 }

@@ -1971,6 +1971,14 @@ pub fn handle_update_state_max_number_of_sub_accounts(
     Ok(())
 }
 
+pub fn handle_update_state_max_initialize_user_fee(
+    ctx: Context<AdminUpdateState>,
+    max_initialize_user_fee: u16,
+) -> Result<()> {
+    ctx.accounts.state.max_initialize_user_fee = max_initialize_user_fee;
+    Ok(())
+}
+
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
