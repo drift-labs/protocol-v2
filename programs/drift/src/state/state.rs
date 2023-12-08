@@ -81,7 +81,7 @@ impl State {
     }
 
     pub fn max_number_of_sub_accounts(&self) -> u64 {
-        if self.max_number_of_sub_accounts <= 100 {
+        if self.max_number_of_sub_accounts <= 10 {
             return self.max_number_of_sub_accounts as u64;
         }
         (self.max_number_of_sub_accounts as u64).saturating_mul(100)

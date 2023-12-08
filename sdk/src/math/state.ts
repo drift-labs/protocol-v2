@@ -22,7 +22,7 @@ export function calculateInitUserFee(stateAccount: StateAccount): BN {
 }
 
 export function getMaxNumberOfSubAccounts(stateAccount: StateAccount): BN {
-	if (stateAccount.maxNumberOfSubAccounts <= 100) {
+	if (stateAccount.maxNumberOfSubAccounts <= 10) {
 		return new BN(stateAccount.maxNumberOfSubAccounts);
 	}
 	return new BN(stateAccount.maxNumberOfSubAccounts).muln(100);

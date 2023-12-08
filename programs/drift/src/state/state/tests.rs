@@ -10,7 +10,7 @@ mod get_init_user_fee {
         let state = State {
             max_initialize_user_fee: 1,
             max_number_of_sub_accounts: 100,
-            number_of_sub_accounts: 80,
+            number_of_sub_accounts: 8,
             ..State::default()
         };
 
@@ -19,18 +19,8 @@ mod get_init_user_fee {
 
         let state = State {
             max_initialize_user_fee: 1,
-            max_number_of_sub_accounts: 100,
-            number_of_sub_accounts: 81,
-            ..State::default()
-        };
-
-        let init_user_fee = state.get_init_user_fee().unwrap();
-        assert_eq!(init_user_fee, 500000);
-
-        let state = State {
-            max_initialize_user_fee: 1,
-            max_number_of_sub_accounts: 100,
-            number_of_sub_accounts: 90,
+            max_number_of_sub_accounts: 10,
+            number_of_sub_accounts: 9,
             ..State::default()
         };
 
@@ -39,8 +29,8 @@ mod get_init_user_fee {
 
         let state = State {
             max_initialize_user_fee: 1,
-            max_number_of_sub_accounts: 100,
-            number_of_sub_accounts: 100,
+            max_number_of_sub_accounts: 10,
+            number_of_sub_accounts: 10,
             ..State::default()
         };
 
@@ -49,8 +39,8 @@ mod get_init_user_fee {
 
         let state = State {
             max_initialize_user_fee: 100,
-            max_number_of_sub_accounts: 100,
-            number_of_sub_accounts: 100,
+            max_number_of_sub_accounts: 10,
+            number_of_sub_accounts: 10,
             ..State::default()
         };
 
