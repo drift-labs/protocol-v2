@@ -10,6 +10,9 @@ use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
 use crate::{LAMPORTS_PER_SOL_U64, PERCENTAGE_PRECISION_U64};
 
+#[cfg(test)]
+mod tests;
+
 #[account]
 #[derive(Default)]
 #[repr(C)]
@@ -78,7 +81,7 @@ impl State {
     }
 
     pub fn max_number_of_sub_accounts(&self) -> u64 {
-        if self.max_number_of_sub_accounts < 100 {
+        if self.max_number_of_sub_accounts <= 100 {
             return self.max_number_of_sub_accounts as u64;
         }
         (self.max_number_of_sub_accounts as u64).saturating_mul(100)
@@ -92,7 +95,7 @@ impl State {
         let account_space_utilization: u64 = self
             .number_of_sub_accounts
             .safe_mul(PERCENTAGE_PRECISION_U64)?
-            .safe_div(self.max_number_of_sub_accounts())?;
+            .safe_div(self.max_number_of_sub_accounts().max(1))?;
 
         let init_fee: u64 = if account_space_utilization > target_utilization {
             max_init_fee
