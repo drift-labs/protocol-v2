@@ -31,6 +31,7 @@ import {
 } from './userMapConfig';
 import { WebsocketSubscription } from './WebsocketSubscription';
 import { PollingSubscription } from './PollingSubscription';
+import { decodeUser } from '../decode/user';
 
 export interface UserMapInterface {
 	subscribe(): Promise<void>;
@@ -58,6 +59,7 @@ export class UserMap implements UserMapInterface {
 			this.lastNumberOfSubAccounts = state.numberOfSubAccounts;
 		}
 	};
+	private decode;
 
 	private syncPromise?: Promise<void>;
 	private syncPromiseResolver: () => void;
@@ -75,6 +77,16 @@ export class UserMap implements UserMapInterface {
 		this.commitment =
 			config.subscriptionConfig.commitment ?? this.driftClient.opts.commitment;
 		this.includeIdle = config.includeIdle ?? false;
+
+		let decodeFn;
+		if (config.fastDecode ?? true) {
+			decodeFn = (name, buffer) => decodeUser(buffer);
+		} else {
+			decodeFn =
+				this.driftClient.program.account.user.coder.accounts.decodeUnchecked;
+		}
+		this.decode = decodeFn;
+
 		if (config.subscriptionConfig.type === 'polling') {
 			this.subscription = new PollingSubscription({
 				userMap: this,
@@ -87,6 +99,7 @@ export class UserMap implements UserMapInterface {
 				commitment: this.commitment,
 				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
 				skipInitialLoad: config.skipInitialLoad,
+				decodeFn,
 			});
 		}
 	}
@@ -295,6 +308,7 @@ export class UserMap implements UserMapInterface {
 
 			const slot = rpcResponseAndContext.context.slot;
 
+			const totalAccounts = rpcResponseAndContext.value.length;
 			const programAccountBufferMap = new Map<string, Buffer>();
 			for (const programAccount of rpcResponseAndContext.value) {
 				programAccountBufferMap.set(
@@ -309,12 +323,9 @@ export class UserMap implements UserMapInterface {
 
 			for (const [key, buffer] of programAccountBufferMap.entries()) {
 				if (!this.has(key)) {
-					const userAccount =
-						this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
-							'User',
-							buffer
-						);
+					const userAccount = this.decode('User', buffer);
 					await this.addPubkey(new PublicKey(key), userAccount);
+					this.userMap.get(key).accountSubscriber.updateData(userAccount, slot);
 				}
 				// give event loop a chance to breathe
 				await new Promise((resolve) => setTimeout(resolve, 0));
@@ -324,13 +335,6 @@ export class UserMap implements UserMapInterface {
 				if (!programAccountBufferMap.has(key)) {
 					await user.unsubscribe();
 					this.userMap.delete(key);
-				} else {
-					const userAccount =
-						this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
-							'User',
-							programAccountBufferMap.get(key)
-						);
-					user.accountSubscriber.updateData(userAccount, slot);
 				}
 				// give event loop a chance to breathe
 				await new Promise((resolve) => setTimeout(resolve, 0));
