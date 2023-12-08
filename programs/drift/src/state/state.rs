@@ -84,7 +84,7 @@ impl State {
     pub fn get_init_user_fee(&self) -> DriftResult<u64> {
         let max_init_fee: u64 = (self.max_initialize_user_fee as u64) * LAMPORTS_PER_SOL_U64 / 100;
 
-        let target_utilization: u64 = 9 * PERCENTAGE_PRECISION_U64 / 10;
+        let target_utilization: u64 = 8 * PERCENTAGE_PRECISION_U64 / 10;
 
         let account_space_utilization: u64 = self
             .number_of_sub_accounts
@@ -92,7 +92,9 @@ impl State {
             .safe_div(self.max_number_of_sub_accounts())?;
 
         let init_fee: u64 = if account_space_utilization > target_utilization {
-            max_init_fee.safe_mul(account_space_utilization.safe_sub(target_utilization)?)?
+            max_init_fee
+                .safe_mul(account_space_utilization.safe_sub(target_utilization)?)?
+                .safe_div(PERCENTAGE_PRECISION_U64.safe_sub(target_utilization)?)?
         } else {
             0
         };
