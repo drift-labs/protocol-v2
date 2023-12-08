@@ -3,12 +3,12 @@ use enumflags2::BitFlags;
 
 use crate::error::DriftResult;
 use crate::math::constants::{
-    FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
+    FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND, BASE_PRECISION, BASE_PRECISION_U64,
 };
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
 use crate::PERCENTAGE_PRECISION_U64;
-
+use crate::math::safe_math::SafeMath
 #[account]
 #[derive(Default)]
 #[repr(C)]
@@ -79,6 +79,26 @@ impl State {
         (self.max_number_of_sub_accounts as u64)
             .saturating_mul(100)
             .max(25000)
+    }
+
+    pub fn initialize_user_account_fee(&self) -> DriftResult<u64> {
+        // add small but increasing initialize fee when accounts approach maximum
+
+        let max_init_fee: u64 = BASE_PRECISION_U64 /  10; // in SOL
+        let target_utilization: u64 = 9 * PERCENTAGE_PRECISION_U64 / 10;
+
+        let account_space_utilization: u64 = self
+            .number_of_sub_accounts
+            .safe_mul(PERCENTAGE_PRECISION_U64)?
+            .safe_div(self.max_number_of_sub_accounts())?;
+
+        let init_fee: u64 = if account_space_utilization > target_utilization {
+            max_init_fee.safe_mul(account_space_utilization.safe_sub(target_utilization)?)?
+        } else {
+            0
+        };
+
+        Ok(init_fee)
     }
 }
 

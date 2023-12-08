@@ -173,6 +173,16 @@ pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result
     };
 
     let state = &mut ctx.accounts.state;
+
+
+    let init_fee = state.initialize_user_account_fee()?;
+
+    if init_fee > 0 {
+        // do fee
+        // either check instructions for handle_deposit_into_spot_market_revenue_pool
+        // do call        
+    }
+
     safe_increment!(state.number_of_authorities, 1);
 
     Ok(())
