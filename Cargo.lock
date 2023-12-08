@@ -1073,6 +1073,7 @@ dependencies = [
  "solana-client",
  "solana-sdk",
  "substreams-solana-macro",
+ "thiserror",
  "tokio",
 ]
 

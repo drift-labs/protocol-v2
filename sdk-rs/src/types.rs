@@ -9,6 +9,7 @@ pub use drift_program::{
     },
 };
 use solana_sdk::{instruction::AccountMeta, pubkey::Pubkey};
+use thiserror::Error;
 
 use crate::constants::{perp_markets, spot_markets};
 
@@ -169,23 +170,14 @@ impl NewOrder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum SdkError {
-    Rpc(solana_client::client_error::ClientError),
-    Ws(solana_client::nonblocking::pubsub_client::PubsubClientError),
+    #[error("rpc fail")]
+    Rpc(#[from] solana_client::client_error::ClientError),
+    #[error("ws fail")]
+    Ws(#[from] solana_client::nonblocking::pubsub_client::PubsubClientError),
+    #[error("invalid drift account")]
     InvalidAccount,
-}
-
-impl From<solana_client::client_error::ClientError> for SdkError {
-    fn from(value: solana_client::client_error::ClientError) -> Self {
-        Self::Rpc(value)
-    }
-}
-
-impl From<solana_client::nonblocking::pubsub_client::PubsubClientError> for SdkError {
-    fn from(value: solana_client::nonblocking::pubsub_client::PubsubClientError) -> Self {
-        Self::Ws(value)
-    }
 }
 
 #[cfg(test)]
