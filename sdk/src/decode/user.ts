@@ -43,6 +43,12 @@ export function decodeUser(buffer: Buffer): UserAccount {
 	const spotPositions: SpotPosition[] = [];
 	for (let i = 0; i < 8; i++) {
 		const scaledBalance = readUnsignedBigInt64LE(buffer, offset);
+		const openOrders = buffer.readUInt8(offset + 35);
+		if (scaledBalance.eq(ZERO) && openOrders === 0) {
+			offset += 40;
+			continue;
+		}
+
 		offset += 8;
 		const openBids = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
@@ -59,13 +65,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		} else {
 			balanceType = SpotBalanceType.BORROW;
 		}
-		offset += 1;
-		const openOrders = buffer.readUInt8(offset);
-		offset += 1;
-		offset += 4;
-		if (scaledBalance.eq(ZERO) && openOrders === 0) {
-			continue;
-		}
+		offset += 6;
 		spotPositions.push({
 			scaledBalance,
 			openBids,
@@ -79,17 +79,24 @@ export function decodeUser(buffer: Buffer): UserAccount {
 
 	const perpPositions: PerpPosition[] = [];
 	for (let i = 0; i < 8; i++) {
-		const lastCumulativeFundingRate = new BN(
-			buffer.readBigInt64LE(offset).toString()
-		);
-		offset += 8;
-		const baseAssetAmount = readSignedBigInt64LE(buffer, offset);
-		offset += 8;
-		const quoteAssetAmount = readSignedBigInt64LE(buffer, offset);
-		offset += 8;
-		const quoteBreakEvenAmount = new BN(
-			buffer.readBigInt64LE(offset).toString()
-		);
+		const baseAssetAmount = readSignedBigInt64LE(buffer, offset + 8);
+		const quoteAssetAmount = readSignedBigInt64LE(buffer, offset + 16);
+		const lpShares = readUnsignedBigInt64LE(buffer, offset + 64);
+		const openOrders = buffer.readUInt8(offset + 94);
+
+		if (
+			baseAssetAmount.eq(ZERO) &&
+			openOrders === 0 &&
+			quoteAssetAmount.eq(ZERO) &&
+			lpShares.eq(ZERO)
+		) {
+			offset += 96;
+			continue;
+		}
+
+		const lastCumulativeFundingRate = readSignedBigInt64LE(buffer, offset);
+		offset += 24;
+		const quoteBreakEvenAmount = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const quoteEntryAmount = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
@@ -98,9 +105,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		const openAsks = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const settledPnl = readSignedBigInt64LE(buffer, offset);
-		offset += 8;
-		const lpShares = readUnsignedBigInt64LE(buffer, offset);
-		offset += 8;
+		offset += 16;
 		const lastBaseAssetAmountPerLp = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const lastQuoteAssetAmountPerLp = readSignedBigInt64LE(buffer, offset);
@@ -108,20 +113,9 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		const remainderBaseAssetAmount = buffer.readUint32LE(offset);
 		offset += 4;
 		const marketIndex = buffer.readUInt16LE(offset);
-		offset += 2;
-		const openOrders = buffer.readUInt8(offset);
-		offset += 1;
+		offset += 3;
 		const perLpBase = buffer.readUInt8(offset);
 		offset += 1;
-
-		if (
-			baseAssetAmount.eq(ZERO) &&
-			openOrders === 0 &&
-			quoteAssetAmount.eq(ZERO) &&
-			lpShares.eq(ZERO)
-		) {
-			continue;
-		}
 
 		perpPositions.push({
 			lastCumulativeFundingRate,
