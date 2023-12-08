@@ -4,6 +4,7 @@ if [ "$1" != "--skip-build" ]; then
 fi
 
 test_files=(
+  surgePricing.ts
   triggerOrders.ts
   stopLimits.ts
   oracleFillPriceGuardrails.ts
