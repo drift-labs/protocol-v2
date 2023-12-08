@@ -19,9 +19,20 @@ export type OrderSubscriberConfig = {
 };
 
 export interface OrderSubscriberEvents {
-	onUpdate: (
+	orderCreated: (
 		account: UserAccount,
 		updatedOrders: Order[],
+		pubkey: PublicKey,
+		slot: number,
+		dataType: 'raw' | 'decoded'
+	) => void;
+	userUpdated: (
+		account: UserAccount,
+		pubkey: PublicKey,
+		slot: number,
+		dataType: 'raw' | 'decoded'
+	) => void;
+	updateReceived: (
 		pubkey: PublicKey,
 		slot: number,
 		dataType: 'raw' | 'decoded'
