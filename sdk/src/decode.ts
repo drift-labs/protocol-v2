@@ -213,12 +213,13 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		} else if (orderTypeNum === 4) {
 			orderType = OrderType.ORACLE;
 		}
+		offset += 1;
 		const marketTypeNum = buffer.readUInt8(offset);
 		let marketType : MarketType;
 		if (marketTypeNum === 0) {
-			marketType = MarketType.PERP;
-		} else {
 			marketType = MarketType.SPOT;
+		} else {
+			marketType = MarketType.PERP;
 		}
 		offset += 1;
 		const userOrderId = buffer.readUint8(offset);
@@ -259,6 +260,7 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		offset += 1;
 		const auctionDuration = buffer.readUInt8(offset);
 		offset += 1;
+		offset += 3; // padding
 		orders.push({
 			slot,
 			price,
@@ -286,6 +288,66 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		});
 	}
 
+	const lastAddPerpLpSharesTs = new BN(buffer.readBigInt64LE(offset).toString());
+	offset += 8;
+
+	const totalDeposits = new BN(buffer.readBigUInt64LE(offset).toString());
+	offset += 8;
+
+	const totalWithdraws = new BN(buffer.readBigUInt64LE(offset).toString());
+	offset += 8;
+
+	const totalSocialLoss = new BN(buffer.readBigUInt64LE(offset).toString());
+	offset += 8;
+
+	const settledPerpPnl = new BN(buffer.readBigInt64LE(offset).toString());
+	offset += 8;
+
+	const cumulativeSpotFees = new BN(buffer.readBigInt64LE(offset).toString());
+	offset += 8;
+
+	const cumulativePerpFunding = new BN(buffer.readBigInt64LE(offset).toString());
+	offset += 8;
+
+	const liquidationMarginFreed = new BN(buffer.readBigUInt64LE(offset).toString());
+	offset += 8;
+
+	const lastActiveSlot = new BN(buffer.readBigUInt64LE(offset).toString());
+	offset += 8;
+
+	const nextOrderId = buffer.readUInt32LE(offset);
+	offset += 4;
+
+	const maxMarginRatio = buffer.readUInt32LE(offset);
+	offset += 4;
+
+	const nextLiquidationId = buffer.readUInt16LE(offset);
+	offset += 2;
+
+	const subAccountId = buffer.readUInt16LE(offset);
+	offset += 2;
+
+	const status = buffer.readUInt8(offset);
+	offset += 1;
+
+	const isMarginTradingEnabled = buffer.readUInt8(offset) === 1;
+	offset += 1;
+
+	const idle = buffer.readUInt8(offset) === 1;
+	offset += 1;
+
+	const openOrders = buffer.readUInt8(offset);
+	offset += 1;
+
+	const hasOpenOrder = buffer.readUInt8(offset) === 1;
+	offset += 1;
+
+	const openAuctions = buffer.readUInt8(offset);
+	offset += 1;
+
+	const hasOpenAuction = buffer.readUInt8(offset) === 1;
+	offset += 1;
+
 	// @ts-ignore
 	return {
 		authority,
@@ -294,5 +356,25 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		spotPositions,
 		perpPositions,
 		orders,
+		lastAddPerpLpSharesTs,
+		totalDeposits,
+		totalWithdraws,
+		totalSocialLoss,
+		settledPerpPnl,
+		cumulativeSpotFees,
+		cumulativePerpFunding,
+		liquidationMarginFreed,
+		lastActiveSlot,
+		nextOrderId,
+		maxMarginRatio,
+		nextLiquidationId,
+		subAccountId,
+		status,
+		isMarginTradingEnabled,
+		idle,
+		openOrders,
+		hasOpenOrder,
+		openAuctions,
+		hasOpenAuction
 	};
 }
