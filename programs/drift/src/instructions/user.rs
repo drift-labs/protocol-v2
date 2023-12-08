@@ -1821,12 +1821,12 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let clock = Clock::get()?;
 
-    validate_user_deletion(user, user_stats, clock.now)?;
+    let state: &mut Box<Account<'_, State>> = &mut ctx.accounts.state;
 
-    safe_decrement!(user_stats.number_of_sub_accounts, 1);
+    validate_user_deletion(user, user_stats, state, clock.unix_timestamp)?;
 
-    let state = &mut ctx.accounts.state;
     safe_decrement!(state.number_of_sub_accounts, 1);
+    safe_decrement!(user_stats.number_of_sub_accounts, 1);
 
     Ok(())
 }
