@@ -174,13 +174,12 @@ pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result
 
     let state = &mut ctx.accounts.state;
 
-
     let init_fee = state.initialize_user_account_fee()?;
 
     if init_fee > 0 {
         // do fee
         // either check instructions for handle_deposit_into_spot_market_revenue_pool
-        // do call        
+        // do call
     }
 
     safe_increment!(state.number_of_authorities, 1);
@@ -1820,8 +1819,9 @@ pub fn handle_update_user_reduce_only(
 pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     let user = &load!(ctx.accounts.user)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let clock = Clock::get()?;
 
-    validate_user_deletion(user, user_stats)?;
+    validate_user_deletion(user, user_stats, clock.now)?;
 
     safe_decrement!(user_stats.number_of_sub_accounts, 1);
 

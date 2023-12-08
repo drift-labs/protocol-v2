@@ -1,10 +1,11 @@
 use crate::error::{DriftResult, ErrorCode};
+use crate::math::constants::THIRTEEN_DAY;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{OrderStatus, User, UserStats};
 use crate::validate;
 use solana_program::msg;
 
-pub fn validate_user_deletion(user: &User, user_stats: &UserStats) -> DriftResult {
+pub fn validate_user_deletion(user: &User, user_stats: &UserStats, now: i64) -> DriftResult {
     validate!(
         !user_stats.is_referrer || user.sub_account_id != 0,
         ErrorCode::UserCantBeDeleted,
@@ -46,6 +47,17 @@ pub fn validate_user_deletion(user: &User, user_stats: &UserStats) -> DriftResul
             order.status == OrderStatus::Init,
             ErrorCode::UserCantBeDeleted,
             "user has an open order"
+        )?;
+    }
+
+    let estimated_user_stats_age = user_stats.get_user_stats_age_ts(now)?;
+    if estimated_user_stats_age < THIRTEEN_DAY as i64 {
+        validate!(
+            user.idle,
+            ErrorCode::UserCantBeDeleted,
+            "user is not idle with fresh user stats account creation ({} < {})",
+            estimated_user_stats_age,
+            THIRTEEN_DAY
         )?;
     }
 
