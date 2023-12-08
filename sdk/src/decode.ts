@@ -28,23 +28,11 @@ export function decodeUser(buffer: Buffer): UserAccount {
 
 	const spotPositions: SpotPosition[] = [];
 	for (let i = 0; i < 8; i++) {
-		const scaledBalance = new BN(
-			buffer.subarray(offset, offset + 8),
-			undefined,
-			'le'
-		);
+		const scaledBalance = new BN(buffer.readBigUInt64LE(offset).toString());
 		offset += 8;
-		const openBids = new BN(
-			buffer.subarray(offset, offset + 8),
-			undefined,
-			'le'
-		);
+		const openBids = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
-		const openAsks = new BN(
-			buffer.subarray(offset, offset + 8),
-			undefined,
-			'le'
-		);
+		const openAsks = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
 		const cumulativeDeposits = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
