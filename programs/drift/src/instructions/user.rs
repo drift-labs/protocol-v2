@@ -205,6 +205,14 @@ pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result
     let state = &mut ctx.accounts.state;
     safe_increment!(state.number_of_authorities, 1);
 
+    let max_number_of_sub_accounts = state.max_number_of_sub_accounts();
+
+    validate!(
+        max_number_of_sub_accounts != 0
+            && state.number_of_authorities <= max_number_of_sub_accounts,
+        ErrorCode::MaxNumberOfUsers
+    )?;
+
     Ok(())
 }
 
