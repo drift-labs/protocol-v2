@@ -1,17 +1,19 @@
 import {
 	MarketType,
 	Order,
-	OrderStatus, OrderTriggerCondition,
+	OrderStatus,
+	OrderTriggerCondition,
 	OrderType,
-	PerpPosition, PositionDirection,
+	PerpPosition,
+	PositionDirection,
 	SpotBalanceType,
 	SpotPosition,
-	UserAccount
-} from "./types";
-import {PublicKey} from "@solana/web3.js";
-import {BN} from "./index";
+	UserAccount,
+} from './types';
+import { PublicKey } from '@solana/web3.js';
+import { BN } from './index';
 
-export function decodeUser(buffer: Buffer) : UserAccount {
+export function decodeUser(buffer: Buffer): UserAccount {
 	let offset = 8;
 	const authority = new PublicKey(buffer.slice(offset, offset + 32));
 	offset += 32;
@@ -23,7 +25,7 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 	}
 	offset += 32;
 
-	const spotPositions : SpotPosition[] = [];
+	const spotPositions: SpotPosition[] = [];
 	for (let i = 0; i < 8; i++) {
 		const scaledBalance = new BN(
 			buffer.subarray(offset, offset + 8),
@@ -52,7 +54,7 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		const marketIndex = buffer.readUInt16LE(offset);
 		offset += 2;
 		const balanceTypeNum = buffer.readUInt8(offset);
-		let balanceType : SpotBalanceType;
+		let balanceType: SpotBalanceType;
 		if (balanceTypeNum === 0) {
 			balanceType = SpotBalanceType.DEPOSIT;
 		} else {
@@ -69,43 +71,31 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 			cumulativeDeposits,
 			marketIndex,
 			balanceType,
-			openOrders
+			openOrders,
 		});
 	}
 
-	const perpPositions : PerpPosition[] = [];
+	const perpPositions: PerpPosition[] = [];
 	for (let i = 0; i < 8; i++) {
 		const lastCumulativeFundingRate = new BN(
 			buffer.readBigInt64LE(offset).toString()
 		);
 		offset += 8;
-		const baseAssetAmount = new BN(
-			buffer.readBigInt64LE(offset).toString(),
-		);
+		const baseAssetAmount = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
-		const quoteAssetAmount = new BN(
-			buffer.readBigInt64LE(offset).toString(),
-		);
+		const quoteAssetAmount = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
 		const quoteBreakEvenAmount = new BN(
-			buffer.readBigInt64LE(offset).toString(),
+			buffer.readBigInt64LE(offset).toString()
 		);
 		offset += 8;
-		const quoteEntryAmount = new BN(
-			buffer.readBigInt64LE(offset).toString(),
-		);
+		const quoteEntryAmount = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
-		const openBids = new BN(
-			buffer.readBigInt64LE(offset).toString(),
-		);
+		const openBids = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
-		const openAsks = new BN(
-			buffer.readBigInt64LE(offset).toString(),
-		);
+		const openAsks = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
-		const settledPnl = new BN(
-			buffer.readBigInt64LE(offset).toString(),
-		);
+		const settledPnl = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
 		const lpShares = new BN(
 			buffer.subarray(offset, offset + 8),
@@ -114,11 +104,11 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		);
 		offset += 8;
 		const lastBaseAssetAmountPerLp = new BN(
-			buffer.readBigInt64LE(offset).toString(),
+			buffer.readBigInt64LE(offset).toString()
 		);
 		offset += 8;
 		const lastQuoteAssetAmountPerLp = new BN(
-			buffer.readBigInt64LE(offset).toString(),
+			buffer.readBigInt64LE(offset).toString()
 		);
 		offset += 8;
 		const remainderBaseAssetAmount = buffer.readUint32LE(offset);
@@ -144,23 +134,17 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 			remainderBaseAssetAmount,
 			marketIndex,
 			openOrders,
-			perLpBase
+			perLpBase,
 		});
 	}
 
-	const orders : Order[] = [];
+	const orders: Order[] = [];
 	for (let i = 0; i < 32; i++) {
-		const slot = new BN(
-			buffer.readBigUInt64LE(offset).toString()
-		);
+		const slot = new BN(buffer.readBigUInt64LE(offset).toString());
 		offset += 8;
-		const price = new BN(
-			buffer.readBigUInt64LE(offset).toString()
-		);
+		const price = new BN(buffer.readBigUInt64LE(offset).toString());
 		offset += 8;
-		const baseAssetAmount = new BN(
-			buffer.readBigUInt64LE(offset).toString()
-		);
+		const baseAssetAmount = new BN(buffer.readBigUInt64LE(offset).toString());
 		offset += 8;
 		const baseAssetAmountFilled = new BN(
 			buffer.readBigUInt64LE(offset).toString()
@@ -170,21 +154,13 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 			buffer.readBigUInt64LE(offset).toString()
 		);
 		offset += 8;
-		const triggerPrice = new BN(
-			buffer.readBigUInt64LE(offset).toString()
-		);
+		const triggerPrice = new BN(buffer.readBigUInt64LE(offset).toString());
 		offset += 8;
-		const auctionStartPrice = new BN(
-			buffer.readBigInt64LE(offset).toString()
-		);
+		const auctionStartPrice = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
-		const auctionEndPrice = new BN(
-			buffer.readBigInt64LE(offset).toString()
-		);
+		const auctionEndPrice = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
-		const maxTs = new BN(
-			buffer.readBigUInt64LE(offset).toString()
-		);
+		const maxTs = new BN(buffer.readBigUInt64LE(offset).toString());
 		offset += 8;
 		const oraclePriceOffset = buffer.readInt32LE(offset);
 		offset += 4;
@@ -193,7 +169,7 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		const marketIndex = buffer.readUInt16LE(offset);
 		offset += 2;
 		const orderStatusNum = buffer.readUInt8(offset);
-		let status : OrderStatus;
+		let status: OrderStatus;
 		if (orderStatusNum === 0) {
 			status = OrderStatus.INIT;
 		} else if (orderStatusNum === 1) {
@@ -201,7 +177,7 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		}
 		offset += 1;
 		const orderTypeNum = buffer.readUInt8(offset);
-		let orderType : OrderType;
+		let orderType: OrderType;
 		if (orderTypeNum === 0) {
 			orderType = OrderType.MARKET;
 		} else if (orderTypeNum === 1) {
@@ -215,7 +191,7 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		}
 		offset += 1;
 		const marketTypeNum = buffer.readUInt8(offset);
-		let marketType : MarketType;
+		let marketType: MarketType;
 		if (marketTypeNum === 0) {
 			marketType = MarketType.SPOT;
 		} else {
@@ -225,7 +201,7 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		const userOrderId = buffer.readUint8(offset);
 		offset += 1;
 		const existingPositionDirectionNum = buffer.readUInt8(offset);
-		let existingPositionDirection : PositionDirection;
+		let existingPositionDirection: PositionDirection;
 		if (existingPositionDirectionNum === 0) {
 			existingPositionDirection = PositionDirection.LONG;
 		} else {
@@ -233,7 +209,7 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		}
 		offset += 1;
 		const positionDirectionNum = buffer.readUInt8(offset);
-		let direction : PositionDirection;
+		let direction: PositionDirection;
 		if (positionDirectionNum === 0) {
 			direction = PositionDirection.LONG;
 		} else {
@@ -247,7 +223,7 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		const immediateOrCancel = buffer.readUInt8(offset) === 1;
 		offset += 1;
 		const triggerConditionNum = buffer.readUInt8(offset);
-		let triggerCondition : OrderTriggerCondition;
+		let triggerCondition: OrderTriggerCondition;
 		if (triggerConditionNum === 0) {
 			triggerCondition = OrderTriggerCondition.ABOVE;
 		} else if (triggerConditionNum === 1) {
@@ -284,11 +260,13 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 			postOnly,
 			immediateOrCancel,
 			triggerCondition,
-			auctionDuration
+			auctionDuration,
 		});
 	}
 
-	const lastAddPerpLpSharesTs = new BN(buffer.readBigInt64LE(offset).toString());
+	const lastAddPerpLpSharesTs = new BN(
+		buffer.readBigInt64LE(offset).toString()
+	);
 	offset += 8;
 
 	const totalDeposits = new BN(buffer.readBigUInt64LE(offset).toString());
@@ -306,10 +284,14 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 	const cumulativeSpotFees = new BN(buffer.readBigInt64LE(offset).toString());
 	offset += 8;
 
-	const cumulativePerpFunding = new BN(buffer.readBigInt64LE(offset).toString());
+	const cumulativePerpFunding = new BN(
+		buffer.readBigInt64LE(offset).toString()
+	);
 	offset += 8;
 
-	const liquidationMarginFreed = new BN(buffer.readBigUInt64LE(offset).toString());
+	const liquidationMarginFreed = new BN(
+		buffer.readBigUInt64LE(offset).toString()
+	);
 	offset += 8;
 
 	const lastActiveSlot = new BN(buffer.readBigUInt64LE(offset).toString());
@@ -375,6 +357,6 @@ export function decodeUser(buffer: Buffer) : UserAccount {
 		openOrders,
 		hasOpenOrder,
 		openAuctions,
-		hasOpenAuction
+		hasOpenAuction,
 	};
 }
