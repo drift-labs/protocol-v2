@@ -870,6 +870,7 @@ export type Order = {
 	marketIndex: number;
 	price: BN;
 	baseAssetAmount: BN;
+	quoteAssetAmount: BN;
 	baseAssetAmountFilled: BN;
 	quoteAssetAmountFilled: BN;
 	direction: PositionDirection;
