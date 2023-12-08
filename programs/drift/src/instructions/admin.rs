@@ -84,7 +84,8 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         liquidation_duration: 0,
         initial_pct_to_liquidate: 0,
         max_number_of_sub_accounts: 0,
-        padding: [0; 12],
+        max_initialize_user_fee: 0,
+        padding: [0; 10],
     };
 
     Ok(())

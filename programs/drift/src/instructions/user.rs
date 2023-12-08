@@ -135,6 +135,7 @@ pub fn handle_initialize_user(
         user_stats.number_of_sub_accounts_created.safe_add(1)?;
 
     let state = &mut ctx.accounts.state;
+    let init_fee = state.get_init_user_fee()?;
     safe_increment!(state.number_of_sub_accounts, 1);
 
     validate!(
@@ -150,6 +151,19 @@ pub fn handle_initialize_user(
         name,
         referrer: user_stats.referrer
     });
+
+    drop(user);
+
+    **ctx
+        .accounts
+        .user
+        .to_account_info()
+        .try_borrow_mut_lamports()? += init_fee;
+    **ctx
+        .accounts
+        .payer
+        .to_account_info()
+        .try_borrow_mut_lamports()? -= init_fee;
 
     Ok(())
 }
