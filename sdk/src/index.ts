@@ -56,6 +56,7 @@ export * from './math/margin';
 export * from './math/insurance';
 export * from './math/superStake';
 export * from './math/spotPosition';
+export * from './math/state';
 export * from './marinade';
 export * from './orderParams';
 export * from './slot/SlotSubscriber';
