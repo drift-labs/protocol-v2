@@ -142,8 +142,8 @@ pub fn handle_initialize_user(
     let max_number_of_sub_accounts = state.max_number_of_sub_accounts();
 
     validate!(
-        max_number_of_sub_accounts != 0
-            && state.number_of_sub_accounts <= max_number_of_sub_accounts,
+        max_number_of_sub_accounts == 0
+            || state.number_of_sub_accounts <= max_number_of_sub_accounts,
         ErrorCode::MaxNumberOfUsers
     )?;
 
@@ -208,8 +208,8 @@ pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result
     let max_number_of_sub_accounts = state.max_number_of_sub_accounts();
 
     validate!(
-        max_number_of_sub_accounts != 0
-            && state.number_of_authorities <= max_number_of_sub_accounts,
+        max_number_of_sub_accounts == 0
+            || state.number_of_authorities <= max_number_of_sub_accounts,
         ErrorCode::MaxNumberOfUsers
     )?;
 
