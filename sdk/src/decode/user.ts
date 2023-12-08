@@ -14,14 +14,14 @@ import { PublicKey } from '@solana/web3.js';
 import { BN } from '../';
 import { ZERO } from '../';
 
+function readUnsignedBigInt64LE(buffer: Buffer, offset: number): BN {
+	return new BN(buffer.subarray(offset, offset + 8), 10, 'le');
+}
+
 function readSignedBigInt64LE(buffer: Buffer, offset: number): BN {
 	const unsignedValue = new BN(buffer.subarray(offset, offset + 8), 10, 'le');
-	if (unsignedValue.testn(63)) {
-		const inverted = unsignedValue.notn(64).addn(1);
-		return inverted.neg();
-	} else {
-		return unsignedValue;
-	}
+	const inverted = unsignedValue.notn(64).addn(1);
+	return inverted.neg();
 }
 
 export function decodeUser(buffer: Buffer): UserAccount {
@@ -38,7 +38,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 
 	const spotPositions: SpotPosition[] = [];
 	for (let i = 0; i < 8; i++) {
-		const scaledBalance = readSignedBigInt64LE(buffer, offset);
+		const scaledBalance = readUnsignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const openBids = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
@@ -95,19 +95,11 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 8;
 		const settledPnl = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const lpShares = new BN(
-			buffer.subarray(offset, offset + 8),
-			undefined,
-			'le'
-		);
+		const lpShares = readUnsignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const lastBaseAssetAmountPerLp = new BN(
-			buffer.readBigInt64LE(offset).toString()
-		);
+		const lastBaseAssetAmountPerLp = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const lastQuoteAssetAmountPerLp = new BN(
-			buffer.readBigInt64LE(offset).toString()
-		);
+		const lastQuoteAssetAmountPerLp = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const remainderBaseAssetAmount = buffer.readUint32LE(offset);
 		offset += 4;
@@ -154,21 +146,17 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			continue;
 		}
 
-		const slot = readSignedBigInt64LE(buffer, offset);
+		const slot = readUnsignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const price = readSignedBigInt64LE(buffer, offset);
+		const price = readUnsignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const baseAssetAmount = readSignedBigInt64LE(buffer, offset);
+		const baseAssetAmount = readUnsignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const baseAssetAmountFilled = new BN(
-			buffer.readBigUInt64LE(offset).toString()
-		);
+		const baseAssetAmountFilled = readUnsignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const quoteAssetAmountFilled = new BN(
-			buffer.readBigUInt64LE(offset).toString()
-		);
+		const quoteAssetAmountFilled = readUnsignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const triggerPrice = readSignedBigInt64LE(buffer, offset);
+		const triggerPrice = readUnsignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const auctionStartPrice = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
@@ -279,18 +267,16 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		});
 	}
 
-	const lastAddPerpLpSharesTs = new BN(
-		buffer.readBigInt64LE(offset).toString()
-	);
+	const lastAddPerpLpSharesTs = readSignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const totalDeposits = readSignedBigInt64LE(buffer, offset);
+	const totalDeposits = readUnsignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const totalWithdraws = readSignedBigInt64LE(buffer, offset);
+	const totalWithdraws = readUnsignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const totalSocialLoss = readSignedBigInt64LE(buffer, offset);
+	const totalSocialLoss = readUnsignedBigInt64LE(buffer, offset);
 	offset += 8;
 
 	const settledPerpPnl = readSignedBigInt64LE(buffer, offset);
@@ -302,10 +288,10 @@ export function decodeUser(buffer: Buffer): UserAccount {
 	const cumulativePerpFunding = readSignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const liquidationMarginFreed = readSignedBigInt64LE(buffer, offset);
+	const liquidationMarginFreed = readUnsignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const lastActiveSlot = readSignedBigInt64LE(buffer, offset);
+	const lastActiveSlot = readUnsignedBigInt64LE(buffer, offset);
 	offset += 8;
 
 	const nextOrderId = buffer.readUInt32LE(offset);
