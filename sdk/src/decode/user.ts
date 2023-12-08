@@ -14,6 +14,16 @@ import { PublicKey } from '@solana/web3.js';
 import { BN } from '../';
 import { ZERO } from '../';
 
+function readSignedBigInt64LE(buffer: Buffer, offset: number): BN {
+	const unsignedValue = new BN(buffer.subarray(offset, offset + 8), 10, 'le');
+	if (unsignedValue.testn(63)) {
+		const inverted = unsignedValue.notn(64).addn(1);
+		return inverted.neg();
+	} else {
+		return unsignedValue;
+	}
+}
+
 export function decodeUser(buffer: Buffer): UserAccount {
 	let offset = 8;
 	const authority = new PublicKey(buffer.slice(offset, offset + 32));
@@ -28,13 +38,13 @@ export function decodeUser(buffer: Buffer): UserAccount {
 
 	const spotPositions: SpotPosition[] = [];
 	for (let i = 0; i < 8; i++) {
-		const scaledBalance = new BN(buffer.readBigUInt64LE(offset).toString());
+		const scaledBalance = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const openBids = new BN(buffer.readBigInt64LE(offset).toString());
+		const openBids = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const openAsks = new BN(buffer.readBigInt64LE(offset).toString());
+		const openAsks = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const cumulativeDeposits = new BN(buffer.readBigInt64LE(offset).toString());
+		const cumulativeDeposits = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const marketIndex = buffer.readUInt16LE(offset);
 		offset += 2;
@@ -69,21 +79,21 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			buffer.readBigInt64LE(offset).toString()
 		);
 		offset += 8;
-		const baseAssetAmount = new BN(buffer.readBigInt64LE(offset).toString());
+		const baseAssetAmount = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const quoteAssetAmount = new BN(buffer.readBigInt64LE(offset).toString());
+		const quoteAssetAmount = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const quoteBreakEvenAmount = new BN(
 			buffer.readBigInt64LE(offset).toString()
 		);
 		offset += 8;
-		const quoteEntryAmount = new BN(buffer.readBigInt64LE(offset).toString());
+		const quoteEntryAmount = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const openBids = new BN(buffer.readBigInt64LE(offset).toString());
+		const openBids = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const openAsks = new BN(buffer.readBigInt64LE(offset).toString());
+		const openAsks = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const settledPnl = new BN(buffer.readBigInt64LE(offset).toString());
+		const settledPnl = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const lpShares = new BN(
 			buffer.subarray(offset, offset + 8),
@@ -144,11 +154,11 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			continue;
 		}
 
-		const slot = new BN(buffer.readBigUInt64LE(offset).toString());
+		const slot = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const price = new BN(buffer.readBigUInt64LE(offset).toString());
+		const price = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const baseAssetAmount = new BN(buffer.readBigUInt64LE(offset).toString());
+		const baseAssetAmount = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const baseAssetAmountFilled = new BN(
 			buffer.readBigUInt64LE(offset).toString()
@@ -158,13 +168,13 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			buffer.readBigUInt64LE(offset).toString()
 		);
 		offset += 8;
-		const triggerPrice = new BN(buffer.readBigUInt64LE(offset).toString());
+		const triggerPrice = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const auctionStartPrice = new BN(buffer.readBigInt64LE(offset).toString());
+		const auctionStartPrice = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const auctionEndPrice = new BN(buffer.readBigInt64LE(offset).toString());
+		const auctionEndPrice = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const maxTs = new BN(buffer.readBigInt64LE(offset).toString());
+		const maxTs = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const oraclePriceOffset = buffer.readInt32LE(offset);
 		offset += 4;
@@ -274,32 +284,28 @@ export function decodeUser(buffer: Buffer): UserAccount {
 	);
 	offset += 8;
 
-	const totalDeposits = new BN(buffer.readBigUInt64LE(offset).toString());
+	const totalDeposits = readSignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const totalWithdraws = new BN(buffer.readBigUInt64LE(offset).toString());
+	const totalWithdraws = readSignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const totalSocialLoss = new BN(buffer.readBigUInt64LE(offset).toString());
+	const totalSocialLoss = readSignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const settledPerpPnl = new BN(buffer.readBigInt64LE(offset).toString());
+	const settledPerpPnl = readSignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const cumulativeSpotFees = new BN(buffer.readBigInt64LE(offset).toString());
+	const cumulativeSpotFees = readSignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const cumulativePerpFunding = new BN(
-		buffer.readBigInt64LE(offset).toString()
-	);
+	const cumulativePerpFunding = readSignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const liquidationMarginFreed = new BN(
-		buffer.readBigUInt64LE(offset).toString()
-	);
+	const liquidationMarginFreed = readSignedBigInt64LE(buffer, offset);
 	offset += 8;
 
-	const lastActiveSlot = new BN(buffer.readBigUInt64LE(offset).toString());
+	const lastActiveSlot = readSignedBigInt64LE(buffer, offset);
 	offset += 8;
 
 	const nextOrderId = buffer.readUInt32LE(offset);

@@ -1,22 +1,19 @@
-import {
-	AnchorProvider,
-	Idl,
-	Program,
-} from '@coral-xyz/anchor';
+import { AnchorProvider, Idl, Program } from '@coral-xyz/anchor';
 import driftIDL from '../../src/idl/drift.json';
-import {Connection, Keypair} from "@solana/web3.js";
-import {Wallet} from "../../src";
+import { Connection, Keypair } from '@solana/web3.js';
+import { Wallet } from '../../src';
 import {
 	DRIFT_PROGRAM_ID,
-	isSpotPositionAvailable, isVariant,
+	isSpotPositionAvailable,
+	isVariant,
 	Order,
 	PerpPosition,
 	positionIsAvailable,
-	SpotPosition
-} from "../../lib";
-import {decodeUser} from "../../lib/decode/user";
+	SpotPosition,
+} from '../../lib';
+import { decodeUser } from '../../lib/decode/user';
 import { assert } from 'chai';
-import {userAccountBufferStrings} from "./userAccountBufferStrings";
+import { userAccountBufferStrings } from './userAccountBufferStrings';
 const sizeof = require('object-sizeof');
 
 describe('Custom user decode', () => {
@@ -31,9 +28,13 @@ describe('Custom user decode', () => {
 		let totalCustomSize = 0;
 		let totalAnchorTime = 0;
 		let totalCustomTime = 0;
-		for (const [i, userAccountBufferString] of userAccountBufferStrings.entries()) {
+		for (const [
+			i,
+			userAccountBufferString,
+		] of userAccountBufferStrings.entries()) {
 			const userAccountBuffer = Buffer.from(userAccountBufferString, 'base64');
-			const [anchorSize, customSize, anchorTime, customTime] = testUserAccountDecode(program, userAccountBuffer, i);
+			const [anchorSize, customSize, anchorTime, customTime] =
+				testUserAccountDecode(program, userAccountBuffer, i);
 			totalAnchorSize += anchorSize;
 			totalCustomSize += customSize;
 			totalAnchorTime += anchorTime;
@@ -49,7 +50,6 @@ describe('Custom user decode', () => {
 
 function testUserAccountDecode(program: Program, buffer: Buffer, i: number) {
 	console.log(`Testing user account decode ${i}`);
-
 
 	const anchorStartTimestamp = Date.now();
 	const anchorUserAccount = program.coder.accounts.decode('User', buffer);
@@ -68,39 +68,79 @@ function testUserAccountDecode(program: Program, buffer: Buffer, i: number) {
 	assert(anchorUserAccount.delegate.equals(customUserAccount.delegate));
 	assert(arraysAreEqual(anchorUserAccount.name, customUserAccount.name));
 
-	const anchorSpotPositionGenerator = getSpotPositions(anchorUserAccount.spotPositions);
-	const customSpotPositionGenerator = getSpotPositions(customUserAccount.spotPositions);
-	for (const [anchorSpotPosition, customSpotPosition] of zipGenerator(anchorSpotPositionGenerator, customSpotPositionGenerator)) {
+	const anchorSpotPositionGenerator = getSpotPositions(
+		anchorUserAccount.spotPositions
+	);
+	const customSpotPositionGenerator = getSpotPositions(
+		customUserAccount.spotPositions
+	);
+	for (const [anchorSpotPosition, customSpotPosition] of zipGenerator(
+		anchorSpotPositionGenerator,
+		customSpotPositionGenerator
+	)) {
 		testSpotPosition(anchorSpotPosition, customSpotPosition);
 	}
 
-	const anchorPerpPositionGenerator = getPerpPositions(anchorUserAccount.perpPositions);
-	const customPerpPositionGenerator = getPerpPositions(customUserAccount.perpPositions);
-	for (const [anchorPerpPosition, customPerpPosition] of zipGenerator(anchorPerpPositionGenerator, customPerpPositionGenerator)) {
+	const anchorPerpPositionGenerator = getPerpPositions(
+		anchorUserAccount.perpPositions
+	);
+	const customPerpPositionGenerator = getPerpPositions(
+		customUserAccount.perpPositions
+	);
+	for (const [anchorPerpPosition, customPerpPosition] of zipGenerator(
+		anchorPerpPositionGenerator,
+		customPerpPositionGenerator
+	)) {
 		testPerpPosition(anchorPerpPosition, customPerpPosition);
 	}
 
 	const anchorOrderGenerator = getOrders(anchorUserAccount.orders);
 	const customOrderGenerator = getOrders(customUserAccount.orders);
-	for (const [anchorOrder, customOrder] of zipGenerator(anchorOrderGenerator, customOrderGenerator)) {
+	for (const [anchorOrder, customOrder] of zipGenerator(
+		anchorOrderGenerator,
+		customOrderGenerator
+	)) {
 		testOrder(anchorOrder, customOrder);
 	}
 
-	assert(anchorUserAccount.lastAddPerpLpSharesTs.eq(customUserAccount.lastAddPerpLpSharesTs));
+	assert(
+		anchorUserAccount.lastAddPerpLpSharesTs.eq(
+			customUserAccount.lastAddPerpLpSharesTs
+		)
+	);
 	assert(anchorUserAccount.totalDeposits.eq(customUserAccount.totalDeposits));
 	assert(anchorUserAccount.totalWithdraws.eq(customUserAccount.totalWithdraws));
-	assert(anchorUserAccount.totalSocialLoss.eq(customUserAccount.totalSocialLoss));
+	assert(
+		anchorUserAccount.totalSocialLoss.eq(customUserAccount.totalSocialLoss)
+	);
 	assert(anchorUserAccount.settledPerpPnl.eq(customUserAccount.settledPerpPnl));
-	assert(anchorUserAccount.cumulativeSpotFees.eq(customUserAccount.cumulativeSpotFees));
-	assert(anchorUserAccount.cumulativePerpFunding.eq(customUserAccount.cumulativePerpFunding));
-	assert(anchorUserAccount.liquidationMarginFreed.eq(customUserAccount.liquidationMarginFreed));
+	assert(
+		anchorUserAccount.cumulativeSpotFees.eq(
+			customUserAccount.cumulativeSpotFees
+		)
+	);
+	assert(
+		anchorUserAccount.cumulativePerpFunding.eq(
+			customUserAccount.cumulativePerpFunding
+		)
+	);
+	assert(
+		anchorUserAccount.liquidationMarginFreed.eq(
+			customUserAccount.liquidationMarginFreed
+		)
+	);
 	assert(anchorUserAccount.lastActiveSlot.eq(customUserAccount.lastActiveSlot));
 	assert(anchorUserAccount.subAccountId === customUserAccount.subAccountId);
 	assert(anchorUserAccount.status === customUserAccount.status);
-	assert(anchorUserAccount.nextLiquidationId === customUserAccount.nextLiquidationId);
+	assert(
+		anchorUserAccount.nextLiquidationId === customUserAccount.nextLiquidationId
+	);
 	assert(anchorUserAccount.nextOrderId === customUserAccount.nextOrderId);
 	assert(anchorUserAccount.maxMarginRatio === customUserAccount.maxMarginRatio);
-	assert(anchorUserAccount.isMarginTradingEnabled === customUserAccount.isMarginTradingEnabled);
+	assert(
+		anchorUserAccount.isMarginTradingEnabled ===
+			customUserAccount.isMarginTradingEnabled
+	);
 	assert(anchorUserAccount.idle === customUserAccount.idle);
 	assert(anchorUserAccount.openOrders === customUserAccount.openOrders);
 	assert(anchorUserAccount.hasOpenOrder === customUserAccount.hasOpenOrder);
@@ -177,7 +217,12 @@ function testOrder(anchor: Order, custom: Order) {
 	assert(anchor.reduceOnly === custom.reduceOnly);
 	assert(anchor.triggerPrice.eq(custom.triggerPrice));
 	assert(enumsAreEqual(anchor.triggerCondition, custom.triggerCondition));
-	assert(enumsAreEqual(anchor.existingPositionDirection, custom.existingPositionDirection));
+	assert(
+		enumsAreEqual(
+			anchor.existingPositionDirection,
+			custom.existingPositionDirection
+		)
+	);
 	assert(anchor.postOnly === custom.postOnly);
 	assert(anchor.immediateOrCancel === custom.immediateOrCancel);
 	assert(anchor.oraclePriceOffset === custom.oraclePriceOffset);

@@ -26,7 +26,6 @@ export const mockOrder: Order = {
 	price: ZERO,
 	baseAssetAmount: ZERO,
 	baseAssetAmountFilled: ZERO,
-	quoteAssetAmount: ZERO,
 	quoteAssetAmountFilled: ZERO,
 	direction: PositionDirection.LONG,
 	reduceOnly: false,
