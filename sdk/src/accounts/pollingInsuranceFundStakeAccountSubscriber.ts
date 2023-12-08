@@ -54,6 +54,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 
 		await this.addToAccountLoader();
 
+		await this.fetchIfUnloaded();
 		if (this.doesAccountExist()) {
 			this.eventEmitter.emit('update');
 		}
