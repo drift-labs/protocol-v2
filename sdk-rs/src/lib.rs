@@ -53,18 +53,19 @@ impl DriftClient {
     }
     /// Transparently subscribe to account updates for a given account/sub-account, enabling more efficient, cached queries.
     ///
-    /// This does not return anything but allows subsequent queries to benefit.
+    /// `account` the drift user PDA
     ///
-    /// Useful for long-lived workloads expecting to query the same account frequently.
-    ///
+    /// This does not return anything but allows subsequent queries to benefit, useful for long-lived workloads expecting to query the same account frequently.
     /// In contrast, the default behaviour is to _always_ fetch the account data via network request which maybe better for ad-hoc workloads.
-    pub async fn subscribe_account(&self, wallet: &Wallet) -> Result<(), SdkError> {
-        self.backend.subscribe_account(wallet.user()).await
+    pub async fn subscribe_account(&self, account: &Pubkey) -> Result<(), SdkError> {
+        self.backend.subscribe_account(account).await
     }
 
     /// Get all the account's open orders
-    pub async fn all_orders(&self, wallet: &Wallet) -> Result<Vec<Order>, SdkError> {
-        let user = self.backend.get_account(wallet.user()).await?;
+    ///
+    /// `account` the drift user PDA
+    pub async fn all_orders(&self, account: &Pubkey) -> Result<Vec<Order>, SdkError> {
+        let user = self.backend.get_account(account).await?;
 
         Ok(user
             .orders
@@ -75,11 +76,13 @@ impl DriftClient {
     }
 
     /// Get all the account's active positions
+    ///
+    /// `account` the drift user PDA
     pub async fn all_positions(
         &self,
-        wallet: &Wallet,
+        account: &Pubkey,
     ) -> Result<(Vec<SpotPosition>, Vec<PerpPosition>), SdkError> {
-        let user = self.backend.get_account(wallet.user()).await?;
+        let user = self.backend.get_account(account).await?;
 
         Ok((
             user.spot_positions
@@ -96,12 +99,16 @@ impl DriftClient {
     }
 
     /// Get a perp position by market
+    ///
+    /// `account` the drift user PDA
+    ///
+    /// Returns the position if it exists
     pub async fn perp_position(
         &self,
-        wallet: &Wallet,
+        account: &Pubkey,
         market: MarketId,
     ) -> Result<Option<PerpPosition>, SdkError> {
-        let user = self.backend.get_account(wallet.user()).await?;
+        let user = self.backend.get_account(account).await?;
 
         Ok(user
             .perp_positions
@@ -111,12 +118,16 @@ impl DriftClient {
     }
 
     /// Get a spot position by market
+    ///
+    /// `account` the drift user PDA
+    ///
+    /// Returns the position if it exists
     pub async fn spot_position(
         &self,
-        wallet: &Wallet,
+        account: &Pubkey,
         market: MarketId,
     ) -> Result<Option<SpotPosition>, SdkError> {
-        let user = self.backend.get_account(wallet.user()).await?;
+        let user = self.backend.get_account(account).await?;
 
         Ok(user
             .spot_positions
@@ -126,8 +137,12 @@ impl DriftClient {
     }
 
     /// Get the user account data
-    pub async fn get_account_data(&self, wallet: &Wallet) -> Result<User, SdkError> {
-        self.backend.get_account(wallet.user()).await
+    ///
+    /// `account` the drift user PDA
+    ///
+    /// Returns the deserialzied account data (`User`)
+    pub async fn get_account_data(&self, account: &Pubkey) -> Result<User, SdkError> {
+        self.backend.get_account(account).await
     }
 
     /// Sign and send a tx to the network
@@ -256,16 +271,30 @@ impl DriftClientBackend {
 
 /// Composable Tx builder for Drift program
 ///
-/// ```no_run
-/// let tx = TransactionBuilder::new(wallet, user)
+/// ```ignore
+/// use drift_sdk::{types::Context, TransactionBuilder, Wallet};
+///
+/// let wallet = Wallet::from_seed_bs58(Context::Dev, "seed");
+/// let client = DriftClient::new("api.example.com").await.unwrap();
+/// let user_account_data = client.get_account(wallet.user()).await.unwrap();
+///
+/// let tx = TransactionBuilder::new(&wallet, user_account_data)
 ///     .cancel_all_orders()
-///     .place_orders(..)
+///     .place_orders(&[
+///         NewOrder::default().build(),
+///         NewOrder::default().build(),
+///     ])
 ///     .build();
+///
+/// let signature = client.sign_and_send(tx, &wallet).await?;
 /// ```
 ///
 pub struct TransactionBuilder<'a> {
+    /// wallet to use for tx signing and authority
     wallet: &'a Wallet,
+    /// user account data
     user: &'a User,
+    /// ordered list of instructions
     ixs: Vec<Instruction>,
 }
 
@@ -430,7 +459,7 @@ fn build_accounts(
     markets_writable: &[MarketId],
 ) -> Vec<AccountMeta> {
     // the order of accounts returned must be instruction, oracles, spot, perps see (https://github.com/drift-labs/protocol-v2/blob/master/programs/drift/src/instructions/optional_accounts.rs#L28)
-    let mut seen = [0_u64; 2]; // [oracle, spot, perp]
+    let mut seen = [0_u64; 2]; // [spot, perp]
     let mut accounts = Vec::<AccountType>::default();
 
     // add accounts to the ordered list
@@ -597,5 +626,94 @@ impl Wallet {
     /// Return the target network/chain context
     pub fn context(&self) -> Context {
         self.context
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use serde_json::json;
+    use solana_account_decoder::{UiAccount, UiAccountData};
+    use solana_client::{
+        rpc_client::Mocks,
+        rpc_request::RpcRequest,
+        rpc_response::{Response, RpcResponseContext},
+    };
+
+    use super::*;
+
+    // static account data for test/mock
+    const ACCOUNT_DATA: &str = include_str!("../res/9Jtc.hex");
+
+    /// Init a new `DriftClient` with provided mocked RPC responses
+    async fn setup(mocks: Mocks) -> DriftClient {
+        let mock_rpc_client =
+            RpcClient::new_mock_with_mocks("https://api.devnet.solana.com".to_string(), mocks);
+
+        let backend: DriftClientBackend = DriftClientBackend {
+            rpc_client: mock_rpc_client,
+            ws_client: PubsubClient::new("wss://api.devnet.solana.com")
+                .await
+                .expect("ok"),
+            account_cache: Default::default(),
+        };
+
+        DriftClient {
+            backend: Box::leak(Box::new(backend)),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_orders() {
+        let user = Pubkey::from_str("9JtczxrJjPM4J1xooxr2rFXmRivarb4BwjNiBgXDwe2p").unwrap();
+        let account_data = hex::decode(ACCOUNT_DATA).expect("valid hex");
+
+        let mut mocks = Mocks::default();
+        let account_response = json!(Response {
+            context: RpcResponseContext::new(12_345),
+            value: Some(UiAccount {
+                data: UiAccountData::Binary(
+                    solana_sdk::bs58::encode(account_data).into_string(),
+                    UiAccountEncoding::Base58
+                ),
+                owner: user.to_string(),
+                executable: false,
+                lamports: 0,
+                rent_epoch: 0,
+            })
+        });
+        mocks.insert(RpcRequest::GetAccountInfo, account_response.clone());
+        let client = setup(mocks).await;
+
+        let orders = client.all_orders(&user).await.unwrap();
+        assert_eq!(orders.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn get_positions() {
+        let user = Pubkey::from_str("9JtczxrJjPM4J1xooxr2rFXmRivarb4BwjNiBgXDwe2p").unwrap();
+        let account_data = hex::decode(ACCOUNT_DATA).expect("valid hex");
+
+        let mut mocks = Mocks::default();
+        let account_response = json!(Response {
+            context: RpcResponseContext::new(12_345),
+            value: Some(UiAccount {
+                data: UiAccountData::Binary(
+                    solana_sdk::bs58::encode(account_data).into_string(),
+                    UiAccountEncoding::Base58
+                ),
+                owner: user.to_string(),
+                executable: false,
+                lamports: 0,
+                rent_epoch: 0,
+            })
+        });
+        mocks.insert(RpcRequest::GetAccountInfo, account_response.clone());
+        let client = setup(mocks).await;
+
+        let (spot, perp) = client.all_positions(&user).await.unwrap();
+        assert_eq!(spot.len(), 1);
+        assert_eq!(perp.len(), 1);
     }
 }

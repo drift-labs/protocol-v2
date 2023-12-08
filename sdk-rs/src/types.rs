@@ -195,7 +195,7 @@ mod test {
     #[test]
     fn market_id_lookups() {
         for (context, symbol, expected) in &[
-            (Context::Dev, "BTC", MarketId::spot(2)),
+            (Context::Dev, "wBTC", MarketId::spot(2)),
             (Context::Dev, "SOL", MarketId::spot(1)),
             (Context::Dev, "sol-perp", MarketId::perp(0)),
             (Context::Mainnet, "wbtc", MarketId::spot(3)),

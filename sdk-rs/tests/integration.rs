@@ -4,6 +4,7 @@ use drift_sdk::{
     DriftClient, TransactionBuilder, Wallet,
 };
 
+#[ignore]
 #[tokio::test]
 async fn do_the_thing() {
     let client = DriftClient::new("https://api.devnet.solana.com")
@@ -13,12 +14,8 @@ async fn do_the_thing() {
         Context::Dev,
         "4ZT38mSeFhzzDRCMTMbwDp7VYWDqNfkvDR42Wv4Hu9cKzbZPJoVapQSrjLbs9aMPrpAMmN1cQinztnP2PzKVjzwX",
     );
-    let orders = client.all_orders(&wallet).await.expect("ok");
-    dbg!(orders);
-    let positions = client.all_positions(&wallet).await.expect("ok");
-    dbg!(positions);
 
-    let user_data = client.get_account_data(&wallet).await.expect("ok");
+    let user_data = client.get_account_data(wallet.user()).await.expect("ok");
 
     let sol = MarketId::lookup(Context::Dev, "sol-perp").expect("exists");
     let sol_spot = MarketId::lookup(Context::Dev, "sol").expect("exists");
