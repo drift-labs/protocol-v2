@@ -4185,6 +4185,27 @@
       ]
     },
     {
+      "name": "updateStateMaxInitializeUserFee",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxInitializeUserFee",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketOracle",
       "accounts": [
         {
@@ -5748,11 +5769,15 @@
             "type": "u16"
           },
           {
+            "name": "maxInitializeUserFee",
+            "type": "u16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                12
+                10
               ]
             }
           }
@@ -11094,6 +11119,11 @@
       "code": 6255,
       "name": "InvalidMarginCalculation",
       "msg": "InvalidMarginCalculation"
+    },
+    {
+      "code": 6256,
+      "name": "CantPayUserInitFee",
+      "msg": "CantPayUserInitFee"
     }
   ]
 }

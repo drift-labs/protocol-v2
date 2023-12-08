@@ -552,6 +552,7 @@ export type StateAccount = {
 	lpCooldownTime: BN;
 	initialPctToLiquidate: number;
 	liquidationDuration: number;
+	maxInitializeUserFee: number;
 };
 
 export type PerpMarketAccount = {

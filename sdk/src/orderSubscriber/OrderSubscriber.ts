@@ -133,6 +133,13 @@ export class OrderSubscriber {
 			this.mostRecentSlot = slot;
 		}
 
+		this.eventEmitter.emit(
+			'updateReceived',
+			new PublicKey(key),
+			slot,
+			dataType
+		);
+
 		const slotAndUserAccount = this.usersAccounts.get(key);
 		if (!slotAndUserAccount || slotAndUserAccount.slot <= slot) {
 			let userAccount: UserAccount;
@@ -158,6 +165,14 @@ export class OrderSubscriber {
 				userAccount = data as UserAccount;
 			}
 
+			this.eventEmitter.emit(
+				'userUpdated',
+				userAccount,
+				new PublicKey(key),
+				slot,
+				dataType
+			);
+
 			const newOrders = userAccount.orders.filter(
 				(order) =>
 					order.slot.toNumber() > (slotAndUserAccount?.slot ?? 0) &&
@@ -165,7 +180,7 @@ export class OrderSubscriber {
 			);
 			if (newOrders.length > 0) {
 				this.eventEmitter.emit(
-					'onUpdate',
+					'orderCreated',
 					userAccount,
 					newOrders,
 					new PublicKey(key),

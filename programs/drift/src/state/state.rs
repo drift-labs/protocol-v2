@@ -5,9 +5,13 @@ use crate::error::DriftResult;
 use crate::math::constants::{
     FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
 };
+use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
-use crate::PERCENTAGE_PRECISION_U64;
+use crate::{LAMPORTS_PER_SOL_U64, PERCENTAGE_PRECISION_U64};
+
+#[cfg(test)]
+mod tests;
 
 #[account]
 #[derive(Default)]
@@ -36,7 +40,8 @@ pub struct State {
     pub liquidation_duration: u8,
     pub initial_pct_to_liquidate: u16,
     pub max_number_of_sub_accounts: u16,
-    pub padding: [u8; 12],
+    pub max_initialize_user_fee: u16,
+    pub padding: [u8; 10],
 }
 
 #[derive(BitFlags, Clone, Copy, PartialEq, Debug, Eq)]
@@ -76,9 +81,31 @@ impl State {
     }
 
     pub fn max_number_of_sub_accounts(&self) -> u64 {
-        (self.max_number_of_sub_accounts as u64)
-            .saturating_mul(100)
-            .max(25000)
+        if self.max_number_of_sub_accounts <= 100 {
+            return self.max_number_of_sub_accounts as u64;
+        }
+        (self.max_number_of_sub_accounts as u64).saturating_mul(100)
+    }
+
+    pub fn get_init_user_fee(&self) -> DriftResult<u64> {
+        let max_init_fee: u64 = (self.max_initialize_user_fee as u64) * LAMPORTS_PER_SOL_U64 / 100;
+
+        let target_utilization: u64 = 8 * PERCENTAGE_PRECISION_U64 / 10;
+
+        let account_space_utilization: u64 = self
+            .number_of_sub_accounts
+            .safe_mul(PERCENTAGE_PRECISION_U64)?
+            .safe_div(self.max_number_of_sub_accounts().max(1))?;
+
+        let init_fee: u64 = if account_space_utilization > target_utilization {
+            max_init_fee
+                .safe_mul(account_space_utilization.safe_sub(target_utilization)?)?
+                .safe_div(PERCENTAGE_PRECISION_U64.safe_sub(target_utilization)?)?
+        } else {
+            0
+        };
+
+        Ok(init_fee)
     }
 }
 

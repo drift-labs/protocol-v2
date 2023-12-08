@@ -517,6 +517,8 @@ pub enum ErrorCode {
     UserReduceOnly,
     #[msg("InvalidMarginCalculation")]
     InvalidMarginCalculation,
+    #[msg("CantPayUserInitFee")]
+    CantPayUserInitFee,
 }
 
 #[macro_export]

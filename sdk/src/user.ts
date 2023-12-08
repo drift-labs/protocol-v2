@@ -422,7 +422,8 @@ export class User {
 	public getPerpPositionWithLPSettle(
 		marketIndex: number,
 		originalPosition?: PerpPosition,
-		burnLpShares = false
+		burnLpShares = false,
+		includeRemainderInBaseAmount = false
 	): [PerpPosition, BN, BN] {
 		originalPosition =
 			originalPosition ??
@@ -600,7 +601,16 @@ export class User {
 			position.lastCumulativeFundingRate = ZERO;
 		}
 
-		return [position, remainderBaa, pnl];
+		const remainderBeforeRemoval = new BN(position.remainderBaseAssetAmount);
+
+		if (includeRemainderInBaseAmount) {
+			position.baseAssetAmount = position.baseAssetAmount.add(
+				remainderBeforeRemoval
+			);
+			position.remainderBaseAssetAmount = 0;
+		}
+
+		return [position, remainderBeforeRemoval, pnl];
 	}
 
 	/**
