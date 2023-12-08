@@ -25,10 +25,10 @@ export class PollingLogProvider implements LogProvider {
 		this.finality = commitment === 'finalized' ? 'finalized' : 'confirmed';
 	}
 
-	public subscribe(
+	public async subscribe(
 		callback: logProviderCallback,
 		skipHistory?: boolean
-	): boolean {
+	): Promise<boolean> {
 		if (this.intervalId) {
 			return true;
 		}

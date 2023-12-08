@@ -97,18 +97,22 @@ export class PollingUserStatsAccountSubscriber
 	}
 
 	async fetch(): Promise<void> {
-		await this.accountLoader.load();
-		const { buffer, slot } = this.accountLoader.getBufferAndSlot(
-			this.userStatsAccountPublicKey
-		);
-		const currentSlot = this.userStats?.slot ?? 0;
-		if (buffer && slot > currentSlot) {
-			const account =
-				this.program.account.userStats.coder.accounts.decodeUnchecked(
-					'UserStats',
-					buffer
+		try {
+			const dataAndContext =
+				await this.program.account.userStats.fetchAndContext(
+					this.userStatsAccountPublicKey,
+					this.accountLoader.commitment
 				);
-			this.userStats = { data: account, slot };
+			if (dataAndContext.context.slot > (this.userStats?.slot ?? 0)) {
+				this.userStats = {
+					data: dataAndContext.data as UserStatsAccount,
+					slot: dataAndContext.context.slot,
+				};
+			}
+		} catch (e) {
+			console.log(
+				`PollingUserStatsAccountSubscriber.fetch() UserStatsAccount does not exist: ${e.message}`
+			);
 		}
 	}
 
@@ -142,7 +146,11 @@ export class PollingUserStatsAccountSubscriber
 	}
 
 	public getUserStatsAccountAndSlot(): DataAndSlot<UserStatsAccount> {
-		this.assertIsSubscribed();
+		if (!this.doesAccountExist()) {
+			throw new NotSubscribedError(
+				'You must call `subscribe` or `fetch` before using this function'
+			);
+		}
 		return this.userStats;
 	}
 }

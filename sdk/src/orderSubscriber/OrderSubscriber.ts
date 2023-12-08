@@ -1,7 +1,7 @@
 import { DriftClient } from '../driftClient';
 import { UserAccount } from '../types';
 import { getUserFilter, getUserWithOrderFilter } from '../memcmp';
-import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
+import { Commitment, PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { DLOB } from '../dlob/DLOB';
 import { OrderSubscriberConfig, OrderSubscriberEvents } from './types';
@@ -9,18 +9,23 @@ import { PollingSubscription } from './PollingSubscription';
 import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
+import { BN } from '../index';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
 	subscription: PollingSubscription | WebsocketSubscription;
+	commitment: Commitment;
 	eventEmitter: StrictEventEmitter<EventEmitter, OrderSubscriberEvents>;
 
 	fetchPromise?: Promise<void>;
 	fetchPromiseResolver: () => void;
 
+	mostRecentSlot: number;
+
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
+		this.commitment = config.subscriptionConfig.commitment || 'processed';
 		if (config.subscriptionConfig.type === 'polling') {
 			this.subscription = new PollingSubscription({
 				orderSubscriber: this,
@@ -29,6 +34,7 @@ export class OrderSubscriber {
 		} else {
 			this.subscription = new WebsocketSubscription({
 				orderSubscriber: this,
+				commitment: this.commitment,
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
 				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
 			});
@@ -53,7 +59,7 @@ export class OrderSubscriber {
 			const rpcRequestArgs = [
 				this.driftClient.program.programId.toBase58(),
 				{
-					commitment: this.driftClient.opts.commitment,
+					commitment: this.commitment,
 					filters: [getUserFilter(), getUserWithOrderFilter()],
 					encoding: 'base64',
 					withContext: true,
@@ -81,24 +87,23 @@ export class OrderSubscriber {
 			const programAccountSet = new Set<string>();
 			for (const programAccount of rpcResponseAndContext.value) {
 				const key = programAccount.pubkey.toString();
-				// @ts-ignore
-				const buffer = Buffer.from(
-					programAccount.account.data[0],
-					programAccount.account.data[1]
-				);
 				programAccountSet.add(key);
-				const userAccount =
-					this.driftClient.program.account.user.coder.accounts.decode(
-						'User',
-						buffer
-					) as UserAccount;
-				this.tryUpdateUserAccount(key, userAccount, slot);
+				this.tryUpdateUserAccount(
+					key,
+					'raw',
+					programAccount.account.data,
+					slot
+				);
+				// give event loop a chance to breathe
+				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
 
 			for (const key of this.usersAccounts.keys()) {
 				if (!programAccountSet.has(key)) {
 					this.usersAccounts.delete(key);
 				}
+				// give event loop a chance to breathe
+				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
 		} catch (e) {
 			console.error(e);
@@ -110,11 +115,58 @@ export class OrderSubscriber {
 
 	tryUpdateUserAccount(
 		key: string,
-		userAccount: UserAccount,
+		dataType: 'raw' | 'decoded',
+		data: string[] | UserAccount,
 		slot: number
 	): void {
+		if (!this.mostRecentSlot || slot > this.mostRecentSlot) {
+			this.mostRecentSlot = slot;
+		}
+
+		this.eventEmitter.emit(
+			'updateReceived',
+			new PublicKey(key),
+			slot,
+			dataType
+		);
+
 		const slotAndUserAccount = this.usersAccounts.get(key);
-		if (!slotAndUserAccount || slotAndUserAccount.slot < slot) {
+		if (!slotAndUserAccount || slotAndUserAccount.slot <= slot) {
+			let userAccount: UserAccount;
+			// Polling leads to a lot of redundant decoding, so we only decode if data is from a fresh slot
+			if (dataType === 'raw') {
+				// @ts-ignore
+				const buffer = Buffer.from(data[0], data[1]);
+
+				const newLastActiveSlot = new BN(
+					buffer.subarray(4328, 4328 + 8),
+					undefined,
+					'le'
+				);
+				if (
+					slotAndUserAccount &&
+					slotAndUserAccount.userAccount.lastActiveSlot.gt(newLastActiveSlot)
+				) {
+					return;
+				}
+
+				userAccount =
+					this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
+						'User',
+						buffer
+					) as UserAccount;
+			} else {
+				userAccount = data as UserAccount;
+			}
+
+			this.eventEmitter.emit(
+				'userUpdated',
+				userAccount,
+				new PublicKey(key),
+				slot,
+				dataType
+			);
+
 			const newOrders = userAccount.orders.filter(
 				(order) =>
 					order.slot.toNumber() > (slotAndUserAccount?.slot ?? 0) &&
@@ -122,11 +174,12 @@ export class OrderSubscriber {
 			);
 			if (newOrders.length > 0) {
 				this.eventEmitter.emit(
-					'onUpdate',
+					'orderCreated',
 					userAccount,
 					newOrders,
 					new PublicKey(key),
-					slot
+					slot,
+					dataType
 				);
 			}
 			if (userAccount.hasOpenOrder) {
@@ -146,6 +199,10 @@ export class OrderSubscriber {
 			}
 		}
 		return dlob;
+	}
+
+	public getSlot(): number {
+		return this.mostRecentSlot ?? 0;
 	}
 
 	public async unsubscribe(): Promise<void> {

@@ -173,7 +173,7 @@ export function getVammL2Generator({
 		updatedAmm.orderStepSize
 	);
 
-	const minOrderSize = marketAccount.amm.orderStepSize;
+	const minOrderSize = marketAccount.amm.minOrderSize;
 	if (openBids.lt(minOrderSize.muln(2))) {
 		openBids = ZERO;
 	}
@@ -302,15 +302,15 @@ export function getVammL2Generator({
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
 						calculateAmmReservesAfterSwap(
-							bidAmm,
+							askAmm,
 							'base',
 							baseSwapped,
 							SwapDirection.REMOVE
 						);
 
 					quoteSwapped = calculateQuoteAssetAmountSwapped(
-						bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
-						bidAmm.pegMultiplier,
+						askAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
+						askAmm.pegMultiplier,
 						SwapDirection.REMOVE
 					);
 				}

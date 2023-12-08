@@ -4,6 +4,8 @@ if [ "$1" != "--skip-build" ]; then
 fi
 
 test_files=(
+  triggerOrders.ts
+  stopLimits.ts
   oracleFillPriceGuardrails.ts
   perpLpJit.ts
   spotSwap.ts
@@ -36,7 +38,6 @@ test_files=(
   driftClient.ts
   ordersWithSpread.ts
   marketOrder.ts
-  triggerOrders.ts
   stopLimits.ts
   userOrderId.ts
   postOnly.ts

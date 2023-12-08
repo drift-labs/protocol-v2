@@ -543,6 +543,7 @@ export type StateAccount = {
 	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
 	settlementDuration: number;
+	maxNumberOfSubAccounts: number;
 	signer: PublicKey;
 	signerNonce: number;
 	srmVault: PublicKey;
@@ -999,8 +1000,6 @@ export interface IVersionedWallet {
 
 export type FeeStructure = {
 	feeTiers: FeeTier[];
-	makerRebateNumerator: BN;
-	makerRebateDenominator: BN;
 	fillerRewardStructure: OrderFillerRewardStructure;
 	flatFillerFee: BN;
 	referrerRewardEpochUpperBound: BN;

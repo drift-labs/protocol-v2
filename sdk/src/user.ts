@@ -48,6 +48,7 @@ import {
 	calculateReservePrice,
 	calculateSpotMarketMarginRatio,
 	calculateUnrealizedAssetWeight,
+	divCeil,
 	getBalance,
 	getSignedTokenAmount,
 	getStrictTokenValue,
@@ -111,7 +112,9 @@ export class User {
 		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,
-				config.userAccountPublicKey
+				config.userAccountPublicKey,
+				config.accountSubscription?.resubTimeoutMs,
+				config.accountSubscription?.commitment
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -3048,6 +3051,7 @@ export class User {
 		);
 
 		const freeCollateral = this.getFreeCollateral();
+		const initialMarginRequirement = this.getInitialMarginRequirement();
 		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
 		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
 
@@ -3064,14 +3068,19 @@ export class User {
 			'Initial'
 		);
 
-		const amountWithdrawable = assetWeight.eq(ZERO)
-			? userDepositAmount
-			: freeCollateral
-					.mul(MARGIN_PRECISION)
-					.div(assetWeight)
-					.mul(PRICE_PRECISION)
-					.div(oracleData.price)
-					.mul(precisionIncrease);
+		let amountWithdrawable;
+		if (assetWeight.eq(ZERO)) {
+			amountWithdrawable = userDepositAmount;
+		} else if (initialMarginRequirement.eq(ZERO)) {
+			amountWithdrawable = userDepositAmount;
+		} else {
+			amountWithdrawable = divCeil(
+				divCeil(freeCollateral.mul(MARGIN_PRECISION), assetWeight).mul(
+					PRICE_PRECISION
+				),
+				oracleData.price
+			).mul(precisionIncrease);
+		}
 
 		const maxWithdrawValue = BN.min(
 			BN.min(amountWithdrawable, userDepositAmount),
@@ -3173,7 +3182,7 @@ export class User {
 		const equity = totalAssetValue.sub(totalLiabilityValue);
 
 		let slotsBeforeIdle: BN;
-		if (equity.lt(QUOTE_PRECISION)) {
+		if (equity.lt(QUOTE_PRECISION.muln(1000))) {
 			slotsBeforeIdle = new BN(9000); // 1 hour
 		} else {
 			slotsBeforeIdle = new BN(1512000); // 1 week

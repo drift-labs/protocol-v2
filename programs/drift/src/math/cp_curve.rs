@@ -165,7 +165,7 @@ pub fn _calculate_budgeted_k_scale(
 
     Ok((numerator.cast::<u128>()?, denominator.cast::<u128>()?))
 }
-/// To find the cost of adjusting k, compare the the net market value before and after adjusting k
+/// To find the cost of adjusting k, compare the net market value before and after adjusting k
 /// Increasing k costs the protocol terminal money because it reduces slippage and improves the exit price for net market position
 /// Decreasing k relieves the protocol terminal money because it increases slippage and hurts the exit price for net market position
 pub fn adjust_k_cost(
@@ -179,7 +179,6 @@ pub fn adjust_k_cost(
         market_clone.amm.base_asset_amount_with_amm,
         0,
         &market_clone.amm,
-        false,
     )?;
 
     update_k(&mut market_clone, update_k_result)?;
@@ -188,13 +187,12 @@ pub fn adjust_k_cost(
         market_clone.amm.base_asset_amount_with_amm,
         current_net_market_value,
         &market_clone.amm,
-        false,
     )?;
 
     Ok(cost)
 }
 
-/// To find the cost of adjusting k, compare the the net market value before and after adjusting k
+/// To find the cost of adjusting k, compare the net market value before and after adjusting k
 /// Increasing k costs the protocol money because it reduces slippage and improves the exit price for net market position
 /// Decreasing k costs the protocol money because it increases slippage and hurts the exit price for net market position
 pub fn adjust_k_cost_and_update(
@@ -203,7 +201,7 @@ pub fn adjust_k_cost_and_update(
 ) -> DriftResult<i128> {
     // Find the net market value before adjusting k
     let current_net_market_value =
-        calculate_base_asset_value(market.amm.base_asset_amount_with_amm, &market.amm, false)?;
+        calculate_base_asset_value(market.amm.base_asset_amount_with_amm, &market.amm)?;
 
     update_k(market, update_k_result)?;
 
@@ -211,7 +209,6 @@ pub fn adjust_k_cost_and_update(
         market.amm.base_asset_amount_with_amm,
         current_net_market_value,
         &market.amm,
-        false,
     )?;
 
     Ok(cost)

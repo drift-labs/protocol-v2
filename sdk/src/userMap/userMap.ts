@@ -3,7 +3,6 @@ import {
 	DriftClient,
 	UserAccount,
 	OrderRecord,
-	UserSubscriptionConfig,
 	WrappedEvent,
 	DepositRecord,
 	FundingPaymentRecord,
@@ -14,11 +13,24 @@ import {
 	LPRecord,
 	StateAccount,
 	DLOB,
+	BasicUserAccountSubscriber,
+	BN,
 } from '..';
 
-import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
+import {
+	Commitment,
+	Connection,
+	PublicKey,
+	RpcResponseAndContext,
+} from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
+import {
+	UserAccountFilterCriteria as UserFilterCriteria,
+	UserMapConfig,
+} from './userMapConfig';
+import { WebsocketSubscription } from './WebsocketSubscription';
+import { PollingSubscription } from './PollingSubscription';
 
 export interface UserMapInterface {
 	subscribe(): Promise<void>;
@@ -34,31 +46,49 @@ export interface UserMapInterface {
 
 export class UserMap implements UserMapInterface {
 	private userMap = new Map<string, User>();
-	private driftClient: DriftClient;
-	private accountSubscription: UserSubscriptionConfig;
+	driftClient: DriftClient;
+	private connection: Connection;
+	private commitment: Commitment;
 	private includeIdle: boolean;
-	private lastNumberOfSubAccounts;
-	private syncCallback = async (state: StateAccount) => {
-		if (state.numberOfSubAccounts !== this.lastNumberOfSubAccounts) {
+	private lastNumberOfSubAccounts: BN;
+	private subscription: PollingSubscription | WebsocketSubscription;
+	private stateAccountUpdateCallback = async (state: StateAccount) => {
+		if (!state.numberOfSubAccounts.eq(this.lastNumberOfSubAccounts)) {
 			await this.sync();
 			this.lastNumberOfSubAccounts = state.numberOfSubAccounts;
 		}
 	};
 
+	private syncPromise?: Promise<void>;
+	private syncPromiseResolver: () => void;
+
 	/**
-	 *
-	 * @param driftClient
-	 * @param accountSubscription
-	 * @param includeIdle whether idle users are subscribed to. defaults to false to decrease # of user subscriptions
+	 * Constructs a new UserMap instance.
 	 */
-	constructor(
-		driftClient: DriftClient,
-		accountSubscription: UserSubscriptionConfig,
-		includeIdle = false
-	) {
-		this.driftClient = driftClient;
-		this.accountSubscription = accountSubscription;
-		this.includeIdle = includeIdle;
+	constructor(config: UserMapConfig) {
+		this.driftClient = config.driftClient;
+		if (config.connection) {
+			this.connection = config.connection;
+		} else {
+			this.connection = this.driftClient.connection;
+		}
+		this.commitment =
+			config.subscriptionConfig.commitment ?? this.driftClient.opts.commitment;
+		this.includeIdle = config.includeIdle ?? false;
+		if (config.subscriptionConfig.type === 'polling') {
+			this.subscription = new PollingSubscription({
+				userMap: this,
+				frequency: config.subscriptionConfig.frequency,
+				skipInitialLoad: config.skipInitialLoad,
+			});
+		} else {
+			this.subscription = new WebsocketSubscription({
+				userMap: this,
+				commitment: this.commitment,
+				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
+				skipInitialLoad: config.skipInitialLoad,
+			});
+		}
 	}
 
 	public async subscribe() {
@@ -69,19 +99,30 @@ export class UserMap implements UserMapInterface {
 		await this.driftClient.subscribe();
 		this.lastNumberOfSubAccounts =
 			this.driftClient.getStateAccount().numberOfSubAccounts;
-		this.driftClient.eventEmitter.on('stateAccountUpdate', this.syncCallback);
+		this.driftClient.eventEmitter.on(
+			'stateAccountUpdate',
+			this.stateAccountUpdateCallback
+		);
 
-		await this.sync();
+		await this.subscription.subscribe();
 	}
 
 	public async addPubkey(
 		userAccountPublicKey: PublicKey,
-		userAccount?: UserAccount
+		userAccount?: UserAccount,
+		slot?: number
 	) {
 		const user = new User({
 			driftClient: this.driftClient,
 			userAccountPublicKey,
-			accountSubscription: this.accountSubscription,
+			accountSubscription: {
+				type: 'custom',
+				userAccountSubscriber: new BasicUserAccountSubscriber(
+					userAccountPublicKey,
+					userAccount,
+					slot
+				),
+			},
 		});
 		await user.subscribe(userAccount);
 		this.userMap.set(userAccountPublicKey.toString(), user);
@@ -187,78 +228,125 @@ export class UserMap implements UserMapInterface {
 		return this.userMap.size;
 	}
 
-	public async sync() {
-		const filters = [getUserFilter()];
-		if (!this.includeIdle) {
-			filters.push(getNonIdleUserFilter());
-		}
-
-		const rpcRequestArgs = [
-			this.driftClient.program.programId.toBase58(),
-			{
-				commitment: this.driftClient.connection.commitment,
-				filters,
-				encoding: 'base64',
-				withContext: true,
-			},
-		];
-
-		// @ts-ignore
-		const rpcJSONResponse: any = await this.driftClient.connection._rpcRequest(
-			'getProgramAccounts',
-			rpcRequestArgs
+	/**
+	 * Returns a unique list of authorities for all users in the UserMap that meet the filter criteria
+	 * @param filterCriteria: Users must meet these criteria to be included
+	 * @returns
+	 */
+	public getUniqueAuthorities(
+		filterCriteria?: UserFilterCriteria
+	): PublicKey[] {
+		const usersMeetingCriteria = Array.from(this.userMap.values()).filter(
+			(user) => {
+				let pass = true;
+				if (filterCriteria && filterCriteria.hasOpenOrders) {
+					pass = pass && user.getUserAccount().hasOpenOrder;
+				}
+				return pass;
+			}
 		);
+		const userAuths = new Set(
+			usersMeetingCriteria.map((user) =>
+				user.getUserAccount().authority.toBase58()
+			)
+		);
+		const userAuthKeys = Array.from(userAuths).map(
+			(userAuth) => new PublicKey(userAuth)
+		);
+		return userAuthKeys;
+	}
 
-		const rpcResponseAndContext: RpcResponseAndContext<
-			Array<{
-				pubkey: PublicKey;
-				account: {
-					data: [string, string];
-				};
-			}>
-		> = rpcJSONResponse.result;
+	public async sync() {
+		if (this.syncPromise) {
+			return this.syncPromise;
+		}
+		this.syncPromise = new Promise((resolver) => {
+			this.syncPromiseResolver = resolver;
+		});
 
-		const slot = rpcResponseAndContext.context.slot;
+		try {
+			const filters = [getUserFilter()];
+			if (!this.includeIdle) {
+				filters.push(getNonIdleUserFilter());
+			}
 
-		const programAccountBufferMap = new Map<string, Buffer>();
-		for (const programAccount of rpcResponseAndContext.value) {
-			programAccountBufferMap.set(
-				programAccount.pubkey.toString(),
+			const rpcRequestArgs = [
+				this.driftClient.program.programId.toBase58(),
+				{
+					commitment: this.commitment,
+					filters,
+					encoding: 'base64',
+					withContext: true,
+				},
+			];
+
+			const rpcJSONResponse: any =
 				// @ts-ignore
-				Buffer.from(
-					programAccount.account.data[0],
-					programAccount.account.data[1]
-				)
-			);
-		}
+				await this.connection._rpcRequest('getProgramAccounts', rpcRequestArgs);
 
-		for (const [key, buffer] of programAccountBufferMap.entries()) {
-			if (!this.has(key)) {
-				const userAccount =
-					this.driftClient.program.account.user.coder.accounts.decode(
-						'User',
-						buffer
-					);
-				await this.addPubkey(new PublicKey(key), userAccount);
-			}
-		}
+			const rpcResponseAndContext: RpcResponseAndContext<
+				Array<{
+					pubkey: PublicKey;
+					account: {
+						data: [string, string];
+					};
+				}>
+			> = rpcJSONResponse.result;
 
-		for (const [key, user] of this.userMap.entries()) {
-			if (!programAccountBufferMap.has(key)) {
-				await user.unsubscribe();
-				this.userMap.delete(key);
-			} else {
-				const userAccount =
-					this.driftClient.program.account.user.coder.accounts.decode(
-						'User',
-						programAccountBufferMap.get(key)
-					);
-				user.accountSubscriber.updateData(userAccount, slot);
+			const slot = rpcResponseAndContext.context.slot;
+
+			const programAccountBufferMap = new Map<string, Buffer>();
+			for (const programAccount of rpcResponseAndContext.value) {
+				programAccountBufferMap.set(
+					programAccount.pubkey.toString(),
+					// @ts-ignore
+					Buffer.from(
+						programAccount.account.data[0],
+						programAccount.account.data[1]
+					)
+				);
 			}
+
+			for (const [key, buffer] of programAccountBufferMap.entries()) {
+				if (!this.has(key)) {
+					const userAccount =
+						this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
+							'User',
+							buffer
+						);
+					await this.addPubkey(new PublicKey(key), userAccount);
+				}
+				// give event loop a chance to breathe
+				await new Promise((resolve) => setTimeout(resolve, 0));
+			}
+
+			for (const [key, user] of this.userMap.entries()) {
+				if (!programAccountBufferMap.has(key)) {
+					await user.unsubscribe();
+					this.userMap.delete(key);
+				} else {
+					const userAccount =
+						this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
+							'User',
+							programAccountBufferMap.get(key)
+						);
+					user.accountSubscriber.updateData(userAccount, slot);
+				}
+				// give event loop a chance to breathe
+				await new Promise((resolve) => setTimeout(resolve, 0));
+			}
+		} catch (e) {
+			console.error(`Error in UserMap.sync():`);
+			console.error(e);
+		} finally {
+			this.syncPromiseResolver();
+			this.syncPromise = undefined;
 		}
 	}
 
 	public async unsubscribe() {
+		await this.subscription.unsubscribe();
+
 		for (const [key, user] of this.userMap.entries()) {
 			await user.unsubscribe();
 			this.userMap.delete(key);
@@ -267,9 +355,22 @@ export class UserMap implements UserMapInterface {
 		if (this.lastNumberOfSubAccounts) {
 			this.driftClient.eventEmitter.removeListener(
 				'stateAccountUpdate',
-				this.syncCallback
+				this.stateAccountUpdateCallback
 			);
 			this.lastNumberOfSubAccounts = undefined;
+		}
+	}
+
+	public async updateUserAccount(
+		key: string,
+		userAccount: UserAccount,
+		slot: number
+	) {
+		if (!this.userMap.has(key)) {
+			this.addPubkey(new PublicKey(key), userAccount, slot);
+		} else {
+			const user = this.userMap.get(key);
+			user.accountSubscriber.updateData(userAccount, slot);
 		}
 	}
 }

@@ -2,9 +2,8 @@ import { getOrderSignature, getVammNodeGenerator, NodeList } from './NodeList';
 import {
 	BASE_PRECISION,
 	BN,
-	calculateAskPrice,
-	calculateBidPrice,
 	convertToNumber,
+	decodeName,
 	DLOBNode,
 	DLOBNodeType,
 	DriftClient,
@@ -505,6 +504,9 @@ export class DLOB {
 			? stateAccount.minPerpAuctionDuration
 			: 0;
 
+		const { makerRebateNumerator, makerRebateDenominator } =
+			this.getMakerRebate(marketType, stateAccount, marketAccount);
+
 		const restingLimitOrderNodesToFill: Array<NodeToFill> =
 			this.findRestingLimitOrderNodesToFill(
 				marketIndex,
@@ -513,6 +515,8 @@ export class DLOB {
 				oraclePriceData,
 				isAmmPaused,
 				minAuctionDuration,
+				makerRebateNumerator,
+				makerRebateDenominator,
 				fallbackAsk,
 				fallbackBid
 			);
@@ -548,6 +552,34 @@ export class DLOB {
 			restingLimitOrderNodesToFill,
 			takingOrderNodesToFill
 		).concat(expiredNodesToFill);
+	}
+
+	getMakerRebate(
+		marketType: MarketType,
+		stateAccount: StateAccount,
+		marketAccount: PerpMarketAccount | SpotMarketAccount
+	): { makerRebateNumerator: number; makerRebateDenominator: number } {
+		let makerRebateNumerator: number;
+		let makerRebateDenominator: number;
+		if (isVariant(marketType, 'perp')) {
+			makerRebateNumerator =
+				stateAccount.perpFeeStructure.feeTiers[0].makerRebateNumerator;
+			makerRebateDenominator =
+				stateAccount.perpFeeStructure.feeTiers[0].makerRebateDenominator;
+		} else {
+			makerRebateNumerator =
+				stateAccount.spotFeeStructure.feeTiers[0].makerRebateNumerator;
+			makerRebateDenominator =
+				stateAccount.spotFeeStructure.feeTiers[0].makerRebateDenominator;
+		}
+
+		// @ts-ignore
+		const feeAdjustment = marketAccount.feeAdjustment || 0;
+		if (feeAdjustment !== 0) {
+			makerRebateNumerator += (makerRebateNumerator * feeAdjustment) / 100;
+		}
+
+		return { makerRebateNumerator, makerRebateDenominator };
 	}
 
 	mergeNodesToFill(
@@ -591,6 +623,8 @@ export class DLOB {
 		oraclePriceData: OraclePriceData,
 		isAmmPaused: boolean,
 		minAuctionDuration: number,
+		makerRebateNumerator: number,
+		makerRebateDenominator: number,
 		fallbackAsk: BN | undefined,
 		fallbackBid: BN | undefined
 	): NodeToFill[] {
@@ -614,14 +648,18 @@ export class DLOB {
 				marketType,
 				oraclePriceData
 			);
+
+			const fallbackBidWithBuffer = fallbackBid.sub(
+				fallbackBid.muln(makerRebateNumerator).divn(makerRebateDenominator)
+			);
+
 			const asksCrossingFallback = this.findNodesCrossingFallbackLiquidity(
 				marketType,
 				slot,
 				oraclePriceData,
 				askGenerator,
-				fallbackBid,
-				(askPrice, fallbackPrice) => {
-					return askPrice.lte(fallbackPrice);
+				(askPrice) => {
+					return askPrice.lte(fallbackBidWithBuffer);
 				},
 				minAuctionDuration
 			);
@@ -638,14 +676,18 @@ export class DLOB {
 				marketType,
 				oraclePriceData
 			);
+
+			const fallbackAskWithBuffer = fallbackAsk.add(
+				fallbackAsk.muln(makerRebateNumerator).divn(makerRebateDenominator)
+			);
+
 			const bidsCrossingFallback = this.findNodesCrossingFallbackLiquidity(
 				marketType,
 				slot,
 				oraclePriceData,
 				bidGenerator,
-				fallbackAsk,
-				(bidPrice, fallbackPrice) => {
-					return bidPrice.gte(fallbackPrice);
+				(bidPrice) => {
+					return bidPrice.gte(fallbackAskWithBuffer);
 				},
 				minAuctionDuration
 			);
@@ -714,9 +756,8 @@ export class DLOB {
 					slot,
 					oraclePriceData,
 					takingOrderGenerator,
-					fallbackBid,
-					(takerPrice, fallbackPrice) => {
-						return takerPrice === undefined || takerPrice.lte(fallbackPrice);
+					(takerPrice) => {
+						return takerPrice === undefined || takerPrice.lte(fallbackBid);
 					},
 					minAuctionDuration
 				);
@@ -772,9 +813,8 @@ export class DLOB {
 					slot,
 					oraclePriceData,
 					takingOrderGenerator,
-					fallbackAsk,
-					(takerPrice, fallbackPrice) => {
-						return takerPrice === undefined || takerPrice.gte(fallbackPrice);
+					(takerPrice) => {
+						return takerPrice === undefined || takerPrice.gte(fallbackAsk);
 					},
 					minAuctionDuration
 				);
@@ -876,8 +916,7 @@ export class DLOB {
 		slot: number,
 		oraclePriceData: OraclePriceData,
 		nodeGenerator: Generator<DLOBNode>,
-		fallbackPrice: BN,
-		doesCross: (nodePrice: BN | undefined, fallbackPrice: BN) => boolean,
+		doesCross: (nodePrice: BN | undefined) => boolean,
 		minAuctionDuration: number
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
@@ -894,7 +933,7 @@ export class DLOB {
 			const nodePrice = getLimitPrice(node.order, oraclePriceData, slot);
 
 			// order crosses if there is no limit price or it crosses fallback price
-			const crosses = doesCross(nodePrice, fallbackPrice);
+			const crosses = doesCross(nodePrice);
 
 			// fallback is available if auction is complete or it's a spot order
 			const fallbackAvailable =
@@ -1430,14 +1469,12 @@ export class DLOB {
 
 	public getBestAsk(
 		marketIndex: number,
-		fallbackAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getAsks(
+		return this.getRestingLimitAsks(
 			marketIndex,
-			fallbackAsk,
 			slot,
 			marketType,
 			oraclePriceData
@@ -1448,20 +1485,120 @@ export class DLOB {
 
 	public getBestBid(
 		marketIndex: number,
-		fallbackBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getBids(
+		return this.getRestingLimitBids(
 			marketIndex,
-			fallbackBid,
 			slot,
 			marketType,
 			oraclePriceData
 		)
 			.next()
 			.value.getPrice(oraclePriceData, slot);
+	}
+
+	public *getStopLosses(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+		const marketNodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		if (isVariant(direction, 'long') && marketNodeLists.trigger.below) {
+			for (const node of marketNodeLists.trigger.below.getGenerator()) {
+				if (isVariant(node.order.direction, 'short')) {
+					yield node;
+				}
+			}
+		} else if (isVariant(direction, 'short') && marketNodeLists.trigger.above) {
+			for (const node of marketNodeLists.trigger.above.getGenerator()) {
+				if (isVariant(node.order.direction, 'long')) {
+					yield node;
+				}
+			}
+		}
+	}
+
+	public *getStopLossMarkets(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getStopLosses(marketIndex, marketType, direction)) {
+			if (isVariant(node.order.orderType, 'triggerMarket')) {
+				yield node;
+			}
+		}
+	}
+
+	public *getStopLossLimits(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getStopLosses(marketIndex, marketType, direction)) {
+			if (isVariant(node.order.orderType, 'triggerLimit')) {
+				yield node;
+			}
+		}
+	}
+
+	public *getTakeProfits(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+		const marketNodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		if (isVariant(direction, 'long') && marketNodeLists.trigger.above) {
+			for (const node of marketNodeLists.trigger.above.getGenerator()) {
+				if (isVariant(node.order.direction, 'short')) {
+					yield node;
+				}
+			}
+		} else if (isVariant(direction, 'short') && marketNodeLists.trigger.below) {
+			for (const node of marketNodeLists.trigger.below.getGenerator()) {
+				if (isVariant(node.order.direction, 'long')) {
+					yield node;
+				}
+			}
+		}
+	}
+
+	public *getTakeProfitMarkets(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getTakeProfits(
+			marketIndex,
+			marketType,
+			direction
+		)) {
+			if (isVariant(node.order.orderType, 'triggerMarket')) {
+				yield node;
+			}
+		}
+	}
+
+	public *getTakeProfitLimits(
+		marketIndex: number,
+		marketType: MarketType,
+		direction: PositionDirection
+	): Generator<DLOBNode> {
+		for (const node of this.getTakeProfits(
+			marketIndex,
+			marketType,
+			direction
+		)) {
+			if (isVariant(node.order.orderType, 'triggerLimit')) {
+				yield node;
+			}
+		}
 	}
 
 	public findNodesToTrigger(
@@ -1512,32 +1649,25 @@ export class DLOB {
 		return nodesToTrigger;
 	}
 
-	public printTopOfOrderLists(
-		sdkConfig: any,
+	public printTop(
 		driftClient: DriftClient,
 		slotSubscriber: SlotSubscriber,
 		marketIndex: number,
 		marketType: MarketType
 	) {
 		if (isVariant(marketType, 'perp')) {
-			const market = driftClient.getPerpMarketAccount(marketIndex);
-
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
 				driftClient.getOracleDataForPerpMarket(marketIndex);
-			const fallbackAsk = calculateAskPrice(market, oraclePriceData);
-			const fallbackBid = calculateBidPrice(market, oraclePriceData);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
-				fallbackAsk,
 				slot,
 				marketType,
 				oraclePriceData
 			);
 			const bestBid = this.getBestBid(
 				marketIndex,
-				fallbackBid,
 				slot,
 				marketType,
 				oraclePriceData
@@ -1555,7 +1685,10 @@ export class DLOB {
 					1) *
 				100.0;
 
-			console.log(`Market ${sdkConfig.MARKETS[marketIndex].symbol} Orders`);
+			const name = decodeName(
+				driftClient.getPerpMarketAccount(marketIndex).name
+			);
+			console.log(`Market ${name} Orders`);
 			console.log(
 				`  Ask`,
 				convertToNumber(bestAsk, PRICE_PRECISION).toFixed(3),
@@ -1574,14 +1707,12 @@ export class DLOB {
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
-				undefined,
 				slot,
 				marketType,
 				oraclePriceData
 			);
 			const bestBid = this.getBestBid(
 				marketIndex,
-				undefined,
 				slot,
 				marketType,
 				oraclePriceData
@@ -1599,7 +1730,10 @@ export class DLOB {
 					1) *
 				100.0;
 
-			console.log(`Market ${sdkConfig.MARKETS[marketIndex].symbol} Orders`);
+			const name = decodeName(
+				driftClient.getSpotMarketAccount(marketIndex).name
+			);
+			console.log(`Market ${name} Orders`);
 			console.log(
 				`  Ask`,
 				convertToNumber(bestAsk, PRICE_PRECISION).toFixed(3),

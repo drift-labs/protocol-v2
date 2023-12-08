@@ -373,8 +373,8 @@ pub fn handle_update_user_idle<'info>(ctx: Context<UpdateUserIdle>) -> Result<()
     let (equity, _) =
         calculate_user_equity(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
-    // user flipped to idle faster if equity is less than 1
-    let accelerated = equity < QUOTE_PRECISION_I128;
+    // user flipped to idle faster if equity is less than 1000
+    let accelerated = equity < QUOTE_PRECISION_I128 * 1000;
 
     validate_user_is_idle(&user, clock.slot, accelerated)?;
 

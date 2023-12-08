@@ -633,7 +633,6 @@ pub fn calculate_quote_asset_amount_swapped(
 ) -> DriftResult<u128> {
     let mut quote_asset_reserve_change = match swap_direction {
         SwapDirection::Add => quote_asset_reserve_before.safe_sub(quote_asset_reserve_after)?,
-
         SwapDirection::Remove => quote_asset_reserve_after.safe_sub(quote_asset_reserve_before)?,
     };
 

@@ -8,7 +8,7 @@ import {
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { PublicKey } from '@solana/web3.js';
+import { Commitment, PublicKey } from '@solana/web3.js';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { UserStatsAccount } from '../types';
 
@@ -17,6 +17,7 @@ export class WebSocketUserStatsAccountSubscriber
 {
 	isSubscribed: boolean;
 	reconnectTimeoutMs?: number;
+	commitment?: Commitment;
 	program: Program;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;
 	userStatsAccountPublicKey: PublicKey;
@@ -26,13 +27,15 @@ export class WebSocketUserStatsAccountSubscriber
 	public constructor(
 		program: Program,
 		userStatsAccountPublicKey: PublicKey,
-		reconnectTimeoutMs?: number
+		reconnectTimeoutMs?: number,
+		commitment?: Commitment
 	) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.userStatsAccountPublicKey = userStatsAccountPublicKey;
 		this.eventEmitter = new EventEmitter();
 		this.reconnectTimeoutMs = reconnectTimeoutMs;
+		this.commitment = commitment;
 	}
 
 	async subscribe(userStatsAccount?: UserStatsAccount): Promise<boolean> {
@@ -45,7 +48,8 @@ export class WebSocketUserStatsAccountSubscriber
 			this.program,
 			this.userStatsAccountPublicKey,
 			undefined,
-			this.reconnectTimeoutMs
+			this.reconnectTimeoutMs,
+			this.commitment
 		);
 
 		if (userStatsAccount) {

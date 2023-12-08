@@ -27,6 +27,7 @@ import {
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
 import { DLOBOrdersCoder } from '../../src/dlob/DLOBOrders';
+import { isAuctionComplete, isRestingLimitOrder } from '../../lib';
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -1913,6 +1914,8 @@ describe('DLOB Perp Tests', () => {
 			},
 			false,
 			10,
+			0,
+			1,
 			undefined,
 			undefined
 		);
@@ -2058,6 +2061,8 @@ describe('DLOB Perp Tests', () => {
 			},
 			false,
 			10,
+			0,
+			1,
 			undefined,
 			undefined
 		);
@@ -2264,6 +2269,194 @@ describe('DLOB Perp Tests', () => {
 		// taker should fill completely with second best maker
 		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(5);
 		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(3);
+	});
+
+	it('Test post only bid fills against fallback', async () => {
+		const vAsk = new BN(150);
+		const vBid = new BN(100);
+
+		const user0 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+
+		const makerRebateNumerator = 1;
+		const makerRebateDenominator = 10;
+
+		// post only bid same as ask
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			1, // orderId
+			marketIndex,
+			vAsk, // same price as vAsk
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+
+		// should have no crossing orders
+		const nodesToFillBefore = dlob.findRestingLimitOrderNodesToFill(
+			marketIndex,
+			12, // auction over
+			MarketType.PERP,
+			{
+				price: vBid.add(vAsk).div(new BN(2)),
+				slot: new BN(12),
+				confidence: new BN(1),
+				hasSufficientNumberOfDataPoints: true,
+			},
+			false,
+			10,
+			makerRebateNumerator,
+			makerRebateDenominator,
+			vAsk,
+			vBid
+		);
+		expect(nodesToFillBefore.length).to.equal(0);
+
+		// post only bid crosses ask
+		const price = vAsk.add(
+			vAsk.muln(makerRebateNumerator).divn(makerRebateDenominator)
+		);
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			price, // crosses vask
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+
+		// should have no crossing orders
+		const nodesToFillAfter = dlob.findRestingLimitOrderNodesToFill(
+			marketIndex,
+			12, // auction over
+			MarketType.PERP,
+			{
+				price: vBid.add(vAsk).div(new BN(2)),
+				slot: new BN(12),
+				confidence: new BN(1),
+				hasSufficientNumberOfDataPoints: true,
+			},
+			false,
+			10,
+			makerRebateNumerator,
+			makerRebateDenominator,
+			vAsk,
+			vBid
+		);
+		expect(nodesToFillAfter.length).to.equal(1);
+	});
+
+	it('Test post only ask fills against fallback', async () => {
+		const vAsk = new BN(150);
+		const vBid = new BN(100);
+
+		const user0 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+
+		const makerRebateNumerator = 1;
+		const makerRebateDenominator = 10;
+
+		// post only bid same as ask
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			1, // orderId
+			marketIndex,
+			vBid, // same price as vAsk
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk,
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+
+		// should have no crossing orders
+		const nodesToFillBefore = dlob.findRestingLimitOrderNodesToFill(
+			marketIndex,
+			12, // auction over
+			MarketType.PERP,
+			{
+				price: vBid.add(vAsk).div(new BN(2)),
+				slot: new BN(12),
+				confidence: new BN(1),
+				hasSufficientNumberOfDataPoints: true,
+			},
+			false,
+			10,
+			makerRebateNumerator,
+			makerRebateDenominator,
+			vAsk,
+			vBid
+		);
+		expect(nodesToFillBefore.length).to.equal(0);
+
+		// post only bid crosses ask
+		const price = vBid.sub(
+			vAsk.muln(makerRebateNumerator).divn(makerRebateDenominator)
+		);
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			price, // crosses vask
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk,
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+
+		// should have no crossing orders
+		const nodesToFillAfter = dlob.findRestingLimitOrderNodesToFill(
+			marketIndex,
+			12, // auction over
+			MarketType.PERP,
+			{
+				price: vBid.add(vAsk).div(new BN(2)),
+				slot: new BN(12),
+				confidence: new BN(1),
+				hasSufficientNumberOfDataPoints: true,
+			},
+			false,
+			10,
+			makerRebateNumerator,
+			makerRebateDenominator,
+			vAsk,
+			vBid
+		);
+		expect(nodesToFillAfter.length).to.equal(1);
 	});
 
 	it('Test trigger orders', () => {
@@ -2502,6 +2695,55 @@ describe('DLOB Perp Tests', () => {
 		for (const [idx, n] of nodesToTrigger.entries()) {
 			expect(n.node.order?.orderId).to.equal(orderIdsToTrigger[idx]);
 		}
+	});
+
+	it('Test trigger limit isnt maker', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(8);
+
+		const user0 = Keypair.generate();
+
+		const dlob = new DLOB();
+		const marketIndex = 0;
+
+		const slot = 20;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		// should trigger limit buy with above condition
+		insertTriggerOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.TRIGGER_LIMIT,
+			MarketType.PERP,
+			1, //orderId
+			marketIndex, // marketIndex
+			oracle.price.add(new BN(1)), // price
+			BASE_PRECISION, // baseAssetAmount: BN,
+			PositionDirection.LONG,
+			oracle.price.sub(new BN(1)), // triggerPrice: BN,
+			OrderTriggerCondition.TRIGGERED_ABOVE, // triggerCondition: OrderTriggerCondition,
+			vBid,
+			vAsk,
+			new BN(1) // slot
+		);
+
+		const restingLimitBids = Array.from(
+			dlob.getRestingLimitBids(marketIndex, slot, MarketType.PERP, oracle)
+		);
+		expect(restingLimitBids.length).to.equal(0);
+
+		const takingBids = Array.from(
+			dlob.getTakingBids(marketIndex, MarketType.PERP, slot, oracle)
+		);
+		expect(takingBids.length).to.equal(1);
+		const triggerLimitBid = takingBids[0];
+		expect(isAuctionComplete(triggerLimitBid.order, slot)).to.equal(true);
+		expect(isRestingLimitOrder(triggerLimitBid.order, slot)).to.equal(false);
 	});
 
 	it('Test will return expired market orders to fill', () => {
@@ -2851,6 +3093,8 @@ describe('DLOB Perp Tests', () => {
 			oracle,
 			false,
 			10,
+			0,
+			1,
 			undefined,
 			undefined
 		);
