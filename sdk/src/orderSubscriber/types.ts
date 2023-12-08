@@ -16,6 +16,7 @@ export type OrderSubscriberConfig = {
 				resubTimeoutMs?: number;
 				commitment?: Commitment;
 		  };
+	fastDecode?: boolean;
 };
 
 export interface OrderSubscriberEvents {

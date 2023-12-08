@@ -38,9 +38,7 @@ export class WebsocketSubscription {
 			'OrderSubscriber',
 			'User',
 			this.orderSubscriber.driftClient.program,
-			this.orderSubscriber.driftClient.program.account.user.coder.accounts.decodeUnchecked.bind(
-				this.orderSubscriber.driftClient.program.account.user.coder.accounts
-			),
+			this.orderSubscriber.decodeFn,
 			{
 				filters: [getUserFilter(), getNonIdleUserFilter()],
 				commitment: this.commitment,

@@ -10,6 +10,7 @@ import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { BN } from '../index';
+import { decodeUser } from '../decode/user';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
@@ -22,6 +23,7 @@ export class OrderSubscriber {
 	fetchPromiseResolver: () => void;
 
 	mostRecentSlot: number;
+	decodeFn: (name: string, data: Buffer) => UserAccount;
 
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
@@ -38,6 +40,14 @@ export class OrderSubscriber {
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
 				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
 			});
+		}
+		if (config.fastDecode ?? true) {
+			this.decodeFn = (name, data) => decodeUser(data);
+		} else {
+			this.decodeFn =
+				this.driftClient.program.account.user.coder.accounts.decodeUnchecked.bind(
+					this.driftClient.program.account.user.coder.accounts
+				);
 		}
 		this.eventEmitter = new EventEmitter();
 	}
@@ -150,11 +160,7 @@ export class OrderSubscriber {
 					return;
 				}
 
-				userAccount =
-					this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
-						'User',
-						buffer
-					) as UserAccount;
+				userAccount = this.decodeFn('User', buffer) as UserAccount;
 			} else {
 				userAccount = data as UserAccount;
 			}

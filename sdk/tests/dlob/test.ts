@@ -60,7 +60,6 @@ function insertOrderToDLOB(
 			price,
 			baseAssetAmount,
 			baseAssetAmountFilled: new BN(0),
-			quoteAssetAmount: new BN(0),
 			quoteAssetAmountFilled: new BN(0),
 			direction,
 			reduceOnly: false,
@@ -111,7 +110,6 @@ function insertTriggerOrderToDLOB(
 			price,
 			baseAssetAmount,
 			baseAssetAmountFilled: new BN(0),
-			quoteAssetAmount: new BN(0),
 			quoteAssetAmountFilled: new BN(0),
 			direction,
 			reduceOnly: false,
@@ -206,8 +204,8 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 		for (const makerNode of n.makerNodes) {
 			console.log(
 				`makerNode: (mkt: ${isMarketOrder(
-					makerNode.order
-				)}, lim: ${isLimitOrder(makerNode.order)})`
+					makerNode.order!
+				)}, lim: ${isLimitOrder(makerNode.order!)})`
 			);
 		}
 	}
@@ -2742,8 +2740,8 @@ describe('DLOB Perp Tests', () => {
 		);
 		expect(takingBids.length).to.equal(1);
 		const triggerLimitBid = takingBids[0];
-		expect(isAuctionComplete(triggerLimitBid.order, slot)).to.equal(true);
-		expect(isRestingLimitOrder(triggerLimitBid.order, slot)).to.equal(false);
+		expect(isAuctionComplete(triggerLimitBid.order!, slot)).to.equal(true);
+		expect(isRestingLimitOrder(triggerLimitBid.order!, slot)).to.equal(false);
 	});
 
 	it('Test will return expired market orders to fill', () => {
