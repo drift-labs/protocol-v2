@@ -12,6 +12,7 @@ import {
 } from './types';
 import { PublicKey } from '@solana/web3.js';
 import { BN } from './index';
+import { ZERO } from '../lib';
 
 export function decodeUser(buffer: Buffer): UserAccount {
 	let offset = 8;
@@ -45,11 +46,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			'le'
 		);
 		offset += 8;
-		const cumulativeDeposits = new BN(
-			buffer.subarray(offset, offset + 8),
-			undefined,
-			'le'
-		);
+		const cumulativeDeposits = new BN(buffer.readBigInt64LE(offset).toString());
 		offset += 8;
 		const marketIndex = buffer.readUInt16LE(offset);
 		offset += 2;
@@ -64,6 +61,9 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		const openOrders = buffer.readUInt8(offset);
 		offset += 1;
 		offset += 4;
+		if (scaledBalance.eq(ZERO) && openOrders === 0) {
+			continue;
+		}
 		spotPositions.push({
 			scaledBalance,
 			openBids,
@@ -119,6 +119,16 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 1;
 		const perLpBase = buffer.readUInt8(offset);
 		offset += 1;
+
+		if (
+			baseAssetAmount.eq(ZERO) &&
+			openOrders === 0 &&
+			quoteAssetAmount.eq(ZERO) &&
+			lpShares.eq(ZERO)
+		) {
+			continue;
+		}
+
 		perpPositions.push({
 			lastCumulativeFundingRate,
 			baseAssetAmount,
@@ -140,6 +150,12 @@ export function decodeUser(buffer: Buffer): UserAccount {
 
 	const orders: Order[] = [];
 	for (let i = 0; i < 32; i++) {
+		// skip order if it's not open
+		if (buffer.readUint8(offset + 82) === 0) {
+			offset += 96;
+			continue;
+		}
+
 		const slot = new BN(buffer.readBigUInt64LE(offset).toString());
 		offset += 8;
 		const price = new BN(buffer.readBigUInt64LE(offset).toString());
@@ -169,6 +185,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		const marketIndex = buffer.readUInt16LE(offset);
 		offset += 2;
 		const orderStatusNum = buffer.readUInt8(offset);
+
 		let status: OrderStatus;
 		if (orderStatusNum === 0) {
 			status = OrderStatus.INIT;

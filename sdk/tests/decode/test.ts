@@ -16,6 +16,7 @@ import {
 } from "../../lib";
 import {decodeUser} from "../../lib/decode";
 import { assert } from 'chai';
+const sizeof = require('object-sizeof');
 
 describe('Custom user decode', () => {
 	it('test', async () => {
@@ -42,25 +43,32 @@ function testUserAccountDecode(program: Program, buffer: Buffer, i: number) {
 
 	const anchorUserAccount = program.coder.accounts.decode('User', buffer);
 	const customUserAccount = decodeUser(buffer);
+	
+	console.log("size of anchor account", sizeof(anchorUserAccount));
+	console.log("size of custom account", sizeof(customUserAccount));
 
 	assert(anchorUserAccount.authority.equals(customUserAccount.authority));
 	assert(anchorUserAccount.delegate.equals(customUserAccount.delegate));
 	assert(arraysAreEqual(anchorUserAccount.name, customUserAccount.name));
-	for (const anchorSpotPosition of getSpotPositions(anchorUserAccount.spotPositions)) {
-		for (const customSpotPosition of getSpotPositions(customUserAccount.spotPositions)) {
-			testSpotPosition(anchorSpotPosition, customSpotPosition);
-		}
+
+	const anchorSpotPositionGenerator = getSpotPositions(anchorUserAccount.spotPositions);
+	const customSpotPositionGenerator = getSpotPositions(customUserAccount.spotPositions);
+	for (const [anchorSpotPosition, customSpotPosition] of zipGenerator(anchorSpotPositionGenerator, customSpotPositionGenerator)) {
+		testSpotPosition(anchorSpotPosition, customSpotPosition);
 	}
-	for (const anchorPerpPosition of getPerpPositions(anchorUserAccount.perpPositions)) {
-		for (const customPerpPosition of getPerpPositions(customUserAccount.perpPositions)) {
-			testPerpPosition(anchorPerpPosition, customPerpPosition);
-		}
+
+	const anchorPerpPositionGenerator = getPerpPositions(anchorUserAccount.perpPositions);
+	const customPerpPositionGenerator = getPerpPositions(customUserAccount.perpPositions);
+	for (const [anchorPerpPosition, customPerpPosition] of zipGenerator(anchorPerpPositionGenerator, customPerpPositionGenerator)) {
+		testPerpPosition(anchorPerpPosition, customPerpPosition);
 	}
-	for (const anchorOrders of getOrders(anchorUserAccount.orders)) {
-		for (const customOrder of getOrders(customUserAccount.orders)) {
-			testOrder(anchorOrders, customOrder);
-		}
+
+	const anchorOrderGenerator = getOrders(anchorUserAccount.orders);
+	const customOrderGenerator = getOrders(customUserAccount.orders);
+	for (const [anchorOrder, customOrder] of zipGenerator(anchorOrderGenerator, customOrderGenerator)) {
+		testOrder(anchorOrder, customOrder);
 	}
+
 	assert(anchorUserAccount.lastAddPerpLpSharesTs.eq(customUserAccount.lastAddPerpLpSharesTs));
 	assert(anchorUserAccount.totalDeposits.eq(customUserAccount.totalDeposits));
 	assert(anchorUserAccount.totalWithdraws.eq(customUserAccount.totalWithdraws));
@@ -85,7 +93,7 @@ function testUserAccountDecode(program: Program, buffer: Buffer, i: number) {
 
 function* getSpotPositions(spotPositions: SpotPosition[]) {
 	for (const spotPosition of spotPositions) {
-		if (isSpotPositionAvailable(spotPosition)) {
+		if (!isSpotPositionAvailable(spotPosition)) {
 			yield spotPosition;
 		}
 	}
@@ -103,7 +111,7 @@ function testSpotPosition(anchor: SpotPosition, custom: SpotPosition) {
 
 function* getPerpPositions(perpPositions: PerpPosition[]) {
 	for (const perpPosition of perpPositions) {
-		if (positionIsAvailable(perpPosition)) {
+		if (!positionIsAvailable(perpPosition)) {
 			yield perpPosition;
 		}
 	}
@@ -176,4 +184,19 @@ function arraysAreEqual(arr1, arr2) {
 	}
 
 	return true;
+}
+
+function* zipGenerator(gen1, gen2) {
+	let iter1 = gen1.next();
+	let iter2 = gen2.next();
+
+	while (!iter1.done && !iter2.done) {
+		yield [iter1.value, iter2.value];
+		iter1 = gen1.next();
+		iter2 = gen2.next();
+	}
+
+	if (iter1.done !== iter2.done) {
+		throw new Error('Generators have different lengths');
+	}
 }
