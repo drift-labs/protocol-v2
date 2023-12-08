@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.48.0] - 2023-12-08
+
+## [Unreleased]
+
+### Features
+
 - program: add init user fee ([#752](https://github.com/drift-labs/protocol-v2/pull/752))
 - program: vamm gives maker rebate ([#653](https://github.com/drift-labs/protocol-v2/pull/653))
 
