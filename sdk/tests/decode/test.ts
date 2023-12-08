@@ -14,7 +14,7 @@ import {
 	positionIsAvailable,
 	SpotPosition
 } from "../../lib";
-import {decodeUser} from "../../lib/decode";
+import {decodeUser} from "../../lib/decode/user";
 import { assert } from 'chai';
 import {userAccountBufferStrings} from "./userAccountBufferStrings";
 const sizeof = require('object-sizeof');

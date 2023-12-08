@@ -9,10 +9,10 @@ import {
 	SpotBalanceType,
 	SpotPosition,
 	UserAccount,
-} from './types';
+} from '../types';
 import { PublicKey } from '@solana/web3.js';
-import { BN } from './index';
-import { ZERO } from '../lib';
+import { BN } from '../';
+import { ZERO } from '../';
 
 export function decodeUser(buffer: Buffer): UserAccount {
 	let offset = 8;
