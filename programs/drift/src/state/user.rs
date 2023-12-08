@@ -1451,13 +1451,13 @@ impl UserStats {
         self.taker_volume_30d.safe_add(self.maker_volume_30d)
     }
 
-    pub fn get_user_stats_age_ts(&self, now: i64) -> DriftResult<i64> {
+    pub fn get_age_ts(&self, now: i64) -> i64 {
         // upper bound of age of the user stats account
         let min_action_ts: i64 = self
             .last_filler_volume_30d_ts
             .min(self.last_maker_volume_30d_ts)
             .min(self.last_taker_volume_30d_ts);
-        now.safe_sub(min_action_ts)
+        now.saturating_sub(min_action_ts).max(0)
     }
 }
 
