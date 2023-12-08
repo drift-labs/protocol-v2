@@ -138,8 +138,11 @@ pub fn handle_initialize_user(
     let init_fee = state.get_init_user_fee()?;
     safe_increment!(state.number_of_sub_accounts, 1);
 
+    let max_number_of_sub_accounts = state.max_number_of_sub_accounts();
+
     validate!(
-        state.number_of_sub_accounts <= state.max_number_of_sub_accounts(),
+        max_number_of_sub_accounts != 0
+            && state.number_of_sub_accounts <= max_number_of_sub_accounts,
         ErrorCode::MaxNumberOfUsers
     )?;
 
@@ -1825,7 +1828,12 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     let user = &load!(ctx.accounts.user)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
-    validate_user_deletion(user, user_stats)?;
+    validate_user_deletion(
+        user,
+        user_stats,
+        &ctx.accounts.state,
+        Clock::get()?.unix_timestamp,
+    )?;
 
     safe_decrement!(user_stats.number_of_sub_accounts, 1);
 
