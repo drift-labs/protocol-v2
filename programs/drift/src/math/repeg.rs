@@ -339,7 +339,10 @@ pub fn calculate_optimal_peg_and_budget(
 ) -> DriftResult<(u128, u128, bool)> {
     let reserve_price_before = market.amm.reserve_price()?;
 
-    let mut fee_budget = calculate_fee_pool(market)?;
+    let mut fee_budget = calculate_fee_pool(market)?
+        .safe_add(market.amm.total_fee_withdrawn)?
+        .saturating_sub(market.amm.total_liquidation_fee);
+
     let target_price_i64 = oracle_price_data.price;
     let target_price = target_price_i64.cast()?;
     let mut optimal_peg = calculate_peg_from_target_price(
@@ -416,9 +419,7 @@ pub fn get_total_fee_lower_bound(market: &PerpMarket) -> DriftResult<u128> {
         .amm
         .total_exchange_fee
         .safe_mul(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_NUMERATOR)?
-        .safe_div(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR)?
-        .safe_add(market.amm.total_liquidation_fee)?
-        .safe_sub(market.amm.total_fee_withdrawn)?;
+        .safe_div(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR)?;
 
     Ok(total_fee_lower_bound)
 }

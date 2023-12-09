@@ -1368,6 +1368,10 @@ fn update_amm_near_boundary() {
 
     let state = State::default();
 
-    assert!(!_update_amm(&mut perp_market, &oracle_price_data, &state, now, slot).is_err());
-    assert!(false);
+    // assert!(!_update_amm(&mut perp_market, &oracle_price_data, &state, now, slot).is_err());
+
+    let cost = _update_amm(&mut perp_market, &oracle_price_data, &state, now, slot).unwrap();
+
+    assert!(cost > 0);
+    assert_eq!(cost, 18803837952);
 }
