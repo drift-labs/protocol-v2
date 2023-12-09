@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.50.0] - 2023-12-09
+
+## [Unreleased]
+
+### Features
+
+### Fixes
+
 - program: better account for liquidation fees in calculate_optimal_peg_and_budget ([#752](https://github.com/drift-labs/protocol-v2/pull/753))
 
 ### Breaking
