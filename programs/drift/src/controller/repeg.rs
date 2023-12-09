@@ -171,6 +171,7 @@ pub fn _update_amm(
 
             let cost_applied = apply_cost_to_market(market, repegged_cost, check_lower_bound)?;
             if cost_applied {
+                println!("update_k");
                 cp_curve::update_k(
                     market,
                     &UpdateKResult {

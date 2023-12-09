@@ -166,6 +166,7 @@ pub fn get_pyth_price(
         .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
     let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
 
+    msg!("slot: {:?}", price_data.last_slot);
     let oracle_price = price_data.agg.price;
     let oracle_conf = price_data.agg.conf;
 
