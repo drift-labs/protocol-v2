@@ -15,7 +15,8 @@ import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
 
 const DEFAULT_TIMEOUT = 35000;
-const DEFAULT_BLOCKHASH_REFRESH = 10000;
+const DEFAULT_BLOCKHASH_REFRESH = 500;
+const MAX_BLOCKHASH_QUEUE_LENGTH = 100;
 
 export class FastSingleTxSender extends BaseTxSender {
 	connection: Connection;
@@ -25,7 +26,7 @@ export class FastSingleTxSender extends BaseTxSender {
 	blockhashRefreshInterval: number;
 	additionalConnections: Connection[];
 	timoutCount = 0;
-	recentBlockhash: string;
+	blockhashQueue: string[] = [];
 
 	public constructor({
 		connection,
@@ -55,13 +56,23 @@ export class FastSingleTxSender extends BaseTxSender {
 	startBlockhashRefreshLoop(): void {
 		setInterval(async () => {
 			try {
-				this.recentBlockhash = (
-					await this.connection.getLatestBlockhash(this.opts)
-				).blockhash;
+				const blockhash = (await this.connection.getLatestBlockhash(this.opts))
+					.blockhash;
+				this.addBlockhashToQueue(blockhash);
 			} catch (e) {
 				console.error('Error in startBlockhashRefreshLoop: ', e);
 			}
 		}, this.blockhashRefreshInterval);
+	}
+
+	addBlockhashToQueue(blockhash: string): void {
+		if (blockhash !== this.blockhashQueue[0]) {
+			this.blockhashQueue.push(blockhash);
+			return;
+		}
+		if (this.blockhashQueue.length > MAX_BLOCKHASH_QUEUE_LENGTH) {
+			this.blockhashQueue.shift();
+		}
 	}
 
 	async prepareTx(
@@ -72,7 +83,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		tx.feePayer = this.wallet.publicKey;
 
 		tx.recentBlockhash =
-			this.recentBlockhash ??
+			this.blockhashQueue.shift() ??
 			(await this.connection.getLatestBlockhash(opts.preflightCommitment))
 				.blockhash;
 
@@ -103,7 +114,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		const message = new TransactionMessage({
 			payerKey: this.wallet.publicKey,
 			recentBlockhash:
-				this.recentBlockhash ??
+				this.blockhashQueue.shift() ??
 				(await this.connection.getLatestBlockhash(opts.preflightCommitment))
 					.blockhash,
 			instructions: ixs,
