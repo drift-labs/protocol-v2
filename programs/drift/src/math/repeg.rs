@@ -416,7 +416,9 @@ pub fn get_total_fee_lower_bound(market: &PerpMarket) -> DriftResult<u128> {
         .amm
         .total_exchange_fee
         .safe_mul(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_NUMERATOR)?
-        .safe_div(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR)?;
+        .safe_div(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR)?
+        .safe_add(market.amm.total_liquidation_fee)?
+        .safe_sub(market.amm.total_fee_withdrawn)?;
 
     Ok(total_fee_lower_bound)
 }
