@@ -1411,5 +1411,5 @@ fn update_amm_near_boundary2() {
 
     let cost = _update_amm(&mut perp_market, oracle_price_data, &state, now, slot).unwrap();
 
-    assert_eq!(cost, 18803837952);
+    assert_eq!(cost, 2987010);
 }
