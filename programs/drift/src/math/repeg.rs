@@ -384,9 +384,7 @@ pub fn calculate_optimal_peg_and_budget(
             fee_budget = calculate_repeg_cost(&market.amm, optimal_peg)?.cast::<u128>()?;
 
             check_lower_bound = false;
-        } else if market.amm.total_fee_minus_distributions
-            < get_total_fee_lower_bound(market)?.cast()?
-        {
+        } else if fee_budget == 0 {
             check_lower_bound = false;
         }
     }
@@ -398,7 +396,8 @@ pub fn calculate_fee_pool(market: &PerpMarket) -> DriftResult<u128> {
     let total_fee_minus_distributions_lower_bound = get_total_fee_lower_bound(market)?
         .safe_add(market.amm.total_liquidation_fee)?
         .safe_sub(market.amm.total_fee_withdrawn)?
-        .cast()?;
+        .cast::<i128>()
+        .unwrap_or(0);
 
     let fee_pool =
         if market.amm.total_fee_minus_distributions > total_fee_minus_distributions_lower_bound {
