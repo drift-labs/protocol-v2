@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.51.0] - 2023-12-09
+
+### Features
+
+### Fixes
+
 - program: consistent user of fee budget in calculate_optimal_peg_and_budget ([#754](https://github.com/drift-labs/protocol-v2/pull/754))
 
 ### Breaking
