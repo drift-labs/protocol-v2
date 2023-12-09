@@ -12,10 +12,9 @@ use crate::math::constants::{
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket, AMM};
-use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::State;
 use crate::state::user::PerpPosition;
-use crate::test_utils::{create_account_info, get_hardcoded_pyth_price};
+use crate::test_utils::create_account_info;
 use anchor_lang::prelude::AccountLoader;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
@@ -1368,10 +1367,7 @@ fn update_amm_near_boundary() {
 
     let state = State::default();
 
-    // assert!(!_update_amm(&mut perp_market, &oracle_price_data, &state, now, slot).is_err());
+    let cost = _update_amm(&mut perp_market, oracle_price_data, &state, now, slot).unwrap();
 
-    let cost = _update_amm(&mut perp_market, &oracle_price_data, &state, now, slot).unwrap();
-
-    assert!(cost > 0);
     assert_eq!(cost, 18803837952);
 }
