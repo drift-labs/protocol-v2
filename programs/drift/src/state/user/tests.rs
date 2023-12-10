@@ -1672,7 +1672,7 @@ mod qualifies_for_withdraw_fee {
         let user = User::default();
         let user_stats = UserStats::default();
 
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
 
         assert!(!qualifies);
 
@@ -1681,7 +1681,7 @@ mod qualifies_for_withdraw_fee {
             ..User::default()
         };
 
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
 
         assert!(!qualifies);
 
@@ -1698,7 +1698,7 @@ mod qualifies_for_withdraw_fee {
             ..UserStats::default()
         };
 
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
 
         assert!(!qualifies);
 
@@ -1715,7 +1715,7 @@ mod qualifies_for_withdraw_fee {
             ..UserStats::default()
         };
 
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
 
         assert!(qualifies);
     }
