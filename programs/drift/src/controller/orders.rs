@@ -1193,6 +1193,7 @@ pub fn fill_perp_order(
             market,
             oracle_map,
             now,
+            slot,
             &state.oracle_guard_rails,
             funding_paused,
             Some(reserve_price_before),

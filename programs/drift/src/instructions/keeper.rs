@@ -1185,6 +1185,7 @@ pub fn handle_update_funding_rate(
         perp_market,
         &mut oracle_map,
         now,
+        clock_slot,
         &state.oracle_guard_rails,
         state.funding_paused()?,
         None,
