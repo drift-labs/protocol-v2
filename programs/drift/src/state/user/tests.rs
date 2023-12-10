@@ -1704,6 +1704,7 @@ mod qualifies_for_withdraw_fee {
 
         let user = User {
             total_withdraws: 10_000_000 * QUOTE_PRECISION_U64,
+
             ..User::default()
         };
 
@@ -1718,6 +1719,29 @@ mod qualifies_for_withdraw_fee {
         let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
 
         assert!(qualifies);
+
+        // fee
+        let user = User {
+            total_withdraws: 13_000_000 * QUOTE_PRECISION_U64,
+            last_active_slot: 8900877,
+            ..User::default()
+        };
+
+        let user_stats = UserStats {
+            fees: UserFees {
+                total_fee_paid: 1 * QUOTE_PRECISION_U64,
+                ..UserFees::default()
+            },
+            ..UserStats::default()
+        };
+
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, user.last_active_slot + 1);
+
+        assert!(qualifies);
+
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, user.last_active_slot + 50);
+
+        assert!(!qualifies);
     }
 }
 

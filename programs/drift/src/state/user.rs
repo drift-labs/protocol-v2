@@ -370,8 +370,8 @@ impl User {
     }
 
     pub fn qualifies_for_withdraw_fee(&self, user_stats: &UserStats, slot: u64) -> bool {
-        // only qualifies for user with recent last_active_slot
-        if slot.saturating_sub(self.last_active_slot) > 120 {
+        // only qualifies for user with recent last_active_slot (~25 seconds)
+        if slot.saturating_sub(self.last_active_slot) >= 50 {
             return false;
         }
 
