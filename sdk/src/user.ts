@@ -1569,16 +1569,19 @@ export class User {
 		);
 	}
 
+	getNetUsdValue(): BN {
+		const netSpotValue = this.getNetSpotMarketValue();
+		const unrealizedPnl = this.getUnrealizedPNL(true, undefined, undefined);
+		return netSpotValue.add(unrealizedPnl);
+	}
+
 	/**
 	 * Calculates the all time P&L of the user.
 	 *
 	 * Net withdraws + Net spot market value + Net unrealized P&L -
 	 */
 	getTotalAllTimePnl(): BN {
-		const netBankValue = this.getNetSpotMarketValue();
-		const unrealizedPnl = this.getUnrealizedPNL(true, undefined, undefined);
-
-		const netUsdValue = netBankValue.add(unrealizedPnl);
+		const netUsdValue = this.getNetUsdValue();
 		const totalDeposits = this.getUserAccount().totalDeposits;
 		const totalWithdraws = this.getUserAccount().totalWithdraws;
 
