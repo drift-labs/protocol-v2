@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: add update last slot for filler in pay_keeper_flat_reward_for_spot
+
 ### Breaking
 
 ## [2.51.0] - 2023-12-09
