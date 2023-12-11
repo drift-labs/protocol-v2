@@ -12,6 +12,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 ### Breaking
+
+## [2.51.0] - 2023-12-09
+
+### Features
+
+### Fixes
+
+- program: consistent user of fee budget in calculate_optimal_peg_and_budget ([#754](https://github.com/drift-labs/protocol-v2/pull/754))
+
+### Breaking
+
+## [2.50.0] - 2023-12-09
+
+### Features
+
+### Fixes
+
+- program: better account for liquidation fees in calculate_optimal_peg_and_budget ([#754](https://github.com/drift-labs/protocol-v2/pull/754))
+
+### Breaking
+
+## [2.49.0] - 2023-12-08
+
+## [Unreleased]
+
+### Features
+
+- program: add init user fee ([#752](https://github.com/drift-labs/protocol-v2/pull/752))
+- program: vamm gives maker rebate ([#653](https://github.com/drift-labs/protocol-v2/pull/653))
+
+### Fixes
+
+### Breaking
+
+## [2.48.0] - 2023-12-01
+
+### Features
+
+### Fixes
+
+- program: account for step size when canceling reduce only orders
+
+### Breaking
 - sdk: UserStatsMap use bulkAccountLoader (`UserStatsMap.subscribe` and `UserStatsMap.sync` now requires list of authorities) ([#716](https://github.com/drift-labs/protocol-v2/pull/716))
 
 ## [2.47.0] - 2023-11-26

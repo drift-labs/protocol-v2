@@ -307,15 +307,22 @@ describe('post only', () => {
 		await driftClientUser.fetchAccounts();
 		const position = driftClientUser.getPerpPosition(marketIndex);
 		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
-		assert(position.quoteBreakEvenAmount.eq(new BN(1000000)));
+		assert(position.quoteBreakEvenAmount.eq(new BN(1000200)));
 		assert(driftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(driftClient.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO));
+		assert(
+			driftClient
+				.getUserStats()
+				.getAccount()
+				.fees.totalFeeRebate.eq(new BN(200))
+		);
 
 		await fillerDriftClient.fetchAccounts();
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(new BN(0)));
+		console.log(orderRecord.quoteAssetAmountSurplus.toString());
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(19492)));
 
 		await driftClient.unsubscribe();

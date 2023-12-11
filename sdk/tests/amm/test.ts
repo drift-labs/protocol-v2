@@ -22,7 +22,7 @@ import {
 	calculateMarketOpenBidAsk,
 	calculateSpreadReserves,
 	calculatePrice,
-	BID_ASK_SPREAD_PRECISION
+	BID_ASK_SPREAD_PRECISION,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 
@@ -268,7 +268,7 @@ describe('AMM Tests', () => {
 			oracleStd,
 			longIntensity,
 			shortIntensity,
-			volume24H,
+			volume24H
 		);
 		const l1 = spreads[0];
 		const s1 = spreads[1];
@@ -436,7 +436,6 @@ describe('AMM Tests', () => {
 		assert(terms2.shortSpread == 5668);
 	});
 
-
 	it('Spread Reserves (with offset)', () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 		const mockMarket1 = myMockPerpMarkets[0];
@@ -450,16 +449,11 @@ describe('AMM Tests', () => {
 			hasSufficientNumberOfDataPoints: true,
 		};
 
-		const reserves = calculateSpreadReserves(
-			mockAmm,
-			oraclePriceData,
-			now
-		);
+		const reserves = calculateSpreadReserves(mockAmm, oraclePriceData, now);
 		assert(reserves[0].baseAssetReserve.eq(new BN('1000000000')));
 		assert(reserves[0].quoteAssetReserve.eq(new BN('12000000000')));
 		assert(reserves[1].baseAssetReserve.eq(new BN('1000000000')));
 		assert(reserves[1].quoteAssetReserve.eq(new BN('12000000000')));
-
 
 		mockAmm.baseAssetReserve = new BN(1000000000);
 		mockAmm.quoteAssetReserve = new BN(1000000000);
@@ -469,17 +463,25 @@ describe('AMM Tests', () => {
 		mockAmm.curveUpdateIntensity = 200;
 		mockAmm.baseSpread = 2500;
 		mockAmm.maxSpread = 25000;
-		
+
 		mockAmm.last24HAvgFundingRate = new BN(7590328523);
 
-		mockAmm.lastMarkPriceTwap = new BN((oraclePriceData.price.toNumber()/1e6 - .01) * 1e6);
-		mockAmm.historicalOracleData.lastOraclePriceTwap = new BN((oraclePriceData.price.toNumber()/1e6 + .015) * 1e6);
+		mockAmm.lastMarkPriceTwap = new BN(
+			(oraclePriceData.price.toNumber() / 1e6 - 0.01) * 1e6
+		);
+		mockAmm.historicalOracleData.lastOraclePriceTwap = new BN(
+			(oraclePriceData.price.toNumber() / 1e6 + 0.015) * 1e6
+		);
 
-		mockAmm.historicalOracleData.lastOraclePriceTwap5Min = new BN((oraclePriceData.price.toNumber()/1e6 + .005) * 1e6);
-		mockAmm.lastMarkPriceTwap5Min = new BN((oraclePriceData.price.toNumber()/1e6 - .005) * 1e6);
+		mockAmm.historicalOracleData.lastOraclePriceTwap5Min = new BN(
+			(oraclePriceData.price.toNumber() / 1e6 + 0.005) * 1e6
+		);
+		mockAmm.lastMarkPriceTwap5Min = new BN(
+			(oraclePriceData.price.toNumber() / 1e6 - 0.005) * 1e6
+		);
 
 		console.log('starting rr:');
-		let reservePrice = undefined
+		let reservePrice = undefined;
 		if (!reservePrice) {
 			reservePrice = calculatePrice(
 				mockAmm.baseAssetReserve,
@@ -487,18 +489,18 @@ describe('AMM Tests', () => {
 				mockAmm.pegMultiplier
 			);
 		}
-	
+
 		const targetPrice = oraclePriceData?.price || reservePrice;
 		const confInterval = oraclePriceData.confidence || ZERO;
 		const targetMarkSpreadPct = reservePrice
 			.sub(targetPrice)
 			.mul(BID_ASK_SPREAD_PRECISION)
 			.div(reservePrice);
-	
+
 		const confIntervalPct = confInterval
 			.mul(BID_ASK_SPREAD_PRECISION)
 			.div(reservePrice);
-	
+
 		// now = now || new BN(new Date().getTime() / 1000); //todo
 		const liveOracleStd = calculateLiveOracleStd(mockAmm, oraclePriceData, now);
 		console.log('reservePrice:', reservePrice.toString());
@@ -507,30 +509,18 @@ describe('AMM Tests', () => {
 
 		console.log('liveOracleStd:', liveOracleStd.toString());
 
-		const tt = calculateSpread(
-			mockAmm,
-			oraclePriceData,
-			now
-		);
+		const tt = calculateSpread(mockAmm, oraclePriceData, now);
 		console.log(tt);
 
-		const reserves2 = calculateSpreadReserves(
-			mockAmm,
-			oraclePriceData,
-			now
-		);
+		const reserves2 = calculateSpreadReserves(mockAmm, oraclePriceData, now);
 		console.log(reserves2);
-
 
 		assert(reserves2[0].baseAssetReserve.eq(new BN('1000000000')));
 		assert(reserves2[0].quoteAssetReserve.eq(new BN('12000000000')));
 		assert(reserves2[1].baseAssetReserve.eq(new BN('1000000000')));
 		assert(reserves2[1].quoteAssetReserve.eq(new BN('12000000000')));
-
-
-	})
+	});
 	return 0;
-
 
 	it('live update functions', () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);

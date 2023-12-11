@@ -14,7 +14,7 @@ import {
 	getPerpMarketPublicKey,
 } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
-import { PublicKey } from '@solana/web3.js';
+import { Commitment, PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import * as Buffer from 'buffer';
@@ -26,6 +26,7 @@ export class WebSocketDriftClientAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
+	commitment?: Commitment;
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
@@ -56,7 +57,8 @@ export class WebSocketDriftClientAccountSubscriber
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
 		shouldFindAllMarketsAndOracles: boolean,
-		resubTimeoutMs?: number
+		resubTimeoutMs?: number,
+		commitment?: Commitment
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -66,6 +68,7 @@ export class WebSocketDriftClientAccountSubscriber
 		this.oracleInfos = oracleInfos;
 		this.shouldFindAllMarketsAndOracles = shouldFindAllMarketsAndOracles;
 		this.resubTimeoutMs = resubTimeoutMs;
+		this.commitment = commitment;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -101,7 +104,8 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program,
 			statePublicKey,
 			undefined,
-			this.resubTimeoutMs
+			this.resubTimeoutMs,
+			this.commitment
 		);
 		await this.stateAccountSubscriber.subscribe((data: StateAccount) => {
 			this.eventEmitter.emit('stateAccountUpdate', data);
@@ -143,7 +147,8 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program,
 			perpMarketPublicKey,
 			undefined,
-			this.resubTimeoutMs
+			this.resubTimeoutMs,
+			this.commitment
 		);
 		await accountSubscriber.subscribe((data: PerpMarketAccount) => {
 			this.eventEmitter.emit('perpMarketAccountUpdate', data);
@@ -170,7 +175,8 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program,
 			marketPublicKey,
 			undefined,
-			this.resubTimeoutMs
+			this.resubTimeoutMs,
+			this.commitment
 		);
 		await accountSubscriber.subscribe((data: SpotMarketAccount) => {
 			this.eventEmitter.emit('spotMarketAccountUpdate', data);
@@ -202,7 +208,8 @@ export class WebSocketDriftClientAccountSubscriber
 			(buffer: Buffer) => {
 				return client.getOraclePriceDataFromBuffer(buffer);
 			},
-			this.resubTimeoutMs
+			this.resubTimeoutMs,
+			this.commitment
 		);
 
 		await accountSubscriber.subscribe((data: OraclePriceData) => {

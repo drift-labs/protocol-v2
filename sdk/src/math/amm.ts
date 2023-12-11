@@ -853,13 +853,13 @@ export function calculateSpreadReserves(
 			};
 		}
 		let spreadFraction = new BN(spread / 2);
-		
+
 		// make non-zero
-		if(spreadFraction.eq(ZERO)) {
+		if (spreadFraction.eq(ZERO)) {
 			spreadFraction = spread >= 0 ? new BN(1) : new BN(-1);
 			console.log('spreadFractioN:', spreadFraction);
 		}
-		if(spreadFraction.gt(BID_ASK_SPREAD_PRECISION)) {
+		if (spreadFraction.gt(BID_ASK_SPREAD_PRECISION)) {
 			console.log('spreadFractioN ERRR:', spreadFraction.toNumber());
 		}
 
@@ -868,7 +868,10 @@ export function calculateSpreadReserves(
 		);
 
 		let quoteAssetReserve;
-		if (spread >=0 && isVariant(direction, 'long') || spread <=0 && isVariant(direction, 'short')) {
+		if (
+			(spread >= 0 && isVariant(direction, 'long')) ||
+			(spread <= 0 && isVariant(direction, 'short'))
+		) {
 			quoteAssetReserve = amm.quoteAssetReserve.add(quoteAssetReserveDelta);
 		} else {
 			quoteAssetReserve = amm.quoteAssetReserve.sub(quoteAssetReserveDelta);

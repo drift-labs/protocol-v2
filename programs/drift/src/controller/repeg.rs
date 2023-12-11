@@ -263,7 +263,6 @@ pub fn apply_cost_to_market(
             .safe_add(market.amm.total_liquidation_fee)?
             .safe_sub(market.amm.total_fee_withdrawn)?
             .cast::<i128>()?;
-
         // Only a portion of the protocol fees are allocated to repegging
         // This checks that the total_fee_minus_distributions does not decrease too much after repeg
         if check_lower_bound {

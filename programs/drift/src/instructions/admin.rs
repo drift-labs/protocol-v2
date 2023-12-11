@@ -84,7 +84,8 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         liquidation_duration: 0,
         initial_pct_to_liquidate: 0,
         max_number_of_sub_accounts: 0,
-        padding: [0; 12],
+        max_initialize_user_fee: 0,
+        padding: [0; 10],
     };
 
     Ok(())
@@ -1970,6 +1971,14 @@ pub fn handle_update_state_max_number_of_sub_accounts(
     max_number_of_sub_accounts: u16,
 ) -> Result<()> {
     ctx.accounts.state.max_number_of_sub_accounts = max_number_of_sub_accounts;
+    Ok(())
+}
+
+pub fn handle_update_state_max_initialize_user_fee(
+    ctx: Context<AdminUpdateState>,
+    max_initialize_user_fee: u16,
+) -> Result<()> {
+    ctx.accounts.state.max_initialize_user_fee = max_initialize_user_fee;
     Ok(())
 }
 

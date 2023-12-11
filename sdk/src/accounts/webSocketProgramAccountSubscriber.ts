@@ -125,7 +125,7 @@ export class WebSocketProgramAccountSubscriber<T>
 			return;
 		}
 
-		if (newSlot <= this.bufferAndSlot.slot) {
+		if (newSlot < this.bufferAndSlot.slot) {
 			return;
 		}
 

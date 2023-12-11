@@ -15,13 +15,22 @@ import {
 import {
 	createFundedKeyPair,
 	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
+	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	printTxLogs,
 } from './testHelpers';
 import { decodeName } from '../sdk/src/userName';
 import { assert } from 'chai';
-import { BulkAccountLoader, MARGIN_PRECISION } from '../sdk';
+import {
+	BulkAccountLoader,
+	getTokenAmount,
+	LAMPORTS_PRECISION,
+	MARGIN_PRECISION,
+	SpotBalanceType,
+} from '../sdk';
+import { PublicKey } from '@solana/web3.js';
 
 describe('subaccounts', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -41,6 +50,8 @@ describe('subaccounts', () => {
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
+	let solOracle: PublicKey;
+
 	let usdcMint;
 	let usdcAccount;
 
@@ -50,8 +61,8 @@ describe('subaccounts', () => {
 		usdcMint = await mockUSDCMint(provider);
 		usdcAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		const marketIndexes = [0];
-		const spotMarketIndexes = [0];
+		const marketIndexes = [0, 1];
+		const spotMarketIndexes = [0, 1];
 
 		driftClient = new TestClient({
 			connection,
@@ -70,9 +81,12 @@ describe('subaccounts', () => {
 			},
 		});
 
+		solOracle = await mockOracle(100);
+
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(driftClient, solOracle);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 	});
 
@@ -82,9 +96,19 @@ describe('subaccounts', () => {
 	});
 
 	it('Initialize first account', async () => {
+		const donationAmount = LAMPORTS_PRECISION;
 		const subAccountId = 0;
 		const name = 'CRISP';
-		await driftClient.initializeUserAccount(subAccountId, name);
+		await driftClient.initializeUserAccountAndDepositCollateral(
+			LAMPORTS_PRECISION,
+			provider.wallet.publicKey,
+			1,
+			subAccountId,
+			name,
+			undefined,
+			undefined,
+			donationAmount
+		);
 		await driftClient.fetchAccounts();
 		assert(driftClient.getUserAccount().subAccountId === subAccountId);
 		assert(decodeName(driftClient.getUserAccount().name) === name);
@@ -94,12 +118,31 @@ describe('subaccounts', () => {
 		assert(userStats.numberOfSubAccounts === 1);
 		assert(driftClient.getStateAccount().numberOfAuthorities.eq(new BN(1)));
 		assert(driftClient.getStateAccount().numberOfSubAccounts.eq(new BN(1)));
+
+		const solSpotMarket = driftClient.getSpotMarketAccount(1);
+		const revenuePool = solSpotMarket.revenuePool;
+		const tokenAmount = getTokenAmount(
+			revenuePool.scaledBalance,
+			solSpotMarket,
+			SpotBalanceType.DEPOSIT
+		);
+		assert(tokenAmount.eq(donationAmount));
 	});
 
 	it('Initialize second account', async () => {
+		const donationAmount = LAMPORTS_PRECISION;
 		const subAccountId = 1;
 		const name = 'LIL PERP';
-		await driftClient.initializeUserAccount(1, name);
+		await driftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			usdcAccount.publicKey,
+			0,
+			1,
+			name,
+			undefined,
+			undefined,
+			donationAmount
+		);
 		await driftClient.addUser(1);
 		await driftClient.switchActiveUser(1);
 
@@ -112,6 +155,15 @@ describe('subaccounts', () => {
 		assert(userStats.numberOfSubAccountsCreated === 2);
 		assert(driftClient.getStateAccount().numberOfAuthorities.eq(new BN(1)));
 		assert(driftClient.getStateAccount().numberOfSubAccounts.eq(new BN(2)));
+
+		const solSpotMarket = driftClient.getSpotMarketAccount(1);
+		const revenuePool = solSpotMarket.revenuePool;
+		const tokenAmount = getTokenAmount(
+			revenuePool.scaledBalance,
+			solSpotMarket,
+			SpotBalanceType.DEPOSIT
+		);
+		assert(tokenAmount.eq(donationAmount.muln(2)));
 	});
 
 	it('Fetch all user account', async () => {
@@ -125,11 +177,6 @@ describe('subaccounts', () => {
 	});
 
 	it('Deposit and transfer between accounts', async () => {
-		await driftClient.deposit(
-			usdcAmount,
-			QUOTE_SPOT_MARKET_INDEX,
-			usdcAccount.publicKey
-		);
 		const txSig = await driftClient.transferDeposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,

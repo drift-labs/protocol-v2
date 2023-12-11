@@ -150,6 +150,26 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'2sTMN9A1D1qeZLF95XQgJCUPiKe5DiV52jLfZGqMP46m'
 		),
 	},
+	{
+		symbol: 'bSOL',
+		marketIndex: 8,
+		oracle: new PublicKey('AFrYBhb5wKQtxRS9UA9YRS4V3dwFm7SqmS6DHKq6YVgo'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		serumMarket: new PublicKey('ARjaHVxGCQfTvvKjLd7U7srvk6orthZSE6uqWchCczZc'),
+	},
+	{
+		symbol: 'JTO',
+		marketIndex: 9,
+		oracle: new PublicKey('D8UUgr8a3aR3yUeHLu7v8FWK7E8Y5sSU7qrYBXUJXBQ5'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		serumMarket: new PublicKey('H87FfmHABiZLRGrDsXRZtqq25YpARzaokCzL1vMYGiep'),
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {

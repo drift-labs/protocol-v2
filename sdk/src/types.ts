@@ -552,6 +552,7 @@ export type StateAccount = {
 	lpCooldownTime: BN;
 	initialPctToLiquidate: number;
 	liquidationDuration: number;
+	maxInitializeUserFee: number;
 };
 
 export type PerpMarketAccount = {
@@ -869,8 +870,8 @@ export type Order = {
 	marketIndex: number;
 	price: BN;
 	baseAssetAmount: BN;
-	baseAssetAmountFilled: BN;
 	quoteAssetAmount: BN;
+	baseAssetAmountFilled: BN;
 	quoteAssetAmountFilled: BN;
 	direction: PositionDirection;
 	reduceOnly: boolean;
@@ -1000,8 +1001,6 @@ export interface IVersionedWallet {
 
 export type FeeStructure = {
 	feeTiers: FeeTier[];
-	makerRebateNumerator: BN;
-	makerRebateDenominator: BN;
 	fillerRewardStructure: OrderFillerRewardStructure;
 	flatFillerFee: BN;
 	referrerRewardEpochUpperBound: BN;
