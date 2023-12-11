@@ -23,7 +23,7 @@ import {
 	isVariant,
 } from '../types';
 import { assert } from '../assert/assert';
-import { squareRootBN, clampBN, standardizeBaseAssetAmount } from '..';
+import { squareRootBN, sigNum, clampBN, standardizeBaseAssetAmount } from '..';
 
 import { OraclePriceData } from '../oracles/types';
 import {
@@ -474,7 +474,11 @@ export function calculateReferencePriceOffset(
 	);
 
 	// Only apply when inventory is consistent with recent and 24h market premium
-	const offsetPct = markPremiumAvgPct.add(inventoryPct);
+	let offsetPct = markPremiumAvgPct.add(inventoryPct);
+
+	if (!sigNum(inventoryPct).eq(sigNum(markPremiumAvgPct))) {
+		offsetPct = ZERO;
+	}
 
 	const clampedOffsetPct = clampBN(
 		offsetPct,

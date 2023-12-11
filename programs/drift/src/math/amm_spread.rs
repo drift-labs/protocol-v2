@@ -530,7 +530,13 @@ pub fn calculate_reference_price_offset(
         .clamp(-max_offset_pct, max_offset_pct);
 
     // only apply when inventory is consistent with recent and 24h market premium
-    let offset_pct = mark_premium_avg_pct.safe_add(inventory_pct)?;
+    let offset_pct = if (mark_premium_avg_pct >= 0 && inventory_pct >= 0)
+        || (mark_premium_avg_pct <= 0 && inventory_pct <= 0)
+    {
+        mark_premium_avg_pct.safe_add(inventory_pct)?
+    } else {
+        0
+    };
 
     let clamped_offset_pct = offset_pct.clamp(-max_offset_pct, max_offset_pct);
 
