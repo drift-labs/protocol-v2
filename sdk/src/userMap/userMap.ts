@@ -13,7 +13,7 @@ import {
 	LPRecord,
 	StateAccount,
 	DLOB,
-	BasicUserAccountSubscriber,
+	OneShotUserAccountSubscriber,
 	BN,
 } from '..';
 
@@ -132,14 +132,16 @@ export class UserMap implements UserMapInterface {
 			userAccountPublicKey,
 			accountSubscription: {
 				type: 'custom',
-				userAccountSubscriber: new BasicUserAccountSubscriber(
+				userAccountSubscriber: new OneShotUserAccountSubscriber(
+					this.driftClient.program,
 					userAccountPublicKey,
 					userAccount,
-					slot
+					slot,
+					this.commitment
 				),
 			},
 		});
-		await user.subscribe(userAccount);
+		console.log(`SUBSCIBRIEBRIED: ${await user.subscribe(userAccount)}`);
 		this.userMap.set(userAccountPublicKey.toString(), user);
 	}
 
@@ -162,6 +164,7 @@ export class UserMap implements UserMapInterface {
 	 * @returns  User
 	 */
 	public async mustGet(key: string): Promise<User> {
+		console.log(`HIHIHIH ${key}`);
 		if (!this.has(key)) {
 			await this.addPubkey(new PublicKey(key));
 		}
