@@ -155,7 +155,7 @@ export class BulkAccountLoader {
 		for (const accountsToLoadChunk of accountsToLoadChunks) {
 			const args = [
 				accountsToLoadChunk
-					.filter(accountToLoad => accountToLoad.callbacks.size > 0)
+					.filter((accountToLoad) => accountToLoad.callbacks.size > 0)
 					.map((accountToLoad) => {
 						return accountToLoad.publicKey.toBase58();
 					}),

@@ -13,7 +13,7 @@ import {
 	LPRecord,
 	StateAccount,
 	DLOB,
-	BasicUserAccountSubscriber,
+	OneShotUserAccountSubscriber,
 	BN,
 } from '..';
 
@@ -132,10 +132,12 @@ export class UserMap implements UserMapInterface {
 			userAccountPublicKey,
 			accountSubscription: {
 				type: 'custom',
-				userAccountSubscriber: new BasicUserAccountSubscriber(
+				userAccountSubscriber: new OneShotUserAccountSubscriber(
+					this.driftClient.program,
 					userAccountPublicKey,
 					userAccount,
-					slot
+					slot,
+					this.commitment
 				),
 			},
 		});

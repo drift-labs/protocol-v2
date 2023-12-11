@@ -1112,9 +1112,7 @@ export class DriftClient {
 		);
 	}
 
-	public async getUserDeletionIx(
-		userAccountPublicKey: PublicKey
-	) {
+	public async getUserDeletionIx(userAccountPublicKey: PublicKey) {
 		const ix = await this.program.instruction.deleteUser({
 			accounts: {
 				user: userAccountPublicKey,
