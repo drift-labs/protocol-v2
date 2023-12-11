@@ -44,7 +44,6 @@ export class OneShotUserAccountSubscriber extends BasicUserAccountSubscriber {
 	}
 
 	async fetch(): Promise<void> {
-		console.log(`FETCHING ${this.userAccountPublicKey.toBase58()}`);
 		try {
 			const dataAndContext = await this.program.account.user.fetchAndContext(
 				this.userAccountPublicKey,
