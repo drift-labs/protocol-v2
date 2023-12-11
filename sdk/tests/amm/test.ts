@@ -4,6 +4,7 @@ import {
 	PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
+	PERCENTAGE_PRECISION,
 	calculateSpread,
 	calculateSpreadBN,
 	ZERO,
@@ -23,6 +24,9 @@ import {
 	calculateSpreadReserves,
 	calculatePrice,
 	BID_ASK_SPREAD_PRECISION,
+	squareRootBN,
+	calculateReferencePriceOffset,
+	calculateInventoryLiquidityRatio,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 
@@ -457,8 +461,10 @@ describe('AMM Tests', () => {
 
 		mockAmm.baseAssetReserve = new BN(1000000000);
 		mockAmm.quoteAssetReserve = new BN(1000000000);
+		mockAmm.sqrtK = new BN(1000000000);
+
 		mockAmm.baseAssetAmountWithAmm = new BN(0);
-		mockAmm.pegMultiplier = new BN(13553);
+		mockAmm.pegMultiplier = new BN(13.553 * PEG_PRECISION.toNumber());
 		mockAmm.ammJitIntensity = 100;
 		mockAmm.curveUpdateIntensity = 200;
 		mockAmm.baseSpread = 2500;
@@ -512,15 +518,62 @@ describe('AMM Tests', () => {
 		const tt = calculateSpread(mockAmm, oraclePriceData, now);
 		console.log(tt);
 
+		console.log('amm.baseAssetReserve:', mockAmm.baseAssetReserve.toString());
+		assert(mockAmm.baseAssetReserve.eq(new BN('1000000000')));
 		const reserves2 = calculateSpreadReserves(mockAmm, oraclePriceData, now);
-		console.log(reserves2);
+		console.log(reserves2[1].baseAssetReserve.toString());
+		console.log(reserves2[1].quoteAssetReserve.toString());
 
-		assert(reserves2[0].baseAssetReserve.eq(new BN('1000000000')));
-		assert(reserves2[0].quoteAssetReserve.eq(new BN('12000000000')));
-		assert(reserves2[1].baseAssetReserve.eq(new BN('1000000000')));
-		assert(reserves2[1].quoteAssetReserve.eq(new BN('12000000000')));
+		assert(reserves2[0].baseAssetReserve.eq(new BN('1006711408')));
+		assert(reserves2[0].quoteAssetReserve.eq(new BN('993333334')));
+		assert(reserves2[1].baseAssetReserve.eq(new BN('993377484')));
+		assert(reserves2[1].quoteAssetReserve.eq(new BN('1006666666')));
+
+		// create imbalance for reference price offset
+		mockAmm.baseAssetReserve = new BN(1000000000 * 1.1);
+		mockAmm.quoteAssetReserve = new BN(1000000000 / 1.1);
+		mockAmm.sqrtK = squareRootBN(
+			mockAmm.baseAssetReserve.mul(mockAmm.quoteAssetReserve)
+		);
+
+		mockAmm.baseAssetAmountWithAmm = new BN(-1000000000 * 0.1);
+
+		const maxOffset = Math.max(
+			mockAmm.maxSpread / 5,
+			PERCENTAGE_PRECISION.toNumber() / 1000
+		);
+		const liquidityFraction = calculateInventoryLiquidityRatio(
+			mockAmm.baseAssetAmountWithAmm,
+			mockAmm.baseAssetReserve,
+			mockAmm.minBaseAssetReserve,
+			mockAmm.maxBaseAssetReserve
+		);
+		console.log('liquidityFraction:', liquidityFraction.toString());
+		assert(liquidityFraction.eq(new BN(1000000))); // full
+
+		const referencePriceOffset = calculateReferencePriceOffset(
+			reservePrice,
+			mockAmm.last24HAvgFundingRate,
+			liquidityFraction,
+			mockAmm.historicalOracleData.lastOraclePriceTwap5Min,
+			mockAmm.lastMarkPriceTwap5Min,
+			mockAmm.historicalOracleData.lastOraclePriceTwap,
+			mockAmm.lastMarkPriceTwap,
+			maxOffset
+		);
+		console.log('referencePriceOffset:', referencePriceOffset.toString());
+		assert(referencePriceOffset.eq(new BN(5000)));
+		assert(referencePriceOffset.eq(new BN(maxOffset)));
+
+		const reserves3 = calculateSpreadReserves(mockAmm, oraclePriceData, now);
+		console.log(reserves3[1].baseAssetReserve.toString());
+		console.log(reserves3[1].quoteAssetReserve.toString());
+
+		assert(reserves3[0].baseAssetReserve.eq(new BN('1164705879')));
+		assert(reserves3[0].quoteAssetReserve.eq(new BN('858585859')));
+		assert(reserves3[1].baseAssetReserve.eq(new BN('1042105261')));
+		assert(reserves3[1].quoteAssetReserve.eq(new BN('959595959')));
 	});
-	return 0;
 
 	it('live update functions', () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);

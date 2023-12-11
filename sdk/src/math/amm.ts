@@ -419,7 +419,7 @@ export function calculateInventoryScale(
 	return inventoryScaleCapped;
 }
 
-function calculateReferencePriceOffset(
+export function calculateReferencePriceOffset(
 	reservePrice: BN,
 	last24hAvgFundingRate: BN,
 	liquidityFraction: BN,
@@ -597,6 +597,11 @@ export function calculateSpreadBN(
 ) {
 	assert(Number.isInteger(baseSpread));
 	assert(Number.isInteger(maxSpread));
+	console.log('max spread;', maxSpread);
+	console.log(
+		'lastOracleReservePriceSpreadPct:',
+		lastOracleReservePriceSpreadPct.toNumber()
+	);
 
 	const spreadTerms = {
 		longVolSpread: 0,
@@ -876,7 +881,12 @@ export function calculateSpreadReserves(
 		} else {
 			quoteAssetReserve = amm.quoteAssetReserve.sub(quoteAssetReserveDelta);
 		}
-
+		console.log(
+			'amm.sqrtK:',
+			amm.sqrtK.toString(),
+			amm.sqrtK.mul(amm.sqrtK).toString(),
+			quoteAssetReserve.toString()
+		);
 		const baseAssetReserve = amm.sqrtK.mul(amm.sqrtK).div(quoteAssetReserve);
 		return {
 			baseAssetReserve,
