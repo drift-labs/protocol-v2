@@ -141,6 +141,7 @@ export class UserMap implements UserMapInterface {
 				),
 			},
 		});
+		await user.subscribe(userAccount);
 		this.userMap.set(userAccountPublicKey.toString(), user);
 	}
 
