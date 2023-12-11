@@ -8,7 +8,7 @@ use drift_program::{
     controller::position::PositionDirection,
     math::constants::QUOTE_SPOT_MARKET_INDEX,
     state::{
-        order_params::OrderParams,
+        order_params::{ModifyOrderParams, OrderParams},
         user::{MarketType, Order, OrderStatus, PerpPosition, SpotPosition, User},
     },
 };
@@ -33,6 +33,7 @@ use tokio::sync::{
 };
 
 pub mod constants;
+pub mod dlob;
 pub mod types;
 use types::*;
 pub mod utils;
@@ -429,6 +430,46 @@ impl<'a> TransactionBuilder<'a> {
             }),
         };
         self.ixs.push(ix);
+
+        self
+    }
+
+    /// Modify existing order(s)
+    pub fn modify_orders(mut self, orders: Vec<(u32, OrderParams)>) -> Self {
+        for (order_id, params) in orders {
+            let accounts = build_accounts(
+                self.wallet.context(),
+                drift_program::accounts::PlaceOrder {
+                    state: *state_account(),
+                    authority: self.wallet.authority(),
+                    user: *self.wallet.user(),
+                },
+                self.user,
+                &[],
+                &[],
+            );
+
+            let ix = Instruction {
+                program_id: constants::PROGRAM_ID,
+                accounts,
+                data: InstructionData::data(&drift_program::instruction::ModifyOrder {
+                    order_id: Some(order_id),
+                    modify_order_params: ModifyOrderParams {
+                        direction: Some(params.direction),
+                        base_asset_amount: Some(params.base_asset_amount),
+                        price: Some(params.price),
+                        max_ts: params.max_ts,
+                        oracle_price_offset: params.oracle_price_offset,
+                        auction_duration: params.auction_duration,
+                        auction_end_price: params.auction_end_price,
+                        auction_start_price: params.auction_start_price,
+                        trigger_price: params.trigger_price,
+                        ..Default::default()
+                    },
+                }),
+            };
+            self.ixs.push(ix);
+        }
 
         self
     }

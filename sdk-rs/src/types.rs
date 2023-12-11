@@ -172,10 +172,14 @@ impl NewOrder {
 
 #[derive(Debug, Error)]
 pub enum SdkError {
+    #[error("http fail")]
+    Http(#[from] reqwest::Error),
     #[error("rpc fail")]
     Rpc(#[from] solana_client::client_error::ClientError),
     #[error("ws fail")]
     Ws(#[from] solana_client::nonblocking::pubsub_client::PubsubClientError),
+    #[error("error while deserializing")]
+    Deserializing,
     #[error("invalid drift account")]
     InvalidAccount,
 }

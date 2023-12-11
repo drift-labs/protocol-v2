@@ -7,6 +7,9 @@ edition = "2021"
 anchor-lang = "0.27.0"
 drift-program = { package = "drift", path = "../programs/drift" }
 futures-util = "0.3.29"
+reqwest = "*"
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
 solana-account-decoder = "1.14"
 solana-client = "1.14"
 solana-sdk = "1.14"

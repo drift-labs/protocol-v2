@@ -37,4 +37,17 @@ async fn do_the_thing() {
         .build();
     let signature = client.sign_and_send(&wallet, tx).await;
     dbg!(signature);
+
+    let tx = TransactionBuilder::new(&wallet, &user_data)
+        .modify_orders(vec![(
+            4,
+            NewOrder::limit(sol)
+                .amount(-1 * LAMPORTS_PER_SOL_I64)
+                .price(100 * QUOTE_PRECISION_U64)
+                .post_only(true)
+                .build(),
+        )])
+        .build();
+    let signature = client.sign_and_send(&wallet, tx).await;
+    dbg!(signature);
 }
