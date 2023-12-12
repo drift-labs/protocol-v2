@@ -1181,6 +1181,19 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
+	public async updatePhoenixFulfillmentConfigStatus(
+		phoenixFulfillmentConfig: PublicKey,
+		status: SpotFulfillmentConfigStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.phoenixFulfillmentConfigStatus(status, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				phoenixFulfillmentConfig,
+			},
+		});
+	}
+
 	public async updateSpotMarketExpiry(
 		spotMarketIndex: number,
 		expiryTs: BN

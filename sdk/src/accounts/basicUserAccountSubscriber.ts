@@ -4,6 +4,10 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { UserAccount } from '../types';
 
+/**
+ * Basic implementation of UserAccountSubscriber. It will only take in UserAccount
+ * data during initialization and will not fetch or subscribe to updates.
+ */
 export class BasicUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;

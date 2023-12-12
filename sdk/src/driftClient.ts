@@ -1112,6 +1112,19 @@ export class DriftClient {
 		);
 	}
 
+	public async getUserDeletionIx(userAccountPublicKey: PublicKey) {
+		const ix = await this.program.instruction.deleteUser({
+			accounts: {
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+
+		return ix;
+	}
+
 	public async deleteUser(
 		subAccountId = 0,
 		txParams?: TxParams
@@ -1122,14 +1135,7 @@ export class DriftClient {
 			subAccountId
 		);
 
-		const ix = await this.program.instruction.deleteUser({
-			accounts: {
-				user: userAccountPublicKey,
-				userStats: this.getUserStatsAccountPublicKey(),
-				authority: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-			},
-		});
+		const ix = await this.getUserDeletionIx(userAccountPublicKey);
 
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(ix, txParams),

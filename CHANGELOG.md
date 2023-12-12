@@ -10,8 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: only consider recent last_active_slot in qualifies_for_withdraw_feen([#756](https://github.com/drift-labs/protocol-v2/pull/756))
+- program: amm can use reference price offset from oracle price based on clamped inventory and persist market premiums ([#681](https://github.com/drift-labs/protocol-v2/pull/681))
 
 ### Fixes
+
+- program: add update last slot for filler in pay_keeper_flat_reward_for_spot
 
 ### Breaking
 

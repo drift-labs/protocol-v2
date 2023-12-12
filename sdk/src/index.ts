@@ -21,6 +21,7 @@ export * from './accounts/pollingUserAccountSubscriber';
 export * from './accounts/pollingUserStatsAccountSubscriber';
 export * from './accounts/pollingInsuranceFundStakeAccountSubscriber';
 export * from './accounts/basicUserAccountSubscriber';
+export * from './accounts/oneShotUserAccountSubscriber';
 export * from './accounts/types';
 export * from './addresses/pda';
 export * from './adminClient';
