@@ -489,7 +489,7 @@ pub fn handle_withdraw(
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
 
-        if user.qualifies_for_withdraw_fee(&user_stats) {
+        if user.qualifies_for_withdraw_fee(&user_stats, slot) {
             let fee =
                 charge_withdraw_fee(spot_market, oracle_price_data.price, user, &mut user_stats)?;
             amount = amount.safe_sub(fee.cast()?)?;

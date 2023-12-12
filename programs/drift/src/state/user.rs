@@ -369,7 +369,12 @@ impl User {
         }
     }
 
-    pub fn qualifies_for_withdraw_fee(&self, user_stats: &UserStats) -> bool {
+    pub fn qualifies_for_withdraw_fee(&self, user_stats: &UserStats, slot: u64) -> bool {
+        // only qualifies for user with recent last_active_slot (~25 seconds)
+        if slot.saturating_sub(self.last_active_slot) >= 50 {
+            return false;
+        }
+
         let min_total_withdraws = 10_000_000 * QUOTE_PRECISION_U64; // $10M
 
         // if total withdraws are greater than $10M and user has paid more than %.01 of it in fees
