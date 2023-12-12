@@ -11,6 +11,9 @@ use tokio::sync::mpsc::{channel, Receiver};
 
 use crate::types::{MarketId, SdkError};
 
+/// Stream of orderbook snapshots
+pub type OrderbookStream = RxStream<Result<L2Orderbook, SdkError>>;
+
 #[derive(Clone)]
 /// Decentralized limit orderbook client
 pub struct DLOBClient {
