@@ -11,7 +11,6 @@ use tokio::sync::mpsc::{channel, Receiver};
 
 use crate::types::{MarketId, SdkError};
 
-/// Stream of orderbook snapshots
 pub type OrderbookStream = RxStream<Result<L2Orderbook, SdkError>>;
 
 #[derive(Clone)]
@@ -47,11 +46,7 @@ impl DLOBClient {
         serde_json::from_slice(body.as_ref()).map_err(|_| SdkError::Deserializing)
     }
     /// Subscribe to a DLOB for `market`
-    pub fn subscribe(
-        &self,
-        market: MarketId,
-        interval_s: Option<u64>,
-    ) -> RxStream<Result<L2Orderbook, SdkError>> {
+    pub fn subscribe(&self, market: MarketId, interval_s: Option<u64>) -> OrderbookStream {
         let mut interval = tokio::time::interval(Duration::from_secs(interval_s.unwrap_or(1)));
         let (tx, rx) = channel(16);
         tokio::spawn({
@@ -68,7 +63,7 @@ impl DLOBClient {
     }
 }
 
-/// Simpl stream wrapper over a read channel
+/// Simple stream wrapper over a read channel
 pub struct RxStream<T>(Receiver<T>);
 impl<T> Stream for RxStream<T> {
     type Item = T;
@@ -77,6 +72,13 @@ impl<T> Stream for RxStream<T> {
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         self.as_mut().0.poll_recv(cx)
+    }
+}
+
+impl<T> RxStream<T> {
+    /// destruct returning the inner channel
+    pub fn into_rx(self) -> Receiver<T> {
+        self.0
     }
 }
 

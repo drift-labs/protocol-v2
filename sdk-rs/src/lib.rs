@@ -62,6 +62,36 @@ impl DriftClient {
         self.backend.subscribe_account(account).await
     }
 
+    /// Get an account's open order by id
+    ///
+    /// `account` the drift user PDA
+    pub async fn get_order_by_id(
+        &self,
+        account: &Pubkey,
+        order_id: u32,
+    ) -> Result<Option<Order>, SdkError> {
+        let user = self.backend.get_account(account).await?;
+
+        Ok(user.orders.iter().find(|o| o.order_id == order_id).copied())
+    }
+
+    /// Get an account's open order by user assigned id
+    ///
+    /// `account` the drift user PDA
+    pub async fn get_order_by_user_id(
+        &self,
+        account: &Pubkey,
+        user_order_id: u8,
+    ) -> Result<Option<Order>, SdkError> {
+        let user = self.backend.get_account(account).await?;
+
+        Ok(user
+            .orders
+            .iter()
+            .find(|o| o.user_order_id == user_order_id)
+            .copied())
+    }
+
     /// Get all the account's open orders
     ///
     /// `account` the drift user PDA
