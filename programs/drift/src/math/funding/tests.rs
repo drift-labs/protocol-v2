@@ -1,10 +1,19 @@
+use crate::controller::funding::update_funding_rate;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, ONE_HOUR_I128, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
 use crate::math::funding::*;
-use crate::state::oracle::HistoricalOracleData;
-use crate::state::perp_market::{PerpMarket, AMM};
 use std::cmp::min;
+
+use crate::test_utils::get_pyth_price;
+
+// use crate::create_anchor_account_info;
+use crate::state::oracle::HistoricalOracleData;
+use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
+use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
+use solana_program::pubkey::Pubkey;
+use std::str::FromStr;
 
 fn calculate_funding_rate(
     mid_price_twap: u128,
@@ -30,6 +39,12 @@ fn calculate_funding_rate(
 
     Ok(funding_rate)
 }
+
+
+#[cfg(test)]
+use crate::test_utils::get_account_bytes;
+use crate::test_utils::create_account_info;
+use crate::create_account_info;
 
 #[test]
 fn balanced_funding_test() {
@@ -471,4 +486,91 @@ fn funding_unsettled_lps_amm_lose_test() {
 
     let new_fees = market.amm.total_fee_minus_distributions;
     assert_eq!(new_fees, 416667); // lost
+}
+
+#[test]
+fn max_funding_rates() {
+    let now = 0_i64;
+    let slot = 0_u64;
+
+    let state = State {
+        oracle_guard_rails: OracleGuardRails {
+            validity: ValidityGuardRails {
+                slots_before_stale_for_amm: 10,     // 5s
+                slots_before_stale_for_margin: 120, // 60s
+                confidence_interval_max_size: 1000,
+                too_volatile_ratio: 5,
+            },
+            ..OracleGuardRails::default()
+        },
+        ..State::default()
+    };
+
+    let mut oracle_price = get_pyth_price(51, 6);
+    let oracle_price_key =
+        Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+    let pyth_program = crate::ids::pyth_program::id();
+    create_account_info!(
+        oracle_price,
+        &oracle_price_key,
+        &pyth_program,
+        oracle_account_info
+    );
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut market = PerpMarket {
+        market_index: 0,
+        amm: AMM {
+            oracle: oracle_price_key,
+
+            base_asset_reserve: 512295081967,
+            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+            sqrt_k: 500 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 50000000,
+            base_asset_amount_with_amm: -12295081967, //~12
+            base_asset_amount_long: 12295081967,
+            base_asset_amount_short: -12295081967 * 2,
+            base_asset_amount_with_unsettled_lp: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
+            total_exchange_fee: QUOTE_PRECISION / 2,
+            total_fee_minus_distributions: ((QUOTE_PRECISION * 99999) as i128),
+
+            last_mark_price_twap: 50 * PRICE_PRECISION_U64,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (49 * PRICE_PRECISION) as i64,
+
+                ..HistoricalOracleData::default()
+            },
+            funding_period: 3600,
+
+            ..AMM::default()
+        },
+        ..PerpMarket::default()
+    };
+
+    let res1 = market
+        .get_max_price_divergence_for_funding_rate(
+            market.amm.historical_oracle_data.last_oracle_price_twap,
+        )
+        .unwrap();
+    assert_eq!(res1, 4900000);
+    market.contract_tier = ContractTier::B;
+    let res1 = market
+        .get_max_price_divergence_for_funding_rate(
+            market.amm.historical_oracle_data.last_oracle_price_twap,
+        )
+        .unwrap();
+    assert_eq!(res1, 1484848);
+
+    let did_succeed = update_funding_rate(
+        0,
+        &mut market,
+        &mut oracle_map,
+        now,
+        slot,
+        &state.oracle_guard_rails,
+        false,
+        None,
+    )
+    .unwrap();
+
+    assert!(!did_succeed);
 }
