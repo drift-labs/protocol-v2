@@ -2786,6 +2786,7 @@ pub fn force_cancel_orders(
         Some(filler),
         spot_market_map.get_quote_spot_market_mut()?.deref_mut(),
         total_fee,
+        slot,
     )?;
 
     user.update_last_active_slot(slot);
@@ -2840,6 +2841,7 @@ pub fn pay_keeper_flat_reward_for_spot(
     filler: Option<&mut User>,
     quote_market: &mut SpotMarket,
     filler_reward: u64,
+    slot: u64,
 ) -> DriftResult<u64> {
     let filler_reward = if let Some(filler) = filler {
         update_spot_balances(
@@ -2849,6 +2851,8 @@ pub fn pay_keeper_flat_reward_for_spot(
             filler.get_quote_spot_position_mut(),
             false,
         )?;
+
+        filler.update_last_active_slot(slot);
 
         filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
 
@@ -3313,6 +3317,7 @@ pub fn fill_spot_order(
                 filler.as_deref_mut(),
                 &mut quote_market,
                 state.spot_fee_structure.flat_filler_fee,
+                slot,
             )?
         };
 
@@ -3420,6 +3425,7 @@ pub fn fill_spot_order(
                 filler.as_deref_mut(),
                 &mut quote_market,
                 state.spot_fee_structure.flat_filler_fee,
+                slot,
             )?
         };
 
@@ -3573,6 +3579,7 @@ fn get_spot_maker_order<'a>(
                 filler.as_deref_mut(),
                 &mut quote_market,
                 filler_reward,
+                slot,
             )?
         };
 
@@ -4583,6 +4590,7 @@ pub fn trigger_spot_order(
         filler.as_deref_mut(),
         &mut quote_market,
         state.spot_fee_structure.flat_filler_fee,
+        slot,
     )?;
 
     let order_action_record = get_order_action_record(

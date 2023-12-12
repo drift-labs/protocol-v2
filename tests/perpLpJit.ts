@@ -780,9 +780,9 @@ describe('lp jit', () => {
 			});
 			await traderDriftClient.placePerpOrder(takerOrderParams);
 			await traderDriftClient.fetchAccounts();
-			console.log(takerOrderParams);
+			// console.log(takerOrderParams);
 			const order = traderDriftClient.getUser().getOrderByUserOrderId(1);
-			console.log(order);
+			// console.log(order);
 
 			assert(!order.postOnly);
 
@@ -795,7 +795,7 @@ describe('lp jit', () => {
 				postOnly: PostOnlyParams.MUST_POST_ONLY,
 				immediateOrCancel: true,
 			});
-			console.log('maker:', makerOrderParams);
+			// console.log('maker:', makerOrderParams);
 
 			const txSig = await poorDriftClient.placeAndMakePerpOrder(
 				makerOrderParams,

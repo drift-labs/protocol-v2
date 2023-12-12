@@ -78,6 +78,7 @@ export class BulkAccountLoader {
 		if (existingAccountToLoad) {
 			existingAccountToLoad.callbacks.delete(callbackId);
 			if (existingAccountToLoad.callbacks.size === 0) {
+				this.bufferAndSlotMap.delete(publicKey.toString());
 				this.accountsToLoad.delete(existingAccountToLoad.publicKey.toString());
 			}
 		}
@@ -153,9 +154,11 @@ export class BulkAccountLoader {
 		const requests = new Array<{ methodName: string; args: any }>();
 		for (const accountsToLoadChunk of accountsToLoadChunks) {
 			const args = [
-				accountsToLoadChunk.map((accountToLoad) => {
-					return accountToLoad.publicKey.toBase58();
-				}),
+				accountsToLoadChunk
+					.filter((accountToLoad) => accountToLoad.callbacks.size > 0)
+					.map((accountToLoad) => {
+						return accountToLoad.publicKey.toBase58();
+					}),
 				{ commitment: this.commitment },
 			];
 
@@ -190,6 +193,10 @@ export class BulkAccountLoader {
 
 			const accountsToLoad = accountsToLoadChunks[i];
 			accountsToLoad.forEach((accountToLoad, j) => {
+				if (accountToLoad.callbacks.size === 0) {
+					return;
+				}
+
 				const key = accountToLoad.publicKey.toBase58();
 				const oldRPCResponse = this.bufferAndSlotMap.get(key);
 
