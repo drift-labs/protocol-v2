@@ -13,11 +13,7 @@ pub fn read_keypair_str_multi_format(key: &str) -> Result<Keypair, ()> {
     // first try to decode as a byte array
     if key.contains(',') {
         // decode the numbers array into json string
-        let bytes: Result<Vec<u8>, _> = key
-            .split(",")
-            .into_iter()
-            .map(|x| x.parse::<u8>())
-            .collect();
+        let bytes: Result<Vec<u8>, _> = key.split(',').map(|x| x.parse::<u8>()).collect();
         if let Ok(bytes) = bytes {
             return Keypair::from_bytes(&bytes).map_err(|_| ());
         } else {
