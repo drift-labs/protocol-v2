@@ -27,7 +27,7 @@ export class OrderSubscriber {
 
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
-		this.commitment = config.subscriptionConfig.commitment || 'processed';
+		this.commitment = config.subscriptionConfig.commitment || 'confirmed';
 		if (config.subscriptionConfig.type === 'polling') {
 			this.subscription = new PollingSubscription({
 				orderSubscriber: this,
