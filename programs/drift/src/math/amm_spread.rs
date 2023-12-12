@@ -11,15 +11,14 @@ use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
     DEFAULT_LARGE_BID_ASK_FACTOR, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
+    FUNDING_RATE_BUFFER, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
+    PRICE_PRECISION_I64,
 };
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::AMM;
 use crate::validate;
-
-use super::constants::PERCENTAGE_PRECISION_I128;
 
 #[cfg(test)]
 mod tests;
@@ -328,8 +327,10 @@ pub fn calculate_spread(
         volume_24h,
     )?;
 
-    let mut long_spread = max((base_spread / 2) as u64, long_vol_spread);
-    let mut short_spread = max((base_spread / 2) as u64, short_vol_spread);
+    let half_base_spread_u64 = (base_spread / 2) as u64;
+
+    let mut long_spread = max(half_base_spread_u64, long_vol_spread);
+    let mut short_spread = max(half_base_spread_u64, short_vol_spread);
 
     let max_target_spread = max_spread
         .cast::<u64>()?
@@ -448,20 +449,23 @@ pub fn calculate_spread_reserves(
         PositionDirection::Short => amm.short_spread,
     };
 
+    let spread_with_offset: i32 = spread.cast::<i32>()?.safe_add(amm.reference_price_offset)?;
+
     let quote_asset_reserve_delta = if spread > 0 {
         amm.quote_asset_reserve
-            .safe_div(BID_ASK_SPREAD_PRECISION_U128 / (spread.cast::<u128>()? / 2))?
+            .safe_div(BID_ASK_SPREAD_PRECISION_U128 / (spread_with_offset.cast::<u128>()? / 2))?
     } else {
         0
     };
 
-    let quote_asset_reserve = match direction {
-        PositionDirection::Long => amm
-            .quote_asset_reserve
-            .safe_add(quote_asset_reserve_delta)?,
-        PositionDirection::Short => amm
-            .quote_asset_reserve
-            .safe_sub(quote_asset_reserve_delta)?,
+    let quote_asset_reserve = if spread_with_offset >= 0 && direction == PositionDirection::Long
+        || spread_with_offset <= 0 && direction == PositionDirection::Short
+    {
+        amm.quote_asset_reserve
+            .safe_add(quote_asset_reserve_delta)?
+    } else {
+        amm.quote_asset_reserve
+            .safe_sub(quote_asset_reserve_delta)?
     };
 
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
@@ -472,4 +476,76 @@ pub fn calculate_spread_reserves(
         .try_to_u128()?;
 
     Ok((base_asset_reserve, quote_asset_reserve))
+}
+
+#[allow(clippy::comparison_chain)]
+pub fn calculate_reference_price_offset(
+    reserve_price: u64,
+    last_24h_avg_funding_rate: i64,
+    liquidity_fraction: i128,
+    _min_order_size: u64,
+    oracle_twap_fast: i64,
+    mark_twap_fast: u64,
+    oracle_twap_slow: i64,
+    mark_twap_slow: u64,
+    max_offset_pct: i64,
+) -> DriftResult<i32> {
+    if last_24h_avg_funding_rate == 0 {
+        return Ok(0);
+    }
+
+    let max_offset_in_price = max_offset_pct
+        .safe_mul(reserve_price.cast()?)?
+        .safe_div(PERCENTAGE_PRECISION.cast()?)?;
+
+    // calculate quote denominated market premium
+    let mark_premium_minute: i64 = mark_twap_fast
+        .cast::<i64>()?
+        .safe_sub(oracle_twap_fast)?
+        .clamp(-max_offset_in_price, max_offset_in_price);
+    let mark_premium_hour: i64 = mark_twap_slow
+        .cast::<i64>()?
+        .safe_sub(oracle_twap_slow)?
+        .clamp(-max_offset_in_price, max_offset_in_price);
+    // convert last_24h_avg_funding_rate to quote denominated premium
+    let mark_premium_day: i64 = last_24h_avg_funding_rate
+        .safe_div(FUNDING_RATE_BUFFER.cast()?)?
+        .safe_mul(24)?
+        .clamp(-max_offset_in_price, max_offset_in_price); // todo: look at how 24h funding is calc w.r.t. the funding_period
+
+    // take average clamped premium as the price-based offset
+    let mark_premium_avg = mark_premium_minute
+        .safe_add(mark_premium_hour)?
+        .safe_add(mark_premium_day)?
+        .safe_div(3_i64)?;
+
+    let mark_premium_avg_pct: i64 = mark_premium_avg
+        .safe_mul(PRICE_PRECISION_I64)?
+        .safe_div(reserve_price.cast()?)?;
+
+    let inventory_pct = liquidity_fraction
+        .cast::<i64>()?
+        .safe_mul(max_offset_pct)?
+        .safe_div(PERCENTAGE_PRECISION.cast::<i64>()?)?
+        .clamp(-max_offset_pct, max_offset_pct);
+
+    // only apply when inventory is consistent with recent and 24h market premium
+    let offset_pct = if (mark_premium_avg_pct >= 0 && inventory_pct >= 0)
+        || (mark_premium_avg_pct <= 0 && inventory_pct <= 0)
+    {
+        mark_premium_avg_pct.safe_add(inventory_pct)?
+    } else {
+        0
+    };
+
+    let clamped_offset_pct = offset_pct.clamp(-max_offset_pct, max_offset_pct);
+
+    validate!(
+        clamped_offset_pct.abs() <= max_offset_pct,
+        ErrorCode::InvalidAmmDetected,
+        "clamp offset pct failed {}",
+        clamped_offset_pct
+    )?;
+
+    clamped_offset_pct.cast()
 }

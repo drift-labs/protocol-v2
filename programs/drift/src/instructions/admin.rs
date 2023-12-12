@@ -727,7 +727,10 @@ pub fn handle_initialize_perp_market(
             padding1: 0,
             padding2: 0,
             total_fee_earned_per_lp: 0,
-            padding: [0; 32],
+            net_unsettled_funding_pnl: 0,
+            quote_asset_amount_with_unsettled_lp: 0,
+            reference_price_offset: 0,
+            padding: [0; 12],
         },
     };
 
