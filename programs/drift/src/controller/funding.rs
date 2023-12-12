@@ -150,6 +150,7 @@ pub fn update_funding_rate(
     market: &mut PerpMarket,
     oracle_map: &mut OracleMap,
     now: UnixTimestamp,
+    slot: u64,
     guard_rails: &OracleGuardRails,
     funding_paused: bool,
     precomputed_reserve_price: Option<u64>,
@@ -164,6 +165,7 @@ pub fn update_funding_rate(
         oracle_map.get_price_data(&market.amm.oracle)?,
         guard_rails,
         Some(reserve_price),
+        slot
     )?;
 
     let time_until_next_update = on_the_hour_update(
