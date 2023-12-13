@@ -123,7 +123,7 @@ impl DriftClient {
                 .collect(),
             user.perp_positions
                 .iter()
-                .filter(|p| !p.is_available())
+                .filter(|p| p.is_open_position())
                 .copied()
                 .collect(),
         ))
