@@ -1864,6 +1864,27 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     Ok(())
 }
 
+pub fn handle_reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
+    let user_size = ctx.accounts.user.to_account_info().data_len();
+    let minimum_lamports = ctx.accounts.rent.minimum_balance(user_size);
+    let current_lamports = ctx.accounts.user.to_account_info().try_lamports()?;
+    let reclaim_amount = current_lamports.saturating_sub(minimum_lamports);
+
+    **ctx
+        .accounts
+        .user
+        .to_account_info()
+        .try_borrow_mut_lamports()? = minimum_lamports;
+
+    **ctx
+        .accounts
+        .authority
+        .to_account_info()
+        .try_borrow_mut_lamports()? += reclaim_amount;
+
+    Ok(())
+}
+
 #[access_control(
     deposit_not_paused(&ctx.accounts.state)
 )]
@@ -2206,6 +2227,25 @@ pub struct DeleteUser<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ReclaimRent<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

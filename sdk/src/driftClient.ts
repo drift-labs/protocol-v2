@@ -1112,19 +1112,6 @@ export class DriftClient {
 		);
 	}
 
-	public async getUserDeletionIx(userAccountPublicKey: PublicKey) {
-		const ix = await this.program.instruction.deleteUser({
-			accounts: {
-				user: userAccountPublicKey,
-				userStats: this.getUserStatsAccountPublicKey(),
-				authority: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-			},
-		});
-
-		return ix;
-	}
-
 	public async deleteUser(
 		subAccountId = 0,
 		txParams?: TxParams
@@ -1148,6 +1135,53 @@ export class DriftClient {
 		this.users.delete(userMapKey);
 
 		return txSig;
+	}
+
+	public async getUserDeletionIx(userAccountPublicKey: PublicKey) {
+		const ix = await this.program.instruction.deleteUser({
+			accounts: {
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+
+		return ix;
+	}
+
+	public async reclaimRent(
+		subAccountId = 0,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			subAccountId
+		);
+
+		const ix = await this.getReclaimRentIx(userAccountPublicKey);
+
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(ix, txParams),
+			[],
+			this.opts
+		);
+
+		return txSig;
+	}
+
+	public async getReclaimRentIx(userAccountPublicKey: PublicKey) {
+		return await this.program.instruction.reclaimRent({
+			accounts: {
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
 	}
 
 	public getUser(subAccountId?: number, authority?: PublicKey): User {
