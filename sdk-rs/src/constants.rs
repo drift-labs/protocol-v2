@@ -1,8 +1,10 @@
 use std::sync::OnceLock;
 
+use drift_program::math::constants::LAMPORTS_PER_SOL_I64;
 pub use drift_program::{
     math::constants::{
-        BASE_PRECISION_U64 as BASE_PRECISION, QUOTE_PRECISION_U64 as QUOTE_PRECISION,
+        BASE_PRECISION_U64 as BASE_PRECISION, PRICE_PRECISION,
+        QUOTE_PRECISION_U64 as QUOTE_PRECISION, SPOT_BALANCE_PRECISION,
     },
     ID as PROGRAM_ID,
 };
@@ -140,7 +142,7 @@ fn init_spot_markets_dev() -> [SpotMarketConfig<'static>; 3] {
             "SOL",
             1,
             Pubkey::new_from_array(b58!("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix")),
-            8,
+            LAMPORTS_PER_SOL_I64.ilog10() as u8,
         ),
         SpotMarketConfig::new(
             "wBTC", // this is 'BTC" in the ts SDK, changed it for parity with equivalent mainnet market
@@ -163,7 +165,7 @@ fn init_spot_markets_mainnet() -> [SpotMarketConfig<'static>; 7] {
             "SOL",
             1,
             Pubkey::new_from_array(b58!("H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG")),
-            8,
+            LAMPORTS_PER_SOL_I64.ilog10() as u8,
         ),
         SpotMarketConfig::new(
             "mSOL",
