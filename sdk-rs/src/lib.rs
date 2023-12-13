@@ -47,7 +47,7 @@ pub struct DriftClient {
 }
 
 impl DriftClient {
-    pub async fn new(endpoint: &str) -> Result<Self, SdkError> {
+    pub async fn new(endpoint: &str) -> SdkResult<Self> {
         Ok(Self {
             backend: Box::leak(Box::new(DriftClientBackend::new(endpoint).await?)),
         })
@@ -58,7 +58,7 @@ impl DriftClient {
     ///
     /// This does not return anything but allows subsequent queries to benefit, useful for long-lived workloads expecting to query the same account frequently.
     /// In contrast, the default behaviour is to _always_ fetch the account data via network request which maybe better for ad-hoc workloads.
-    pub async fn subscribe_account(&self, account: &Pubkey) -> Result<(), SdkError> {
+    pub async fn subscribe_account(&self, account: &Pubkey) -> SdkResult<()> {
         self.backend.subscribe_account(account).await
     }
 
@@ -69,7 +69,7 @@ impl DriftClient {
         &self,
         account: &Pubkey,
         order_id: u32,
-    ) -> Result<Option<Order>, SdkError> {
+    ) -> SdkResult<Option<Order>> {
         let user = self.backend.get_account(account).await?;
 
         Ok(user.orders.iter().find(|o| o.order_id == order_id).copied())
@@ -82,7 +82,7 @@ impl DriftClient {
         &self,
         account: &Pubkey,
         user_order_id: u8,
-    ) -> Result<Option<Order>, SdkError> {
+    ) -> SdkResult<Option<Order>> {
         let user = self.backend.get_account(account).await?;
 
         Ok(user
@@ -95,7 +95,7 @@ impl DriftClient {
     /// Get all the account's open orders
     ///
     /// `account` the drift user PDA
-    pub async fn all_orders(&self, account: &Pubkey) -> Result<Vec<Order>, SdkError> {
+    pub async fn all_orders(&self, account: &Pubkey) -> SdkResult<Vec<Order>> {
         let user = self.backend.get_account(account).await?;
 
         Ok(user
@@ -112,7 +112,7 @@ impl DriftClient {
     pub async fn all_positions(
         &self,
         account: &Pubkey,
-    ) -> Result<(Vec<SpotPosition>, Vec<PerpPosition>), SdkError> {
+    ) -> SdkResult<(Vec<SpotPosition>, Vec<PerpPosition>)> {
         let user = self.backend.get_account(account).await?;
 
         Ok((
@@ -137,14 +137,14 @@ impl DriftClient {
     pub async fn perp_position(
         &self,
         account: &Pubkey,
-        market: MarketId,
-    ) -> Result<Option<PerpPosition>, SdkError> {
+        market_index: u16,
+    ) -> SdkResult<Option<PerpPosition>> {
         let user = self.backend.get_account(account).await?;
 
         Ok(user
             .perp_positions
             .iter()
-            .find(|p| p.market_index == market.index)
+            .find(|p| p.market_index == market_index)
             .copied())
     }
 
@@ -156,14 +156,14 @@ impl DriftClient {
     pub async fn spot_position(
         &self,
         account: &Pubkey,
-        market: MarketId,
-    ) -> Result<Option<SpotPosition>, SdkError> {
+        market_index: u16,
+    ) -> SdkResult<Option<SpotPosition>> {
         let user = self.backend.get_account(account).await?;
 
         Ok(user
             .spot_positions
             .iter()
-            .find(|p| p.market_index == market.index)
+            .find(|p| p.market_index == market_index)
             .copied())
     }
 
@@ -172,18 +172,14 @@ impl DriftClient {
     /// `account` the drift user PDA
     ///
     /// Returns the deserialzied account data (`User`)
-    pub async fn get_account_data(&self, account: &Pubkey) -> Result<User, SdkError> {
+    pub async fn get_account_data(&self, account: &Pubkey) -> SdkResult<User> {
         self.backend.get_account(account).await
     }
 
     /// Sign and send a tx to the network
     ///
     /// Returns the signature on success
-    pub async fn sign_and_send(
-        &self,
-        wallet: &Wallet,
-        tx: Transaction,
-    ) -> Result<Signature, SdkError> {
+    pub async fn sign_and_send(&self, wallet: &Wallet, tx: Transaction) -> SdkResult<Signature> {
         self.backend.sign_and_send(wallet, tx).await
     }
 }
@@ -208,7 +204,7 @@ impl DriftClientBackend {
         }
     }
     /// Initialize a new `DriftClientBackend`
-    async fn new(endpoint: &str) -> Result<DriftClientBackend, SdkError> {
+    async fn new(endpoint: &str) -> SdkResult<DriftClientBackend> {
         let rpc_client = RpcClient::new(endpoint.to_string());
 
         let ws_url = if endpoint.starts_with("https://") {
@@ -231,7 +227,7 @@ impl DriftClientBackend {
     /// Setup a subscription for account/sub-account updates
     ///
     /// Provides event-driven updates and caching of the account data, reducing RPC calls for queries related to this account
-    async fn subscribe_account(&'static self, account: &Pubkey) -> Result<(), SdkError> {
+    async fn subscribe_account(&'static self, account: &Pubkey) -> SdkResult<()> {
         // debug!(target: "drift", "using PDA: {}", &account_drift_pda);
 
         // scope the lock
@@ -273,7 +269,7 @@ impl DriftClientBackend {
     }
 
     /// Fetch drift account data (PDA) for `account`
-    async fn get_account(&self, account: &Pubkey) -> Result<User, SdkError> {
+    async fn get_account(&self, account: &Pubkey) -> SdkResult<User> {
         if let Some(rx) = self.account_cache.read().await.get(account) {
             Ok(*rx.borrow())
         } else {
@@ -290,7 +286,7 @@ impl DriftClientBackend {
         &self,
         wallet: &Wallet,
         mut tx: Transaction,
-    ) -> Result<Signature, SdkError> {
+    ) -> SdkResult<Signature> {
         let recent_block_hash = self.rpc_client.get_latest_blockhash().await?;
         tx.sign(&[wallet.authority_pair()], recent_block_hash);
         self.rpc_client
@@ -531,7 +527,7 @@ fn build_accounts(
 ) -> Vec<AccountMeta> {
     // the order of accounts returned must be instruction, oracles, spot, perps see (https://github.com/drift-labs/protocol-v2/blob/master/programs/drift/src/instructions/optional_accounts.rs#L28)
     let mut seen = [0_u64; 2]; // [spot, perp]
-    let mut accounts = Vec::<AccountType>::default();
+    let mut accounts = Vec::<RemainingAccount>::default();
 
     // add accounts to the ordered list
     let mut include_market = |market_index: u16, market_type: MarketType, writable: bool| {
@@ -547,9 +543,9 @@ fn build_accounts(
             MarketType::Spot => {
                 let SpotMarketConfig {
                     account, oracle, ..
-                } = constants::spot_market_by_index(context, market_index);
+                } = constants::spot_market_config_by_index(context, market_index).expect("exists");
                 (
-                    AccountType::Spot {
+                    RemainingAccount::Spot {
                         pubkey: *account,
                         writable,
                     },
@@ -559,9 +555,9 @@ fn build_accounts(
             MarketType::Perp => {
                 let PerpMarketConfig {
                     account, oracle, ..
-                } = constants::perp_market_by_index(context, market_index);
+                } = constants::perp_market_config_by_index(context, market_index).expect("exists");
                 (
-                    AccountType::Perp {
+                    RemainingAccount::Perp {
                         pubkey: *account,
                         writable,
                     },
@@ -572,7 +568,7 @@ fn build_accounts(
         if let Err(idx) = accounts.binary_search(&account) {
             accounts.insert(idx, account);
         }
-        let oracle = AccountType::Oracle { pubkey: *oracle };
+        let oracle = RemainingAccount::Oracle { pubkey: *oracle };
         if let Err(idx) = accounts.binary_search(&oracle) {
             accounts.insert(idx, oracle);
         }
@@ -617,9 +613,8 @@ impl Wallet {
     /// Init wallet from a string that could be either a file path or the encoded key, uses default sub-account
     ///
     /// `context` - target deployed program/network
-    pub fn try_from_str(context: Context, path_or_key: &str) -> Result<Self, String> {
-        let authority =
-            utils::load_keypair_multi_format(path_or_key).map_err(|_| "invalid key".to_string())?;
+    pub fn try_from_str(context: Context, path_or_key: &str) -> SdkResult<Self> {
+        let authority = utils::load_keypair_multi_format(path_or_key)?;
         Ok(Self::with_sub_account(context, authority, 0))
     }
     /// Init wallet from base58 encoded seed, uses default sub-account
@@ -635,8 +630,8 @@ impl Wallet {
     /// Init wallet from seed bytes, uses default sub-account
     ///
     /// `context` - target deployed program/network
-    pub fn from_seed(context: Context, seed: &[u8]) -> Result<Self, String> {
-        let authority: Keypair = keypair_from_seed(seed).map_err(|err| err.to_string())?;
+    pub fn from_seed(context: Context, seed: &[u8]) -> SdkResult<Self> {
+        let authority: Keypair = keypair_from_seed(seed).map_err(|_| SdkError::InvalidSeed)?;
         Ok(Self::with_sub_account(context, authority, 0))
     }
     /// Init wallet with given sub-account

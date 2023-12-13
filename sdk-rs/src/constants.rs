@@ -81,54 +81,50 @@ impl<'a> PerpMarketConfig<'a> {
 }
 
 /// Return known spot markets
-pub fn spot_markets(context: Context) -> &'static [SpotMarketConfig<'static>] {
+pub fn spot_market_configs(context: Context) -> &'static [SpotMarketConfig<'static>] {
     match context {
-        Context::Dev => SPOT_MARKETS_DEV.get_or_init(init_spot_markets_dev).as_ref(),
-        Context::Mainnet => SPOT_MARKETS_MAINNET
+        Context::DevNet => SPOT_MARKETS_DEV.get_or_init(init_spot_markets_dev).as_ref(),
+        Context::MainNet => SPOT_MARKETS_MAINNET
             .get_or_init(init_spot_markets_mainnet)
             .as_ref(),
     }
 }
 
 /// Return the spot market config given a market index
-pub fn spot_market_by_index(
+pub fn spot_market_config_by_index(
     context: Context,
     market_index: u16,
-) -> &'static SpotMarketConfig<'static> {
+) -> Option<&'static SpotMarketConfig<'static>> {
     match context {
-        Context::Dev => SPOT_MARKETS_DEV
+        Context::DevNet => SPOT_MARKETS_DEV
             .get_or_init(init_spot_markets_dev)
-            .get(market_index as usize)
-            .expect("market exists"),
-        Context::Mainnet => SPOT_MARKETS_MAINNET
+            .get(market_index as usize),
+        Context::MainNet => SPOT_MARKETS_MAINNET
             .get_or_init(init_spot_markets_mainnet)
-            .get(market_index as usize)
-            .expect("market exists"),
+            .get(market_index as usize),
     }
 }
 
 /// Return known perp markets
-pub fn perp_markets(context: Context) -> &'static [PerpMarketConfig<'static>] {
+pub fn perp_market_configs(context: Context) -> &'static [PerpMarketConfig<'static>] {
     match context {
-        Context::Dev => PERP_MARKETS_DEV.get_or_init(init_perp_markets_dev),
-        Context::Mainnet => PERP_MARKETS_MAINNET.get_or_init(init_perp_markets_mainnet),
+        Context::DevNet => PERP_MARKETS_DEV.get_or_init(init_perp_markets_dev),
+        Context::MainNet => PERP_MARKETS_MAINNET.get_or_init(init_perp_markets_mainnet),
     }
 }
 
 /// Return the perp market config given a market index
-pub fn perp_market_by_index(
+pub fn perp_market_config_by_index(
     context: Context,
     market_index: u16,
-) -> &'static PerpMarketConfig<'static> {
+) -> Option<&'static PerpMarketConfig<'static>> {
     match context {
-        Context::Dev => PERP_MARKETS_DEV
+        Context::DevNet => PERP_MARKETS_DEV
             .get_or_init(init_perp_markets_dev)
-            .get(market_index as usize)
-            .expect("market exists"),
-        Context::Mainnet => PERP_MARKETS_MAINNET
+            .get(market_index as usize),
+        Context::MainNet => PERP_MARKETS_MAINNET
             .get_or_init(init_perp_markets_mainnet)
-            .get(market_index as usize)
-            .expect("market exists"),
+            .get(market_index as usize),
     }
 }
 

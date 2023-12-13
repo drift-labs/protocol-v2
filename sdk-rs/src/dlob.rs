@@ -54,7 +54,10 @@ impl DLOBClient {
             async move {
                 loop {
                     let _ = interval.tick().await;
-                    tx.try_send(client.get_l2(market).await).expect("sent");
+                    if tx.try_send(client.get_l2(market).await).is_err() {
+                        // capacity reached or receiver closed, end the subscription task
+                        break;
+                    }
                 }
             }
         });

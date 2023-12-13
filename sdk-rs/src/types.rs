@@ -11,16 +11,18 @@ pub use drift_program::{
 use solana_sdk::{instruction::AccountMeta, pubkey::Pubkey};
 use thiserror::Error;
 
-use crate::constants::{perp_markets, spot_markets};
+use crate::constants::{perp_market_configs, spot_market_configs};
+
+pub type SdkResult<T> = Result<T, SdkError>;
 
 /// Drift program context
 #[derive(Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum Context {
-    /// Target Devenet
-    Dev,
-    /// Target Mainnet
-    Mainnet,
+    /// Target DevNet
+    DevNet,
+    /// Target MaiNnet
+    MainNet,
 }
 
 /// Id of a Drift market
@@ -40,14 +42,14 @@ impl MarketId {
         let mut parts = symbol.split('-');
         match (parts.next(), parts.next()) {
             (Some(base), None) => {
-                let markets = spot_markets(context);
+                let markets = spot_market_configs(context);
                 if let Some(market) = markets.iter().find(|m| m.symbol.eq_ignore_ascii_case(base)) {
                     return Ok(MarketId::spot(market.market_index));
                 }
             }
             (Some(base), Some(perp)) => {
                 if perp.eq_ignore_ascii_case("perp") {
-                    let markets = perp_markets(context);
+                    let markets = perp_market_configs(context);
                     if let Some(market) = markets
                         .iter()
                         .find(|m| m.base_asset_symbol.eq_ignore_ascii_case(base))
@@ -182,35 +184,10 @@ pub enum SdkError {
     Deserializing,
     #[error("invalid drift account")]
     InvalidAccount,
-}
-
-#[cfg(test)]
-mod test {
-    use super::{Context, MarketId};
-
-    #[test]
-    fn market_id_lookups() {
-        for (context, symbol, expected) in &[
-            (Context::Dev, "wBTC", MarketId::spot(2)),
-            (Context::Dev, "SOL", MarketId::spot(1)),
-            (Context::Dev, "sol-perp", MarketId::perp(0)),
-            (Context::Mainnet, "wbtc", MarketId::spot(3)),
-            (Context::Mainnet, "SOL", MarketId::spot(1)),
-            (Context::Mainnet, "sol-perp", MarketId::perp(0)),
-            (Context::Mainnet, "eth-perp", MarketId::perp(2)),
-        ] {
-            dbg!(context, symbol);
-            assert_eq!(MarketId::lookup(*context, symbol).unwrap(), *expected,);
-        }
-
-        for (context, symbol) in &[
-            (Context::Mainnet, "market404"),
-            (Context::Mainnet, "market404-perp"),
-            (Context::Mainnet, "market404-something"),
-        ] {
-            assert!(MarketId::lookup(*context, symbol).is_err())
-        }
-    }
+    #[error("invalid keypair seed")]
+    InvalidSeed,
+    #[error("invalid base58 value")]
+    InvalidBase58,
 }
 
 /// Helper type for Accounts included in drift instructions
@@ -218,13 +195,13 @@ mod test {
 /// Provides sorting implementation matching drift program
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord)]
 #[repr(u8)]
-pub(crate) enum AccountType {
+pub(crate) enum RemainingAccount {
     Oracle { pubkey: Pubkey },
     Spot { pubkey: Pubkey, writable: bool },
     Perp { pubkey: Pubkey, writable: bool },
 }
 
-impl AccountType {
+impl RemainingAccount {
     fn pubkey(&self) -> &Pubkey {
         match self {
             Self::Oracle { pubkey } => pubkey,
@@ -251,7 +228,7 @@ impl AccountType {
     }
 }
 
-impl PartialOrd for AccountType {
+impl PartialOrd for RemainingAccount {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         let type_order = self.discriminant().cmp(&other.discriminant());
         if let Ordering::Equal = type_order {
@@ -262,8 +239,8 @@ impl PartialOrd for AccountType {
     }
 }
 
-impl From<AccountType> for AccountMeta {
-    fn from(value: AccountType) -> Self {
+impl From<RemainingAccount> for AccountMeta {
+    fn from(value: RemainingAccount) -> Self {
         let (pubkey, is_writable) = value.parts();
         AccountMeta {
             pubkey,
@@ -277,22 +254,46 @@ impl From<AccountType> for AccountMeta {
 mod tests {
     use solana_sdk::pubkey::Pubkey;
 
-    use super::AccountType;
+    use super::{Context, MarketId, RemainingAccount};
+
+    #[test]
+    fn market_id_lookups() {
+        for (context, symbol, expected) in &[
+            (Context::DevNet, "wBTC", MarketId::spot(2)),
+            (Context::DevNet, "SOL", MarketId::spot(1)),
+            (Context::DevNet, "sol-perp", MarketId::perp(0)),
+            (Context::MainNet, "wbtc", MarketId::spot(3)),
+            (Context::MainNet, "SOL", MarketId::spot(1)),
+            (Context::MainNet, "sol-perp", MarketId::perp(0)),
+            (Context::MainNet, "eth-perp", MarketId::perp(2)),
+        ] {
+            dbg!(context, symbol);
+            assert_eq!(MarketId::lookup(*context, symbol).unwrap(), *expected,);
+        }
+
+        for (context, symbol) in &[
+            (Context::MainNet, "market404"),
+            (Context::MainNet, "market404-perp"),
+            (Context::MainNet, "market404-something"),
+        ] {
+            assert!(MarketId::lookup(*context, symbol).is_err())
+        }
+    }
 
     #[test]
     fn account_type_sorting() {
         let mut accounts = vec![
-            AccountType::Perp {
+            RemainingAccount::Perp {
                 pubkey: Pubkey::new_from_array([4_u8; 32]),
                 writable: false,
             },
-            AccountType::Oracle {
+            RemainingAccount::Oracle {
                 pubkey: Pubkey::new_from_array([2_u8; 32]),
             },
-            AccountType::Oracle {
+            RemainingAccount::Oracle {
                 pubkey: Pubkey::new_from_array([1_u8; 32]),
             },
-            AccountType::Spot {
+            RemainingAccount::Spot {
                 pubkey: Pubkey::new_from_array([3_u8; 32]),
                 writable: true,
             },
@@ -302,17 +303,17 @@ mod tests {
         assert_eq!(
             accounts,
             vec![
-                AccountType::Oracle {
+                RemainingAccount::Oracle {
                     pubkey: Pubkey::new_from_array([1_u8; 32])
                 },
-                AccountType::Oracle {
+                RemainingAccount::Oracle {
                     pubkey: Pubkey::new_from_array([2_u8; 32])
                 },
-                AccountType::Spot {
+                RemainingAccount::Spot {
                     pubkey: Pubkey::new_from_array([3_u8; 32]),
                     writable: true
                 },
-                AccountType::Perp {
+                RemainingAccount::Perp {
                     pubkey: Pubkey::new_from_array([4_u8; 32]),
                     writable: false
                 },

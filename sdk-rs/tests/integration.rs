@@ -11,14 +11,14 @@ async fn do_the_thing() {
         .await
         .expect("connects");
     let wallet = Wallet::from_seed_bs58(
-        Context::Dev,
+        Context::DevNet,
         "4ZT38mSeFhzzDRCMTMbwDp7VYWDqNfkvDR42Wv4Hu9cKzbZPJoVapQSrjLbs9aMPrpAMmN1cQinztnP2PzKVjzwX",
     );
 
     let user_data = client.get_account_data(wallet.user()).await.expect("ok");
 
-    let sol = MarketId::lookup(Context::Dev, "sol-perp").expect("exists");
-    let sol_spot = MarketId::lookup(Context::Dev, "sol").expect("exists");
+    let sol = MarketId::lookup(Context::DevNet, "sol-perp").expect("exists");
+    let sol_spot = MarketId::lookup(Context::DevNet, "sol").expect("exists");
 
     let tx = TransactionBuilder::new(&wallet, &user_data)
         .place_orders(vec![

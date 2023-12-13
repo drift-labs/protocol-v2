@@ -2,11 +2,13 @@
 
 use solana_sdk::{bs58, signature::Keypair};
 
+use crate::types::{SdkError, SdkResult};
+
 // kudos @wphan
 /// Try to parse secret `key` string
 ///
 /// Returns error if the key cannot be parsed
-pub fn read_keypair_str_multi_format(key: &str) -> Result<Keypair, ()> {
+pub fn read_keypair_str_multi_format(key: &str) -> SdkResult<Keypair> {
     // strip out any white spaces and new line/carriage return characters
     let key = key.replace([' ', '\n', '\r', '[', ']'], "");
 
@@ -15,19 +17,21 @@ pub fn read_keypair_str_multi_format(key: &str) -> Result<Keypair, ()> {
         // decode the numbers array into json string
         let bytes: Result<Vec<u8>, _> = key.split(',').map(|x| x.parse::<u8>()).collect();
         if let Ok(bytes) = bytes {
-            return Keypair::from_bytes(&bytes).map_err(|_| ());
+            return Keypair::from_bytes(&bytes).map_err(|_| SdkError::InvalidSeed);
         } else {
-            return Err(());
+            return Err(SdkError::InvalidSeed);
         }
     }
 
     // try to decode as base58 string
-    let bytes = bs58::decode(key).into_vec().map_err(|_| ())?;
-    Keypair::from_bytes(&bytes).map_err(|_| ())
+    let bytes = bs58::decode(key)
+        .into_vec()
+        .map_err(|_| SdkError::InvalidBase58)?;
+    Keypair::from_bytes(&bytes).map_err(|_| SdkError::InvalidSeed)
 }
 
 /// Try load a `Keypair` from a file path or given string, supports json format and base58 format.
-pub fn load_keypair_multi_format(path_or_key: &str) -> Result<Keypair, ()> {
+pub fn load_keypair_multi_format(path_or_key: &str) -> SdkResult<Keypair> {
     if let Ok(data) = std::fs::read_to_string(path_or_key) {
         read_keypair_str_multi_format(data.as_str())
     } else {
