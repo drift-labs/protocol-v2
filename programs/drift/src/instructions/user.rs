@@ -21,7 +21,6 @@ use crate::instructions::optional_accounts::{
     AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
-use crate::load;
 use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
@@ -66,6 +65,7 @@ use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
 use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
+use crate::{load, THIRTEEN_DAY};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -1870,6 +1870,12 @@ pub fn handle_reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
     let current_lamports = ctx.accounts.user.to_account_info().try_lamports()?;
     let reclaim_amount = current_lamports.saturating_sub(minimum_lamports);
 
+    validate!(
+        reclaim_amount > 0,
+        ErrorCode::CantReclaimRent,
+        "user account has no excess lamports to reclaim"
+    )?;
+
     **ctx
         .accounts
         .user
@@ -1881,6 +1887,19 @@ pub fn handle_reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
         .authority
         .to_account_info()
         .try_borrow_mut_lamports()? += reclaim_amount;
+
+    let user_stats = &mut load!(ctx.accounts.user_stats)?;
+
+    // Skip age check if is no max sub accounts
+    let max_sub_accounts = ctx.accounts.state.max_number_of_sub_accounts();
+    let estimated_user_stats_age = user_stats.get_age_ts(Clock::get()?.unix_timestamp);
+    validate!(
+        max_sub_accounts == 0 || estimated_user_stats_age >= THIRTEEN_DAY,
+        ErrorCode::CantReclaimRent,
+        "user stats too young to reclaim rent. age ={} minimum = {}",
+        estimated_user_stats_age,
+        THIRTEEN_DAY
+    )?;
 
     Ok(())
 }

@@ -11172,6 +11172,11 @@
       "code": 6256,
       "name": "CantPayUserInitFee",
       "msg": "CantPayUserInitFee"
+    },
+    {
+      "code": 6257,
+      "name": "CantReclaimRent",
+      "msg": "CantReclaimRent"
     }
   ]
 }

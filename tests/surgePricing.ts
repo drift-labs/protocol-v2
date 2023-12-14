@@ -93,6 +93,7 @@ describe('surge pricing', () => {
 
 	after(async () => {
 		await admin.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('Initialize USDC Market', async () => {
@@ -179,11 +180,18 @@ describe('surge pricing', () => {
 			await sleep(1000);
 
 			if (i === 4) {
+				await admin.updateStateMaxNumberOfSubAccounts(0);
 				await driftClient.reclaimRent(0);
-				const accountInfoAfterReclaim = await connection.getAccountInfo(userAccount);
-				console.log('account info after reclaim', accountInfoAfterReclaim.lamports);
+				const accountInfoAfterReclaim = await connection.getAccountInfo(
+					userAccount
+				);
+				console.log(
+					'account info after reclaim',
+					accountInfoAfterReclaim.lamports
+				);
 				assert(accountInfoAfterReclaim.lamports === baseLamports);
 			}
+			await driftClient.unsubscribe();
 		}
 	});
 });
