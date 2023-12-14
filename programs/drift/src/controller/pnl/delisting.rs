@@ -2343,15 +2343,16 @@ pub mod delisting_test {
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
 
             let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-            let (perp_margin_requirement, weighted_pnl, _) = calculate_perp_position_value_and_pnl(
-                &shorter.perp_positions[0],
-                &market,
-                oracle_price_data,
-                &strict_quote_price,
-                MarginRequirementType::Initial,
-                0,
-            )
-            .unwrap();
+            let (perp_margin_requirement, weighted_pnl, _, _) =
+                calculate_perp_position_value_and_pnl(
+                    &shorter.perp_positions[0],
+                    &market,
+                    oracle_price_data,
+                    &strict_quote_price,
+                    MarginRequirementType::Initial,
+                    0,
+                )
+                .unwrap();
 
             // short cant pay without bankruptcy
             assert_eq!(oracle_price_data.price, 100000000);
@@ -2421,7 +2422,7 @@ pub mod delisting_test {
                 let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-                let (perp_margin_requirement, weighted_pnl, _) =
+                let (perp_margin_requirement, weighted_pnl, _, _) =
                     calculate_perp_position_value_and_pnl(
                         &shorter.perp_positions[0],
                         &market,
@@ -2507,7 +2508,7 @@ pub mod delisting_test {
                 assert_eq!(market.amm.cumulative_funding_rate_short, 0);
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-                let (perp_margin_requirement, weighted_pnl, _) =
+                let (perp_margin_requirement, weighted_pnl, _, _) =
                     calculate_perp_position_value_and_pnl(
                         &shorter.perp_positions[0],
                         &market,
@@ -2597,7 +2598,7 @@ pub mod delisting_test {
                 assert_eq!(market.amm.cumulative_funding_rate_short, 0);
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-                let (perp_margin_requirement, weighted_pnl, _) =
+                let (perp_margin_requirement, weighted_pnl, _, _) =
                     calculate_perp_position_value_and_pnl(
                         &shorter.perp_positions[0],
                         &market,

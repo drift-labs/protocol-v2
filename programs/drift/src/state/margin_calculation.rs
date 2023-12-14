@@ -1,5 +1,6 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
+use crate::math::constants::PERCENTAGE_PRECISION;
 use crate::math::margin::MarginRequirementType;
 use crate::math::safe_math::SafeMath;
 use crate::{validate, MarketType, MARGIN_PRECISION_U128};
@@ -104,6 +105,7 @@ pub struct MarginCalculation {
     pub total_spot_asset_value: i128,
     pub total_spot_liability_value: u128,
     pub total_perp_liability_value: u128,
+    pub open_orders_margin_requirement: u128,
     tracked_market_margin_requirement: u128,
 }
 
@@ -121,6 +123,7 @@ impl MarginCalculation {
             total_spot_asset_value: 0,
             total_spot_liability_value: 0,
             total_perp_liability_value: 0,
+            open_orders_margin_requirement: 0,
             tracked_market_margin_requirement: 0,
         }
     }
@@ -135,8 +138,18 @@ impl MarginCalculation {
         margin_requirement: u128,
         liability_value: u128,
         market_identifier: MarketIdentifier,
+        open_order_fraction: u128,
     ) -> DriftResult {
         self.margin_requirement = self.margin_requirement.safe_add(margin_requirement)?;
+
+        if open_order_fraction > 0 {
+            self.open_orders_margin_requirement = self.open_orders_margin_requirement.safe_add(
+                margin_requirement
+                    .safe_mul(open_order_fraction)?
+                    .safe_div(PERCENTAGE_PRECISION)?,
+            )?;
+        }
+
         if let MarginCalculationMode::Liquidation { margin_buffer, .. } = self.context.mode {
             self.margin_requirement_plus_buffer = self
                 .margin_requirement_plus_buffer
@@ -193,6 +206,14 @@ impl MarginCalculation {
 
     pub fn meets_margin_requirement(&self) -> bool {
         self.total_collateral >= self.margin_requirement as i128
+    }
+
+    pub fn positions_meets_margin_requirement(&self) -> DriftResult<bool> {
+        Ok(self.total_collateral
+            >= self
+                .margin_requirement
+                .safe_sub(self.open_orders_margin_requirement)?
+                .cast::<i128>()?)
     }
 
     pub fn can_exit_liquidation(&self) -> DriftResult<bool> {

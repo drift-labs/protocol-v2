@@ -728,16 +728,20 @@ fn test_lp_margin_calc() {
 
     let strict_quote_price = StrictOraclePrice::test(1000000);
     // ensure margin calc doesnt incorrectly count funding rate (funding pnl MUST come before settling lp)
-    let (margin_requirement, weighted_unrealized_pnl, worse_case_base_asset_value) =
-        calculate_perp_position_value_and_pnl(
-            &user.perp_positions[0],
-            &market,
-            &oracle_price_data,
-            &strict_quote_price,
-            crate::math::margin::MarginRequirementType::Initial,
-            0,
-        )
-        .unwrap();
+    let (
+        margin_requirement,
+        weighted_unrealized_pnl,
+        worse_case_base_asset_value,
+        _open_order_fraction,
+    ) = calculate_perp_position_value_and_pnl(
+        &user.perp_positions[0],
+        &market,
+        &oracle_price_data,
+        &strict_quote_price,
+        crate::math::margin::MarginRequirementType::Initial,
+        0,
+    )
+    .unwrap();
 
     assert_eq!(margin_requirement, 1012000000); // $1010 + $2 mr for lp_shares
     assert_eq!(weighted_unrealized_pnl, -9916900000); // $-9900000000 upnl (+ -16900000 from old funding)

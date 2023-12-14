@@ -8,6 +8,7 @@ use solana_program::msg;
 
 use crate::controller;
 use crate::controller::funding::settle_funding_payment;
+use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
@@ -57,7 +58,9 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_swap::select_margin_type_for_swap;
 use crate::print_error;
-use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
+use crate::state::events::{
+    emit_stack, get_order_action_record, LPAction, LPRecord, OrderActionRecord, OrderRecord,
+};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
@@ -2711,8 +2714,15 @@ pub fn force_cancel_orders(
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
-    let meets_initial_margin_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::standard(MarginRequirementType::Initial),
+    )?;
+
+    let meets_initial_margin_requirement = margin_calc.meets_margin_requirement();
 
     validate!(
         !meets_initial_margin_requirement,
@@ -2781,6 +2791,19 @@ pub fn force_cancel_orders(
         )?;
     }
 
+    // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
+    if user.max_margin_ratio != 0 && !margin_calc.positions_meets_margin_requirement()? {
+        let set_reduce_only_orders = false; // todo
+        burn_user_lp_shares(
+            user,
+            &user_key,
+            perp_market_map,
+            oracle_map,
+            now,
+            set_reduce_only_orders,
+        )?;
+    }
+
     pay_keeper_flat_reward_for_spot(
         user,
         Some(filler),
@@ -2799,6 +2822,58 @@ pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index:
         Some(user) => user.force_get_perp_position_mut(market_index).is_ok(),
         None => false,
     }
+}
+
+pub fn burn_user_lp_shares(
+    user: &mut User,
+    user_key: &Pubkey,
+    perp_market_map: &PerpMarketMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+    set_reduce_only_orders: bool,
+) -> DriftResult {
+    for perp_position in user.perp_positions.iter_mut() {
+        if perp_position.is_lp() {
+            let lp_shares = perp_position.lp_shares;
+            let market_index = perp_position.market_index;
+
+            let market = perp_market_map.get_ref(&market_index)?;
+            let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+            let oracle_price = if market.status == MarketStatus::Settlement {
+                market.expiry_price
+            } else {
+                oracle_price_data.price
+            };
+
+            let (position_delta, pnl) = burn_lp_shares(
+                perp_position,
+                perp_market_map
+                    .get_ref_mut(&perp_position.market_index)?
+                    .deref_mut(),
+                lp_shares,
+                oracle_price,
+            )?;
+
+            // emit LP record for shares removed
+            emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
+                ts: now,
+                action: LPAction::RemoveLiquidity,
+                user: *user_key,
+                n_shares: lp_shares,
+                market_index: perp_position.market_index,
+                delta_base_asset_amount: position_delta.base_asset_amount,
+                delta_quote_asset_amount: position_delta.quote_asset_amount,
+                pnl,
+            })?;
+
+            if set_reduce_only_orders {
+                // do place reduce only oracle limit order
+            }
+        }
+    }
+
+    Ok(())
 }
 
 pub fn pay_keeper_flat_reward_for_perps(

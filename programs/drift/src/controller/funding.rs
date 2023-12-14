@@ -165,7 +165,7 @@ pub fn update_funding_rate(
         oracle_map.get_price_data(&market.amm.oracle)?,
         guard_rails,
         Some(reserve_price),
-        slot
+        slot,
     )?;
 
     let time_until_next_update = on_the_hour_update(
