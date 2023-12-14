@@ -5,6 +5,7 @@ pub use drift_program::{
     controller::position::PositionDirection,
     state::{
         order_params::{OrderParams, PostOnlyParam},
+        spot_market::SpotMarket,
         user::{MarketType, Order, OrderType, PerpPosition, SpotPosition},
     },
 };

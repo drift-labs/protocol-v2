@@ -28,6 +28,15 @@ pub fn state_account() -> &'static Pubkey {
     })
 }
 
+/// calculate the PDA of a drift spot market given index
+pub fn derive_spot_market_account(market_index: u16) -> Pubkey {
+    let (account, _seed) = Pubkey::find_program_address(
+        &[&b"spot_market"[..], &market_index.to_le_bytes()],
+        &PROGRAM_ID,
+    );
+    account
+}
+
 /// Metadata of deployed spot market
 #[derive(Copy, Clone)]
 pub struct SpotMarketConfig<'a> {
@@ -41,10 +50,7 @@ pub struct SpotMarketConfig<'a> {
 
 impl<'a> SpotMarketConfig<'a> {
     fn new(symbol: &'a str, market_index: u16, oracle: Pubkey, precision_exp: u8) -> Self {
-        let (account, _seed) = Pubkey::find_program_address(
-            &[&b"spot_market"[..], &market_index.to_le_bytes()],
-            &PROGRAM_ID,
-        );
+        let account = derive_spot_market_account(market_index);
         Self {
             symbol,
             market_index,

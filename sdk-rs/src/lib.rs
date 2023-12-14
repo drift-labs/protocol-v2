@@ -3,16 +3,17 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
-use constants::{state_account, PerpMarketConfig, SpotMarketConfig};
+use constants::{derive_spot_market_account, state_account, PerpMarketConfig, SpotMarketConfig};
 use drift_program::{
     controller::position::PositionDirection,
     math::constants::QUOTE_SPOT_MARKET_INDEX,
     state::{
         order_params::{ModifyOrderParams, OrderParams},
+        spot_market::SpotMarket,
         user::{MarketType, Order, OrderStatus, PerpPosition, SpotPosition, User},
     },
 };
-use futures_util::stream::StreamExt;
+use futures_util::{future::BoxFuture, FutureExt, StreamExt};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient},
@@ -20,7 +21,7 @@ use solana_client::{
 };
 pub use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
-    account::{Account, AccountSharedData, ReadableAccount},
+    account::{Account, AccountSharedData},
     commitment_config::{CommitmentConfig, CommitmentLevel},
     instruction::{AccountMeta, Instruction},
     signature::{keypair_from_seed, Keypair, Signature},
@@ -28,6 +29,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use tokio::sync::{
+    oneshot::{self},
     watch::{self, Receiver},
     RwLock,
 };
@@ -38,28 +40,142 @@ pub mod types;
 use types::*;
 pub mod utils;
 
-/// Drift Client API
-///
-/// Cheaply clonable
-#[derive(Clone)]
-pub struct DriftClient {
-    backend: &'static DriftClientBackend,
+/// Provides solana Account fetching implementation
+pub trait AccountProvider: 'static + Sized {
+    /// Return the Account information of `account`
+    fn get_account(&self, account: Pubkey) -> BoxFuture<SdkResult<Account>>;
 }
 
-impl DriftClient {
-    pub async fn new(endpoint: &str) -> SdkResult<Self> {
+/// Account provider that always fetches from RPC
+pub struct RpcAccountProvider {
+    client: RpcClient,
+}
+
+impl RpcAccountProvider {
+    pub fn new(endpoint: &str) -> Self {
+        Self {
+            client: RpcClient::new(endpoint.to_string()),
+        }
+    }
+    async fn get_account_impl(&self, account: Pubkey) -> SdkResult<Account> {
+        let account_data: Account = self.client.get_account(&account).await?;
+        Ok(account_data)
+    }
+}
+
+impl AccountProvider for RpcAccountProvider {
+    fn get_account(&self, account: Pubkey) -> BoxFuture<SdkResult<Account>> {
+        self.get_account_impl(account).boxed()
+    }
+}
+
+/// Account provider using websocket subscriptions to receive and cache account updates
+pub struct WsAccountProvider {
+    rpc_client: RpcClient,
+    ws_client: Arc<PubsubClient>,
+    // TODO: use a non-hashing variant
+    account_cache: RwLock<HashMap<Pubkey, Receiver<Account>>>,
+}
+
+impl WsAccountProvider {
+    const RPC_CONFIG: RpcAccountInfoConfig = RpcAccountInfoConfig {
+        encoding: Some(UiAccountEncoding::Base64Zstd),
+        data_slice: None,
+        commitment: Some(CommitmentConfig {
+            commitment: CommitmentLevel::Confirmed,
+        }),
+        min_context_slot: None,
+    };
+    /// Create a new WsAccountProvider given an endpoint that serves both http(s) and ws(s)
+    pub async fn new(url: &str) -> SdkResult<Self> {
+        let ws_url = if url.starts_with("https://") {
+            let uri = url.strip_prefix("https://").unwrap();
+            format!("wss://{}", uri)
+        } else {
+            let uri = url.strip_prefix("http://").expect("valid http(s) URI");
+            format!("ws://{}", uri)
+        };
+
+        let ws_client = PubsubClient::new(&ws_url).await?;
         Ok(Self {
-            backend: Box::leak(Box::new(DriftClientBackend::new(endpoint).await?)),
+            rpc_client: RpcClient::new(url.to_string()),
+            ws_client: Arc::new(ws_client),
+            account_cache: Default::default(),
         })
     }
-    /// Transparently subscribe to account updates for a given account/sub-account, enabling more efficient, cached queries.
-    ///
-    /// `account` the drift user PDA
-    ///
-    /// This does not return anything but allows subsequent queries to benefit, useful for long-lived workloads expecting to query the same account frequently.
-    /// In contrast, the default behaviour is to _always_ fetch the account data via network request which maybe better for ad-hoc workloads.
-    pub async fn subscribe_account(&self, account: &Pubkey) -> SdkResult<()> {
-        self.backend.subscribe_account(account).await
+    /// Fetch an account and initiate subscription for future updates
+    async fn get_account_impl(&self, account: Pubkey) -> SdkResult<Account> {
+        {
+            let cache = self.account_cache.read().await;
+            if let Some(account_data) = cache.get(&account) {
+                return Ok(account_data.borrow().clone());
+            }
+        }
+
+        // fetch initial account data, stream only updates on changes
+        let account_data: Account = self.rpc_client.get_account(&account).await?;
+        let (tx, rx) = watch::channel(account_data.clone());
+
+        {
+            let mut cache = self.account_cache.write().await;
+            cache.insert(account, rx);
+        }
+
+        let ws_client_handle = Arc::clone(&self.ws_client);
+        let (status_tx, status_rx) = oneshot::channel();
+
+        tokio::spawn(async move {
+            // TODO: handle unsub, after account is unused for some TTL unsub & drop from cache
+            let result = ws_client_handle
+                .account_subscribe(&account, Some(Self::RPC_CONFIG))
+                .await;
+
+            if let Err(err) = result {
+                status_tx.send(Err(err)).expect("sent");
+                return;
+            }
+
+            status_tx.send(Ok(())).expect("sent");
+            let (mut account_stream, _unsub) = result.unwrap();
+
+            while let Some(response) = account_stream.next().await {
+                let account_data = response
+                    .value
+                    .decode::<AccountSharedData>()
+                    .expect("account");
+                tx.send(account_data.into()).expect("sent");
+            }
+        });
+
+        status_rx
+            .await
+            .expect("recv")
+            .map(|_| account_data)
+            .map_err(|err| SdkError::Ws(err))
+    }
+}
+
+impl AccountProvider for WsAccountProvider {
+    fn get_account(&self, account: Pubkey) -> BoxFuture<SdkResult<Account>> {
+        self.get_account_impl(account).boxed()
+    }
+}
+
+/// Drift Client API
+///
+/// Cheaply clone-able
+#[derive(Clone)]
+pub struct DriftClient<T: AccountProvider> {
+    backend: &'static DriftClientBackend<T>,
+}
+
+impl<T: AccountProvider> DriftClient<T> {
+    pub async fn new(endpoint: &str, account_provider: T) -> SdkResult<Self> {
+        Ok(Self {
+            backend: Box::leak(Box::new(
+                DriftClientBackend::new(endpoint, account_provider).await?,
+            )),
+        })
     }
 
     /// Get an account's open order by id
@@ -70,7 +186,7 @@ impl DriftClient {
         account: &Pubkey,
         order_id: u32,
     ) -> SdkResult<Option<Order>> {
-        let user = self.backend.get_account(account).await?;
+        let user = self.backend.get_account::<User>(account).await?;
 
         Ok(user.orders.iter().find(|o| o.order_id == order_id).copied())
     }
@@ -83,7 +199,7 @@ impl DriftClient {
         account: &Pubkey,
         user_order_id: u8,
     ) -> SdkResult<Option<Order>> {
-        let user = self.backend.get_account(account).await?;
+        let user = self.backend.get_account::<User>(account).await?;
 
         Ok(user
             .orders
@@ -96,7 +212,7 @@ impl DriftClient {
     ///
     /// `account` the drift user PDA
     pub async fn all_orders(&self, account: &Pubkey) -> SdkResult<Vec<Order>> {
-        let user = self.backend.get_account(account).await?;
+        let user = self.backend.get_account::<User>(account).await?;
 
         Ok(user
             .orders
@@ -113,7 +229,7 @@ impl DriftClient {
         &self,
         account: &Pubkey,
     ) -> SdkResult<(Vec<SpotPosition>, Vec<PerpPosition>)> {
-        let user = self.backend.get_account(account).await?;
+        let user = self.backend.get_account::<User>(account).await?;
 
         Ok((
             user.spot_positions
@@ -139,7 +255,7 @@ impl DriftClient {
         account: &Pubkey,
         market_index: u16,
     ) -> SdkResult<Option<PerpPosition>> {
-        let user = self.backend.get_account(account).await?;
+        let user = self.backend.get_account::<User>(account).await?;
 
         Ok(user
             .perp_positions
@@ -158,7 +274,7 @@ impl DriftClient {
         account: &Pubkey,
         market_index: u16,
     ) -> SdkResult<Option<SpotPosition>> {
-        let user = self.backend.get_account(account).await?;
+        let user = self.backend.get_account::<User>(account).await?;
 
         Ok(user
             .spot_positions
@@ -172,7 +288,7 @@ impl DriftClient {
     /// `account` the drift user PDA
     ///
     /// Returns the deserialzied account data (`User`)
-    pub async fn get_account_data(&self, account: &Pubkey) -> SdkResult<User> {
+    pub async fn get_user_account(&self, account: &Pubkey) -> SdkResult<User> {
         self.backend.get_account(account).await
     }
 
@@ -182,101 +298,35 @@ impl DriftClient {
     pub async fn sign_and_send(&self, wallet: &Wallet, tx: Transaction) -> SdkResult<Signature> {
         self.backend.sign_and_send(wallet, tx).await
     }
+
+    /// Get live info of a spot market
+    pub async fn get_spot_market_info(&self, market_index: u16) -> SdkResult<SpotMarket> {
+        let market = derive_spot_market_account(market_index);
+        self.backend.get_account(&market).await
+    }
 }
 
 /// Provides the heavy-lifting and network facing features of the SDK
 /// It is intended to be a singleton
-pub struct DriftClientBackend {
+pub struct DriftClientBackend<T: AccountProvider> {
     rpc_client: RpcClient,
-    ws_client: PubsubClient,
-    account_cache: RwLock<HashMap<Pubkey, Receiver<User>>>,
+    account_provider: T,
 }
 
-impl DriftClientBackend {
-    const fn rpc_config() -> RpcAccountInfoConfig {
-        RpcAccountInfoConfig {
-            encoding: Some(UiAccountEncoding::Base64Zstd),
-            data_slice: None,
-            commitment: Some(CommitmentConfig {
-                commitment: CommitmentLevel::Confirmed,
-            }),
-            min_context_slot: None,
-        }
-    }
+impl<T: AccountProvider> DriftClientBackend<T> {
     /// Initialize a new `DriftClientBackend`
-    async fn new(endpoint: &str) -> SdkResult<DriftClientBackend> {
+    async fn new(endpoint: &str, account_provider: T) -> SdkResult<DriftClientBackend<T>> {
         let rpc_client = RpcClient::new(endpoint.to_string());
-
-        let ws_url = if endpoint.starts_with("https://") {
-            let uri = endpoint.strip_prefix("https://").unwrap();
-            format!("wss://{}", uri)
-        } else {
-            let uri = endpoint.strip_prefix("http://").expect("valid http(s) URI");
-            format!("ws://{}", uri)
-        };
-
-        let ws_client = PubsubClient::new(&ws_url).await?;
-
         Ok(Self {
             rpc_client,
-            ws_client,
-            account_cache: Default::default(),
+            account_provider,
         })
     }
 
-    /// Setup a subscription for account/sub-account updates
-    ///
-    /// Provides event-driven updates and caching of the account data, reducing RPC calls for queries related to this account
-    async fn subscribe_account(&'static self, account: &Pubkey) -> SdkResult<()> {
-        // debug!(target: "drift", "using PDA: {}", &account_drift_pda);
-
-        // scope the lock
-        {
-            let cache = self.account_cache.read().await;
-            if cache.contains_key(account) {
-                return Ok(());
-            }
-        }
-
-        // fetch initial account data, stream only updates on changes
-        let user: User = self.get_account(account).await?;
-        let (tx, rx) = watch::channel(user);
-
-        {
-            let mut cache = self.account_cache.write().await;
-            cache.insert(*account, rx);
-        }
-
-        // TODO: handle unsub
-        let (mut account_stream, _unsub) = self
-            .ws_client
-            .account_subscribe(account, Some(Self::rpc_config()))
-            .await?;
-
-        tokio::spawn(async move {
-            while let Some(response) = account_stream.next().await {
-                let account_data = response
-                    .value
-                    .decode::<AccountSharedData>()
-                    .expect("account");
-                let mut data = account_data.data();
-                let user = User::try_deserialize(&mut data).expect("ok");
-                tx.send(user).expect("sent");
-            }
-        });
-
-        Ok(())
-    }
-
     /// Fetch drift account data (PDA) for `account`
-    async fn get_account(&self, account: &Pubkey) -> SdkResult<User> {
-        if let Some(rx) = self.account_cache.read().await.get(account) {
-            Ok(*rx.borrow())
-        } else {
-            let account_data: Account = self.rpc_client.get_account(account).await?;
-            User::try_deserialize(&mut account_data.data.as_ref())
-                .map_err(|_err| SdkError::InvalidAccount)
-        }
+    async fn get_account<U: AccountDeserialize>(&self, account: &Pubkey) -> SdkResult<U> {
+        let account_data = self.account_provider.get_account(account.clone()).await?;
+        U::try_deserialize(&mut account_data.data.as_ref()).map_err(|_err| SdkError::InvalidAccount)
     }
 
     /// Sign and send a tx to the network
@@ -711,18 +761,21 @@ mod tests {
 
     // static account data for test/mock
     const ACCOUNT_DATA: &str = include_str!("../res/9Jtc.hex");
+    const DEVNET_ENDPOINT: &str = "https://api.devnet.solana.com";
 
     /// Init a new `DriftClient` with provided mocked RPC responses
-    async fn setup(mocks: Mocks) -> DriftClient {
-        let mock_rpc_client =
-            RpcClient::new_mock_with_mocks("https://api.devnet.solana.com".to_string(), mocks);
-
-        let backend: DriftClientBackend = DriftClientBackend {
-            rpc_client: mock_rpc_client,
-            ws_client: PubsubClient::new("wss://api.devnet.solana.com")
-                .await
-                .expect("ok"),
-            account_cache: Default::default(),
+    async fn setup(
+        rpc_mocks: Mocks,
+        account_provider_mocks: Mocks,
+    ) -> DriftClient<RpcAccountProvider> {
+        let backend = DriftClientBackend {
+            rpc_client: RpcClient::new_mock_with_mocks(DEVNET_ENDPOINT.to_string(), rpc_mocks),
+            account_provider: RpcAccountProvider {
+                client: RpcClient::new_mock_with_mocks(
+                    DEVNET_ENDPOINT.to_string(),
+                    account_provider_mocks,
+                ),
+            },
         };
 
         DriftClient {
@@ -735,7 +788,7 @@ mod tests {
         let user = Pubkey::from_str("9JtczxrJjPM4J1xooxr2rFXmRivarb4BwjNiBgXDwe2p").unwrap();
         let account_data = hex::decode(ACCOUNT_DATA).expect("valid hex");
 
-        let mut mocks = Mocks::default();
+        let mut account_mocks = Mocks::default();
         let account_response = json!(Response {
             context: RpcResponseContext::new(12_345),
             value: Some(UiAccount {
@@ -749,8 +802,9 @@ mod tests {
                 rent_epoch: 0,
             })
         });
-        mocks.insert(RpcRequest::GetAccountInfo, account_response.clone());
-        let client = setup(mocks).await;
+        account_mocks.insert(RpcRequest::GetAccountInfo, account_response.clone());
+
+        let client = setup(Default::default(), account_mocks).await;
 
         let orders = client.all_orders(&user).await.unwrap();
         assert_eq!(orders.len(), 3);
@@ -761,7 +815,7 @@ mod tests {
         let user = Pubkey::from_str("9JtczxrJjPM4J1xooxr2rFXmRivarb4BwjNiBgXDwe2p").unwrap();
         let account_data = hex::decode(ACCOUNT_DATA).expect("valid hex");
 
-        let mut mocks = Mocks::default();
+        let mut account_mocks = Mocks::default();
         let account_response = json!(Response {
             context: RpcResponseContext::new(12_345),
             value: Some(UiAccount {
@@ -775,8 +829,8 @@ mod tests {
                 rent_epoch: 0,
             })
         });
-        mocks.insert(RpcRequest::GetAccountInfo, account_response.clone());
-        let client = setup(mocks).await;
+        account_mocks.insert(RpcRequest::GetAccountInfo, account_response.clone());
+        let client = setup(Default::default(), account_mocks).await;
 
         let (spot, perp) = client.all_positions(&user).await.unwrap();
         assert_eq!(spot.len(), 1);

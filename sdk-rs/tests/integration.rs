@@ -1,21 +1,24 @@
 use drift_program::math::constants::{LAMPORTS_PER_SOL_I64, QUOTE_PRECISION_U64};
 use drift_sdk::{
     types::{Context, MarketId, NewOrder},
-    DriftClient, TransactionBuilder, Wallet,
+    DriftClient, RpcAccountProvider, TransactionBuilder, Wallet,
 };
 
 #[ignore]
 #[tokio::test]
 async fn do_the_thing() {
-    let client = DriftClient::new("https://api.devnet.solana.com")
-        .await
-        .expect("connects");
+    let client = DriftClient::new(
+        "https://api.devnet.solana.com",
+        RpcAccountProvider::new("https://api.devnet.solana.com"),
+    )
+    .await
+    .expect("connects");
     let wallet = Wallet::from_seed_bs58(
         Context::DevNet,
         "4ZT38mSeFhzzDRCMTMbwDp7VYWDqNfkvDR42Wv4Hu9cKzbZPJoVapQSrjLbs9aMPrpAMmN1cQinztnP2PzKVjzwX",
     );
 
-    let user_data = client.get_account_data(wallet.user()).await.expect("ok");
+    let user_data = client.get_user_account(wallet.user()).await.expect("ok");
 
     let sol = MarketId::lookup(Context::DevNet, "sol-perp").expect("exists");
     let sol_spot = MarketId::lookup(Context::DevNet, "sol").expect("exists");
