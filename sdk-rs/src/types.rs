@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use drift_program::error::ErrorCode;
 // re-export types in public API
 pub use drift_program::{
     controller::position::PositionDirection,
@@ -9,7 +10,11 @@ pub use drift_program::{
         user::{MarketType, Order, OrderType, PerpPosition, SpotPosition},
     },
 };
-use solana_sdk::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_sdk::{
+    instruction::{AccountMeta, InstructionError},
+    pubkey::Pubkey,
+    transaction::TransactionError,
+};
 use thiserror::Error;
 
 use crate::constants::{perp_market_configs, spot_market_configs};
@@ -191,6 +196,23 @@ pub enum SdkError {
     InvalidBase58,
 }
 
+impl SdkError {
+    /// extract anchor error code from the SdkError if it exists
+    pub fn to_anchor_error_code(&self) -> Option<ErrorCode> {
+        if let SdkError::Rpc(inner) = self {
+            if let Some(TransactionError::InstructionError(_, InstructionError::Custom(code))) =
+                inner.get_transaction_error()
+            {
+                // inverse of anchor's 'From<ErrorCode> for u32'
+                return Some(unsafe {
+                    std::mem::transmute(code - anchor_lang::error::ERROR_CODE_OFFSET)
+                });
+            }
+        }
+        None
+    }
+}
+
 /// Helper type for Accounts included in drift instructions
 ///
 /// Provides sorting implementation matching drift program
@@ -253,9 +275,46 @@ impl From<RemainingAccount> for AccountMeta {
 
 #[cfg(test)]
 mod tests {
-    use solana_sdk::pubkey::Pubkey;
+    use drift_program::error::ErrorCode;
+    use solana_client::{
+        client_error::{ClientError, ClientErrorKind},
+        rpc_request::{RpcError, RpcRequest},
+        rpc_response::RpcSimulateTransactionResult,
+    };
+    use solana_sdk::{
+        instruction::InstructionError, pubkey::Pubkey, transaction::TransactionError,
+    };
 
-    use super::{Context, MarketId, RemainingAccount};
+    use super::{Context, MarketId, RemainingAccount, SdkError};
+
+    #[test]
+    fn extract_anchor_error() {
+        let err = SdkError::Rpc(
+            ClientError {
+                request: Some(RpcRequest::SendTransaction),
+                kind: ClientErrorKind::RpcError(
+                    RpcError::RpcResponseError {
+                        code: -32002,
+                        message: "Transaction simulation failed: Error processing Instruction 0: custom program error: 0x17b7".to_string(),
+                        data: solana_client::rpc_request::RpcResponseErrorData::SendTransactionPreflightFailure(
+                            RpcSimulateTransactionResult {
+                                err: Some(TransactionError::InstructionError(0, InstructionError::Custom(6071))),
+                                logs: None,
+                                accounts: None,
+                                units_consumed: None,
+                                return_data: None,
+                            }
+                        )
+                    }
+                )
+            }
+        );
+
+        assert_eq!(
+            err.to_anchor_error_code().unwrap(),
+            ErrorCode::UserOrderIdAlreadyInUse,
+        );
+    }
 
     #[test]
     fn market_id_lookups() {
