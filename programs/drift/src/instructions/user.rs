@@ -2682,13 +2682,15 @@ pub fn handle_end_swap(
     user.update_cumulative_spot_fees(-fee_value.cast()?)?;
     user_stats.increment_total_fees(fee_value.cast()?)?;
 
-    // update taker volume
-    let amount_out_value = get_token_value(
-        amount_out.cast()?,
-        out_spot_market.decimals,
-        out_oracle_price,
-    )?;
-    user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+    if fee != 0 {
+        // update taker volume
+        let amount_out_value = get_token_value(
+            amount_out.cast()?,
+            out_spot_market.decimals,
+            out_oracle_price,
+        )?;
+        user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+    }
 
     validate!(
         amount_out != 0,
