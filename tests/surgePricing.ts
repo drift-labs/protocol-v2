@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import {
 	TestClient,
