@@ -5,7 +5,7 @@ use drift_program::error::ErrorCode;
 pub use drift_program::{
     controller::position::PositionDirection,
     state::{
-        order_params::{OrderParams, PostOnlyParam},
+        order_params::{ModifyOrderParams, OrderParams, PostOnlyParam},
         spot_market::SpotMarket,
         user::{MarketType, Order, OrderType, PerpPosition, SpotPosition},
     },

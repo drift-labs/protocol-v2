@@ -511,7 +511,7 @@ impl<'a> TransactionBuilder<'a> {
     }
 
     /// Modify existing order(s)
-    pub fn modify_orders(mut self, orders: Vec<(u32, OrderParams)>) -> Self {
+    pub fn modify_orders(mut self, orders: Vec<(u32, ModifyOrderParams)>) -> Self {
         for (order_id, params) in orders {
             let accounts = build_accounts(
                 self.wallet.context(),
@@ -530,18 +530,7 @@ impl<'a> TransactionBuilder<'a> {
                 accounts,
                 data: InstructionData::data(&drift_program::instruction::ModifyOrder {
                     order_id: Some(order_id),
-                    modify_order_params: ModifyOrderParams {
-                        direction: Some(params.direction),
-                        base_asset_amount: Some(params.base_asset_amount),
-                        price: Some(params.price),
-                        max_ts: params.max_ts,
-                        oracle_price_offset: params.oracle_price_offset,
-                        auction_duration: params.auction_duration,
-                        auction_end_price: params.auction_end_price,
-                        auction_start_price: params.auction_start_price,
-                        trigger_price: params.trigger_price,
-                        ..Default::default()
-                    },
+                    modify_order_params: params,
                 }),
             };
             self.ixs.push(ix);
