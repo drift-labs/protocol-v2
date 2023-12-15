@@ -8095,6 +8095,7 @@ pub mod fulfill_spot_order {
         LAMPORTS_PER_SOL_I64, LAMPORTS_PER_SOL_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
+    use crate::state::fill_mode::FillMode;
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_fulfillment_params::TestFulfillmentParams;
@@ -8532,6 +8533,7 @@ pub mod fulfill_spot_order {
             Some(1),
             &clock,
             &mut TestFulfillmentParams {},
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -8707,6 +8709,7 @@ pub mod fulfill_spot_order {
             Some(1),
             &clock,
             &mut TestFulfillmentParams {},
+            FillMode::Fill,
         );
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
@@ -8726,6 +8729,7 @@ pub mod fill_spot_order {
         LAMPORTS_PER_SOL_I64, LAMPORTS_PER_SOL_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
+    use crate::state::fill_mode::FillMode;
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_fulfillment_params::TestFulfillmentParams;
@@ -8885,6 +8889,7 @@ pub mod fill_spot_order {
             Some(1),
             &clock,
             &mut TestFulfillmentParams {},
+            FillMode::Fill,
         )
         .unwrap();
 

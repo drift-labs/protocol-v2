@@ -795,11 +795,6 @@ pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         Some(state.oracle_guard_rails),
     )?;
 
-    if params.immediate_or_cancel {
-        msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
-    }
-
     controller::orders::place_perp_order(
         &ctx.accounts.state,
         &ctx.accounts.user,
@@ -845,6 +840,7 @@ pub fn handle_cancel_order(ctx: Context<CancelOrder>, order_id: Option<u32>) -> 
         &spot_market_map,
         &mut oracle_map,
         clock,
+        OrderActionExplanation::None,
     )?;
 
     Ok(())
@@ -908,6 +904,7 @@ pub fn handle_cancel_orders_by_ids(ctx: Context<CancelOrder>, order_ids: Vec<u32
             &spot_market_map,
             &mut oracle_map,
             clock,
+            OrderActionExplanation::None,
         )?;
     }
 
@@ -1065,17 +1062,12 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
 
     let num_orders = params.len();
     for (i, params) in params.iter().enumerate() {
-        validate!(
-            !params.immediate_or_cancel,
-            ErrorCode::InvalidOrderIOC,
-            "immediate_or_cancel order must be in place_and_make or place_and_take"
-        )?;
-
         // only enforce margin on last order and only try to expire on first order
         let options = PlaceOrderOptions {
             enforce_margin_check: i == num_orders - 1,
             try_expire_orders: i == 0,
             risk_increasing: false,
+            atomic_fill: false,
         };
 
         if params.market_type == MarketType::Perp {
@@ -1156,7 +1148,7 @@ pub fn handle_place_and_take_perp_order<'info>(
         &mut oracle_map,
         &Clock::get()?,
         params,
-        PlaceOrderOptions::default(),
+        PlaceOrderOptions::default().atomic_fill(),
     )?;
 
     let user = &mut ctx.accounts.user;
@@ -1192,6 +1184,7 @@ pub fn handle_place_and_take_perp_order<'info>(
             &spot_market_map,
             &mut oracle_map,
             &Clock::get()?,
+            OrderActionExplanation::IocOrder,
         )?;
     }
 
@@ -1246,7 +1239,7 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         &mut oracle_map,
         clock,
         params,
-        PlaceOrderOptions::default(),
+        PlaceOrderOptions::default().atomic_fill(),
     )?;
 
     let (order_id, authority) = {
@@ -1290,6 +1283,7 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
             &spot_market_map,
             &mut oracle_map,
             clock,
+            OrderActionExplanation::IocOrder,
         )?;
     }
 
@@ -1308,11 +1302,6 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         Clock::get()?.slot,
         None,
     )?;
-
-    if params.immediate_or_cancel {
-        msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
-    }
 
     controller::orders::place_spot_order(
         &ctx.accounts.state,
@@ -1411,7 +1400,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         &mut oracle_map,
         &clock,
         params,
-        PlaceOrderOptions::default(),
+        PlaceOrderOptions::default().atomic_fill(),
     )?;
 
     let user = &mut ctx.accounts.user;
@@ -1432,6 +1421,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         maker_order_id,
         &clock,
         fulfillment_params.as_mut(),
+        FillMode::PlaceAndTake,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1447,6 +1437,7 @@ pub fn handle_place_and_take_spot_order<'info>(
             &spot_market_map,
             &mut oracle_map,
             &clock,
+            OrderActionExplanation::IocOrder,
         )?;
     }
 
@@ -1535,7 +1526,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         &mut oracle_map,
         clock,
         params,
-        PlaceOrderOptions::default(),
+        PlaceOrderOptions::default().atomic_fill(),
     )?;
 
     let order_id = load!(ctx.accounts.user)?.get_last_order_id();
@@ -1555,6 +1546,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         Some(order_id),
         clock,
         fulfillment_params.as_mut(),
+        FillMode::PlaceAndMake,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1570,6 +1562,7 @@ pub fn handle_place_and_make_spot_order<'info>(
             &spot_market_map,
             &mut oracle_map,
             clock,
+            OrderActionExplanation::IocOrder,
         )?;
     }
 

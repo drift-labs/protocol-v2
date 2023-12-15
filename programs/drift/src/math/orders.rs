@@ -366,6 +366,20 @@ pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> Dr
     Ok(now > order.max_ts)
 }
 
+#[inline(always)]
+pub fn should_cancel_ioc_order(
+    user: &User,
+    user_order_index: usize,
+    slot: u64,
+) -> DriftResult<bool> {
+    let order = &user.orders[user_order_index];
+    if !order.immediate_or_cancel {
+        return Ok(false);
+    }
+
+    order.is_auction_complete(slot)
+}
+
 pub fn should_cancel_reduce_only_order(
     order: &Order,
     existing_base_asset_amount: i64,

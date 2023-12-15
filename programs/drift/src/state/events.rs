@@ -284,6 +284,7 @@ pub enum OrderActionExplanation {
     OrderFillWithPhoenix,
     OrderFilledWithAMMJitLPSplit,
     OrderFilledWithLPJit,
+    IocOrder,
 }
 
 impl Default for OrderAction {

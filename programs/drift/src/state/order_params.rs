@@ -72,6 +72,7 @@ pub struct PlaceOrderOptions {
     pub try_expire_orders: bool,
     pub enforce_margin_check: bool,
     pub risk_increasing: bool,
+    pub atomic_fill: bool,
 }
 
 impl Default for PlaceOrderOptions {
@@ -80,6 +81,7 @@ impl Default for PlaceOrderOptions {
             try_expire_orders: true,
             enforce_margin_check: true,
             risk_increasing: false,
+            atomic_fill: false,
         }
     }
 }
@@ -87,5 +89,10 @@ impl Default for PlaceOrderOptions {
 impl PlaceOrderOptions {
     pub fn update_risk_increasing(&mut self, risk_increasing: bool) {
         self.risk_increasing = self.risk_increasing || risk_increasing;
+    }
+
+    pub fn atomic_fill(mut self) -> Self {
+        self.atomic_fill = true;
+        self
     }
 }

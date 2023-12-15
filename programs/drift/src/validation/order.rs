@@ -16,12 +16,15 @@ pub fn validate_order(
     market: &PerpMarket,
     valid_oracle_price: Option<i64>,
     slot: u64,
+    atomic_fill: bool,
 ) -> DriftResult {
     match order.order_type {
         OrderType::Market => {
             validate_market_order(order, market.amm.order_step_size, market.amm.min_order_size)?
         }
-        OrderType::Limit => validate_limit_order(order, market, valid_oracle_price, slot)?,
+        OrderType::Limit => {
+            validate_limit_order(order, market, valid_oracle_price, slot, atomic_fill)?
+        }
         OrderType::TriggerMarket => validate_trigger_market_order(
             order,
             market.amm.order_step_size,
@@ -150,6 +153,7 @@ fn validate_limit_order(
     market: &PerpMarket,
     valid_oracle_price: Option<i64>,
     slot: u64,
+    atomic_fill: bool,
 ) -> DriftResult {
     validate_base_asset_amount(
         order,
@@ -184,6 +188,14 @@ fn validate_limit_order(
     }
 
     validate_limit_order_auction_params(order)?;
+
+    if order.immediate_or_cancel {
+        validate!(
+            atomic_fill || order.has_auction(),
+            ErrorCode::InvalidOrder,
+            "immediate or cancel limit order must be atomic or have auction"
+        )?;
+    }
 
     Ok(())
 }
@@ -289,6 +301,11 @@ fn validate_trigger_limit_order(order: &Order, step_size: u64, min_order_size: u
         return Err(ErrorCode::InvalidOrderPostOnly);
     }
 
+    if order.immediate_or_cancel {
+        msg!("Trigger limit can not be immediate or cancel");
+        return Err(ErrorCode::InvalidOrderIOC);
+    }
+
     if order.has_oracle_price_offset() {
         msg!("Trigger limit can not have oracle offset");
         return Err(ErrorCode::InvalidOrderOracleOffset);
@@ -325,6 +342,11 @@ fn validate_trigger_market_order(
     if order.post_only {
         msg!("Trigger market order can not be post only");
         return Err(ErrorCode::InvalidOrderPostOnly);
+    }
+
+    if order.immediate_or_cancel {
+        msg!("Trigger market order can not be immediate or cancel");
+        return Err(ErrorCode::InvalidOrderIOC);
     }
 
     if order.has_oracle_price_offset() {
@@ -422,10 +444,17 @@ fn validate_auction_params(order: &Order) -> DriftResult {
     Ok(())
 }
 
-pub fn validate_spot_order(order: &Order, step_size: u64, min_order_size: u64) -> DriftResult {
+pub fn validate_spot_order(
+    order: &Order,
+    step_size: u64,
+    min_order_size: u64,
+    atomic_fill: bool,
+) -> DriftResult {
     match order.order_type {
         OrderType::Market => validate_market_order(order, step_size, min_order_size)?,
-        OrderType::Limit => validate_spot_limit_order(order, step_size, min_order_size)?,
+        OrderType::Limit => {
+            validate_spot_limit_order(order, step_size, min_order_size, atomic_fill)?
+        }
         OrderType::TriggerMarket => {
             validate_trigger_market_order(order, step_size, min_order_size)?
         }
@@ -436,7 +465,12 @@ pub fn validate_spot_order(order: &Order, step_size: u64, min_order_size: u64) -
     Ok(())
 }
 
-fn validate_spot_limit_order(order: &Order, step_size: u64, min_order_size: u64) -> DriftResult {
+fn validate_spot_limit_order(
+    order: &Order,
+    step_size: u64,
+    min_order_size: u64,
+    atomic_fill: bool,
+) -> DriftResult {
     validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
 
     if order.price == 0 && !order.has_oracle_price_offset() {
@@ -463,6 +497,14 @@ fn validate_spot_limit_order(order: &Order, step_size: u64, min_order_size: u64)
     }
 
     validate_limit_order_auction_params(order)?;
+
+    if order.immediate_or_cancel {
+        validate!(
+            atomic_fill || order.has_auction(),
+            ErrorCode::InvalidOrderIOC,
+            "immediate or cancel limit order must be atomic or have auction"
+        )?;
+    }
 
     Ok(())
 }

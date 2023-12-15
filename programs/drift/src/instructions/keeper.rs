@@ -263,6 +263,7 @@ fn fill_spot_order<'info>(
         maker_order_id,
         &clock,
         fulfillment_params.as_mut(),
+        FillMode::Fill,
     )?;
 
     let base_market = spot_market_map.get_ref(&market_index)?;

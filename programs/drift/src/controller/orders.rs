@@ -270,7 +270,13 @@ pub fn place_perp_order(
     };
 
     let valid_oracle_price = Some(oracle_map.get_price_data(&market.amm.oracle)?.price);
-    match validate_order(&new_order, market, valid_oracle_price, slot) {
+    match validate_order(
+        &new_order,
+        market,
+        valid_oracle_price,
+        slot,
+        options.atomic_fill,
+    ) {
         Ok(()) => {}
         Err(ErrorCode::PlacePostOnlyLimitFailure)
             if params.post_only == PostOnlyParam::TryPostOnly =>
@@ -502,6 +508,7 @@ pub fn cancel_order_by_order_id(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
+    explanation: OrderActionExplanation,
 ) -> DriftResult {
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
@@ -522,7 +529,7 @@ pub fn cancel_order_by_order_id(
         oracle_map,
         clock.unix_timestamp,
         clock.slot,
-        OrderActionExplanation::None,
+        explanation,
         None,
         0,
         false,
@@ -1034,6 +1041,9 @@ pub fn fill_perp_order(
 
     let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
 
+    let should_cancel_ioc_order =
+        !fill_mode.atomic_fill() && should_cancel_ioc_order(user, order_index, slot)?;
+
     let position_index =
         get_position_index(&user.perp_positions, user.orders[order_index].market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
@@ -1046,7 +1056,7 @@ pub fn fill_perp_order(
             .order_step_size,
     )?;
 
-    if should_expire_order || should_cancel_reduce_only {
+    if should_expire_order || should_cancel_reduce_only || should_cancel_ioc_order {
         let filler_reward = {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
             pay_keeper_flat_reward_for_perps(
@@ -1060,8 +1070,10 @@ pub fn fill_perp_order(
 
         let explanation = if should_expire_order {
             OrderActionExplanation::OrderExpired
-        } else {
+        } else if should_cancel_reduce_only {
             OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
+        } else {
+            OrderActionExplanation::IocOrder
         };
 
         cancel_order(
@@ -1351,6 +1363,8 @@ fn get_maker_orders_info(
 
             let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
 
+            let should_cancel_ioc_order = should_cancel_ioc_order(&maker, maker_order_index, slot)?;
+
             let existing_base_asset_amount = maker
                 .get_perp_position(maker.orders[maker_order_index].market_index)?
                 .base_asset_amount;
@@ -1363,6 +1377,7 @@ fn get_maker_orders_info(
             if breaches_oracle_price_limits
                 || should_expire_order
                 || should_cancel_reduce_only_order
+                || should_cancel_ioc_order
             {
                 let filler_reward = {
                     let mut market = perp_market_map
@@ -1380,8 +1395,10 @@ fn get_maker_orders_info(
                     OrderActionExplanation::OraclePriceBreachedLimitPrice
                 } else if should_expire_order {
                     OrderActionExplanation::OrderExpired
-                } else {
+                } else if should_cancel_reduce_only_order {
                     OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
+                } else {
+                    OrderActionExplanation::IocOrder
                 };
 
                 cancel_order(
@@ -3069,6 +3086,7 @@ pub fn place_spot_order(
         &new_order,
         spot_market.order_step_size,
         spot_market.min_order_size,
+        options.atomic_fill,
     )?;
 
     let risk_increasing = is_new_order_risk_increasing(
@@ -3163,6 +3181,7 @@ pub fn fill_spot_order(
     maker_order_id: Option<u32>,
     clock: &Clock,
     fulfillment_params: &mut dyn SpotFulfillmentParams,
+    fill_mode: FillMode,
 ) -> DriftResult<u64> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -3294,6 +3313,9 @@ pub fn fill_spot_order(
 
     let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
 
+    let should_cancel_ioc_order =
+        !fill_mode.atomic_fill() && should_cancel_ioc_order(user, order_index, slot)?;
+
     let should_cancel_reduce_only = if user.orders[order_index].reduce_only {
         let market_index = user.orders[order_index].market_index;
         let position_index = user.get_spot_position_index(market_index)?;
@@ -3309,7 +3331,7 @@ pub fn fill_spot_order(
         false
     };
 
-    if should_expire_order || should_cancel_reduce_only {
+    if should_expire_order || should_cancel_reduce_only || should_cancel_ioc_order {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
@@ -3323,8 +3345,10 @@ pub fn fill_spot_order(
 
         let explanation = if should_expire_order {
             OrderActionExplanation::OrderExpired
-        } else {
+        } else if should_cancel_reduce_only {
             OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
+        } else {
+            OrderActionExplanation::IocOrder
         };
 
         cancel_order(
@@ -3557,6 +3581,8 @@ fn get_spot_maker_order<'a>(
 
     let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
 
+    let should_cancel_ioc_order = should_cancel_ioc_order(&maker, maker_order_index, slot)?;
+
     let should_cancel_reduce_only_order = if maker.orders[maker_order_index].reduce_only {
         let spot_position_index =
             maker.get_spot_position_index(maker.orders[maker_order_index].market_index)?;
@@ -3571,7 +3597,11 @@ fn get_spot_maker_order<'a>(
         false
     };
 
-    if breaches_oracle_price_limits || should_expire_order || should_cancel_reduce_only_order {
+    if breaches_oracle_price_limits
+        || should_expire_order
+        || should_cancel_reduce_only_order
+        || should_cancel_ioc_order
+    {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
@@ -3587,8 +3617,10 @@ fn get_spot_maker_order<'a>(
             OrderActionExplanation::OraclePriceBreachedLimitPrice
         } else if should_expire_order {
             OrderActionExplanation::OrderExpired
-        } else {
+        } else if should_cancel_reduce_only_order {
             OrderActionExplanation::ReduceOnlyOrderIncreasedPosition
+        } else {
+            OrderActionExplanation::IocOrder
         };
 
         cancel_order(
@@ -4670,9 +4702,17 @@ pub fn expire_orders(
     slot: u64,
 ) -> DriftResult {
     for order_index in 0..user.orders.len() {
-        if !should_expire_order(user, order_index, now)? {
+        let should_expire_order = should_expire_order(user, order_index, now)?;
+        let should_cancel_ioc_order = should_cancel_ioc_order(user, order_index, slot)?;
+        if !should_expire_order && !should_cancel_ioc_order {
             continue;
         }
+
+        let explanation = if should_expire_order {
+            OrderActionExplanation::OrderExpired
+        } else {
+            OrderActionExplanation::IocOrder
+        };
 
         cancel_order(
             order_index,
@@ -4683,7 +4723,7 @@ pub fn expire_orders(
             oracle_map,
             now,
             slot,
-            OrderActionExplanation::OrderExpired,
+            explanation,
             None,
             0,
             false,
