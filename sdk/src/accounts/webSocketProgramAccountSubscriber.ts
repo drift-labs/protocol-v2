@@ -91,7 +91,7 @@ export class WebSocketProgramAccountSubscriber<T>
 				console.log(
 					`No ws data from ${this.subscriptionName} in ${this.resubTimeoutMs}ms, resubscribing`
 				);
-				await this.unsubscribe();
+				await this.unsubscribe(true);
 				this.receivingData = false;
 				await this.subscribe(this.onChange);
 			}
@@ -145,12 +145,15 @@ export class WebSocketProgramAccountSubscriber<T>
 		}
 	}
 
-	unsubscribe(): Promise<void> {
+	unsubscribe(onResub = false): Promise<void> {
+		if (!onResub) {
+			this.resubTimeoutMs = undefined;
+		}
 		this.isUnsubscribing = true;
 		clearTimeout(this.timeoutId);
 		this.timeoutId = undefined;
 
-		if (this.listenerId) {
+		if (this.listenerId != null) {
 			const promise = this.program.provider.connection
 				.removeAccountChangeListener(this.listenerId)
 				.then(() => {

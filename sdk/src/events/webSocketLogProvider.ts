@@ -71,7 +71,7 @@ export class WebSocketLogProvider implements LogProvider {
 		clearTimeout(this.timeoutId);
 		this.timeoutId = undefined;
 
-		if (this.subscriptionId !== undefined) {
+		if (this.subscriptionId != null) {
 			try {
 				await this.connection.removeOnLogsListener(this.subscriptionId);
 				this.subscriptionId = undefined;
