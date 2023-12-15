@@ -40,7 +40,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	}
 
 	async subscribe(onChange: (data: T) => void): Promise<void> {
-		if (this.listenerId || this.isUnsubscribing) {
+		if (this.listenerId != null || this.isUnsubscribing) {
 			return;
 		}
 

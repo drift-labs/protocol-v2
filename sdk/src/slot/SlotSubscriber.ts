@@ -31,7 +31,7 @@ export class SlotSubscriber {
 	}
 
 	public async subscribe(): Promise<void> {
-		if (this.subscriptionId) {
+		if (this.subscriptionId != null) {
 			return;
 		}
 

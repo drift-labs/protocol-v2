@@ -49,7 +49,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	async subscribe(
 		onChange: (accountId: PublicKey, data: T, context: Context) => void
 	): Promise<void> {
-		if (this.listenerId || this.isUnsubscribing) {
+		if (this.listenerId != null || this.isUnsubscribing) {
 			return;
 		}
 
