@@ -360,6 +360,10 @@ export class DriftClient {
 				this.userStats.unsubscribe()
 			);
 		}
+		if (this.userAccountSubscriptionConfig.type === 'polling') {
+			this.userAccountSubscriptionConfig.accountLoader.stopPolling();
+		}
+		
 		await Promise.all(unsubscribePromises);
 		this.isSubscribed = false;
 	}
