@@ -445,6 +445,74 @@ mod should_expire_order {
     }
 }
 
+mod should_cancel_ioc_order {
+    use crate::math::orders::should_cancel_ioc_order;
+    use crate::state::user::{Order, OrderType, User};
+    use crate::test_utils::get_orders;
+
+    #[test]
+    fn test() {
+        // no auction
+        let order = Order {
+            order_type: OrderType::Limit,
+            immediate_or_cancel: false,
+            ..Order::default()
+        };
+
+        let user = User {
+            orders: get_orders(order),
+            ..User::default()
+        };
+
+        let slot = 0_u64;
+
+        let result = should_cancel_ioc_order(&user, 0, slot).unwrap();
+
+        assert_eq!(result, false);
+
+        // auction not done
+        let order = Order {
+            order_type: OrderType::Limit,
+            immediate_or_cancel: true,
+            slot: 0,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let user = User {
+            orders: get_orders(order),
+            ..User::default()
+        };
+
+        assert!(!user.orders[0].is_auction_complete(slot).unwrap());
+
+        let result = should_cancel_ioc_order(&user, 0, slot).unwrap();
+
+        assert_eq!(result, false);
+
+        // auction done
+        let order = Order {
+            order_type: OrderType::Limit,
+            immediate_or_cancel: true,
+            slot: 0,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let user = User {
+            orders: get_orders(order),
+            ..User::default()
+        };
+
+        let slot = 11_u64;
+
+        let result = should_cancel_ioc_order(&user, 0, slot).unwrap();
+
+        assert!(user.orders[0].is_auction_complete(slot).unwrap());
+        assert_eq!(result, true);
+    }
+}
+
 mod get_max_fill_amounts {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
