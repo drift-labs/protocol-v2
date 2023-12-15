@@ -150,11 +150,27 @@ describe('BigNum Tests', () => {
 
 		// Case 7: really large numbers + switching between scientific/financial
 		expect(BigNum.fromPrint('123000000000').toMillified(3)).to.equal('123B');
-		expect(BigNum.fromPrint('123000000000').toMillified(3, undefined, 'scientific')).to.equal('123G'); // (G = Giga)
+		expect(
+			BigNum.fromPrint('123000000000').toMillified(3, undefined, 'scientific')
+		).to.equal('123G'); // (G = Giga)
 		expect(BigNum.fromPrint('123000000000000').toMillified(3)).to.equal('123T');
-		expect(BigNum.fromPrint('123000000000000').toMillified(3, undefined, 'scientific')).to.equal('123T'); // (T = Tera)
-		expect(BigNum.fromPrint('123000000000000000').toMillified(3)).to.equal('123Q');
-		expect(BigNum.fromPrint('123000000000000000').toMillified(3, undefined, 'scientific')).to.equal('123P'); // (P = Peta)
+		expect(
+			BigNum.fromPrint('123000000000000').toMillified(
+				3,
+				undefined,
+				'scientific'
+			)
+		).to.equal('123T'); // (T = Tera)
+		expect(BigNum.fromPrint('123000000000000000').toMillified(3)).to.equal(
+			'123Q'
+		);
+		expect(
+			BigNum.fromPrint('123000000000000000').toMillified(
+				3,
+				undefined,
+				'scientific'
+			)
+		).to.equal('123P'); // (P = Peta)
 
 		// TODO : Need to make the appropriate changes for the next line to pass
 		// expect(BigNum.fromPrint('123000000000000000000').toMillified(3)).to.equal('123000Q');
