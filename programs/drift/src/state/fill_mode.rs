@@ -41,4 +41,11 @@ impl FillMode {
             }
         }
     }
+
+    pub fn atomic_fill(&self) -> bool {
+        match self {
+            FillMode::Fill => false,
+            FillMode::PlaceAndMake | FillMode::PlaceAndTake => true,
+        }
+    }
 }

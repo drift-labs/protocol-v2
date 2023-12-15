@@ -120,12 +120,15 @@ pub fn block_operation(
     )?;
     let is_oracle_valid =
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
-    
+
     let slots_since_amm_update = slot.saturating_sub(market.amm.last_update_slot);
-    
+
     let funding_paused_on_market = market.status == MarketStatus::FundingPaused;
 
-    let block = slots_since_amm_update > 10 || !is_oracle_valid || is_oracle_mark_too_divergent || funding_paused_on_market;
+    let block = slots_since_amm_update > 10
+        || !is_oracle_valid
+        || is_oracle_mark_too_divergent
+        || funding_paused_on_market;
     Ok(block)
 }
 
