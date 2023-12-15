@@ -12,7 +12,8 @@ use crate::math::constants::{
 };
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128, LP_FEE_SLICE_DENOMINATOR,
-    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION, SPOT_WEIGHT_PRECISION,
+    TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -29,6 +30,9 @@ use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
+
+use drift_macros::assert_no_slop;
+use static_assertions::const_assert_eq;
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
@@ -477,6 +481,7 @@ impl SpotBalance for PoolBalance {
     }
 }
 
+#[assert_no_slop]
 #[zero_copy(unsafe)]
 #[derive(Debug, PartialEq, Eq)]
 #[repr(C)]
@@ -654,7 +659,10 @@ pub struct AMM {
     pub padding1: u8,
     pub padding2: u16,
     pub total_fee_earned_per_lp: u64,
-    pub padding: [u8; 32],
+    pub net_unsettled_funding_pnl: i64,
+    pub quote_asset_amount_with_unsettled_lp: i64,
+    pub reference_price_offset: i32,
+    pub padding: [u8; 12],
 }
 
 impl Default for AMM {
@@ -740,12 +748,23 @@ impl Default for AMM {
             padding1: 0,
             padding2: 0,
             total_fee_earned_per_lp: 0,
-            padding: [0; 32],
+            net_unsettled_funding_pnl: 0,
+            quote_asset_amount_with_unsettled_lp: 0,
+            reference_price_offset: 0,
+            padding: [0; 12],
         }
     }
 }
 
 impl AMM {
+    pub fn get_max_reference_price_offset(self) -> DriftResult<i64> {
+        // always allow 10 bps of price offset, up to a fifth of the market's max_spread
+        let ten_bps = PERCENTAGE_PRECISION.cast::<i64>()? / 1000;
+        let max_offset = (self.max_spread.cast::<i64>()? / 5).max(ten_bps);
+
+        Ok(max_offset)
+    }
+
     pub fn get_per_lp_base_unit(self) -> DriftResult<i128> {
         let scalar: i128 = 10_i128.pow(self.per_lp_base.abs().cast()?);
 

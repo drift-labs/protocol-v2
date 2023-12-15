@@ -38,6 +38,157 @@ mod test {
     }
 
     #[test]
+    fn calculate_reference_price_offset_tests() {
+        let rev_price = 4216 * 10000;
+        let max_offset: i64 = 2500; // 25 bps
+
+        let res =
+            calculate_reference_price_offset(rev_price, 0, 0, 0, 0, 0, 0, 0, max_offset).unwrap();
+        assert_eq!(res, 0);
+
+        let res = calculate_reference_price_offset(
+            rev_price,
+            1,
+            10,
+            1,
+            4216 * 10000,
+            4217 * 10000,
+            4216 * 10000,
+            4217 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, 158); // 237*2/3); // 1 penny divergence
+        let res = calculate_reference_price_offset(
+            rev_price,
+            1,
+            10,
+            1,
+            4216 * 10000,
+            4219 * 10000,
+            4216 * 10000,
+            4219 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, 237 * 2); // 3 penny divergence
+
+        let res = calculate_reference_price_offset(
+            rev_price,
+            -43_000_000,
+            10,
+            1,
+            4216 * 10000,
+            4218 * 10000,
+            4216 * 10000,
+            4218 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, -517); // counter acting 24h_avg sign
+
+        let res = calculate_reference_price_offset(
+            rev_price,
+            -43_000_000,
+            -10000,
+            1,
+            4216 * 10000,
+            4218 * 10000,
+            4216 * 10000,
+            4218 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, -542); // counteracting 24h_avg / base inventory sign
+
+        let res = calculate_reference_price_offset(
+            rev_price,
+            -43_000_000,
+            -10,
+            1,
+            4216 * 10000,
+            4214 * 10000,
+            4216 * 10000,
+            4214 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, -1149); // flipped
+
+        let res = calculate_reference_price_offset(
+            rev_price,
+            1,
+            10,
+            1,
+            4216 * 10000,
+            4223 * 10000,
+            4216 * 10000,
+            4223 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, 1660 * 2 / 3); // 7 penny divergence
+
+        let res = calculate_reference_price_offset(
+            rev_price,
+            10_000_000,
+            10,
+            1,
+            4216 * 10000,
+            4233 * 10000,
+            4216 * 10000,
+            4233 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, 2500); // upper bound
+
+        let res = calculate_reference_price_offset(
+            rev_price,
+            -10_000_000,
+            -10,
+            1,
+            4216 * 10000,
+            4123 * 10000,
+            4216 * 10000,
+            4123 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, -2500); // lower bound
+
+        // max offset = 0
+        let res = calculate_reference_price_offset(
+            rev_price,
+            -10_000_000,
+            -10,
+            1,
+            4216 * 10000,
+            4123 * 10000,
+            6 * 10000,
+            4123 * 10000,
+            0,
+        )
+        .unwrap();
+        assert_eq!(res, 0); // zero bound
+
+        // counteracting fast/slow twaps to 0
+        let res = calculate_reference_price_offset(
+            rev_price,
+            -1,
+            1,
+            1,
+            4216 * 10000,
+            4123 * 10000,
+            4123 * 10000,
+            4216 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, 0);
+    }
+
+    #[test]
     fn calculate_spread_tests() {
         let base_spread = 1000; // .1%
         let mut last_oracle_reserve_price_spread_pct = 0;
@@ -1178,6 +1329,8 @@ mod test {
 
     #[test]
     fn various_spread_tests() {
+        // should match typescript sdk tests in sdk/tests/amm/test.ts
+
         let (long_spread, short_spread) = calculate_spread(
             300,
             0,
@@ -1202,6 +1355,60 @@ mod test {
         .unwrap();
         assert_eq!(long_spread, 4262);
         assert_eq!(short_spread, 43238);
+
+        // terms 3
+        let (long_spread, short_spread) = calculate_spread(
+            300,
+            0,
+            484,
+            47500,
+            923807816209694,
+            925117623772584,
+            13731157,
+            -1314027016625,
+            13667686,
+            115876379475,
+            91316628,
+            928097825691666,
+            907979542352912,
+            945977491145601,
+            161188,
+            1459632439,
+            12358265776,
+            72230366233,
+            432067603632,
+        )
+        .unwrap();
+        assert_eq!(long_spread, 4262);
+        assert_eq!(short_spread, 43238);
+
+        // terms 4
+        let (long_spread, short_spread) = calculate_spread(
+            300,
+            0,
+            484,
+            47500,
+            923807816209694,
+            925117623772584,
+            13731157,
+            -1314027016625,
+            13667686,
+            115876379475,
+            91316628,
+            928097825691666,
+            907979542352912,
+            945977491145601,
+            161188,
+            1459632439,
+            12358265776,
+            72230366233,
+            432067603632,
+        )
+        .unwrap();
+        assert_eq!(long_spread, 4262);
+        assert_eq!(short_spread, 43238);
+
+        // extra one?
 
         let (long_spread, short_spread) = calculate_spread(
             300,

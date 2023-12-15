@@ -9,8 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: only consider recent last_active_slot in qualifies_for_withdraw_feen([#756](https://github.com/drift-labs/protocol-v2/pull/756))
+- program: amm can use reference price offset from oracle price based on clamped inventory and persist market premiums ([#681](https://github.com/drift-labs/protocol-v2/pull/681))
+
 ### Fixes
 
+- program: don't perform funding rate updates when slots_since_amm_update is stale ([#757](https://github.com/drift-labs/protocol-v2/pull/757))
 - program: add update last slot for filler in pay_keeper_flat_reward_for_spot
 
 ### Breaking
@@ -57,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: account for step size when canceling reduce only orders
 
 ### Breaking
+
 - sdk: UserStatsMap use bulkAccountLoader (`UserStatsMap.subscribe` and `UserStatsMap.sync` now requires list of authorities) ([#716](https://github.com/drift-labs/protocol-v2/pull/716))
 
 ## [2.47.0] - 2023-11-26
@@ -136,6 +141,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: add positive perp funding rate offset ([#576](https://github.com/drift-labs/protocol-v2/pull/576/files))
 
 ### Fixes
+
 - program: add validation check in update max imbalances ([#667](https://github.com/drift-labs/protocol-v2/pull/667))
 
 ### Breaking
