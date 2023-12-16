@@ -407,3 +407,105 @@ function groupL2Levels(
 	}
 	return groupedLevels;
 }
+
+export function centerL2(
+	bids: L2Level[],
+	asks: L2Level[],
+	oraclePrice: BN
+): { bids: L2Level[]; asks: L2Level[] } {
+	// If there are no bids or asks, there is nothing to center
+	if (bids.length === 0 || asks.length === 0) {
+		return { bids, asks };
+	}
+
+	// If the top of the book is already centered, there is nothing to do
+	if (bids[0].price.lt(asks[0].price)) {
+		return { bids, asks };
+	}
+
+	const newBids = [];
+	const newAsks = [];
+
+	let nextBid = bids.shift();
+	let nextAsk = asks.shift();
+	while (nextBid || nextAsk) {
+		if (!nextBid) {
+			newAsks.push(nextAsk);
+			nextAsk = asks.shift();
+			continue;
+		}
+
+		if (!nextAsk) {
+			newBids.push(nextBid);
+			nextBid = bids.shift();
+			continue;
+		}
+
+		if (nextBid.price.gt(nextAsk.price)) {
+			if (nextBid.price.gt(oraclePrice)) {
+				const newBidPrice = nextAsk.price;
+				// merge with previous bid if same price
+				if (
+					newBids.length > 0 &&
+					newBids[newBids.length - 1].price.eq(newBidPrice)
+				) {
+					newBids[newBids.length - 1].size = newBids[
+						newBids.length - 1
+					].size.add(nextBid.size);
+					for (const [source, size] of Object.entries(nextBid.sources)) {
+						if (newBids[newBids.length - 1].sources[source]) {
+							newBids[newBids.length - 1].sources[source] =
+								newBids[newBids.length - 1].sources[source].add(size);
+						} else {
+							newBids[newBids.length - 1].sources[source] = size;
+						}
+					}
+				} else {
+					newBids.push({
+						price: newBidPrice,
+						size: nextBid.size,
+						sources: nextBid.sources,
+					});
+				}
+				nextBid = bids.shift();
+			} else if (nextAsk.price.lt(oraclePrice)) {
+				const newAskPrice = nextBid.price;
+				// merge with previous ask if same price
+				if (
+					newAsks.length > 0 &&
+					newAsks[newAsks.length - 1].price.eq(newAskPrice)
+				) {
+					newAsks[newAsks.length - 1].size = newAsks[
+						newAsks.length - 1
+					].size.add(nextAsk.size);
+					for (const [source, size] of Object.entries(nextAsk.sources)) {
+						if (newAsks[newAsks.length - 1].sources[source]) {
+							newAsks[newAsks.length - 1].sources[source] =
+								newAsks[newAsks.length - 1].sources[source].add(size);
+						} else {
+							newAsks[newAsks.length - 1].sources[source] = size;
+						}
+					}
+				} else {
+					newAsks.push({
+						price: newAskPrice,
+						size: nextAsk.size,
+						sources: nextAsk.sources,
+					});
+				}
+				nextAsk = asks.shift();
+			}
+		} else {
+			newAsks.push(nextAsk);
+			nextAsk = asks.shift();
+
+			newBids.push(nextBid);
+			nextBid = bids.shift();
+		}
+	}
+
+	return {
+		bids: newBids,
+		asks: newAsks,
+	};
+}
