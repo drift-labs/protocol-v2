@@ -426,6 +426,31 @@ export function centerL2(
 	const newBids = [];
 	const newAsks = [];
 
+	const updateLevels = (newPrice: BN, oldLevel: L2Level, levels: L2Level[]) => {
+		if (
+			levels.length > 0 &&
+			levels[levels.length - 1].price.eq(newPrice)
+		) {
+			levels[levels.length - 1].size = levels[
+			levels.length - 1
+				].size.add(oldLevel.size);
+			for (const [source, size] of Object.entries(oldLevel.sources)) {
+				if (levels[levels.length - 1].sources[source]) {
+					levels[levels.length - 1].sources[source] =
+						levels[levels.length - 1].sources[source].add(size);
+				} else {
+					levels[levels.length - 1].sources[source] = size;
+				}
+			}
+		} else {
+			levels.push({
+				price: newPrice,
+				size: oldLevel.size,
+				sources: oldLevel.sources,
+			});
+		}
+	};
+
 	let nextBid = bids.shift();
 	let nextAsk = asks.shift();
 	while (nextBid || nextAsk) {
@@ -444,55 +469,17 @@ export function centerL2(
 		if (nextBid.price.gt(nextAsk.price)) {
 			if (nextBid.price.gt(oraclePrice)) {
 				const newBidPrice = nextAsk.price;
-				// merge with previous bid if same price
-				if (
-					newBids.length > 0 &&
-					newBids[newBids.length - 1].price.eq(newBidPrice)
-				) {
-					newBids[newBids.length - 1].size = newBids[
-						newBids.length - 1
-					].size.add(nextBid.size);
-					for (const [source, size] of Object.entries(nextBid.sources)) {
-						if (newBids[newBids.length - 1].sources[source]) {
-							newBids[newBids.length - 1].sources[source] =
-								newBids[newBids.length - 1].sources[source].add(size);
-						} else {
-							newBids[newBids.length - 1].sources[source] = size;
-						}
-					}
-				} else {
-					newBids.push({
-						price: newBidPrice,
-						size: nextBid.size,
-						sources: nextBid.sources,
-					});
-				}
+				updateLevels(newBidPrice, nextBid, newBids);
 				nextBid = bids.shift();
 			} else if (nextAsk.price.lt(oraclePrice)) {
 				const newAskPrice = nextBid.price;
-				// merge with previous ask if same price
-				if (
-					newAsks.length > 0 &&
-					newAsks[newAsks.length - 1].price.eq(newAskPrice)
-				) {
-					newAsks[newAsks.length - 1].size = newAsks[
-						newAsks.length - 1
-					].size.add(nextAsk.size);
-					for (const [source, size] of Object.entries(nextAsk.sources)) {
-						if (newAsks[newAsks.length - 1].sources[source]) {
-							newAsks[newAsks.length - 1].sources[source] =
-								newAsks[newAsks.length - 1].sources[source].add(size);
-						} else {
-							newAsks[newAsks.length - 1].sources[source] = size;
-						}
-					}
-				} else {
-					newAsks.push({
-						price: newAskPrice,
-						size: nextAsk.size,
-						sources: nextAsk.sources,
-					});
-				}
+				updateLevels(newAskPrice, nextAsk, newAsks);
+				nextAsk = asks.shift();
+			} else {
+				const newPrice = oraclePrice;
+				updateLevels(newPrice, nextBid, newBids);
+				updateLevels(newPrice, nextAsk, newAsks);
+				nextBid = bids.shift();
 				nextAsk = asks.shift();
 			}
 		} else {
