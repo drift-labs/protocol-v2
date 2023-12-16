@@ -37,8 +37,8 @@ mod tests;
 #[cfg(test)]
 mod delisting;
 
-pub fn settle_pnl(
-    market_index: u16,
+pub fn settle_pnls(
+    select_market_index: Option<u16>,
     user: &mut User,
     authority: &Pubkey,
     user_key: &Pubkey,
@@ -50,156 +50,160 @@ pub fn settle_pnl(
 ) -> DriftResult {
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
+    let meets_maintenance_requirement =
+        !meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+
+    let market_indexes = match select_market_index {
+        Some(select_market_index) => [select_market_index],
+        None => [0], // todo: get list from perp market map
+    };
+
     {
         let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
         update_spot_market_cumulative_interest(spot_market, None, now)?;
     }
 
-    let mut market = perp_market_map.get_ref_mut(&market_index)?;
+    for market_index in market_indexes.iter() {
+        let mut market = perp_market_map.get_ref_mut(market_index)?;
 
-    validate_market_within_price_band(&market, state, true, None)?;
+        validate_market_within_price_band(&market, state, true, None)?;
 
-    crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
+        crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
 
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-    drop(market);
+        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+        drop(market);
 
-    let position_index = get_position_index(&user.perp_positions, market_index)?;
-    let unrealized_pnl = user.perp_positions[position_index].get_unrealized_pnl(oracle_price)?;
+        let position_index = get_position_index(&user.perp_positions, *market_index)?;
+        let unrealized_pnl =
+            user.perp_positions[position_index].get_unrealized_pnl(oracle_price)?;
 
-    // cannot settle negative pnl this way on a user who is in liquidation territory
-    if unrealized_pnl < 0
-        && !meets_maintenance_margin_requirement(
-            user,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
+        // cannot settle negative pnl this way on a user who is in liquidation territory
+        if unrealized_pnl < 0 && meets_maintenance_requirement {
+            return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
+        }
+
+        let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
+        let perp_market = &mut perp_market_map.get_ref_mut(market_index)?;
+
+        if perp_market.amm.curve_update_intensity > 0 {
+            validate!(
+                perp_market.amm.last_oracle_valid,
+                ErrorCode::InvalidOracle,
+                "Oracle Price detected as invalid"
+            )?;
+
+            validate!(
+                oracle_map.slot == perp_market.amm.last_update_slot,
+                ErrorCode::AMMNotUpdatedInSameSlot,
+                "AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
+                oracle_map.slot,
+                perp_market.amm.last_update_slot,
+                perp_market.amm.last_oracle_valid
+            )?;
+        }
+
+        validate!(
+            perp_market.status == MarketStatus::Active,
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            "Cannot settle pnl under current market status"
+        )?;
+
+        let pnl_pool_token_amount = get_token_amount(
+            perp_market.pnl_pool.scaled_balance,
+            spot_market,
+            perp_market.pnl_pool.balance_type(),
+        )?;
+
+        let fraction_of_fee_pool_token_amount = get_token_amount(
+            perp_market.amm.fee_pool.scaled_balance,
+            spot_market,
+            perp_market.amm.fee_pool.balance_type(),
         )?
-    {
-        return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
-    }
+        .safe_div(5)?;
 
-    let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
-    let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
+        // add a buffer from fee pool for pnl pool balance
+        let pnl_tokens_available: i128 = pnl_pool_token_amount
+            .safe_add(fraction_of_fee_pool_token_amount)?
+            .cast()?;
 
-    if perp_market.amm.curve_update_intensity > 0 {
-        validate!(
-            perp_market.amm.last_oracle_valid,
-            ErrorCode::InvalidOracle,
-            "Oracle Price detected as invalid"
-        )?;
-
-        validate!(
-            oracle_map.slot == perp_market.amm.last_update_slot,
-            ErrorCode::AMMNotUpdatedInSameSlot,
-            "AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
-            oracle_map.slot,
-            perp_market.amm.last_update_slot,
-            perp_market.amm.last_oracle_valid
-        )?;
-    }
-
-    validate!(
-        perp_market.status == MarketStatus::Active,
-        ErrorCode::InvalidMarketStatusToSettlePnl,
-        "Cannot settle pnl under current market status"
-    )?;
-
-    let pnl_pool_token_amount = get_token_amount(
-        perp_market.pnl_pool.scaled_balance,
-        spot_market,
-        perp_market.pnl_pool.balance_type(),
-    )?;
-
-    let fraction_of_fee_pool_token_amount = get_token_amount(
-        perp_market.amm.fee_pool.scaled_balance,
-        spot_market,
-        perp_market.amm.fee_pool.balance_type(),
-    )?
-    .safe_div(5)?;
-
-    // add a buffer from fee pool for pnl pool balance
-    let pnl_tokens_available: i128 = pnl_pool_token_amount
-        .safe_add(fraction_of_fee_pool_token_amount)?
-        .cast()?;
-
-    let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price)?;
-    let max_pnl_pool_excess = if net_user_pnl < pnl_tokens_available {
-        pnl_tokens_available.safe_sub(net_user_pnl.max(0))?
-    } else {
-        0
-    };
-
-    let user_unsettled_pnl: i128 =
-        user.perp_positions[position_index].get_claimable_pnl(oracle_price, max_pnl_pool_excess)?;
-
-    let pnl_to_settle_with_user = update_pool_balances(
-        perp_market,
-        spot_market,
-        user.get_quote_spot_position(),
-        user_unsettled_pnl,
-        now,
-    )?;
-    if user_unsettled_pnl == 0 {
-        msg!("User has no unsettled pnl for market {}", market_index);
-        return Ok(());
-    } else if pnl_to_settle_with_user == 0 {
-        msg!(
-            "Pnl Pool cannot currently settle with user for market {}",
-            market_index
-        );
-        return Ok(());
-    }
-
-    validate!(
-        pnl_to_settle_with_user < 0
-            || max_pnl_pool_excess > 0
-            || (user.authority.eq(authority) || user.delegate.eq(authority)),
-        ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
-        "User must settle their own unsettled pnl when its positive and pnl pool not in excess"
-    )?;
-
-    update_spot_balances(
-        pnl_to_settle_with_user.unsigned_abs(),
-        if pnl_to_settle_with_user > 0 {
-            &SpotBalanceType::Deposit
+        let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price)?;
+        let max_pnl_pool_excess = if net_user_pnl < pnl_tokens_available {
+            pnl_tokens_available.safe_sub(net_user_pnl.max(0))?
         } else {
-            &SpotBalanceType::Borrow
-        },
-        spot_market,
-        user.get_quote_spot_position_mut(),
-        false,
-    )?;
+            0
+        };
 
-    update_quote_asset_amount(
-        &mut user.perp_positions[position_index],
-        perp_market,
-        -pnl_to_settle_with_user.cast()?,
-    )?;
+        let user_unsettled_pnl: i128 = user.perp_positions[position_index]
+            .get_claimable_pnl(oracle_price, max_pnl_pool_excess)?;
 
-    update_settled_pnl(user, position_index, pnl_to_settle_with_user.cast()?)?;
+        let pnl_to_settle_with_user = update_pool_balances(
+            perp_market,
+            spot_market,
+            user.get_quote_spot_position(),
+            user_unsettled_pnl,
+            now,
+        )?;
+        if user_unsettled_pnl == 0 {
+            msg!("User has no unsettled pnl for market {}", market_index);
+            return Ok(());
+        } else if pnl_to_settle_with_user == 0 {
+            msg!(
+                "Pnl Pool cannot currently settle with user for market {}",
+                market_index
+            );
+            return Ok(());
+        }
 
-    let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
-    let quote_asset_amount_after = user.perp_positions[position_index].quote_asset_amount;
-    let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
+        validate!(
+            pnl_to_settle_with_user < 0
+                || max_pnl_pool_excess > 0
+                || (user.authority.eq(authority) || user.delegate.eq(authority)),
+            ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
+            "User must settle their own unsettled pnl when its positive and pnl pool not in excess"
+        )?;
 
-    crate::validation::perp_market::validate_perp_market(perp_market)?;
-    crate::validation::position::validate_perp_position_with_perp_market(
-        &user.perp_positions[position_index],
-        perp_market,
-    )?;
+        update_spot_balances(
+            pnl_to_settle_with_user.unsigned_abs(),
+            if pnl_to_settle_with_user > 0 {
+                &SpotBalanceType::Deposit
+            } else {
+                &SpotBalanceType::Borrow
+            },
+            spot_market,
+            user.get_quote_spot_position_mut(),
+            false,
+        )?;
 
-    emit!(SettlePnlRecord {
-        ts: now,
-        user: *user_key,
-        market_index,
-        pnl: pnl_to_settle_with_user,
-        base_asset_amount,
-        quote_asset_amount_after,
-        quote_entry_amount,
-        settle_price: oracle_price,
-        explanation: SettlePnlExplanation::None,
-    });
+        update_quote_asset_amount(
+            &mut user.perp_positions[position_index],
+            perp_market,
+            -pnl_to_settle_with_user.cast()?,
+        )?;
+
+        update_settled_pnl(user, position_index, pnl_to_settle_with_user.cast()?)?;
+
+        let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
+        let quote_asset_amount_after = user.perp_positions[position_index].quote_asset_amount;
+        let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
+
+        crate::validation::perp_market::validate_perp_market(perp_market)?;
+        crate::validation::position::validate_perp_position_with_perp_market(
+            &user.perp_positions[position_index],
+            perp_market,
+        )?;
+
+        emit!(SettlePnlRecord {
+            ts: now,
+            user: *user_key,
+            market_index: *market_index,
+            pnl: pnl_to_settle_with_user,
+            base_asset_amount,
+            quote_asset_amount_after,
+            quote_entry_amount,
+            settle_price: oracle_price,
+            explanation: SettlePnlExplanation::None,
+        });
+    }
 
     Ok(())
 }

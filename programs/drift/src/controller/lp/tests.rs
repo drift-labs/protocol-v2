@@ -1,5 +1,5 @@
 use crate::controller::lp::*;
-use crate::controller::pnl::settle_pnl;
+use crate::controller::pnl::settle_pnls;
 use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
 use std::str::FromStr;
@@ -547,8 +547,8 @@ pub fn test_lp_settle_pnl() {
     assert_eq!(total_collateral1, 49999988);
     assert_eq!(margin_requirement1, 2099020); // $2+ for margin req
 
-    let result = settle_pnl(
-        0,
+    let result = settle_pnls(
+        Some(0),
         &mut user,
         &authority,
         &user_key,

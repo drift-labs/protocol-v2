@@ -461,8 +461,8 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
 
-        controller::pnl::settle_pnl(
-            market_index,
+        controller::pnl::settle_pnls(
+            Some(market_index),
             user,
             ctx.accounts.authority.key,
             &user_key,
