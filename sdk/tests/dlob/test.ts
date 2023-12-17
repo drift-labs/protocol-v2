@@ -6072,7 +6072,7 @@ describe('DLOB Spot Tests', () => {
 });
 
 describe('Center L2', () => {
-	it('Bid crosses ask above oracle', () => {
+	it('Bid crosses ask above oracle (no premium)', () => {
 		const bids = [
 			{
 				price: new BN(104).mul(QUOTE_PRECISION),
@@ -6110,8 +6110,10 @@ describe('Center L2', () => {
 		];
 
 		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
 
-		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice);
+		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min);
 
 		expect(newBids[0].price.toString()).to.equal(new BN(101).mul(QUOTE_PRECISION).toString());
 		expect(newBids[0].size.toString()).to.equal(new BN(3).mul(BASE_PRECISION).toString());
@@ -6131,7 +6133,7 @@ describe('Center L2', () => {
 		expect(newAsks[1].sources["vamm"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 	});
 
-	it('Ask crosses ask below oracle', () => {
+	it('Ask crosses ask below oracle, (new premium)', () => {
 		const bids = [
 			{
 				price: new BN(99).mul(QUOTE_PRECISION),
@@ -6169,8 +6171,10 @@ describe('Center L2', () => {
 		];
 
 		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
 
-		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice);
+		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min);
 
 		expect(newBids[0].price.toString()).to.equal(new BN(99).mul(QUOTE_PRECISION).toString());
 		expect(newBids[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
@@ -6190,7 +6194,7 @@ describe('Center L2', () => {
 		expect(newAsks[1].sources["vamm"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 	});
 
-	it('No cross', () => {
+	it('No cross (no premium)', () => {
 		const bids = [
 			{
 				price: new BN(99).mul(QUOTE_PRECISION),
@@ -6223,8 +6227,10 @@ describe('Center L2', () => {
 		];
 
 		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
 
-		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice);
+		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min);
 
 		expect(newBids[0].price.toString()).to.equal(new BN(99).mul(QUOTE_PRECISION).toString());
 		expect(newBids[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());

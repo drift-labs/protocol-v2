@@ -411,7 +411,9 @@ function groupL2Levels(
 export function centerL2(
 	bids: L2Level[],
 	asks: L2Level[],
-	oraclePrice: BN
+	oraclePrice: BN,
+	oracleTwap5Min: BN,
+	markTwap5Min: BN,
 ): { bids: L2Level[]; asks: L2Level[] } {
 	// If there are no bids or asks, there is nothing to center
 	if (bids.length === 0 || asks.length === 0) {
@@ -451,6 +453,8 @@ export function centerL2(
 		}
 	};
 
+	const referencePrice = oraclePrice.add(markTwap5Min.sub(oracleTwap5Min));
+
 	let nextBid = bids.shift();
 	let nextAsk = asks.shift();
 	while (nextBid || nextAsk) {
@@ -467,16 +471,16 @@ export function centerL2(
 		}
 
 		if (nextBid.price.gt(nextAsk.price)) {
-			if (nextBid.price.gt(oraclePrice)) {
+			if (nextBid.price.gt(referencePrice) && nextAsk.price.gt(referencePrice)) {
 				const newBidPrice = nextAsk.price;
 				updateLevels(newBidPrice, nextBid, newBids);
 				nextBid = bids.shift();
-			} else if (nextAsk.price.lt(oraclePrice)) {
+			} else if (nextAsk.price.lt(referencePrice) && nextBid.price.lt(referencePrice)) {
 				const newAskPrice = nextBid.price;
 				updateLevels(newAskPrice, nextAsk, newAsks);
 				nextAsk = asks.shift();
 			} else {
-				const newPrice = oraclePrice;
+				const newPrice = referencePrice;
 				updateLevels(newPrice, nextBid, newBids);
 				updateLevels(newPrice, nextAsk, newAsks);
 				nextBid = bids.shift();
