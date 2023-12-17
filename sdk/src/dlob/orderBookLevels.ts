@@ -408,7 +408,21 @@ function groupL2Levels(
 	return groupedLevels;
 }
 
-export function centerL2(
+/**
+ * The purpose of this function is uncross the L2 orderbook by modifying the bid/ask price at the top of the book
+ * This will make the liquidity look worse but more intuitive (users familiar with clob get confused w temporarily
+ * crossing book)
+ *
+ * @param bids
+ * @param asks
+ * @param oraclePrice
+ * @param oracleTwap5Min
+ * @param markTwap5Min
+ * @param grouping
+ * @param userBids
+ * @param userAsks
+ */
+export function uncrossL2(
 	bids: L2Level[],
 	asks: L2Level[],
 	oraclePrice: BN,
