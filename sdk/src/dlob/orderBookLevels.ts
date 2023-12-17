@@ -414,6 +414,7 @@ export function centerL2(
 	oraclePrice: BN,
 	oracleTwap5Min: BN,
 	markTwap5Min: BN,
+	grouping: BN,
 	userBids: Set<string>,
 	userAsks: Set<string>,
 ): { bids: L2Level[]; asks: L2Level[] } {
@@ -489,17 +490,18 @@ export function centerL2(
 			}
 
 			if (nextBid.price.gt(referencePrice) && nextAsk.price.gt(referencePrice)) {
-				const newBidPrice = nextAsk.price;
+				const newBidPrice = nextAsk.price.sub(grouping);
 				updateLevels(newBidPrice, nextBid, newBids);
 				bidIndex++;
 			} else if (nextAsk.price.lt(referencePrice) && nextBid.price.lt(referencePrice)) {
-				const newAskPrice = nextBid.price;
+				const newAskPrice = nextBid.price.add(grouping);
 				updateLevels(newAskPrice, nextAsk, newAsks);
 				askIndex++;
 			} else {
-				const newPrice = referencePrice;
-				updateLevels(newPrice, nextBid, newBids);
-				updateLevels(newPrice, nextAsk, newAsks);
+				const newBidPrice = referencePrice.sub(grouping);
+				const newAskPrice = referencePrice.add(grouping);
+				updateLevels(newBidPrice, nextBid, newBids);
+				updateLevels(newAskPrice, nextAsk, newAsks);
 				bidIndex++;
 				askIndex++;
 			}

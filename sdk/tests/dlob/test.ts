@@ -6114,9 +6114,11 @@ describe('Center L2', () => {
 		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
 		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
 
-		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, new Set<string>(), new Set<string>());
+		const groupingSize = QUOTE_PRECISION.divn(10);
 
-		expect(newBids[0].price.toString()).to.equal(new BN(101).mul(QUOTE_PRECISION).toString());
+		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, groupingSize, new Set<string>(), new Set<string>());
+
+		expect(newBids[0].price.toString()).to.equal(new BN(101).mul(QUOTE_PRECISION).sub(groupingSize).toString());
 		expect(newBids[0].size.toString()).to.equal(new BN(3).mul(BASE_PRECISION).toString());
 		expect(newBids[0].sources["vamm"].toString()).to.equal(new BN(2).mul(BASE_PRECISION).toString());
 		expect(newBids[0].sources["dlob"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
@@ -6175,7 +6177,9 @@ describe('Center L2', () => {
 		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
 		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
 
-		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, new Set<string>(), new Set<string>());
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
+		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, groupingSize, new Set<string>(), new Set<string>());
 
 		expect(newBids[0].price.toString()).to.equal(new BN(99).mul(QUOTE_PRECISION).toString());
 		expect(newBids[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
@@ -6185,7 +6189,7 @@ describe('Center L2', () => {
 		expect(newBids[1].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 		expect(newBids[1].sources["vamm"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 
-		expect(newAsks[0].price.toString()).to.equal(new BN(99).mul(QUOTE_PRECISION).toString());
+		expect(newAsks[0].price.toString()).to.equal(new BN(99).mul(QUOTE_PRECISION).add(groupingSize).toString());
 		expect(newAsks[0].size.toString()).to.equal(new BN(3).mul(BASE_PRECISION).toString());
 		expect(newAsks[0].sources["vamm"].toString()).to.equal(new BN(2).mul(BASE_PRECISION).toString());
 		expect(newAsks[0].sources["dlob"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
@@ -6231,7 +6235,9 @@ describe('Center L2', () => {
 		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
 		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
 
-		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, new Set<string>(), new Set<string>());
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
+		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, groupingSize, new Set<string>(), new Set<string>());
 
 		expect(newBids[0].price.toString()).to.equal(new BN(99).mul(QUOTE_PRECISION).toString());
 		expect(newBids[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
@@ -6275,15 +6281,17 @@ describe('Center L2', () => {
 		const oraclePrice5Min = new BN("29696597");
 		const markPrice5Min = new BN("31747865");
 
-		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, new Set<string>(), new Set<string>());
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
+		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, groupingSize, new Set<string>(), new Set<string>());
 
 		const referencePrice = oraclePrice.add(markPrice5Min.sub(oraclePrice5Min));
 
-		expect(newBids[0].price.toString()).to.equal(referencePrice.toString());
+		expect(newBids[0].price.toString()).to.equal(referencePrice.sub(groupingSize).toString());
 		expect(newBids[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 		expect(newBids[0].sources["dlob"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 
-		expect(newAsks[0].price.toString()).to.equal(referencePrice.toString());
+		expect(newAsks[0].price.toString()).to.equal(referencePrice.add(groupingSize).toString());
 		expect(newAsks[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 		expect(newAsks[0].sources["vamm"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 	});
@@ -6329,14 +6337,16 @@ describe('Center L2', () => {
 		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
 		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
 
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
 		const userBids = new Set<string>([new BN(104).mul(QUOTE_PRECISION).toString()]);
-		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, userBids, new Set<string>());
+		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, groupingSize, userBids, new Set<string>());
 
 		expect(newBids[0].price.toString()).to.equal(new BN(104).mul(QUOTE_PRECISION).toString());
 		expect(newBids[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 		expect(newBids[0].sources["dlob"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 
-		expect(newBids[1].price.toString()).to.equal(new BN(101).mul(QUOTE_PRECISION).toString());
+		expect(newBids[1].price.toString()).to.equal(new BN(101).mul(QUOTE_PRECISION).sub(groupingSize).toString());
 		expect(newBids[1].size.toString()).to.equal(new BN(2).mul(BASE_PRECISION).toString());
 		expect(newBids[1].sources["vamm"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 		expect(newBids[1].sources["dlob"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
@@ -6395,8 +6405,10 @@ describe('Center L2', () => {
 		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
 		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
 
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
 		const userAsks = new Set<string>([new BN(96).mul(QUOTE_PRECISION).toString()]);
-		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, new Set<string>(), userAsks);
+		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min, groupingSize, new Set<string>(), userAsks);
 
 		expect(newBids[0].price.toString()).to.equal(new BN(99).mul(QUOTE_PRECISION).toString());
 		expect(newBids[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
@@ -6410,7 +6422,7 @@ describe('Center L2', () => {
 		expect(newAsks[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 		expect(newAsks[0].sources["dlob"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 
-		expect(newAsks[1].price.toString()).to.equal(new BN(99).mul(QUOTE_PRECISION).toString());
+		expect(newAsks[1].price.toString()).to.equal(new BN(99).mul(QUOTE_PRECISION).add(groupingSize).toString());
 		expect(newAsks[1].size.toString()).to.equal(new BN(2).mul(BASE_PRECISION).toString());
 		expect(newAsks[1].sources["vamm"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 		expect(newAsks[1].sources["dlob"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
