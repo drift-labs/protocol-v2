@@ -6284,6 +6284,6 @@ describe('Center L2', () => {
 
 		expect(newAsks[0].price.toString()).to.equal(referencePrice.toString());
 		expect(newAsks[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
-		expect(newAsks[0].sources["vamm	"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
+		expect(newAsks[0].sources["vamm"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 	});
 });

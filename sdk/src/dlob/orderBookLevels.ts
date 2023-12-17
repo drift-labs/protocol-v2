@@ -455,18 +455,21 @@ export function centerL2(
 
 	const referencePrice = oraclePrice.add(markTwap5Min.sub(oracleTwap5Min));
 
-	let nextBid = bids.shift();
-	let nextAsk = asks.shift();
-	while (nextBid || nextAsk) {
+	let bidIndex = 0;
+	let askIndex = 0;
+	while (bidIndex < bids.length || askIndex < asks.length) {
+		const nextBid = bids[bidIndex];
+		const nextAsk = asks[askIndex];
+
 		if (!nextBid) {
 			newAsks.push(nextAsk);
-			nextAsk = asks.shift();
+			askIndex++;
 			continue;
 		}
 
 		if (!nextAsk) {
 			newBids.push(nextBid);
-			nextBid = bids.shift();
+			bidIndex++;
 			continue;
 		}
 
@@ -474,24 +477,24 @@ export function centerL2(
 			if (nextBid.price.gt(referencePrice) && nextAsk.price.gt(referencePrice)) {
 				const newBidPrice = nextAsk.price;
 				updateLevels(newBidPrice, nextBid, newBids);
-				nextBid = bids.shift();
+				bidIndex++;
 			} else if (nextAsk.price.lt(referencePrice) && nextBid.price.lt(referencePrice)) {
 				const newAskPrice = nextBid.price;
 				updateLevels(newAskPrice, nextAsk, newAsks);
-				nextAsk = asks.shift();
+				askIndex++;
 			} else {
 				const newPrice = referencePrice;
 				updateLevels(newPrice, nextBid, newBids);
 				updateLevels(newPrice, nextAsk, newAsks);
-				nextBid = bids.shift();
-				nextAsk = asks.shift();
+				bidIndex++;
+				askIndex++;
 			}
 		} else {
 			newAsks.push(nextAsk);
-			nextAsk = asks.shift();
+			askIndex++;
 
 			newBids.push(nextBid);
-			nextBid = bids.shift();
+			bidIndex++;
 		}
 	}
 
