@@ -44,6 +44,7 @@ pub struct DepositRecord {
 pub enum DepositExplanation {
     None,
     Transfer,
+    Borrow,
 }
 
 impl Default for DepositExplanation {

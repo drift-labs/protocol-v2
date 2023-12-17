@@ -182,6 +182,7 @@ export class SpotFulfillmentStatus {
 export class DepositExplanation {
 	static readonly NONE = { none: {} };
 	static readonly TRANSFER = { transfer: {} };
+	static readonly BORROW = { borrow: {} };
 }
 
 export class SettlePnlExplanation {

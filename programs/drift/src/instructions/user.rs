@@ -531,6 +531,15 @@ pub fn handle_withdraw(
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
 
+    let is_borrow = user
+        .get_spot_position(market_index)
+        .map_or(false, |pos| pos.is_borrow());
+    let deposit_explanation = if is_borrow {
+        DepositExplanation::Borrow
+    } else {
+        DepositExplanation::None
+    };
+
     let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let deposit_record = DepositRecord {
         ts: now,
@@ -547,7 +556,7 @@ pub fn handle_withdraw(
         market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
         total_deposits_after: user.total_deposits,
         total_withdraws_after: user.total_withdraws,
-        explanation: DepositExplanation::None,
+        explanation: deposit_explanation,
         transfer_user: None,
     };
     emit!(deposit_record);
