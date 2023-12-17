@@ -6252,4 +6252,38 @@ describe('Center L2', () => {
 		expect(newAsks[1].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 		expect(newAsks[1].sources["vamm"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
 	});
+
+	it('Crossed on opposite sides of reference price', () => {
+		const bids = [
+			{
+				price: new BN(32).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: {"dlob": new BN(1).mul(BASE_PRECISION)}
+			},
+		];
+
+		const asks = [
+			{
+				price: new BN(29).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: {"vamm": new BN(1).mul(BASE_PRECISION)}
+			},
+		];
+
+		const oraclePrice = new BN("29250100");
+		const oraclePrice5Min = new BN("29696597");
+		const markPrice5Min = new BN("31747865");
+
+		const { bids: newBids, asks: newAsks } = centerL2(bids, asks, oraclePrice, oraclePrice5Min, markPrice5Min);
+
+		const referencePrice = oraclePrice.add(markPrice5Min.sub(oraclePrice5Min));
+
+		expect(newBids[0].price.toString()).to.equal(referencePrice.toString());
+		expect(newBids[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
+		expect(newBids[0].sources["dlob"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
+
+		expect(newAsks[0].price.toString()).to.equal(referencePrice.toString());
+		expect(newAsks[0].size.toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
+		expect(newAsks[0].sources["vamm	"].toString()).to.equal(new BN(1).mul(BASE_PRECISION).toString());
+	});
 });
