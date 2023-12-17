@@ -414,6 +414,8 @@ export function centerL2(
 	oraclePrice: BN,
 	oracleTwap5Min: BN,
 	markTwap5Min: BN,
+	userBids: Set<string>,
+	userAsks: Set<string>,
 ): { bids: L2Level[]; asks: L2Level[] } {
 	// If there are no bids or asks, there is nothing to center
 	if (bids.length === 0 || asks.length === 0) {
@@ -474,6 +476,18 @@ export function centerL2(
 		}
 
 		if (nextBid.price.gt(nextAsk.price)) {
+			if (userBids.has(nextBid.price.toString())) {
+				newBids.push(nextBid);
+				bidIndex++;
+				continue;
+			}
+
+			if (userAsks.has(nextAsk.price.toString())) {
+				newAsks.push(nextAsk);
+				askIndex++;
+				continue;
+			}
+
 			if (nextBid.price.gt(referencePrice) && nextAsk.price.gt(referencePrice)) {
 				const newBidPrice = nextAsk.price;
 				updateLevels(newBidPrice, nextBid, newBids);
