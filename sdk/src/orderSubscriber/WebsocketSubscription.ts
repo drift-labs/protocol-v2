@@ -78,10 +78,12 @@ export class WebsocketSubscription {
 						})
 						.finally(() => {
 							// eslint-disable-next-line @typescript-eslint/no-unused-vars
+							if (!this.resyncTimeoutId) return;
 							recursiveResync();
 						});
 				}, this.resyncIntervalMs);
 			};
+			recursiveResync();
 		}
 	}
 
@@ -89,7 +91,7 @@ export class WebsocketSubscription {
 		if (!this.subscriber) return;
 		await this.subscriber.unsubscribe();
 		this.subscriber = undefined;
-		if (this.resyncTimeoutId) {
+		if (this.resyncTimeoutId !== undefined) {
 			clearTimeout(this.resyncTimeoutId);
 			this.resyncTimeoutId = undefined;
 		}
