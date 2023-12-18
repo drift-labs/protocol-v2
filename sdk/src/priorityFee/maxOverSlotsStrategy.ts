@@ -18,7 +18,6 @@ export class MaxOverSlotsStrategy implements PriorityFeeStrategy {
 		const stopSlot = samples[0].slot - this.lookbackSlots;
 		let currMaxFee = samples[0].prioritizationFee;
 
-		// Iterate over the samples.
 		for (let i = 0; i < samples.length; i++) {
 			if (samples[i].slot <= stopSlot) {
 				return currMaxFee;

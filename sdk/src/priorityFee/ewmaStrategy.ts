@@ -10,22 +10,27 @@ class EwmaStrategy implements PriorityFeeStrategy {
 		this.halfLife = halfLife;
 	}
 
+	// samples provided in desc slot order
 	calculate(samples: { slot: number; prioritizationFee: number }[]): number {
-		let ewma = 0;
-		let weight = 1;
-
-		// Assuming samples are sorted in descending order of slot.
-		// getRecentPrioritizationFees returns samples in ascending order of slot.
-		for (let i = 0; i < samples.length - 1; i++) {
-			const gap = samples[i].slot - samples[i + 1].slot;
-			const lambda = Math.pow(0.5, gap / this.halfLife);
-			ewma += weight * samples[i].prioritizationFee;
-			weight *= lambda;
+		if (samples.length === 0) {
+			return 0;
+		}
+		if (samples.length === 1) {
+			return samples[0].prioritizationFee;
 		}
 
-		// Handle the last sample separately
-		if (samples.length > 0) {
-			ewma += weight * samples[samples.length - 1].prioritizationFee;
+		let ewma = 0;
+
+		const samplesReversed = samples.slice().reverse();
+		for (let i = 0; i < samplesReversed.length; i++) {
+			if (i === 0) {
+				ewma = samplesReversed[i].prioritizationFee;
+				continue;
+			}
+			const gap = samplesReversed[i].slot - samplesReversed[i - 1].slot;
+			const alpha = 1 - Math.exp((Math.log(0.5) / this.halfLife) * gap);
+
+			ewma = alpha * samplesReversed[i].prioritizationFee + (1 - alpha) * ewma;
 		}
 
 		return ewma;
