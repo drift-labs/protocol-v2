@@ -1,16 +1,15 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { PriorityFeeStrategy } from './types';
-import { AverageStrategy } from './averageStrategy';
-import { MaxStrategy } from './maxStrategy';
+import { AverageOverSlotsStrategy } from './averageOverSlotsStrategy';
+import { MaxOverSlotsStrategy } from './maxOverSlotsStrategy';
 
 export class PriorityFeeSubscriber {
 	connection: Connection;
 	frequencyMs: number;
 	addresses: PublicKey[];
-	slotsToCheck: number;
 	customStrategy?: PriorityFeeStrategy;
-	averageStrategy = new AverageStrategy();
-	maxStrategy = new MaxStrategy();
+	averageStrategy = new AverageOverSlotsStrategy();
+	maxStrategy = new MaxOverSlotsStrategy();
 
 	intervalId?: ReturnType<typeof setTimeout>;
 
@@ -25,19 +24,22 @@ export class PriorityFeeSubscriber {
 		connection,
 		frequencyMs,
 		addresses,
-		strategy: customStrategy,
+		customStrategy,
 		slotsToCheck = 10,
 	}: {
 		connection: Connection;
 		frequencyMs: number;
 		addresses: PublicKey[];
-		strategy?: PriorityFeeStrategy;
+		customStrategy?: PriorityFeeStrategy;
 		slotsToCheck?: number;
 	}) {
 		this.connection = connection;
 		this.frequencyMs = frequencyMs;
 		this.addresses = addresses;
-		this.slotsToCheck = slotsToCheck;
+		if (slotsToCheck) {
+			this.averageStrategy = new AverageOverSlotsStrategy(slotsToCheck);
+			this.maxStrategy = new MaxOverSlotsStrategy(slotsToCheck);
+		}
 		if (customStrategy) {
 			this.customStrategy = customStrategy;
 		}
@@ -73,12 +75,10 @@ export class PriorityFeeSubscriber {
 			[this.addresses]
 		);
 
-		const descResults: { slot: number; prioritizationFee: number }[] =
-			rpcJSONResponse?.result
-				?.sort((a, b) => b.slot - a.slot)
-				?.slice(0, this.slotsToCheck) ?? [];
-
-		if (!descResults?.length) return;
+		// getRecentPrioritizationFees returns results unsorted
+		const results: { slot: number; prioritizationFee: number }[] = rpcJSONResponse?.result;
+		if (!results.length) return;
+		const descResults = results.sort((a, b) => b.slot - a.slot);
 
 		const mostRecentResult = descResults[0];
 		this.latestPriorityFee = mostRecentResult.prioritizationFee;

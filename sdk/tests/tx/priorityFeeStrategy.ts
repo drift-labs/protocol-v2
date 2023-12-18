@@ -9,9 +9,9 @@ describe('PriorityFeeStrategy', () => {
 	it('AverageStrategy should calculate the average prioritization fee', () => {
 		const averageStrategy = new AverageStrategy();
 		const samples = [
-			{ slot: 1, prioritizationFee: 100 },
-			{ slot: 2, prioritizationFee: 200 },
 			{ slot: 3, prioritizationFee: 300 },
+			{ slot: 2, prioritizationFee: 200 },
+			{ slot: 1, prioritizationFee: 100 },
 		];
 		const average = averageStrategy.calculate(samples);
 		expect(average).to.equal(200);
@@ -20,9 +20,9 @@ describe('PriorityFeeStrategy', () => {
 	it('MaxStrategy should calculate the maximum prioritization fee', () => {
 		const maxStrategy = new MaxStrategy();
 		const samples = [
-			{ slot: 1, prioritizationFee: 100 },
-			{ slot: 2, prioritizationFee: 200 },
 			{ slot: 3, prioritizationFee: 300 },
+			{ slot: 2, prioritizationFee: 200 },
+			{ slot: 1, prioritizationFee: 100 },
 		];
 		const max = maxStrategy.calculate(samples);
 		expect(max).to.equal(300);
@@ -32,12 +32,12 @@ describe('PriorityFeeStrategy', () => {
 		// halflife of 5 alots
 		const ewmaStrategy = new EwmaStrategy(5);
 		const samples = [
-			{ slot: 1, prioritizationFee: 1000 },
-			{ slot: 2, prioritizationFee: 0 },
-			{ slot: 2, prioritizationFee: 0 },
-			{ slot: 2, prioritizationFee: 0 },
-			{ slot: 2, prioritizationFee: 0 },
 			{ slot: 6, prioritizationFee: 0 },
+			{ slot: 2, prioritizationFee: 0 },
+			{ slot: 2, prioritizationFee: 0 },
+			{ slot: 2, prioritizationFee: 0 },
+			{ slot: 2, prioritizationFee: 0 },
+			{ slot: 1, prioritizationFee: 1000 },
 		];
 		const ewma = ewmaStrategy.calculate(samples);
 		expect(ewma).to.be.approximately(500, 0.00001);
@@ -46,12 +46,12 @@ describe('PriorityFeeStrategy', () => {
 	it('MaxOverSlotsStrategy should calculate the max prioritization fee over slots', () => {
 		const maxOverSlotsStrategy = new MaxOverSlotsStrategy(5);
 		const samples = [
-			{ slot: 1, prioritizationFee: 1000 },
-			{ slot: 2, prioritizationFee: 123 },
+			{ slot: 6, prioritizationFee: 432 },
 			{ slot: 3, prioritizationFee: 543 },
 			{ slot: 3, prioritizationFee: 342 },
 			{ slot: 3, prioritizationFee: 832 },
-			{ slot: 6, prioritizationFee: 432 },
+			{ slot: 2, prioritizationFee: 123 },
+			{ slot: 1, prioritizationFee: 1000 },
 		];
 		const maxOverSlots = maxOverSlotsStrategy.calculate(samples);
 		expect(maxOverSlots).to.equal(832);
@@ -60,12 +60,12 @@ describe('PriorityFeeStrategy', () => {
 	it('AverageOverSlotsStrategy should calculate the average prioritization fee over slots', () => {
 		const averageOverSlotsStrategy = new AverageOverSlotsStrategy(5);
 		const samples = [
-			{ slot: 1, prioritizationFee: 1000 },
-			{ slot: 2, prioritizationFee: 123 },
+			{ slot: 6, prioritizationFee: 432 },
 			{ slot: 3, prioritizationFee: 543 },
 			{ slot: 3, prioritizationFee: 342 },
 			{ slot: 3, prioritizationFee: 832 },
-			{ slot: 6, prioritizationFee: 432 },
+			{ slot: 2, prioritizationFee: 123 },
+			{ slot: 1, prioritizationFee: 1000 },
 		];
 		const averageOverSlots = averageOverSlotsStrategy.calculate(samples);
 		expect(averageOverSlots).to.equal(454.4);

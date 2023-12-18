@@ -6,7 +6,7 @@ export class MaxOverSlotsStrategy implements PriorityFeeStrategy {
 	/**
 	 * @param lookbackSlots The number of slots to look back from the max slot in the sample
 	 */
-	constructor(lookbackSlots = 25) {
+	constructor(lookbackSlots = 10) {
 		this.lookbackSlots = lookbackSlots;
 	}
 
@@ -14,13 +14,13 @@ export class MaxOverSlotsStrategy implements PriorityFeeStrategy {
 		if (samples.length === 0) {
 			return 0;
 		}
-		const stopSlot = samples[samples.length - 1].slot - this.lookbackSlots + 1;
-		let currMaxFee = samples[samples.length - 1].prioritizationFee;
+		// Assuming samples are sorted in descending order of slot.
+		const stopSlot = samples[0].slot - this.lookbackSlots;
+		let currMaxFee = samples[0].prioritizationFee;
 
-		// samples from getRecentPrioritizationFees are sorted in ascending order of slot
-		// so we can iterate backwards.
-		for (let i = samples.length - 1; i >= 0; i--) {
-			if (samples[i].slot < stopSlot) {
+		// Iterate over the samples.
+		for (let i = 0; i < samples.length; i++) {
+			if (samples[i].slot <= stopSlot) {
 				return currMaxFee;
 			}
 			if (samples[i].prioritizationFee > currMaxFee) {

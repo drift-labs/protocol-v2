@@ -6,7 +6,7 @@ export class AverageOverSlotsStrategy implements PriorityFeeStrategy {
 	/**
 	 * @param lookbackSlots The number of slots to look back from the max slot in the sample
 	 */
-	constructor(lookbackSlots = 25) {
+	constructor(lookbackSlots = 10) {
 		this.lookbackSlots = lookbackSlots;
 	}
 
@@ -14,14 +14,12 @@ export class AverageOverSlotsStrategy implements PriorityFeeStrategy {
 		if (samples.length === 0) {
 			return 0;
 		}
-		const stopSlot = samples[samples.length - 1].slot - this.lookbackSlots + 1;
+		const stopSlot = samples[0].slot - this.lookbackSlots;
 		let runningSumFees = 0;
 		let countFees = 0;
 
-		// samples from getRecentPrioritizationFees are sorted in ascending order of slot
-		// so we can iterate backwards.
-		for (let i = samples.length - 1; i >= 0; i--) {
-			if (samples[i].slot < stopSlot) {
+		for (let i = 0; i < samples.length; i++) {
+			if (samples[i].slot <= stopSlot) {
 				return runningSumFees / countFees;
 			}
 			runningSumFees += samples[i].prioritizationFee;
