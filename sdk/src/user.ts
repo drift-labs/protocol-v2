@@ -3033,8 +3033,6 @@ export class User {
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
 	public calculateFeeForQuoteAmount(quoteAmount: BN, marketIndex?: number): BN {
-		const feeTier = this.getUserFeeTier(MarketType.PERP);
-
 		if (marketIndex !== undefined) {
 			const takerFeeMultiplier = this.getMarketFees(
 				MarketType.PERP,
@@ -3045,6 +3043,7 @@ export class User {
 				takerFeeMultiplier;
 			return BigNum.fromPrint(feeAmountNum.toString(), QUOTE_PRECISION_EXP).val;
 		} else {
+			const feeTier = this.getUserFeeTier(MarketType.PERP);
 			return quoteAmount
 				.mul(new BN(feeTier.feeNumerator))
 				.div(new BN(feeTier.feeDenominator));
