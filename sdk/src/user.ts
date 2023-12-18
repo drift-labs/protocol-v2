@@ -40,6 +40,7 @@ import {
 	UserAccountSubscriber,
 } from './accounts/types';
 import {
+	BigNum,
 	BN,
 	calculateBaseAssetValue,
 	calculateMarketMarginRatio,
@@ -82,6 +83,7 @@ import {
 import { calculateLiveOracleTwap } from './math/oracles';
 import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 import { StrictOraclePrice } from './oracles/strictOraclePrice';
+import { QUOTE_PRECISION_EXP } from '@drift-labs/sdk';
 
 export class User {
 	driftClient: DriftClient;
@@ -3013,7 +3015,7 @@ export class User {
 		let makerFee =
 			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
 
-		if (marketIndex && isVariant(marketType, 'perp')) {
+		if (marketIndex !== undefined && isVariant(marketType, 'perp')) {
 			const marketAccount = this.driftClient.getPerpMarketAccount(marketIndex);
 			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
 			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
@@ -3030,11 +3032,23 @@ export class User {
 	 * @param quoteAmount
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
-	public calculateFeeForQuoteAmount(quoteAmount: BN): BN {
+	public calculateFeeForQuoteAmount(quoteAmount: BN, marketIndex?: number): BN {
 		const feeTier = this.getUserFeeTier(MarketType.PERP);
-		return quoteAmount
-			.mul(new BN(feeTier.feeNumerator))
-			.div(new BN(feeTier.feeDenominator));
+
+		if (marketIndex !== undefined) {
+			const takerFeeMultiplier = this.getMarketFees(
+				MarketType.PERP,
+				marketIndex
+			).takerFee;
+			const feeAmountNum =
+				BigNum.from(quoteAmount, QUOTE_PRECISION_EXP).toNum() *
+				takerFeeMultiplier;
+			return BigNum.fromPrint(feeAmountNum.toString(), QUOTE_PRECISION_EXP).val;
+		} else {
+			return quoteAmount
+				.mul(new BN(feeTier.feeNumerator))
+				.div(new BN(feeTier.feeDenominator));
+		}
 	}
 
 	/**
