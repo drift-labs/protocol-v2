@@ -412,7 +412,7 @@ function groupL2Levels(
  * The purpose of this function is uncross the L2 orderbook by modifying the bid/ask price at the top of the book
  * This will make the liquidity look worse but more intuitive (users familiar with clob get confused w temporarily
  * crossing book)
- * 
+ *
  * Things to note about how it works:
  * - it will not uncross the user's liquidity
  * - it does the uncrossing by "shifting" the crossing liquidity to the nearest uncrossed levels. Thus the output liquidity maintains the same total size.
@@ -434,7 +434,7 @@ export function uncrossL2(
 	markTwap5Min: BN,
 	grouping: BN,
 	userBids: Set<string>,
-	userAsks: Set<string>,
+	userAsks: Set<string>
 ): { bids: L2Level[]; asks: L2Level[] } {
 	// If there are no bids or asks, there is nothing to center
 	if (bids.length === 0 || asks.length === 0) {
@@ -450,18 +450,15 @@ export function uncrossL2(
 	const newAsks = [];
 
 	const updateLevels = (newPrice: BN, oldLevel: L2Level, levels: L2Level[]) => {
-		if (
-			levels.length > 0 &&
-			levels[levels.length - 1].price.eq(newPrice)
-		) {
-			levels[levels.length - 1].size = levels[
-			levels.length - 1
-				].size.add(oldLevel.size);
+		if (levels.length > 0 && levels[levels.length - 1].price.eq(newPrice)) {
+			levels[levels.length - 1].size = levels[levels.length - 1].size.add(
+				oldLevel.size
+			);
 			for (const [source, size] of Object.entries(oldLevel.sources)) {
 				if (levels[levels.length - 1].sources[source]) {
 					levels[levels.length - 1].sources = {
 						...levels[levels.length - 1].sources,
-						[source]: levels[levels.length - 1].sources[source].add(size)
+						[source]: levels[levels.length - 1].sources[source].add(size),
 					};
 				} else {
 					levels[levels.length - 1].sources[source] = size;
@@ -510,11 +507,17 @@ export function uncrossL2(
 				continue;
 			}
 
-			if (nextBid.price.gt(referencePrice) && nextAsk.price.gt(referencePrice)) {
+			if (
+				nextBid.price.gt(referencePrice) &&
+				nextAsk.price.gt(referencePrice)
+			) {
 				const newBidPrice = nextAsk.price.sub(grouping);
 				updateLevels(newBidPrice, nextBid, newBids);
 				bidIndex++;
-			} else if (nextAsk.price.lt(referencePrice) && nextBid.price.lt(referencePrice)) {
+			} else if (
+				nextAsk.price.lt(referencePrice) &&
+				nextBid.price.lt(referencePrice)
+			) {
 				const newAskPrice = nextBid.price.add(grouping);
 				updateLevels(newAskPrice, nextAsk, newAsks);
 				askIndex++;
