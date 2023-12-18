@@ -1,35 +1,61 @@
 import { Connection, PublicKey } from '@solana/web3.js';
+import { PriorityFeeStrategy } from './types';
+import { AverageStrategy } from './averageStrategy';
+import { MaxStrategy } from './maxStrategy';
 
 export class PriorityFeeSubscriber {
 	connection: Connection;
 	frequencyMs: number;
 	addresses: PublicKey[];
 	slotsToCheck: number;
+	customStrategy?: PriorityFeeStrategy;
+	averageStrategy = new AverageStrategy();
+	maxStrategy = new MaxStrategy();
 
 	intervalId?: ReturnType<typeof setTimeout>;
 
 	latestPriorityFee = 0;
-	// avg of last {slotsToCheck} slots
-	avgPriorityFee = 0;
-	// max of last {slotsToCheck} slots
-	maxPriorityFee = 0;
+	lastStrategyResult = 0;
+	lastCustomStrategyResult = 0;
+	lastAvgStrategyResult = 0;
+	lastMaxStrategyResult = 0;
 	lastSlotSeen = 0;
 
 	public constructor({
 		connection,
 		frequencyMs,
 		addresses,
+		strategy: customStrategy,
 		slotsToCheck = 10,
 	}: {
 		connection: Connection;
 		frequencyMs: number;
 		addresses: PublicKey[];
+		strategy?: PriorityFeeStrategy;
 		slotsToCheck?: number;
 	}) {
 		this.connection = connection;
 		this.frequencyMs = frequencyMs;
 		this.addresses = addresses;
 		this.slotsToCheck = slotsToCheck;
+		if (customStrategy) {
+			this.customStrategy = customStrategy;
+		}
+	}
+
+	public get avgPriorityFee(): number {
+		return this.lastAvgStrategyResult;
+	}
+
+	public get maxPriorityFee(): number {
+		return this.lastMaxStrategyResult;
+	}
+
+	public get customPriorityFee(): number {
+		if (!this.customStrategy) {
+			console.error('Custom strategy not set');
+		}
+		return this.lastCustomStrategyResult;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -57,13 +83,13 @@ export class PriorityFeeSubscriber {
 		const mostRecentResult = descResults[0];
 		this.latestPriorityFee = mostRecentResult.prioritizationFee;
 		this.lastSlotSeen = mostRecentResult.slot;
-		this.avgPriorityFee =
-			descResults.reduce((a, b) => {
-				return a + b.prioritizationFee;
-			}, 0) / descResults.length;
-		this.maxPriorityFee = Math.max(
-			...descResults.map((result) => result.prioritizationFee)
-		);
+
+		this.lastAvgStrategyResult = this.averageStrategy.calculate(descResults);
+		this.lastMaxStrategyResult = this.maxStrategy.calculate(descResults);
+		if (this.customStrategy) {
+			this.lastCustomStrategyResult =
+				this.customStrategy.calculate(descResults);
+		}
 	}
 
 	public async unsubscribe(): Promise<void> {
