@@ -2579,6 +2579,10 @@ pub fn trigger_order(
             state.min_perp_auction_duration,
         )?;
 
+        if user.orders[order_index].has_auction() {
+            user.increment_open_auctions();
+        }
+
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
 
@@ -4569,6 +4573,10 @@ pub fn trigger_spot_order(
             slot,
             state.default_spot_auction_duration,
         )?;
+
+        if user.orders[order_index].has_auction() {
+            user.increment_open_auctions();
+        }
 
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
