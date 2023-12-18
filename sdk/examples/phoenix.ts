@@ -19,8 +19,8 @@ export async function listenToBook(): Promise<void> {
 	await phoenixSubscriber.subscribe();
 
 	for (let i = 0; i < 10; i++) {
-		const asks = phoenixSubscriber.getL2Levels("bids");
-		const bids = phoenixSubscriber.getL2Levels("asks");
+		const bids = phoenixSubscriber.getL2Levels("bids");
+		const asks = phoenixSubscriber.getL2Levels("asks");
 		console.log("bids");
 		for (const bid of bids) {
 			console.log(bid.price.toNumber() / PRICE_PRECISION.toNumber(), bid.size.toNumber() / BASE_PRECISION.toNumber());
