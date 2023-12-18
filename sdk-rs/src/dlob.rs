@@ -88,18 +88,18 @@ impl<T> RxStream<T> {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct L2Orderbook {
     /// sorted bids, highest first
-    bids: Vec<L2Level>,
+    pub bids: Vec<L2Level>,
     /// sorted asks, lowest first
-    asks: Vec<L2Level>,
-    slot: u64,
+    pub asks: Vec<L2Level>,
+    pub slot: u64,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct L2Level {
     #[serde(deserialize_with = "parse_int_str")]
-    price: u64,
+    pub price: u64,
     #[serde(deserialize_with = "parse_int_str")]
-    size: u64,
+    pub size: u64,
 }
 
 fn parse_int_str<'de, D>(deserializer: D) -> Result<u64, D::Error>
