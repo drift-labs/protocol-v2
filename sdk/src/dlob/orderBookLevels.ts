@@ -412,6 +412,10 @@ function groupL2Levels(
  * The purpose of this function is uncross the L2 orderbook by modifying the bid/ask price at the top of the book
  * This will make the liquidity look worse but more intuitive (users familiar with clob get confused w temporarily
  * crossing book)
+ * 
+ * Things to note about how it works:
+ * - it will not uncross the user's liquidity
+ * - it does the uncrossing by "shifting" the crossing liquidity to the nearest uncrossed levels. Thus the output liquidity maintains the same total size.
  *
  * @param bids
  * @param asks
@@ -472,6 +476,7 @@ export function uncrossL2(
 		}
 	};
 
+	// This is the best estimate of the premium in the market vs oracle to filter crossing around
 	const referencePrice = oraclePrice.add(markTwap5Min.sub(oracleTwap5Min));
 
 	let bidIndex = 0;
