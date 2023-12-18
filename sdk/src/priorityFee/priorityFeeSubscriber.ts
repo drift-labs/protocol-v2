@@ -76,7 +76,8 @@ export class PriorityFeeSubscriber {
 		);
 
 		// getRecentPrioritizationFees returns results unsorted
-		const results: { slot: number; prioritizationFee: number }[] = rpcJSONResponse?.result;
+		const results: { slot: number; prioritizationFee: number }[] =
+			rpcJSONResponse?.result;
 		if (!results.length) return;
 		const descResults = results.sort((a, b) => b.slot - a.slot);
 
