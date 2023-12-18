@@ -27,6 +27,7 @@ import {
 	OPEN_ORDER_MARGIN_REQUIREMENT,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
+	QUOTE_PRECISION_EXP,
 	QUOTE_SPOT_MARKET_INDEX,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	TEN,
@@ -83,7 +84,6 @@ import {
 import { calculateLiveOracleTwap } from './math/oracles';
 import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 import { StrictOraclePrice } from './oracles/strictOraclePrice';
-import { QUOTE_PRECISION_EXP } from '@drift-labs/sdk';
 
 export class User {
 	driftClient: DriftClient;
