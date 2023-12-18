@@ -455,8 +455,10 @@ export function uncrossL2(
 				].size.add(oldLevel.size);
 			for (const [source, size] of Object.entries(oldLevel.sources)) {
 				if (levels[levels.length - 1].sources[source]) {
-					levels[levels.length - 1].sources[source] =
-						levels[levels.length - 1].sources[source].add(size);
+					levels[levels.length - 1].sources = {
+						...levels[levels.length - 1].sources,
+						[source]: levels[levels.length - 1].sources[source].add(size)
+					};
 				} else {
 					levels[levels.length - 1].sources[source] = size;
 				}
