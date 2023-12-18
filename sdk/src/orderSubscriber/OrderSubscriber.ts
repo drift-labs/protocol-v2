@@ -39,6 +39,7 @@ export class OrderSubscriber {
 				commitment: this.commitment,
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
 				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
+				resyncIntervalMs: config.subscriptionConfig.resyncIntervalMs,
 			});
 		}
 		if (config.fastDecode ?? true) {

@@ -9,24 +9,29 @@ export class WebsocketSubscription {
 	private commitment: Commitment;
 	private skipInitialLoad: boolean;
 	private resubTimeoutMs?: number;
+	private resyncIntervalMs?: number;
 
 	private subscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
+	private resyncTimeoutId?: NodeJS.Timeout;
 
 	constructor({
 		orderSubscriber,
 		commitment,
 		skipInitialLoad = false,
 		resubTimeoutMs,
+		resyncIntervalMs,
 	}: {
 		orderSubscriber: OrderSubscriber;
 		commitment: Commitment;
 		skipInitialLoad?: boolean;
 		resubTimeoutMs?: number;
+		resyncIntervalMs?: number;
 	}) {
 		this.orderSubscriber = orderSubscriber;
 		this.commitment = commitment;
 		this.skipInitialLoad = skipInitialLoad;
 		this.resubTimeoutMs = resubTimeoutMs;
+		this.resyncIntervalMs = resyncIntervalMs;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -61,11 +66,32 @@ export class WebsocketSubscription {
 		if (!this.skipInitialLoad) {
 			await this.orderSubscriber.fetch();
 		}
+
+		if (this.resyncIntervalMs) {
+			const recursiveResync = () => {
+				this.resyncTimeoutId = setTimeout(() => {
+					this.orderSubscriber
+						.fetch()
+						.catch((e) => {
+							console.error('Failed to resync in OrderSubscriber');
+							console.log(e);
+						})
+						.finally(() => {
+							// eslint-disable-next-line @typescript-eslint/no-unused-vars
+							recursiveResync();
+						});
+				}, this.resyncIntervalMs);
+			};
+		}
 	}
 
 	public async unsubscribe(): Promise<void> {
 		if (!this.subscriber) return;
 		await this.subscriber.unsubscribe();
 		this.subscriber = undefined;
+		if (this.resyncTimeoutId) {
+			clearTimeout(this.resyncTimeoutId);
+			this.resyncTimeoutId = undefined;
+		}
 	}
 }
