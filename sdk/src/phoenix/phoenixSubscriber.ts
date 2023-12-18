@@ -178,9 +178,9 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 
 		for (let i = 0; i < ladder[side].length; i++) {
 			const { price, quantity } = ladder[side][i];
-			const size = new BN(Math.floor(quantity * basePrecision));
+			const size = new BN(quantity).mul(new BN(basePrecision));
 			yield {
-				price: new BN(Math.floor(price * pricePrecision)),
+				price: new BN(price).mul(new BN(pricePrecision)),
 				size,
 				sources: {
 					phoenix: size,
