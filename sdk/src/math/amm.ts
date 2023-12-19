@@ -23,13 +23,7 @@ import {
 	isVariant,
 } from '../types';
 import { assert } from '../assert/assert';
-import {
-	squareRootBN,
-	sigNum,
-	clampBN,
-	standardizeBaseAssetAmount,
-	calculateReservePrice,
-} from '..';
+import { squareRootBN, sigNum, clampBN, standardizeBaseAssetAmount } from '..';
 
 import { OraclePriceData } from '../oracles/types';
 import {

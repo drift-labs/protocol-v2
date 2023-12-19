@@ -758,10 +758,9 @@ impl Default for AMM {
 
 impl AMM {
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
-        Ok(self
-            .base_asset_amount_with_amm
+        self.base_asset_amount_with_amm
             .safe_add(self.base_asset_amount_with_unsettled_lp)?
-            .cast::<i64>()?)
+            .cast::<i64>()
     }
 
     pub fn get_max_reference_price_offset(self) -> DriftResult<i64> {
