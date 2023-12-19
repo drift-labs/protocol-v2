@@ -46,18 +46,18 @@ export class PriorityFeeSubscriber {
 	}
 
 	public get avgPriorityFee(): number {
-		return this.lastAvgStrategyResult;
+		return Math.floor(this.lastAvgStrategyResult);
 	}
 
 	public get maxPriorityFee(): number {
-		return this.lastMaxStrategyResult;
+		return Math.floor(this.lastMaxStrategyResult);
 	}
 
 	public get customPriorityFee(): number {
 		if (!this.customStrategy) {
 			console.error('Custom strategy not set');
 		}
-		return this.lastCustomStrategyResult;
+		return Math.floor(this.lastCustomStrategyResult);
 	}
 
 	public async subscribe(): Promise<void> {
