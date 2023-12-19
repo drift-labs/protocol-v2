@@ -68,7 +68,7 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     if_liquidation_fee: u32,
 ) -> DriftResult<u128> {
     // If unsettled pnl asset weight is 1 and quote asset is 1, this calculation breaks
-    if asset_weight == liability_weight && asset_weight >= liability_weight {
+    if asset_weight >= liability_weight {
         return Ok(u128::MAX);
     }
 
@@ -78,24 +78,25 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
         (1, 10_u128.pow(6 - liability_decimals))
     };
 
+    let liability_weight_component = liability_weight.cast::<u128>()?.safe_mul(10)?; // multiply market weights by extra 10 to increase precision
+
+    let asset_weight_component = asset_weight
+        .cast::<u128>()?
+        .safe_mul(10)?
+        .safe_mul(asset_liquidation_multiplier.cast()?)?
+        .safe_div(liability_liquidation_multiplier.cast()?)?;
+
+    if asset_weight_component > liability_weight_component {
+        return Ok(u128::MAX);
+    }
+
     margin_shortage
         .safe_mul(numerator_scale)?
         .safe_mul(PRICE_PRECISION * SPOT_WEIGHT_PRECISION_U128 * 10)?
         .safe_div(
             liability_price
                 .cast::<u128>()?
-                .safe_mul(
-                    liability_weight
-                        .cast::<u128>()?
-                        .safe_mul(10)? // multiply market weights by extra 10 to increase precision
-                        .safe_sub(
-                            asset_weight
-                                .cast::<u128>()?
-                                .safe_mul(10)?
-                                .safe_mul(asset_liquidation_multiplier.cast()?)?
-                                .safe_div(liability_liquidation_multiplier.cast()?)?,
-                        )?,
-                )?
+                .safe_mul(liability_weight_component.safe_sub(asset_weight_component)?)?
                 .safe_sub(
                     liability_price
                         .cast::<u128>()?

@@ -280,6 +280,31 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
         );
         assert_eq!(liability_transfer, 475669504);
     }
+
+    #[test]
+    pub fn liability_weight_component_less_than_asset_weight_component() {
+        let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
+        let asset_weight = SPOT_WEIGHT_PRECISION; // .8
+        let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
+        let liability_weight = SPOT_WEIGHT_PRECISION; // 1
+        let liability_liquidation_multiplier = 75 * LIQUIDATION_FEE_PRECISION / 100; // .75
+        let liability_decimals = 6;
+        let liability_price = 100 * PRICE_PRECISION_I64;
+
+        let liability_transfer = calculate_liability_transfer_to_cover_margin_shortage(
+            margin_shortage,
+            asset_weight,
+            asset_liquidation_multiplier,
+            liability_weight,
+            liability_liquidation_multiplier,
+            liability_decimals,
+            liability_price,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(liability_transfer, u128::MAX);
+    }
 }
 
 mod calculate_liability_transfer_implied_by_asset_amount {
