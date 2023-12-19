@@ -443,7 +443,7 @@ describe('AMM Tests', () => {
 	it('Spread Reserves (with offset)', () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 		const mockMarket1 = myMockPerpMarkets[0];
-		let mockAmm = mockMarket1.amm;
+		const mockAmm = mockMarket1.amm;
 		const now = new BN(new Date().getTime() / 1000); //todo
 
 		const oraclePriceData = {
