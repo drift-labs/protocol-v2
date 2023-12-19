@@ -40,11 +40,10 @@ fn calculate_funding_rate(
     Ok(funding_rate)
 }
 
-
+use crate::create_account_info;
+use crate::test_utils::create_account_info;
 #[cfg(test)]
 use crate::test_utils::get_account_bytes;
-use crate::test_utils::create_account_info;
-use crate::create_account_info;
 
 #[test]
 fn balanced_funding_test() {
