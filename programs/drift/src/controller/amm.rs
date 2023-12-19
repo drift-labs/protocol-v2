@@ -167,9 +167,9 @@ pub fn update_spread_reserves(amm: &mut AMM) -> DriftResult {
 }
 
 pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u32)> {
-    let max_offset = amm.get_max_reference_price_offset()?;
+    let max_ref_offset = amm.get_max_reference_price_offset()?;
 
-    let reference_price_offset = if amm.curve_update_intensity > 0 {
+    let reference_price_offset = if max_ref_offset > 0 {
         let liquidity_ratio = amm_spread::calculate_inventory_liquidity_ratio(
             amm.base_asset_amount_with_amm,
             amm.base_asset_reserve,
@@ -186,7 +186,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u3
             amm.last_mark_price_twap_5min,
             amm.historical_oracle_data.last_oracle_price_twap,
             amm.last_mark_price_twap,
-            max_offset,
+            max_ref_offset,
         )?
     } else {
         0

@@ -758,9 +758,15 @@ impl Default for AMM {
 
 impl AMM {
     pub fn get_max_reference_price_offset(self) -> DriftResult<i64> {
-        // always allow 10 bps of price offset, up to a fifth of the market's max_spread
-        let ten_bps = PERCENTAGE_PRECISION.cast::<i64>()? / 1000;
-        let max_offset = (self.max_spread.cast::<i64>()? / 5).max(ten_bps);
+        if self.curve_update_intensity <= 100 {
+            return Ok(0);
+        }
+
+        let lower_bound_multiplier: i64 = self.curve_update_intensity.safe_sub(100)?.cast::<i64>()?;
+
+        // always allow 1-100 bps of price offset, up to a fifth of the market's max_spread
+        let lb_bps = (PERCENTAGE_PRECISION.cast::<i64>()? / 10000).safe_mul(lower_bound_multiplier)?;
+        let max_offset = (self.max_spread.cast::<i64>()? / 5).max(lb_bps);
 
         Ok(max_offset)
     }
