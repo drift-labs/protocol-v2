@@ -9,9 +9,9 @@ use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
-    DEFAULT_LARGE_BID_ASK_FACTOR, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    FUNDING_RATE_BUFFER, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
+    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, DEFAULT_LARGE_BID_ASK_FACTOR,
+    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, FUNDING_RATE_BUFFER,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
     PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
     PRICE_PRECISION_I64,
 };
@@ -449,23 +449,26 @@ pub fn calculate_spread_reserves(
         PositionDirection::Short => amm.short_spread,
     };
 
-    let spread_with_offset: i32 = spread.cast::<i32>()?.safe_add(amm.reference_price_offset)?;
+    let spread_with_offset: i32 = if direction == PositionDirection::Short {
+        (-spread.cast::<i32>()?).safe_add(amm.reference_price_offset)?
+    } else {
+        spread.cast::<i32>()?.safe_add(amm.reference_price_offset)?
+    };
 
-    let quote_asset_reserve_delta = if spread > 0 {
+    let quote_asset_reserve_delta = if spread_with_offset.abs() > 1 {
         amm.quote_asset_reserve
-            .safe_div(BID_ASK_SPREAD_PRECISION_U128 / (spread_with_offset.cast::<u128>()? / 2))?
+            .cast::<i128>()?
+            .safe_div(BID_ASK_SPREAD_PRECISION_I128 / (spread_with_offset.cast::<i128>()? / 2))?
     } else {
         0
     };
 
-    let quote_asset_reserve = if spread_with_offset >= 0 && direction == PositionDirection::Long
-        || spread_with_offset <= 0 && direction == PositionDirection::Short
-    {
+    let quote_asset_reserve = if quote_asset_reserve_delta > 0 {
         amm.quote_asset_reserve
-            .safe_add(quote_asset_reserve_delta)?
+            .safe_add(quote_asset_reserve_delta.unsigned_abs())?
     } else {
         amm.quote_asset_reserve
-            .safe_sub(quote_asset_reserve_delta)?
+            .safe_sub(quote_asset_reserve_delta.unsigned_abs())?
     };
 
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
