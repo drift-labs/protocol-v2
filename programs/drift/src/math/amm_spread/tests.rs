@@ -366,7 +366,6 @@ mod test {
         assert_eq!(long_spread5, 27270);
         assert_eq!(short_spread5, 500);
 
-
         let mut amm = AMM {
             base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
@@ -388,13 +387,18 @@ mod test {
 
         amm.curve_update_intensity = 200;
         let max_ref_offset = amm.get_max_reference_price_offset().unwrap();
-        assert_eq!(max_ref_offset, 10000);  // 100 bps
+        assert_eq!(max_ref_offset, 10000); // 100 bps
 
         amm.max_spread = 10000 * 10; // 10%
         let max_ref_offset = amm.get_max_reference_price_offset().unwrap();
-        assert_eq!(max_ref_offset, 20000);  // 200 bps (5% of max spread)
+        assert_eq!(max_ref_offset, 20000); // 200 bps (5% of max spread)
 
-        let orig_price = calculate_price(amm.quote_asset_reserve, amm.base_asset_reserve, amm.peg_multiplier).unwrap();
+        let orig_price = calculate_price(
+            amm.quote_asset_reserve,
+            amm.base_asset_reserve,
+            amm.peg_multiplier,
+        )
+        .unwrap();
         assert_eq!(orig_price, 1000000);
 
         let (bar_l, qar_l) = calculate_spread_reserves(&amm, PositionDirection::Long).unwrap();
@@ -416,7 +420,6 @@ mod test {
         assert_eq!(s_price, 999500);
         assert!(l_price > s_price);
 
-
         amm.reference_price_offset = 1000; // 10 bps
 
         let (bar_l, qar_l) = calculate_spread_reserves(&amm, PositionDirection::Long).unwrap();
@@ -428,7 +431,7 @@ mod test {
         assert!(bar_s < amm.base_asset_reserve);
         assert_eq!(bar_s, 1999500124); // up
         assert_eq!(bar_l, 1971830986); // down
-        assert_eq!(qar_l, 2028571428); // up 
+        assert_eq!(qar_l, 2028571428); // up
         assert_eq!(qar_s, 2000500000); // down
 
         let l_price = calculate_price(qar_l, bar_l, amm.peg_multiplier).unwrap();
@@ -436,7 +439,6 @@ mod test {
         assert_eq!(l_price, 1028775);
         assert_eq!(s_price, 1000500);
         assert!(l_price > s_price);
-
 
         amm.reference_price_offset = -1000; // -10 bps
         let (bar_l, qar_l) = calculate_spread_reserves(&amm, PositionDirection::Long).unwrap();
@@ -448,7 +450,7 @@ mod test {
         assert!(bar_s > amm.base_asset_reserve);
         assert_eq!(bar_s, 2001501501); // up
         assert_eq!(bar_l, 1974025974); // up
-        assert_eq!(qar_l, 2026315789); // down 
+        assert_eq!(qar_l, 2026315789); // down
         assert_eq!(qar_s, 1998499625); // down
 
         let l_price = calculate_price(qar_l, bar_l, amm.peg_multiplier).unwrap();

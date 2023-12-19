@@ -9,9 +9,9 @@ use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    DEFAULT_LARGE_BID_ASK_FACTOR, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    FUNDING_RATE_BUFFER, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
+    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, DEFAULT_LARGE_BID_ASK_FACTOR,
+    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, FUNDING_RATE_BUFFER,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
     PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
     PRICE_PRECISION_I64,
 };
@@ -456,14 +456,14 @@ pub fn calculate_spread_reserves(
     };
 
     let quote_asset_reserve_delta = if spread_with_offset.abs() > 1 {
-        amm.quote_asset_reserve.cast::<i128>()?
+        amm.quote_asset_reserve
+            .cast::<i128>()?
             .safe_div(BID_ASK_SPREAD_PRECISION_I128 / (spread_with_offset.cast::<i128>()? / 2))?
     } else {
         0
     };
 
-    let quote_asset_reserve = if quote_asset_reserve_delta > 0
-    {
+    let quote_asset_reserve = if quote_asset_reserve_delta > 0 {
         amm.quote_asset_reserve
             .safe_add(quote_asset_reserve_delta.unsigned_abs())?
     } else {
