@@ -69,7 +69,7 @@ export * from './constants/numericConstants';
 export * from './serum/serumSubscriber';
 export * from './serum/serumFulfillmentConfigMap';
 export * from './phoenix/phoenixSubscriber';
-export * from './priorityFee/priorityFeeSubscriber';
+export * from './priorityFee';
 export * from './phoenix/phoenixFulfillmentConfigMap';
 export * from './tx/fastSingleTxSender';
 export * from './tx/retryTxSender';

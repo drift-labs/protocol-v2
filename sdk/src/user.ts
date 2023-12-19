@@ -27,6 +27,7 @@ import {
 	OPEN_ORDER_MARGIN_REQUIREMENT,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
+	QUOTE_PRECISION_EXP,
 	QUOTE_SPOT_MARKET_INDEX,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	TEN,
@@ -40,6 +41,7 @@ import {
 	UserAccountSubscriber,
 } from './accounts/types';
 import {
+	BigNum,
 	BN,
 	calculateBaseAssetValue,
 	calculateMarketMarginRatio,
@@ -1399,8 +1401,12 @@ export class User {
 		includeOpenOrders = false
 	): BN {
 		const userPosition =
-			this.getPerpPositionWithLPSettle(marketIndex)[0] ||
-			this.getEmptyPosition(marketIndex);
+			this.getPerpPositionWithLPSettle(
+				marketIndex,
+				undefined,
+				false,
+				true
+			)[0] || this.getEmptyPosition(marketIndex);
 		const market = this.driftClient.getPerpMarketAccount(
 			userPosition.marketIndex
 		);
@@ -3013,7 +3019,7 @@ export class User {
 		let makerFee =
 			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
 
-		if (marketIndex && isVariant(marketType, 'perp')) {
+		if (marketIndex !== undefined && isVariant(marketType, 'perp')) {
 			const marketAccount = this.driftClient.getPerpMarketAccount(marketIndex);
 			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
 			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
@@ -3030,11 +3036,22 @@ export class User {
 	 * @param quoteAmount
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
-	public calculateFeeForQuoteAmount(quoteAmount: BN): BN {
-		const feeTier = this.getUserFeeTier(MarketType.PERP);
-		return quoteAmount
-			.mul(new BN(feeTier.feeNumerator))
-			.div(new BN(feeTier.feeDenominator));
+	public calculateFeeForQuoteAmount(quoteAmount: BN, marketIndex?: number): BN {
+		if (marketIndex !== undefined) {
+			const takerFeeMultiplier = this.getMarketFees(
+				MarketType.PERP,
+				marketIndex
+			).takerFee;
+			const feeAmountNum =
+				BigNum.from(quoteAmount, QUOTE_PRECISION_EXP).toNum() *
+				takerFeeMultiplier;
+			return BigNum.fromPrint(feeAmountNum.toString(), QUOTE_PRECISION_EXP).val;
+		} else {
+			const feeTier = this.getUserFeeTier(MarketType.PERP);
+			return quoteAmount
+				.mul(new BN(feeTier.feeNumerator))
+				.div(new BN(feeTier.feeDenominator));
+		}
 	}
 
 	/**

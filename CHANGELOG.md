@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: only consider recent last_active_slot in qualifies_for_withdraw_feen([#756](https://github.com/drift-labs/protocol-v2/pull/756))
+- sdk: OrderSubscriber has resync option ([#780](https://github.com/drift-labs/protocol-v2/pull/780))
+- program: only consider recent last_active_slot in qualifies_for_withdraw_feen ([#756](https://github.com/drift-labs/protocol-v2/pull/756))
 - program: amm can use reference price offset from oracle price based on clamped inventory and persist market premiums ([#681](https://github.com/drift-labs/protocol-v2/pull/681))
 
 ### Fixes
 
 - program: handle underflow in calculate_liability_transfer_to_cover_margin_shortage ([#774](https://github.com/drift-labs/protocol-v2/pull/774))
+- program:  flip auction flag when trigger order adds auction ([#775](https://github.com/drift-labs/protocol-v2/pull/775))
 - program: don't perform funding rate updates when slots_since_amm_update is stale ([#757](https://github.com/drift-labs/protocol-v2/pull/757))
 - program: add update last slot for filler in pay_keeper_flat_reward_for_spot
 

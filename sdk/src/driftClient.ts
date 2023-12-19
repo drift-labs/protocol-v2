@@ -3966,7 +3966,7 @@ export class DriftClient {
 		} catch (err) {
 			// ignore
 		}
-		
+
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts,
 			writableSpotMarketIndexes: [outMarketIndex, inMarketIndex],
