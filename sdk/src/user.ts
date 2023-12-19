@@ -1401,8 +1401,12 @@ export class User {
 		includeOpenOrders = false
 	): BN {
 		const userPosition =
-			this.getPerpPositionWithLPSettle(marketIndex)[0] ||
-			this.getEmptyPosition(marketIndex);
+			this.getPerpPositionWithLPSettle(
+				marketIndex,
+				undefined,
+				false,
+				true
+			)[0] || this.getEmptyPosition(marketIndex);
 		const market = this.driftClient.getPerpMarketAccount(
 			userPosition.marketIndex
 		);
