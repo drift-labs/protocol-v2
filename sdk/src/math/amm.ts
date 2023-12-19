@@ -23,7 +23,13 @@ import {
 	isVariant,
 } from '../types';
 import { assert } from '../assert/assert';
-import { squareRootBN, sigNum, clampBN, standardizeBaseAssetAmount } from '..';
+import {
+	squareRootBN,
+	sigNum,
+	clampBN,
+	standardizeBaseAssetAmount,
+	calculateReservePrice,
+} from '..';
 
 import { OraclePriceData } from '../oracles/types';
 import {
@@ -924,14 +930,6 @@ export function calculateSpreadReserves(
 		reservePrice
 	);
 
-	console.log(
-		'referencePriceOffset stuff:',
-		longSpread,
-		shortSpread,
-		longSpread + referencePriceOffset.toNumber(),
-		-shortSpread + referencePriceOffset.toNumber(),
-		referencePriceOffset.toNumber()
-	);
 	const askReserves = calculateSpreadReserve(
 		longSpread + referencePriceOffset.toNumber(),
 		PositionDirection.LONG,
