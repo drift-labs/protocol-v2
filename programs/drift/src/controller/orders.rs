@@ -104,10 +104,34 @@ pub fn place_perp_order(
     params: OrderParams,
     mut options: PlaceOrderOptions,
 ) -> DriftResult {
-    let now = clock.unix_timestamp;
-    let slot = clock.slot;
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
+    _place_perp_order(
+        state,
+        user,
+        user_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        clock,
+        params,
+        options,
+    )
+}
+
+pub fn _place_perp_order(
+    state: &State,
+    user: &mut User,
+    user_key: Pubkey,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    clock: &Clock,
+    params: OrderParams,
+    mut options: PlaceOrderOptions,
+) -> DriftResult {
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
 
     validate_user_not_being_liquidated(
         user,
@@ -2692,7 +2716,7 @@ fn update_trigger_order_params(
 
 pub fn force_cancel_orders(
     state: &State,
-    user: &AccountLoader<User>,
+    user_account_loader: &AccountLoader<User>,
     spot_market_map: &SpotMarketMap,
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
@@ -2703,8 +2727,8 @@ pub fn force_cancel_orders(
     let slot = clock.slot;
 
     let filler_key = filler.key();
-    let user_key = user.key();
-    let user = &mut load_mut!(user)?;
+    let user_key = user_account_loader.key();
+    let user = &mut load_mut!(user_account_loader)?;
     let filler = &mut load_mut!(filler)?;
 
     validate!(
@@ -2794,14 +2818,20 @@ pub fn force_cancel_orders(
     // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
     if user.max_margin_ratio != 0 && !margin_calc.positions_meets_margin_requirement()? {
         let set_reduce_only_orders = false; // todo
-        burn_user_lp_shares(
-            user,
-            &user_key,
-            perp_market_map,
-            oracle_map,
-            now,
-            set_reduce_only_orders,
-        )?;
+        for position_index in 0..user.perp_positions.len() {
+            let market_index = user.perp_positions[position_index].market_index;
+            burn_user_lp_shares(
+                state,
+                user,
+                &user_key,
+                market_index,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                clock,
+                set_reduce_only_orders,
+            )?;
+        }
     }
 
     pay_keeper_flat_reward_for_spot(
@@ -2825,18 +2855,21 @@ pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index:
 }
 
 pub fn burn_user_lp_shares(
+    state: &State,
     user: &mut User,
     user_key: &Pubkey,
+    market_index: u16,
     perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    now: i64,
+    clock: &Clock,
     set_reduce_only_orders: bool,
 ) -> DriftResult {
-    for perp_position in user.perp_positions.iter_mut() {
-        if perp_position.is_lp() {
-            let lp_shares = perp_position.lp_shares;
-            let market_index = perp_position.market_index;
-
+    let perp_position = user.get_perp_position_mut(market_index)?;
+    if perp_position.is_lp() {
+        let lp_shares = perp_position.lp_shares;
+        let market_index = perp_position.market_index;
+        {
             let market = perp_market_map.get_ref(&market_index)?;
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
@@ -2848,16 +2881,14 @@ pub fn burn_user_lp_shares(
 
             let (position_delta, pnl) = burn_lp_shares(
                 perp_position,
-                perp_market_map
-                    .get_ref_mut(&perp_position.market_index)?
-                    .deref_mut(),
-                lp_shares,
+                perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
+                lp_shares.safe_div(2)?.max(market.amm.order_step_size),
                 oracle_price,
             )?;
 
             // emit LP record for shares removed
             emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
-                ts: now,
+                ts: clock.unix_timestamp,
                 action: LPAction::RemoveLiquidity,
                 user: *user_key,
                 n_shares: lp_shares,
@@ -2866,10 +2897,55 @@ pub fn burn_user_lp_shares(
                 delta_quote_asset_amount: position_delta.quote_asset_amount,
                 pnl,
             })?;
+        }
 
-            if set_reduce_only_orders {
-                // do place reduce only oracle limit order
-            }
+        if set_reduce_only_orders {
+            let market = perp_market_map.get_ref(&market_index)?;
+
+            let direction_to_close = perp_position.get_direction_to_close();
+            let estimated_offset_to_start: i64 = if direction_to_close == PositionDirection::Short {
+                -1
+            } else {
+                1
+            };
+            let estimated_offset_to_close: i64 = if direction_to_close == PositionDirection::Short {
+                market
+                .amm
+                .last_bid_price_twap
+                .cast::<i64>()?
+                .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?
+            } else {
+                market
+                    .amm
+                    .last_ask_price_twap
+                    .cast::<i64>()?
+                    .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?
+            };
+
+            let params = OrderParams {
+                direction: perp_position.get_direction_to_close(),
+                order_type: OrderType::Limit,
+                market_index: perp_position.market_index,
+                base_asset_amount: perp_position.base_asset_amount.unsigned_abs(),
+                reduce_only: true,
+                auction_start_price: Some(estimated_offset_to_start),
+                auction_end_price: Some(estimated_offset_to_close.saturating_mul(2)),
+                auction_duration: Some(120),
+                oracle_price_offset: Some(estimated_offset_to_close.saturating_mul(3).cast()?),
+                ..OrderParams::default()
+            };
+
+            controller::orders::_place_perp_order(
+                &state,
+                user,
+                *user_key,
+                &perp_market_map,
+                &spot_market_map,
+                oracle_map,
+                clock,
+                params,
+                PlaceOrderOptions::default(),
+            )?;
         }
     }
 
