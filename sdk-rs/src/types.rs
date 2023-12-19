@@ -180,11 +180,11 @@ impl NewOrder {
 
 #[derive(Debug, Error)]
 pub enum SdkError {
-    #[error("http fail")]
+    #[error("{0}")]
     Http(#[from] reqwest::Error),
-    #[error("rpc fail")]
+    #[error("{0}")]
     Rpc(#[from] solana_client::client_error::ClientError),
-    #[error("ws fail")]
+    #[error("{0}")]
     Ws(#[from] solana_client::nonblocking::pubsub_client::PubsubClientError),
     #[error("error while deserializing")]
     Deserializing,

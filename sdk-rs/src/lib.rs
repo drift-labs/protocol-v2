@@ -105,6 +105,8 @@ impl WsAccountProvider {
     }
     /// Fetch an account and initiate subscription for future updates
     async fn get_account_impl(&self, account: Pubkey) -> SdkResult<Account> {
+        // TODO:  a client querying an account should always succeed, even if the ws subscription fails
+        // this may mean checking TTL and re-issuing the query if necessary
         {
             let cache = self.account_cache.read().await;
             if let Some(account_data) = cache.get(&account) {
