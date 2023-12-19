@@ -902,10 +902,13 @@ export function calculateSpreadReserves(
 			amm.minBaseAssetReserve,
 			amm.maxBaseAssetReserve
 		);
+		const liquidityFractionSigned = liquidityFraction.mul(
+			sigNum(amm.baseAssetAmountWithAmm.add(amm.baseAssetAmountWithUnsettledLp))
+		);
 		referencePriceOffset = calculateReferencePriceOffset(
 			reservePrice,
 			amm.last24HAvgFundingRate,
-			liquidityFraction,
+			liquidityFractionSigned,
 			amm.historicalOracleData.lastOraclePriceTwap5Min,
 			amm.lastMarkPriceTwap5Min,
 			amm.historicalOracleData.lastOraclePriceTwap,
@@ -921,6 +924,14 @@ export function calculateSpreadReserves(
 		reservePrice
 	);
 
+	console.log(
+		'referencePriceOffset stuff:',
+		longSpread,
+		shortSpread,
+		longSpread + referencePriceOffset.toNumber(),
+		-shortSpread + referencePriceOffset.toNumber(),
+		referencePriceOffset.toNumber()
+	);
 	const askReserves = calculateSpreadReserve(
 		longSpread + referencePriceOffset.toNumber(),
 		PositionDirection.LONG,

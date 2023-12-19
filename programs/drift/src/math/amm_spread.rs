@@ -455,7 +455,7 @@ pub fn calculate_spread_reserves(
         spread.cast::<i32>()?.safe_add(amm.reference_price_offset)?
     };
 
-    let quote_asset_reserve_delta = if spread > 0 {
+    let quote_asset_reserve_delta = if spread_with_offset.abs() > 1 {
         amm.quote_asset_reserve.cast::<i128>()?
             .safe_div(BID_ASK_SPREAD_PRECISION_I128 / (spread_with_offset.cast::<i128>()? / 2))?
     } else {

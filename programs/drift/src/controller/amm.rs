@@ -177,10 +177,12 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> DriftResult<(u32, u3
             amm.min_base_asset_reserve,
         )?;
 
+        let signed_liquidity_ratio = liquidity_ratio.safe_mul(amm.get_protocol_owned_position()?.signum().cast()?)?;
+
         amm_spread::calculate_reference_price_offset(
             reserve_price,
             amm.last_24h_avg_funding_rate,
-            liquidity_ratio,
+            signed_liquidity_ratio,
             amm.min_order_size,
             amm.historical_oracle_data.last_oracle_price_twap_5min,
             amm.last_mark_price_twap_5min,
