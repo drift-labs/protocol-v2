@@ -2260,7 +2260,6 @@ pub struct ReclaimRent<'info> {
         has_one = authority
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
-    #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
