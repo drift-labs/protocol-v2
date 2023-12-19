@@ -407,3 +407,139 @@ function groupL2Levels(
 	}
 	return groupedLevels;
 }
+
+/**
+ * The purpose of this function is uncross the L2 orderbook by modifying the bid/ask price at the top of the book
+ * This will make the liquidity look worse but more intuitive (users familiar with clob get confused w temporarily
+ * crossing book)
+ *
+ * Things to note about how it works:
+ * - it will not uncross the user's liquidity
+ * - it does the uncrossing by "shifting" the crossing liquidity to the nearest uncrossed levels. Thus the output liquidity maintains the same total size.
+ *
+ * @param bids
+ * @param asks
+ * @param oraclePrice
+ * @param oracleTwap5Min
+ * @param markTwap5Min
+ * @param grouping
+ * @param userBids
+ * @param userAsks
+ */
+export function uncrossL2(
+	bids: L2Level[],
+	asks: L2Level[],
+	oraclePrice: BN,
+	oracleTwap5Min: BN,
+	markTwap5Min: BN,
+	grouping: BN,
+	userBids: Set<string>,
+	userAsks: Set<string>
+): { bids: L2Level[]; asks: L2Level[] } {
+	// If there are no bids or asks, there is nothing to center
+	if (bids.length === 0 || asks.length === 0) {
+		return { bids, asks };
+	}
+
+	// If the top of the book is already centered, there is nothing to do
+	if (bids[0].price.lt(asks[0].price)) {
+		return { bids, asks };
+	}
+
+	const newBids = [];
+	const newAsks = [];
+
+	const updateLevels = (newPrice: BN, oldLevel: L2Level, levels: L2Level[]) => {
+		if (levels.length > 0 && levels[levels.length - 1].price.eq(newPrice)) {
+			levels[levels.length - 1].size = levels[levels.length - 1].size.add(
+				oldLevel.size
+			);
+			for (const [source, size] of Object.entries(oldLevel.sources)) {
+				if (levels[levels.length - 1].sources[source]) {
+					levels[levels.length - 1].sources = {
+						...levels[levels.length - 1].sources,
+						[source]: levels[levels.length - 1].sources[source].add(size),
+					};
+				} else {
+					levels[levels.length - 1].sources[source] = size;
+				}
+			}
+		} else {
+			levels.push({
+				price: newPrice,
+				size: oldLevel.size,
+				sources: oldLevel.sources,
+			});
+		}
+	};
+
+	// This is the best estimate of the premium in the market vs oracle to filter crossing around
+	const referencePrice = oraclePrice.add(markTwap5Min.sub(oracleTwap5Min));
+
+	let bidIndex = 0;
+	let askIndex = 0;
+	while (bidIndex < bids.length || askIndex < asks.length) {
+		const nextBid = bids[bidIndex];
+		const nextAsk = asks[askIndex];
+
+		if (!nextBid) {
+			newAsks.push(nextAsk);
+			askIndex++;
+			continue;
+		}
+
+		if (!nextAsk) {
+			newBids.push(nextBid);
+			bidIndex++;
+			continue;
+		}
+
+		if (nextBid.price.gt(nextAsk.price)) {
+			if (userBids.has(nextBid.price.toString())) {
+				newBids.push(nextBid);
+				bidIndex++;
+				continue;
+			}
+
+			if (userAsks.has(nextAsk.price.toString())) {
+				newAsks.push(nextAsk);
+				askIndex++;
+				continue;
+			}
+
+			if (
+				nextBid.price.gt(referencePrice) &&
+				nextAsk.price.gt(referencePrice)
+			) {
+				const newBidPrice = nextAsk.price.sub(grouping);
+				updateLevels(newBidPrice, nextBid, newBids);
+				bidIndex++;
+			} else if (
+				nextAsk.price.lt(referencePrice) &&
+				nextBid.price.lt(referencePrice)
+			) {
+				const newAskPrice = nextBid.price.add(grouping);
+				updateLevels(newAskPrice, nextAsk, newAsks);
+				askIndex++;
+			} else {
+				const newBidPrice = referencePrice.sub(grouping);
+				const newAskPrice = referencePrice.add(grouping);
+				updateLevels(newBidPrice, nextBid, newBids);
+				updateLevels(newAskPrice, nextAsk, newAsks);
+				bidIndex++;
+				askIndex++;
+			}
+		} else {
+			newAsks.push(nextAsk);
+			askIndex++;
+
+			newBids.push(nextBid);
+			bidIndex++;
+		}
+	}
+
+	return {
+		bids: newBids,
+		asks: newAsks,
+	};
+}
