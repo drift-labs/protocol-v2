@@ -1179,7 +1179,6 @@ export class DriftClient {
 				authority: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-				systemProgram: anchor.web3.SystemProgram.programId,
 			},
 		});
 	}

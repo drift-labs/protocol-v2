@@ -2263,7 +2263,6 @@ pub struct ReclaimRent<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

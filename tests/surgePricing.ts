@@ -176,6 +176,7 @@ describe('surge pricing', () => {
 			if (i === 4) {
 				// assert(expectedFee.toNumber() === LAMPORTS_PER_SOL / 100);
 			}
+			console.log('account info', accountInfo.lamports);
 			assert(accountInfo.lamports === baseLamports + expectedFee.toNumber());
 			await sleep(1000);
 
