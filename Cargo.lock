@@ -1065,6 +1065,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "drift",
+ "fnv",
  "futures-util",
  "hex",
  "hex-literal",

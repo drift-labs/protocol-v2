@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anchor-lang = "0.27.0"
 drift-program = { package = "drift", path = "../programs/drift" }
+fnv = "1.0.7"
 futures-util = "0.3.29"
 reqwest = "*"
 serde = { version = "*", features = ["derive"] }

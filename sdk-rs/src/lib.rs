@@ -1,6 +1,6 @@
 //! Drift SDK
 
-use std::{collections::HashMap, sync::Arc};
+use std::{borrow::Cow, cell::RefCell, sync::Arc};
 
 use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
 use constants::{derive_spot_market_account, state_account, PerpMarketConfig, SpotMarketConfig};
@@ -13,6 +13,7 @@ use drift_program::{
         user::{MarketType, Order, OrderStatus, PerpPosition, SpotPosition, User},
     },
 };
+use fnv::{FnvBuildHasher, FnvHashMap};
 use futures_util::{future::BoxFuture, FutureExt, StreamExt};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
@@ -73,8 +74,7 @@ impl AccountProvider for RpcAccountProvider {
 pub struct WsAccountProvider {
     rpc_client: RpcClient,
     ws_client: Arc<PubsubClient>,
-    // TODO: use a non-hashing variant
-    account_cache: RwLock<HashMap<Pubkey, Receiver<Account>>>,
+    account_cache: RwLock<FnvHashMap<Pubkey, Receiver<Account>>>,
 }
 
 impl WsAccountProvider {
@@ -153,7 +153,7 @@ impl WsAccountProvider {
             .await
             .expect("recv")
             .map(|_| account_data)
-            .map_err(|err| SdkError::Ws(err))
+            .map_err(SdkError::Ws)
     }
 }
 
@@ -306,6 +306,29 @@ impl<T: AccountProvider> DriftClient<T> {
         let market = derive_spot_market_account(market_index);
         self.backend.get_account(&market).await
     }
+
+    /// Initialize a transaction given a (sub)account address and context
+    ///
+    /// ```ignore
+    /// let tx = client
+    ///     .init_tx(Context::Devnet, &wallet.sub_account(3))
+    ///     .cancel_all_orders()
+    ///     .place_orders(...)
+    ///     .build();
+    /// ```
+    /// Returns a `TransactionBuilder` for composing the tx
+    pub async fn init_tx(
+        &self,
+        context: Context,
+        account: &Pubkey,
+    ) -> SdkResult<TransactionBuilder> {
+        let account_data = self.get_user_account(account).await?;
+        Ok(TransactionBuilder::new(
+            context,
+            *account,
+            Cow::Owned(account_data),
+        ))
+    }
 }
 
 /// Provides the heavy-lifting and network facing features of the SDK
@@ -327,7 +350,7 @@ impl<T: AccountProvider> DriftClientBackend<T> {
 
     /// Fetch drift account data (PDA) for `account`
     async fn get_account<U: AccountDeserialize>(&self, account: &Pubkey) -> SdkResult<U> {
-        let account_data = self.account_provider.get_account(account.clone()).await?;
+        let account_data = self.account_provider.get_account(*account).await?;
         U::try_deserialize(&mut account_data.data.as_ref()).map_err(|_err| SdkError::InvalidAccount)
     }
 
@@ -350,14 +373,16 @@ impl<T: AccountProvider> DriftClientBackend<T> {
 
 /// Composable Tx builder for Drift program
 ///
+/// Prefer `DriftClient::init_tx`
+///
 /// ```ignore
 /// use drift_sdk::{types::Context, TransactionBuilder, Wallet};
 ///
 /// let wallet = Wallet::from_seed_bs58(Context::Dev, "seed");
 /// let client = DriftClient::new("api.example.com").await.unwrap();
-/// let user_account_data = client.get_account(wallet.user()).await.unwrap();
+/// let account_data = client.get_account(wallet.default_sub_account()).await.unwrap();
 ///
-/// let tx = TransactionBuilder::new(&wallet, user_account_data)
+/// let tx = TransactionBuilder::new(Context::Devnet, wallet.default_sub_account(), account_data.into())
 ///     .cancel_all_orders()
 ///     .place_orders(&[
 ///         NewOrder::default().build(),
@@ -370,22 +395,29 @@ impl<T: AccountProvider> DriftClientBackend<T> {
 ///
 pub struct TransactionBuilder<'a> {
     /// wallet to use for tx signing and authority
-    wallet: &'a Wallet,
-    /// user account data
-    user: &'a User,
+    context: Context,
+    /// sub-account data
+    account_data: Cow<'a, User>,
+    /// the drift sub-account address
+    sub_account: Pubkey,
     /// ordered list of instructions
     ixs: Vec<Instruction>,
 }
 
 impl<'a> TransactionBuilder<'a> {
-    pub fn new<'b, 'c>(wallet: &'b Wallet, user: &'b User) -> Self
+    /// Initialize a new `TransactionBuilder`
+    ///
+    /// `context` mainnet or devnet
+    /// `sub_account` drift sub-account address
+    /// `account_data` drift sub-account data
+    pub fn new<'b>(context: Context, sub_account: Pubkey, account_data: Cow<'b, User>) -> Self
     where
         'b: 'a,
-        'c: 'a,
     {
         Self {
-            wallet,
-            user,
+            context,
+            account_data,
+            sub_account,
             ixs: Default::default(),
         }
     }
@@ -397,13 +429,13 @@ impl<'a> TransactionBuilder<'a> {
             .collect();
 
         let accounts = build_accounts(
-            self.wallet.context(),
+            self.context,
             drift_program::accounts::PlaceOrder {
                 state: *state_account(),
-                authority: self.wallet.authority(),
-                user: *self.wallet.user(),
+                authority: self.account_data.authority,
+                user: self.sub_account,
             },
-            self.user,
+            self.account_data.as_ref(),
             readable_accounts.as_ref(),
             &[],
         );
@@ -424,13 +456,13 @@ impl<'a> TransactionBuilder<'a> {
     /// Cancel all orders for account
     pub fn cancel_all_orders(mut self) -> Self {
         let accounts = build_accounts(
-            self.wallet.context(),
+            self.context,
             drift_program::accounts::CancelOrder {
                 state: *state_account(),
-                authority: self.wallet.authority(),
-                user: *self.wallet.user(),
+                authority: self.account_data.authority,
+                user: self.sub_account,
             },
-            self.user,
+            self.account_data.as_ref(),
             &[],
             &[],
         );
@@ -461,13 +493,13 @@ impl<'a> TransactionBuilder<'a> {
     ) -> Self {
         let (idx, kind) = market;
         let accounts = build_accounts(
-            self.wallet.context(),
+            self.context,
             drift_program::accounts::CancelOrder {
                 state: *state_account(),
-                authority: self.wallet.authority(),
-                user: *self.wallet.user(),
+                authority: self.account_data.authority,
+                user: self.sub_account,
             },
-            self.user,
+            self.account_data.as_ref(),
             &[(idx, kind).into()],
             &[],
         );
@@ -489,13 +521,13 @@ impl<'a> TransactionBuilder<'a> {
     /// Cancel orders given ids
     pub fn cancel_orders_by_id(mut self, order_ids: Vec<u32>) -> Self {
         let accounts = build_accounts(
-            self.wallet.context(),
+            self.context,
             drift_program::accounts::CancelOrder {
                 state: *state_account(),
-                authority: self.wallet.authority(),
-                user: *self.wallet.user(),
+                authority: self.account_data.authority,
+                user: self.sub_account,
             },
-            self.user,
+            self.account_data.as_ref(),
             &[],
             &[],
         );
@@ -516,13 +548,13 @@ impl<'a> TransactionBuilder<'a> {
     pub fn modify_orders(mut self, orders: Vec<(u32, ModifyOrderParams)>) -> Self {
         for (order_id, params) in orders {
             let accounts = build_accounts(
-                self.wallet.context(),
+                self.context,
                 drift_program::accounts::PlaceOrder {
                     state: *state_account(),
-                    authority: self.wallet.authority(),
-                    user: *self.wallet.user(),
+                    authority: self.account_data.authority,
+                    user: self.sub_account,
                 },
-                self.user,
+                self.account_data.as_ref(),
                 &[],
                 &[],
             );
@@ -543,7 +575,7 @@ impl<'a> TransactionBuilder<'a> {
 
     /// Build the transaction ready for signing and sending
     pub fn build(self) -> Transaction {
-        Transaction::new_with_payer(self.ixs.as_ref(), Some(&self.wallet.authority()))
+        Transaction::new_with_payer(self.ixs.as_ref(), Some(&self.account_data.authority))
     }
 }
 
@@ -644,52 +676,44 @@ fn build_accounts(
 #[derive(Clone, Debug)]
 pub struct Wallet {
     authority: Arc<Keypair>,
-    user: Pubkey,
     stats: Pubkey,
-    sub_account_id: u16,
-    context: Context,
+    // cache calculated sub-account addresses
+    sub_account_cache: RefCell<FnvHashMap<u16, Pubkey>>,
 }
 
 impl Wallet {
     /// Init wallet from a string that could be either a file path or the encoded key, uses default sub-account
-    ///
-    /// `context` - target deployed program/network
-    pub fn try_from_str(context: Context, path_or_key: &str) -> SdkResult<Self> {
+    pub fn try_from_str(path_or_key: &str) -> SdkResult<Self> {
         let authority = utils::load_keypair_multi_format(path_or_key)?;
-        Ok(Self::with_sub_account(context, authority, 0))
+        Ok(Self::new(authority))
     }
     /// Init wallet from base58 encoded seed, uses default sub-account
     ///
-    /// `context` - target deployed program/network
-    ///
     /// # panics
     /// if the key is invalid
-    pub fn from_seed_bs58(context: Context, seed: &str) -> Self {
+    pub fn from_seed_bs58(seed: &str) -> Self {
         let authority: Keypair = Keypair::from_base58_string(seed);
-        Self::with_sub_account(context, authority, 0)
+        Self::new(authority)
     }
     /// Init wallet from seed bytes, uses default sub-account
-    ///
-    /// `context` - target deployed program/network
-    pub fn from_seed(context: Context, seed: &[u8]) -> SdkResult<Self> {
+    pub fn from_seed(seed: &[u8]) -> SdkResult<Self> {
         let authority: Keypair = keypair_from_seed(seed).map_err(|_| SdkError::InvalidSeed)?;
-        Ok(Self::with_sub_account(context, authority, 0))
+        Ok(Self::new(authority))
     }
     /// Init wallet with given sub-account
     ///
     /// `authority` keypair for tx signing
-    /// `context` - target deployed program/network
-    pub fn with_sub_account(context: Context, authority: Keypair, sub_account_id: u16) -> Self {
+    pub fn new(authority: Keypair) -> Self {
+        let mut sub_account_cache =
+            FnvHashMap::with_capacity_and_hasher(4, FnvBuildHasher::default());
+        sub_account_cache.insert(
+            0,
+            Self::derive_user_account(&authority.pubkey(), 0, &constants::PROGRAM_ID),
+        );
         Self {
-            user: Wallet::derive_user_account(
-                &authority.pubkey(),
-                sub_account_id,
-                &constants::PROGRAM_ID,
-            ),
             stats: Wallet::derive_stats_account(&authority.pubkey(), &constants::PROGRAM_ID),
             authority: Arc::new(authority),
-            sub_account_id,
-            context,
+            sub_account_cache: RefCell::new(sub_account_cache),
         }
     }
     /// Calculate the address of a drift user account/sub-account
@@ -718,21 +742,29 @@ impl Wallet {
     pub fn authority(&self) -> Pubkey {
         self.authority.pubkey()
     }
-    /// Return the drift user address
-    pub fn user(&self) -> &Pubkey {
-        &self.user
-    }
     /// Return the drift user stats address
     pub fn stats(&self) -> &Pubkey {
         &self.stats
     }
-    /// Return the user sub-account index
-    pub fn sub_account_id(&self) -> u16 {
-        self.sub_account_id
+    /// Return the address of the default sub-account (0)
+    pub fn default_sub_account(&self) -> Pubkey {
+        self.sub_account(0)
     }
-    /// Return the target network/chain context
-    pub fn context(&self) -> Context {
-        self.context
+    /// Calculate the drift user address given a `sub_account_id`
+    pub fn sub_account(&self, sub_account_id: u16) -> Pubkey {
+        if let Some(sub_account) = self.sub_account_cache.borrow().get(&sub_account_id) {
+            *sub_account
+        } else {
+            let address = Self::derive_user_account(
+                &self.authority(),
+                sub_account_id,
+                &constants::PROGRAM_ID,
+            );
+            self.sub_account_cache
+                .borrow_mut()
+                .insert(sub_account_id, address);
+            address
+        }
     }
 }
 
