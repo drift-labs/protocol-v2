@@ -8244,6 +8244,9 @@
           },
           {
             "name": "Transfer"
+          },
+          {
+            "name": "Borrow"
           }
         ]
       }

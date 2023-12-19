@@ -674,6 +674,10 @@ impl SpotPosition {
 
         Ok([bid_simulation, ask_simulation])
     }
+
+    pub fn is_borrow(&self) -> bool {
+        self.scaled_balance > 0 && self.balance_type == SpotBalanceType::Borrow
+    }
 }
 
 #[zero_copy(unsafe)]
