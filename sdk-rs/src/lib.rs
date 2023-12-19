@@ -1,6 +1,6 @@
 //! Drift SDK
 
-use std::{borrow::Cow, cell::RefCell, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 
 use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
 use constants::{derive_spot_market_account, state_account, PerpMarketConfig, SpotMarketConfig};
@@ -18,7 +18,8 @@ use futures_util::{future::BoxFuture, FutureExt, StreamExt};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient},
-    rpc_config::RpcAccountInfoConfig,
+    rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
+    rpc_filter::{Memcmp, RpcFilterType},
 };
 pub use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
@@ -97,6 +98,7 @@ impl WsAccountProvider {
         };
 
         let ws_client = PubsubClient::new(&ws_url).await?;
+
         Ok(Self {
             rpc_client: RpcClient::new(url.to_string()),
             ws_client: Arc::new(ws_client),
@@ -677,8 +679,6 @@ fn build_accounts(
 pub struct Wallet {
     authority: Arc<Keypair>,
     stats: Pubkey,
-    // cache calculated sub-account addresses
-    sub_account_cache: RefCell<FnvHashMap<u16, Pubkey>>,
 }
 
 impl Wallet {
@@ -713,7 +713,6 @@ impl Wallet {
         Self {
             stats: Wallet::derive_stats_account(&authority.pubkey(), &constants::PROGRAM_ID),
             authority: Arc::new(authority),
-            sub_account_cache: RefCell::new(sub_account_cache),
         }
     }
     /// Calculate the address of a drift user account/sub-account
@@ -752,19 +751,7 @@ impl Wallet {
     }
     /// Calculate the drift user address given a `sub_account_id`
     pub fn sub_account(&self, sub_account_id: u16) -> Pubkey {
-        if let Some(sub_account) = self.sub_account_cache.borrow().get(&sub_account_id) {
-            *sub_account
-        } else {
-            let address = Self::derive_user_account(
-                &self.authority(),
-                sub_account_id,
-                &constants::PROGRAM_ID,
-            );
-            self.sub_account_cache
-                .borrow_mut()
-                .insert(sub_account_id, address);
-            address
-        }
+        Self::derive_user_account(&self.authority(), sub_account_id, &constants::PROGRAM_ID)
     }
 }
 
