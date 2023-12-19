@@ -277,6 +277,20 @@ impl PerpMarket {
         })
     }
 
+    pub fn get_max_price_divergence_for_funding_rate(
+        self,
+        oracle_price_twap: i64,
+    ) -> DriftResult<i64> {
+        // clamp to to 3% price divergence for safer markets and higher for lower contract tiers
+        if self.contract_tier.is_as_safe_as_contract(&ContractTier::B) {
+            oracle_price_twap.safe_div(33) // 3%
+        } else if self.contract_tier.is_as_safe_as_contract(&ContractTier::C) {
+            oracle_price_twap.safe_div(20) // 5%
+        } else {
+            oracle_price_twap.safe_div(10) // 10%
+        }
+    }
+
     pub fn get_margin_ratio(
         &self,
         size: u128,
