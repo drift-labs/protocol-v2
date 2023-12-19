@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add ability to reclaim rent without deleting account ([#763](https://github.com/drift-labs/protocol-v2/pull/763)) 
 - program: add borrow explanation to DepositRecords ([#772](https://github.com/drift-labs/protocol-v2/pull/772))
 - sdk: OrderSubscriber has resync option ([#780](https://github.com/drift-labs/protocol-v2/pull/780))
 - program: only consider recent last_active_slot in qualifies_for_withdraw_feen ([#756](https://github.com/drift-labs/protocol-v2/pull/756))

@@ -519,6 +519,8 @@ pub enum ErrorCode {
     InvalidMarginCalculation,
     #[msg("CantPayUserInitFee")]
     CantPayUserInitFee,
+    #[msg("CantReclaimRent")]
+    CantReclaimRent,
 }
 
 #[macro_export]

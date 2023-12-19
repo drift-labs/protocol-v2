@@ -274,6 +274,10 @@ pub mod drift {
         handle_delete_user(ctx)
     }
 
+    pub fn reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
+        handle_reclaim_rent(ctx)
+    }
+
     // Keeper Instructions
 
     pub fn fill_perp_order(

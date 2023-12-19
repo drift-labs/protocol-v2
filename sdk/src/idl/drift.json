@@ -1174,6 +1174,37 @@
       "args": []
     },
     {
+      "name": "reclaimRent",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "fillPerpOrder",
       "accounts": [
         {
@@ -11139,6 +11170,11 @@
       "code": 6256,
       "name": "CantPayUserInitFee",
       "msg": "CantPayUserInitFee"
+    },
+    {
+      "code": 6257,
+      "name": "CantReclaimRent",
+      "msg": "CantReclaimRent"
     }
   ]
 }
