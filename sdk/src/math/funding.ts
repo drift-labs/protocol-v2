@@ -7,10 +7,11 @@ import {
 	ONE,
 	FUNDING_RATE_OFFSET_DENOMINATOR,
 } from '../constants/numericConstants';
-import { PerpMarketAccount, isVariant } from '../types';
+import { ContractTier, PerpMarketAccount, isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import { calculateBidAskPrice } from './amm';
 import { calculateLiveOracleTwap } from './oracles';
+import { clampBN } from './utils';
 
 function calculateLiveMarkTwap(
 	market: PerpMarketAccount,
@@ -120,6 +121,26 @@ export async function calculateAllEstimatedFundingRate(
 	markPrice?: BN,
 	now?: BN
 ): Promise<[BN, BN, BN, BN, BN]> {
+	function getMaxPriceDivergenceForFundingRate(
+		market: PerpMarketAccount,
+		oracleTwap: BN
+	) {
+		switch (market.contractTier) {
+			case ContractTier.A:
+				return oracleTwap.divn(33);
+			case ContractTier.B:
+				return oracleTwap.divn(33);
+			case ContractTier.C:
+				return oracleTwap.divn(20);
+			case ContractTier.SPECULATIVE:
+				return oracleTwap.divn(10);
+			case ContractTier.ISOLATED:
+				return oracleTwap.divn(10);
+			default:
+				return oracleTwap.divn(10);
+		}
+	}
+
 	if (isVariant(market.status, 'uninitialized')) {
 		return [ZERO, ZERO, ZERO, ZERO, ZERO];
 	}
@@ -160,8 +181,15 @@ export async function calculateAllEstimatedFundingRate(
 	const twapSpreadWithOffset = twapSpread.add(
 		oracleTwap.abs().div(FUNDING_RATE_OFFSET_DENOMINATOR)
 	);
+	const maxSpread = getMaxPriceDivergenceForFundingRate(market, oracleTwap);
 
-	const twapSpreadPct = twapSpreadWithOffset
+	const clampedSpreadWithOffset = clampBN(
+		twapSpreadWithOffset,
+		maxSpread.mul(new BN(-1)),
+		maxSpread
+	);
+
+	const twapSpreadPct = clampedSpreadWithOffset
 		.mul(PRICE_PRECISION)
 		.mul(new BN(100))
 		.div(oracleTwap);
