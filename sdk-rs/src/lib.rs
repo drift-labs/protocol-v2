@@ -1,6 +1,6 @@
 //! Drift SDK
 
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
 use constants::{derive_spot_market_account, state_account, PerpMarketConfig, SpotMarketConfig};
@@ -18,8 +18,7 @@ use futures_util::{future::BoxFuture, FutureExt, StreamExt};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient},
-    rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
-    rpc_filter::{Memcmp, RpcFilterType},
+    rpc_config::RpcAccountInfoConfig,
 };
 pub use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
@@ -30,10 +29,13 @@ use solana_sdk::{
     signer::Signer,
     transaction::Transaction,
 };
-use tokio::sync::{
-    oneshot::{self},
-    watch::{self, Receiver},
-    RwLock,
+use tokio::{
+    select,
+    sync::{
+        watch::{self, Receiver},
+        RwLock,
+    },
+    time::Instant,
 };
 
 pub mod constants;
@@ -42,8 +44,9 @@ pub mod types;
 use types::*;
 pub mod utils;
 
-/// Provides solana Account fetching implementation
+/// Provides solana Account fetching API
 pub trait AccountProvider: 'static + Sized {
+    // TODO: async fn when it stabilizes
     /// Return the Account information of `account`
     fn get_account(&self, account: Pubkey) -> BoxFuture<SdkResult<Account>>;
 }
@@ -73,9 +76,10 @@ impl AccountProvider for RpcAccountProvider {
 
 /// Account provider using websocket subscriptions to receive and cache account updates
 pub struct WsAccountProvider {
-    rpc_client: RpcClient,
+    rpc_client: Arc<RpcClient>,
     ws_client: Arc<PubsubClient>,
-    account_cache: RwLock<FnvHashMap<Pubkey, Receiver<Account>>>,
+    /// map from account pubkey to (account data, last modified ts)
+    account_cache: RwLock<FnvHashMap<Pubkey, Receiver<(Account, Instant)>>>,
 }
 
 impl WsAccountProvider {
@@ -100,62 +104,92 @@ impl WsAccountProvider {
         let ws_client = PubsubClient::new(&ws_url).await?;
 
         Ok(Self {
-            rpc_client: RpcClient::new(url.to_string()),
+            rpc_client: Arc::new(RpcClient::new(url.to_string())),
             ws_client: Arc::new(ws_client),
             account_cache: Default::default(),
         })
     }
+    /// Subscribe to account updates via web-socket and polling
+    fn subscribe_account(&self, account: Pubkey, tx: watch::Sender<(Account, Instant)>) {
+        let ws_client_handle = Arc::clone(&self.ws_client);
+        let rpc_client_handle = Arc::clone(&self.rpc_client);
+
+        tokio::spawn(async move {
+            let mut n_retries = 0;
+            let mut backoff_s = 16;
+            while n_retries < 3 {
+                let result = ws_client_handle
+                    .account_subscribe(&account, Some(Self::RPC_CONFIG))
+                    .await;
+
+                if result.is_err() {
+                    tokio::time::sleep(Duration::from_secs(backoff_s)).await;
+                    n_retries += 1;
+                    backoff_s *= 2;
+                    continue;
+                } else {
+                    backoff_s = 16;
+                    n_retries = 0;
+                }
+
+                let (mut account_stream, _unsub) = result.unwrap();
+
+                let mut poll_interval = tokio::time::interval(Duration::from_secs(15));
+                let _ = poll_interval.tick().await; // ignore, immediate first tick
+                loop {
+                    select! {
+                        biased;
+                        response = account_stream.next() => {
+                            if let Some(account_update) = response {
+                                let account_data = account_update
+                                    .value
+                                    .decode::<AccountSharedData>()
+                                    .expect("account");
+                                tx.send((account_data.into(), Instant::now())).expect("sent");
+                            } else {
+                                // websocket subscription/stream closed, try reconnect..
+                                break;
+                            }
+                        }
+                        _ = poll_interval.tick() => {
+                            if let Ok(account_data) = rpc_client_handle.get_account(&account).await {
+                                tx.send_if_modified(|current| {
+                                    if current.1.duration_since(Instant::now()) > poll_interval.period() {
+                                        *current = (account_data, Instant::now());
+                                          true
+                                    } else {
+                                        false
+                                    }
+                                });
+                            } else {
+                                // consecutive errors would indicate an issue, there's not much that can be done besides log/panic...
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
     /// Fetch an account and initiate subscription for future updates
     async fn get_account_impl(&self, account: Pubkey) -> SdkResult<Account> {
-        // TODO:  a client querying an account should always succeed, even if the ws subscription fails
-        // this may mean checking TTL and re-issuing the query if necessary
         {
             let cache = self.account_cache.read().await;
-            if let Some(account_data) = cache.get(&account) {
-                return Ok(account_data.borrow().clone());
+            if let Some(account_data_rx) = cache.get(&account) {
+                let (account_data, _last_modified) = account_data_rx.borrow().clone();
+                return Ok(account_data);
             }
         }
 
         // fetch initial account data, stream only updates on changes
         let account_data: Account = self.rpc_client.get_account(&account).await?;
-        let (tx, rx) = watch::channel(account_data.clone());
-
+        let (tx, rx) = watch::channel((account_data.clone(), Instant::now()));
         {
             let mut cache = self.account_cache.write().await;
             cache.insert(account, rx);
         }
+        self.subscribe_account(account, tx);
 
-        let ws_client_handle = Arc::clone(&self.ws_client);
-        let (status_tx, status_rx) = oneshot::channel();
-
-        tokio::spawn(async move {
-            // TODO: handle unsub, after account is unused for some TTL unsub & drop from cache
-            let result = ws_client_handle
-                .account_subscribe(&account, Some(Self::RPC_CONFIG))
-                .await;
-
-            if let Err(err) = result {
-                status_tx.send(Err(err)).expect("sent");
-                return;
-            }
-
-            status_tx.send(Ok(())).expect("sent");
-            let (mut account_stream, _unsub) = result.unwrap();
-
-            while let Some(response) = account_stream.next().await {
-                let account_data = response
-                    .value
-                    .decode::<AccountSharedData>()
-                    .expect("account");
-                tx.send(account_data.into()).expect("sent");
-            }
-        });
-
-        status_rx
-            .await
-            .expect("recv")
-            .map(|_| account_data)
-            .map_err(SdkError::Ws)
+        Ok(account_data)
     }
 }
 
