@@ -335,7 +335,10 @@ impl<T: AccountProvider> DriftClient<T> {
     ///
     /// Returns the signature on success
     pub async fn sign_and_send(&self, wallet: &Wallet, tx: Transaction) -> SdkResult<Signature> {
-        self.backend.sign_and_send(wallet, tx).await
+        self.backend
+            .sign_and_send(wallet, tx)
+            .await
+            .map_err(|err| err.to_out_of_sol_error().unwrap_or(err))
     }
 
     /// Get live info of a spot market
