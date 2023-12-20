@@ -194,6 +194,8 @@ pub enum SdkError {
     InvalidSeed,
     #[error("invalid base58 value")]
     InvalidBase58,
+    #[error("insufficient SOL balance for fees")]
+    OutOfSOL,
 }
 
 impl SdkError {
@@ -207,6 +209,19 @@ impl SdkError {
                 return Some(unsafe {
                     std::mem::transmute(code - anchor_lang::error::ERROR_CODE_OFFSET)
                 });
+            }
+        }
+        None
+    }
+    /// convert to 'out of sol' error is possible
+    pub fn to_out_of_sol_error(&self) -> Option<SdkError> {
+        if let SdkError::Rpc(inner) = self {
+            if let Some(
+                TransactionError::InsufficientFundsForFee
+                | TransactionError::InsufficientFundsForRent { account_index: _ },
+            ) = inner.get_transaction_error()
+            {
+                return Some(Self::OutOfSOL);
             }
         }
         None
