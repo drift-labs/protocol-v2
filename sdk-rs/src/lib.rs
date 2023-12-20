@@ -24,6 +24,7 @@ pub use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
     account::{Account, AccountSharedData},
     commitment_config::{CommitmentConfig, CommitmentLevel},
+    compute_budget::ComputeBudgetInstruction,
     instruction::{AccountMeta, Instruction},
     signature::{keypair_from_seed, Keypair, Signature},
     signer::Signer,
@@ -456,6 +457,14 @@ impl<'a> TransactionBuilder<'a> {
             sub_account,
             ixs: Default::default(),
         }
+    }
+    /// Set the priority fee of the tx
+    ///
+    /// `priority_fee` the price per unit of compute in µ-lamports, default = 5 µ-lamports
+    pub fn priority_fee(mut self, priority_fee: u64) -> Self {
+        let ix = ComputeBudgetInstruction::set_compute_unit_price(priority_fee);
+        self.ixs.push(ix);
+        self
     }
     /// Place new orders for account
     pub fn place_orders(mut self, orders: Vec<OrderParams>) -> Self {
