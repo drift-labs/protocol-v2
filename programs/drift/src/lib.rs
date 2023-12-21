@@ -113,6 +113,13 @@ pub mod drift {
         handle_cancel_orders_by_ids(ctx, order_ids)
     }
 
+    pub fn cancel_orders_by_user_ids(
+        ctx: Context<CancelOrder>,
+        user_order_ids: Vec<u8>,
+    ) -> Result<()> {
+        handle_cancel_orders_by_user_ids(ctx, user_order_ids)
+    }
+
     pub fn modify_order(
         ctx: Context<CancelOrder>,
         order_id: Option<u32>,

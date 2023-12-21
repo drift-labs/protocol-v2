@@ -2948,6 +2948,43 @@ export class DriftClient {
 		});
 	}
 
+	public async cancelOrdersByUserIds(
+		userOrderIds?: number[],
+		txParams?: TxParams,
+		subAccountId?: number
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getCancelOrdersByUserIdsIx(userOrderIds, subAccountId),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getCancelOrdersByUserIdsIx(
+		userOrderIds?: number[],
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const user = await this.getUserAccountPublicKey(subAccountId);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(subAccountId)],
+			useMarketLastSlotCache: true,
+		});
+
+		return await this.program.instruction.cancelOrdersByUserIds(userOrderIds, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async cancelOrdersByIds(
 		orderIds?: number[],
 		txParams?: TxParams,

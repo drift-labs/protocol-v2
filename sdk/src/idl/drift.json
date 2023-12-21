@@ -457,6 +457,32 @@
       ]
     },
     {
+      "name": "cancelOrdersByUserIds",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userOrderIds",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
       "name": "modifyOrder",
       "accounts": [
         {
@@ -11176,5 +11202,8 @@
       "name": "CantReclaimRent",
       "msg": "CantReclaimRent"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
+  }
 }
