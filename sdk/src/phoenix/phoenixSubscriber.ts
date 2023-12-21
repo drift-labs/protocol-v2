@@ -164,18 +164,13 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 	}
 
 	*getL2Levels(side: 'bids' | 'asks'): Generator<L2Level> {
-		const tickSize = this.market.data.header
-			.tickSizeInQuoteAtomsPerBaseUnit as BN;
-		const baseLotsToRawBaseUnits = this.market.baseLotsToRawBaseUnits(1);
-
-		const basePrecision = new BN(
-			Math.pow(10, this.market.data.header.baseParams.decimals) *
-				baseLotsToRawBaseUnits
+		const basePrecision = Math.pow(
+			10,
+			this.market.data.header.baseParams.decimals
 		);
+		const pricePrecision = PRICE_PRECISION.toNumber();
 
-		const pricePrecision = PRICE_PRECISION.div(tickSize as BN);
-
-		const ladder = getMarketLadder(
+		const ladder = getMarketUiLadder(
 			this.market,
 			this.lastSlot,
 			this.lastUnixTimestamp,
@@ -183,18 +178,22 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 		);
 
 		for (let i = 0; i < ladder[side].length; i++) {
-			const { priceInTicks, sizeInBaseLots } = ladder[side][i];
-			const size = sizeInBaseLots.mul(basePrecision);
-			yield {
-				price: priceInTicks.mul(new BN(pricePrecision)),
-				size,
-				sources: {
-					phoenix: size,
-				},
-			};
+			const { price, quantity } = ladder[side][i];
+			try {
+				const size = new BN(quantity * basePrecision);
+				const updatedPrice = new BN(price * pricePrecision);
+				yield {
+					price: updatedPrice,
+					size,
+					sources: {
+						phoenix: size,
+					},
+				};
+			} catch {
+				continue;
+			}
 		}
 	}
-
 	public async unsubscribe(): Promise<void> {
 		if (!this.subscribed) {
 			return;

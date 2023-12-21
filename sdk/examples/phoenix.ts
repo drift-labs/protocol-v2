@@ -9,7 +9,7 @@ export async function listenToBook(): Promise<void> {
 		connection,
 		programId: PROGRAM_ID,
 		marketAddress: new PublicKey(
-			'4DoNfFBfF7UokCC2FQzriy7yHK6DY6NVdYpuekQ5pRgg'
+			'Ew3vFDdtdGrknJAVVfraxCA37uNJtimXYPY4QjnfhFHH'
 		),
 		accountSubscription: {
 			type: 'websocket',
