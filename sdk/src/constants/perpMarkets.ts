@@ -224,6 +224,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1701967240000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'SEI',
+		category: ['L1'],
+		symbol: 'SEI-PERP',
+		baseAssetSymbol: 'SEI',
+		marketIndex: 21,
+		oracle: new PublicKey('B6KVbgqTRY33yDgjAnc1mWw4ATS4W5544xghayQscdt7'),
+		launchTs: 1703173331000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -435,6 +445,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 20,
 		oracle: new PublicKey('D8UUgr8a3aR3yUeHLu7v8FWK7E8Y5sSU7qrYBXUJXBQ5'),
 		launchTs: 1701967240000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'SEI',
+		category: ['L1'],
+		symbol: 'SEI-PERP',
+		baseAssetSymbol: 'SEI',
+		marketIndex: 21,
+		oracle: new PublicKey('6cUuAyAX3eXoiWkjFF77RQBEUF15AAMQ7d1hm4EPd3tv'),
+		launchTs: 1703173331000,
 		oracleSource: OracleSource.PYTH,
 	},
 ];
