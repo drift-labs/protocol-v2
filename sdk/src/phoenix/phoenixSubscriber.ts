@@ -6,7 +6,6 @@ import {
 	toNum,
 	getMarketUiLadder,
 	Market,
-	getMarketLadder,
 } from '@ellipsis-labs/phoenix-sdk';
 import { PRICE_PRECISION } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
