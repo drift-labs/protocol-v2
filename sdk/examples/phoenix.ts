@@ -1,5 +1,10 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { BASE_PRECISION, L2Level, PRICE_PRECISION, PhoenixSubscriber } from '../src';
+import {
+	BASE_PRECISION,
+	L2Level,
+	PRICE_PRECISION,
+	PhoenixSubscriber,
+} from '../src';
 import { PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 
 export async function listenToBook(): Promise<void> {
@@ -19,11 +24,11 @@ export async function listenToBook(): Promise<void> {
 				type: 'websocket',
 			},
 		});
-	
+
 		await phoenixSubscriber.subscribe();
-	
-		const bids = phoenixSubscriber.getL2Levels("bids");
-		const asks = phoenixSubscriber.getL2Levels("asks");
+
+		const bids = phoenixSubscriber.getL2Levels('bids');
+		const asks = phoenixSubscriber.getL2Levels('asks');
 		let bid: L2Level | null = null;
 		for (const b of bids) {
 			bid = b;
@@ -34,20 +39,19 @@ export async function listenToBook(): Promise<void> {
 			ask = a;
 			break;
 		}
-			
-		console.log("market", market);
+
+		console.log('market', market);
 		console.log(
 			(bid?.size.toNumber() || 0) / BASE_PRECISION.toNumber(),
 			(bid?.price.toNumber() || 0) / PRICE_PRECISION.toNumber(),
-			"@",
+			'@',
 			(ask?.price.toNumber() || (1 << 53) - 1) / PRICE_PRECISION.toNumber(),
 			(ask?.size.toNumber() || 0) / BASE_PRECISION.toNumber()
 		);
 		console.log();
-	
+
 		await phoenixSubscriber.unsubscribe();
 	}
-
 }
 
 (async function () {
