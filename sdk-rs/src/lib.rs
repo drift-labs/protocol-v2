@@ -793,6 +793,10 @@ impl Wallet {
     pub fn authority(&self) -> &Pubkey {
         &self.authority
     }
+    /// Return the wallet signing address
+    pub fn signer(&self) -> Pubkey {
+        self.signer.pubkey()
+    }
     /// Return the drift user stats address
     pub fn stats(&self) -> &Pubkey {
         &self.stats
