@@ -277,6 +277,20 @@ impl PerpMarket {
         })
     }
 
+    pub fn get_max_price_divergence_for_funding_rate(
+        self,
+        oracle_price_twap: i64,
+    ) -> DriftResult<i64> {
+        // clamp to to 3% price divergence for safer markets and higher for lower contract tiers
+        if self.contract_tier.is_as_safe_as_contract(&ContractTier::B) {
+            oracle_price_twap.safe_div(33) // 3%
+        } else if self.contract_tier.is_as_safe_as_contract(&ContractTier::C) {
+            oracle_price_twap.safe_div(20) // 5%
+        } else {
+            oracle_price_twap.safe_div(10) // 10%
+        }
+    }
+
     pub fn get_margin_ratio(
         &self,
         size: u128,
@@ -757,10 +771,24 @@ impl Default for AMM {
 }
 
 impl AMM {
+    pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
+        self.base_asset_amount_with_amm
+            .safe_add(self.base_asset_amount_with_unsettled_lp)?
+            .cast::<i64>()
+    }
+
     pub fn get_max_reference_price_offset(self) -> DriftResult<i64> {
-        // always allow 10 bps of price offset, up to a fifth of the market's max_spread
-        let ten_bps = PERCENTAGE_PRECISION.cast::<i64>()? / 1000;
-        let max_offset = (self.max_spread.cast::<i64>()? / 5).max(ten_bps);
+        if self.curve_update_intensity <= 100 {
+            return Ok(0);
+        }
+
+        let lower_bound_multiplier: i64 =
+            self.curve_update_intensity.safe_sub(100)?.cast::<i64>()?;
+
+        // always allow 1-100 bps of price offset, up to a fifth of the market's max_spread
+        let lb_bps =
+            (PERCENTAGE_PRECISION.cast::<i64>()? / 10000).safe_mul(lower_bound_multiplier)?;
+        let max_offset = (self.max_spread.cast::<i64>()? / 5).max(lb_bps);
 
         Ok(max_offset)
     }

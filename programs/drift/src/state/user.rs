@@ -355,9 +355,13 @@ impl User {
         self.open_orders = self.open_orders.saturating_add(1);
         self.has_open_order = self.open_orders > 0;
         if is_auction {
-            self.open_auctions = self.open_auctions.saturating_add(1);
-            self.has_open_auction = self.open_auctions > 0;
+            self.increment_open_auctions();
         }
+    }
+
+    pub fn increment_open_auctions(&mut self) {
+        self.open_auctions = self.open_auctions.saturating_add(1);
+        self.has_open_auction = self.open_auctions > 0;
     }
 
     pub fn decrement_open_orders(&mut self, is_auction: bool) {
@@ -669,6 +673,10 @@ impl SpotPosition {
             simulate_side(strict_oracle_price, token_amount, self.open_asks.cast()?)?;
 
         Ok([bid_simulation, ask_simulation])
+    }
+
+    pub fn is_borrow(&self) -> bool {
+        self.scaled_balance > 0 && self.balance_type == SpotBalanceType::Borrow
     }
 }
 

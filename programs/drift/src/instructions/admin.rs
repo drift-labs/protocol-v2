@@ -1845,8 +1845,10 @@ pub fn handle_update_perp_market_curve_update_intensity(
     ctx: Context<AdminUpdatePerpMarket>,
     curve_update_intensity: u8,
 ) -> Result<()> {
+    // (0, 100] is for repeg / formulaic k intensity
+    // (100, 200] is for reference price offset intensity
     validate!(
-        curve_update_intensity <= 100,
+        curve_update_intensity <= 200,
         ErrorCode::DefaultError,
         "invalid curve_update_intensity",
     )?;
