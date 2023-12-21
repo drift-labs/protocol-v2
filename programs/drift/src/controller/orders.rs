@@ -407,7 +407,16 @@ fn get_auction_params(
                     // if auction is non-zero, force it to be at least min_auction_duration
                     auction_duration.max(min_auction_duration)
                 };
-                Ok((auction_start_price, auction_end_price, auction_duration))
+
+                Ok((
+                    standardize_price_i64(
+                        auction_start_price,
+                        tick_size.cast()?,
+                        params.direction,
+                    )?,
+                    standardize_price_i64(auction_end_price, tick_size.cast()?, params.direction)?,
+                    auction_duration,
+                ))
             }
             _ => Ok((0_i64, 0_i64, 0_u8)),
         };
