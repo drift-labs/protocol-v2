@@ -56,20 +56,12 @@ pub fn init_markets(context: Context, mut spot: Vec<SpotMarket>, mut perp: Vec<P
     );
     match context {
         Context::DevNet => {
-            SPOT_MARKETS_DEV
-                .set(Box::leak(spot.into_boxed_slice()))
-                .expect("set once");
-            PERP_MARKETS_DEV
-                .set(Box::leak(perp.into_boxed_slice()))
-                .expect("set once");
+            SPOT_MARKETS_DEV.set(Box::leak(spot.into_boxed_slice()));
+            PERP_MARKETS_DEV.set(Box::leak(perp.into_boxed_slice()));
         }
         Context::MainNet => {
-            SPOT_MARKETS_MAINNET
-                .set(Box::leak(spot.into_boxed_slice()))
-                .expect("set once");
-            PERP_MARKETS_MAINNET
-                .set(Box::leak(perp.into_boxed_slice()))
-                .expect("set once");
+            SPOT_MARKETS_MAINNET.set(Box::leak(spot.into_boxed_slice()));
+            PERP_MARKETS_MAINNET.set(Box::leak(perp.into_boxed_slice()));
         }
     }
 }

@@ -404,6 +404,7 @@ impl<T: AccountProvider> DriftClientBackend<T> {
     async fn initialize_markets(&self) -> SdkResult<()> {
         let (spot, perp): (SdkResult<Vec<SpotMarket>>, SdkResult<Vec<PerpMarket>>) =
             tokio::join!(self.get_program_accounts(), self.get_program_accounts());
+
         constants::init_markets(self.context, spot?, perp?);
 
         Ok(())
