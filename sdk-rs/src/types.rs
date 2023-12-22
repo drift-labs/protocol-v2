@@ -1,15 +1,16 @@
 use std::cmp::Ordering;
 
+use drift_program::error::ErrorCode;
 // re-export types in public API
 pub use drift_program::{
     controller::position::PositionDirection,
     state::{
         order_params::{ModifyOrderParams, OrderParams, PostOnlyParam},
+        perp_market::PerpMarket,
         spot_market::SpotMarket,
         user::{MarketType, Order, OrderType, PerpPosition, SpotPosition},
     },
 };
-use drift_program::{error::ErrorCode, state::perp_market::PerpMarket};
 use solana_sdk::{
     instruction::{AccountMeta, InstructionError},
     pubkey::Pubkey,
