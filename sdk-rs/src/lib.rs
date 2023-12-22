@@ -2,13 +2,14 @@
 
 use std::{borrow::Cow, sync::Arc, time::Duration};
 
-use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
-use constants::{derive_spot_market_account, state_account, PerpMarketConfig, SpotMarketConfig};
+use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
+use constants::{derive_spot_market_account, state_account};
 use drift_program::{
     controller::position::PositionDirection,
     math::constants::QUOTE_SPOT_MARKET_INDEX,
     state::{
         order_params::{ModifyOrderParams, OrderParams},
+        perp_market::PerpMarket,
         spot_market::SpotMarket,
         user::{MarketType, Order, OrderStatus, PerpPosition, SpotPosition, User},
     },
@@ -18,7 +19,8 @@ use futures_util::{future::BoxFuture, FutureExt, StreamExt};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient},
-    rpc_config::RpcAccountInfoConfig,
+    rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
+    rpc_filter::{Memcmp, RpcFilterType},
 };
 pub use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
@@ -210,10 +212,10 @@ pub struct DriftClient<T: AccountProvider> {
 }
 
 impl<T: AccountProvider> DriftClient<T> {
-    pub async fn new(endpoint: &str, account_provider: T) -> SdkResult<Self> {
+    pub async fn new(context: Context, endpoint: &str, account_provider: T) -> SdkResult<Self> {
         Ok(Self {
             backend: Box::leak(Box::new(
-                DriftClientBackend::new(endpoint, account_provider).await?,
+                DriftClientBackend::new(context, endpoint, account_provider).await?,
             )),
         })
     }
@@ -375,21 +377,69 @@ impl<T: AccountProvider> DriftClient<T> {
 /// Provides the heavy-lifting and network facing features of the SDK
 /// It is intended to be a singleton
 pub struct DriftClientBackend<T: AccountProvider> {
+    context: Context,
     rpc_client: RpcClient,
     account_provider: T,
 }
 
 impl<T: AccountProvider> DriftClientBackend<T> {
     /// Initialize a new `DriftClientBackend`
-    async fn new(endpoint: &str, account_provider: T) -> SdkResult<DriftClientBackend<T>> {
+    async fn new(
+        context: Context,
+        endpoint: &str,
+        account_provider: T,
+    ) -> SdkResult<DriftClientBackend<T>> {
         let rpc_client = RpcClient::new(endpoint.to_string());
-        Ok(Self {
+        let this = Self {
+            context,
             rpc_client,
             account_provider,
-        })
+        };
+        this.initialize_markets().await?;
+
+        Ok(this)
     }
 
-    /// Fetch drift account data (PDA) for `account`
+    /// Load market data from chain
+    async fn initialize_markets(&self) -> SdkResult<()> {
+        let (spot, perp): (SdkResult<Vec<SpotMarket>>, SdkResult<Vec<PerpMarket>>) =
+            tokio::join!(self.get_program_accounts(), self.get_program_accounts());
+        constants::init_markets(self.context, spot?, perp?);
+
+        Ok(())
+    }
+
+    /// Get all drift program accounts by Anchor type
+    async fn get_program_accounts<U: AccountDeserialize + Discriminator>(
+        &self,
+    ) -> SdkResult<Vec<U>> {
+        let accounts = self
+            .rpc_client
+            .get_program_accounts_with_config(
+                &constants::PROGRAM_ID,
+                RpcProgramAccountsConfig {
+                    filters: Some(vec![RpcFilterType::Memcmp(Memcmp::new_raw_bytes(
+                        0,
+                        U::DISCRIMINATOR.to_vec(),
+                    ))]),
+                    account_config: RpcAccountInfoConfig {
+                        encoding: Some(UiAccountEncoding::Base64Zstd),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            )
+            .await?;
+
+        accounts
+            .iter()
+            .map(|(_, account_data)| {
+                U::try_deserialize(&mut account_data.data.as_ref()).map_err(Into::into)
+            })
+            .collect()
+    }
+
+    /// Fetch an `account` as an Anchor account type
     async fn get_account<U: AccountDeserialize>(&self, account: &Pubkey) -> SdkResult<U> {
         let account_data = self.account_provider.get_account(*account).await?;
         U::try_deserialize(&mut account_data.data.as_ref()).map_err(|_err| SdkError::InvalidAccount)
@@ -663,27 +713,25 @@ fn build_accounts(
 
         let (account, oracle) = match market_type {
             MarketType::Spot => {
-                let SpotMarketConfig {
-                    account, oracle, ..
-                } = constants::spot_market_config_by_index(context, market_index).expect("exists");
+                let SpotMarket { pubkey, oracle, .. } =
+                    constants::spot_market_config_by_index(context, market_index).expect("exists");
                 (
                     RemainingAccount::Spot {
-                        pubkey: *account,
+                        pubkey: *pubkey,
                         writable,
                     },
                     oracle,
                 )
             }
             MarketType::Perp => {
-                let PerpMarketConfig {
-                    account, oracle, ..
-                } = constants::perp_market_config_by_index(context, market_index).expect("exists");
+                let PerpMarket { pubkey, amm, .. } =
+                    constants::perp_market_config_by_index(context, market_index).expect("exists");
                 (
                     RemainingAccount::Perp {
-                        pubkey: *account,
+                        pubkey: *pubkey,
                         writable,
                     },
-                    oracle,
+                    &amm.oracle,
                 )
             }
         };
@@ -815,6 +863,8 @@ impl Wallet {
 mod tests {
     use std::str::FromStr;
 
+    use anchor_lang::Discriminator;
+    use drift_program::state::{perp_market::PerpMarket, traits::Size};
     use serde_json::json;
     use solana_account_decoder::{UiAccount, UiAccountData};
     use solana_client::{
@@ -835,6 +885,7 @@ mod tests {
         account_provider_mocks: Mocks,
     ) -> DriftClient<RpcAccountProvider> {
         let backend = DriftClientBackend {
+            context: Context::DevNet,
             rpc_client: RpcClient::new_mock_with_mocks(DEVNET_ENDPOINT.to_string(), rpc_mocks),
             account_provider: RpcAccountProvider {
                 client: RpcClient::new_mock_with_mocks(
@@ -847,6 +898,30 @@ mod tests {
         DriftClient {
             backend: Box::leak(Box::new(backend)),
         }
+    }
+
+    #[tokio::test]
+    async fn get_market_accounts() {
+        let client = DriftClient::new(
+            Context::DevNet,
+            DEVNET_ENDPOINT,
+            RpcAccountProvider::new(DEVNET_ENDPOINT),
+        )
+        .await
+        .unwrap();
+        let accounts: Vec<SpotMarket> = client
+            .backend
+            .get_program_accounts()
+            .await
+            .expect("found accounts");
+        assert!(accounts.len() > 1);
+
+        let accounts: Vec<PerpMarket> = client
+            .backend
+            .get_program_accounts()
+            .await
+            .expect("found accounts");
+        assert!(accounts.len() > 1);
     }
 
     #[tokio::test]

@@ -66,7 +66,11 @@ impl DLOBClient {
     }
 
     /// Subscribe to a DLOB L2 book for `market`
-    pub fn subscribe_l2_book(&self, market: MarketId, interval_s: Option<u64>) -> L2OrderbookStream {
+    pub fn subscribe_l2_book(
+        &self,
+        market: MarketId,
+        interval_s: Option<u64>,
+    ) -> L2OrderbookStream {
         let mut interval = tokio::time::interval(Duration::from_secs(interval_s.unwrap_or(1)));
         let (tx, rx) = channel(16);
         tokio::spawn({
@@ -86,10 +90,14 @@ impl DLOBClient {
     }
 
     // Subscribe to a DLOB L3 book for `market`
-    pub fn subscribe_l3_book(&self, market: MarketId, interval_s: Option<u64>) -> L3OrderbookStream {
+    pub fn subscribe_l3_book(
+        &self,
+        market: MarketId,
+        interval_s: Option<u64>,
+    ) -> L3OrderbookStream {
         let mut interval = tokio::time::interval(Duration::from_secs(interval_s.unwrap_or(1)));
         let (tx, rx) = channel(16);
-        tokio::spawn( {
+        tokio::spawn({
             let client = self.clone();
             async move {
                 loop {
@@ -140,7 +148,7 @@ pub struct L3Orderbook {
     pub bids: Vec<L3Level>,
     /// sorted asks, lowest first
     pub asks: Vec<L3Level>,
-    pub slot: u64
+    pub slot: u64,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -159,7 +167,7 @@ pub struct L3Level {
     pub size: u64,
     pub maker: String,
     #[serde(rename = "orderId")]
-    pub order_id: u64
+    pub order_id: u64,
 }
 
 fn parse_int_str<'de, D>(deserializer: D) -> Result<u64, D::Error>

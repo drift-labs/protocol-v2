@@ -8,24 +8,26 @@ use drift_sdk::{
 
 #[ignore]
 #[tokio::test]
-async fn do_the_thing() {
+async fn place_and_cancel_orders() {
+    let context = Context::DevNet;
     let client = DriftClient::new(
+        context,
         "https://api.devnet.solana.com",
         RpcAccountProvider::new("https://api.devnet.solana.com"),
     )
     .await
     .expect("connects");
+
     let wallet = Wallet::from_seed_bs58(
         "4ZT38mSeFhzzDRCMTMbwDp7VYWDqNfkvDR42Wv4Hu9cKzbZPJoVapQSrjLbs9aMPrpAMmN1cQinztnP2PzKVjzwX",
     );
 
-    let context = Context::DevNet;
     let user_data = client
         .get_user_account(&wallet.default_sub_account())
         .await
         .expect("ok");
 
-    let sol = MarketId::lookup(context, "sol-perp").expect("exists");
+    let sol_perp = MarketId::lookup(context, "sol-perp").expect("exists");
     let sol_spot = MarketId::lookup(context, "sol").expect("exists");
 
     let tx = TransactionBuilder::new(
@@ -33,8 +35,9 @@ async fn do_the_thing() {
         wallet.default_sub_account(),
         Cow::Borrowed(&user_data),
     )
+    .cancel_all_orders()
     .place_orders(vec![
-        NewOrder::limit(sol)
+        NewOrder::limit(sol_perp)
             .amount(-1 * LAMPORTS_PER_SOL_I64)
             .price(100 * QUOTE_PRECISION_U64)
             .post_only(true)
@@ -47,6 +50,8 @@ async fn do_the_thing() {
     ])
     .cancel_all_orders()
     .build();
-    let signature = client.sign_and_send(&wallet, tx).await;
-    dbg!(signature);
+
+    let result = client.sign_and_send(&wallet, tx).await;
+    dbg!(&result);
+    assert!(result.is_ok());
 }
