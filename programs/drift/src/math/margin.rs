@@ -327,6 +327,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 )?;
 
             if worst_case_token_amount == 0 {
+                if spot_position.scaled_balance != 0 {
+                    msg!("here");
+                }
                 validate!(
                     spot_position.scaled_balance == 0,
                     ErrorCode::InvalidMarginRatio,
