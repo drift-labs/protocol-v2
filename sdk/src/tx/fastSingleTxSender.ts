@@ -36,7 +36,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		timeout = DEFAULT_TIMEOUT,
 		blockhashRefreshInterval = DEFAULT_BLOCKHASH_REFRESH,
 		additionalConnections = new Array<Connection>(),
-		skipConfirmation = false,
+		skipConfirmation = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
