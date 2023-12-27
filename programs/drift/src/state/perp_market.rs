@@ -771,6 +771,45 @@ impl Default for AMM {
 }
 
 impl AMM {
+    pub fn get_fallback_price(self, 
+        direction: &PositionDirection,
+        amm_available_liquidity: u64, 
+        oracle_price: i64, 
+        seconds_til_order_expiry: i64,
+    ) -> DriftResult<i64> {
+        // PRICE_PRECISION
+        if direction.eq(&PositionDirection::Long) {
+            // pick amm ask + buffer if theres liquidity 
+            // otherwise be aggressive vs oracle + 1hr premium
+            if amm_available_liquidity >= self.min_order_size {
+                let reserve_price = self.reserve_price()?;
+                let amm_ask_price: i64 = self.ask_price(reserve_price)?.cast()?;
+                amm_ask_price
+                .safe_add(amm_ask_price / (seconds_til_order_expiry * 20).clamp(100, 200))
+            } else {
+                oracle_price.safe_add(self.last_ask_price_twap.cast::<i64>()?
+                .safe_sub(self.historical_oracle_data.last_oracle_price_twap)?
+                .max(0)
+                )?.safe_add(oracle_price / (seconds_til_order_expiry * 2).clamp(10, 50))
+            }
+        } else {
+            // pick amm bid - buffer if theres liquidity 
+            // otherwise be aggressive vs oracle + 1hr bid premium
+            if amm_available_liquidity >= self.min_order_size {
+                let reserve_price = self.reserve_price()?;
+                let amm_bid_price: i64 = self.bid_price(reserve_price)?.cast()?;
+                amm_bid_price
+                .safe_sub(amm_bid_price / (seconds_til_order_expiry * 20).clamp(100, 200))
+            } else {
+                oracle_price.safe_add(self.last_bid_price_twap.cast::<i64>()?
+                .safe_sub(self.historical_oracle_data.last_oracle_price_twap)?
+                .min(0)
+                )?.safe_add(oracle_price / (seconds_til_order_expiry * 2).clamp(10, 50))
+            }
+        }
+
+    }
+
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
         self.base_asset_amount_with_amm
             .safe_add(self.base_asset_amount_with_unsettled_lp)?
