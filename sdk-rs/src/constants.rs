@@ -18,6 +18,7 @@ static SPOT_MARKETS_MAINNET: OnceLock<&'static [SpotMarket]> = OnceLock::new();
 static PERP_MARKETS_DEV: OnceLock<&'static [PerpMarket]> = OnceLock::new();
 static PERP_MARKETS_MAINNET: OnceLock<&'static [PerpMarket]> = OnceLock::new();
 
+
 /// Drift state account
 pub fn state_account() -> &'static Pubkey {
     STATE_ACCOUNT.get_or_init(|| {
@@ -34,6 +35,40 @@ pub fn derive_spot_market_account(market_index: u16) -> Pubkey {
         &PROGRAM_ID,
     );
     account
+}
+
+pub trait MarketConfig {
+    fn market_type(&self) -> &str;
+    fn symbol(&self) -> String;
+}
+
+impl MarketConfig for PerpMarket {
+    fn market_type(&self) -> &str {
+        "perp"
+    }
+
+    fn symbol(&self) -> String {
+        String::from_utf8(self.name.to_vec())
+            .unwrap_or_default()
+            .trim_end_matches('\0')
+            .trim()
+            .to_string()
+    }
+}
+
+
+impl MarketConfig for SpotMarket {
+    fn market_type(&self) -> &str {
+        "spot"
+    }
+
+    fn symbol(&self) -> String {
+        String::from_utf8(self.name.to_vec())
+            .unwrap_or_default()
+            .trim_end_matches('\0')
+            .trim()
+            .to_string()
+    }
 }
 
 /// Initialize market metadata

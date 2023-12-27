@@ -6,8 +6,10 @@ edition = "2021"
 [dependencies]
 anchor-lang = "0.27.0"
 drift-program = { package = "drift", path = "../programs/drift" }
+env_logger = "0.10.1"
 fnv = "1.0.7"
 futures-util = "0.3.29"
+log = "0.4.20"
 reqwest = "*"
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
@@ -17,6 +19,7 @@ solana-sdk = "1.14"
 substreams-solana-macro = "0.11.1"
 thiserror = "1.0.38"
 tokio = { version = "1.34.0", features = ["full"] }
+tokio-tungstenite = { version = "0.21.0", features = [ "native-tls" ]}
 
 [dev-dependencies]
 hex = "*"

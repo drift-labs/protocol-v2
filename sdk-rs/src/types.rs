@@ -17,6 +17,11 @@ use solana_sdk::{
     transaction::TransactionError,
 };
 use thiserror::Error;
+use tokio_tungstenite::tungstenite;
+use futures_util::sink::Sink;
+use tokio_tungstenite::{WebSocketStream, MaybeTlsStream};
+use tokio::net::TcpStream;
+
 
 use crate::constants::{perp_market_configs, spot_market_configs};
 
@@ -176,6 +181,23 @@ impl NewOrder {
     }
 }
 
+#[derive(Debug)]
+pub struct SinkError(pub <WebSocketStream<MaybeTlsStream<TcpStream>> as Sink<tungstenite::Message>>::Error);
+
+impl std::fmt::Display for SinkError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "WebSocket Sink Error: {}", self.0)
+    }
+}
+
+impl std::error::Error for SinkError {}
+
+impl From<SinkError> for SdkError {
+    fn from(err: SinkError) -> Self {
+        SdkError::SubscriptionFailure(err)
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum SdkError {
     #[error("{0}")]
@@ -196,6 +218,14 @@ pub enum SdkError {
     InvalidBase58,
     #[error("insufficient SOL balance for fees")]
     OutOfSOL,
+    #[error("WebSocket connection failed {0}")]
+    ConnectionError(#[from] tungstenite::Error),
+    #[error("Subscription failure: {0}")]
+    SubscriptionFailure(SinkError),
+    #[error("Received Error from websocket")]
+    WebsocketError,
+    #[error("Missed DLOB heartbeat")]
+    MissedHeartbeat,
 }
 
 impl SdkError {

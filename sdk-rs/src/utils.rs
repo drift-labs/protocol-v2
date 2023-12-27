@@ -1,8 +1,9 @@
 //! SDK utility functions
 
+use serde_json::json;
 use solana_sdk::{bs58, signature::Keypair};
 
-use crate::types::{SdkError, SdkResult};
+use crate::{types::{SdkError, SdkResult}, constants::MarketConfig};
 
 // kudos @wphan
 /// Try to parse secret `key` string
@@ -39,6 +40,27 @@ pub fn load_keypair_multi_format(path_or_key: &str) -> SdkResult<Keypair> {
     }
 }
 
+pub fn http_to_ws(url: &str) -> Result<String, &'static str> {
+    let base_url = if url.starts_with("http://") {
+        url.replacen("http://", "ws://", 1)
+    } else if url.starts_with("https://") {
+        url.replacen("https://", "wss://", 1)
+    } else {
+        return Err("Invalid URL scheme");
+    };
+
+    Ok(format!("{}/ws", base_url.trim_end_matches('/')))
+}
+
+pub fn to_ws_json(config: &impl MarketConfig) -> String {
+    json!({
+        "type": "subscribe",
+        "marketType": config.market_type(),
+        "channel": "orderbook",
+        "market": config.symbol()
+    }).to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use solana_sdk::signer::Signer;
@@ -67,5 +89,13 @@ mod tests {
 
         let keypair = read_keypair_str_multi_format(keypair_data).unwrap();
         assert!(keypair.pubkey().to_string() == "EtiM5qwcrrawQP9FfRErBatNvDgEU656tk5aA8iTgqri");
+    }
+
+    #[test]
+    fn test_https_to_ws() {
+        let https_url = "https://dlob.drift.trade";
+        assert!(http_to_ws(https_url).unwrap() == "wss://dlob.drift.trade/ws");
+        let http_url = "http://dlob.drift.trade";
+        assert!(http_to_ws(http_url).unwrap() == "ws://dlob.drift.trade/ws")
     }
 }
