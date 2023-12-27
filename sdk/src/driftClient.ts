@@ -1652,7 +1652,8 @@ export class DriftClient {
 		marketIndex: number,
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
-		reduceOnly = false
+		reduceOnly = false,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const additionalSigners: Array<Signer> = [];
 
@@ -1701,7 +1702,7 @@ export class DriftClient {
 			);
 		}
 
-		const txParams = { ...this.txParams, computeUnits: 600_000 };
+		txParams = { ...(txParams ?? this.txParams), computeUnits: 600_000 };
 
 		const tx = await this.buildTransaction(instructions, txParams);
 
