@@ -3274,8 +3274,9 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
-		const userAccountPublicKey =
-			await this.getUserAccountPublicKey(subAccountId);
+		const userAccountPublicKey = await this.getUserAccountPublicKey(
+			subAccountId
+		);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -5785,8 +5786,9 @@ export class DriftClient {
 		}
 
 		if (initializeStakeAccount) {
-			const initializeIx =
-				await this.getInitializeInsuranceFundStakeIx(marketIndex);
+			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
+				marketIndex
+			);
 			addIfStakeIxs.push(initializeIx);
 		}
 
