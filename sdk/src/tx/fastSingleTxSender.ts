@@ -27,6 +27,7 @@ export class FastSingleTxSender extends BaseTxSender {
 	additionalConnections: Connection[];
 	timoutCount = 0;
 	blockhashQueue: string[] = [];
+	skipConfirmation: boolean;
 
 	public constructor({
 		connection,
@@ -35,6 +36,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		timeout = DEFAULT_TIMEOUT,
 		blockhashRefreshInterval = DEFAULT_BLOCKHASH_REFRESH,
 		additionalConnections = new Array<Connection>(),
+		skipConfirmation = false,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -42,6 +44,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		timeout?: number;
 		blockhashRefreshInterval?: number;
 		additionalConnections?;
+		skipConfirmation?: boolean;
 	}) {
 		super({ connection, wallet, opts, timeout, additionalConnections });
 		this.connection = connection;
@@ -50,6 +53,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		this.timeout = timeout;
 		this.blockhashRefreshInterval = blockhashRefreshInterval;
 		this.additionalConnections = additionalConnections;
+		this.skipConfirmation = skipConfirmation;
 		this.startBlockhashRefreshLoop();
 	}
 
@@ -144,12 +148,14 @@ export class FastSingleTxSender extends BaseTxSender {
 		this.sendToAdditionalConnections(rawTransaction, opts);
 
 		let slot: number;
-		try {
-			const result = await this.confirmTransaction(txid, opts.commitment);
-			slot = result.context.slot;
-		} catch (e) {
-			console.error(e);
-			throw e;
+		if (!this.skipConfirmation) {
+			try {
+				const result = await this.confirmTransaction(txid, opts.commitment);
+				slot = result.context.slot;
+			} catch (e) {
+				console.error(e);
+				throw e;
+			}
 		}
 
 		return { txSig: txid, slot };
