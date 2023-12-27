@@ -1,25 +1,24 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { PriorityFeeStrategy } from './types';
 import { AverageOverSlotsStrategy } from './averageOverSlotsStrategy';
-import { MaxOverSlotsStrategy } from './maxOverSlotsStrategy';
 
 export class PriorityFeeSubscriber {
 	connection: Connection;
 	frequencyMs: number;
 	addresses: PublicKey[];
-	customStrategy?: PriorityFeeStrategy;
-	averageStrategy = new AverageOverSlotsStrategy();
-	maxStrategy = new MaxOverSlotsStrategy();
+	strategy: PriorityFeeStrategy;
+	lookbackDistance : number;
 
 	intervalId?: ReturnType<typeof setTimeout>;
 
 	latestPriorityFee = 0;
-	lastStrategyResult = 0;
-	lastCustomStrategyResult = 0;
-	lastAvgStrategyResult = 0;
-	lastMaxStrategyResult = 0;
+	private _latestStrategyResult = 0;
 	lastSlotSeen = 0;
 
+	/**
+	 * @param props 
+	 * customStrategy : strategy to return the priority fee to use based on recent samples. defaults to AVERAGE.
+	 */
 	public constructor({
 		connection,
 		frequencyMs,
@@ -36,28 +35,16 @@ export class PriorityFeeSubscriber {
 		this.connection = connection;
 		this.frequencyMs = frequencyMs;
 		this.addresses = addresses;
-		if (slotsToCheck) {
-			this.averageStrategy = new AverageOverSlotsStrategy(slotsToCheck);
-			this.maxStrategy = new MaxOverSlotsStrategy(slotsToCheck);
+		if (!customStrategy) {
+			this.strategy = new AverageOverSlotsStrategy();
+		} else {
+			this.strategy=customStrategy;
 		}
-		if (customStrategy) {
-			this.customStrategy = customStrategy;
-		}
+		this.lookbackDistance = slotsToCheck;
 	}
 
-	public get avgPriorityFee(): number {
-		return Math.floor(this.lastAvgStrategyResult);
-	}
-
-	public get maxPriorityFee(): number {
-		return Math.floor(this.lastMaxStrategyResult);
-	}
-
-	public get customPriorityFee(): number {
-		if (!this.customStrategy) {
-			console.error('Custom strategy not set');
-		}
-		return Math.floor(this.lastCustomStrategyResult);
+	public get latestStrategyResult(): number {
+		return Math.floor(this._latestStrategyResult);
 	}
 
 	public async subscribe(): Promise<void> {
@@ -78,19 +65,18 @@ export class PriorityFeeSubscriber {
 		// getRecentPrioritizationFees returns results unsorted
 		const results: { slot: number; prioritizationFee: number }[] =
 			rpcJSONResponse?.result;
+		
 		if (!results.length) return;
-		const descResults = results.sort((a, b) => b.slot - a.slot);
 
+		const descResults = results.sort((a, b) => b.slot - a.slot);
 		const mostRecentResult = descResults[0];
+		const cutoffSlot = mostRecentResult.slot - this.lookbackDistance;
+
+		const resultsToUse = descResults.filter(result => result.slot >= cutoffSlot);
+
 		this.latestPriorityFee = mostRecentResult.prioritizationFee;
 		this.lastSlotSeen = mostRecentResult.slot;
-
-		this.lastAvgStrategyResult = this.averageStrategy.calculate(descResults);
-		this.lastMaxStrategyResult = this.maxStrategy.calculate(descResults);
-		if (this.customStrategy) {
-			this.lastCustomStrategyResult =
-				this.customStrategy.calculate(descResults);
-		}
+		this._latestStrategyResult = this.strategy.calculate(resultsToUse);
 	}
 
 	public async unsubscribe(): Promise<void> {
