@@ -1,12 +1,12 @@
 import { BN, isVariant, MarketTypeStr, Order } from '..';
-import { PublicKey } from '@solana/web3.js';
+// import { PublicKey } from '@solana/web3.js';
 import { createNode, DLOBNode, DLOBNodeMap } from './DLOBNode';
 
 export type SortDirection = 'asc' | 'desc';
 
 export function getOrderSignature(
 	orderId: number,
-	userAccount: PublicKey
+	userAccount: string
 ): string {
 	return `${userAccount.toString()}-${orderId.toString()}`;
 }
@@ -36,7 +36,7 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 	public insert(
 		order: Order,
 		marketType: MarketTypeStr,
-		userAccount: PublicKey
+		userAccount: string
 	): void {
 		if (isVariant(order.status, 'init')) {
 			return;
@@ -101,7 +101,7 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		}
 	}
 
-	public update(order: Order, userAccount: PublicKey): void {
+	public update(order: Order, userAccount: string): void {
 		const orderId = getOrderSignature(order.orderId, userAccount);
 		if (this.nodeMap.has(orderId)) {
 			const node = this.nodeMap.get(orderId);
@@ -110,7 +110,7 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		}
 	}
 
-	public remove(order: Order, userAccount: PublicKey): void {
+	public remove(order: Order, userAccount: string): void {
 		const orderId = getOrderSignature(order.orderId, userAccount);
 		if (this.nodeMap.has(orderId)) {
 			const node = this.nodeMap.get(orderId);
@@ -142,7 +142,7 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		}
 	}
 
-	public has(order: Order, userAccount: PublicKey): boolean {
+	public has(order: Order, userAccount: string): boolean {
 		return this.nodeMap.has(getOrderSignature(order.orderId, userAccount));
 	}
 
