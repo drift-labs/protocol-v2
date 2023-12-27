@@ -9,6 +9,7 @@ import {
 	TransactionMessage,
 	TransactionInstruction,
 	AddressLookupTableAccount,
+	Commitment,
 } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import { IWallet } from '../types';
@@ -27,6 +28,7 @@ export class FastSingleTxSender extends BaseTxSender {
 	timoutCount = 0;
 	recentBlockhash: string;
 	skipConfirmation: boolean;
+	blockhashCommitment: Commitment;
 
 	public constructor({
 		connection,
@@ -36,6 +38,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		blockhashRefreshInterval = DEFAULT_BLOCKHASH_REFRESH,
 		additionalConnections = new Array<Connection>(),
 		skipConfirmation = false,
+		blockhashCommitment = 'finalized',
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -44,6 +47,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		blockhashRefreshInterval?: number;
 		additionalConnections?;
 		skipConfirmation?: boolean;
+		blockhashCommitment?: Commitment;
 	}) {
 		super({ connection, wallet, opts, timeout, additionalConnections });
 		this.connection = connection;
@@ -53,6 +57,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		this.blockhashRefreshInterval = blockhashRefreshInterval;
 		this.additionalConnections = additionalConnections;
 		this.skipConfirmation = skipConfirmation;
+		this.blockhashCommitment = blockhashCommitment;
 		this.startBlockhashRefreshLoop();
 	}
 
@@ -60,7 +65,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		setInterval(async () => {
 			try {
 				this.recentBlockhash = (
-					await this.connection.getLatestBlockhash(this.opts)
+					await this.connection.getLatestBlockhash(this.blockhashCommitment)
 				).blockhash;
 			} catch (e) {
 				console.error('Error in startBlockhashRefreshLoop: ', e);
@@ -71,13 +76,13 @@ export class FastSingleTxSender extends BaseTxSender {
 	async prepareTx(
 		tx: Transaction,
 		additionalSigners: Array<Signer>,
-		opts: ConfirmOptions
+		_opts: ConfirmOptions
 	): Promise<Transaction> {
 		tx.feePayer = this.wallet.publicKey;
 
 		tx.recentBlockhash =
 			this.recentBlockhash ??
-			(await this.connection.getLatestBlockhash(opts.preflightCommitment))
+			(await this.connection.getLatestBlockhash(this.blockhashCommitment))
 				.blockhash;
 
 		additionalSigners
