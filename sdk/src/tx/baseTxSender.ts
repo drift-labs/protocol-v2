@@ -195,8 +195,12 @@ export abstract class BaseTxSender implements TxSender {
 					reject(err);
 				}
 			});
+			const confirmationPromiseWithTimeout = this.promiseTimeout(
+				[confirmPromise],
+				3000
+			);
 			subscriptionIds.push(subscriptionId);
-			return confirmPromise;
+			return confirmationPromiseWithTimeout;
 		});
 
 		try {
