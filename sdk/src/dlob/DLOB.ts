@@ -1472,15 +1472,18 @@ export class DLOB {
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
-	): BN {
-		return this.getRestingLimitAsks(
+	): BN | undefined {
+		const bestAsk = this.getRestingLimitAsks(
 			marketIndex,
 			slot,
 			marketType,
 			oraclePriceData
-		)
-			.next()
-			.value.getPrice(oraclePriceData, slot);
+		).next().value;
+
+		if (bestAsk) {
+			return bestAsk.getPrice(oraclePriceData, slot);
+		}
+		return undefined;
 	}
 
 	public getBestBid(
@@ -1488,15 +1491,18 @@ export class DLOB {
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
-	): BN {
-		return this.getRestingLimitBids(
+	): BN | undefined {
+		const bestBid = this.getRestingLimitBids(
 			marketIndex,
 			slot,
 			marketType,
 			oraclePriceData
-		)
-			.next()
-			.value.getPrice(oraclePriceData, slot);
+		).next().value;
+
+		if (bestBid) {
+			return bestBid.getPrice(oraclePriceData, slot);
+		}
+		return undefined;
 	}
 
 	public *getStopLosses(
