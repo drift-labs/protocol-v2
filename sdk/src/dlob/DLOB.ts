@@ -157,9 +157,10 @@ export class DLOB {
 		for (const user of userMap.values()) {
 			const userAccount = user.getUserAccount();
 			const userAccountPubkey = user.getUserAccountPublicKey();
+			const userAccountPubkeyString = userAccountPubkey.toString();
 
 			for (const order of userAccount.orders) {
-				this.insertOrder(order, userAccountPubkey.toString(), slot);
+				this.insertOrder(order, userAccountPubkeyString, slot);
 			}
 		}
 
@@ -356,7 +357,11 @@ export class DLOB {
 			.trigger[isVariant(order.triggerCondition, 'above') ? 'above' : 'below'];
 		triggerList.remove(order, userAccount.toString());
 
-		this.getListForOrder(order, slot)?.insert(order, marketType, userAccount.toString());
+		this.getListForOrder(order, slot)?.insert(
+			order,
+			marketType,
+			userAccount.toString()
+		);
 		if (onTrigger) {
 			onTrigger();
 		}
@@ -2028,7 +2033,10 @@ export class DLOB {
 
 		for (const node of generator) {
 			if (!makers.has(node.userAccount.toString())) {
-				makers.set(node.userAccount.toString(), new PublicKey(node.userAccount));
+				makers.set(
+					node.userAccount.toString(),
+					new PublicKey(node.userAccount)
+				);
 			}
 
 			if (makers.size === numMakers) {

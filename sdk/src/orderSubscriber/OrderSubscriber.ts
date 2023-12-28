@@ -200,7 +200,6 @@ export class OrderSubscriber {
 	public async getDLOB(slot: number): Promise<DLOB> {
 		const dlob = new DLOB();
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
-			// const userAccountPubkey = new PublicKey(key);
 			for (const order of userAccount.orders) {
 				dlob.insertOrder(order, key, slot);
 			}
