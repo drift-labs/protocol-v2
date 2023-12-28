@@ -1,9 +1,7 @@
 import { PriorityFeeStrategy } from './types';
-import { assertSamplesDescending } from './utils';
 
 export class AverageOverSlotsStrategy implements PriorityFeeStrategy {
 	calculate(samples: { slot: number; prioritizationFee: number }[]): number {
-		assertSamplesDescending(samples);
 		if (samples.length === 0) {
 			return 0;
 		}
