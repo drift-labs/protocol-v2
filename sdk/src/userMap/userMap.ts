@@ -51,6 +51,7 @@ export class UserMap implements UserMapInterface {
 	private connection: Connection;
 	private commitment: Commitment;
 	private includeIdle: boolean;
+	private disableSyncOnTotalAccountsChange: boolean;
 	private lastNumberOfSubAccounts: BN;
 	private subscription: PollingSubscription | WebsocketSubscription;
 	private stateAccountUpdateCallback = async (state: StateAccount) => {
@@ -78,6 +79,8 @@ export class UserMap implements UserMapInterface {
 		this.commitment =
 			config.subscriptionConfig.commitment ?? this.driftClient.opts.commitment;
 		this.includeIdle = config.includeIdle ?? false;
+		this.disableSyncOnTotalAccountsChange =
+			config.disableSyncOnTotalAccountsChange ?? false;
 
 		let decodeFn;
 		if (config.fastDecode ?? true) {
@@ -115,10 +118,12 @@ export class UserMap implements UserMapInterface {
 		await this.driftClient.subscribe();
 		this.lastNumberOfSubAccounts =
 			this.driftClient.getStateAccount().numberOfSubAccounts;
-		this.driftClient.eventEmitter.on(
-			'stateAccountUpdate',
-			this.stateAccountUpdateCallback
-		);
+		if (!this.disableSyncOnTotalAccountsChange) {
+			this.driftClient.eventEmitter.on(
+				'stateAccountUpdate',
+				this.stateAccountUpdateCallback
+			);
+		}
 
 		await this.subscription.subscribe();
 	}
@@ -363,10 +368,13 @@ export class UserMap implements UserMapInterface {
 		}
 
 		if (this.lastNumberOfSubAccounts) {
-			this.driftClient.eventEmitter.removeListener(
-				'stateAccountUpdate',
-				this.stateAccountUpdateCallback
-			);
+			if (!this.disableSyncOnTotalAccountsChange) {
+				this.driftClient.eventEmitter.removeListener(
+					'stateAccountUpdate',
+					this.stateAccountUpdateCallback
+				);
+			}
+
 			this.lastNumberOfSubAccounts = undefined;
 		}
 	}

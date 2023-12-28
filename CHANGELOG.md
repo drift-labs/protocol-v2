@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- sdk: use tx params passed into deposit function
+
 ### Breaking
 
 ## [2.52.0] - 2023-12-22

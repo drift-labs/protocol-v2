@@ -31,4 +31,8 @@ export type UserMapConfig = {
 
 	// Whether to skip loading available perp/spot positions and open orders
 	fastDecode?: boolean;
+
+	// If true, will not do a full sync whenever StateAccount.numberOfSubAccounts changes.
+	// default behavior is to do a full sync on changes.
+	disableSyncOnTotalAccountsChange?: boolean;
 };

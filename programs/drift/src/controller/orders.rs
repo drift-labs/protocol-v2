@@ -1829,7 +1829,8 @@ pub fn fulfill_perp_order_with_amm(
         // if is an actual swap (and not amm jit order) then msg!
         if override_base_asset_amount.is_none() {
             msg!(
-                "Amm cant fulfill order. base asset amount {} market.amm.min_order_size {}",
+                "Amm cant fulfill order. market index {} base asset amount {} market.amm.min_order_size {}",
+                market.market_index,
                 base_asset_amount,
                 market.amm.min_order_size
             );
