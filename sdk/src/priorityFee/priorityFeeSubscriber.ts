@@ -64,21 +64,29 @@ export class PriorityFeeSubscriber {
 			[this.addresses]
 		);
 
-		// getRecentPrioritizationFees returns results unsorted
 		const results: { slot: number; prioritizationFee: number }[] =
 			rpcJSONResponse?.result;
 		
 		if (!results.length) return;
 
+		// # Sort and filter results based on the slot lookback setting
 		const descResults = results.sort((a, b) => b.slot - a.slot);
 		const mostRecentResult = descResults[0];
 		const cutoffSlot = mostRecentResult.slot - this.lookbackDistance;
 
 		const resultsToUse = descResults.filter(result => result.slot >= cutoffSlot);
 
+		// # Handle results
 		this.latestPriorityFee = mostRecentResult.prioritizationFee;
 		this.lastSlotSeen = mostRecentResult.slot;
-		this.lastCustomStrategyResult = this.customStrategy.calculate(resultsToUse);
+
+		this.lastAvgStrategyResult = this.averageStrategy.calculate(resultsToUse);
+		this.lastMaxStrategyResult = this.maxStrategy.calculate(resultsToUse);
+		if (this.customStrategy) {
+			this.lastCustomStrategyResult =
+				this.customStrategy.calculate(resultsToUse);
+		}
+
 	}
 
 	public async unsubscribe(): Promise<void> {
