@@ -2,8 +2,6 @@ import { PriorityFeeStrategy } from './types';
 import { assertSamplesDescending } from './utils';
 
 export class MaxOverSlotsStrategy implements PriorityFeeStrategy {
-	constructor() {}
-
 	calculate(samples: { slot: number; prioritizationFee: number }[]): number {
 		
 		assertSamplesDescending(samples);

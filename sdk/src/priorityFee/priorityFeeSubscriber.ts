@@ -1,18 +1,24 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { PriorityFeeStrategy } from './types';
 import { AverageOverSlotsStrategy } from './averageOverSlotsStrategy';
+import { MaxOverSlotsStrategy } from './maxOverSlotsStrategy';
 
 export class PriorityFeeSubscriber {
 	connection: Connection;
 	frequencyMs: number;
 	addresses: PublicKey[];
-	strategy: PriorityFeeStrategy;
+	customStrategy?: PriorityFeeStrategy;
+	averageStrategy = new AverageOverSlotsStrategy();
+	maxStrategy = new MaxOverSlotsStrategy();
 	lookbackDistance : number;
 
 	intervalId?: ReturnType<typeof setTimeout>;
 
 	latestPriorityFee = 0;
-	private _latestStrategyResult = 0;
+	lastStrategyResult = 0;
+	lastCustomStrategyResult = 0;
+	lastAvgStrategyResult = 0;
+	lastMaxStrategyResult = 0;
 	lastSlotSeen = 0;
 
 	/**
@@ -36,15 +42,11 @@ export class PriorityFeeSubscriber {
 		this.frequencyMs = frequencyMs;
 		this.addresses = addresses;
 		if (!customStrategy) {
-			this.strategy = new AverageOverSlotsStrategy();
+			this.customStrategy = new AverageOverSlotsStrategy();
 		} else {
-			this.strategy=customStrategy;
+			this.customStrategy=customStrategy;
 		}
 		this.lookbackDistance = slotsToCheck;
-	}
-
-	public get latestStrategyResult(): number {
-		return Math.floor(this._latestStrategyResult);
 	}
 
 	public async subscribe(): Promise<void> {
@@ -76,7 +78,7 @@ export class PriorityFeeSubscriber {
 
 		this.latestPriorityFee = mostRecentResult.prioritizationFee;
 		this.lastSlotSeen = mostRecentResult.slot;
-		this._latestStrategyResult = this.strategy.calculate(resultsToUse);
+		this.lastCustomStrategyResult = this.customStrategy.calculate(resultsToUse);
 	}
 
 	public async unsubscribe(): Promise<void> {
