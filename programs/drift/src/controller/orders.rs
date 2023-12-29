@@ -2098,22 +2098,19 @@ pub fn fulfill_perp_order_with_match(
         return Ok((0_u64, 0_u64, 0_u64));
     }
 
-    let (bid_price, ask_price) = market.amm.bid_ask_price(market.amm.reserve_price()?)?;
-
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-    let taker_direction = taker.orders[taker_order_index].direction;
+    let taker_direction: PositionDirection = taker.orders[taker_order_index].direction;
 
     let taker_price = if let Some(taker_limit_price) = taker_limit_price {
         taker_limit_price
     } else {
         let amm_available_liquidity =
             calculate_amm_available_liquidity(&market.amm, &taker_direction)?;
-        get_fallback_price(
+        market.amm.get_fallback_price(
             &taker_direction,
-            bid_price,
-            ask_price,
             amm_available_liquidity,
             oracle_price,
+            taker.orders[taker_order_index].seconds_til_expiry(now),
         )?
     };
 
