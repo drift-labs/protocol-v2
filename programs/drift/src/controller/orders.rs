@@ -816,30 +816,19 @@ fn merge_modify_order_params_with_existing_order(
     let oracle_price_offset = modify_order_params
         .oracle_price_offset
         .or(Some(existing_order.oracle_price_offset));
-    let auction_duration =
-        modify_order_params
-            .auction_duration
-            .or(if existing_order.auction_duration == 0 {
-                None
-            } else {
-                Some(existing_order.auction_duration)
-            });
-    let auction_start_price =
-        modify_order_params
-            .auction_start_price
-            .or(if existing_order.auction_start_price == 0 {
-                None
-            } else {
-                Some(existing_order.auction_start_price)
-            });
-    let auction_end_price =
-        modify_order_params
-            .auction_end_price
-            .or(if existing_order.auction_end_price == 0 {
-                None
-            } else {
-                Some(existing_order.auction_end_price)
-            });
+    let (auction_duration, auction_start_price, auction_end_price) =
+        if modify_order_params.auction_duration.is_some()
+            && modify_order_params.auction_start_price.is_some()
+            && modify_order_params.auction_end_price.is_some()
+        {
+            (
+                modify_order_params.auction_duration,
+                modify_order_params.auction_start_price,
+                modify_order_params.auction_end_price,
+            )
+        } else {
+            (None, None, None)
+        };
 
     Ok(OrderParams {
         order_type,
