@@ -210,6 +210,19 @@ export abstract class BaseTxSender implements TxSender {
 		}
 
 		if (response === null) {
+			// Try rpc poll first in case we missed it via ws
+			try {
+				const rpcResponse = await this.connection.getSignatureStatus(signature);
+				if (rpcResponse?.value?.confirmationStatus) {
+					response = {
+						context: rpcResponse.context,
+						value: { err: rpcResponse.value.err },
+					};
+					return response;
+				}
+			} catch (error) {
+				// Ignore error to pass through to timeout error
+			}
 			this.timeoutCount += 1;
 			const duration = (Date.now() - start) / 1000;
 			throw new Error(
