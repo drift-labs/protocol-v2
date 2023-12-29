@@ -1000,7 +1000,7 @@ pub enum AssetType {
 
 impl Order {
     pub fn seconds_til_expiry(self, now: i64) -> i64 {
-        self.max_ts - now
+        (self.max_ts - now).max(0)
     }
 
     pub fn has_oracle_price_offset(self) -> bool {

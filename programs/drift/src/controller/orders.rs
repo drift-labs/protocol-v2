@@ -2101,10 +2101,10 @@ pub fn fulfill_perp_order_with_match(
             &taker_direction,
             amm_available_liquidity,
             oracle_price,
-            taker.orders[taker_order_index].seconds_til_expiry(now)
-        )?.cast()?
+            taker.orders[taker_order_index].seconds_til_expiry(now),
+        )?
     };
-        
+
     let taker_existing_position = taker
         .get_perp_position(market.market_index)?
         .base_asset_amount;
