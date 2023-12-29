@@ -1,9 +1,13 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
+use crate::math::casting::Cast;
+use crate::math::safe_math::SafeMath;
 use crate::state::perp_market::PerpMarket;
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
+use crate::PERCENTAGE_PRECISION_U64;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use std::ops::Div;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy)]
 pub struct OrderParams {
@@ -27,7 +31,11 @@ pub struct OrderParams {
 }
 
 impl OrderParams {
-    pub fn update_perp_auction_params(&mut self, perp_market: &PerpMarket) -> DriftResult {
+    pub fn update_perp_auction_params(
+        &mut self,
+        perp_market: &PerpMarket,
+        oracle_price: i64,
+    ) -> DriftResult {
         if self.order_type != OrderType::Limit {
             return Ok(());
         }
@@ -44,17 +52,18 @@ impl OrderParams {
             return Ok(());
         }
 
-        if self.oracle_price_offset.is_some() {
+        if self.oracle_price_offset.is_some() || self.price == 0 {
             return Ok(());
         }
 
         match self.direction {
             PositionDirection::Long => {
-                let reserve_price = perp_market.amm.reserve_price()?;
-                let ask_price = perp_market.amm.ask_price(reserve_price)?;
-                if self.price > ask_price {
-                    let auction_duration = 60;
-                    let auction_start_price = ask_price as i64;
+                let ask_premium = perp_market.amm.last_ask_premium()?;
+                let est_ask = oracle_price.safe_add(ask_premium)?.cast()?;
+                if self.price > est_ask {
+                    let auction_duration =
+                        get_auction_duration(self.price.safe_sub(est_ask)?, self.price)?;
+                    let auction_start_price = est_ask as i64;
                     let auction_end_price = self.price as i64;
                     msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
                     self.auction_duration = Some(auction_duration);
@@ -63,11 +72,12 @@ impl OrderParams {
                 }
             }
             PositionDirection::Short => {
-                let reserve_price = perp_market.amm.reserve_price()?;
-                let bid_price = perp_market.amm.bid_price(reserve_price)?;
-                if self.price < bid_price {
-                    let auction_duration = 60;
-                    let auction_start_price = bid_price as i64;
+                let bid_discount = perp_market.amm.last_bid_discount()?;
+                let est_bid = oracle_price.safe_sub(bid_discount)?.cast()?;
+                if self.price < est_bid {
+                    let auction_duration =
+                        get_auction_duration(est_bid.safe_sub(self.price)?, self.price)?;
+                    let auction_start_price = est_bid as i64;
                     let auction_end_price = self.price as i64;
                     msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
                     self.auction_duration = Some(auction_duration);
@@ -79,6 +89,15 @@ impl OrderParams {
 
         Ok(())
     }
+}
+
+fn get_auction_duration(price_diff: u64, price: u64) -> DriftResult<u8> {
+    let percent_diff = price_diff.safe_mul(PERCENTAGE_PRECISION_U64)?.div(price);
+
+    Ok(percent_diff
+        .safe_mul(60)?
+        .safe_div(PERCENTAGE_PRECISION_U64 / 100)? // 1% = 60 seconds
+        .clamp(10, 60) as u8)
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

@@ -219,10 +219,11 @@ pub fn place_perp_order(
         (existing_position_direction, base_asset_amount)
     };
 
-    // updates auction params for crossing limit orders w/out auction duration
-    params.update_perp_auction_params(market)?;
-
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+    // updates auction params for crossing limit orders w/out auction duration
+    params.update_perp_auction_params(market, oracle_price_data.price)?;
+
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
         &params,
         oracle_price_data,

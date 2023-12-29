@@ -990,6 +990,20 @@ impl AMM {
         Ok((bid_price, ask_price))
     }
 
+    pub fn last_ask_premium(&self) -> DriftResult<i64> {
+        let reserve_price = self.reserve_price()?;
+        let ask_price = self.ask_price(reserve_price)?.cast::<i64>()?;
+        ask_price.safe_sub(self.historical_oracle_data.last_oracle_price)
+    }
+
+    pub fn last_bid_discount(&self) -> DriftResult<i64> {
+        let reserve_price = self.reserve_price()?;
+        let bid_price = self.bid_price(reserve_price)?.cast::<i64>()?;
+        self.historical_oracle_data
+            .last_oracle_price
+            .safe_sub(bid_price)
+    }
+
     pub fn can_lower_k(&self) -> DriftResult<bool> {
         let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(self)?;
         let can_lower = self.base_asset_amount_with_amm.unsigned_abs()
