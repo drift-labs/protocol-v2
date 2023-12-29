@@ -1,6 +1,4 @@
 use crate::controller::position::PositionDirection;
-use crate::error::DriftResult;
-use crate::state::perp_market::PerpMarket;
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -24,61 +22,6 @@ pub struct OrderParams {
     pub auction_duration: Option<u8>,
     pub auction_start_price: Option<i64>,
     pub auction_end_price: Option<i64>,
-}
-
-impl OrderParams {
-    pub fn update_perp_auction_params(&mut self, perp_market: &PerpMarket) -> DriftResult {
-        if self.order_type != OrderType::Limit {
-            return Ok(());
-        }
-
-        if self.auction_duration.is_some() {
-            return Ok(());
-        }
-
-        if self.post_only != PostOnlyParam::None {
-            return Ok(());
-        }
-
-        if self.immediate_or_cancel {
-            return Ok(());
-        }
-
-        if self.oracle_price_offset.is_some() {
-            return Ok(());
-        }
-
-        match self.direction {
-            PositionDirection::Long => {
-                let reserve_price = perp_market.amm.reserve_price()?;
-                let ask_price = perp_market.amm.ask_price(reserve_price)?;
-                if self.price > ask_price {
-                    let auction_duration = 60;
-                    let auction_start_price = ask_price as i64;
-                    let auction_end_price = self.price as i64;
-                    msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
-                    self.auction_duration = Some(auction_duration);
-                    self.auction_start_price = Some(auction_start_price);
-                    self.auction_end_price = Some(auction_end_price);
-                }
-            }
-            PositionDirection::Short => {
-                let reserve_price = perp_market.amm.reserve_price()?;
-                let bid_price = perp_market.amm.bid_price(reserve_price)?;
-                if self.price < bid_price {
-                    let auction_duration = 60;
-                    let auction_start_price = bid_price as i64;
-                    let auction_end_price = self.price as i64;
-                    msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
-                    self.auction_duration = Some(auction_duration);
-                    self.auction_start_price = Some(auction_start_price);
-                    self.auction_end_price = Some(auction_end_price);
-                }
-            }
-        }
-
-        Ok(())
-    }
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
