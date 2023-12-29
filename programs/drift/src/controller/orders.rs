@@ -98,7 +98,7 @@ pub fn place_perp_order(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-    params: OrderParams,
+    mut params: OrderParams,
     mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
@@ -218,6 +218,9 @@ pub fn place_perp_order(
         };
         (existing_position_direction, base_asset_amount)
     };
+
+    // updates auction params for crossing limit orders w/out auction duration
+    params.update_perp_auction_params(market)?;
 
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
