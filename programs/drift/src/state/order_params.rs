@@ -9,7 +9,10 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use std::ops::Div;
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy)]
+#[cfg(test)]
+mod tests;
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy, Eq, PartialEq, Debug)]
 pub struct OrderParams {
     pub order_type: OrderType,
     pub market_type: MarketType,
@@ -62,7 +65,7 @@ impl OrderParams {
                 let est_ask = oracle_price.safe_add(ask_premium)?.cast()?;
                 if self.price > est_ask {
                     let auction_duration =
-                        get_auction_duration(self.price.safe_sub(est_ask)?, self.price)?;
+                        get_auction_duration(self.price.safe_sub(est_ask)?, est_ask)?;
                     let auction_start_price = est_ask as i64;
                     let auction_end_price = self.price as i64;
                     msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
@@ -76,7 +79,7 @@ impl OrderParams {
                 let est_bid = oracle_price.safe_sub(bid_discount)?.cast()?;
                 if self.price < est_bid {
                     let auction_duration =
-                        get_auction_duration(est_bid.safe_sub(self.price)?, self.price)?;
+                        get_auction_duration(est_bid.safe_sub(self.price)?, est_bid)?;
                     let auction_start_price = est_bid as i64;
                     let auction_end_price = self.price as i64;
                     msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
@@ -96,7 +99,7 @@ fn get_auction_duration(price_diff: u64, price: u64) -> DriftResult<u8> {
 
     Ok(percent_diff
         .safe_mul(60)?
-        .safe_div(PERCENTAGE_PRECISION_U64 / 100)? // 1% = 60 seconds
+        .safe_div_ceil(PERCENTAGE_PRECISION_U64 / 100)? // 1% = 60 seconds
         .clamp(10, 60) as u8)
 }
 

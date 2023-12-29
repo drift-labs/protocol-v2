@@ -34,6 +34,9 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
     /// warm up period for initialization, fills are paused
