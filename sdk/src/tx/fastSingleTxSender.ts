@@ -1,4 +1,4 @@
-import { TxSigAndSlot } from './types';
+import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import {
 	ConfirmOptions,
 	Signer,
@@ -39,6 +39,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		additionalConnections = new Array<Connection>(),
 		skipConfirmation = false,
 		blockhashCommitment = 'finalized',
+		confirmationStrategy = ConfirmationStrategy.Combo,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -48,8 +49,16 @@ export class FastSingleTxSender extends BaseTxSender {
 		additionalConnections?;
 		skipConfirmation?: boolean;
 		blockhashCommitment?: Commitment;
+		confirmationStrategy?: ConfirmationStrategy;
 	}) {
-		super({ connection, wallet, opts, timeout, additionalConnections });
+		super({
+			connection,
+			wallet,
+			opts,
+			timeout,
+			additionalConnections,
+			confirmationStrategy,
+		});
 		this.connection = connection;
 		this.wallet = wallet;
 		this.opts = opts;
