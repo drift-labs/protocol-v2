@@ -213,12 +213,17 @@ export interface QuoteResponse {
 }
 
 export class JupiterClient {
-	url = 'https://quote-api.jup.ag';
+	quoteUrl = 'https://quote-api.jup.ag';
+	v6Url =  `${this.quoteUrl}/v6`;
+	v4Url =  `${this.quoteUrl}/v4`;
+	url: string;
 	connection: Connection;
 	lookupTableCahce = new Map<string, AddressLookupTableAccount>();
 
-	constructor({ connection }: { connection: Connection }) {
+
+	constructor({ connection, url }: { connection: Connection, url?: string }) {
 		this.connection = connection;
+		this.url = url || this.v6Url;
 	}
 
 	/**
@@ -256,7 +261,7 @@ export class JupiterClient {
 		}).toString();
 
 		const { data: routes } = await (
-			await fetch(`${this.url}/v4/quote?${params}`)
+			await fetch(`${this.v4Url}/quote?${params}`)
 		).json();
 
 		return routes;
@@ -300,7 +305,7 @@ export class JupiterClient {
 			maxAccounts: maxAccounts.toString(),
 			excludeDexes: excludeDexes.join(','),
 		}).toString();
-		const quote = await (await fetch(`${this.url}/v6/quote?${params}`)).json();
+		const quote = await (await fetch(`${this.url}/quote?${params}`)).json();
 		return quote;
 	}
 
@@ -324,7 +329,7 @@ export class JupiterClient {
 		}
 
 		const resp = await (
-			await fetch(`${this.url}/v6/swap`, {
+			await fetch(`${this.url}/swap`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -372,7 +377,7 @@ export class JupiterClient {
 		slippageBps?: number;
 	}): Promise<VersionedTransaction> {
 		const resp = await (
-			await fetch(`${this.url}/v4/swap`, {
+			await fetch(`${this.v4Url}/swap`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
