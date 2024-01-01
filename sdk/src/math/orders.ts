@@ -10,7 +10,11 @@ import {
 import { ZERO, TWO } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
-import { getAuctionPrice, isAuctionComplete } from './auction';
+import {
+	getAuctionPrice,
+	isAuctionComplete,
+	isFallbackAvailableLiquiditySource,
+} from './auction';
 import {
 	calculateMaxBaseAssetAmountFillable,
 	calculateMaxBaseAssetAmountToTrade,
@@ -186,10 +190,11 @@ export function isFillableByVAMM(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	slot: number,
-	ts: number
+	ts: number,
+	minAuctionDuration: number
 ): boolean {
 	return (
-		(isAuctionComplete(order, slot) &&
+		(isFallbackAvailableLiquiditySource(order, minAuctionDuration, slot) &&
 			calculateBaseAssetAmountForAmmToFulfill(
 				order,
 				market,

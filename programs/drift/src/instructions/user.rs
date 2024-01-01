@@ -21,7 +21,6 @@ use crate::instructions::optional_accounts::{
     AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
-use crate::load;
 use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
@@ -66,6 +65,7 @@ use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
 use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
+use crate::{load, THIRTEEN_DAY};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -531,6 +531,15 @@ pub fn handle_withdraw(
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
 
+    let is_borrow = user
+        .get_spot_position(market_index)
+        .map_or(false, |pos| pos.is_borrow());
+    let deposit_explanation = if is_borrow {
+        DepositExplanation::Borrow
+    } else {
+        DepositExplanation::None
+    };
+
     let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let deposit_record = DepositRecord {
         ts: now,
@@ -547,7 +556,7 @@ pub fn handle_withdraw(
         market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
         total_deposits_after: user.total_deposits,
         total_withdraws_after: user.total_withdraws,
-        explanation: DepositExplanation::None,
+        explanation: deposit_explanation,
         transfer_user: None,
     };
     emit!(deposit_record);
@@ -1864,6 +1873,46 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     Ok(())
 }
 
+pub fn handle_reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
+    let user_size = ctx.accounts.user.to_account_info().data_len();
+    let minimum_lamports = ctx.accounts.rent.minimum_balance(user_size);
+    let current_lamports = ctx.accounts.user.to_account_info().try_lamports()?;
+    let reclaim_amount = current_lamports.saturating_sub(minimum_lamports);
+
+    validate!(
+        reclaim_amount > 0,
+        ErrorCode::CantReclaimRent,
+        "user account has no excess lamports to reclaim"
+    )?;
+
+    **ctx
+        .accounts
+        .user
+        .to_account_info()
+        .try_borrow_mut_lamports()? = minimum_lamports;
+
+    **ctx
+        .accounts
+        .authority
+        .to_account_info()
+        .try_borrow_mut_lamports()? += reclaim_amount;
+
+    let user_stats = &mut load!(ctx.accounts.user_stats)?;
+
+    // Skip age check if is no max sub accounts
+    let max_sub_accounts = ctx.accounts.state.max_number_of_sub_accounts();
+    let estimated_user_stats_age = user_stats.get_age_ts(Clock::get()?.unix_timestamp);
+    validate!(
+        max_sub_accounts == 0 || estimated_user_stats_age >= THIRTEEN_DAY,
+        ErrorCode::CantReclaimRent,
+        "user stats too young to reclaim rent. age ={} minimum = {}",
+        estimated_user_stats_age,
+        THIRTEEN_DAY
+    )?;
+
+    Ok(())
+}
+
 #[access_control(
     deposit_not_paused(&ctx.accounts.state)
 )]
@@ -2206,6 +2255,23 @@ pub struct DeleteUser<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ReclaimRent<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
@@ -2682,13 +2748,15 @@ pub fn handle_end_swap(
     user.update_cumulative_spot_fees(-fee_value.cast()?)?;
     user_stats.increment_total_fees(fee_value.cast()?)?;
 
-    // update taker volume
-    let amount_out_value = get_token_value(
-        amount_out.cast()?,
-        out_spot_market.decimals,
-        out_oracle_price,
-    )?;
-    user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+    if fee != 0 {
+        // update taker volume
+        let amount_out_value = get_token_value(
+            amount_out.cast()?,
+            out_spot_market.decimals,
+            out_oracle_price,
+        )?;
+        user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+    }
 
     validate!(
         amount_out != 0,

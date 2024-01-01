@@ -4,7 +4,7 @@ import {
 	PublicKey,
 	TransactionInstruction,
 } from '@solana/web3.js';
-import { JupiterClient } from '../jupiter/jupiterClient';
+import { JupiterClient, QuoteResponse } from '../jupiter/jupiterClient';
 import { DriftClient } from '../driftClient';
 import { getMarinadeFinanceProgram, getMarinadeMSolPrice } from '../marinade';
 import { BN } from '@coral-xyz/anchor';
@@ -55,6 +55,7 @@ export async function findBestSuperStakeIxs({
 	price,
 	forceMarinade,
 	onlyDirectRoutes,
+	jupiterQuote,
 }: {
 	marketIndex: number;
 	amount: BN;
@@ -64,11 +65,12 @@ export async function findBestSuperStakeIxs({
 	userAccountPublicKey?: PublicKey;
 	forceMarinade?: boolean;
 	onlyDirectRoutes?: boolean;
+	jupiterQuote?: QuoteResponse;
 }): Promise<{
 	ixs: TransactionInstruction[];
 	lookupTables: AddressLookupTableAccount[];
 	method: 'jupiter' | 'marinade';
-	price: number;
+	price?: number;
 }> {
 	if (marketIndex === 2) {
 		return findBestMSolSuperStakeIxs({
@@ -79,6 +81,7 @@ export async function findBestSuperStakeIxs({
 			price,
 			forceMarinade,
 			onlyDirectRoutes,
+			jupiterQuote,
 		});
 	} else if (marketIndex === 6) {
 		return findBestJitoSolSuperStakeIxs({
@@ -87,6 +90,7 @@ export async function findBestSuperStakeIxs({
 			driftClient,
 			userAccountPublicKey,
 			onlyDirectRoutes,
+			jupiterQuote,
 		});
 	} else if (marketIndex === 8) {
 		return findBestLstSuperStakeIxs({
@@ -97,6 +101,7 @@ export async function findBestSuperStakeIxs({
 			driftClient,
 			userAccountPublicKey,
 			onlyDirectRoutes,
+			jupiterQuote,
 		});
 	} else {
 		throw new Error(`Unsupported superstake market index: ${marketIndex}`);
@@ -111,6 +116,7 @@ export async function findBestMSolSuperStakeIxs({
 	price,
 	forceMarinade,
 	onlyDirectRoutes,
+	jupiterQuote,
 }: {
 	amount: BN;
 	jupiterClient: JupiterClient;
@@ -119,6 +125,7 @@ export async function findBestMSolSuperStakeIxs({
 	userAccountPublicKey?: PublicKey;
 	forceMarinade?: boolean;
 	onlyDirectRoutes?: boolean;
+	jupiterQuote?: QuoteResponse;
 }): Promise<{
 	ixs: TransactionInstruction[];
 	lookupTables: AddressLookupTableAccount[];
@@ -130,23 +137,27 @@ export async function findBestMSolSuperStakeIxs({
 		price = await getMarinadeMSolPrice(marinadeProgram);
 	}
 
-	const solMint = driftClient.getSpotMarketAccount(1).mint;
-	const mSOLMint = driftClient.getSpotMarketAccount(2).mint;
+	const solSpotMarketAccount = driftClient.getSpotMarketAccount(1);
+	const mSolSpotMarketAccount = driftClient.getSpotMarketAccount(2);
 
-	let jupiterPrice;
-	let bestRoute;
-	try {
-		const jupiterRoutes = await jupiterClient.getRoutes({
-			inputMint: solMint,
-			outputMint: mSOLMint,
-			amount,
-			onlyDirectRoutes,
-		});
+	let jupiterPrice: number;
+	let quote = jupiterQuote;
+	if (!jupiterQuote) {
+		try {
+			const fetchedQuote = await jupiterClient.getQuote({
+				inputMint: solSpotMarketAccount.mint,
+				outputMint: mSolSpotMarketAccount.mint,
+				amount,
+				slippageBps: 1000,
+				onlyDirectRoutes,
+			});
 
-		bestRoute = jupiterRoutes[0];
-		jupiterPrice = bestRoute.inAmount / bestRoute.outAmount;
-	} catch (e) {
-		console.error('Error getting jupiter price', e);
+			jupiterPrice = +quote.outAmount / +quote.inAmount;
+
+			quote = fetchedQuote;
+		} catch (e) {
+			console.error('Error getting jupiter price', e);
+		}
 	}
 
 	if (!jupiterPrice || price <= jupiterPrice || forceMarinade) {
@@ -161,13 +172,14 @@ export async function findBestMSolSuperStakeIxs({
 			price: price,
 		};
 	} else {
-		const { ixs, lookupTables } = await driftClient.getJupiterSwapIx({
+		const { ixs, lookupTables } = await driftClient.getJupiterSwapIxV6({
 			inMarketIndex: 1,
 			outMarketIndex: 2,
-			route: bestRoute,
 			jupiterClient,
 			amount,
 			userAccountPublicKey,
+			onlyDirectRoutes,
+			quote,
 		});
 		return {
 			method: 'jupiter',
@@ -184,17 +196,19 @@ export async function findBestJitoSolSuperStakeIxs({
 	driftClient,
 	userAccountPublicKey,
 	onlyDirectRoutes,
+	jupiterQuote,
 }: {
 	amount: BN;
 	jupiterClient: JupiterClient;
 	driftClient: DriftClient;
 	userAccountPublicKey?: PublicKey;
 	onlyDirectRoutes?: boolean;
+	jupiterQuote?: QuoteResponse;
 }): Promise<{
 	ixs: TransactionInstruction[];
 	lookupTables: AddressLookupTableAccount[];
 	method: 'jupiter' | 'marinade';
-	price: number;
+	price?: number;
 }> {
 	return await findBestLstSuperStakeIxs({
 		amount,
@@ -204,6 +218,7 @@ export async function findBestJitoSolSuperStakeIxs({
 		onlyDirectRoutes,
 		lstMint: driftClient.getSpotMarketAccount(6).mint,
 		lstMarketIndex: 6,
+		jupiterQuote,
 	});
 }
 
@@ -214,12 +229,12 @@ export async function findBestJitoSolSuperStakeIxs({
  */
 export async function findBestLstSuperStakeIxs({
 	amount,
-	lstMint,
 	jupiterClient,
 	driftClient,
 	userAccountPublicKey,
 	onlyDirectRoutes,
 	lstMarketIndex,
+	jupiterQuote,
 }: {
 	amount: BN;
 	lstMint: PublicKey;
@@ -228,44 +243,26 @@ export async function findBestLstSuperStakeIxs({
 	driftClient: DriftClient;
 	userAccountPublicKey?: PublicKey;
 	onlyDirectRoutes?: boolean;
+	jupiterQuote?: QuoteResponse;
 }): Promise<{
 	ixs: TransactionInstruction[];
 	lookupTables: AddressLookupTableAccount[];
 	method: 'jupiter' | 'marinade';
-	price: number;
 }> {
-	const solMint = driftClient.getSpotMarketAccount(1).mint;
-
-	let jupiterPrice;
-	let bestRoute;
-	try {
-		const jupiterRoutes = await jupiterClient.getRoutes({
-			inputMint: solMint,
-			outputMint: lstMint,
-			amount,
-			onlyDirectRoutes,
-		});
-
-		bestRoute = jupiterRoutes[0];
-		jupiterPrice = bestRoute.inAmount / bestRoute.outAmount;
-	} catch (e) {
-		console.error('Error getting jupiter price', e);
-		throw e;
-	}
-
-	const { ixs, lookupTables } = await driftClient.getJupiterSwapIx({
+	const { ixs, lookupTables } = await driftClient.getJupiterSwapIxV6({
 		inMarketIndex: 1,
 		outMarketIndex: lstMarketIndex,
-		route: bestRoute,
 		jupiterClient,
 		amount,
 		userAccountPublicKey,
+		onlyDirectRoutes,
+		quote: jupiterQuote,
 	});
 	return {
 		method: 'jupiter',
 		ixs,
 		lookupTables,
-		price: jupiterPrice,
+		// price: jupiterPrice,
 	};
 }
 

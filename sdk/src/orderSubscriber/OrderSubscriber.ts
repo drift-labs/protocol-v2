@@ -39,6 +39,7 @@ export class OrderSubscriber {
 				commitment: this.commitment,
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
 				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
+				resyncIntervalMs: config.subscriptionConfig.resyncIntervalMs,
 			});
 		}
 		if (config.fastDecode ?? true) {
@@ -199,9 +200,8 @@ export class OrderSubscriber {
 	public async getDLOB(slot: number): Promise<DLOB> {
 		const dlob = new DLOB();
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
-			const userAccountPubkey = new PublicKey(key);
 			for (const order of userAccount.orders) {
-				dlob.insertOrder(order, userAccountPubkey, slot);
+				dlob.insertOrder(order, key, slot);
 			}
 		}
 		return dlob;

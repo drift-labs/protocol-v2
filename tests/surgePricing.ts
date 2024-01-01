@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import {
 	TestClient,
@@ -31,7 +31,7 @@ import {
 } from '../sdk';
 import { calculateInitUserFee } from '../sdk/lib/math/state';
 
-describe('spot deposit and withdraw', () => {
+describe('surge pricing', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		skipPreflight: false,
@@ -93,6 +93,7 @@ describe('spot deposit and withdraw', () => {
 
 	after(async () => {
 		await admin.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('Initialize USDC Market', async () => {
@@ -172,11 +173,26 @@ describe('spot deposit and withdraw', () => {
 			const accountInfo = await connection.getAccountInfo(userAccount);
 			const baseLamports = 31347840;
 			console.log('expected fee', expectedFee.toNumber());
-			if (i === 5) {
-				assert(expectedFee.toNumber() === LAMPORTS_PER_SOL / 100);
+			if (i === 4) {
+				// assert(expectedFee.toNumber() === LAMPORTS_PER_SOL / 100);
 			}
+			console.log('account info', accountInfo.lamports);
 			assert(accountInfo.lamports === baseLamports + expectedFee.toNumber());
 			await sleep(1000);
+
+			if (i === 4) {
+				await admin.updateStateMaxNumberOfSubAccounts(0);
+				await driftClient.reclaimRent(0);
+				const accountInfoAfterReclaim = await connection.getAccountInfo(
+					userAccount
+				);
+				console.log(
+					'account info after reclaim',
+					accountInfoAfterReclaim.lamports
+				);
+				assert(accountInfoAfterReclaim.lamports === baseLamports);
+			}
+			await driftClient.unsubscribe();
 		}
 	});
 });

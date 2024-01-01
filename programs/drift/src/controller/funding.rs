@@ -228,8 +228,9 @@ pub fn update_funding_rate(
                 .safe_div(FUNDING_RATE_OFFSET_DENOMINATOR)?,
         )?;
 
-        // clamp price divergence to 3% for funding rate calculation
-        let max_price_spread = oracle_price_twap.safe_div(33)?; // 3%
+        // clamp price divergence based on contract tier for funding rate calculation
+        let max_price_spread =
+            market.get_max_price_divergence_for_funding_rate(oracle_price_twap)?;
         let clamped_price_spread =
             price_spread_with_offset.clamp(-max_price_spread, max_price_spread);
 

@@ -1729,7 +1729,7 @@ mod qualifies_for_withdraw_fee {
 
         let user_stats = UserStats {
             fees: UserFees {
-                total_fee_paid: 1 * QUOTE_PRECISION_U64,
+                total_fee_paid: QUOTE_PRECISION_U64,
                 ..UserFees::default()
             },
             ..UserStats::default()

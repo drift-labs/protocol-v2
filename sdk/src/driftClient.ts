@@ -1112,19 +1112,6 @@ export class DriftClient {
 		);
 	}
 
-	public async getUserDeletionIx(userAccountPublicKey: PublicKey) {
-		const ix = await this.program.instruction.deleteUser({
-			accounts: {
-				user: userAccountPublicKey,
-				userStats: this.getUserStatsAccountPublicKey(),
-				authority: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-			},
-		});
-
-		return ix;
-	}
-
 	public async deleteUser(
 		subAccountId = 0,
 		txParams?: TxParams
@@ -1148,6 +1135,52 @@ export class DriftClient {
 		this.users.delete(userMapKey);
 
 		return txSig;
+	}
+
+	public async getUserDeletionIx(userAccountPublicKey: PublicKey) {
+		const ix = await this.program.instruction.deleteUser({
+			accounts: {
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+
+		return ix;
+	}
+
+	public async reclaimRent(
+		subAccountId = 0,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			subAccountId
+		);
+
+		const ix = await this.getReclaimRentIx(userAccountPublicKey);
+
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(ix, txParams),
+			[],
+			this.opts
+		);
+
+		return txSig;
+	}
+
+	public async getReclaimRentIx(userAccountPublicKey: PublicKey) {
+		return await this.program.instruction.reclaimRent({
+			accounts: {
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+			},
+		});
 	}
 
 	public getUser(subAccountId?: number, authority?: PublicKey): User {
@@ -1619,7 +1652,8 @@ export class DriftClient {
 		marketIndex: number,
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
-		reduceOnly = false
+		reduceOnly = false,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const additionalSigners: Array<Signer> = [];
 
@@ -1668,7 +1702,7 @@ export class DriftClient {
 			);
 		}
 
-		const txParams = { ...this.txParams, computeUnits: 600_000 };
+		txParams = { ...(txParams ?? this.txParams), computeUnits: 600_000 };
 
 		const tx = await this.buildTransaction(instructions, txParams);
 
@@ -2015,7 +2049,8 @@ export class DriftClient {
 		marketIndex: number,
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
-		subAccountId?: number
+		subAccountId?: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const withdrawIxs = [];
 
@@ -2078,6 +2113,7 @@ export class DriftClient {
 		}
 
 		const tx = await this.buildTransaction(withdrawIxs, {
+			...(txParams ?? this.txParams),
 			computeUnits: 1_400_000,
 		});
 		const { txSig, slot } = await this.sendTransaction(
@@ -3832,6 +3868,7 @@ export class DriftClient {
 				slippageBps,
 				swapMode,
 				onlyDirectRoutes,
+				excludeDexes: ['Raydium CLMM'], // temp exclude to workaround bug with raydium clmm
 			});
 
 			quote = fetchedQuote;
@@ -3959,9 +3996,14 @@ export class DriftClient {
 			userAccountPublicKey || (await this.getUserAccountPublicKey());
 
 		const userAccounts = [];
-		if (this.hasUser() && this.getUser().getUserAccountAndSlot()) {
-			userAccounts.push(this.getUser().getUserAccountAndSlot()!.data);
+		try {
+			if (this.hasUser() && this.getUser().getUserAccountAndSlot()) {
+				userAccounts.push(this.getUser().getUserAccountAndSlot()!.data);
+			}
+		} catch (err) {
+			// ignore
 		}
+
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts,
 			writableSpotMarketIndexes: [outMarketIndex, inMarketIndex],
