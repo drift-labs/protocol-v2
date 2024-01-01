@@ -249,7 +249,7 @@ export abstract class BaseTxSender implements TxSender {
 		let totalTime = 0;
 		let backoffTime = 250;
 
-		while (totalTime < 30000) {
+		while (totalTime < this.timeout) {
 			const response = await this.connection.getSignatureStatus(signature);
 			const result = response && response.value?.[0];
 
