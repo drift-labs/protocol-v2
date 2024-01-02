@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anchor-lang = "0.27.0"
+base64 = "0.13"
 drift-program = { package = "drift", path = "../programs/drift" }
 env_logger = "0.10.1"
 fnv = "1.0.7"

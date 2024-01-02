@@ -435,7 +435,8 @@ impl<T: AccountProvider> DriftClientBackend<T> {
         accounts
             .iter()
             .map(|(_, account_data)| {
-                U::try_deserialize(&mut account_data.data.as_ref()).map_err(Into::into)
+                U::try_deserialize(&mut account_data.data.as_ref())
+                    .map_err(|err| SdkError::Anchor(Box::new(err)))
             })
             .collect()
     }
@@ -494,6 +495,8 @@ pub struct TransactionBuilder<'a> {
     sub_account: Pubkey,
     /// ordered list of instructions
     ixs: Vec<Instruction>,
+    /// the account paying for the tx (i.e typically the signer)
+    payer: Pubkey,
 }
 
 impl<'a> TransactionBuilder<'a> {
@@ -508,6 +511,7 @@ impl<'a> TransactionBuilder<'a> {
     {
         Self {
             context,
+            payer: account_data.authority,
             account_data,
             sub_account,
             ixs: Default::default(),
@@ -673,9 +677,15 @@ impl<'a> TransactionBuilder<'a> {
         self
     }
 
+    /// Set the tx fee payer (default is account authority)
+    pub fn payer(mut self, payer: Pubkey) -> Self {
+        self.payer = payer;
+        self
+    }
+
     /// Build the transaction ready for signing and sending
     pub fn build(self) -> Transaction {
-        Transaction::new_with_payer(self.ixs.as_ref(), Some(&self.account_data.authority))
+        Transaction::new_with_payer(self.ixs.as_ref(), Some(&self.payer))
     }
 }
 

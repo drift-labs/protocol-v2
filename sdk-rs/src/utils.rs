@@ -3,7 +3,10 @@
 use serde_json::json;
 use solana_sdk::{bs58, signature::Keypair};
 
-use crate::{types::{SdkError, SdkResult}, constants::MarketConfig};
+use crate::{
+    constants::MarketConfig,
+    types::{SdkError, SdkResult},
+};
 
 // kudos @wphan
 /// Try to parse secret `key` string
@@ -25,10 +28,16 @@ pub fn read_keypair_str_multi_format(key: &str) -> SdkResult<Keypair> {
     }
 
     // try to decode as base58 string
-    let bytes = bs58::decode(key)
-        .into_vec()
-        .map_err(|_| SdkError::InvalidBase58)?;
-    Keypair::from_bytes(&bytes).map_err(|_| SdkError::InvalidSeed)
+    if let Ok(bytes) = bs58::decode(key.as_bytes()).into_vec() {
+        return Keypair::from_bytes(&bytes).map_err(|_| SdkError::InvalidSeed);
+    }
+
+    // try to decode as base64 string
+    if let Ok(bytes) = base64::decode(key.as_bytes()) {
+        return Keypair::from_bytes(&bytes).map_err(|_| SdkError::InvalidSeed);
+    }
+
+    Err(SdkError::InvalidSeed)
 }
 
 /// Try load a `Keypair` from a file path or given string, supports json format and base58 format.
@@ -58,7 +67,8 @@ pub fn to_ws_json(config: &impl MarketConfig) -> String {
         "marketType": config.market_type(),
         "channel": "orderbook",
         "market": config.symbol()
-    }).to_string()
+    })
+    .to_string()
 }
 
 #[cfg(test)]
@@ -86,6 +96,14 @@ mod tests {
     #[test]
     fn test_keypair_from_base58_string() {
         let keypair_data = "MZsY4Vme2Xa417rhh1MUGCru9oYNDxCjH1TZRWJPNSzRmZmodjczVaGuWKgzBsoKxx2ZLQZjUWTkLu44jE5DhSJ";
+
+        let keypair = read_keypair_str_multi_format(keypair_data).unwrap();
+        assert!(keypair.pubkey().to_string() == "EtiM5qwcrrawQP9FfRErBatNvDgEU656tk5aA8iTgqri");
+    }
+
+    #[test]
+    fn test_keypair_from_base64_string() {
+        let keypair_data = "EbxpSbYDOH2dFAxSWMW1yvv4YWfXpemRcv4UWWRPz6jOZ006117Em+B0SUo+yB74ZWakfgaqTb66jmveA/KPmw==";
 
         let keypair = read_keypair_str_multi_format(keypair_data).unwrap();
         assert!(keypair.pubkey().to_string() == "EtiM5qwcrrawQP9FfRErBatNvDgEU656tk5aA8iTgqri");

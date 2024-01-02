@@ -1,6 +1,5 @@
 use std::{task::Poll, time::Duration};
 
-
 use drift_program::state::user::MarketType;
 use futures_util::{SinkExt, Stream, StreamExt};
 use log::{error, info};
@@ -9,11 +8,19 @@ use serde::{
     de::{self},
     Deserialize, Serialize,
 };
-use serde_json::{Value, json};
-use tokio::sync::mpsc::{channel, Receiver};
-use tokio::time::{Duration as TokioDuration, Instant};
+use serde_json::{json, Value};
+use tokio::{
+    sync::mpsc::{channel, Receiver},
+    time::{Duration as TokioDuration, Instant},
+};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
-use crate::{types::{MarketId, SdkError, SdkResult}, constants::{perp_market_config_by_index, spot_market_config_by_index}, Context, utils::to_ws_json};
+
+use crate::{
+    constants::{perp_market_config_by_index, spot_market_config_by_index},
+    types::{MarketId, SdkError, SdkResult},
+    utils::to_ws_json,
+    Context,
+};
 
 pub type L2OrderbookStream = RxStream<Result<L2Orderbook, SdkError>>;
 
@@ -132,17 +139,25 @@ impl DLOBClient {
 
         match market.kind {
             MarketType::Perp => {
-                if let Some(perp_market_config) = perp_market_config_by_index(self.context, market.index) {
+                if let Some(perp_market_config) =
+                    perp_market_config_by_index(self.context, market.index)
+                {
                     let market_subscription_message = to_ws_json(perp_market_config);
-                    ws_stream.send(Message::Text(market_subscription_message)).await
-                    .map_err(crate::types::SinkError)?;
+                    ws_stream
+                        .send(Message::Text(market_subscription_message))
+                        .await
+                        .map_err(crate::types::SinkError)?;
                 }
-            },
+            }
             MarketType::Spot => {
-                if let Some(spot_market_config) = spot_market_config_by_index(self.context, market.index) {
+                if let Some(spot_market_config) =
+                    spot_market_config_by_index(self.context, market.index)
+                {
                     let market_subscription_message = to_ws_json(spot_market_config);
-                    ws_stream.send(Message::Text(market_subscription_message)).await
-                    .map_err(crate::types::SinkError)?;
+                    ws_stream
+                        .send(Message::Text(market_subscription_message))
+                        .await
+                        .map_err(crate::types::SinkError)?;
                 }
             }
         }
@@ -155,46 +170,46 @@ impl DLOBClient {
                     error!("Heartbeat missed!");
                     let _ = ws_stream.close(None).await;
                     let _ = tx.send(Err(SdkError::MissedHeartbeat)).await;
-                    break;              
+                    break;
                 }
 
                 match message {
                     Ok(Message::Text(text)) => {
-                        let value: Value = serde_json::from_str(&text).unwrap_or_else(|_| json!({}));
-                        
+                        let value: Value =
+                            serde_json::from_str(&text).unwrap_or_else(|_| json!({}));
+
                         if value.get("channel").and_then(Value::as_str) == Some("heartbeat") {
                             info!("Received heartbeat");
                             last_heartbeat = Instant::now();
-                        } 
-                        else if let Some(channel) = value.get("channel").and_then(Value::as_str) {
+                        } else if let Some(channel) = value.get("channel").and_then(Value::as_str) {
                             if channel.contains("orderbook") {
                                 // This unwraps because if we get bad data, we want to panic.
                                 // There's nothing a user can do about it if dlob server fmt changes, etc.
                                 // So it's best to panic.
-                                let orderbook_data = value.get("data").and_then(Value::as_str).unwrap();
+                                let orderbook_data =
+                                    value.get("data").and_then(Value::as_str).unwrap();
                                 match serde_json::from_str::<L2Orderbook>(&orderbook_data) {
                                     Ok(orderbook) => {
                                         if tx.send(Ok(orderbook)).await.is_err() {
                                             break; // Break if the receiver is dropped
                                         }
-                                    },
+                                    }
                                     Err(_e) => {
                                         let _ = tx.send(Err(SdkError::Deserializing)).await;
                                     }
                                 }
                             }
                         }
-                    },
+                    }
                     Ok(Message::Close(_)) => break, // Handle WebSocket close
                     Err(_) => {
                         let _ = tx.send(Err(SdkError::WebsocketError)).await;
                         break;
-                    },
+                    }
                     _ => {} // Handle other message types if needed
                 }
             }
         });
-
 
         Ok(RxStream(rx))
     }
@@ -267,14 +282,13 @@ where
 #[cfg(test)]
 mod tests {
     use futures_util::StreamExt;
-    use crate::DriftClient;
-    use crate::RpcAccountProvider;
-    use super::*;
 
-    env_logger::init();
+    use super::*;
+    use crate::{DriftClient, RpcAccountProvider};
 
     // this is my (frank) free helius endpoint
-    const MAINNET_ENDPOINT: &str = "https://mainnet.helius-rpc.com/?api-key=3a1ca16d-e181-4755-9fe7-eac27579b48c";
+    const MAINNET_ENDPOINT: &str =
+        "https://mainnet.helius-rpc.com/?api-key=3a1ca16d-e181-4755-9fe7-eac27579b48c";
 
     #[tokio::test]
     async fn pull_l2_book() {

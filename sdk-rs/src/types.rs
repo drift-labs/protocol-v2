@@ -11,17 +11,15 @@ pub use drift_program::{
         user::{MarketType, Order, OrderType, PerpPosition, SpotPosition},
     },
 };
+use futures_util::sink::Sink;
 use solana_sdk::{
     instruction::{AccountMeta, InstructionError},
     pubkey::Pubkey,
     transaction::TransactionError,
 };
 use thiserror::Error;
-use tokio_tungstenite::tungstenite;
-use futures_util::sink::Sink;
-use tokio_tungstenite::{WebSocketStream, MaybeTlsStream};
 use tokio::net::TcpStream;
-
+use tokio_tungstenite::{tungstenite, MaybeTlsStream, WebSocketStream};
 
 use crate::constants::{perp_market_configs, spot_market_configs};
 
@@ -182,7 +180,9 @@ impl NewOrder {
 }
 
 #[derive(Debug)]
-pub struct SinkError(pub <WebSocketStream<MaybeTlsStream<TcpStream>> as Sink<tungstenite::Message>>::Error);
+pub struct SinkError(
+    pub <WebSocketStream<MaybeTlsStream<TcpStream>> as Sink<tungstenite::Message>>::Error,
+);
 
 impl std::fmt::Display for SinkError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -207,7 +207,7 @@ pub enum SdkError {
     #[error("{0}")]
     Ws(#[from] solana_client::nonblocking::pubsub_client::PubsubClientError),
     #[error("{0}")]
-    Anchor(#[from] anchor_lang::error::Error),
+    Anchor(#[from] Box<anchor_lang::error::Error>),
     #[error("error while deserializing")]
     Deserializing,
     #[error("invalid drift account")]

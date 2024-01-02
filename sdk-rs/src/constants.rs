@@ -18,7 +18,6 @@ static SPOT_MARKETS_MAINNET: OnceLock<&'static [SpotMarket]> = OnceLock::new();
 static PERP_MARKETS_DEV: OnceLock<&'static [PerpMarket]> = OnceLock::new();
 static PERP_MARKETS_MAINNET: OnceLock<&'static [PerpMarket]> = OnceLock::new();
 
-
 /// Drift state account
 pub fn state_account() -> &'static Pubkey {
     STATE_ACCOUNT.get_or_init(|| {
@@ -55,7 +54,6 @@ impl MarketConfig for PerpMarket {
             .to_string()
     }
 }
-
 
 impl MarketConfig for SpotMarket {
     fn market_type(&self) -> &str {
