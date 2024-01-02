@@ -234,6 +234,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1703173331000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'AVAX',
+		category: ['Rollup', 'Infra'],
+		symbol: 'AVAX-PERP',
+		baseAssetSymbol: 'AVAX',
+		marketIndex: 22,
+		oracle: new PublicKey('FVb5h1VmHPfVb1RfqZckchq18GxRv4iKt8T4eVTQAqdz'),
+		launchTs: 1704209558000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -455,6 +465,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 21,
 		oracle: new PublicKey('6cUuAyAX3eXoiWkjFF77RQBEUF15AAMQ7d1hm4EPd3tv'),
 		launchTs: 1703173331000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'AVAX',
+		category: ['Rollup', 'Infra'],
+		symbol: 'AVAX-PERP',
+		baseAssetSymbol: 'AVAX',
+		marketIndex: 22,
+		oracle: new PublicKey('Ax9ujW5B9oqcv59N8m6f1BpTBq2rGeGaBcpKjC5UYsXU'),
+		launchTs: 1704209558000,
 		oracleSource: OracleSource.PYTH,
 	},
 ];
