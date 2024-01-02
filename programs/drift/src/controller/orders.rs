@@ -114,7 +114,7 @@ pub fn place_perp_order(
         spot_market_map,
         oracle_map,
         clock,
-        params,
+        &mut params,
         options,
     )
 }
@@ -127,7 +127,7 @@ pub fn _place_perp_order(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-    params: OrderParams,
+    params: &mut OrderParams,
     mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
@@ -2835,8 +2835,8 @@ pub fn force_cancel_orders(
     }
 
     // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
-    if user.max_margin_ratio != 0 && !margin_calc.positions_meets_margin_requirement()? {
-        let set_reduce_only_orders = false; // todo
+    if !margin_calc.positions_meets_margin_requirement()? {
+        let set_reduce_only_orders = true; // todo
         for position_index in 0..user.perp_positions.len() {
             let market_index = user.perp_positions[position_index].market_index;
             burn_user_lp_shares(
@@ -2941,7 +2941,7 @@ pub fn burn_user_lp_shares(
                     .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?
             };
 
-            let params = OrderParams {
+            let mut params = OrderParams {
                 direction: perp_position.get_direction_to_close(),
                 order_type: OrderType::Limit,
                 market_index: perp_position.market_index,
@@ -2962,7 +2962,7 @@ pub fn burn_user_lp_shares(
                 &spot_market_map,
                 oracle_map,
                 clock,
-                params,
+                &mut params,
                 PlaceOrderOptions::default(),
             )?;
         }
