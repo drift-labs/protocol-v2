@@ -210,6 +210,12 @@ export interface QuoteResponse {
 	 * @memberof QuoteResponse
 	 */
 	timeTaken?: number;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof QuoteResponse
+	 */
+	error?: string
 }
 
 export class JupiterClient {
@@ -279,7 +285,7 @@ export class JupiterClient {
 		slippageBps = 50,
 		swapMode = 'ExactIn',
 		onlyDirectRoutes = false,
-		excludeDexes = [],
+		excludeDexes,
 	}: {
 		inputMint: PublicKey;
 		outputMint: PublicKey;
@@ -298,7 +304,7 @@ export class JupiterClient {
 			swapMode,
 			onlyDirectRoutes: onlyDirectRoutes.toString(),
 			maxAccounts: maxAccounts.toString(),
-			excludeDexes: excludeDexes.join(','),
+			...(excludeDexes && { excludeDexes: excludeDexes.join(',') }),
 		}).toString();
 		const quote = await (await fetch(`${this.url}/v6/quote?${params}`)).json();
 		return quote;
