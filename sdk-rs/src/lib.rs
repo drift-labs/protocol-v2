@@ -3,7 +3,6 @@
 use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
-use constants::{derive_spot_market_account, state_account};
 use drift_program::{
     controller::position::PositionDirection,
     math::constants::QUOTE_SPOT_MARKET_INDEX,
@@ -22,17 +21,21 @@ use solana_client::{
     rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
     rpc_filter::{Memcmp, RpcFilterType},
 };
-pub use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
     account::{Account, AccountSharedData},
     commitment_config::{CommitmentConfig, CommitmentLevel},
     compute_budget::ComputeBudgetInstruction,
     hash::Hash,
     instruction::{AccountMeta, Instruction},
+    message::{
+        v0::{self},
+        Message, VersionedMessage,
+    },
     signature::{keypair_from_seed, Keypair, Signature},
     signer::Signer,
-    transaction::Transaction,
+    transaction::VersionedTransaction,
 };
+pub use solana_sdk::{address_lookup_table_account::AddressLookupTableAccount, pubkey::Pubkey};
 use tokio::{
     select,
     sync::{
@@ -40,6 +43,10 @@ use tokio::{
         RwLock,
     },
     time::Instant,
+};
+
+use crate::constants::{
+    derive_spot_market_account, market_lookup_table, state_account, MarketExt, ProgramData,
 };
 
 pub mod constants;
@@ -205,8 +212,11 @@ impl AccountProvider for WsAccountProvider {
 
 /// Drift Client API
 ///
-/// Cheaply clone-able
+/// It is cheaply clone-able and consumers are encouraged to do so
+/// It is not recommended to create multiple instances with `::new()` as this will not re-use underlying resources such
+/// as network connections or memory allocations
 #[derive(Clone)]
+#[must_use]
 pub struct DriftClient<T: AccountProvider> {
     backend: &'static DriftClientBackend<T>,
 }
@@ -218,6 +228,11 @@ impl<T: AccountProvider> DriftClient<T> {
                 DriftClientBackend::new(context, endpoint, account_provider).await?,
             )),
         })
+    }
+
+    /// Return on-chain program metadata
+    pub fn program_data<'a>(&'a self) -> &'a ProgramData {
+        &self.backend.program_data
     }
 
     /// Get an account's open order by id
@@ -329,7 +344,7 @@ impl<T: AccountProvider> DriftClient<T> {
     ///
     /// `account` the drift user PDA
     ///
-    /// Returns the deserialzied account data (`User`)
+    /// Returns the deserialized account data (`User`)
     pub async fn get_user_account(&self, account: &Pubkey) -> SdkResult<User> {
         self.backend.get_account(account).await
     }
@@ -337,7 +352,11 @@ impl<T: AccountProvider> DriftClient<T> {
     /// Sign and send a tx to the network
     ///
     /// Returns the signature on success
-    pub async fn sign_and_send(&self, wallet: &Wallet, tx: Transaction) -> SdkResult<Signature> {
+    pub async fn sign_and_send(
+        &self,
+        wallet: &Wallet,
+        tx: VersionedMessage,
+    ) -> SdkResult<Signature> {
         self.backend
             .sign_and_send(wallet, tx)
             .await
@@ -350,24 +369,47 @@ impl<T: AccountProvider> DriftClient<T> {
         self.backend.get_account(&market).await
     }
 
-    /// Initialize a transaction given a (sub)account address and context
+    /// Lookup a market by symbol
+    ///
+    /// This operation is not free so lookups should be reused/cached by the caller
+    ///
+    /// Returns None if symbol does not map to any known market
+    pub fn market_lookup(&self, symbol: &str) -> Option<MarketId> {
+        if symbol.contains('-') {
+            let markets = self.program_data().perp_market_configs();
+            if let Some(market) = markets
+                .iter()
+                .find(|m| m.symbol().eq_ignore_ascii_case(symbol))
+            {
+                return Some(MarketId::perp(market.market_index));
+            }
+        } else {
+            let markets = self.program_data().spot_market_configs();
+            if let Some(market) = markets
+                .iter()
+                .find(|m| m.symbol().eq_ignore_ascii_case(symbol))
+            {
+                return Some(MarketId::spot(market.market_index));
+            }
+        }
+
+        None
+    }
+
+    /// Initialize a transaction given a (sub)account address
     ///
     /// ```ignore
     /// let tx = client
-    ///     .init_tx(Context::Devnet, &wallet.sub_account(3))
+    ///     .init_tx(&wallet.sub_account(3))
     ///     .cancel_all_orders()
     ///     .place_orders(...)
     ///     .build();
     /// ```
     /// Returns a `TransactionBuilder` for composing the tx
-    pub async fn init_tx(
-        &self,
-        context: Context,
-        account: &Pubkey,
-    ) -> SdkResult<TransactionBuilder> {
+    pub async fn init_tx(&self, account: &Pubkey) -> SdkResult<TransactionBuilder> {
         let account_data = self.get_user_account(account).await?;
         Ok(TransactionBuilder::new(
-            context,
+            self.program_data(),
             *account,
             Cow::Owned(account_data),
         ))
@@ -377,9 +419,9 @@ impl<T: AccountProvider> DriftClient<T> {
 /// Provides the heavy-lifting and network facing features of the SDK
 /// It is intended to be a singleton
 pub struct DriftClientBackend<T: AccountProvider> {
-    context: Context,
     rpc_client: RpcClient,
     account_provider: T,
+    program_data: ProgramData,
 }
 
 impl<T: AccountProvider> DriftClientBackend<T> {
@@ -390,24 +432,65 @@ impl<T: AccountProvider> DriftClientBackend<T> {
         account_provider: T,
     ) -> SdkResult<DriftClientBackend<T>> {
         let rpc_client = RpcClient::new(endpoint.to_string());
-        let this = Self {
-            context,
+
+        let mut this = Self {
             rpc_client,
             account_provider,
+            program_data: ProgramData::uninitialized(),
         };
-        this.initialize_markets().await?;
+
+        let lookup_table_address = market_lookup_table(context);
+        let (spot, perp, lookup_table_account): (
+            SdkResult<Vec<SpotMarket>>,
+            SdkResult<Vec<PerpMarket>>,
+            SdkResult<Account>,
+        ) = tokio::join!(
+            this.get_program_accounts(),
+            this.get_program_accounts(),
+            this.get_account_raw(&lookup_table_address),
+        );
+        let lookup_table = utils::deserialize_alt(lookup_table_address, &lookup_table_account?)?;
+
+        this.program_data = ProgramData::new(spot?, perp?, lookup_table);
 
         Ok(this)
     }
 
-    /// Load market data from chain
-    async fn initialize_markets(&self) -> SdkResult<()> {
-        let (spot, perp): (SdkResult<Vec<SpotMarket>>, SdkResult<Vec<PerpMarket>>) =
-            tokio::join!(self.get_program_accounts(), self.get_program_accounts());
+    /// Get recent tx priority fees
+    ///
+    /// - `window` # slots to include in the fee calculation
+    async fn get_recent_priority_fees(
+        &self,
+        writable_markets: &[MarketId],
+        window: Option<usize>,
+    ) -> SdkResult<u64> {
+        let addresses: Vec<Pubkey> = writable_markets
+            .iter()
+            .filter_map(|x| match x.kind {
+                MarketType::Spot => self
+                    .program_data
+                    .spot_market_config_by_index(x.index)
+                    .map(|x| x.pubkey),
+                MarketType::Perp => self
+                    .program_data
+                    .perp_market_config_by_index(x.index)
+                    .map(|x| x.pubkey),
+            })
+            .collect();
 
-        constants::init_markets(self.context, spot?, perp?);
+        let response = self
+            .rpc_client
+            .get_recent_prioritization_fees(addresses.as_slice())
+            .await?;
+        let window = window.unwrap_or(5).max(1);
+        let fee = response
+            .iter()
+            .take(window)
+            .map(|x| x.prioritization_fee)
+            .sum::<u64>()
+            / window as u64;
 
-        Ok(())
+        Ok(fee)
     }
 
     /// Get all drift program accounts by Anchor type
@@ -447,16 +530,24 @@ impl<T: AccountProvider> DriftClientBackend<T> {
         U::try_deserialize(&mut account_data.data.as_ref()).map_err(|_err| SdkError::InvalidAccount)
     }
 
+    /// Fetch an `account`
+    async fn get_account_raw(&self, account: &Pubkey) -> SdkResult<Account> {
+        self.account_provider
+            .get_account(*account)
+            .await
+            .map_err(Into::into)
+    }
+
     /// Sign and send a tx to the network
     ///
     /// Returns the signature on success
     pub async fn sign_and_send(
         &self,
         wallet: &Wallet,
-        mut tx: Transaction,
+        tx: VersionedMessage,
     ) -> SdkResult<Signature> {
         let recent_block_hash = self.rpc_client.get_latest_blockhash().await?;
-        wallet.sign_tx(&mut tx, recent_block_hash);
+        let tx = wallet.sign_tx(tx, recent_block_hash)?;
         self.rpc_client
             .send_transaction(&tx)
             .await
@@ -475,47 +566,77 @@ impl<T: AccountProvider> DriftClientBackend<T> {
 /// let client = DriftClient::new("api.example.com").await.unwrap();
 /// let account_data = client.get_account(wallet.default_sub_account()).await.unwrap();
 ///
-/// let tx = TransactionBuilder::new(Context::Devnet, wallet.default_sub_account(), account_data.into())
+/// let tx = TransactionBuilder::new(client.program_data, wallet.default_sub_account(), account_data.into())
 ///     .cancel_all_orders()
 ///     .place_orders(&[
 ///         NewOrder::default().build(),
 ///         NewOrder::default().build(),
 ///     ])
+///     .legacy()
 ///     .build();
 ///
 /// let signature = client.sign_and_send(tx, &wallet).await?;
 /// ```
 ///
 pub struct TransactionBuilder<'a> {
-    /// wallet to use for tx signing and authority
-    context: Context,
+    /// contextual on-chain program data
+    program_data: &'a ProgramData,
     /// sub-account data
     account_data: Cow<'a, User>,
     /// the drift sub-account address
     sub_account: Pubkey,
+    /// the account to pay for the tx
+    payer: Option<Pubkey>,
     /// ordered list of instructions
     ixs: Vec<Instruction>,
-    /// the account paying for the tx (i.e typically the signer)
-    payer: Pubkey,
+    /// use legacy transaction mode
+    legacy: bool,
+    /// add additional lookup tables (v0 only)
+    lookup_tables: Vec<AddressLookupTableAccount>,
 }
 
 impl<'a> TransactionBuilder<'a> {
     /// Initialize a new `TransactionBuilder`
     ///
-    /// `context` mainnet or devnet
     /// `sub_account` drift sub-account address
     /// `account_data` drift sub-account data
-    pub fn new<'b>(context: Context, sub_account: Pubkey, account_data: Cow<'b, User>) -> Self
+    pub fn new<'b>(
+        program_data: &'b ProgramData,
+        sub_account: Pubkey,
+        account_data: Cow<'b, User>,
+    ) -> Self
     where
         'b: 'a,
     {
         Self {
-            context,
-            payer: account_data.authority,
+            program_data,
             account_data,
             sub_account,
+            payer: None,
             ixs: Default::default(),
+            lookup_tables: vec![program_data.lookup_table.clone()],
+            legacy: false,
         }
+    }
+    /// Use legacy tx mode
+    pub fn legacy(mut self) -> Self {
+        self.legacy = true;
+        self
+    }
+    /// Set the tx lookup tables
+    pub fn lookup_tables(mut self, lookup_tables: &[AddressLookupTableAccount]) -> Self {
+        self.lookup_tables = lookup_tables.to_vec();
+        self.lookup_tables
+            .push(self.program_data.lookup_table.clone());
+
+        self
+    }
+    /// Set the tx fee payer
+    ///
+    /// defaults to the account authority
+    pub fn payer(mut self, payer: Pubkey) -> Self {
+        self.payer = Some(payer);
+        self
     }
     /// Set the priority fee of the tx
     ///
@@ -533,7 +654,7 @@ impl<'a> TransactionBuilder<'a> {
             .collect();
 
         let accounts = build_accounts(
-            self.context,
+            self.program_data,
             drift_program::accounts::PlaceOrder {
                 state: *state_account(),
                 authority: self.account_data.authority,
@@ -560,7 +681,7 @@ impl<'a> TransactionBuilder<'a> {
     /// Cancel all orders for account
     pub fn cancel_all_orders(mut self) -> Self {
         let accounts = build_accounts(
-            self.context,
+            self.program_data,
             drift_program::accounts::CancelOrder {
                 state: *state_account(),
                 authority: self.account_data.authority,
@@ -597,7 +718,7 @@ impl<'a> TransactionBuilder<'a> {
     ) -> Self {
         let (idx, kind) = market;
         let accounts = build_accounts(
-            self.context,
+            self.program_data,
             drift_program::accounts::CancelOrder {
                 state: *state_account(),
                 authority: self.account_data.authority,
@@ -625,7 +746,7 @@ impl<'a> TransactionBuilder<'a> {
     /// Cancel orders given ids
     pub fn cancel_orders_by_id(mut self, order_ids: Vec<u32>) -> Self {
         let accounts = build_accounts(
-            self.context,
+            self.program_data,
             drift_program::accounts::CancelOrder {
                 state: *state_account(),
                 authority: self.account_data.authority,
@@ -652,7 +773,7 @@ impl<'a> TransactionBuilder<'a> {
     pub fn modify_orders(mut self, orders: Vec<(u32, ModifyOrderParams)>) -> Self {
         for (order_id, params) in orders {
             let accounts = build_accounts(
-                self.context,
+                self.program_data,
                 drift_program::accounts::PlaceOrder {
                     state: *state_account(),
                     authority: self.account_data.authority,
@@ -677,15 +798,24 @@ impl<'a> TransactionBuilder<'a> {
         self
     }
 
-    /// Set the tx fee payer (default is account authority)
-    pub fn payer(mut self, payer: Pubkey) -> Self {
-        self.payer = payer;
-        self
-    }
-
-    /// Build the transaction ready for signing and sending
-    pub fn build(self) -> Transaction {
-        Transaction::new_with_payer(self.ixs.as_ref(), Some(&self.payer))
+    /// Build the transaction message ready for signing and sending
+    pub fn build(self) -> VersionedMessage {
+        if self.legacy {
+            let message = Message::new(
+                self.ixs.as_ref(),
+                self.payer.as_ref().or(Some(&self.account_data.authority)),
+            );
+            VersionedMessage::Legacy(message)
+        } else {
+            let message = v0::Message::try_compile(
+                self.payer.as_ref().unwrap_or(&self.account_data.authority),
+                self.ixs.as_slice(),
+                self.lookup_tables.as_slice(),
+                Default::default(),
+            )
+            .expect("ok");
+            VersionedMessage::V0(message)
+        }
     }
 }
 
@@ -702,7 +832,7 @@ impl<'a> TransactionBuilder<'a> {
 /// # Panics
 ///  if the user has positions in an unknown market (i.e unsupported by the SDK)
 fn build_accounts(
-    context: Context,
+    program_data: &ProgramData,
     base_accounts: impl ToAccountMetas,
     user: &User,
     markets_readable: &[MarketId],
@@ -724,8 +854,9 @@ fn build_accounts(
 
         let (account, oracle) = match market_type {
             MarketType::Spot => {
-                let SpotMarket { pubkey, oracle, .. } =
-                    constants::spot_market_config_by_index(context, market_index).expect("exists");
+                let SpotMarket { pubkey, oracle, .. } = program_data
+                    .spot_market_config_by_index(market_index)
+                    .expect("exists");
                 (
                     RemainingAccount::Spot {
                         pubkey: *pubkey,
@@ -735,8 +866,9 @@ fn build_accounts(
                 )
             }
             MarketType::Perp => {
-                let PerpMarket { pubkey, amm, .. } =
-                    constants::perp_market_config_by_index(context, market_index).expect("exists");
+                let PerpMarket { pubkey, amm, .. } = program_data
+                    .perp_market_config_by_index(market_index)
+                    .expect("exists");
                 (
                     RemainingAccount::Perp {
                         pubkey: *pubkey,
@@ -844,9 +976,14 @@ impl Wallet {
             Pubkey::find_program_address(&[&b"user_stats"[..], account.as_ref()], program);
         account_drift_pda
     }
-    /// Signs the given `tx`
-    pub fn sign_tx(&self, tx: &mut Transaction, recent_block_hash: Hash) {
-        tx.sign(&[self.signer.as_ref()], recent_block_hash)
+    /// Signs the given tx `message` returning the tx on success
+    pub fn sign_tx(
+        &self,
+        mut message: VersionedMessage,
+        recent_block_hash: Hash,
+    ) -> SdkResult<VersionedTransaction> {
+        message.set_recent_blockhash(recent_block_hash);
+        VersionedTransaction::try_new(message, &[self.signer.as_ref()]).map_err(Into::into)
     }
     /// Return the wallet authority address
     pub fn authority(&self) -> &Pubkey {
@@ -874,8 +1011,7 @@ impl Wallet {
 mod tests {
     use std::str::FromStr;
 
-    use anchor_lang::Discriminator;
-    use drift_program::state::{perp_market::PerpMarket, traits::Size};
+    use drift_program::state::perp_market::PerpMarket;
     use serde_json::json;
     use solana_account_decoder::{UiAccount, UiAccountData};
     use solana_client::{
@@ -896,7 +1032,6 @@ mod tests {
         account_provider_mocks: Mocks,
     ) -> DriftClient<RpcAccountProvider> {
         let backend = DriftClientBackend {
-            context: Context::DevNet,
             rpc_client: RpcClient::new_mock_with_mocks(DEVNET_ENDPOINT.to_string(), rpc_mocks),
             account_provider: RpcAccountProvider {
                 client: RpcClient::new_mock_with_mocks(
@@ -904,6 +1039,7 @@ mod tests {
                     account_provider_mocks,
                 ),
             },
+            program_data: ProgramData::uninitialized(),
         };
 
         DriftClient {

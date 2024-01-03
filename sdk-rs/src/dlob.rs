@@ -16,30 +16,25 @@ use tokio::{
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
 use crate::{
-    constants::{perp_market_config_by_index, spot_market_config_by_index},
     types::{MarketId, SdkError, SdkResult},
-    utils::to_ws_json,
-    Context,
+    utils::dlob_subscribe_ws_json,
 };
 
 pub type L2OrderbookStream = RxStream<Result<L2Orderbook, SdkError>>;
-
 pub type L3OrderbookStream = RxStream<Result<L3Orderbook, SdkError>>;
 
 #[derive(Clone)]
 /// Decentralized limit orderbook client
 pub struct DLOBClient {
-    context: Context,
     url: String,
     client: Client,
 }
 
 impl DLOBClient {
-    pub fn new(url: &str, context: Context) -> Self {
+    pub fn new(url: &str) -> Self {
         let url = url.trim_end_matches('/');
 
         Self {
-            context,
             url: url.to_string(),
             client: Client::new(),
         }
@@ -128,8 +123,7 @@ impl DLOBClient {
     }
 
     /// Subscribe to an orderbook via WebSocket.
-    /// You MUST have a Drift Client initialized to use this fn.
-    pub async fn subscribe_ws(&self, market: MarketId) -> SdkResult<L2OrderbookStream> {
+    pub async fn subscribe_ws(&self, market_symbol: &str) -> SdkResult<L2OrderbookStream> {
         // This unwrap should never panic
         let ws_url = crate::utils::http_to_ws(&self.url).unwrap();
         let (mut ws_stream, _) = connect_async(ws_url).await?;
@@ -137,30 +131,11 @@ impl DLOBClient {
         // Setup channel for L2OrderbookStream
         let (tx, rx) = channel::<SdkResult<L2Orderbook>>(16);
 
-        match market.kind {
-            MarketType::Perp => {
-                if let Some(perp_market_config) =
-                    perp_market_config_by_index(self.context, market.index)
-                {
-                    let market_subscription_message = to_ws_json(perp_market_config);
-                    ws_stream
-                        .send(Message::Text(market_subscription_message))
-                        .await
-                        .map_err(crate::types::SinkError)?;
-                }
-            }
-            MarketType::Spot => {
-                if let Some(spot_market_config) =
-                    spot_market_config_by_index(self.context, market.index)
-                {
-                    let market_subscription_message = to_ws_json(spot_market_config);
-                    ws_stream
-                        .send(Message::Text(market_subscription_message))
-                        .await
-                        .map_err(crate::types::SinkError)?;
-                }
-            }
-        }
+        let market_subscription_message = dlob_subscribe_ws_json(market_symbol);
+        ws_stream
+            .send(Message::Text(market_subscription_message))
+            .await
+            .map_err(crate::types::SinkError)?;
 
         let heartbeat_interval = TokioDuration::from_secs(5);
         let mut last_heartbeat = Instant::now();
@@ -293,7 +268,7 @@ mod tests {
     #[tokio::test]
     async fn pull_l2_book() {
         let url = "https://dlob.drift.trade";
-        let client = DLOBClient::new(url, Context::MainNet);
+        let client = DLOBClient::new(url);
         let perp_book = client.get_l2(MarketId::perp(0)).await.unwrap();
         dbg!(perp_book);
         let spot_book = client.get_l2(MarketId::spot(2)).await.unwrap();
@@ -303,7 +278,7 @@ mod tests {
     #[tokio::test]
     async fn stream_l2_book() {
         let url = "https://dlob.drift.trade";
-        let client = DLOBClient::new(url, Context::MainNet);
+        let client = DLOBClient::new(url);
         let stream = client.subscribe_l2_book(MarketId::perp(0), None);
         let mut short_stream = stream.take(5);
         while let Some(book) = short_stream.next().await {
@@ -314,7 +289,7 @@ mod tests {
     #[tokio::test]
     async fn pull_l3_book() {
         let url = "https://dlob.drift.trade";
-        let client = DLOBClient::new(url, Context::MainNet);
+        let client = DLOBClient::new(url);
         let perp_book = client.get_l3(MarketId::perp(0)).await.unwrap();
         dbg!(perp_book);
         let spot_book = client.get_l3(MarketId::spot(2)).await.unwrap();
@@ -324,7 +299,7 @@ mod tests {
     #[tokio::test]
     async fn stream_l3_book() {
         let url = "https://dlob.drift.trade";
-        let client = DLOBClient::new(url, Context::MainNet);
+        let client = DLOBClient::new(url);
         let stream = client.subscribe_l3_book(MarketId::perp(0), None);
         let mut short_stream = stream.take(5);
         while let Some(book) = short_stream.next().await {
@@ -334,7 +309,7 @@ mod tests {
 
     #[tokio::test]
     async fn subscribe_ws() {
-        let _ = DriftClient::new(
+        let client = DriftClient::new(
             Context::MainNet,
             MAINNET_ENDPOINT,
             RpcAccountProvider::new(MAINNET_ENDPOINT),
@@ -342,9 +317,16 @@ mod tests {
         .await
         .unwrap();
         let url = "https://dlob.drift.trade";
-        let client = DLOBClient::new(url, Context::MainNet);
-        let market = MarketId::perp(0);
-        let stream = client.subscribe_ws(market).await.unwrap();
+        let dlob_client = DLOBClient::new(url);
+
+        let market = MarketId::perp(0); // sol-perp
+        let market_symbol = client
+            .program_data()
+            .perp_market_config_by_index(market.index)
+            .unwrap()
+            .symbol();
+
+        let stream = dlob_client.subscribe_ws(market_symbol).await.unwrap();
         let mut short_stream = stream.take(5);
         while let Some(book) = short_stream.next().await {
             dbg!(book);

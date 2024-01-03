@@ -8,15 +8,24 @@ pub use drift_program::{
     },
     ID as PROGRAM_ID,
 };
-use solana_sdk::pubkey::Pubkey;
+use solana_sdk::{address_lookup_table_account::AddressLookupTableAccount, pubkey::Pubkey};
+use substreams_solana_macro::b58;
 
 use crate::types::Context;
 
 static STATE_ACCOUNT: OnceLock<Pubkey> = OnceLock::new();
-static SPOT_MARKETS_DEV: OnceLock<&'static [SpotMarket]> = OnceLock::new();
-static SPOT_MARKETS_MAINNET: OnceLock<&'static [SpotMarket]> = OnceLock::new();
-static PERP_MARKETS_DEV: OnceLock<&'static [PerpMarket]> = OnceLock::new();
-static PERP_MARKETS_MAINNET: OnceLock<&'static [PerpMarket]> = OnceLock::new();
+
+/// Return the market lookup table
+pub(crate) const fn market_lookup_table(context: Context) -> Pubkey {
+    match context {
+        Context::DevNet => {
+            Pubkey::new_from_array(b58!("FaMS3U4uBojvGn5FSDEPimddcXsCfwkKsFgMVVnDdxGb"))
+        }
+        Context::MainNet => {
+            Pubkey::new_from_array(b58!("D9cnvzswDikQDf53k4HpQ3KJ9y1Fv3HGGDFYMXnK5T6c"))
+        }
+    }
+}
 
 /// Drift state account
 pub fn state_account() -> &'static Pubkey {
@@ -36,103 +45,95 @@ pub fn derive_spot_market_account(market_index: u16) -> Pubkey {
     account
 }
 
-pub trait MarketConfig {
-    fn market_type(&self) -> &str;
-    fn symbol(&self) -> String;
+/// Helper methods for market data structs
+pub trait MarketExt {
+    fn market_type(&self) -> &'static str;
+    fn symbol<'a>(&'a self) -> &'a str;
 }
 
-impl MarketConfig for PerpMarket {
-    fn market_type(&self) -> &str {
+impl MarketExt for PerpMarket {
+    fn market_type(&self) -> &'static str {
         "perp"
     }
-
-    fn symbol(&self) -> String {
-        String::from_utf8(self.name.to_vec())
-            .unwrap_or_default()
-            .trim_end_matches('\0')
-            .trim()
-            .to_string()
+    fn symbol<'a>(&'a self) -> &'a str {
+        unsafe { core::str::from_utf8_unchecked(&self.name) }.trim_end()
     }
 }
 
-impl MarketConfig for SpotMarket {
-    fn market_type(&self) -> &str {
+impl MarketExt for SpotMarket {
+    fn market_type(&self) -> &'static str {
         "spot"
     }
-
-    fn symbol(&self) -> String {
-        String::from_utf8(self.name.to_vec())
-            .unwrap_or_default()
-            .trim_end_matches('\0')
-            .trim()
-            .to_string()
+    fn symbol<'a>(&'a self) -> &'a str {
+        unsafe { core::str::from_utf8_unchecked(&self.name) }.trim_end()
     }
 }
 
-/// Initialize market metadata
-/// Called once on start up
-pub fn init_markets(context: Context, mut spot: Vec<SpotMarket>, mut perp: Vec<PerpMarket>) {
-    spot.sort_by(|a, b| a.market_index.cmp(&b.market_index));
-    perp.sort_by(|a, b| a.market_index.cmp(&b.market_index));
-    // other code relies on aligned indexes for fast lookups
-    assert!(
-        spot.iter()
-            .enumerate()
-            .all(|(idx, x)| idx == x.market_index as usize),
-        "spot indexes unaligned"
-    );
-    assert!(
-        perp.iter()
-            .enumerate()
-            .all(|(idx, x)| idx == x.market_index as usize),
-        "perp indexes unaligned"
-    );
-    match context {
-        Context::DevNet => {
-            SPOT_MARKETS_DEV.set(Box::leak(spot.into_boxed_slice()));
-            PERP_MARKETS_DEV.set(Box::leak(perp.into_boxed_slice()));
-        }
-        Context::MainNet => {
-            SPOT_MARKETS_MAINNET.set(Box::leak(spot.into_boxed_slice()));
-            PERP_MARKETS_MAINNET.set(Box::leak(perp.into_boxed_slice()));
+/// Static-ish metadata from onchain drift program
+pub struct ProgramData {
+    spot_markets: &'static [SpotMarket],
+    perp_markets: &'static [PerpMarket],
+    pub lookup_table: AddressLookupTableAccount,
+}
+
+impl ProgramData {
+    /// Return an uninitialized instance of `ProgramData` (useful for bootstraping)
+    pub const fn uninitialized() -> Self {
+        Self {
+            spot_markets: &[],
+            perp_markets: &[],
+            lookup_table: AddressLookupTableAccount {
+                key: Pubkey::new_from_array([0; 32]),
+                addresses: vec![],
+            },
         }
     }
-}
+    /// Initialize `ProgramData`
+    pub fn new(
+        mut spot: Vec<SpotMarket>,
+        mut perp: Vec<PerpMarket>,
+        lookup_table: AddressLookupTableAccount,
+    ) -> Self {
+        spot.sort_by(|a, b| a.market_index.cmp(&b.market_index));
+        perp.sort_by(|a, b| a.market_index.cmp(&b.market_index));
+        // other code relies on aligned indexes for fast lookups
+        assert!(
+            spot.iter()
+                .enumerate()
+                .all(|(idx, x)| idx == x.market_index as usize),
+            "spot indexes unaligned"
+        );
+        assert!(
+            perp.iter()
+                .enumerate()
+                .all(|(idx, x)| idx == x.market_index as usize),
+            "perp indexes unaligned"
+        );
 
-/// Return known spot markets
-pub fn spot_market_configs(context: Context) -> &'static [SpotMarket] {
-    match context {
-        Context::DevNet => SPOT_MARKETS_DEV.get().expect("markets initialized"),
-        Context::MainNet => SPOT_MARKETS_MAINNET.get().expect("markets initialized"),
+        Self {
+            spot_markets: Box::leak(spot.into_boxed_slice()),
+            perp_markets: Box::leak(perp.into_boxed_slice()),
+            lookup_table,
+        }
     }
-}
 
-/// Return the spot market config given a market index
-pub fn spot_market_config_by_index(
-    context: Context,
-    market_index: u16,
-) -> Option<&'static SpotMarket> {
-    match context {
-        Context::DevNet => SPOT_MARKETS_DEV.get()?.get(market_index as usize),
-        Context::MainNet => SPOT_MARKETS_MAINNET.get()?.get(market_index as usize),
+    /// Return known spot markets
+    pub fn spot_market_configs(&self) -> &'static [SpotMarket] {
+        self.spot_markets
     }
-}
 
-/// Return known perp markets
-pub fn perp_market_configs(context: Context) -> &'static [PerpMarket] {
-    match context {
-        Context::DevNet => PERP_MARKETS_DEV.get().expect("markets initialized"),
-        Context::MainNet => PERP_MARKETS_MAINNET.get().expect("markets initialized"),
+    /// Return known perp markets
+    pub fn perp_market_configs(&self) -> &'static [PerpMarket] {
+        self.perp_markets
     }
-}
 
-/// Return the perp market config given a market index
-pub fn perp_market_config_by_index(
-    context: Context,
-    market_index: u16,
-) -> Option<&'static PerpMarket> {
-    match context {
-        Context::DevNet => PERP_MARKETS_DEV.get()?.get(market_index as usize),
-        Context::MainNet => PERP_MARKETS_MAINNET.get()?.get(market_index as usize),
+    /// Return the spot market config given a market index
+    pub fn spot_market_config_by_index(&self, market_index: u16) -> Option<&'static SpotMarket> {
+        self.spot_markets.get(market_index as usize)
+    }
+
+    /// Return the perp market config given a market index
+    pub fn perp_market_config_by_index(&self, market_index: u16) -> Option<&'static PerpMarket> {
+        self.perp_markets.get(market_index as usize)
     }
 }

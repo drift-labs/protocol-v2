@@ -1,12 +1,12 @@
 //! SDK utility functions
 
 use serde_json::json;
-use solana_sdk::{bs58, signature::Keypair};
-
-use crate::{
-    constants::MarketConfig,
-    types::{SdkError, SdkResult},
+use solana_sdk::{
+    account::Account, address_lookup_table_account::AddressLookupTableAccount, bs58,
+    pubkey::Pubkey, signature::Keypair,
 };
+
+use crate::types::{SdkError, SdkResult};
 
 // kudos @wphan
 /// Try to parse secret `key` string
@@ -49,6 +49,28 @@ pub fn load_keypair_multi_format(path_or_key: &str) -> SdkResult<Keypair> {
     }
 }
 
+const LOOKUP_TABLE_META_SIZE: usize = 56;
+
+/// modified from sdk.1.17.x
+/// https://docs.rs/solana-program/latest/src/solana_program/address_lookup_table/state.rs.html#192
+pub fn deserialize_alt(address: Pubkey, account: &Account) -> SdkResult<AddressLookupTableAccount> {
+    let raw_addresses_data: &[u8] = account.data.get(LOOKUP_TABLE_META_SIZE..).ok_or({
+        // Should be impossible because table accounts must
+        // always be LOOKUP_TABLE_META_SIZE in length
+        SdkError::InvalidAccount
+    })?;
+    let addresses = bytemuck::try_cast_slice(raw_addresses_data).map_err(|_| {
+        // Should be impossible because raw address data
+        // should be aligned and sized in multiples of 32 bytes
+        SdkError::InvalidAccount
+    })?;
+
+    Ok(AddressLookupTableAccount {
+        key: address,
+        addresses: addresses.to_vec(),
+    })
+}
+
 pub fn http_to_ws(url: &str) -> Result<String, &'static str> {
     let base_url = if url.starts_with("http://") {
         url.replacen("http://", "ws://", 1)
@@ -61,12 +83,16 @@ pub fn http_to_ws(url: &str) -> Result<String, &'static str> {
     Ok(format!("{}/ws", base_url.trim_end_matches('/')))
 }
 
-pub fn to_ws_json(config: &impl MarketConfig) -> String {
+pub fn dlob_subscribe_ws_json(market: &str) -> String {
     json!({
         "type": "subscribe",
-        "marketType": config.market_type(),
+        "marketType": if market.ends_with("perp") {
+            "perp"
+        } else {
+            "spot"
+        },
         "channel": "orderbook",
-        "market": config.symbol()
+        "market": market,
     })
     .to_string()
 }
