@@ -77,7 +77,7 @@ pub struct ProgramData {
 }
 
 impl ProgramData {
-    /// Return an uninitialized instance of `ProgramData` (useful for bootstraping)
+    /// Return an uninitialized instance of `ProgramData` (useful for bootstrapping)
     pub const fn uninitialized() -> Self {
         Self {
             spot_markets: &[],

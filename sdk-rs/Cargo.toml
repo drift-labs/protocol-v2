@@ -9,6 +9,7 @@ bytemuck = "1.13.0"
 base64 = "0.13"
 drift-program = { package = "drift", path = "../programs/drift" }
 env_logger = "0.10.1"
+events_emitter = "0.1.3"
 fnv = "1.0.7"
 futures-util = "0.3.29"
 log = "0.4.20"
@@ -24,6 +25,7 @@ tokio = { version = "1.34.0", features = ["full"] }
 tokio-tungstenite = { version = "0.21.0", features = [ "native-tls" ]}
 
 [dev-dependencies]
+anchor-client = "0.27.0"
 hex = "*"
 hex-literal = "*"
 serde_json = "*"

@@ -33,6 +33,12 @@ pub enum Context {
     MainNet,
 }
 
+#[derive(Debug, Clone)]
+pub struct DataAndSlot<T> {
+    pub slot: u64,
+    pub data: T,
+}
+
 /// Id of a Drift market
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct MarketId {
@@ -199,6 +205,14 @@ pub enum SdkError {
     WebsocketError,
     #[error("Missed DLOB heartbeat")]
     MissedHeartbeat,
+    #[error("Unsupported account data format")]
+    UnsupportedAccountData,
+    #[error("Could not decode data: {0}")]
+    CouldntDecode(#[from] base64::DecodeError),
+    #[error("Couldn't join task: {0}")]
+    CouldntJoin(#[from] tokio::task::JoinError),
+    #[error("Couldn't send unsubscribe message: {0}")]
+    CouldntUnsubscribe(#[from] tokio::sync::mpsc::error::SendError<()>),
 }
 
 impl SdkError {

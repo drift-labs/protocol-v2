@@ -53,10 +53,13 @@ pub mod constants;
 pub mod dlob;
 pub mod types;
 use types::*;
+pub mod auction_subscriber;
+pub mod memcmp;
 pub mod utils;
+pub mod websocket_program_account_subscriber;
 
 /// Provides solana Account fetching API
-pub trait AccountProvider: 'static + Sized {
+pub trait AccountProvider: 'static + Sized + Send + Sync {
     // TODO: async fn when it stabilizes
     /// Return the Account information of `account`
     fn get_account(&self, account: Pubkey) -> BoxFuture<SdkResult<Account>>;
@@ -1044,6 +1047,7 @@ mod tests {
 
         DriftClient {
             backend: Box::leak(Box::new(backend)),
+            active_sub_account_id: 0,
         }
     }
 
@@ -1053,6 +1057,7 @@ mod tests {
             Context::DevNet,
             DEVNET_ENDPOINT,
             RpcAccountProvider::new(DEVNET_ENDPOINT),
+            None,
         )
         .await
         .unwrap();
