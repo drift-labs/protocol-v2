@@ -740,6 +740,7 @@ fn test_lp_margin_calc() {
         &strict_quote_price,
         crate::math::margin::MarginRequirementType::Initial,
         0,
+        false,
     )
     .unwrap();
 

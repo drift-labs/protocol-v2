@@ -1,8 +1,8 @@
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
 use crate::math::constants::{
-    MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PERCENTAGE_PRECISION,
-    PRICE_PRECISION, SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
+    MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION,
+    SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -103,6 +103,7 @@ pub fn calculate_perp_position_value_and_pnl(
     strict_quote_price: &StrictOraclePrice,
     margin_requirement_type: MarginRequirementType,
     user_custom_margin_ratio: u32,
+    track_open_order_fraction: bool,
 ) -> DriftResult<(u128, i128, u128, u128)> {
     let valuation_price = if market.status == MarketStatus::Settlement {
         market.expiry_price
@@ -128,17 +129,6 @@ pub fn calculate_perp_position_value_and_pnl(
     let total_unrealized_pnl = unrealized_pnl.safe_add(unrealized_funding.cast()?)?;
 
     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
-
-    let open_order_fraction: u128 = if worst_case_base_asset_amount != 0 {
-        market_position
-            .base_asset_amount
-            .unsigned_abs()
-            .cast::<u128>()?
-            .safe_mul(PERCENTAGE_PRECISION)?
-            .safe_div(worst_case_base_asset_amount.unsigned_abs())?
-    } else {
-        0
-    };
 
     let worse_case_base_asset_value = calculate_base_asset_value_with_oracle_price(
         worst_case_base_asset_amount,
@@ -200,11 +190,22 @@ pub fn calculate_perp_position_value_and_pnl(
         weighted_unrealized_pnl = weighted_unrealized_pnl.min(MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN);
     }
 
+    let open_order_margin_requirement =
+        if track_open_order_fraction && worst_case_base_asset_amount != 0 {
+            let worst_case_base_asset_amount = worst_case_base_asset_amount.unsigned_abs();
+            worst_case_base_asset_amount
+                .safe_sub(market_position.base_asset_amount.unsigned_abs().cast()?)?
+                .safe_mul(margin_requirement)?
+                .safe_div(worst_case_base_asset_amount)?
+        } else {
+            0_u128
+        };
+
     Ok((
         margin_requirement,
         weighted_unrealized_pnl,
         worse_case_base_asset_value,
-        open_order_fraction,
+        open_order_margin_requirement,
     ))
 }
 
@@ -311,7 +312,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         token_value,
                         token_value,
                         MarketIdentifier::spot(0),
-                        0,
                     )?;
 
                     calculation.add_spot_liability()?;
@@ -353,7 +353,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 spot_position.margin_requirement_for_open_orders()?,
                 0,
                 MarketIdentifier::spot(spot_market.market_index),
-                0,
             )?;
 
             match worst_case_token_value.cmp(&0) {
@@ -381,7 +380,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         worst_case_weighted_token_value.unsigned_abs(),
                         worst_case_token_value.unsigned_abs(),
                         MarketIdentifier::spot(spot_market.market_index),
-                        0, // todo
                     )?;
 
                     calculation.add_spot_liability()?;
@@ -408,7 +406,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         worst_case_orders_value.unsigned_abs(),
                         worst_case_orders_value.unsigned_abs(),
                         MarketIdentifier::spot(0),
-                        0, // todo: spot
                     )?;
                 }
                 Ordering::Equal => {}
@@ -460,7 +457,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             perp_margin_requirement,
             weighted_pnl,
             worst_case_base_asset_value,
-            open_order_fraction,
+            open_order_margin_requirement,
         ) = calculate_perp_position_value_and_pnl(
             market_position,
             market,
@@ -468,14 +465,18 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             &strict_quote_price,
             context.margin_type,
             user_custom_margin_ratio,
+            calculation.track_open_orders_fraction(),
         )?;
 
         calculation.add_margin_requirement(
             perp_margin_requirement,
             worst_case_base_asset_value,
             MarketIdentifier::perp(market.market_index),
-            open_order_fraction,
         )?;
+
+        if calculation.track_open_orders_fraction() {
+            calculation.add_open_orders_margin_requirement(open_order_margin_requirement)?;
+        }
 
         calculation.add_total_collateral(weighted_pnl)?;
 
