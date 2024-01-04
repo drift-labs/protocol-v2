@@ -10,7 +10,7 @@ export class PriorityFeeSubscriber {
 	customStrategy?: PriorityFeeStrategy;
 	averageStrategy = new AverageOverSlotsStrategy();
 	maxStrategy = new MaxOverSlotsStrategy();
-	lookbackDistance : number;
+	lookbackDistance: number;
 
 	intervalId?: ReturnType<typeof setTimeout>;
 
@@ -22,7 +22,7 @@ export class PriorityFeeSubscriber {
 	lastSlotSeen = 0;
 
 	/**
-	 * @param props 
+	 * @param props
 	 * customStrategy : strategy to return the priority fee to use based on recent samples. defaults to AVERAGE.
 	 */
 	public constructor({
@@ -44,7 +44,7 @@ export class PriorityFeeSubscriber {
 		if (!customStrategy) {
 			this.customStrategy = new AverageOverSlotsStrategy();
 		} else {
-			this.customStrategy=customStrategy;
+			this.customStrategy = customStrategy;
 		}
 		this.lookbackDistance = slotsToCheck;
 	}
@@ -66,7 +66,7 @@ export class PriorityFeeSubscriber {
 
 		const results: { slot: number; prioritizationFee: number }[] =
 			rpcJSONResponse?.result;
-		
+
 		if (!results.length) return;
 
 		// # Sort and filter results based on the slot lookback setting
@@ -74,7 +74,9 @@ export class PriorityFeeSubscriber {
 		const mostRecentResult = descResults[0];
 		const cutoffSlot = mostRecentResult.slot - this.lookbackDistance;
 
-		const resultsToUse = descResults.filter(result => result.slot >= cutoffSlot);
+		const resultsToUse = descResults.filter(
+			(result) => result.slot >= cutoffSlot
+		);
 
 		// # Handle results
 		this.latestPriorityFee = mostRecentResult.prioritizationFee;
@@ -86,7 +88,6 @@ export class PriorityFeeSubscriber {
 			this.lastCustomStrategyResult =
 				this.customStrategy.calculate(resultsToUse);
 		}
-
 	}
 
 	public async unsubscribe(): Promise<void> {
