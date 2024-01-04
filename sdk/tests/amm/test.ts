@@ -1027,8 +1027,6 @@ describe('AMM Tests', () => {
 		);
 	});
 
-	return 0;
-
 	it('predicted funding rate mock1', async () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 		const mockMarket1 = myMockPerpMarkets[0];
