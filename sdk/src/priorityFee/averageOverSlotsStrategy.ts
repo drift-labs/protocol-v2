@@ -6,12 +6,10 @@ export class AverageOverSlotsStrategy implements PriorityFeeStrategy {
 			return 0;
 		}
 		let runningSumFees = 0;
-		let countFees = 0;
 
 		for (let i = 0; i < samples.length; i++) {
 			runningSumFees += samples[i].prioritizationFee;
-			countFees++;
 		}
-		return runningSumFees / countFees;
+		return runningSumFees / samples.length;
 	}
 }
