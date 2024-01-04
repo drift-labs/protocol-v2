@@ -15,7 +15,6 @@ export class PriorityFeeSubscriber {
 	intervalId?: ReturnType<typeof setTimeout>;
 
 	latestPriorityFee = 0;
-	lastStrategyResult = 0;
 	lastCustomStrategyResult = 0;
 	lastAvgStrategyResult = 0;
 	lastMaxStrategyResult = 0;
