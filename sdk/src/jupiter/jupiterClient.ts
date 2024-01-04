@@ -215,7 +215,7 @@ export interface QuoteResponse {
 	 * @type {string}
 	 * @memberof QuoteResponse
 	 */
-	error?: string
+	error?: string;
 }
 
 export class JupiterClient {

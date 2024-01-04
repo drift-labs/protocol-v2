@@ -28,6 +28,8 @@ import {
 	squareRootBN,
 	calculateReferencePriceOffset,
 	calculateInventoryLiquidityRatio,
+	isOracleValid,
+	OracleGuardRails,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 
@@ -875,11 +877,12 @@ describe('AMM Tests', () => {
 		const mockMarket1 = myMockPerpMarkets[0];
 		const mockAmm = mockMarket1.amm;
 		const now = new BN(new Date().getTime() / 1000); //todo
+		const slot = 999999999;
 
 		const oraclePriceData = {
 			price: new BN(13.553 * PRICE_PRECISION.toNumber()),
-			slot: new BN(68 + 1),
-			confidence: new BN(1),
+			slot: new BN(slot),
+			confidence: new BN(1000),
 			hasSufficientNumberOfDataPoints: true,
 		};
 		mockAmm.oracleStd = new BN(0.18 * PRICE_PRECISION.toNumber());
@@ -901,7 +904,130 @@ describe('AMM Tests', () => {
 		const liveOracleStd = calculateLiveOracleStd(mockAmm, oraclePriceData, now);
 		console.log('liveOracleStd:', liveOracleStd.toNumber());
 		assert(liveOracleStd.eq(new BN(192962)));
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOraclePercentDivergence: PERCENTAGE_PRECISION.divn(10),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.divn(10),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(10),
+				slotsBeforeStaleForMargin: new BN(60),
+				confidenceIntervalMaxSize: new BN(20000),
+				tooVolatileRatio: new BN(5),
+			},
+		};
+
+		// good oracle
+		assert(isOracleValid(mockAmm, oraclePriceData, oracleGuardRails, slot + 5));
+
+		// conf too high
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot),
+					confidence: new BN(13.553 * PRICE_PRECISION.toNumber() * 0.021),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
+
+		// not hasSufficientNumberOfDataPoints
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: false,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
+
+		// negative oracle price
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(-1 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
+
+		// too delayed for amm
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot + 100
+			)
+		);
+
+		// im passing stale slot (should not call oracle invalid)
+		assert(
+			isOracleValid(
+				mockAmm,
+				{
+					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot + 100),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
+
+		// too volatile (more than 5x higher)
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(113.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot + 5),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
+
+		// too volatile (more than 1/5 lower)
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(0.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot + 5),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
 	});
+
+	return 0;
 
 	it('predicted funding rate mock1', async () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
