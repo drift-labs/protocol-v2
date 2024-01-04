@@ -2836,20 +2836,25 @@ pub fn force_cancel_orders(
 
     // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
     if !margin_calc.positions_meets_margin_requirement()? {
-        let set_reduce_only_orders = true; // todo
-        for position_index in 0..user.perp_positions.len() {
-            let market_index = user.perp_positions[position_index].market_index;
-            burn_user_lp_shares(
-                state,
-                user,
-                &user_key,
-                market_index,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                clock,
-                set_reduce_only_orders,
-            )?;
+        let time_since_last_liquidity_change: i64 = now.safe_sub(user.last_add_perp_lp_shares_ts)?;
+        // avoid spamming update if orders have already been set
+        if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
+            let set_reduce_only_orders = true; // todo
+            for position_index in 0..user.perp_positions.len() {
+                let market_index = user.perp_positions[position_index].market_index;
+                burn_user_lp_shares(
+                    state,
+                    user,
+                    &user_key,
+                    market_index,
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    clock,
+                    set_reduce_only_orders,
+                )?;
+            }
+            user.last_add_perp_lp_shares_ts = now;
         }
     }
 
