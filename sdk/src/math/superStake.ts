@@ -439,7 +439,9 @@ export async function calculateSolEarned({
 	const now = Date.now() / 1000;
 	const timestamps: number[] = [
 		now,
-		...depositRecords.filter(r => r.marketIndex === marketIndex).map((r) => r.ts.toNumber()),
+		...depositRecords
+			.filter((r) => r.marketIndex === marketIndex)
+			.map((r) => r.ts.toNumber()),
 	];
 
 	let lstRatios = new Map<number, number>();
