@@ -32,6 +32,8 @@ use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
 use crate::state::user::{SpotPosition, User};
 use crate::test_utils::*;
 use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
+use anchor_lang::prelude::Clock;
+
 #[test]
 fn test_lp_wont_collect_improper_funding() {
     let mut position = PerpPosition {
@@ -433,8 +435,14 @@ pub fn test_lp_settle_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let slot = 0;
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -516,8 +524,6 @@ pub fn test_lp_settle_pnl() {
         ..User::default()
     };
 
-    let now = 1000000;
-
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -555,7 +561,7 @@ pub fn test_lp_settle_pnl() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     );
 

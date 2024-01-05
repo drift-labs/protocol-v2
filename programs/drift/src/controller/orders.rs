@@ -64,7 +64,7 @@ use crate::state::events::{
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::margin_calculation::MarginContext;
+use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
@@ -102,7 +102,7 @@ pub fn place_perp_order(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     mut params: OrderParams,
-    mut options: PlaceOrderOptions,
+    options: PlaceOrderOptions,
 ) -> DriftResult {
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
@@ -252,7 +252,7 @@ pub fn _place_perp_order(
     params.update_perp_auction_params(market, oracle_price_data.price)?;
 
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
-        &params,
+        params,
         oracle_price_data,
         market.amm.order_tick_size,
         state.min_perp_auction_duration,
@@ -2834,29 +2834,16 @@ pub fn force_cancel_orders(
         )?;
     }
 
-    // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
-    if !margin_calc.positions_meets_margin_requirement()? {
-        let time_since_last_liquidity_change: i64 = now.safe_sub(user.last_add_perp_lp_shares_ts)?;
-        // avoid spamming update if orders have already been set
-        if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
-            let set_reduce_only_orders = true; // todo
-            for position_index in 0..user.perp_positions.len() {
-                let market_index = user.perp_positions[position_index].market_index;
-                burn_user_lp_shares(
-                    state,
-                    user,
-                    &user_key,
-                    market_index,
-                    perp_market_map,
-                    spot_market_map,
-                    oracle_map,
-                    clock,
-                    set_reduce_only_orders,
-                )?;
-            }
-            user.last_add_perp_lp_shares_ts = now;
-        }
-    }
+    attempt_burn_user_lp_shares_for_risk_reduction(
+        state,
+        user,
+        margin_calc,
+        &user_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        clock,
+    )?;
 
     pay_keeper_flat_reward_for_spot(
         user,
@@ -2878,7 +2865,46 @@ pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index:
     }
 }
 
-pub fn burn_user_lp_shares(
+pub fn attempt_burn_user_lp_shares_for_risk_reduction(
+    state: &State,
+    user: &mut User,
+    margin_calc: MarginCalculation,
+    user_key: &Pubkey,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    clock: &Clock,
+) -> DriftResult {
+    let now = clock.unix_timestamp;
+    // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
+    if !margin_calc.positions_meets_margin_requirement()? {
+        let time_since_last_liquidity_change: i64 =
+            now.safe_sub(user.last_add_perp_lp_shares_ts)?;
+        // avoid spamming update if orders have already been set
+        if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
+            let set_reduce_only_orders = true; // todo
+            for position_index in 0..user.perp_positions.len() {
+                let market_index = user.perp_positions[position_index].market_index;
+                _burn_user_lp_shares_for_risk_reduction(
+                    state,
+                    user,
+                    user_key,
+                    market_index,
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    clock,
+                    set_reduce_only_orders,
+                )?;
+            }
+            user.last_add_perp_lp_shares_ts = now;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn _burn_user_lp_shares_for_risk_reduction(
     state: &State,
     user: &mut User,
     user_key: &Pubkey,
@@ -2906,7 +2932,7 @@ pub fn burn_user_lp_shares(
             let (position_delta, pnl) = burn_lp_shares(
                 perp_position,
                 perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
-                lp_shares.safe_div(2)?.max(market.amm.order_step_size),
+                lp_shares.safe_div(3)?.max(market.amm.order_step_size),
                 oracle_price,
             )?;
 
@@ -2927,44 +2953,19 @@ pub fn burn_user_lp_shares(
             let market = perp_market_map.get_ref(&market_index)?;
 
             let direction_to_close = perp_position.get_direction_to_close();
-            let estimated_offset_to_start: i64 = if direction_to_close == PositionDirection::Short {
-                -1
-            } else {
-                1
-            };
-            let estimated_offset_to_close: i64 = if direction_to_close == PositionDirection::Short {
-                market
-                .amm
-                .last_bid_price_twap
-                .cast::<i64>()?
-                .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?
-            } else {
-                market
-                    .amm
-                    .last_ask_price_twap
-                    .cast::<i64>()?
-                    .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?
-            };
 
-            let mut params = OrderParams {
-                direction: perp_position.get_direction_to_close(),
-                order_type: OrderType::Limit,
-                market_index: perp_position.market_index,
-                base_asset_amount: perp_position.base_asset_amount.unsigned_abs(),
-                reduce_only: true,
-                auction_start_price: Some(estimated_offset_to_start),
-                auction_end_price: Some(estimated_offset_to_close.saturating_mul(2)),
-                auction_duration: Some(120),
-                oracle_price_offset: Some(estimated_offset_to_close.saturating_mul(3).cast()?),
-                ..OrderParams::default()
-            };
+            let mut params = OrderParams::get_aggressive_close_params(
+                &market,
+                direction_to_close,
+                perp_position.base_asset_amount.unsigned_abs(),
+            )?;
 
             controller::orders::_place_perp_order(
-                &state,
+                state,
                 user,
                 *user_key,
-                &perp_market_map,
-                &spot_market_map,
+                perp_market_map,
+                spot_market_map,
                 oracle_map,
                 clock,
                 &mut params,

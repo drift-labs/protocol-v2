@@ -808,8 +808,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            clock.unix_timestamp,
-            clock.slot,
+            &clock,
             &state,
         )
         .unwrap();
@@ -1027,8 +1026,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            clock.unix_timestamp,
-            clock.slot,
+            &clock,
             &state,
         )
         .unwrap();
@@ -1233,8 +1231,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            clock.unix_timestamp,
-            clock.slot,
+            &clock,
             &state,
         )
         .unwrap();
@@ -1556,8 +1553,7 @@ pub mod delisting_test {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                clock.unix_timestamp,
-                clock.slot,
+                &clock,
                 &state,
             )
             .unwrap();
@@ -1615,8 +1611,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            clock.unix_timestamp,
-            clock.slot,
+            &clock,
             &state,
         )
         .unwrap();
@@ -1654,8 +1649,7 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            clock.unix_timestamp,
-            clock.slot,
+            &clock,
             &state,
         )
         .unwrap();
@@ -1968,8 +1962,7 @@ pub mod delisting_test {
                     &market_map,
                     &spot_market_map,
                     &mut oracle_map,
-                    clock.unix_timestamp,
-                    clock.slot,
+                    &clock,
                     &state
                 )
                 .is_err(),
@@ -2370,8 +2363,7 @@ pub mod delisting_test {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                clock.unix_timestamp,
-                clock.slot,
+                &clock,
                 &state,
             )
             .is_err());
@@ -2686,8 +2678,7 @@ pub mod delisting_test {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                clock.unix_timestamp,
-                clock.slot,
+                &clock,
                 &state,
             )
             .unwrap();
@@ -2812,8 +2803,7 @@ pub mod delisting_test {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                clock.unix_timestamp,
-                clock.slot,
+                &clock,
                 &state,
             )
             .unwrap();
