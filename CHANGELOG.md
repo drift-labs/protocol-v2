@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: increase full perp liquidation threshold ([#807](https://github.com/drift-labs/protocol-v2/pull/807))
 - program: remove spot fee pool transfer ([#800](https://github.com/drift-labs/protocol-v2/pull/800))
+- program: increase insurance tier max ([#784](https://github.com/drift-labs/protocol-v2/pull/784))
 
 ### Fixes
 
