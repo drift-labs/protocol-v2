@@ -40,7 +40,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	}
 
 	async subscribe(onChange: (data: T) => void): Promise<void> {
-		if (this.listenerId || this.isUnsubscribing) {
+		if (this.listenerId != null || this.isUnsubscribing) {
 			return;
 		}
 
@@ -95,7 +95,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 				console.log(
 					`No ws data from ${this.accountName} in ${this.resubTimeoutMs}ms, resubscribing`
 				);
-				await this.unsubscribe();
+				await this.unsubscribe(true);
 				this.receivingData = false;
 				await this.subscribe(this.onChange);
 			}
@@ -164,12 +164,15 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		}
 	}
 
-	unsubscribe(): Promise<void> {
+	unsubscribe(onResub = false): Promise<void> {
+		if (!onResub) {
+			this.resubTimeoutMs = undefined;
+		}
 		this.isUnsubscribing = true;
 		clearTimeout(this.timeoutId);
 		this.timeoutId = undefined;
 
-		if (this.listenerId) {
+		if (this.listenerId != null) {
 			const promise = this.program.provider.connection
 				.removeAccountChangeListener(this.listenerId)
 				.then(() => {

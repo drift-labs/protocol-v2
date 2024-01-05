@@ -601,11 +601,6 @@ export function calculateSpreadBN(
 ) {
 	assert(Number.isInteger(baseSpread));
 	assert(Number.isInteger(maxSpread));
-	console.log('max spread;', maxSpread);
-	console.log(
-		'lastOracleReservePriceSpreadPct:',
-		lastOracleReservePriceSpreadPct.toNumber()
-	);
 
 	const spreadTerms = {
 		longVolSpread: 0,
@@ -759,7 +754,6 @@ export function calculateSpreadBN(
 	spreadTerms.shortSpreadwRevRetreat = shortSpread;
 
 	const totalSpread = longSpread + shortSpread;
-	console.log(totalSpread, maxTargetSpread);
 	if (totalSpread > maxTargetSpread) {
 		if (longSpread > shortSpread) {
 			longSpread = Math.ceil((longSpread * maxTargetSpread) / totalSpread);
@@ -770,12 +764,9 @@ export function calculateSpreadBN(
 		}
 	}
 
-	console.log(maxTargetSpread, totalSpread);
-
 	spreadTerms.totalSpread = totalSpread;
 	spreadTerms.longSpread = longSpread;
 	spreadTerms.shortSpread = shortSpread;
-	console.log(spreadTerms);
 	if (returnTerms) {
 		return spreadTerms;
 	}
@@ -835,7 +826,6 @@ export function calculateSpread(
 		amm.shortIntensityVolume,
 		amm.volume24H
 	);
-	console.log('amm.maxSpread:', amm.maxSpread.toFixed(2));
 	const longSpread = spreads[0];
 	const shortSpread = spreads[1];
 
@@ -866,10 +856,6 @@ export function calculateSpreadReserves(
 		// make non-zero
 		if (spreadFraction.eq(ZERO)) {
 			spreadFraction = spread >= 0 ? new BN(1) : new BN(-1);
-			console.log('spreadFractioN:', spreadFraction);
-		}
-		if (spreadFraction.gt(BID_ASK_SPREAD_PRECISION)) {
-			console.log('spreadFractioN ERRR:', spreadFraction.toNumber());
 		}
 
 		const quoteAssetReserveDelta = amm.quoteAssetReserve.div(
@@ -877,20 +863,16 @@ export function calculateSpreadReserves(
 		);
 
 		let quoteAssetReserve;
-		if (
-			(spread >= 0 && isVariant(direction, 'long')) ||
-			(spread <= 0 && isVariant(direction, 'short'))
-		) {
-			quoteAssetReserve = amm.quoteAssetReserve.add(quoteAssetReserveDelta);
+		if (quoteAssetReserveDelta.gte(ZERO)) {
+			quoteAssetReserve = amm.quoteAssetReserve.add(
+				quoteAssetReserveDelta.abs()
+			);
 		} else {
-			quoteAssetReserve = amm.quoteAssetReserve.sub(quoteAssetReserveDelta);
+			quoteAssetReserve = amm.quoteAssetReserve.sub(
+				quoteAssetReserveDelta.abs()
+			);
 		}
-		console.log(
-			'amm.sqrtK:',
-			amm.sqrtK.toString(),
-			amm.sqrtK.mul(amm.sqrtK).toString(),
-			quoteAssetReserve.toString()
-		);
+
 		const baseAssetReserve = amm.sqrtK.mul(amm.sqrtK).div(quoteAssetReserve);
 		return {
 			baseAssetReserve,
@@ -905,28 +887,35 @@ export function calculateSpreadReserves(
 	);
 
 	// always allow 10 bps of price offset, up to a fifth of the market's max_spread
-	const maxOffset = Math.max(
-		amm.maxSpread / 5,
-		PERCENTAGE_PRECISION.toNumber() / 1000
-	);
-	const liquidityFraction = calculateInventoryLiquidityRatio(
-		amm.baseAssetAmountWithAmm,
-		amm.baseAssetReserve,
-		amm.minBaseAssetReserve,
-		amm.maxBaseAssetReserve
-	);
-	const referencePriceOffset = calculateReferencePriceOffset(
-		reservePrice,
-		amm.last24HAvgFundingRate,
-		liquidityFraction,
-		amm.historicalOracleData.lastOraclePriceTwap5Min,
-		amm.lastMarkPriceTwap5Min,
-		amm.historicalOracleData.lastOraclePriceTwap,
-		amm.lastMarkPriceTwap,
-		maxOffset
-	);
+	let maxOffset = 0;
+	let referencePriceOffset = ZERO;
+	if (amm.curveUpdateIntensity > 100) {
+		maxOffset = Math.max(
+			amm.maxSpread / 5,
+			(PERCENTAGE_PRECISION.toNumber() / 10000) *
+				(amm.curveUpdateIntensity - 100)
+		);
 
-	console.log('referencePriceOffset:', referencePriceOffset.toNumber());
+		const liquidityFraction = calculateInventoryLiquidityRatio(
+			amm.baseAssetAmountWithAmm,
+			amm.baseAssetReserve,
+			amm.minBaseAssetReserve,
+			amm.maxBaseAssetReserve
+		);
+		const liquidityFractionSigned = liquidityFraction.mul(
+			sigNum(amm.baseAssetAmountWithAmm.add(amm.baseAssetAmountWithUnsettledLp))
+		);
+		referencePriceOffset = calculateReferencePriceOffset(
+			reservePrice,
+			amm.last24HAvgFundingRate,
+			liquidityFractionSigned,
+			amm.historicalOracleData.lastOraclePriceTwap5Min,
+			amm.lastMarkPriceTwap5Min,
+			amm.historicalOracleData.lastOraclePriceTwap,
+			amm.lastMarkPriceTwap,
+			maxOffset
+		);
+	}
 
 	const [longSpread, shortSpread] = calculateSpread(
 		amm,
@@ -934,8 +923,6 @@ export function calculateSpreadReserves(
 		now,
 		reservePrice
 	);
-	console.log('longSpread:', longSpread);
-	console.log('shortSpread:', shortSpread);
 
 	const askReserves = calculateSpreadReserve(
 		longSpread + referencePriceOffset.toNumber(),
@@ -943,7 +930,7 @@ export function calculateSpreadReserves(
 		amm
 	);
 	const bidReserves = calculateSpreadReserve(
-		shortSpread + referencePriceOffset.toNumber(),
+		-shortSpread + referencePriceOffset.toNumber(),
 		PositionDirection.SHORT,
 		amm
 	);

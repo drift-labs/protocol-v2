@@ -9,6 +9,12 @@ import {
 } from '@solana/web3.js';
 import { IWallet } from '../types';
 
+export enum ConfirmationStrategy {
+	WebSocket = 'websocket',
+	Polling = 'polling',
+	Combo = 'combo',
+}
+
 export type TxSigAndSlot = {
 	txSig: TransactionSignature;
 	slot: number;

@@ -51,6 +51,7 @@ export class UserMap implements UserMapInterface {
 	private connection: Connection;
 	private commitment: Commitment;
 	private includeIdle: boolean;
+	private disableSyncOnTotalAccountsChange: boolean;
 	private lastNumberOfSubAccounts: BN;
 	private subscription: PollingSubscription | WebsocketSubscription;
 	private stateAccountUpdateCallback = async (state: StateAccount) => {
@@ -60,6 +61,7 @@ export class UserMap implements UserMapInterface {
 		}
 	};
 	private decode;
+	private mostRecentSlot = 0;
 
 	private syncPromise?: Promise<void>;
 	private syncPromiseResolver: () => void;
@@ -77,6 +79,8 @@ export class UserMap implements UserMapInterface {
 		this.commitment =
 			config.subscriptionConfig.commitment ?? this.driftClient.opts.commitment;
 		this.includeIdle = config.includeIdle ?? false;
+		this.disableSyncOnTotalAccountsChange =
+			config.disableSyncOnTotalAccountsChange ?? false;
 
 		let decodeFn;
 		if (config.fastDecode ?? true) {
@@ -114,10 +118,12 @@ export class UserMap implements UserMapInterface {
 		await this.driftClient.subscribe();
 		this.lastNumberOfSubAccounts =
 			this.driftClient.getStateAccount().numberOfSubAccounts;
-		this.driftClient.eventEmitter.on(
-			'stateAccountUpdate',
-			this.stateAccountUpdateCallback
-		);
+		if (!this.disableSyncOnTotalAccountsChange) {
+			this.driftClient.eventEmitter.on(
+				'stateAccountUpdate',
+				this.stateAccountUpdateCallback
+			);
+		}
 
 		await this.subscription.subscribe();
 	}
@@ -312,6 +318,8 @@ export class UserMap implements UserMapInterface {
 
 			const slot = rpcResponseAndContext.context.slot;
 
+			this.updateLatestSlot(slot);
+
 			const programAccountBufferMap = new Map<string, Buffer>();
 			for (const programAccount of rpcResponseAndContext.value) {
 				programAccountBufferMap.set(
@@ -360,10 +368,13 @@ export class UserMap implements UserMapInterface {
 		}
 
 		if (this.lastNumberOfSubAccounts) {
-			this.driftClient.eventEmitter.removeListener(
-				'stateAccountUpdate',
-				this.stateAccountUpdateCallback
-			);
+			if (!this.disableSyncOnTotalAccountsChange) {
+				this.driftClient.eventEmitter.removeListener(
+					'stateAccountUpdate',
+					this.stateAccountUpdateCallback
+				);
+			}
+
 			this.lastNumberOfSubAccounts = undefined;
 		}
 	}
@@ -373,11 +384,20 @@ export class UserMap implements UserMapInterface {
 		userAccount: UserAccount,
 		slot: number
 	) {
+		this.updateLatestSlot(slot);
 		if (!this.userMap.has(key)) {
 			this.addPubkey(new PublicKey(key), userAccount, slot);
 		} else {
 			const user = this.userMap.get(key);
 			user.accountSubscriber.updateData(userAccount, slot);
 		}
+	}
+
+	updateLatestSlot(slot: number): void {
+		this.mostRecentSlot = Math.max(slot, this.mostRecentSlot);
+	}
+
+	public getSlot(): number {
+		return this.mostRecentSlot;
 	}
 }

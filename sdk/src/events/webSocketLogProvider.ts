@@ -23,7 +23,7 @@ export class WebSocketLogProvider implements LogProvider {
 	}
 
 	public async subscribe(callback: logProviderCallback): Promise<boolean> {
-		if (this.subscriptionId) {
+		if (this.subscriptionId != null) {
 			return true;
 		}
 
@@ -62,7 +62,7 @@ export class WebSocketLogProvider implements LogProvider {
 	}
 
 	public isSubscribed(): boolean {
-		return this.subscriptionId !== undefined;
+		return this.subscriptionId != null;
 	}
 
 	public async unsubscribe(external = false): Promise<boolean> {
@@ -71,7 +71,7 @@ export class WebSocketLogProvider implements LogProvider {
 		clearTimeout(this.timeoutId);
 		this.timeoutId = undefined;
 
-		if (this.subscriptionId !== undefined) {
+		if (this.subscriptionId != null) {
 			try {
 				await this.connection.removeOnLogsListener(this.subscriptionId);
 				this.subscriptionId = undefined;
