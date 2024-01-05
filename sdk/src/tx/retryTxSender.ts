@@ -1,4 +1,4 @@
-import { TxSigAndSlot } from './types';
+import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import {
 	ConfirmOptions,
 	TransactionSignature,
@@ -31,6 +31,7 @@ export class RetryTxSender extends BaseTxSender {
 		timeout = DEFAULT_TIMEOUT,
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
+		confirmationStrategy = ConfirmationStrategy.Combo,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -38,8 +39,16 @@ export class RetryTxSender extends BaseTxSender {
 		timeout?: number;
 		retrySleep?: number;
 		additionalConnections?;
+		confirmationStrategy?: ConfirmationStrategy;
 	}) {
-		super({ connection, wallet, opts, timeout, additionalConnections });
+		super({
+			connection,
+			wallet,
+			opts,
+			timeout,
+			additionalConnections,
+			confirmationStrategy,
+		});
 		this.connection = connection;
 		this.wallet = wallet;
 		this.opts = opts;
