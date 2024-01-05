@@ -2520,19 +2520,22 @@ export class DriftClient {
 		limitPrice?: BN,
 		subAccountId?: number
 	): Promise<TransactionSignature> {
-		return await this.placeAndTakePerpOrder(
-			{
-				orderType: OrderType.MARKET,
-				marketIndex,
-				direction,
-				baseAssetAmount: amount,
-				price: limitPrice,
-			},
-			undefined,
-			undefined,
-			undefined,
-			subAccountId
-		);
+		return (
+			await this.placeAndTakePerpOrder(
+				{
+					orderType: OrderType.MARKET,
+					marketIndex,
+					direction,
+					baseAssetAmount: amount,
+					price: limitPrice,
+				},
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				subAccountId
+			)
+		)?.txSig;
 	}
 
 	public async sendSignedTx(tx: Transaction): Promise<TransactionSignature> {
@@ -2573,20 +2576,11 @@ export class DriftClient {
 	}> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
-		const bracketOrderIxs = [];
 
-		const placePerpOrderIx = await this.getPlacePerpOrderIx(
-			orderParams,
+		const ordersIx = await this.getPlaceOrdersIx(
+			[orderParams, ...bracketOrdersParams],
 			userAccount.subAccountId
 		);
-
-		for (const bracketOrderParams of bracketOrdersParams) {
-			const placeBracketOrderIx = await this.getPlacePerpOrderIx(
-				bracketOrderParams,
-				userAccount.subAccountId
-			);
-			bracketOrderIxs.push(placeBracketOrderIx);
-		}
 
 		let cancelOrdersIx: TransactionInstruction;
 		let cancelExistingOrdersTx: Transaction;
@@ -2609,7 +2603,7 @@ export class DriftClient {
 		// use versioned transactions if there is a lookup table account and wallet is compatible
 		if (this.txVersion === 0) {
 			const versionedMarketOrderTx = await this.buildTransaction(
-				[placePerpOrderIx].concat(bracketOrderIxs),
+				ordersIx,
 				txParams,
 				0
 			);
@@ -2658,14 +2652,14 @@ export class DriftClient {
 			};
 		} else {
 			const marketOrderTx = wrapInTx(
-				placePerpOrderIx,
+				ordersIx,
 				txParams?.computeUnits,
 				txParams?.computeUnitsPrice
 			);
 
-			if (bracketOrderIxs.length > 0) {
-				marketOrderTx.add(...bracketOrderIxs);
-			}
+			// if (bracketOrderIxs.length > 0) {
+			// 	marketOrderTx.add(...bracketOrderIxs);
+			// }
 
 			// Apply the latest blockhash to the txs so that we can sign before sending them
 			const currentBlockHash = (
@@ -3093,7 +3087,7 @@ export class DriftClient {
 	}
 
 	public async getPlaceOrdersIx(
-		params: OrderParams[],
+		params: OptionalOrderParams[],
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		const user = await this.getUserAccountPublicKey(subAccountId);
@@ -3277,9 +3271,8 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
-		const userAccountPublicKey = await this.getUserAccountPublicKey(
-			subAccountId
-		);
+		const userAccountPublicKey =
+			await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -4314,24 +4307,63 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
+		bracketOrdersParams = new Array<OptionalOrderParams>(),
 		txParams?: TxParams,
-		subAccountId?: number
-	): Promise<TransactionSignature> {
+		subAccountId?: number,
+		cancelExistingOrders?: boolean
+	): Promise<{
+		txSig: TransactionSignature;
+		signedCancelExistingOrdersTx?: Transaction;
+	}> {
+		let signedCancelExistingOrdersTx: Transaction;
+
+		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
+			const cancelOrdersIx = await this.getCancelOrdersIx(
+				orderParams.marketType,
+				orderParams.marketIndex,
+				null,
+				subAccountId
+			);
+
+			const cancelExistingOrdersTx = await this.buildTransaction(
+				[cancelOrdersIx],
+				txParams,
+				this.txVersion
+			);
+
+			// @ts-ignore
+			signedCancelExistingOrdersTx = await this.provider.wallet.signTransaction(
+				cancelExistingOrdersTx
+			);
+		}
+
+		const ixs = [];
+
+		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
+			orderParams,
+			makerInfo,
+			referrerInfo,
+			subAccountId
+		);
+
+		ixs.push(placeAndTakeIx);
+
+		if (bracketOrdersParams.length > 0) {
+			const bracketOrdersIx = await this.getPlaceOrdersIx(
+				bracketOrdersParams,
+				subAccountId
+			);
+			ixs.push(bracketOrdersIx);
+		}
+
 		const { txSig, slot } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getPlaceAndTakePerpOrderIx(
-					orderParams,
-					makerInfo,
-					referrerInfo,
-					subAccountId
-				),
-				txParams
-			),
+			await this.buildTransaction(ixs, txParams),
 			[],
 			this.opts
 		);
 		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
-		return txSig;
+
+		return { txSig, signedCancelExistingOrdersTx };
 	}
 
 	public async getPlaceAndTakePerpOrderIx(
@@ -4686,20 +4718,23 @@ export class DriftClient {
 			throw Error(`No position in market ${marketIndex.toString()}`);
 		}
 
-		return await this.placeAndTakePerpOrder(
-			{
-				orderType: OrderType.MARKET,
-				marketIndex,
-				direction: findDirectionToClose(userPosition),
-				baseAssetAmount: userPosition.baseAssetAmount.abs(),
-				reduceOnly: true,
-				price: limitPrice,
-			},
-			undefined,
-			undefined,
-			undefined,
-			subAccountId
-		);
+		return (
+			await this.placeAndTakePerpOrder(
+				{
+					orderType: OrderType.MARKET,
+					marketIndex,
+					direction: findDirectionToClose(userPosition),
+					baseAssetAmount: userPosition.baseAssetAmount.abs(),
+					reduceOnly: true,
+					price: limitPrice,
+				},
+				undefined,
+				undefined,
+				undefined,
+				this.txParams,
+				subAccountId
+			)
+		)?.txSig;
 	}
 
 	/**
@@ -5788,9 +5823,8 @@ export class DriftClient {
 		}
 
 		if (initializeStakeAccount) {
-			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
-				marketIndex
-			);
+			const initializeIx =
+				await this.getInitializeInsuranceFundStakeIx(marketIndex);
 			addIfStakeIxs.push(initializeIx);
 		}
 
