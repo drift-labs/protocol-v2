@@ -9,7 +9,7 @@ import {
 	Order,
 	ZERO,
 } from '..';
-import { PublicKey } from '@solana/web3.js';
+// import { PublicKey } from '@solana/web3.js';
 import { getOrderSignature } from './NodeList';
 
 export interface DLOBNode {
@@ -18,17 +18,17 @@ export interface DLOBNode {
 	order: Order | undefined;
 	isBaseFilled(): boolean;
 	haveFilled: boolean;
-	userAccount: PublicKey | undefined;
+	userAccount: string | undefined;
 }
 
 export abstract class OrderNode implements DLOBNode {
 	order: Order;
-	userAccount: PublicKey;
+	userAccount: string;
 	sortValue: BN;
 	haveFilled = false;
 	haveTrigger = false;
 
-	constructor(order: Order, userAccount: PublicKey) {
+	constructor(order: Order, userAccount: string) {
 		// Copy the order over to the node
 		this.order = { ...order };
 		this.userAccount = userAccount;
@@ -140,7 +140,7 @@ export type DLOBNodeType =
 export function createNode<T extends DLOBNodeType>(
 	nodeType: T,
 	order: Order,
-	userAccount: PublicKey
+	userAccount: string
 ): DLOBNodeMap[T] {
 	switch (nodeType) {
 		case 'floatingLimit':

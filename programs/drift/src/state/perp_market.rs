@@ -34,6 +34,9 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
     /// warm up period for initialization, fills are paused
@@ -771,10 +774,76 @@ impl Default for AMM {
 }
 
 impl AMM {
+    pub fn get_fallback_price(
+        self,
+        direction: &PositionDirection,
+        amm_available_liquidity: u64,
+        oracle_price: i64,
+        seconds_til_order_expiry: i64,
+    ) -> DriftResult<u64> {
+        // PRICE_PRECISION
+        if direction.eq(&PositionDirection::Long) {
+            // pick amm ask + buffer if theres liquidity
+            // otherwise be aggressive vs oracle + 1hr premium
+            if amm_available_liquidity >= self.min_order_size {
+                let reserve_price = self.reserve_price()?;
+                let amm_ask_price: i64 = self.ask_price(reserve_price)?.cast()?;
+                amm_ask_price
+                    .safe_add(amm_ask_price / (seconds_til_order_expiry * 20).clamp(100, 200))?
+                    .cast::<u64>()
+            } else {
+                oracle_price
+                    .safe_add(
+                        self.last_ask_price_twap
+                            .cast::<i64>()?
+                            .safe_sub(self.historical_oracle_data.last_oracle_price_twap)?
+                            .max(0),
+                    )?
+                    .safe_add(oracle_price / (seconds_til_order_expiry * 2).clamp(10, 50))?
+                    .cast::<u64>()
+            }
+        } else {
+            // pick amm bid - buffer if theres liquidity
+            // otherwise be aggressive vs oracle + 1hr bid premium
+            if amm_available_liquidity >= self.min_order_size {
+                let reserve_price = self.reserve_price()?;
+                let amm_bid_price: i64 = self.bid_price(reserve_price)?.cast()?;
+                amm_bid_price
+                    .safe_sub(amm_bid_price / (seconds_til_order_expiry * 20).clamp(100, 200))?
+                    .cast::<u64>()
+            } else {
+                oracle_price
+                    .safe_add(
+                        self.last_bid_price_twap
+                            .cast::<i64>()?
+                            .safe_sub(self.historical_oracle_data.last_oracle_price_twap)?
+                            .min(0),
+                    )?
+                    .safe_sub(oracle_price / (seconds_til_order_expiry * 2).clamp(10, 50))?
+                    .max(0)
+                    .cast::<u64>()
+            }
+        }
+    }
+
+    pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
+        self.base_asset_amount_with_amm
+            .safe_add(self.base_asset_amount_with_unsettled_lp)?
+            .cast::<i64>()
+    }
+
     pub fn get_max_reference_price_offset(self) -> DriftResult<i64> {
-        // always allow 10 bps of price offset, up to a fifth of the market's max_spread
-        let ten_bps = PERCENTAGE_PRECISION.cast::<i64>()? / 1000;
-        let max_offset = (self.max_spread.cast::<i64>()? / 5).max(ten_bps);
+        if self.curve_update_intensity <= 100 {
+            return Ok(0);
+        }
+
+        let lower_bound_multiplier: i64 =
+            self.curve_update_intensity.safe_sub(100)?.cast::<i64>()?;
+
+        // always allow 1-100 bps of price offset, up to a fifth of the market's max_spread
+        let lb_bps =
+            (PERCENTAGE_PRECISION.cast::<i64>()? / 10000).safe_mul(lower_bound_multiplier)?;
+        let max_offset = (self.max_spread.cast::<i64>()? / 5).max(lb_bps);
 
         Ok(max_offset)
     }
@@ -974,6 +1043,20 @@ impl AMM {
         let bid_price = self.bid_price(reserve_price)?;
         let ask_price = self.ask_price(reserve_price)?;
         Ok((bid_price, ask_price))
+    }
+
+    pub fn last_ask_premium(&self) -> DriftResult<i64> {
+        let reserve_price = self.reserve_price()?;
+        let ask_price = self.ask_price(reserve_price)?.cast::<i64>()?;
+        ask_price.safe_sub(self.historical_oracle_data.last_oracle_price)
+    }
+
+    pub fn last_bid_discount(&self) -> DriftResult<i64> {
+        let reserve_price = self.reserve_price()?;
+        let bid_price = self.bid_price(reserve_price)?.cast::<i64>()?;
+        self.historical_oracle_data
+            .last_oracle_price
+            .safe_sub(bid_price)
     }
 
     pub fn can_lower_k(&self) -> DriftResult<bool> {
