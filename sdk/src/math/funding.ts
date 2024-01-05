@@ -7,7 +7,7 @@ import {
 	ONE,
 	FUNDING_RATE_OFFSET_DENOMINATOR,
 } from '../constants/numericConstants';
-import { ContractTier, PerpMarketAccount, isVariant } from '../types';
+import { PerpMarketAccount, isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import { calculateBidAskPrice } from './amm';
 import { calculateLiveOracleTwap } from './oracles';
