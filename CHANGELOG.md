@@ -9,9 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: increase full perp liquidation threshold ([#807](https://github.com/drift-labs/protocol-v2/pull/807))
+
 ### Fixes
 
-- sdk: use tx params passed into deposit function
+- ts-sd: fix oracle is valid ([#806](https://github.com/drift-labs/protocol-v2/pull/806))
+
+### Breaking
+
+
+## [2.53.0] - 2023-12-31
+
+### Features
+
+### Fixes
+
+- program: standardize limit auction prices ([#790](https://github.com/drift-labs/protocol-v2/pull/790))
+- program: improve get_fallback_price([#797](https://github.com/drift-labs/protocol-v2/pull/797))
+- program: derive auction for crossing limit with no duration ([#802](https://github.com/drift-labs/protocol-v2/pull/802))
+- sdk: use tx params passed into deposit and withdraw functions
 
 ### Breaking
 

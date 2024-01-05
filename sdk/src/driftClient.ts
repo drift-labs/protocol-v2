@@ -2049,7 +2049,8 @@ export class DriftClient {
 		marketIndex: number,
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
-		subAccountId?: number
+		subAccountId?: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const withdrawIxs = [];
 
@@ -2112,6 +2113,7 @@ export class DriftClient {
 		}
 
 		const tx = await this.buildTransaction(withdrawIxs, {
+			...(txParams ?? this.txParams),
 			computeUnits: 1_400_000,
 		});
 		const { txSig, slot } = await this.sendTransaction(
@@ -3866,7 +3868,6 @@ export class DriftClient {
 				slippageBps,
 				swapMode,
 				onlyDirectRoutes,
-				excludeDexes: ['Raydium CLMM'], // temp exclude to workaround bug with raydium clmm
 			});
 
 			quote = fetchedQuote;

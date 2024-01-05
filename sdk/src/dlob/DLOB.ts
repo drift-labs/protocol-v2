@@ -157,9 +157,10 @@ export class DLOB {
 		for (const user of userMap.values()) {
 			const userAccount = user.getUserAccount();
 			const userAccountPubkey = user.getUserAccountPublicKey();
+			const userAccountPubkeyString = userAccountPubkey.toString();
 
 			for (const order of userAccount.orders) {
-				this.insertOrder(order, userAccountPubkey, slot);
+				this.insertOrder(order, userAccountPubkeyString, slot);
 			}
 		}
 
@@ -173,7 +174,7 @@ export class DLOB {
 		}
 
 		for (const { user, order } of dlobOrders) {
-			this.insertOrder(order, user, slot);
+			this.insertOrder(order, user.toString(), slot);
 		}
 
 		this.initialized = true;
@@ -181,7 +182,7 @@ export class DLOB {
 	}
 
 	public handleOrderRecord(record: OrderRecord, slot: number): void {
-		this.insertOrder(record.order, record.user, slot);
+		this.insertOrder(record.order, record.user.toString(), slot);
 	}
 
 	public handleOrderActionRecord(
@@ -249,7 +250,7 @@ export class DLOB {
 
 	public insertOrder(
 		order: Order,
-		userAccount: PublicKey,
+		userAccount: string,
 		slot: number,
 		onInsert?: OrderBookCallback
 	): void {
@@ -327,7 +328,7 @@ export class DLOB {
 		};
 		newOrder.baseAssetAmountFilled = cumulativeBaseAssetAmountFilled;
 
-		this.getListForOrder(order, slot)?.update(newOrder, userAccount);
+		this.getListForOrder(order, slot)?.update(newOrder, userAccount.toString());
 
 		if (onUpdate) {
 			onUpdate();
@@ -354,9 +355,13 @@ export class DLOB {
 
 		const triggerList = this.orderLists.get(marketType).get(order.marketIndex)
 			.trigger[isVariant(order.triggerCondition, 'above') ? 'above' : 'below'];
-		triggerList.remove(order, userAccount);
+		triggerList.remove(order, userAccount.toString());
 
-		this.getListForOrder(order, slot)?.insert(order, marketType, userAccount);
+		this.getListForOrder(order, slot)?.insert(
+			order,
+			marketType,
+			userAccount.toString()
+		);
 		if (onTrigger) {
 			onTrigger();
 		}
@@ -374,7 +379,7 @@ export class DLOB {
 
 		this.updateRestingLimitOrders(slot);
 
-		this.getListForOrder(order, slot)?.remove(order, userAccount);
+		this.getListForOrder(order, slot)?.remove(order, userAccount.toString());
 		if (onDelete) {
 			onDelete();
 		}
@@ -472,7 +477,7 @@ export class DLOB {
 	}
 
 	public getOrder(orderId: number, userAccount: PublicKey): Order | undefined {
-		const orderSignature = getOrderSignature(orderId, userAccount);
+		const orderSignature = getOrderSignature(orderId, userAccount.toString());
 		for (const nodeList of this.getNodeLists()) {
 			const node = nodeList.get(orderSignature);
 			if (node) {
@@ -852,7 +857,7 @@ export class DLOB {
 
 			for (const makerNode of makerNodeGenerator) {
 				// Can't match orders from the same user
-				const sameUser = takerNode.userAccount.equals(makerNode.userAccount);
+				const sameUser = takerNode.userAccount === makerNode.userAccount;
 				if (sameUser) {
 					continue;
 				}
@@ -1377,7 +1382,7 @@ export class DLOB {
 				const askOrder = askNode.order;
 
 				// Can't match orders from the same user
-				const sameUser = bidNode.userAccount.equals(askNode.userAccount);
+				const sameUser = bidNode.userAccount === askNode.userAccount;
 				if (sameUser) {
 					continue;
 				}
@@ -1760,7 +1765,7 @@ export class DLOB {
 		for (const nodeList of this.getNodeLists()) {
 			for (const node of nodeList.getGenerator()) {
 				dlobOrders.push({
-					user: node.userAccount,
+					user: new PublicKey(node.userAccount),
 					order: node.order,
 				});
 			}
@@ -1902,7 +1907,7 @@ export class DLOB {
 			asks.push({
 				price: ask.getPrice(oraclePriceData, slot),
 				size: ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled),
-				maker: ask.userAccount,
+				maker: new PublicKey(ask.userAccount),
 				orderId: ask.order.orderId,
 			});
 		}
@@ -1918,7 +1923,7 @@ export class DLOB {
 			bids.push({
 				price: bid.getPrice(oraclePriceData, slot),
 				size: bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled),
-				maker: bid.userAccount,
+				maker: new PublicKey(bid.userAccount),
 				orderId: bid.order.orderId,
 			});
 		}
@@ -2028,7 +2033,10 @@ export class DLOB {
 
 		for (const node of generator) {
 			if (!makers.has(node.userAccount.toString())) {
-				makers.set(node.userAccount.toString(), node.userAccount);
+				makers.set(
+					node.userAccount.toString(),
+					new PublicKey(node.userAccount)
+				);
 			}
 
 			if (makers.size === numMakers) {

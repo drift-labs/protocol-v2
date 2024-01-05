@@ -96,7 +96,7 @@ pub fn place_perp_order(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-    params: OrderParams,
+    mut params: OrderParams,
     mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
@@ -218,6 +218,10 @@ pub fn place_perp_order(
     };
 
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+    // updates auction params for crossing limit orders w/out auction duration
+    params.update_perp_auction_params(market, oracle_price_data.price)?;
+
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
         &params,
         oracle_price_data,
@@ -405,7 +409,16 @@ fn get_auction_params(
                     // if auction is non-zero, force it to be at least min_auction_duration
                     auction_duration.max(min_auction_duration)
                 };
-                Ok((auction_start_price, auction_end_price, auction_duration))
+
+                Ok((
+                    standardize_price_i64(
+                        auction_start_price,
+                        tick_size.cast()?,
+                        params.direction,
+                    )?,
+                    standardize_price_i64(auction_end_price, tick_size.cast()?, params.direction)?,
+                    auction_duration,
+                ))
             }
             _ => Ok((0_i64, 0_i64, 0_u8)),
         };
@@ -811,15 +824,19 @@ fn merge_modify_order_params_with_existing_order(
     let oracle_price_offset = modify_order_params
         .oracle_price_offset
         .or(Some(existing_order.oracle_price_offset));
-    let auction_duration = modify_order_params
-        .auction_duration
-        .or(Some(existing_order.auction_duration));
-    let auction_start_price = modify_order_params
-        .auction_start_price
-        .or(Some(existing_order.auction_start_price));
-    let auction_end_price = modify_order_params
-        .auction_end_price
-        .or(Some(existing_order.auction_end_price));
+    let (auction_duration, auction_start_price, auction_end_price) =
+        if modify_order_params.auction_duration.is_some()
+            && modify_order_params.auction_start_price.is_some()
+            && modify_order_params.auction_end_price.is_some()
+        {
+            (
+                modify_order_params.auction_duration,
+                modify_order_params.auction_start_price,
+                modify_order_params.auction_end_price,
+            )
+        } else {
+            (None, None, None)
+        };
 
     Ok(OrderParams {
         order_type,
@@ -2088,22 +2105,19 @@ pub fn fulfill_perp_order_with_match(
         return Ok((0_u64, 0_u64, 0_u64));
     }
 
-    let (bid_price, ask_price) = market.amm.bid_ask_price(market.amm.reserve_price()?)?;
-
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-    let taker_direction = taker.orders[taker_order_index].direction;
+    let taker_direction: PositionDirection = taker.orders[taker_order_index].direction;
 
     let taker_price = if let Some(taker_limit_price) = taker_limit_price {
         taker_limit_price
     } else {
         let amm_available_liquidity =
             calculate_amm_available_liquidity(&market.amm, &taker_direction)?;
-        get_fallback_price(
+        market.amm.get_fallback_price(
             &taker_direction,
-            bid_price,
-            ask_price,
             amm_available_liquidity,
             oracle_price,
+            taker.orders[taker_order_index].seconds_til_expiry(now),
         )?
     };
 

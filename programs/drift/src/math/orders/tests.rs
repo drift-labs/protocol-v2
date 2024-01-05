@@ -3718,3 +3718,146 @@ mod select_margin_type_for_perp_maker {
         assert_eq!(margin_type, MarginRequirementType::Maintenance);
     }
 }
+
+mod fallback_price_logic {
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
+    };
+    use crate::state::oracle::HistoricalOracleData;
+    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::{MarketStatus, PositionDirection};
+
+    #[test]
+    fn test() {
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 1000,
+                order_tick_size: 1,
+                min_order_size: 1000,
+                // oracle: oracle_price_key,
+                base_spread: 0,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..AMM::default()
+            },
+            margin_ratio_initial: 2000,
+            margin_ratio_maintenance: 1000,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
+        };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
+        // fallback are wide from oracle cause twaps arent set on amm
+        let result = market
+            .amm
+            .get_fallback_price(
+                &PositionDirection::Long,
+                0,
+                2012 * PRICE_PRECISION_I64 / 100,
+                0,
+            )
+            .unwrap();
+        assert_eq!(result, 22132000);
+
+        let result = market
+            .amm
+            .get_fallback_price(
+                &PositionDirection::Short,
+                0,
+                2012 * PRICE_PRECISION_I64 / 100,
+                0,
+            )
+            .unwrap();
+        assert_eq!(result, 0);
+
+        // make non-zero bid/ask twaps
+        market.amm.last_ask_price_twap = (101 * PRICE_PRECISION) as u64;
+        market.amm.last_bid_price_twap = (99 * PRICE_PRECISION) as u64;
+
+        // fallback is offset from oracle
+        let result = market
+            .amm
+            .get_fallback_price(
+                &PositionDirection::Long,
+                0,
+                2012 * PRICE_PRECISION_I64 / 100,
+                0,
+            )
+            .unwrap();
+        assert_eq!(result, 23132000);
+
+        let result = market
+            .amm
+            .get_fallback_price(
+                &PositionDirection::Short,
+                0,
+                2012 * PRICE_PRECISION_I64 / 100,
+                0,
+            )
+            .unwrap();
+        assert_eq!(result, 17108000);
+
+        // ignores current oracle price and just prices fallback based on amm liquidity
+        let result = market
+            .amm
+            .get_fallback_price(
+                &PositionDirection::Long,
+                1000000000,
+                2012 * PRICE_PRECISION_I64 / 100,
+                0,
+            )
+            .unwrap();
+        assert_eq!(result, 101000000);
+
+        let result = market
+            .amm
+            .get_fallback_price(
+                &PositionDirection::Short,
+                1000000000,
+                2012 * PRICE_PRECISION_I64 / 100,
+                0,
+            )
+            .unwrap();
+        assert_eq!(result, 99000000);
+
+        // ignores current oracle price and just prices fallback based on amm liquidity
+        // tighter when seconds til expiry is long
+        let result = market
+            .amm
+            .get_fallback_price(
+                &PositionDirection::Long,
+                1000000000,
+                2012 * PRICE_PRECISION_I64 / 100,
+                100,
+            )
+            .unwrap();
+        assert_eq!(result, 100500000);
+
+        let result = market
+            .amm
+            .get_fallback_price(
+                &PositionDirection::Short,
+                1000000000,
+                2012 * PRICE_PRECISION_I64 / 100,
+                100,
+            )
+            .unwrap();
+        assert_eq!(result, 99500000);
+    }
+}
