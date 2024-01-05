@@ -367,8 +367,8 @@ pub fn liquidate_perp(
         calculate_base_asset_value_with_oracle_price(user_base_asset_amount.cast()?, oracle_price)?
             .cast::<u64>()?;
 
-    // if position is less than $10, liquidator can liq all of it
-    let min_base_asset_amount = if base_asset_value > 10 * QUOTE_PRECISION_U64 {
+    // if position is less than $50, liquidator can liq all of it
+    let min_base_asset_amount = if base_asset_value > 50 * QUOTE_PRECISION_U64 {
         0_u64
     } else {
         user_base_asset_amount
