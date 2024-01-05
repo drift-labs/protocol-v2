@@ -121,26 +121,6 @@ export async function calculateAllEstimatedFundingRate(
 	markPrice?: BN,
 	now?: BN
 ): Promise<[BN, BN, BN, BN, BN]> {
-	function getMaxPriceDivergenceForFundingRate(
-		market: PerpMarketAccount,
-		oracleTwap: BN
-	) {
-		switch (market.contractTier) {
-			case ContractTier.A:
-				return oracleTwap.divn(33);
-			case ContractTier.B:
-				return oracleTwap.divn(33);
-			case ContractTier.C:
-				return oracleTwap.divn(20);
-			case ContractTier.SPECULATIVE:
-				return oracleTwap.divn(10);
-			case ContractTier.ISOLATED:
-				return oracleTwap.divn(10);
-			default:
-				return oracleTwap.divn(10);
-		}
-	}
-
 	if (isVariant(market.status, 'uninitialized')) {
 		return [ZERO, ZERO, ZERO, ZERO, ZERO];
 	}
@@ -260,6 +240,25 @@ export async function calculateAllEstimatedFundingRate(
 	}
 
 	return [markTwap, oracleTwap, lowerboundEst, cappedAltEst, interpEst];
+}
+
+function getMaxPriceDivergenceForFundingRate(
+	market: PerpMarketAccount,
+	oracleTwap: BN
+) {
+	if (isVariant(market.contractTier, 'a')) {
+		return oracleTwap.divn(33);
+	} else if (isVariant(market.contractTier, 'b')) {
+		return oracleTwap.divn(33);
+	} else if (isVariant(market.contractTier, 'c')) {
+		return oracleTwap.divn(20);
+	} else if (isVariant(market.contractTier, 'speculative')) {
+		return oracleTwap.divn(10);
+	} else if (isVariant(market.contractTier, 'isolated')) {
+		return oracleTwap.divn(10);
+	} else {
+		return oracleTwap.divn(10);
+	}
 }
 
 /**
