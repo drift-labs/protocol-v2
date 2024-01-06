@@ -28,6 +28,9 @@ import {
 	squareRootBN,
 	calculateReferencePriceOffset,
 	calculateInventoryLiquidityRatio,
+	ContractTier,
+	isOracleValid,
+	OracleGuardRails,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 
@@ -875,11 +878,12 @@ describe('AMM Tests', () => {
 		const mockMarket1 = myMockPerpMarkets[0];
 		const mockAmm = mockMarket1.amm;
 		const now = new BN(new Date().getTime() / 1000); //todo
+		const slot = 999999999;
 
 		const oraclePriceData = {
 			price: new BN(13.553 * PRICE_PRECISION.toNumber()),
-			slot: new BN(68 + 1),
-			confidence: new BN(1),
+			slot: new BN(slot),
+			confidence: new BN(1000),
 			hasSufficientNumberOfDataPoints: true,
 		};
 		mockAmm.oracleStd = new BN(0.18 * PRICE_PRECISION.toNumber());
@@ -901,6 +905,127 @@ describe('AMM Tests', () => {
 		const liveOracleStd = calculateLiveOracleStd(mockAmm, oraclePriceData, now);
 		console.log('liveOracleStd:', liveOracleStd.toNumber());
 		assert(liveOracleStd.eq(new BN(192962)));
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOraclePercentDivergence: PERCENTAGE_PRECISION.divn(10),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.divn(10),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(10),
+				slotsBeforeStaleForMargin: new BN(60),
+				confidenceIntervalMaxSize: new BN(20000),
+				tooVolatileRatio: new BN(5),
+			},
+		};
+
+		// good oracle
+		assert(isOracleValid(mockAmm, oraclePriceData, oracleGuardRails, slot + 5));
+
+		// conf too high
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot),
+					confidence: new BN(13.553 * PRICE_PRECISION.toNumber() * 0.021),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
+
+		// not hasSufficientNumberOfDataPoints
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: false,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
+
+		// negative oracle price
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(-1 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
+
+		// too delayed for amm
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot + 100
+			)
+		);
+
+		// im passing stale slot (should not call oracle invalid)
+		assert(
+			isOracleValid(
+				mockAmm,
+				{
+					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot + 100),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
+
+		// too volatile (more than 5x higher)
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(113.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot + 5),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
+
+		// too volatile (more than 1/5 lower)
+		assert(
+			!isOracleValid(
+				mockAmm,
+				{
+					price: new BN(0.553 * PRICE_PRECISION.toNumber()),
+					slot: new BN(slot + 5),
+					confidence: new BN(1),
+					hasSufficientNumberOfDataPoints: true,
+				},
+				oracleGuardRails,
+				slot
+			)
+		);
 	});
 
 	it('predicted funding rate mock1', async () => {
@@ -1063,6 +1188,154 @@ describe('AMM Tests', () => {
 		assert(oracleTwapLive.eq(new BN('1222586')));
 		assert(est1.eq(est2));
 		assert(est2.eq(new BN('-719')));
+	});
+
+	it('predicted funding rate mock clamp', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const mockMarket1 = myMockPerpMarkets[0];
+
+		// make it like OP
+		const now = new BN(1688881915);
+
+		mockMarket1.amm.fundingPeriod = new BN(3600);
+		mockMarket1.amm.lastFundingRateTs = new BN(1688864415);
+
+		const currentMarkPrice = new BN(1.2242 * PRICE_PRECISION.toNumber()); // trading at a premium
+		const oraclePriceData: OraclePriceData = {
+			price: new BN(1.924 * PRICE_PRECISION.toNumber()),
+			slot: new BN(0),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
+			1.9535 * PRICE_PRECISION.toNumber()
+		);
+
+		// mockMarket1.amm.pegMultiplier = new BN(1.897573 * 1e3);
+
+		mockMarket1.amm.lastMarkPriceTwap = new BN(
+			1.218363 * PRICE_PRECISION.toNumber()
+		);
+		mockMarket1.amm.lastBidPriceTwap = new BN(
+			1.218363 * PRICE_PRECISION.toNumber()
+		);
+		mockMarket1.amm.lastAskPriceTwap = new BN(
+			1.218364 * PRICE_PRECISION.toNumber()
+		);
+		mockMarket1.amm.lastMarkPriceTwapTs = new BN(1688878815);
+
+		mockMarket1.amm.historicalOracleData.lastOraclePriceTwap = new BN(
+			1.820964 * PRICE_PRECISION.toNumber()
+		);
+		mockMarket1.amm.historicalOracleData.lastOraclePriceTwapTs = new BN(
+			1688879991
+		);
+		mockMarket1.contractTier = ContractTier.A;
+
+		const [
+			_markTwapLive,
+			_oracleTwapLive,
+			_lowerboundEst,
+			_cappedAltEst,
+			_interpEst,
+		] = await calculateAllEstimatedFundingRate(
+			mockMarket1,
+			oraclePriceData,
+			currentMarkPrice,
+			now
+		);
+
+		// console.log(_markTwapLive.toString());
+		// console.log(_oracleTwapLive.toString());
+		// console.log(_lowerboundEst.toString());
+		// console.log(_cappedAltEst.toString());
+		// console.log(_interpEst.toString());
+		// console.log('-----');
+
+		let [markTwapLive, oracleTwapLive, est1, est2] =
+			await calculateLongShortFundingRateAndLiveTwaps(
+				mockMarket1,
+				oraclePriceData,
+				currentMarkPrice,
+				now
+			);
+
+		console.log(
+			'markTwapLive:',
+			mockMarket1.amm.lastMarkPriceTwap.toString(),
+			'->',
+			markTwapLive.toString()
+		);
+		console.log(
+			'oracTwapLive:',
+			mockMarket1.amm.historicalOracleData.lastOraclePriceTwap.toString(),
+			'->',
+			oracleTwapLive.toString()
+		);
+		console.log('pred funding:', est1.toString(), est2.toString());
+
+		assert(markTwapLive.eq(new BN('1680634')));
+		assert(oracleTwapLive.eq(new BN('1876031')));
+		assert(est1.eq(est2));
+		assert(est2.eq(new BN('-126261')));
+
+		mockMarket1.contractTier = ContractTier.C;
+
+		[markTwapLive, oracleTwapLive, est1, est2] =
+			await calculateLongShortFundingRateAndLiveTwaps(
+				mockMarket1,
+				oraclePriceData,
+				currentMarkPrice,
+				now
+			);
+
+		console.log(
+			'markTwapLive:',
+			mockMarket1.amm.lastMarkPriceTwap.toString(),
+			'->',
+			markTwapLive.toString()
+		);
+		console.log(
+			'oracTwapLive:',
+			mockMarket1.amm.historicalOracleData.lastOraclePriceTwap.toString(),
+			'->',
+			oracleTwapLive.toString()
+		);
+		console.log('pred funding:', est1.toString(), est2.toString());
+
+		assert(markTwapLive.eq(new BN('1680634')));
+		assert(oracleTwapLive.eq(new BN('1876031')));
+		assert(est1.eq(est2));
+		assert(est2.eq(new BN('-208332')));
+
+		mockMarket1.contractTier = ContractTier.SPECULATIVE;
+
+		[markTwapLive, oracleTwapLive, est1, est2] =
+			await calculateLongShortFundingRateAndLiveTwaps(
+				mockMarket1,
+				oraclePriceData,
+				currentMarkPrice,
+				now
+			);
+
+		console.log(
+			'markTwapLive:',
+			mockMarket1.amm.lastMarkPriceTwap.toString(),
+			'->',
+			markTwapLive.toString()
+		);
+		console.log(
+			'oracTwapLive:',
+			mockMarket1.amm.historicalOracleData.lastOraclePriceTwap.toString(),
+			'->',
+			oracleTwapLive.toString()
+		);
+		console.log('pred funding:', est1.toString(), est2.toString());
+
+		assert(markTwapLive.eq(new BN('1680634')));
+		assert(oracleTwapLive.eq(new BN('1876031')));
+		assert(est1.eq(est2));
+		assert(est2.eq(new BN('-416666')));
 	});
 
 	it('orderbook L2 gen (no topOfBookQuoteAmounts, 10 numOrders, low liquidity)', async () => {
