@@ -3112,7 +3112,9 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
-		return await this.program.instruction.placeOrders(params, {
+		const formattedParams = params.map((item) => getOrderParams(item));
+
+		return await this.program.instruction.placeOrders(formattedParams, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user,
