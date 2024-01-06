@@ -1069,6 +1069,7 @@ dependencies = [
  "phoenix-v1",
  "pyth",
  "pyth-client",
+ "serde",
  "serum_dex",
  "solana-program",
  "solana-security-txt",

@@ -14,14 +14,17 @@ use drift_program::{
 };
 use futures_util::{future::BoxFuture, stream::FuturesOrdered, FutureExt, Stream, StreamExt};
 use log::{debug, error};
-use solana_client::{
-    nonblocking::rpc_client::RpcClient, rpc_client::GetConfirmedSignaturesForAddress2Config,
-};
+pub use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_client::rpc_client::GetConfirmedSignaturesForAddress2Config;
+pub use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::VersionedTransaction};
 use solana_transaction_status::{
     option_serializer::OptionSerializer, EncodedTransactionWithStatusMeta, UiTransactionEncoding,
 };
-use tokio::sync::mpsc::{channel, Receiver};
+use tokio::{
+    sync::mpsc::{channel, Receiver},
+    task::AbortHandle,
+};
 
 use crate::{constants, types::SdkResult};
 
@@ -121,14 +124,29 @@ impl<T: EventRpcProvider> Drop for EventSubscriber<T> {
 }
 
 /// Provides a stream API of drift account events
-pub struct DriftEventStream(Receiver<DriftEvent>);
+pub struct DriftEventStream {
+    /// handle to end the inner stream ask
+    abort_handle: AbortHandle,
+    rx: Receiver<DriftEvent>,
+}
+
+impl Drop for DriftEventStream {
+    fn drop(&mut self) {
+        // ensure stream task is always cleaned up
+        self.abort_handle.abort();
+    }
+}
 
 impl DriftEventStream {
+    /// end the event stream
+    pub fn unsubscribe(&self) {
+        self.abort_handle.abort();
+    }
     pub fn new(provider: &'static impl EventRpcProvider, account: Pubkey) -> Self {
         let (event_tx, event_rx) = channel(32);
 
         // spawn the event subscription task
-        tokio::spawn(async move {
+        let join_handle = tokio::spawn(async move {
             // poll for events in any tx after this tx
             // initially fetch the most recent tx from account
             let mut last_seen_tx = provider
@@ -190,7 +208,10 @@ impl DriftEventStream {
             }
         });
 
-        Self(event_rx)
+        Self {
+            rx: event_rx,
+            abort_handle: join_handle.abort_handle(),
+        }
     }
 }
 
@@ -200,7 +221,7 @@ impl Stream for DriftEventStream {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        self.as_mut().0.poll_recv(cx)
+        self.as_mut().rx.poll_recv(cx)
     }
 }
 
@@ -227,7 +248,7 @@ fn try_parse_log(raw: &str) -> Option<DriftEvent> {
 }
 
 /// Enum of all drift program events
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, serde::Serialize)]
 pub enum DriftEvent {
     OrderFill {
         maker: Option<Pubkey>,

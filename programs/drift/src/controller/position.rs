@@ -23,6 +23,8 @@ use crate::validate;
 #[cfg(test)]
 mod tests;
 
+#[cfg_attr(feature = "sdk", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "sdk", serde(rename_all = "lowercase"))]
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum PositionDirection {
     Long,
