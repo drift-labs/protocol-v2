@@ -1098,6 +1098,7 @@ dependencies = [
  "solana-account-decoder",
  "solana-client",
  "solana-sdk",
+ "solana-transaction-status",
  "substreams-solana-macro",
  "thiserror",
  "tokio",

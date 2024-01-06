@@ -315,7 +315,6 @@ mod tests {
             Context::MainNet,
             MAINNET_ENDPOINT,
             RpcAccountProvider::new(MAINNET_ENDPOINT),
-            None,
         )
         .await
         .unwrap();
