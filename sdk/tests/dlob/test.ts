@@ -76,7 +76,7 @@ function insertOrderToDLOB(
 			auctionEndPrice,
 			maxTs,
 		},
-		userAccount,
+		userAccount.toString(),
 		slot.toNumber()
 	);
 }
@@ -127,7 +127,7 @@ function insertTriggerOrderToDLOB(
 			auctionEndPrice,
 			maxTs,
 		},
-		userAccount,
+		userAccount.toString(),
 		slot.toNumber()
 	);
 }

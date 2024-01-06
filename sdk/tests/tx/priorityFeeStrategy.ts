@@ -66,7 +66,7 @@ describe('PriorityFeeStrategy', () => {
 	});
 
 	it('MaxOverSlotsStrategy should calculate the max prioritization fee over slots', () => {
-		const maxOverSlotsStrategy = new MaxOverSlotsStrategy(5);
+		const maxOverSlotsStrategy = new MaxOverSlotsStrategy();
 		const samples = [
 			{ slot: 6, prioritizationFee: 432 },
 			{ slot: 3, prioritizationFee: 543 },
@@ -80,7 +80,7 @@ describe('PriorityFeeStrategy', () => {
 	});
 
 	it('AverageOverSlotsStrategy should calculate the average prioritization fee over slots', () => {
-		const averageOverSlotsStrategy = new AverageOverSlotsStrategy(5);
+		const averageOverSlotsStrategy = new AverageOverSlotsStrategy();
 		const samples = [
 			{ slot: 6, prioritizationFee: 432 },
 			{ slot: 3, prioritizationFee: 543 },
