@@ -94,38 +94,13 @@ mod amm_lp_jit_tests;
 
 pub fn place_perp_order(
     state: &State,
-    user: &AccountLoader<User>,
-    perp_market_map: &PerpMarketMap,
-    spot_market_map: &SpotMarketMap,
-    oracle_map: &mut OracleMap,
-    clock: &Clock,
-    mut params: OrderParams,
-    options: PlaceOrderOptions,
-) -> DriftResult {
-    let user_key = user.key();
-    let user = &mut load_mut!(user)?;
-    _place_perp_order(
-        state,
-        user,
-        user_key,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        clock,
-        &mut params,
-        options,
-    )
-}
-
-pub fn _place_perp_order(
-    state: &State,
     user: &mut User,
     user_key: Pubkey,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-    params: &mut OrderParams,
+    mut params: OrderParams,
     mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
@@ -250,7 +225,7 @@ pub fn _place_perp_order(
     params.update_perp_auction_params(market, oracle_price_data.price)?;
 
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
-        params,
+        &params,
         oracle_price_data,
         market.amm.order_tick_size,
         state.min_perp_auction_duration,
@@ -775,15 +750,14 @@ pub fn modify_order(
 
     user.update_last_active_slot(clock.slot);
 
-    drop(user);
-
     let order_params =
         merge_modify_order_params_with_existing_order(&existing_order, &modify_order_params)?;
 
     if order_params.market_type == MarketType::Perp {
         place_perp_order(
             state,
-            user_loader,
+            &mut user,
+            user_key,
             perp_market_map,
             spot_market_map,
             oracle_map,
@@ -794,7 +768,8 @@ pub fn modify_order(
     } else {
         place_spot_order(
             state,
-            user_loader,
+            &mut user,
+            user_key,
             perp_market_map,
             spot_market_map,
             oracle_map,
@@ -2947,7 +2922,7 @@ pub fn _burn_user_lp_shares_for_risk_reduction(
                 perp_position.base_asset_amount.unsigned_abs(),
             )?;
 
-            controller::orders::_place_perp_order(
+            controller::orders::place_perp_order(
                 state,
                 user,
                 *user_key,
@@ -2955,7 +2930,7 @@ pub fn _burn_user_lp_shares_for_risk_reduction(
                 spot_market_map,
                 oracle_map,
                 clock,
-                &mut params,
+                params,
                 PlaceOrderOptions::default(),
             )?;
         }
@@ -3039,7 +3014,8 @@ pub fn pay_keeper_flat_reward_for_spot(
 
 pub fn place_spot_order(
     state: &State,
-    user: &AccountLoader<User>,
+    user: &mut User,
+    user_key: Pubkey,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -3049,8 +3025,6 @@ pub fn place_spot_order(
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
-    let user_key = user.key();
-    let user = &mut load_mut!(user)?;
 
     validate_user_not_being_liquidated(
         user,
