@@ -2916,7 +2916,7 @@ pub fn _burn_user_lp_shares_for_risk_reduction(
 
             let direction_to_close = perp_position.get_direction_to_close();
 
-            let mut params = OrderParams::get_aggressive_close_params(
+            let params = OrderParams::get_aggressive_close_params(
                 &market,
                 direction_to_close,
                 perp_position.base_asset_amount.unsigned_abs(),
