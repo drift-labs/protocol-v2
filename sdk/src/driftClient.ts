@@ -3868,7 +3868,6 @@ export class DriftClient {
 				slippageBps,
 				swapMode,
 				onlyDirectRoutes,
-				excludeDexes: ['Raydium CLMM'], // temp exclude to workaround bug with raydium clmm
 			});
 
 			quote = fetchedQuote;

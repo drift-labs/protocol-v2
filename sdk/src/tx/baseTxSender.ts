@@ -1,4 +1,4 @@
-import { TxSender, TxSigAndSlot } from './types';
+import { ConfirmationStrategy, TxSender, TxSigAndSlot } from './types';
 import {
 	Commitment,
 	ConfirmOptions,
@@ -28,6 +28,7 @@ export abstract class BaseTxSender implements TxSender {
 	timeout: number;
 	additionalConnections: Connection[];
 	timeoutCount = 0;
+	confirmationStrategy: ConfirmationStrategy;
 
 	public constructor({
 		connection,
@@ -35,18 +36,21 @@ export abstract class BaseTxSender implements TxSender {
 		opts = AnchorProvider.defaultOptions(),
 		timeout = DEFAULT_TIMEOUT,
 		additionalConnections = new Array<Connection>(),
+		confirmationStrategy = ConfirmationStrategy.Combo,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
 		opts?: ConfirmOptions;
 		timeout?: number;
 		additionalConnections?;
+		confirmationStrategy?: ConfirmationStrategy;
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
 		this.opts = opts;
 		this.timeout = timeout;
 		this.additionalConnections = additionalConnections;
+		this.confirmationStrategy = confirmationStrategy;
 	}
 
 	async send(
@@ -156,7 +160,7 @@ export abstract class BaseTxSender implements TxSender {
 		throw new Error('Must be implemented by subclass');
 	}
 
-	async confirmTransaction(
+	async confirmTransactionWebSocket(
 		signature: TransactionSignature,
 		commitment?: Commitment
 	): Promise<RpcResponseAndContext<SignatureResult>> {
@@ -210,6 +214,22 @@ export abstract class BaseTxSender implements TxSender {
 		}
 
 		if (response === null) {
+			if (this.confirmationStrategy === ConfirmationStrategy.Combo) {
+				try {
+					const rpcResponse = await this.connection.getSignatureStatus(
+						signature
+					);
+					if (rpcResponse?.value?.confirmationStatus) {
+						response = {
+							context: rpcResponse.context,
+							value: { err: rpcResponse.value.err },
+						};
+						return response;
+					}
+				} catch (error) {
+					// Ignore error to pass through to timeout error
+				}
+			}
 			this.timeoutCount += 1;
 			const duration = (Date.now() - start) / 1000;
 			throw new Error(
@@ -220,6 +240,47 @@ export abstract class BaseTxSender implements TxSender {
 		}
 
 		return response;
+	}
+
+	async confirmTransactionPolling(
+		signature: TransactionSignature,
+		commitment: Commitment = 'finalized'
+	): Promise<RpcResponseAndContext<SignatureResult> | undefined> {
+		let totalTime = 0;
+		let backoffTime = 250;
+
+		while (totalTime < this.timeout) {
+			const response = await this.connection.getSignatureStatus(signature);
+			const result = response && response.value?.[0];
+
+			if (result && result.confirmationStatus === commitment) {
+				return { context: result.context, value: { err: null } };
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, backoffTime));
+			totalTime += backoffTime;
+			backoffTime = Math.min(backoffTime * 2, 5000);
+		}
+
+		// Transaction not confirmed within 30 seconds
+		this.timeoutCount += 1;
+		throw new Error(
+			`Transaction was not confirmed in 30 seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`
+		);
+	}
+
+	async confirmTransaction(
+		signature: TransactionSignature,
+		commitment?: Commitment
+	): Promise<RpcResponseAndContext<SignatureResult>> {
+		if (
+			this.confirmationStrategy === ConfirmationStrategy.WebSocket ||
+			this.confirmationStrategy === ConfirmationStrategy.Combo
+		) {
+			return await this.confirmTransactionWebSocket(signature, commitment);
+		} else if (this.confirmationStrategy === ConfirmationStrategy.Polling) {
+			return await this.confirmTransactionPolling(signature, commitment);
+		}
 	}
 
 	getTimestamp(): number {

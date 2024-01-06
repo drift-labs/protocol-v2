@@ -10,16 +10,20 @@ export class PriorityFeeSubscriber {
 	customStrategy?: PriorityFeeStrategy;
 	averageStrategy = new AverageOverSlotsStrategy();
 	maxStrategy = new MaxOverSlotsStrategy();
+	lookbackDistance: number;
 
 	intervalId?: ReturnType<typeof setTimeout>;
 
 	latestPriorityFee = 0;
-	lastStrategyResult = 0;
 	lastCustomStrategyResult = 0;
 	lastAvgStrategyResult = 0;
 	lastMaxStrategyResult = 0;
 	lastSlotSeen = 0;
 
+	/**
+	 * @param props
+	 * customStrategy : strategy to return the priority fee to use based on recent samples. defaults to AVERAGE.
+	 */
 	public constructor({
 		connection,
 		frequencyMs,
@@ -36,28 +40,12 @@ export class PriorityFeeSubscriber {
 		this.connection = connection;
 		this.frequencyMs = frequencyMs;
 		this.addresses = addresses;
-		if (slotsToCheck) {
-			this.averageStrategy = new AverageOverSlotsStrategy(slotsToCheck);
-			this.maxStrategy = new MaxOverSlotsStrategy(slotsToCheck);
-		}
-		if (customStrategy) {
+		if (!customStrategy) {
+			this.customStrategy = new AverageOverSlotsStrategy();
+		} else {
 			this.customStrategy = customStrategy;
 		}
-	}
-
-	public get avgPriorityFee(): number {
-		return Math.floor(this.lastAvgStrategyResult);
-	}
-
-	public get maxPriorityFee(): number {
-		return Math.floor(this.lastMaxStrategyResult);
-	}
-
-	public get customPriorityFee(): number {
-		if (!this.customStrategy) {
-			console.error('Custom strategy not set');
-		}
-		return Math.floor(this.lastCustomStrategyResult);
+		this.lookbackDistance = slotsToCheck;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -75,21 +63,29 @@ export class PriorityFeeSubscriber {
 			[this.addresses]
 		);
 
-		// getRecentPrioritizationFees returns results unsorted
 		const results: { slot: number; prioritizationFee: number }[] =
 			rpcJSONResponse?.result;
-		if (!results.length) return;
-		const descResults = results.sort((a, b) => b.slot - a.slot);
 
+		if (!results.length) return;
+
+		// # Sort and filter results based on the slot lookback setting
+		const descResults = results.sort((a, b) => b.slot - a.slot);
 		const mostRecentResult = descResults[0];
+		const cutoffSlot = mostRecentResult.slot - this.lookbackDistance;
+
+		const resultsToUse = descResults.filter(
+			(result) => result.slot >= cutoffSlot
+		);
+
+		// # Handle results
 		this.latestPriorityFee = mostRecentResult.prioritizationFee;
 		this.lastSlotSeen = mostRecentResult.slot;
 
-		this.lastAvgStrategyResult = this.averageStrategy.calculate(descResults);
-		this.lastMaxStrategyResult = this.maxStrategy.calculate(descResults);
+		this.lastAvgStrategyResult = this.averageStrategy.calculate(resultsToUse);
+		this.lastMaxStrategyResult = this.maxStrategy.calculate(resultsToUse);
 		if (this.customStrategy) {
 			this.lastCustomStrategyResult =
-				this.customStrategy.calculate(descResults);
+				this.customStrategy.calculate(resultsToUse);
 		}
 	}
 

@@ -47,8 +47,8 @@ export function isOracleValid(
 		.div(oraclePriceData.price)
 		.gt(oracleGuardRails.validity.confidenceIntervalMaxSize);
 
-	const oracleIsStale = oraclePriceData.slot
-		.sub(new BN(slot))
+	const oracleIsStale = new BN(slot)
+		.sub(oraclePriceData.slot)
 		.gt(oracleGuardRails.validity.slotsBeforeStaleForAmm);
 
 	return !(

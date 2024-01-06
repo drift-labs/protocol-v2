@@ -16,8 +16,7 @@ use crate::controller::position::{
     PositionDirection,
 };
 use crate::controller::spot_balance::{
-    transfer_spot_balance_to_revenue_pool, update_spot_balances,
-    update_spot_market_cumulative_interest,
+    update_spot_balances, update_spot_market_cumulative_interest,
 };
 use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
@@ -32,8 +31,7 @@ use crate::math::amm_jit::calculate_amm_jit_liquidity;
 use crate::math::auction::{calculate_auction_params_for_trigger_order, calculate_auction_prices};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
-    QUOTE_SPOT_MARKET_INDEX,
+    BASE_PRECISION_U64, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
 };
 use crate::math::fees::{determine_user_fee_tier, ExternalFillFees, FillFees};
 use crate::math::fulfillment::{
@@ -4268,20 +4266,6 @@ pub fn fulfill_spot_order_with_match(
         false,
     )?;
 
-    let fee_pool_amount = get_token_amount(
-        base_market.spot_fee_pool.scaled_balance,
-        quote_market,
-        &SpotBalanceType::Deposit,
-    )?;
-
-    if fee_pool_amount > FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
-        transfer_spot_balance_to_revenue_pool(
-            fee_pool_amount - FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
-            quote_market,
-            &mut base_market.spot_fee_pool,
-        )?;
-    }
-
     let fill_record_id = get_then_update_id!(base_market, next_fill_record_id);
     let order_action_explanation = if maker.orders[maker_order_index].is_jit_maker() {
         OrderActionExplanation::OrderFilledWithMatchJit
@@ -4472,14 +4456,6 @@ pub fn fulfill_spot_order_with_external_market(
         quote_market,
         &SpotBalanceType::Deposit,
     )?;
-
-    if fee_pool_amount > FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
-        transfer_spot_balance_to_revenue_pool(
-            fee_pool_amount - FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
-            quote_market,
-            &mut base_market.spot_fee_pool,
-        )?;
-    }
 
     let ExternalFillFees {
         user_fee: taker_fee,
