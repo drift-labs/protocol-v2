@@ -2834,17 +2834,6 @@ pub fn force_cancel_orders(
         )?;
     }
 
-    attempt_burn_user_lp_shares_for_risk_reduction(
-        state,
-        user,
-        margin_calc,
-        &user_key,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        clock,
-    )?;
-
     pay_keeper_flat_reward_for_spot(
         user,
         Some(filler),
