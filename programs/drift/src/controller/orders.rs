@@ -2831,11 +2831,12 @@ pub fn attempt_burn_user_lp_shares_for_risk_reduction(
     state: &State,
     user: &mut User,
     margin_calc: MarginCalculation,
-    user_key: &Pubkey,
+    user_key: Pubkey,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
+    market_index: u16,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
@@ -2844,21 +2845,16 @@ pub fn attempt_burn_user_lp_shares_for_risk_reduction(
             now.safe_sub(user.last_add_perp_lp_shares_ts)?;
         // avoid spamming update if orders have already been set
         if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
-            let set_reduce_only_orders = true; // todo
-            for position_index in 0..user.perp_positions.len() {
-                let market_index = user.perp_positions[position_index].market_index;
-                _burn_user_lp_shares_for_risk_reduction(
-                    state,
-                    user,
-                    user_key,
-                    market_index,
-                    perp_market_map,
-                    spot_market_map,
-                    oracle_map,
-                    clock,
-                    set_reduce_only_orders,
-                )?;
-            }
+            burn_user_lp_shares_for_risk_reduction(
+                state,
+                user,
+                user_key,
+                market_index,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                clock,
+            )?;
             user.last_add_perp_lp_shares_ts = now;
         }
     }
@@ -2866,75 +2862,76 @@ pub fn attempt_burn_user_lp_shares_for_risk_reduction(
     Ok(())
 }
 
-pub fn _burn_user_lp_shares_for_risk_reduction(
+pub fn burn_user_lp_shares_for_risk_reduction(
     state: &State,
     user: &mut User,
-    user_key: &Pubkey,
+    user_key: Pubkey,
     market_index: u16,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-    set_reduce_only_orders: bool,
 ) -> DriftResult {
-    let perp_position = user.get_perp_position_mut(market_index)?;
-    if perp_position.is_lp() {
-        let lp_shares = perp_position.lp_shares;
-        let market_index = perp_position.market_index;
-        {
-            let market = perp_market_map.get_ref(&market_index)?;
-            let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-
-            let oracle_price = if market.status == MarketStatus::Settlement {
-                market.expiry_price
-            } else {
-                oracle_price_data.price
-            };
-
-            let (position_delta, pnl) = burn_lp_shares(
-                perp_position,
-                perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
-                lp_shares.safe_div(3)?.max(market.amm.order_step_size),
-                oracle_price,
-            )?;
-
-            // emit LP record for shares removed
-            emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
-                ts: clock.unix_timestamp,
-                action: LPAction::RemoveLiquidity,
-                user: *user_key,
-                n_shares: lp_shares,
-                market_index: perp_position.market_index,
-                delta_base_asset_amount: position_delta.base_asset_amount,
-                delta_quote_asset_amount: position_delta.quote_asset_amount,
-                pnl,
-            })?;
-        }
-
-        if set_reduce_only_orders {
-            let market = perp_market_map.get_ref(&market_index)?;
-
-            let direction_to_close = perp_position.get_direction_to_close();
-
-            let params = OrderParams::get_aggressive_close_params(
-                &market,
-                direction_to_close,
-                perp_position.base_asset_amount.unsigned_abs(),
-            )?;
-
-            controller::orders::place_perp_order(
-                state,
-                user,
-                *user_key,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                clock,
-                params,
-                PlaceOrderOptions::default(),
-            )?;
-        }
+    let position_index = get_position_index(&user.perp_positions, market_index)?;
+    let is_lp = user.perp_positions[position_index].is_lp();
+    if !is_lp {
+        return Ok(());
     }
+
+    let lp_shares = user.perp_positions[position_index].lp_shares;
+
+    let mut market = perp_market_map.get_ref_mut(&market_index)?;
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+    let oracle_price = if market.status == MarketStatus::Settlement {
+        market.expiry_price
+    } else {
+        oracle_price_data.price
+    };
+
+    let order_step_size = market.amm.order_step_size;
+    let (position_delta, pnl) = burn_lp_shares(
+        &mut user.perp_positions[position_index],
+        &mut market,
+        lp_shares.safe_div(3)?.max(order_step_size),
+        oracle_price,
+    )?;
+
+    // emit LP record for shares removed
+    emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
+        ts: clock.unix_timestamp,
+        action: LPAction::RemoveLiquidity,
+        user: user_key,
+        n_shares: lp_shares,
+        market_index,
+        delta_base_asset_amount: position_delta.base_asset_amount,
+        delta_quote_asset_amount: position_delta.quote_asset_amount,
+        pnl,
+    })?;
+
+    let direction_to_close = user.perp_positions[position_index].get_direction_to_close();
+
+    let params = OrderParams::get_aggressive_close_params(
+        &market,
+        direction_to_close,
+        user.perp_positions[position_index]
+            .base_asset_amount
+            .unsigned_abs(),
+    )?;
+
+    drop(market);
+
+    controller::orders::place_perp_order(
+        state,
+        user,
+        user_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        clock,
+        params,
+        PlaceOrderOptions::default(),
+    )?;
 
     Ok(())
 }

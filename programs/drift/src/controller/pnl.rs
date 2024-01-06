@@ -268,19 +268,24 @@ pub fn settle_expired_position(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial),
+            MarginContext::standard(MarginRequirementType::Initial).track_open_orders_fraction()?,
         )?;
 
-        attempt_burn_user_lp_shares_for_risk_reduction(
-            state,
-            user,
-            margin_calc,
-            user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            clock,
-        )?;
+        if !margin_calc.meets_margin_requirement() {
+            attempt_burn_user_lp_shares_for_risk_reduction(
+                state,
+                user,
+                margin_calc,
+                *user_key,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                clock,
+                perp_market_index,
+            )?;
+
+            return Ok(());
+        }
     } else {
         // cannot settle pnl this way on a user who is in liquidation territory
         if !(meets_maintenance_margin_requirement(
