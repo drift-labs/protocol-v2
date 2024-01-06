@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+- sdk: move bracket orders into single instruction
+- sdk: add ability to do placeAndTake order with bracket orders attached
+- sdk: add option to cancel existing orders in market for place and take order
 
 ### Fixes
 

@@ -2657,10 +2657,6 @@ export class DriftClient {
 				txParams?.computeUnitsPrice
 			);
 
-			// if (bracketOrderIxs.length > 0) {
-			// 	marketOrderTx.add(...bracketOrderIxs);
-			// }
-
 			// Apply the latest blockhash to the txs so that we can sign before sending them
 			const currentBlockHash = (
 				await this.connection.getLatestBlockhash('finalized')
