@@ -2520,22 +2520,19 @@ export class DriftClient {
 		limitPrice?: BN,
 		subAccountId?: number
 	): Promise<TransactionSignature> {
-		return (
-			await this.placeAndTakePerpOrder(
-				{
-					orderType: OrderType.MARKET,
-					marketIndex,
-					direction,
-					baseAssetAmount: amount,
-					price: limitPrice,
-				},
-				undefined,
-				undefined,
-				undefined,
-				undefined,
-				subAccountId
-			)
-		)?.txSig;
+		return await this.placeAndTakePerpOrder(
+			{
+				orderType: OrderType.MARKET,
+				marketIndex,
+				direction,
+				baseAssetAmount: amount,
+				price: limitPrice,
+			},
+			undefined,
+			undefined,
+			undefined,
+			subAccountId
+		);
 	}
 
 	public async sendSignedTx(tx: Transaction): Promise<TransactionSignature> {
@@ -4305,6 +4302,30 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams,
+		subAccountId?: number
+	): Promise<TransactionSignature> {
+		const { txSig, slot } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getPlaceAndTakePerpOrderIx(
+					orderParams,
+					makerInfo,
+					referrerInfo,
+					subAccountId
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
+		return txSig;
+	}
+
+	public async placeAndTakePerpWithAdditionalOrders(
+		orderParams: OptionalOrderParams,
+		makerInfo?: MakerInfo | MakerInfo[],
+		referrerInfo?: ReferrerInfo,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
 		txParams?: TxParams,
 		subAccountId?: number,
@@ -4716,23 +4737,20 @@ export class DriftClient {
 			throw Error(`No position in market ${marketIndex.toString()}`);
 		}
 
-		return (
-			await this.placeAndTakePerpOrder(
-				{
-					orderType: OrderType.MARKET,
-					marketIndex,
-					direction: findDirectionToClose(userPosition),
-					baseAssetAmount: userPosition.baseAssetAmount.abs(),
-					reduceOnly: true,
-					price: limitPrice,
-				},
-				undefined,
-				undefined,
-				undefined,
-				this.txParams,
-				subAccountId
-			)
-		)?.txSig;
+		return await this.placeAndTakePerpOrder(
+			{
+				orderType: OrderType.MARKET,
+				marketIndex,
+				direction: findDirectionToClose(userPosition),
+				baseAssetAmount: userPosition.baseAssetAmount.abs(),
+				reduceOnly: true,
+				price: limitPrice,
+			},
+			undefined,
+			undefined,
+			undefined,
+			subAccountId
+		);
 	}
 
 	/**
