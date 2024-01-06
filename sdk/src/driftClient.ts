@@ -2573,20 +2573,11 @@ export class DriftClient {
 	}> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
-		const bracketOrderIxs = [];
 
-		const placePerpOrderIx = await this.getPlacePerpOrderIx(
-			orderParams,
+		const ordersIx = await this.getPlaceOrdersIx(
+			[orderParams, ...bracketOrdersParams],
 			userAccount.subAccountId
 		);
-
-		for (const bracketOrderParams of bracketOrdersParams) {
-			const placeBracketOrderIx = await this.getPlacePerpOrderIx(
-				bracketOrderParams,
-				userAccount.subAccountId
-			);
-			bracketOrderIxs.push(placeBracketOrderIx);
-		}
 
 		let cancelOrdersIx: TransactionInstruction;
 		let cancelExistingOrdersTx: Transaction;
@@ -2609,7 +2600,7 @@ export class DriftClient {
 		// use versioned transactions if there is a lookup table account and wallet is compatible
 		if (this.txVersion === 0) {
 			const versionedMarketOrderTx = await this.buildTransaction(
-				[placePerpOrderIx].concat(bracketOrderIxs),
+				ordersIx,
 				txParams,
 				0
 			);
@@ -2658,14 +2649,10 @@ export class DriftClient {
 			};
 		} else {
 			const marketOrderTx = wrapInTx(
-				placePerpOrderIx,
+				ordersIx,
 				txParams?.computeUnits,
 				txParams?.computeUnitsPrice
 			);
-
-			if (bracketOrderIxs.length > 0) {
-				marketOrderTx.add(...bracketOrderIxs);
-			}
 
 			// Apply the latest blockhash to the txs so that we can sign before sending them
 			const currentBlockHash = (
@@ -3093,7 +3080,7 @@ export class DriftClient {
 	}
 
 	public async getPlaceOrdersIx(
-		params: OrderParams[],
+		params: OptionalOrderParams[],
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		const user = await this.getUserAccountPublicKey(subAccountId);
@@ -3118,7 +3105,9 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
-		return await this.program.instruction.placeOrders(params, {
+		const formattedParams = params.map((item) => getOrderParams(item));
+
+		return await this.program.instruction.placeOrders(formattedParams, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user,
@@ -4332,6 +4321,69 @@ export class DriftClient {
 		);
 		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 		return txSig;
+	}
+
+	public async placeAndTakePerpWithAdditionalOrders(
+		orderParams: OptionalOrderParams,
+		makerInfo?: MakerInfo | MakerInfo[],
+		referrerInfo?: ReferrerInfo,
+		bracketOrdersParams = new Array<OptionalOrderParams>(),
+		txParams?: TxParams,
+		subAccountId?: number,
+		cancelExistingOrders?: boolean
+	): Promise<{
+		txSig: TransactionSignature;
+		signedCancelExistingOrdersTx?: Transaction;
+	}> {
+		let signedCancelExistingOrdersTx: Transaction;
+
+		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
+			const cancelOrdersIx = await this.getCancelOrdersIx(
+				orderParams.marketType,
+				orderParams.marketIndex,
+				null,
+				subAccountId
+			);
+
+			const cancelExistingOrdersTx = await this.buildTransaction(
+				[cancelOrdersIx],
+				txParams,
+				this.txVersion
+			);
+
+			// @ts-ignore
+			signedCancelExistingOrdersTx = await this.provider.wallet.signTransaction(
+				cancelExistingOrdersTx
+			);
+		}
+
+		const ixs = [];
+
+		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
+			orderParams,
+			makerInfo,
+			referrerInfo,
+			subAccountId
+		);
+
+		ixs.push(placeAndTakeIx);
+
+		if (bracketOrdersParams.length > 0) {
+			const bracketOrdersIx = await this.getPlaceOrdersIx(
+				bracketOrdersParams,
+				subAccountId
+			);
+			ixs.push(bracketOrdersIx);
+		}
+
+		const { txSig, slot } = await this.sendTransaction(
+			await this.buildTransaction(ixs, txParams),
+			[],
+			this.opts
+		);
+		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
+
+		return { txSig, signedCancelExistingOrdersTx };
 	}
 
 	public async getPlaceAndTakePerpOrderIx(
