@@ -14,8 +14,11 @@ use drift_program::{
 };
 use futures_util::{future::BoxFuture, stream::FuturesOrdered, FutureExt, Stream, StreamExt};
 use log::{debug, error};
-pub use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_client::rpc_client::GetConfirmedSignaturesForAddress2Config;
+use serde::Serializer;
+pub use solana_client::nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient};
+use solana_client::{
+    rpc_client::GetConfirmedSignaturesForAddress2Config, rpc_config::RpcTransactionLogsConfig,
+};
 pub use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::VersionedTransaction};
 use solana_transaction_status::{
@@ -23,7 +26,7 @@ use solana_transaction_status::{
 };
 use tokio::{
     sync::mpsc::{channel, Receiver},
-    task::AbortHandle,
+    task::JoinHandle,
 };
 
 use crate::{constants, types::SdkResult};
@@ -96,122 +99,153 @@ pub trait EventRpcProvider: Send + Sync + 'static {
     ) -> BoxFuture<SdkResult<EncodedTransactionWithStatusMeta>>;
 }
 
-pub struct EventSubscriber<T: EventRpcProvider> {
-    provider: &'static T,
+/// Provides sub-account event streaming
+pub struct EventSubscriber;
+
+impl EventSubscriber {
+    /// Subscribe to drift events of `sub_account`, backed by Ws APIs
+    pub fn subscribe(provider: PubsubClient, sub_account: Pubkey) -> DriftEventStream {
+        log_stream(provider, sub_account)
+    }
+    /// Subscribe to drift events of `sub_account`, backed by RPC polling APIs
+    pub fn subscribe_polled(provider: impl EventRpcProvider, account: Pubkey) -> DriftEventStream {
+        polled_stream(provider, account)
+    }
 }
 
-impl<T: EventRpcProvider> EventSubscriber<T> {
-    pub fn new(provider: T) -> Self {
-        Self {
-            provider: Box::leak(Box::new(provider)),
+/// Creates a Ws-backed event stream using `logsSubscribe` interface
+fn log_stream(provider: PubsubClient, sub_account: Pubkey) -> DriftEventStream {
+    debug!(target: LOG_TARGET, "stream events for {sub_account:?}");
+    let (event_tx, event_rx) = channel(32);
+
+    // spawn the event subscription task
+    let join_handle = tokio::spawn(async move {
+        debug!(target: LOG_TARGET, "start log sub");
+        let (mut log_stream, _) = provider
+            .logs_subscribe(
+                solana_client::rpc_config::RpcTransactionLogsFilter::Mentions(vec![
+                    sub_account.to_string()
+                ]),
+                RpcTransactionLogsConfig {
+                    commitment: Some(CommitmentConfig::processed()),
+                },
+            )
+            .await
+            .expect("logs subscribed");
+        debug!(target: LOG_TARGET, "started log sub");
+
+        while let Some(response) = log_stream.next().await {
+            for log in response.value.logs {
+                // a drift sub-account should not interact with any other program by definition
+                if let Some(event) = try_parse_log(log.as_str()) {
+                    // unrelated events from same tx should not be emitted e.g. a filler tx which produces other fill events
+                    if event.pertains_to(sub_account) {
+                        // TODO: handle RevertFill semantics
+                        event_tx.try_send(event).expect("sent");
+                    }
+                }
+            }
         }
-    }
+    });
 
-    /// Subscribe to drift events of `account`
-    ///
-    /// it uses an RPC polling mechanism to fetch the events
-    pub fn subscribe(&self, account: Pubkey) -> DriftEventStream {
-        DriftEventStream::new(self.provider, account)
+    DriftEventStream {
+        rx: event_rx,
+        task: join_handle,
     }
 }
 
-impl<T: EventRpcProvider> Drop for EventSubscriber<T> {
-    fn drop(&mut self) {
-        unsafe {
-            drop(Box::from_raw((self.provider as *const T) as *mut T));
-        }
-    }
-}
+/// Creates a polled event stream from RPC only interfaces `getTxSignatures` and `getTx`
+pub fn polled_stream(provider: impl EventRpcProvider, sub_account: Pubkey) -> DriftEventStream {
+    debug!(target: LOG_TARGET, "stream events for {sub_account:?}");
+    let (event_tx, event_rx) = channel(32);
 
-/// Provides a stream API of drift account events
-pub struct DriftEventStream {
-    /// handle to end the inner stream ask
-    abort_handle: AbortHandle,
-    rx: Receiver<DriftEvent>,
-}
+    // spawn the event subscription task
+    let join_handle = tokio::spawn(async move {
+        // poll for events in any tx after this tx
+        // initially fetch the most recent tx from account
+        debug!(target: LOG_TARGET, "fetch initial txs");
+        let res = provider.get_tx_signatures(sub_account, None, Some(1)).await;
+        debug!(target: LOG_TARGET, "fetched initial txs");
 
-impl Drop for DriftEventStream {
-    fn drop(&mut self) {
-        // ensure stream task is always cleaned up
-        self.abort_handle.abort();
-    }
-}
-
-impl DriftEventStream {
-    /// end the event stream
-    pub fn unsubscribe(&self) {
-        self.abort_handle.abort();
-    }
-    pub fn new(provider: &'static impl EventRpcProvider, account: Pubkey) -> Self {
-        let (event_tx, event_rx) = channel(32);
-
-        // spawn the event subscription task
-        let join_handle = tokio::spawn(async move {
-            // poll for events in any tx after this tx
-            // initially fetch the most recent tx from account
-            let mut last_seen_tx = provider
-                .get_tx_signatures(account, None, Some(1))
+        let mut last_seen_tx = res.expect("fetched tx").first().cloned();
+        let provider_ref = &provider;
+        loop {
+            debug!(target: LOG_TARGET, "searching txs for events");
+            let signatures = provider_ref
+                .get_tx_signatures(sub_account, last_seen_tx, Some(16))
                 .await
-                .expect("fetched tx")
-                .first()
-                .cloned();
+                .expect("fetched txs");
 
-            loop {
-                let signatures = provider
-                    .get_tx_signatures(account, last_seen_tx, Some(16))
-                    .await
-                    .expect("fetched txs");
+            // txs from RPC are ordered newest to oldest
+            // process in reverse order, so subscribers receive events in chronological order
+            let mut futs = FuturesOrdered::from_iter(
+                signatures
+                    .into_iter()
+                    .map(|s| async move { (s, provider_ref.get_tx(s).await) })
+                    .rev(),
+            );
 
-                // txs from RPC are ordered newest to oldest
-                // process in reverse order, so subscribers receive events in chronological order
-                let mut futs = FuturesOrdered::from_iter(
-                    signatures
-                        .into_iter()
-                        .map(|s| async move { (s, provider.get_tx(s).await) })
-                        .rev(),
-                );
-
-                while let Some((sig, response)) = futs.next().await {
-                    // TODO: on RPC error should attempt to re-query the tx
-                    last_seen_tx = Some(sig);
-                    if let Err(err) = response {
-                        error!(target: LOG_TARGET, "processing tx: {err:?}");
-                        continue;
-                    }
-                    let response = response.unwrap();
-                    if response.meta.is_none() {
-                        continue;
-                    }
-                    if let Some(VersionedTransaction { message, .. }) =
-                        response.transaction.decode()
+            while let Some((sig, response)) = futs.next().await {
+                // TODO: on RPC error should attempt to re-query the tx
+                last_seen_tx = Some(sig);
+                if let Err(err) = response {
+                    error!(target: LOG_TARGET, "processing tx: {err:?}");
+                    continue;
+                }
+                let response = response.unwrap();
+                if response.meta.is_none() {
+                    continue;
+                }
+                if let Some(VersionedTransaction { message, .. }) = response.transaction.decode() {
+                    // only txs interacting with drift program
+                    if !message
+                        .static_account_keys()
+                        .iter()
+                        .any(|k| k == &constants::PROGRAM_ID)
                     {
-                        // only txs interacting with drift program
-                        if !message
-                            .static_account_keys()
-                            .iter()
-                            .any(|k| k == &constants::PROGRAM_ID)
-                        {
-                            continue;
-                        }
+                        continue;
                     }
+                }
 
-                    if let OptionSerializer::Some(logs) = response.meta.unwrap().log_messages {
-                        for log in logs {
-                            if let Some(event) = try_parse_log(log.as_str()) {
+                if let OptionSerializer::Some(logs) = response.meta.unwrap().log_messages {
+                    for log in logs {
+                        if let Some(event) = try_parse_log(log.as_str()) {
+                            if event.pertains_to(sub_account) {
                                 event_tx.try_send(event).expect("sent");
                             }
                         }
                     }
                 }
-                // don't spam the RPC nor spin lock the tokio thread
-                tokio::time::sleep(Duration::from_secs(1)).await;
             }
-        });
-
-        Self {
-            rx: event_rx,
-            abort_handle: join_handle.abort_handle(),
+            // don't spam the RPC nor spin lock the tokio thread
+            tokio::time::sleep(Duration::from_millis(400)).await;
         }
+    });
+
+    DriftEventStream {
+        rx: event_rx,
+        task: join_handle,
+    }
+}
+
+/// Provides a stream API of drift sub-account events
+pub struct DriftEventStream {
+    /// handle to end the stream task
+    task: JoinHandle<()>,
+    /// channel of events from stream task
+    rx: Receiver<DriftEvent>,
+}
+
+impl DriftEventStream {
+    /// End the event stream
+    pub fn unsubscribe(&self) {
+        self.task.abort();
+    }
+}
+
+impl Drop for DriftEventStream {
+    fn drop(&mut self) {
+        self.unsubscribe()
     }
 }
 
@@ -249,12 +283,16 @@ fn try_parse_log(raw: &str) -> Option<DriftEvent> {
 
 /// Enum of all drift program events
 #[derive(Debug, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum DriftEvent {
+    #[serde(rename_all = "camelCase")]
     OrderFill {
+        #[serde(serialize_with = "serialize_pubkey")]
         maker: Option<Pubkey>,
         maker_fee: i64,
         maker_order_id: u32,
         maker_side: Option<PositionDirection>,
+        #[serde(serialize_with = "serialize_pubkey")]
         taker: Option<Pubkey>,
         taker_fee: u64,
         taker_order_id: u32,
@@ -264,26 +302,34 @@ pub enum DriftEvent {
         market_type: MarketType,
         ts: u64,
     },
+    #[serde(rename_all = "camelCase")]
     OrderCancel {
+        #[serde(serialize_with = "serialize_pubkey")]
         taker: Option<Pubkey>,
+        #[serde(serialize_with = "serialize_pubkey")]
         maker: Option<Pubkey>,
         taker_order_id: u32,
         maker_order_id: u32,
         ts: u64,
     },
-    OrderCreate {
-        order: Order,
-        ts: u64,
-    },
+    #[serde(rename_all = "camelCase")]
+    OrderCreate { order: Order, ts: u64 },
     // sub-case of cancel?
-    OrderExpire {
-        order_id: u32,
-        fee: u64,
-        ts: u64,
-    },
+    #[serde(rename_all = "camelCase")]
+    OrderExpire { order_id: u32, fee: u64, ts: u64 },
 }
 
 impl DriftEvent {
+    /// Return true if the event is connected to sub-account
+    fn pertains_to(&self, sub_account: Pubkey) -> bool {
+        let subject = &Some(sub_account);
+        match self {
+            Self::OrderCancel { taker, maker, .. } => maker == subject || taker == subject,
+            Self::OrderFill { maker, taker, .. } => maker == subject || taker == subject,
+            // these order types are contextual
+            Self::OrderCreate { .. } | Self::OrderExpire { .. } => true,
+        }
+    }
     /// Deserialize drift event by discriminant
     fn from_discriminant(disc: [u8; 8], data: &mut &[u8]) -> Option<Self> {
         match disc {
@@ -351,21 +397,26 @@ impl DriftEvent {
     }
 }
 
+fn serialize_pubkey<S>(x: &Option<Pubkey>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    s.serialize_str(x.map(|pk| pk.to_string()).unwrap_or_default().as_str())
+}
+
 #[cfg(test)]
 mod test {
-    use solana_sdk::commitment_config::CommitmentConfig;
-
     use super::*;
 
+    #[ignore]
     #[tokio::test]
-    async fn event_streaming() {
-        let event_subscriber = EventSubscriber::new(RpcClient::new_with_commitment(
-            "https://api.devnet.solana.com".into(),
-            CommitmentConfig::confirmed(),
-        ));
-
-        let mut event_stream = event_subscriber
-            .subscribe(Pubkey::from_str("9JtczxrJjPM4J1xooxr2rFXmRivarb4BwjNiBgXDwe2p").unwrap());
+    async fn event_streaming_logs() {
+        let mut event_stream = EventSubscriber::subscribe(
+            PubsubClient::new("wss://api.devnet.solana.com")
+                .await
+                .expect("connects"),
+            Pubkey::from_str("9JtczxrJjPM4J1xooxr2rFXmRivarb4BwjNiBgXDwe2p").unwrap(),
+        );
 
         while let Some(event) = event_stream.next().await {
             dbg!(event);

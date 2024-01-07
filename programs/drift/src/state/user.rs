@@ -978,6 +978,7 @@ pub struct Order {
     pub trigger_condition: OrderTriggerCondition,
     /// How many slots the auction lasts
     pub auction_duration: u8,
+    #[cfg_attr(feature = "sdk", serde(skip))]
     pub padding: [u8; 3],
 }
 
