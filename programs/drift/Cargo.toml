@@ -14,6 +14,7 @@ no-entrypoint = []
 cpi = ["no-entrypoint"]
 mainnet-beta=[]
 default=["mainnet-beta"]
+sdk = ["default", "serde"]
 
 [dependencies]
 anchor-lang = "0.27.0"
@@ -35,6 +36,7 @@ phoenix-v1 = { git = "https://github.com/drift-labs/phoenix-v1", rev = "4c65c9",
 solana-security-txt = "1.1.0"
 static_assertions = "1.1.0"
 drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
+serde = { version = "*", features = ["derive"], optional = true }
 
 [dev-dependencies]
 bytes = "1.2.0"
