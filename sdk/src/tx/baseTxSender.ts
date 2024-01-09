@@ -247,9 +247,11 @@ export abstract class BaseTxSender implements TxSender {
 		commitment: Commitment = 'finalized'
 	): Promise<RpcResponseAndContext<SignatureResult> | undefined> {
 		let totalTime = 0;
-		let backoffTime = 250;
+		let backoffTime = 400; // approx block time
 
 		while (totalTime < this.timeout) {
+			await new Promise((resolve) => setTimeout(resolve, backoffTime));
+
 			const response = await this.connection.getSignatureStatus(signature);
 			const result = response && response.value?.[0];
 
@@ -257,7 +259,6 @@ export abstract class BaseTxSender implements TxSender {
 				return { context: result.context, value: { err: null } };
 			}
 
-			await new Promise((resolve) => setTimeout(resolve, backoffTime));
 			totalTime += backoffTime;
 			backoffTime = Math.min(backoffTime * 2, 5000);
 		}
