@@ -39,7 +39,7 @@ export async function getSignedTransactionMap(
 	txsToSign: (Transaction | VersionedTransaction | undefined)[],
 	keys: string[]
 ): Promise<{ [key: string]: Transaction | VersionedTransaction | undefined }> {
-	let signedTxMap: {
+	const signedTxMap: {
 		[key: string]: Transaction | VersionedTransaction | undefined;
 	} = {};
 
