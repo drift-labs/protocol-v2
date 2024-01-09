@@ -323,6 +323,12 @@ pub fn burn_lp_shares(
                 ?;
 
         update_quote_asset_amount(position, market, -dust_base_asset_value.cast()?)?;
+
+        msg!(
+            "perp {} remainder_base_asset_amount burn fee= {}",
+            position.market_index,
+            dust_base_asset_value
+        )
     }
 
     // update last_ metrics
