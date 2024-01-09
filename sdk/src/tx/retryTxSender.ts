@@ -75,7 +75,6 @@ export class RetryTxSender extends BaseTxSender {
 			txid = await this.connection.sendRawTransaction(rawTransaction, opts);
 			this.sendToAdditionalConnections(rawTransaction, opts);
 		} catch (e) {
-			console.error(e);
 			throw e;
 		}
 
@@ -110,7 +109,6 @@ export class RetryTxSender extends BaseTxSender {
 			const result = await this.confirmTransaction(txid, opts.commitment);
 			slot = result.context.slot;
 		} catch (e) {
-			console.error(e);
 			throw e;
 		} finally {
 			stopWaiting();
