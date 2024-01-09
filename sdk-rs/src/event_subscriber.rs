@@ -298,8 +298,10 @@ pub enum DriftEvent {
         taker_order_id: u32,
         taker_side: Option<PositionDirection>,
         base_asset_amount_filled: u64,
+        quote_asset_amount_filled: u64,
         market_index: u16,
         market_type: MarketType,
+        oracle_price: i64,
         ts: u64,
     },
     #[serde(rename_all = "camelCase")]
@@ -385,6 +387,8 @@ impl DriftEvent {
                 taker_order_id: value.taker_order_id.unwrap_or_default(),
                 taker_side: value.taker_order_direction,
                 base_asset_amount_filled: value.base_asset_amount_filled.unwrap_or_default(),
+                quote_asset_amount_filled: value.quote_asset_amount_filled.unwrap_or_default(),
+                oracle_price: value.oracle_price,
                 market_index: value.market_index,
                 market_type: value.market_type,
                 ts: value.ts.unsigned_abs(),
@@ -401,7 +405,11 @@ fn serialize_pubkey<S>(x: &Option<Pubkey>, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    s.serialize_str(x.map(|pk| pk.to_string()).unwrap_or_default().as_str())
+    if let Some(x) = x {
+        s.serialize_str(x.to_string().as_str())
+    } else {
+        s.serialize_none()
+    }
 }
 
 #[cfg(test)]
