@@ -398,14 +398,15 @@ impl PerpMarket {
 
     pub fn get_market_depth_for_funding_rate(&self) -> DriftResult<u64> {
         // base amount used on user orders for funding calculation
+        // between 500-10,000 times the min order size based on the open interest
 
         let open_interest = self.get_open_interest();
 
-        let depth = self
-            .amm
-            .min_order_size
-            .safe_mul(1000)?
-            .max(open_interest.safe_div(500)?.cast::<u64>()?);
+        let min_order_size = self.amm.min_order_size;
+
+        let depth = open_interest.safe_div(500)?.cast::<u64>()?.clamp(
+            min_order_size.safe_mul(500)?,
+            min_order_size.safe_mul(10000)?);
 
         Ok(depth)
     }
