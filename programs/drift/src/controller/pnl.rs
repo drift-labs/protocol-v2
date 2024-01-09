@@ -75,15 +75,43 @@ pub fn settle_pnl(
     let unrealized_pnl = user.perp_positions[position_index].get_unrealized_pnl(oracle_price)?;
 
     // cannot settle negative pnl this way on a user who is in liquidation territory
-    if unrealized_pnl < 0
-        && !meets_maintenance_margin_requirement(
+    if user.perp_positions[position_index].is_lp() {
+        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
             perp_market_map,
             spot_market_map,
             oracle_map,
-        )?
-    {
-        return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
+            MarginContext::standard(MarginRequirementType::Initial).track_open_orders_fraction()?,
+        )?;
+
+        if !margin_calc.meets_margin_requirement() {
+            attempt_burn_user_lp_shares_for_risk_reduction(
+                state,
+                user,
+                margin_calc,
+                *user_key,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                clock,
+                market_index,
+            )?;
+
+            // if the unrealized pnl is negative, return early after trying to burn shares
+            if unrealized_pnl < 0 {
+                return Ok(());
+            }
+        }
+    } else if unrealized_pnl < 0 {
+        // cannot settle pnl this way on a user who is in liquidation territory
+        if !(meets_maintenance_margin_requirement(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+        )?) {
+            return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
+        }
     }
 
     let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
