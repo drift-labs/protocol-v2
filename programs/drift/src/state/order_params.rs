@@ -93,7 +93,7 @@ impl OrderParams {
         Ok(())
     }
 
-    pub fn get_aggressive_close_params(
+    pub fn get_close_perp_params(
         market: &PerpMarket,
         direction_to_close: PositionDirection,
         base_asset_amount: u64,
@@ -106,17 +106,22 @@ impl OrderParams {
             .cast::<i64>()?
             .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?;
 
-        let auction_end_price_buffer = market.amm.mark_std.max(market.amm.oracle_std).clamp(
-            PERCENTAGE_PRECISION_U64 / 100,
-            PERCENTAGE_PRECISION_U64 / 20,
-        );
+        let oracle_twap_u64 = market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap
+            .unsigned_abs();
+        let auction_end_price_buffer = market
+            .amm
+            .mark_std
+            .max(market.amm.oracle_std)
+            .clamp(oracle_twap_u64 / 100, oracle_twap_u64 / 20);
 
         let auction_end_price = if direction_to_close == PositionDirection::Short {
             let auction_end_price = market
                 .amm
                 .last_bid_price_twap
-                .safe_mul(PERCENTAGE_PRECISION_U64 - auction_end_price_buffer)?
-                .safe_div(PERCENTAGE_PRECISION_U64)?
+                .safe_sub(auction_end_price_buffer)?
                 .cast::<i64>()?
                 .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?;
             auction_end_price.min(auction_start_price)
@@ -124,8 +129,7 @@ impl OrderParams {
             let auction_end_price = market
                 .amm
                 .last_ask_price_twap
-                .safe_mul(PERCENTAGE_PRECISION_U64 + auction_end_price_buffer)?
-                .safe_div(PERCENTAGE_PRECISION_U64)?
+                .safe_add(auction_end_price_buffer)?
                 .cast::<i64>()?
                 .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?;
 
