@@ -1,7 +1,6 @@
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import {
 	ConfirmOptions,
-	TransactionSignature,
 	Connection,
 } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
@@ -70,13 +69,8 @@ export class RetryTxSender extends BaseTxSender {
 	): Promise<TxSigAndSlot> {
 		const startTime = this.getTimestamp();
 
-		let txid: TransactionSignature;
-		try {
-			txid = await this.connection.sendRawTransaction(rawTransaction, opts);
-			this.sendToAdditionalConnections(rawTransaction, opts);
-		} catch (e) {
-			throw e;
-		}
+		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);
+		this.sendToAdditionalConnections(rawTransaction, opts);
 
 		let done = false;
 		const resolveReference: ResolveReference = {
@@ -104,15 +98,8 @@ export class RetryTxSender extends BaseTxSender {
 			}
 		})();
 
-		let slot: number;
-		try {
-			const result = await this.confirmTransaction(txid, opts.commitment);
-			slot = result.context.slot;
-		} catch (e) {
-			throw e;
-		} finally {
-			stopWaiting();
-		}
+		const result = await this.confirmTransaction(txid, opts.commitment);
+		const slot = result.context.slot;
 
 		return { txSig: txid, slot };
 	}
