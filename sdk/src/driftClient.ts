@@ -2050,7 +2050,8 @@ export class DriftClient {
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
 		subAccountId?: number,
-		txParams?: TxParams
+		txParams?: TxParams,
+		settleFirst?: boolean
 	): Promise<TransactionSignature> {
 		const withdrawIxs = [];
 
@@ -2061,6 +2062,20 @@ export class DriftClient {
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
 		const authority = this.wallet.publicKey;
+
+		const user = this.getUser(subAccountId);
+
+		if (settleFirst) {
+			const [usersToSettle, marketsToSettle] = user.getSettleParams();
+
+			if (marketsToSettle.length > 0) {
+				const settlePnlsIxs = await this.getSettlePNLsIxs(
+					usersToSettle,
+					marketsToSettle
+				);
+				withdrawIxs.push(...settlePnlsIxs);
+			}
+		}
 
 		const createWSOLTokenAccount =
 			isSolMarket && associatedTokenAddress.equals(authority);
@@ -3329,9 +3344,8 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
-		const userAccountPublicKey = await this.getUserAccountPublicKey(
-			subAccountId
-		);
+		const userAccountPublicKey =
+			await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -4420,9 +4434,8 @@ export class DriftClient {
 		/* Settle PnL after fill if requested */
 		let settlePnlTx: Transaction;
 		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
-			const userAccountPublicKey = await this.getUserAccountPublicKey(
-				subAccountId
-			);
+			const userAccountPublicKey =
+				await this.getUserAccountPublicKey(subAccountId);
 
 			const settlePnlIx = await this.settlePNLIx(
 				userAccountPublicKey,
@@ -5947,9 +5960,8 @@ export class DriftClient {
 		}
 
 		if (initializeStakeAccount) {
-			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
-				marketIndex
-			);
+			const initializeIx =
+				await this.getInitializeInsuranceFundStakeIx(marketIndex);
 			addIfStakeIxs.push(initializeIx);
 		}
 

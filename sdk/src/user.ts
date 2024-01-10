@@ -84,6 +84,7 @@ import {
 import { calculateLiveOracleTwap } from './math/oracles';
 import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 import { StrictOraclePrice } from './oracles/strictOraclePrice';
+import { calculateClaimablePnl } from '@drift-labs/sdk';
 
 export class User {
 	driftClient: DriftClient;
@@ -665,6 +666,23 @@ export class User {
 				: this.getMaintenanceMarginRequirement();
 		const freeCollateral = totalCollateral.sub(marginRequirement);
 		return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
+	}
+
+	/**
+	 * calculates Initial Margin Free Collateral counting CLAIMABLE perp P&L as settled USDC
+	 * @returns : Precision QUOTE_PRECISION
+	 */
+	public getFreeCollateralAfterSettle(): BN {
+		const totalCollateral = this.getSpotMarketAssetValue(
+			undefined,
+			'Initial',
+			true,
+			false
+		).add(this.getUserClaimablePnlInfo().claimablePnl);
+		const freeCollateral = totalCollateral.sub(
+			this.getInitialMarginRequirement()
+		);
+		return BN.max(freeCollateral, ZERO);
 	}
 
 	/**
@@ -3060,7 +3078,11 @@ export class User {
 	 * @param marketIndex
 	 * @returns withdrawalLimit : Precision is the token precision for the chosen SpotMarket
 	 */
-	public getWithdrawalLimit(marketIndex: number, reduceOnly?: boolean): BN {
+	public getWithdrawalLimit(
+		marketIndex: number,
+		reduceOnly?: boolean,
+		includeSettle?: boolean
+	): BN {
 		const nowTs = new BN(Math.floor(Date.now() / 1000));
 		const spotMarket = this.driftClient.getSpotMarketAccount(marketIndex);
 
@@ -3070,7 +3092,9 @@ export class User {
 			nowTs
 		);
 
-		const freeCollateral = this.getFreeCollateral();
+		const freeCollateral = includeSettle
+			? this.getFreeCollateralAfterSettle()
+			: this.getFreeCollateral();
 		const initialMarginRequirement = this.getInitialMarginRequirement();
 		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
 		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
@@ -3499,6 +3523,58 @@ export class User {
 		}
 
 		return healthComponents;
+	}
+
+	/* Get the params to get instructions to settle all of a user's claimable pnl */
+	public getSettleParams(): [
+		{
+			settleeUserAccountPublicKey: PublicKey;
+			settleeUserAccount: UserAccount;
+		}[],
+		number[],
+	] {
+		return [
+			[
+				{
+					settleeUserAccountPublicKey: this.userAccountPublicKey,
+					settleeUserAccount: this.getUserAccount(),
+				},
+			],
+			this.getUserClaimablePnlInfo().marketIndexes,
+		];
+	}
+
+	public getUserClaimablePnlInfo(): {
+		claimablePnl: BN;
+		marketIndexes: number[];
+	} {
+		const usdcMarketAccount = this.driftClient.getSpotMarketAccount(
+			QUOTE_SPOT_MARKET_INDEX
+		);
+		let totalClaimablePnl = ZERO;
+		const marketIndexes = [];
+
+		this.getUserAccount().perpPositions.forEach((position) => {
+			if (!position) return;
+
+			const claimablePnl = calculateClaimablePnl(
+				//@ts-ignore
+				this.driftClient.getPerpMarketAccount(position.marketIndex),
+				usdcMarketAccount,
+				position,
+				this.driftClient.getOracleDataForPerpMarket(position.marketIndex)
+			);
+
+			if (!claimablePnl.eq(ZERO)) {
+				totalClaimablePnl = totalClaimablePnl.add(claimablePnl);
+				marketIndexes.push(position.marketIndex);
+			}
+		});
+
+		return {
+			claimablePnl: totalClaimablePnl,
+			marketIndexes,
+		};
 	}
 
 	/**
