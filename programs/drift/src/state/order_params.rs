@@ -133,14 +133,14 @@ impl OrderParams {
 
         let params = OrderParams {
             direction: direction_to_close,
-            order_type: OrderType::Limit,
+            order_type: OrderType::Oracle,
             market_index: market.market_index,
             base_asset_amount,
             reduce_only: true,
             auction_start_price: Some(estimated_offset_to_start),
             auction_end_price: Some(estimated_offset_to_close),
             auction_duration: Some(80),
-            oracle_price_offset: Some(0),
+            oracle_price_offset: Some(estimated_offset_to_close.cast()?),
             ..OrderParams::default()
         };
 
