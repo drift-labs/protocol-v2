@@ -1,8 +1,5 @@
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
-import {
-	ConfirmOptions,
-	Connection,
-} from '@solana/web3.js';
+import { ConfirmOptions, Connection } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
