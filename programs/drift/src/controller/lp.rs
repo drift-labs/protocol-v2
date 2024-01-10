@@ -278,7 +278,7 @@ pub fn burn_lp_shares(
     oracle_price: i64,
 ) -> DriftResult<(PositionDelta, i64)> {
     // settle
-    let (position_delta, pnl) = settle_lp_position(position, market)?;
+    let (mut position_delta, mut pnl) = settle_lp_position(position, market)?;
 
     // clean up
     let unsettled_remainder = market
@@ -328,7 +328,12 @@ pub fn burn_lp_shares(
             "perp {} remainder_base_asset_amount burn fee= {}",
             position.market_index,
             dust_base_asset_value
-        )
+        );
+
+        position_delta.quote_asset_amount = position_delta
+            .quote_asset_amount
+            .safe_sub(dust_base_asset_value.cast()?)?;
+        pnl = pnl.safe_sub(dust_base_asset_value.cast()?)?;
     }
 
     // update last_ metrics
