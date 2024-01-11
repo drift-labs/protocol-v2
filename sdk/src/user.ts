@@ -678,7 +678,9 @@ export class User {
 			'Initial',
 			true,
 			false
-		).add(this.getUserClaimablePnlInfo().claimablePnl);
+		)
+			.sub(this.getTotalPerpPositionValue('Initial', undefined, true))
+			.add(BN.max(ZERO, this.getUserClaimablePnlInfo().claimablePnl));
 		const freeCollateral = totalCollateral.sub(
 			this.getInitialMarginRequirement()
 		);
