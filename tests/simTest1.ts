@@ -1,6 +1,6 @@
 import { startAnchor } from 'solana-bankrun';
 import { BankrunProvider } from 'anchor-bankrun';
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { Program } from '@coral-xyz/anchor';
 import { Drift, IDL as DriftIDL } from '../target/types/drift';
 
@@ -49,8 +49,8 @@ describe('surge pricing', () => {
 	before(async () => {
 		const context = await startAnchor('', [], []);
 
-		const provider = new BankrunProvider(context);
-		const connection = provider.connection;
+		const provider: BankrunProvider = new BankrunProvider(context);
+		const connection: Connection = provider.connection;
 
 		const chProgram = new Program<Drift>(DriftIDL, DRIFT_PROGRAM_ID, provider);
 
