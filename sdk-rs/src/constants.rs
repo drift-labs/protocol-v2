@@ -70,6 +70,7 @@ impl MarketExt for SpotMarket {
 }
 
 /// Static-ish metadata from onchain drift program
+#[derive(Clone)]
 pub struct ProgramData {
     spot_markets: &'static [SpotMarket],
     perp_markets: &'static [PerpMarket],

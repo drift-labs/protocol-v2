@@ -49,6 +49,7 @@ use crate::constants::{
     derive_spot_market_account, market_lookup_table, state_account, MarketExt, ProgramData,
 };
 
+pub mod async_utils;
 pub mod constants;
 pub mod dlob;
 pub mod event_subscriber;

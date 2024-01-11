@@ -1,5 +1,6 @@
 use std::{
     str::FromStr,
+    sync::Arc,
     task::{Context, Poll},
     time::Duration,
 };
@@ -12,8 +13,10 @@ use drift_program::{
         user::{MarketType, Order},
     },
 };
-use futures_util::{future::BoxFuture, stream::FuturesOrdered, FutureExt, Stream, StreamExt};
-use log::{debug, error};
+use futures_util::{
+    future::BoxFuture, stream::FuturesOrdered, Future, FutureExt, Stream, StreamExt,
+};
+use log::{debug, error, warn};
 use serde::Serializer;
 pub use solana_client::nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient};
 use solana_client::{
@@ -25,11 +28,15 @@ use solana_transaction_status::{
     option_serializer::OptionSerializer, EncodedTransactionWithStatusMeta, UiTransactionEncoding,
 };
 use tokio::{
-    sync::mpsc::{channel, Receiver},
+    sync::mpsc::{channel, Receiver, Sender},
     task::JoinHandle,
 };
 
-use crate::{constants, types::SdkResult};
+use crate::{
+    async_utils::{retry_policy::TaskRetryPolicy, spawn_retry_task},
+    constants,
+    types::SdkResult,
+};
 
 const LOG_TARGET: &str = "events";
 
@@ -104,8 +111,14 @@ pub struct EventSubscriber;
 
 impl EventSubscriber {
     /// Subscribe to drift events of `sub_account`, backed by Ws APIs
-    pub fn subscribe(provider: PubsubClient, sub_account: Pubkey) -> DriftEventStream {
-        log_stream(provider, sub_account)
+    ///
+    /// The underlying stream will reconnect according to the given `retry_policy`
+    pub fn subscribe(
+        provider: PubsubClient,
+        sub_account: Pubkey,
+        retry_policy: impl TaskRetryPolicy,
+    ) -> DriftEventStream {
+        log_stream(provider, sub_account, retry_policy)
     }
     /// Subscribe to drift events of `sub_account`, backed by RPC polling APIs
     pub fn subscribe_polled(provider: impl EventRpcProvider, account: Pubkey) -> DriftEventStream {
@@ -113,40 +126,73 @@ impl EventSubscriber {
     }
 }
 
-/// Creates a Ws-backed event stream using `logsSubscribe` interface
-fn log_stream(provider: PubsubClient, sub_account: Pubkey) -> DriftEventStream {
-    debug!(target: LOG_TARGET, "stream events for {sub_account:?}");
-    let (event_tx, event_rx) = channel(32);
+struct LogEventStream {
+    provider: Arc<PubsubClient>,
+    sub_account: Pubkey,
+    event_tx: Sender<DriftEvent>,
+}
 
-    // spawn the event subscription task
-    let join_handle = tokio::spawn(async move {
-        debug!(target: LOG_TARGET, "start log sub");
-        let (mut log_stream, _) = provider
-            .logs_subscribe(
-                solana_client::rpc_config::RpcTransactionLogsFilter::Mentions(vec![
-                    sub_account.to_string()
-                ]),
-                RpcTransactionLogsConfig {
-                    commitment: Some(CommitmentConfig::processed()),
-                },
-            )
-            .await
-            .expect("logs subscribed");
-        debug!(target: LOG_TARGET, "started log sub");
+impl LogEventStream {
+    /// Returns a future for running the configured log event stream
+    fn stream_fn(&self) -> impl Future<Output = ()> {
+        let sub_account = self.sub_account;
+        let provider_ref = Arc::clone(&self.provider);
+        let event_tx = self.event_tx.clone();
+        async move {
+            let subscribe_result = provider_ref
+                .logs_subscribe(
+                    solana_client::rpc_config::RpcTransactionLogsFilter::Mentions(vec![
+                        sub_account.to_string(),
+                    ]),
+                    RpcTransactionLogsConfig {
+                        commitment: Some(CommitmentConfig::processed()),
+                    },
+                )
+                .await;
+            if let Err(err) = subscribe_result {
+                warn!(target: LOG_TARGET, "log subscription failed: {sub_account:?} with: {err:?}");
+                return;
+            }
 
-        while let Some(response) = log_stream.next().await {
-            for log in response.value.logs {
-                // a drift sub-account should not interact with any other program by definition
-                if let Some(event) = try_parse_log(log.as_str()) {
-                    // unrelated events from same tx should not be emitted e.g. a filler tx which produces other fill events
-                    if event.pertains_to(sub_account) {
-                        // TODO: handle RevertFill semantics
-                        event_tx.try_send(event).expect("sent");
+            let (mut log_stream, _) = subscribe_result.unwrap();
+            debug!(target: LOG_TARGET, "start log subscription: {sub_account:?}");
+
+            while let Some(response) = log_stream.next().await {
+                // don't emit events for failed txs
+                if response.value.err.is_some() {
+                    continue;
+                }
+                for log in response.value.logs {
+                    // a drift sub-account should not interact with any other program by definition
+                    if let Some(event) = try_parse_log(log.as_str()) {
+                        // unrelated events from same tx should not be emitted e.g. a filler tx which produces other fill events
+                        if event.pertains_to(sub_account) {
+                            // TODO: handle RevertFill semantics
+                            event_tx.try_send(event).expect("sent");
+                        }
                     }
                 }
             }
         }
-    });
+    }
+}
+
+/// Creates a Ws-backed event stream using `logsSubscribe` interface
+fn log_stream(
+    provider: PubsubClient,
+    sub_account: Pubkey,
+    retry_policy: impl TaskRetryPolicy,
+) -> DriftEventStream {
+    debug!(target: LOG_TARGET, "stream events for {sub_account:?}");
+    let (event_tx, event_rx) = channel(32);
+    let log_stream = LogEventStream {
+        provider: Arc::new(provider),
+        sub_account,
+        event_tx,
+    };
+
+    // spawn the event subscription task
+    let join_handle = spawn_retry_task(move || log_stream.stream_fn(), retry_policy);
 
     DriftEventStream {
         rx: event_rx,
@@ -415,6 +461,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::async_utils::retry_policy::{self};
 
     #[ignore]
     #[tokio::test]
@@ -424,7 +471,9 @@ mod test {
                 .await
                 .expect("connects"),
             Pubkey::from_str("9JtczxrJjPM4J1xooxr2rFXmRivarb4BwjNiBgXDwe2p").unwrap(),
-        );
+            retry_policy::never(),
+        )
+        .take(5);
 
         while let Some(event) = event_stream.next().await {
             dbg!(event);
