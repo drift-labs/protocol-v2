@@ -47,7 +47,7 @@ describe('surge pricing', () => {
 	let oracleInfos: OracleInfo[];
 
 	before(async () => {
-		const context = await startAnchor('"./"', [], []);
+		const context = await startAnchor('', [], []);
 
 		const provider = new BankrunProvider(context);
 		const connection = provider.connection;
