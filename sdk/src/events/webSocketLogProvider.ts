@@ -1,5 +1,11 @@
 import { LogProvider, logProviderCallback } from './types';
-import { Commitment, Connection, PublicKey } from '@solana/web3.js';
+import {
+	Commitment,
+	Connection,
+	Context,
+	Logs,
+	PublicKey,
+} from '@solana/web3.js';
 import { EventEmitter } from 'events';
 
 export class WebSocketLogProvider implements LogProvider {
@@ -45,7 +51,7 @@ export class WebSocketLogProvider implements LogProvider {
 	public setSubscription(callback: logProviderCallback): void {
 		this.subscriptionId = this.connection.onLogs(
 			this.address,
-			(logs, ctx) => {
+			(logs: Logs, ctx: Context) => {
 				if (this.resubTimeoutMs && !this.isUnsubscribing) {
 					this.receivingData = true;
 					clearTimeout(this.timeoutId);
@@ -54,6 +60,9 @@ export class WebSocketLogProvider implements LogProvider {
 						console.log('Resetting reconnect attempts to 0');
 					}
 					this.reconnectAttempts = 0;
+				}
+				if (logs.err !== null) {
+					return;
 				}
 				callback(logs.signature, ctx.slot, logs.logs, undefined);
 			},
