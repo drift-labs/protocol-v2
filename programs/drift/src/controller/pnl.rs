@@ -251,6 +251,12 @@ pub fn settle_expired_position(
 ) -> DriftResult {
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
+    // cannot settle pnl this way on a user who is in liquidation territory
+    if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?)
+    {
+        return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
+    }
+
     let fee_structure = &state.perp_fee_structure;
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -289,42 +295,6 @@ pub fn settle_expired_position(
             return Ok(());
         }
     };
-
-    if user.perp_positions[position_index].is_lp() {
-        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
-            user,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial).track_open_orders_fraction()?,
-        )?;
-
-        if !margin_calc.meets_margin_requirement() {
-            attempt_burn_user_lp_shares_for_risk_reduction(
-                state,
-                user,
-                margin_calc,
-                *user_key,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                clock,
-                perp_market_index,
-            )?;
-
-            return Ok(());
-        }
-    } else {
-        // cannot settle pnl this way on a user who is in liquidation territory
-        if !(meets_maintenance_margin_requirement(
-            user,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-        )?) {
-            return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
-        }
-    }
 
     let quote_spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
     let perp_market = &mut perp_market_map.get_ref_mut(&perp_market_index)?;
