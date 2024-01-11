@@ -137,6 +137,7 @@ impl OrderParams {
         };
 
         let params = OrderParams {
+            market_type: MarketType::Perp,
             direction: direction_to_close,
             order_type: OrderType::Oracle,
             market_index: market.market_index,
