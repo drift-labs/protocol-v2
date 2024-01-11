@@ -809,9 +809,13 @@ pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_perp_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1072,6 +1076,9 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         "max 32 order params"
     )?;
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     let num_orders = params.len();
     for (i, params) in params.iter().enumerate() {
         validate!(
@@ -1090,7 +1097,8 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         if params.market_type == MarketType::Perp {
             controller::orders::place_perp_order(
                 &ctx.accounts.state,
-                &ctx.accounts.user,
+                &mut user,
+                user_key,
                 &perp_market_map,
                 &spot_market_map,
                 &mut oracle_map,
@@ -1101,7 +1109,8 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         } else {
             controller::orders::place_spot_order(
                 &ctx.accounts.state,
-                &ctx.accounts.user,
+                &mut user,
+                user_key,
                 &perp_market_map,
                 &spot_market_map,
                 &mut oracle_map,
@@ -1157,9 +1166,13 @@ pub fn handle_place_and_take_perp_order<'info>(
         &Clock::get()?,
     )?;
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_perp_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1167,6 +1180,8 @@ pub fn handle_place_and_take_perp_order<'info>(
         params,
         PlaceOrderOptions::default(),
     )?;
+
+    drop(user);
 
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
@@ -1247,9 +1262,13 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         clock,
     )?;
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_perp_order(
         state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1258,11 +1277,9 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         PlaceOrderOptions::default(),
     )?;
 
-    let (order_id, authority) = {
-        let user = load!(ctx.accounts.user)?;
-        let order_id = user.get_last_order_id();
-        (order_id, user.authority)
-    };
+    let (order_id, authority) = (user.get_last_order_id(), user.authority);
+
+    drop(user);
 
     let (mut makers_and_referrer, mut makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter, true)?;
@@ -1323,9 +1340,13 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_spot_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1412,9 +1433,13 @@ pub fn handle_place_and_take_spot_order<'info>(
         }
     };
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_spot_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1422,6 +1447,8 @@ pub fn handle_place_and_take_spot_order<'info>(
         params,
         PlaceOrderOptions::default(),
     )?;
+
+    drop(user);
 
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
@@ -1536,9 +1563,13 @@ pub fn handle_place_and_make_spot_order<'info>(
         }
     };
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_spot_order(
         state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1546,6 +1577,8 @@ pub fn handle_place_and_make_spot_order<'info>(
         params,
         PlaceOrderOptions::default(),
     )?;
+
+    drop(user);
 
     let order_id = load!(ctx.accounts.user)?.get_last_order_id();
 
