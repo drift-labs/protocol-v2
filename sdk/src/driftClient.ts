@@ -86,8 +86,9 @@ import {
 	DriftClientAccountSubscriber,
 	DriftClientAccountEvents,
 	DataAndSlot,
+	DriftClientMiscEvents,
 } from './accounts/types';
-import { TxSender, TxSigAndSlot } from './tx/types';
+import { ExtraConfirmationOptions, TxSender, TxSigAndSlot } from './tx/types';
 import { getSignedTransactionMap, wrapInTx } from './tx/utils';
 import {
 	BASE_PRECISION,
@@ -150,6 +151,7 @@ export class DriftClient {
 	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
+	miscEventEmitter: StrictEventEmitter<EventEmitter, DriftClientMiscEvents>;
 	_isSubscribed = false;
 	txSender: TxSender;
 	perpMarketLastSlotCache = new Map<number, number>();
@@ -288,6 +290,7 @@ export class DriftClient {
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
+		this.miscEventEmitter = new EventEmitter();
 		this.txSender =
 			config.txSender ??
 			new RetryTxSender({
@@ -711,7 +714,7 @@ export class DriftClient {
 	public async initializeUserAccount(
 		subAccountId = 0,
 		name?: string,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
 	): Promise<[TransactionSignature, PublicKey]> {
 		const initializeIxs = [];
 
@@ -6322,25 +6325,36 @@ export class DriftClient {
 		return undefined;
 	}
 
+	private handleSignedTransaction() {
+		this.miscEventEmitter.emit("txSigned");
+	}
+
+
 	sendTransaction(
 		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean
+		preSigned?: boolean,
 	): Promise<TxSigAndSlot> {
+		const extraConfirmationOptions : ExtraConfirmationOptions = {
+			onSignedCb: this.handleSignedTransaction.bind(this),
+		};
+
 		if (tx instanceof VersionedTransaction) {
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
 				additionalSigners,
 				opts,
-				preSigned
+				preSigned,
+				extraConfirmationOptions
 			);
 		} else {
 			return this.txSender.send(
 				tx as Transaction,
 				additionalSigners,
 				opts,
-				preSigned
+				preSigned,
+				extraConfirmationOptions
 			);
 		}
 	}
