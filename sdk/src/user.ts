@@ -160,7 +160,7 @@ export class User {
 		userAccount: UserAccount,
 		marketIndex: number
 	): PerpPosition | undefined {
-		return userAccount.perpPositions.find(
+		return this.getActivePerpPositionsForUserAccount(userAccount).find(
 			(position) => position.marketIndex === marketIndex
 		);
 	}
