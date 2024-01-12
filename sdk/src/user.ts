@@ -3101,10 +3101,15 @@ export class User {
 		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
 		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
 
-		const { canBypass, depositAmount: userDepositAmount } =
+		let { canBypass, depositAmount: userDepositAmount } =
 			this.canBypassWithdrawLimits(marketIndex);
 		if (canBypass) {
 			withdrawLimit = BN.max(withdrawLimit, userDepositAmount);
+		}
+
+		if (marketIndex === 0 && includeSettle) {
+			const extraPnlToAdd = BN.max(this.getUserClaimablePnlInfo().claimablePnl, ZERO);
+			userDepositAmount = userDepositAmount.add(extraPnlToAdd);
 		}
 
 		const assetWeight = calculateAssetWeight(
