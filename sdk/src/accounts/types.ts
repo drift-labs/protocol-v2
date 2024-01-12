@@ -43,7 +43,7 @@ export interface DriftClientAccountEvents {
 	error: (e: Error) => void;
 }
 
-export interface DriftClientMiscEvents {
+export interface DriftClientMetricsEvents {
 	txSigned: void;
 }
 

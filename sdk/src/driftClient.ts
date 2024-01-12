@@ -86,7 +86,7 @@ import {
 	DriftClientAccountSubscriber,
 	DriftClientAccountEvents,
 	DataAndSlot,
-	DriftClientMiscEvents,
+	DriftClientMetricsEvents,
 } from './accounts/types';
 import { ExtraConfirmationOptions, TxSender, TxSigAndSlot } from './tx/types';
 import { getSignedTransactionMap, wrapInTx } from './tx/utils';
@@ -151,7 +151,7 @@ export class DriftClient {
 	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
-	miscEventEmitter: StrictEventEmitter<EventEmitter, DriftClientMiscEvents>;
+	metricsEventEmitter: StrictEventEmitter<EventEmitter, DriftClientMetricsEvents>;
 	_isSubscribed = false;
 	txSender: TxSender;
 	perpMarketLastSlotCache = new Map<number, number>();
@@ -166,6 +166,7 @@ export class DriftClient {
 	skipLoadUsers?: boolean;
 	txVersion: TransactionVersion;
 	txParams: TxParams;
+	enableMetricsEvents?: boolean;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -290,7 +291,12 @@ export class DriftClient {
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
-		this.miscEventEmitter = new EventEmitter();
+
+		if (config.enableMetricsEvents) {
+			this.enableMetricsEvents = true;
+			this.metricsEventEmitter = new EventEmitter();
+		}
+
 		this.txSender =
 			config.txSender ??
 			new RetryTxSender({
@@ -6326,7 +6332,7 @@ export class DriftClient {
 	}
 
 	private handleSignedTransaction() {
-		this.miscEventEmitter.emit("txSigned");
+		this.metricsEventEmitter.emit("txSigned");
 	}
 
 
@@ -6336,9 +6342,11 @@ export class DriftClient {
 		opts?: ConfirmOptions,
 		preSigned?: boolean,
 	): Promise<TxSigAndSlot> {
-		const extraConfirmationOptions : ExtraConfirmationOptions = {
+		const extraConfirmationOptions : ExtraConfirmationOptions =
+		this.enableMetricsEvents ? 
+		{
 			onSignedCb: this.handleSignedTransaction.bind(this),
-		};
+		} : undefined;
 
 		if (tx instanceof VersionedTransaction) {
 			return this.txSender.sendVersionedTransaction(
