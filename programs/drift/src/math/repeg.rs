@@ -284,23 +284,36 @@ pub fn adjust_amm(
         let adjustment_cost: i128 = if adjust_k && can_lower_k {
             // TODO can be off by 1?
 
+            // also let protocol-owned sqrt_k be either least .1% of lps or the min order
+            let new_sqrt_k_lower_bound = market.amm.sqrt_k.min(
+                market
+                    .amm
+                    .user_lp_shares
+                    .safe_add(market.amm.user_lp_shares.safe_div(1000)?)?
+                    .max(market.amm.min_order_size.cast()?),
+            );
+
             let new_sqrt_k = market
                 .amm
                 .sqrt_k
                 .safe_sub(market.amm.sqrt_k.safe_div(1000)?)?
-                .max(market.amm.user_lp_shares.safe_add(1)?);
+                .max(new_sqrt_k_lower_bound);
 
-            let update_k_result =
-                cp_curve::get_update_k_result(market, bn::U192::from(new_sqrt_k), true)?;
+            if new_sqrt_k < market.amm.sqrt_k {
+                let update_k_result =
+                    cp_curve::get_update_k_result(market, bn::U192::from(new_sqrt_k), true)?;
 
-            let adjustment_cost =
-                cp_curve::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
-            per_peg_cost = calculate_per_peg_cost(
-                market_clone.amm.quote_asset_reserve,
-                market_clone.amm.terminal_quote_asset_reserve,
-            )?;
+                let adjustment_cost =
+                    cp_curve::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
+                per_peg_cost = calculate_per_peg_cost(
+                    market_clone.amm.quote_asset_reserve,
+                    market_clone.amm.terminal_quote_asset_reserve,
+                )?;
 
-            adjustment_cost
+                adjustment_cost
+            } else {
+                0
+            }
         } else {
             0
         };

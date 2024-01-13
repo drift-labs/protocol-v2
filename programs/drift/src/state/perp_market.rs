@@ -954,10 +954,10 @@ impl AMM {
     pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> DriftResult<bool> {
         let amm_wants_to_jit_make = match taker_direction {
             PositionDirection::Long => {
-                self.base_asset_amount_with_amm < -(self.order_step_size.cast()?)
+                self.get_protocol_owned_position()? < -(self.order_step_size.cast()?)
             }
             PositionDirection::Short => {
-                self.base_asset_amount_with_amm > (self.order_step_size.cast()?)
+                self.get_protocol_owned_position()? > (self.order_step_size.cast()?)
             }
         };
         Ok(amm_wants_to_jit_make && self.amm_jit_is_active())
@@ -999,9 +999,15 @@ impl AMM {
                 self.sqrt_k.safe_sub(self.user_lp_shares)?,
                 self.sqrt_k,
             )?;
+            // allow jit when large imbalance
+            if self.imbalanced_base_asset_amount_with_lp()?
+                > min_side_liquidity.safe_sub(protocol_owned_min_side_liquidity)?
+            {
+                return Ok(true);
+            }
 
-            Ok(self.base_asset_amount_with_amm.abs()
-                < protocol_owned_min_side_liquidity.safe_div(10)?)
+            Ok(self.get_protocol_owned_position()?.abs().cast::<i128>()?
+                < protocol_owned_min_side_liquidity.safe_div(2)?)
         } else {
             Ok(true)
         }
@@ -1061,10 +1067,15 @@ impl AMM {
 
     pub fn can_lower_k(&self) -> DriftResult<bool> {
         let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(self)?;
-        let can_lower = self.base_asset_amount_with_amm.unsigned_abs()
-            < max_bids.unsigned_abs().min(max_asks.unsigned_abs())
-            && self.base_asset_amount_with_amm.unsigned_abs()
-                < self.sqrt_k.safe_sub(self.user_lp_shares)?;
+        let min_side_liquidity = max_bids.unsigned_abs().min(max_asks.unsigned_abs());
+
+        let protocol_owned_sqrt_k = self.sqrt_k.safe_sub(self.user_lp_shares)?;
+        let protocol_owned_position: i128 = self.get_protocol_owned_position()?.cast::<i128>()?;
+
+        let can_lower: bool = protocol_owned_position.unsigned_abs() < min_side_liquidity
+            && protocol_owned_position.unsigned_abs() < protocol_owned_sqrt_k
+            && protocol_owned_sqrt_k > self.min_order_size.cast()?;
+
         Ok(can_lower)
     }
 
