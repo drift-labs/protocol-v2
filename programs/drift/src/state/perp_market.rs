@@ -999,15 +999,18 @@ impl AMM {
                 self.sqrt_k.safe_sub(self.user_lp_shares)?,
                 self.sqrt_k,
             )?;
-            // allow jit when large imbalance
+
+            // always allow lp jit when large imbalance
             if self.imbalanced_base_asset_amount_with_lp()?
-                > min_side_liquidity.safe_sub(protocol_owned_min_side_liquidity)?
+                > min_side_liquidity
+                    .safe_sub(protocol_owned_min_side_liquidity)?
+                    .safe_div(2)?
             {
                 return Ok(true);
             }
 
             Ok(self.get_protocol_owned_position()?.abs().cast::<i128>()?
-                < protocol_owned_min_side_liquidity.safe_div(2)?)
+                < protocol_owned_min_side_liquidity.safe_div(3)?)
         } else {
             Ok(true)
         }
