@@ -48,7 +48,7 @@ pub fn derive_spot_market_account(market_index: u16) -> Pubkey {
 /// Helper methods for market data structs
 pub trait MarketExt {
     fn market_type(&self) -> &'static str;
-    fn symbol<'a>(&'a self) -> &'a str;
+    fn symbol(&self) -> &str;
 }
 
 impl MarketExt for PerpMarket {

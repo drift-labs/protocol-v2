@@ -189,6 +189,8 @@ pub enum SdkError {
     Deserializing,
     #[error("invalid drift account")]
     InvalidAccount,
+    #[error("invalid oracle account")]
+    InvalidOracle,
     #[error("invalid keypair seed")]
     InvalidSeed,
     #[error("invalid base58 value")]

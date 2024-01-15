@@ -7,6 +7,7 @@ use drift_program::{
     controller::position::PositionDirection,
     math::constants::QUOTE_SPOT_MARKET_INDEX,
     state::{
+        oracle::get_oracle_price,
         order_params::{ModifyOrderParams, OrderParams},
         perp_market::PerpMarket,
         spot_market::SpotMarket,
@@ -23,6 +24,7 @@ use solana_client::{
 };
 use solana_sdk::{
     account::{Account, AccountSharedData},
+    account_info::IntoAccountInfo,
     commitment_config::{CommitmentConfig, CommitmentLevel},
     compute_budget::ComputeBudgetInstruction,
     hash::Hash,
@@ -109,14 +111,7 @@ impl WsAccountProvider {
     };
     /// Create a new WsAccountProvider given an endpoint that serves both http(s) and ws(s)
     pub async fn new(url: &str) -> SdkResult<Self> {
-        let ws_url = if url.starts_with("https://") {
-            let uri = url.strip_prefix("https://").unwrap();
-            format!("wss://{}", uri)
-        } else {
-            let uri = url.strip_prefix("http://").expect("valid http(s) URI");
-            format!("ws://{}", uri)
-        };
-
+        let ws_url = utils::http_to_ws(url).expect("invalid url");
         let ws_client = PubsubClient::new(&ws_url).await?;
 
         Ok(Self {
@@ -233,6 +228,11 @@ impl<T: AccountProvider> DriftClient<T> {
                 DriftClientBackend::new(context, endpoint, account_provider).await?,
             )),
         })
+    }
+
+    /// Return a handle to the inner RPC client
+    pub fn inner(&self) -> &RpcClient {
+        self.backend.client()
     }
 
     /// Return on-chain program metadata
@@ -401,6 +401,11 @@ impl<T: AccountProvider> DriftClient<T> {
         None
     }
 
+    /// Get live oracle price for `market`
+    pub async fn oracle_price(&self, market: MarketId) -> SdkResult<i64> {
+        self.backend.oracle_price(market).await
+    }
+
     /// Initialize a transaction given a (sub)account address
     ///
     /// ```ignore
@@ -461,9 +466,14 @@ impl<T: AccountProvider> DriftClientBackend<T> {
         Ok(this)
     }
 
+    /// Return a handle to the inner RPC client
+    fn client(&self) -> &RpcClient {
+        &self.rpc_client
+    }
+
     /// Get recent tx priority fees
     ///
-    /// - `window` # slots to include in the fee calculation
+    /// - `window` # of slots to include in the fee calculation
     async fn get_recent_priority_fees(
         &self,
         writable_markets: &[MarketId],
@@ -557,6 +567,38 @@ impl<T: AccountProvider> DriftClientBackend<T> {
             .send_transaction(&tx)
             .await
             .map_err(|err| err.into())
+    }
+
+    /// Fetch the live oracle price for `market`
+    pub async fn oracle_price(&self, market: MarketId) -> SdkResult<i64> {
+        let (oracle, oracle_source) = match market.kind {
+            MarketType::Perp => {
+                let market = self
+                    .program_data
+                    .perp_market_config_by_index(market.index)
+                    .ok_or(SdkError::InvalidOracle)?;
+                (market.amm.oracle, market.amm.oracle_source)
+            }
+            MarketType::Spot => {
+                let market = self
+                    .program_data
+                    .spot_market_config_by_index(market.index)
+                    .ok_or(SdkError::InvalidOracle)?;
+                (market.oracle, market.oracle_source)
+            }
+        };
+
+        let (current_slot, oracle_account) = tokio::join!(
+            self.rpc_client.get_slot(),
+            self.account_provider.get_account(oracle)
+        );
+        let price_data = get_oracle_price(
+            &oracle_source,
+            &mut (oracle, oracle_account?).into_account_info(),
+            current_slot?,
+        )
+        .unwrap();
+        Ok(price_data.price)
     }
 }
 

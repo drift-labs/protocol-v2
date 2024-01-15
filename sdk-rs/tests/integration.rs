@@ -1,10 +1,27 @@
 use drift_program::math::constants::{
-    BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64, PRICE_PRECISION_U64, QUOTE_PRECISION_U64,
+    BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64, PRICE_PRECISION_U64,
 };
 use drift_sdk::{
-    types::{Context, NewOrder},
+    types::{Context, MarketId, NewOrder},
     DriftClient, RpcAccountProvider, Wallet,
 };
+
+#[tokio::test]
+async fn get_oracle_prices() {
+    let client = DriftClient::new(
+        Context::DevNet,
+        "https://api.devnet.solana.com",
+        RpcAccountProvider::new("https://api.devnet.solana.com"),
+    )
+    .await
+    .expect("connects");
+    let price = client.oracle_price(MarketId::perp(0)).await.expect("ok");
+    assert!(price > 0);
+    dbg!(price);
+    let price = client.oracle_price(MarketId::spot(1)).await.expect("ok");
+    assert!(price > 0);
+    dbg!(price);
+}
 
 #[tokio::test]
 async fn place_and_cancel_orders() {
@@ -12,7 +29,6 @@ async fn place_and_cancel_orders() {
         Context::DevNet,
         "https://api.devnet.solana.com",
         RpcAccountProvider::new("https://api.devnet.solana.com"),
-        None,
     )
     .await
     .expect("connects");
