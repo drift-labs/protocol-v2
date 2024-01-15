@@ -892,7 +892,8 @@ export class DriftClient {
 	}
 
 	public async updateUserCustomMarginRatio(
-		updates: { marginRatio: number; subAccountId: number }[]
+		updates: { marginRatio: number; subAccountId: number }[],
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await Promise.all(
 			updates.map(async ({ marginRatio, subAccountId }) => {
@@ -904,7 +905,7 @@ export class DriftClient {
 			})
 		);
 
-		const tx = await this.buildTransaction(ixs, this.txParams);
+		const tx = await this.buildTransaction(ixs, txParams ?? this.txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -3329,9 +3330,8 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
-		const userAccountPublicKey = await this.getUserAccountPublicKey(
-			subAccountId
-		);
+		const userAccountPublicKey =
+			await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -4420,9 +4420,8 @@ export class DriftClient {
 		/* Settle PnL after fill if requested */
 		let settlePnlTx: Transaction;
 		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
-			const userAccountPublicKey = await this.getUserAccountPublicKey(
-				subAccountId
-			);
+			const userAccountPublicKey =
+				await this.getUserAccountPublicKey(subAccountId);
 
 			const settlePnlIx = await this.settlePNLIx(
 				userAccountPublicKey,
@@ -5947,9 +5946,8 @@ export class DriftClient {
 		}
 
 		if (initializeStakeAccount) {
-			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
-				marketIndex
-			);
+			const initializeIx =
+				await this.getInitializeInsuranceFundStakeIx(marketIndex);
 			addIfStakeIxs.push(initializeIx);
 		}
 
