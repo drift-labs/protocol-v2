@@ -97,6 +97,7 @@ export class RetryTxSender extends BaseTxSender {
 
 		const result = await this.confirmTransaction(txid, opts.commitment);
 		const slot = result.context.slot;
+		stopWaiting();
 
 		return { txSig: txid, slot };
 	}
