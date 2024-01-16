@@ -54,7 +54,7 @@ export abstract class BaseTxSender implements TxSender {
 		this.timeout = timeout;
 		this.additionalConnections = additionalConnections;
 		this.confirmationStrategy = confirmationStrategy;
-		this.opts.commitment = blockhashCommitment;
+		this.blockhashCommitment = blockhashCommitment;
 	}
 
 	async send(
