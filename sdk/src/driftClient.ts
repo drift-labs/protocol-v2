@@ -1866,7 +1866,8 @@ export class DriftClient {
 		fromSubAccountId?: number,
 		referrerInfo?: ReferrerInfo,
 		donateAmount?: BN,
-		txParams?: TxParams
+		txParams?: TxParams,
+		customMaxMarginRatio?: number
 	): Promise<[TransactionSignature, PublicKey]> {
 		const ixs = [];
 
@@ -1958,6 +1959,15 @@ export class DriftClient {
 			);
 
 			ixs.push(donateIx);
+		}
+
+		// Set the max margin ratio to initialize account with if passed
+		if (customMaxMarginRatio) {
+			const customMarginRatioIx = await this.getUpdateUserCustomMarginRatioIx(
+				customMaxMarginRatio,
+				subAccountId
+			);
+			ixs.push(customMarginRatioIx);
 		}
 
 		// Close the wrapped sol account at the end of the transaction
