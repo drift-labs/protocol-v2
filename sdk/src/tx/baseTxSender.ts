@@ -1,4 +1,9 @@
-import { ConfirmationStrategy, TxSender, TxSigAndSlot } from './types';
+import {
+	ConfirmationStrategy,
+	ExtraConfirmationOptions,
+	TxSender,
+	TxSigAndSlot,
+} from './types';
 import {
 	Commitment,
 	ConfirmOptions,
@@ -57,7 +62,8 @@ export abstract class BaseTxSender implements TxSender {
 		tx: Transaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean
+		preSigned?: boolean,
+		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
@@ -69,6 +75,10 @@ export abstract class BaseTxSender implements TxSender {
 		const signedTx = preSigned
 			? tx
 			: await this.prepareTx(tx, additionalSigners, opts);
+
+		if (extraConfirmationOptions?.onSignedCb) {
+			extraConfirmationOptions.onSignedCb();
+		}
 
 		return this.sendRawTransaction(signedTx.serialize(), opts);
 	}
@@ -124,7 +134,8 @@ export abstract class BaseTxSender implements TxSender {
 		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean
+		preSigned?: boolean,
+		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot> {
 		let signedTx;
 		if (preSigned) {
@@ -142,6 +153,10 @@ export abstract class BaseTxSender implements TxSender {
 				});
 			// @ts-ignore
 			signedTx = await this.wallet.signTransaction(tx);
+		}
+
+		if (extraConfirmationOptions?.onSignedCb) {
+			extraConfirmationOptions.onSignedCb();
 		}
 
 		if (opts === undefined) {
