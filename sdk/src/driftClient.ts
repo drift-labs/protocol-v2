@@ -151,7 +151,10 @@ export class DriftClient {
 	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
-	metricsEventEmitter: StrictEventEmitter<EventEmitter, DriftClientMetricsEvents>;
+	metricsEventEmitter: StrictEventEmitter<
+		EventEmitter,
+		DriftClientMetricsEvents
+	>;
 	_isSubscribed = false;
 	txSender: TxSender;
 	perpMarketLastSlotCache = new Map<number, number>();
@@ -720,7 +723,7 @@ export class DriftClient {
 	public async initializeUserAccount(
 		subAccountId = 0,
 		name?: string,
-		referrerInfo?: ReferrerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<[TransactionSignature, PublicKey]> {
 		const initializeIxs = [];
 
@@ -6332,21 +6335,21 @@ export class DriftClient {
 	}
 
 	private handleSignedTransaction() {
-		this.metricsEventEmitter.emit("txSigned");
+		this.metricsEventEmitter.emit('txSigned');
 	}
-
 
 	sendTransaction(
 		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean,
+		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
-		const extraConfirmationOptions : ExtraConfirmationOptions =
-		this.enableMetricsEvents ? 
-		{
-			onSignedCb: this.handleSignedTransaction.bind(this),
-		} : undefined;
+		const extraConfirmationOptions: ExtraConfirmationOptions = this
+			.enableMetricsEvents
+			? {
+					onSignedCb: this.handleSignedTransaction.bind(this),
+			  }
+			: undefined;
 
 		if (tx instanceof VersionedTransaction) {
 			return this.txSender.sendVersionedTransaction(
