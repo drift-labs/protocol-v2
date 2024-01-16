@@ -8,11 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+
+### Fixes
+
+### Breaking
+
+## [2.54.0] - 2023-01-15
+
+### Features
 - sdk: move bracket orders into single instruction
 - sdk: add ability to do placeAndTake order with bracket orders attached
 - sdk: add option to cancel existing orders in market for place and take order
 - sdk: add option to get signed settlePnl tx back from a market order
 
+- program: auto derisk lp positions in settle pnl ([#766](https://github.com/drift-labs/protocol-v2/pull/766))
 - program: increase full perp liquidation threshold ([#807](https://github.com/drift-labs/protocol-v2/pull/807))
 - program: remove spot fee pool transfer ([#800](https://github.com/drift-labs/protocol-v2/pull/800))
 - program: increase insurance tier max ([#784](https://github.com/drift-labs/protocol-v2/pull/784))

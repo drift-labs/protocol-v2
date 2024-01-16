@@ -8,6 +8,7 @@ use solana_program::msg;
 
 use crate::controller;
 use crate::controller::funding::settle_funding_payment;
+use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
@@ -55,11 +56,13 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_swap::select_margin_type_for_swap;
 use crate::print_error;
-use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
+use crate::state::events::{
+    emit_stack, get_order_action_record, LPAction, LPRecord, OrderActionRecord, OrderRecord,
+};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::margin_calculation::MarginContext;
+use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
@@ -91,7 +94,8 @@ mod amm_lp_jit_tests;
 
 pub fn place_perp_order(
     state: &State,
-    user: &AccountLoader<User>,
+    user: &mut User,
+    user_key: Pubkey,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -101,8 +105,6 @@ pub fn place_perp_order(
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
-    let user_key = user.key();
-    let user = &mut load_mut!(user)?;
 
     validate_user_not_being_liquidated(
         user,
@@ -748,15 +750,14 @@ pub fn modify_order(
 
     user.update_last_active_slot(clock.slot);
 
-    drop(user);
-
     let order_params =
         merge_modify_order_params_with_existing_order(&existing_order, &modify_order_params)?;
 
     if order_params.market_type == MarketType::Perp {
         place_perp_order(
             state,
-            user_loader,
+            &mut user,
+            user_key,
             perp_market_map,
             spot_market_map,
             oracle_map,
@@ -767,7 +768,8 @@ pub fn modify_order(
     } else {
         place_spot_order(
             state,
-            user_loader,
+            &mut user,
+            user_key,
             perp_market_map,
             spot_market_map,
             oracle_map,
@@ -2706,7 +2708,7 @@ fn update_trigger_order_params(
 
 pub fn force_cancel_orders(
     state: &State,
-    user: &AccountLoader<User>,
+    user_account_loader: &AccountLoader<User>,
     spot_market_map: &SpotMarketMap,
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
@@ -2717,8 +2719,8 @@ pub fn force_cancel_orders(
     let slot = clock.slot;
 
     let filler_key = filler.key();
-    let user_key = user.key();
-    let user = &mut load_mut!(user)?;
+    let user_key = user_account_loader.key();
+    let user = &mut load_mut!(user_account_loader)?;
     let filler = &mut load_mut!(filler)?;
 
     validate!(
@@ -2728,8 +2730,15 @@ pub fn force_cancel_orders(
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
-    let meets_initial_margin_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::standard(MarginRequirementType::Initial),
+    )?;
+
+    let meets_initial_margin_requirement = margin_calc.meets_margin_requirement();
 
     validate!(
         !meets_initial_margin_requirement,
@@ -2818,6 +2827,115 @@ pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index:
     }
 }
 
+pub fn attempt_burn_user_lp_shares_for_risk_reduction(
+    state: &State,
+    user: &mut User,
+    margin_calc: MarginCalculation,
+    user_key: Pubkey,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    clock: &Clock,
+    market_index: u16,
+) -> DriftResult {
+    let now = clock.unix_timestamp;
+    // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
+    if !margin_calc.positions_meets_margin_requirement()? {
+        let time_since_last_liquidity_change: i64 =
+            now.safe_sub(user.last_add_perp_lp_shares_ts)?;
+        // avoid spamming update if orders have already been set
+        if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
+            burn_user_lp_shares_for_risk_reduction(
+                state,
+                user,
+                user_key,
+                market_index,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                clock,
+            )?;
+            user.last_add_perp_lp_shares_ts = now;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn burn_user_lp_shares_for_risk_reduction(
+    state: &State,
+    user: &mut User,
+    user_key: Pubkey,
+    market_index: u16,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    clock: &Clock,
+) -> DriftResult {
+    let position_index = get_position_index(&user.perp_positions, market_index)?;
+    let is_lp = user.perp_positions[position_index].is_lp();
+    if !is_lp {
+        return Ok(());
+    }
+
+    let lp_shares = user.perp_positions[position_index].lp_shares;
+
+    let mut market = perp_market_map.get_ref_mut(&market_index)?;
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+    let oracle_price = if market.status == MarketStatus::Settlement {
+        market.expiry_price
+    } else {
+        oracle_price_data.price
+    };
+
+    let order_step_size = market.amm.order_step_size;
+    let (position_delta, pnl) = burn_lp_shares(
+        &mut user.perp_positions[position_index],
+        &mut market,
+        lp_shares.safe_div(3)?.max(order_step_size),
+        oracle_price,
+    )?;
+
+    // emit LP record for shares removed
+    emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
+        ts: clock.unix_timestamp,
+        action: LPAction::RemoveLiquidity,
+        user: user_key,
+        n_shares: lp_shares,
+        market_index,
+        delta_base_asset_amount: position_delta.base_asset_amount,
+        delta_quote_asset_amount: position_delta.quote_asset_amount,
+        pnl,
+    })?;
+
+    let direction_to_close = user.perp_positions[position_index].get_direction_to_close();
+
+    let params = OrderParams::get_close_perp_params(
+        &market,
+        direction_to_close,
+        user.perp_positions[position_index]
+            .base_asset_amount
+            .unsigned_abs(),
+    )?;
+
+    drop(market);
+
+    controller::orders::place_perp_order(
+        state,
+        user,
+        user_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        clock,
+        params,
+        PlaceOrderOptions::default(),
+    )?;
+
+    Ok(())
+}
+
 pub fn pay_keeper_flat_reward_for_perps(
     user: &mut User,
     filler: Option<&mut User>,
@@ -2893,7 +3011,8 @@ pub fn pay_keeper_flat_reward_for_spot(
 
 pub fn place_spot_order(
     state: &State,
-    user: &AccountLoader<User>,
+    user: &mut User,
+    user_key: Pubkey,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -2903,8 +3022,6 @@ pub fn place_spot_order(
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
-    let user_key = user.key();
-    let user = &mut load_mut!(user)?;
 
     validate_user_not_being_liquidated(
         user,

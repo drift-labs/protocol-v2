@@ -86,8 +86,9 @@ import {
 	DriftClientAccountSubscriber,
 	DriftClientAccountEvents,
 	DataAndSlot,
+	DriftClientMetricsEvents,
 } from './accounts/types';
-import { TxSender, TxSigAndSlot } from './tx/types';
+import { ExtraConfirmationOptions, TxSender, TxSigAndSlot } from './tx/types';
 import { getSignedTransactionMap, wrapInTx } from './tx/utils';
 import {
 	BASE_PRECISION,
@@ -150,6 +151,10 @@ export class DriftClient {
 	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
+	metricsEventEmitter: StrictEventEmitter<
+		EventEmitter,
+		DriftClientMetricsEvents
+	>;
 	_isSubscribed = false;
 	txSender: TxSender;
 	perpMarketLastSlotCache = new Map<number, number>();
@@ -164,6 +169,7 @@ export class DriftClient {
 	skipLoadUsers?: boolean;
 	txVersion: TransactionVersion;
 	txParams: TxParams;
+	enableMetricsEvents?: boolean;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -288,6 +294,12 @@ export class DriftClient {
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
+
+		if (config.enableMetricsEvents) {
+			this.enableMetricsEvents = true;
+			this.metricsEventEmitter = new EventEmitter();
+		}
+
 		this.txSender =
 			config.txSender ??
 			new RetryTxSender({
@@ -6334,25 +6346,38 @@ export class DriftClient {
 		return undefined;
 	}
 
+	private handleSignedTransaction() {
+		this.metricsEventEmitter.emit('txSigned');
+	}
+
 	sendTransaction(
 		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
+		const extraConfirmationOptions: ExtraConfirmationOptions = this
+			.enableMetricsEvents
+			? {
+					onSignedCb: this.handleSignedTransaction.bind(this),
+			  }
+			: undefined;
+
 		if (tx instanceof VersionedTransaction) {
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
 				additionalSigners,
 				opts,
-				preSigned
+				preSigned,
+				extraConfirmationOptions
 			);
 		} else {
 			return this.txSender.send(
 				tx as Transaction,
 				additionalSigners,
 				opts,
-				preSigned
+				preSigned,
+				extraConfirmationOptions
 			);
 		}
 	}

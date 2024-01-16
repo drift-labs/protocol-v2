@@ -445,8 +445,7 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            clock.unix_timestamp,
-            clock.slot,
+            &clock,
             state,
         )?;
 
@@ -469,7 +468,7 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            clock.unix_timestamp,
+            &clock,
             state,
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
