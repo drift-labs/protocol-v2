@@ -1,5 +1,4 @@
 import { Wallet } from '@coral-xyz/anchor';
-import { BN, User, PreSettleOpts } from '..';
 import {
 	Transaction,
 	TransactionInstruction,
@@ -62,80 +61,4 @@ export async function getSignedTransactionMap(
 	});
 
 	return signedTxMap;
-}
-
-/* For risk increasing actions, driftClient calls this to fetch the initial ixs for the 
-tx, which will include settling pnl only if enableSettleFirstMode is true and the user has 
-insufficient collateral to perform the tx without settling pnl first. */
-export async function getInitialIxsForRiskIncreasingAction({
-	enableSettleFirstMode,
-	user,
-	opts,
-}: {
-	enableSettleFirstMode: boolean;
-	user: User;
-	opts: PreSettleOpts;
-}): Promise<TransactionInstruction[]> {
-	if (
-		!enableSettleFirstMode ||
-		!user?.isSubscribed ||
-		!opts ||
-		opts?.reduceOnlyTrade
-	)
-		return [];
-
-	let settleNecessaryForTx: boolean;
-	let maxWithoutSettle: BN;
-
-	switch (opts.txType) {
-		case 'withdraw':
-			maxWithoutSettle = user.getWithdrawalLimit(
-				opts.spotMarketIndex,
-				true,
-				false
-			);
-			settleNecessaryForTx = maxWithoutSettle.lt(opts.baseAmountRequested);
-			break;
-		case 'borrow':
-			maxWithoutSettle = user.getWithdrawalLimit(
-				opts.spotMarketIndex,
-				false,
-				false
-			);
-			settleNecessaryForTx = maxWithoutSettle.lt(opts.baseAmountRequested);
-			break;
-		case 'perpTrade':
-			maxWithoutSettle = user.getMaxTradeSizeUSDCForPerp(
-				opts.perpMarketIndex,
-				opts.tradeDirection,
-				false,
-				false
-			);
-			settleNecessaryForTx = maxWithoutSettle.lt(opts.notionalValueRequested);
-			break;
-		case 'spotTrade':
-			maxWithoutSettle = user.getMaxTradeSizeUSDCForSpot(
-				opts.spotMarketIndex,
-				opts.tradeDirection,
-				undefined,
-				undefined,
-				false
-			);
-			settleNecessaryForTx = maxWithoutSettle.lt(opts.notionalValueRequested);
-			break;
-		case 'swap':
-			maxWithoutSettle = user.getMaxSwapAmount({
-				inMarketIndex: opts.inMarketIndex,
-				outMarketIndex: opts.outMarketIndex,
-				includeSettle: false,
-			})?.[opts.swapMode === 'ExactIn' ? 'inAmount' : 'outAmount'];
-			settleNecessaryForTx = maxWithoutSettle.lt(opts.baseAmountRequested);
-			break;
-	}
-
-	if (!settleNecessaryForTx) return [];
-	console.log('Pre-settle needed for action...');
-
-	const settlePnlsIxs = await user.getSettleAllIxs();
-	return settlePnlsIxs;
 }

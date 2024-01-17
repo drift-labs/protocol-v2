@@ -94,10 +94,7 @@ import {
 	TxSender,
 	TxSigAndSlot,
 } from './tx/types';
-import {
-	getInitialIxsForRiskIncreasingAction,
-	getSignedTransactionMap,
-} from './tx/utils';
+import { getSignedTransactionMap } from './tx/utils';
 import {
 	BASE_PRECISION,
 	PRICE_PRECISION,
@@ -2086,8 +2083,7 @@ export class DriftClient {
 
 		const user = this.getUser(subAccountId);
 
-		const withdrawIxs = await getInitialIxsForRiskIncreasingAction({
-			enableSettleFirstMode: this.enableSettleFirstMode,
+		const withdrawIxs = await this.getInitialIxsForRiskIncreasingAction({
 			user,
 			opts: preSettleOpts,
 		});
@@ -2208,8 +2204,7 @@ export class DriftClient {
 		txParams?: TxParams,
 		preSettleOpts?: PreSettleOpts
 	): Promise<TransactionSignature> {
-		const ixs = await getInitialIxsForRiskIncreasingAction({
-			enableSettleFirstMode: this.enableSettleFirstMode,
+		const ixs = await this.getInitialIxsForRiskIncreasingAction({
 			user: this.getUser(fromSubAccountId),
 			opts: preSettleOpts,
 		});
@@ -2483,8 +2478,7 @@ export class DriftClient {
 		subAccountId?: number,
 		preSettleOpts?: PreSettleOpts
 	): Promise<TransactionSignature> {
-		const ixs = await getInitialIxsForRiskIncreasingAction({
-			enableSettleFirstMode: this.enableSettleFirstMode,
+		const ixs = await this.getInitialIxsForRiskIncreasingAction({
 			user: this.getUser(subAccountId),
 			opts: preSettleOpts,
 		});
@@ -2623,8 +2617,7 @@ export class DriftClient {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
 
-		const ordersIxs = await getInitialIxsForRiskIncreasingAction({
-			enableSettleFirstMode: this.enableSettleFirstMode,
+		const ordersIxs = await this.getInitialIxsForRiskIncreasingAction({
 			user: this.getUser(userAccount.subAccountId, userAccount.authority),
 			opts: preSettleOpts,
 		});
@@ -3186,8 +3179,7 @@ export class DriftClient {
 		subAccountId?: number,
 		preSettleOpts?: PreSettleOpts
 	): Promise<TransactionSignature> {
-		const ixs = await getInitialIxsForRiskIncreasingAction({
-			enableSettleFirstMode: this.enableSettleFirstMode,
+		const ixs = await this.getInitialIxsForRiskIncreasingAction({
 			user: this.getUser(subAccountId),
 			opts: preSettleOpts,
 		});
@@ -3373,8 +3365,7 @@ export class DriftClient {
 		subAccountId?: number,
 		preSettleOpts?: PreSettleOpts
 	): Promise<TransactionSignature> {
-		const ixs = await getInitialIxsForRiskIncreasingAction({
-			enableSettleFirstMode: this.enableSettleFirstMode,
+		const ixs = await this.getInitialIxsForRiskIncreasingAction({
 			user: this.getUser(subAccountId),
 			opts: preSettleOpts,
 		});
@@ -3400,9 +3391,8 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
-		const userAccountPublicKey = await this.getUserAccountPublicKey(
-			subAccountId
-		);
+		const userAccountPublicKey =
+			await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -3774,8 +3764,7 @@ export class DriftClient {
 	}): Promise<TransactionSignature> {
 		let lookupTables: anchor.web3.AddressLookupTableAccount[];
 
-		const ixs = await getInitialIxsForRiskIncreasingAction({
-			enableSettleFirstMode: this.enableSettleFirstMode,
+		const ixs = await this.getInitialIxsForRiskIncreasingAction({
 			user: this.getUser(),
 			opts: preSettleOpts,
 		});
@@ -4499,9 +4488,8 @@ export class DriftClient {
 		/* Settle PnL after fill if requested */
 		let settlePnlTx: Transaction;
 		if (settleAfter && isVariant(orderParams.marketType, 'perp')) {
-			const userAccountPublicKey = await this.getUserAccountPublicKey(
-				subAccountId
-			);
+			const userAccountPublicKey =
+				await this.getUserAccountPublicKey(subAccountId);
 
 			const settlePnlIx = await this.settlePNLIx(
 				userAccountPublicKey,
@@ -4517,8 +4505,7 @@ export class DriftClient {
 			);
 		}
 
-		const ixs = await getInitialIxsForRiskIncreasingAction({
-			enableSettleFirstMode: this.enableSettleFirstMode,
+		const ixs = await this.getInitialIxsForRiskIncreasingAction({
 			user: this.getUser(subAccountId),
 			opts: preSettleOpts,
 		});
@@ -5999,8 +5986,7 @@ export class DriftClient {
 		fromSubaccount?: boolean;
 		preSettleOpts?: PreSettleOpts;
 	}): Promise<TransactionSignature> {
-		const addIfStakeIxs = await getInitialIxsForRiskIncreasingAction({
-			enableSettleFirstMode: this.enableSettleFirstMode,
+		const addIfStakeIxs = await this.getInitialIxsForRiskIncreasingAction({
 			user: fromSubaccount ? this.getUser() : undefined,
 			opts: preSettleOpts,
 		});
@@ -6036,9 +6022,8 @@ export class DriftClient {
 		}
 
 		if (initializeStakeAccount) {
-			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
-				marketIndex
-			);
+			const initializeIx =
+				await this.getInitializeInsuranceFundStakeIx(marketIndex);
 			addIfStakeIxs.push(initializeIx);
 		}
 
@@ -6378,6 +6363,80 @@ export class DriftClient {
 		};
 
 		return extendedInfo;
+	}
+
+	/* For risk increasing actions, driftClient calls this to fetch the initial ixs for the
+	 * tx, which will include settling pnl only if enableSettleFirstMode is true and the user has
+	 * insufficient collateral to perform the tx without settling pnl first. */
+	public async getInitialIxsForRiskIncreasingAction({
+		user,
+		opts,
+	}: {
+		user: User;
+		opts: PreSettleOpts;
+	}): Promise<TransactionInstruction[]> {
+		if (
+			!this.enableSettleFirstMode ||
+			!user?.isSubscribed ||
+			!opts ||
+			opts?.reduceOnlyTrade
+		)
+			return [];
+
+		let settleNecessaryForTx: boolean;
+		let maxWithoutSettle: BN;
+
+		switch (opts.txType) {
+			case 'withdraw':
+				maxWithoutSettle = user.getWithdrawalLimit(
+					opts.spotMarketIndex,
+					true,
+					false
+				);
+				settleNecessaryForTx = maxWithoutSettle.lt(opts.baseAmountRequested);
+				break;
+			case 'borrow':
+				maxWithoutSettle = user.getWithdrawalLimit(
+					opts.spotMarketIndex,
+					false,
+					false
+				);
+				settleNecessaryForTx = maxWithoutSettle.lt(opts.baseAmountRequested);
+				break;
+			case 'perpTrade':
+				maxWithoutSettle = user.getMaxTradeSizeUSDCForPerp(
+					opts.perpMarketIndex,
+					opts.tradeDirection,
+					false,
+					false
+				);
+				settleNecessaryForTx = maxWithoutSettle.lt(opts.notionalValueRequested);
+				break;
+			case 'spotTrade':
+				maxWithoutSettle = user.getMaxTradeSizeUSDCForSpot(
+					opts.spotMarketIndex,
+					opts.tradeDirection,
+					undefined,
+					undefined,
+					false
+				);
+				settleNecessaryForTx = maxWithoutSettle.lt(opts.notionalValueRequested);
+				break;
+			case 'swap':
+				maxWithoutSettle = user.getMaxSwapAmount({
+					inMarketIndex: opts.inMarketIndex,
+					outMarketIndex: opts.outMarketIndex,
+					includeSettle: false,
+				})?.[opts.swapMode === 'ExactIn' ? 'inAmount' : 'outAmount'];
+				settleNecessaryForTx = maxWithoutSettle.lt(opts.baseAmountRequested);
+				break;
+		}
+
+		if (!settleNecessaryForTx) return [];
+		console.log('Pre-settle needed for action...');
+
+		const settlePnlsIxs = await user.getSettleAllIxs();
+		return settlePnlsIxs;
 	}
 
 	/**
