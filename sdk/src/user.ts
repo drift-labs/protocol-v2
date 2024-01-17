@@ -766,7 +766,9 @@ export class User {
 		strict = false
 	): BN {
 		return this.getActivePerpPositions()
-			.filter((pos) => (marketIndex ? pos.marketIndex === marketIndex : true))
+			.filter((pos) =>
+				marketIndex !== undefined ? pos.marketIndex === marketIndex : true
+			)
 			.reduce((unrealizedPnl, perpPosition) => {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
