@@ -7,7 +7,8 @@ import {
 	TransactionSignature,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import { IWallet } from '../types';
+import { IWallet, PositionDirection } from '../types';
+import { BN, SwapMode } from '..';
 
 export enum ConfirmationStrategy {
 	WebSocket = 'websocket',
@@ -57,3 +58,23 @@ export interface TxSender {
 
 	getTimeoutCount(): number;
 }
+
+export type RiskIncreasingAction =
+	| 'withdraw'
+	| 'borrow'
+	| 'perpTrade'
+	| 'spotTrade'
+	| 'swap';
+
+export type PreSettleOpts = {
+	txType: RiskIncreasingAction;
+	notionalValueRequested?: BN;
+	baseAmountRequested?: BN;
+	perpMarketIndex?: number;
+	spotMarketIndex?: number;
+	inMarketIndex?: number;
+	outMarketIndex?: number;
+	tradeDirection?: PositionDirection;
+	reduceOnlyTrade?: boolean;
+	swapMode?: SwapMode;
+};

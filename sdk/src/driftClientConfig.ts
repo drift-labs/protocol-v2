@@ -33,6 +33,7 @@ export type DriftClientConfig = {
 	txVersion?: TransactionVersion; // which tx version to use
 	txParams?: TxParams; // default tx params to use
 	enableMetricsEvents?: boolean;
+	enableSettleFirstMode?: boolean; // if enabled, risk increasing ixs will be preceded with a settlePnl ix (if collateral insufficient without settle)
 };
 
 export type DriftClientSubscriptionConfig =

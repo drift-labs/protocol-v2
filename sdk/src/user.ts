@@ -1,4 +1,4 @@
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { DriftClient } from './driftClient';
@@ -620,7 +620,11 @@ export class User {
 	 * calculates Buying Power = free collateral / initial margin ratio
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getPerpBuyingPower(marketIndex: number, collateralBuffer = ZERO): BN {
+	public getPerpBuyingPower(
+		marketIndex: number,
+		collateralBuffer = ZERO,
+		includeSettle = false
+	): BN {
 		const perpPosition = this.getPerpPositionWithLPSettle(
 			marketIndex,
 			undefined,
@@ -630,7 +634,9 @@ export class User {
 			? calculateWorstCaseBaseAssetAmount(perpPosition)
 			: ZERO;
 
-		const freeCollateral = this.getFreeCollateral().sub(collateralBuffer);
+		const freeCollateral = this.getFreeCollateral('Initial', includeSettle).sub(
+			collateralBuffer
+		);
 
 		return this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 			marketIndex,
@@ -658,13 +664,19 @@ export class User {
 	 * calculates Free Collateral = Total collateral - margin requirement
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getFreeCollateral(marginCategory: MarginCategory = 'Initial'): BN {
+	public getFreeCollateral(
+		marginCategory: MarginCategory = 'Initial',
+		includeSettle = false
+	): BN {
+		if (includeSettle) return this.getFreeCollateralAfterSettle();
+
 		const totalCollateral = this.getTotalCollateral(marginCategory, true);
 		const marginRequirement =
 			marginCategory === 'Initial'
 				? this.getInitialMarginRequirement()
 				: this.getMaintenanceMarginRequirement();
 		const freeCollateral = totalCollateral.sub(marginRequirement);
+
 		return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
 	}
 
@@ -678,9 +690,7 @@ export class User {
 			'Initial',
 			true,
 			false
-		)
-			.sub(this.getTotalPerpPositionValue('Initial', undefined, true))
-			.add(BN.max(ZERO, this.getUserClaimablePnlInfo().claimablePnl));
+		).add(this.getUserClaimablePnlInfo().claimablePnl);
 		const freeCollateral = totalCollateral.sub(
 			this.getInitialMarginRequirement()
 		);
@@ -1626,7 +1636,8 @@ export class User {
 	public getMaxLeverageForPerp(
 		perpMarketIndex: number,
 		marginCategory: MarginCategory = 'Initial',
-		isLp = false
+		isLp = false,
+		includeSettle = false
 	): BN {
 		const market = this.driftClient.getPerpMarketAccount(perpMarketIndex);
 		const marketPrice =
@@ -1649,7 +1660,9 @@ export class User {
 			? marketPrice.mul(market.amm.orderStepSize).div(AMM_RESERVE_PRECISION)
 			: ZERO;
 
-		const freeCollateral = this.getFreeCollateral().sub(lpBuffer);
+		const freeCollateral = this.getFreeCollateral('Initial', includeSettle).sub(
+			lpBuffer
+		);
 
 		let rawMarginRatio;
 
@@ -2206,7 +2219,8 @@ export class User {
 	public getMaxTradeSizeUSDCForPerp(
 		targetMarketIndex: number,
 		tradeSide: PositionDirection,
-		isLp = false
+		isLp = false,
+		includeSettle = false
 	): BN {
 		const currentPosition =
 			this.getPerpPositionWithLPSettle(targetMarketIndex, undefined, true)[0] ||
@@ -2238,7 +2252,11 @@ export class User {
 			? ZERO
 			: this.getPerpPositionValue(targetMarketIndex, oracleData);
 
-		let maxPositionSize = this.getPerpBuyingPower(targetMarketIndex, lpBuffer);
+		let maxPositionSize = this.getPerpBuyingPower(
+			targetMarketIndex,
+			lpBuffer,
+			includeSettle
+		);
 
 		if (maxPositionSize.gte(ZERO)) {
 			if (oppositeSizeValueUSDC.eq(ZERO)) {
@@ -2303,7 +2321,8 @@ export class User {
 		targetMarketIndex: number,
 		direction: PositionDirection,
 		currentQuoteAssetValue?: BN,
-		currentSpotMarketNetValue?: BN
+		currentSpotMarketNetValue?: BN,
+		includeSettle = false
 	): BN {
 		const market = this.driftClient.getSpotMarketAccount(targetMarketIndex);
 		const oraclePrice = this.driftClient.getOraclePriceDataAndSlot(
@@ -2317,7 +2336,7 @@ export class User {
 		currentSpotMarketNetValue =
 			currentSpotMarketNetValue ?? this.getSpotPositionValue(targetMarketIndex);
 
-		let freeCollateral = this.getFreeCollateral();
+		let freeCollateral = this.getFreeCollateral('Initial', includeSettle);
 		const marginRatio = calculateSpotMarketMarginRatio(
 			market,
 			oraclePrice,
@@ -2392,11 +2411,13 @@ export class User {
 		outMarketIndex,
 		calculateSwap,
 		iterationLimit = 1000,
+		includeSettle = false,
 	}: {
 		inMarketIndex: number;
 		outMarketIndex: number;
 		calculateSwap?: (inAmount: BN) => BN;
 		iterationLimit?: number;
+		includeSettle?: boolean;
 	}): { inAmount: BN; outAmount: BN; leverage: BN } {
 		const inMarket = this.driftClient.getSpotMarketAccount(inMarketIndex);
 		const outMarket = this.driftClient.getSpotMarketAccount(outMarketIndex);
@@ -2419,7 +2440,7 @@ export class User {
 			this.getSpotPosition(outMarketIndex) ||
 			this.getEmptySpotPosition(outMarketIndex);
 
-		const freeCollateral = this.getFreeCollateral();
+		const freeCollateral = this.getFreeCollateral('Initial', includeSettle);
 
 		const inContributionInitial =
 			this.calculateSpotPositionFreeCollateralContribution(
@@ -3094,9 +3115,7 @@ export class User {
 			nowTs
 		);
 
-		const freeCollateral = includeSettle
-			? this.getFreeCollateralAfterSettle()
-			: this.getFreeCollateral();
+		const freeCollateral = this.getFreeCollateral('Initial', includeSettle);
 		const initialMarginRequirement = this.getInitialMarginRequirement();
 		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
 		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
@@ -3108,7 +3127,10 @@ export class User {
 		}
 
 		if (marketIndex === 0 && includeSettle) {
-			const extraPnlToAdd = BN.max(this.getUserClaimablePnlInfo().claimablePnl, ZERO);
+			const extraPnlToAdd = BN.max(
+				this.getUserClaimablePnlInfo().claimablePnl,
+				ZERO
+			);
 			userDepositAmount = userDepositAmount.add(extraPnlToAdd);
 		}
 
@@ -3530,6 +3552,21 @@ export class User {
 		}
 
 		return healthComponents;
+	}
+
+	// TODO - need new settleAllIx
+	public async getSettleAllIxs(): Promise<TransactionInstruction[]> {
+		const [usersToSettle, marketsToSettle] = this.getSettleParams();
+
+		if (marketsToSettle.length > 0) {
+			const settlePnlsIxs = await this.driftClient.getSettlePNLsIxs(
+				usersToSettle,
+				marketsToSettle
+			);
+			return settlePnlsIxs;
+		}
+
+		return [];
 	}
 
 	/* Get the params to get instructions to settle all of a user's claimable pnl */

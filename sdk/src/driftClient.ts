@@ -88,8 +88,16 @@ import {
 	DataAndSlot,
 	DriftClientMetricsEvents,
 } from './accounts/types';
-import { ExtraConfirmationOptions, TxSender, TxSigAndSlot } from './tx/types';
-import { getSignedTransactionMap, wrapInTx } from './tx/utils';
+import {
+	ExtraConfirmationOptions,
+	PreSettleOpts,
+	TxSender,
+	TxSigAndSlot,
+} from './tx/types';
+import {
+	getInitialIxsForRiskIncreasingAction,
+	getSignedTransactionMap,
+} from './tx/utils';
 import {
 	BASE_PRECISION,
 	PRICE_PRECISION,
@@ -170,6 +178,7 @@ export class DriftClient {
 	txVersion: TransactionVersion;
 	txParams: TxParams;
 	enableMetricsEvents?: boolean;
+	enableSettleFirstMode?: boolean;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -299,6 +308,8 @@ export class DriftClient {
 			this.enableMetricsEvents = true;
 			this.metricsEventEmitter = new EventEmitter();
 		}
+
+		this.enableSettleFirstMode = config.enableSettleFirstMode;
 
 		this.txSender =
 			config.txSender ??
@@ -2063,10 +2074,8 @@ export class DriftClient {
 		reduceOnly = false,
 		subAccountId?: number,
 		txParams?: TxParams,
-		settleFirst?: boolean
+		preSettleOpts?: PreSettleOpts
 	): Promise<TransactionSignature> {
-		const withdrawIxs = [];
-
 		const additionalSigners: Array<Signer> = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -2077,17 +2086,11 @@ export class DriftClient {
 
 		const user = this.getUser(subAccountId);
 
-		if (settleFirst) {
-			const [usersToSettle, marketsToSettle] = user.getSettleParams();
-
-			if (marketsToSettle.length > 0) {
-				const settlePnlsIxs = await this.getSettlePNLsIxs(
-					usersToSettle,
-					marketsToSettle
-				);
-				withdrawIxs.push(...settlePnlsIxs);
-			}
-		}
+		const withdrawIxs = await getInitialIxsForRiskIncreasingAction({
+			enableSettleFirstMode: this.enableSettleFirstMode,
+			user,
+			opts: preSettleOpts,
+		});
 
 		const createWSOLTokenAccount =
 			isSolMarket && associatedTokenAddress.equals(authority);
@@ -2116,7 +2119,6 @@ export class DriftClient {
 				withdrawIxs.push(createAssociatedTokenAccountIx);
 			}
 		}
-
 		const withdrawCollateralIx = await this.getWithdrawIx(
 			amount,
 			spotMarketAccount.marketIndex,
@@ -2124,7 +2126,6 @@ export class DriftClient {
 			reduceOnly,
 			subAccountId
 		);
-
 		withdrawIxs.push(withdrawCollateralIx);
 
 		// Close the wrapped sol account at the end of the transaction
@@ -2204,18 +2205,25 @@ export class DriftClient {
 		marketIndex: number,
 		fromSubAccountId: number,
 		toSubAccountId: number,
-		txParams?: TxParams
+		txParams?: TxParams,
+		preSettleOpts?: PreSettleOpts
 	): Promise<TransactionSignature> {
+		const ixs = await getInitialIxsForRiskIncreasingAction({
+			enableSettleFirstMode: this.enableSettleFirstMode,
+			user: this.getUser(fromSubAccountId),
+			opts: preSettleOpts,
+		});
+
+		const transferDepositIx = await this.getTransferDepositIx(
+			amount,
+			marketIndex,
+			fromSubAccountId,
+			toSubAccountId
+		);
+		ixs.push(transferDepositIx);
+
 		const { txSig, slot } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getTransferDepositIx(
-					amount,
-					marketIndex,
-					fromSubAccountId,
-					toSubAccountId
-				),
-				txParams
-			),
+			await this.buildTransaction(ixs, txParams),
 			[],
 			this.opts
 		);
@@ -2472,13 +2480,24 @@ export class DriftClient {
 		amount: BN,
 		marketIndex: number,
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		preSettleOpts?: PreSettleOpts
 	): Promise<TransactionSignature> {
+		const ixs = await getInitialIxsForRiskIncreasingAction({
+			enableSettleFirstMode: this.enableSettleFirstMode,
+			user: this.getUser(subAccountId),
+			opts: preSettleOpts,
+		});
+
+		const addPerpLpSharesIx = await this.getAddPerpLpSharesIx(
+			amount,
+			marketIndex,
+			subAccountId
+		);
+		ixs.push(addPerpLpSharesIx);
+
 		const { txSig, slot } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getAddPerpLpSharesIx(amount, marketIndex, subAccountId),
-				txParams
-			),
+			await this.buildTransaction(ixs, txParams),
 			[],
 			this.opts
 		);
@@ -2593,7 +2612,8 @@ export class DriftClient {
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
 		referrerInfo?: ReferrerInfo,
 		cancelExistingOrders?: boolean,
-		settlePnl?: boolean
+		settleAfter?: boolean,
+		preSettleOpts?: PreSettleOpts
 	): Promise<{
 		txSig: TransactionSignature;
 		signedFillTx?: Transaction;
@@ -2603,10 +2623,17 @@ export class DriftClient {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
 
+		const ordersIxs = await getInitialIxsForRiskIncreasingAction({
+			enableSettleFirstMode: this.enableSettleFirstMode,
+			user: this.getUser(userAccount.subAccountId, userAccount.authority),
+			opts: preSettleOpts,
+		});
+
 		const ordersIx = await this.getPlaceOrdersIx(
 			[orderParams, ...bracketOrdersParams],
 			userAccount.subAccountId
 		);
+		ordersIxs.push(ordersIx);
 
 		/* Cancel open orders in market if requested */
 		let cancelExistingOrdersTx;
@@ -2628,7 +2655,7 @@ export class DriftClient {
 
 		/* Settle PnL after fill if requested */
 		let settlePnlTx;
-		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
+		if (settleAfter && isVariant(orderParams.marketType, 'perp')) {
 			const settlePnlIx = await this.settlePNLIx(
 				userAccountPublicKey,
 				userAccount,
@@ -2646,7 +2673,7 @@ export class DriftClient {
 		// use versioned transactions if there is a lookup table account and wallet is compatible
 		if (this.txVersion === 0) {
 			const versionedMarketOrderTx = await this.buildTransaction(
-				ordersIx,
+				ordersIxs,
 				txParams,
 				0
 			);
@@ -2710,11 +2737,11 @@ export class DriftClient {
 				signedSettlePnlTx,
 			};
 		} else {
-			const marketOrderTx = wrapInTx(
-				ordersIx,
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
-			);
+			const marketOrderTx = (await this.buildTransaction(
+				ordersIxs,
+				txParams,
+				'legacy'
+			)) as Transaction;
 
 			// Apply the latest blockhash to the txs so that we can sign before sending them
 			const currentBlockHash = (
@@ -3156,13 +3183,20 @@ export class DriftClient {
 	public async placeOrders(
 		params: OrderParams[],
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		preSettleOpts?: PreSettleOpts
 	): Promise<TransactionSignature> {
+		const ixs = await getInitialIxsForRiskIncreasingAction({
+			enableSettleFirstMode: this.enableSettleFirstMode,
+			user: this.getUser(subAccountId),
+			opts: preSettleOpts,
+		});
+
+		const placeOrdersIx = await this.getPlaceOrdersIx(params, subAccountId);
+		ixs.push(placeOrdersIx);
+
 		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getPlaceOrdersIx(params, subAccountId),
-				txParams
-			),
+			await this.buildTransaction(ixs, txParams),
 			[],
 			this.opts
 		);
@@ -3336,13 +3370,23 @@ export class DriftClient {
 	public async placeSpotOrder(
 		orderParams: OptionalOrderParams,
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		preSettleOpts?: PreSettleOpts
 	): Promise<TransactionSignature> {
+		const ixs = await getInitialIxsForRiskIncreasingAction({
+			enableSettleFirstMode: this.enableSettleFirstMode,
+			user: this.getUser(subAccountId),
+			opts: preSettleOpts,
+		});
+
+		const spotOrderIx = await this.getPlaceSpotOrderIx(
+			orderParams,
+			subAccountId
+		);
+		ixs.push(spotOrderIx);
+
 		const { txSig, slot } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getPlaceSpotOrderIx(orderParams, subAccountId),
-				txParams
-			),
+			await this.buildTransaction(ixs, txParams),
 			[],
 			this.opts
 		);
@@ -3356,8 +3400,9 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
-		const userAccountPublicKey =
-			await this.getUserAccountPublicKey(subAccountId);
+		const userAccountPublicKey = await this.getUserAccountPublicKey(
+			subAccountId
+		);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -3708,6 +3753,7 @@ export class DriftClient {
 		txParams,
 		v6,
 		onlyDirectRoutes = false,
+		preSettleOpts,
 	}: {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
@@ -3724,9 +3770,15 @@ export class DriftClient {
 		v6?: {
 			quote?: QuoteResponse;
 		};
+		preSettleOpts?: PreSettleOpts;
 	}): Promise<TransactionSignature> {
-		let ixs: anchor.web3.TransactionInstruction[];
 		let lookupTables: anchor.web3.AddressLookupTableAccount[];
+
+		const ixs = await getInitialIxsForRiskIncreasingAction({
+			enableSettleFirstMode: this.enableSettleFirstMode,
+			user: this.getUser(),
+			opts: preSettleOpts,
+		});
 
 		if (v6) {
 			const res = await this.getJupiterSwapIxV6({
@@ -3742,7 +3794,7 @@ export class DriftClient {
 				reduceOnly,
 				onlyDirectRoutes,
 			});
-			ixs = res.ixs;
+			ixs.push(...res.ixs);
 			lookupTables = res.lookupTables;
 		} else {
 			const res = await this.getJupiterSwapIx({
@@ -3757,7 +3809,7 @@ export class DriftClient {
 				route,
 				reduceOnly,
 			});
-			ixs = res.ixs;
+			ixs.push(...res.ixs);
 			lookupTables = res.lookupTables;
 		}
 
@@ -4420,7 +4472,8 @@ export class DriftClient {
 		txParams?: TxParams,
 		subAccountId?: number,
 		cancelExistingOrders?: boolean,
-		settlePnl?: boolean
+		settleAfter?: boolean,
+		preSettleOpts?: PreSettleOpts
 	): Promise<{
 		txSig: TransactionSignature;
 		signedCancelExistingOrdersTx?: Transaction;
@@ -4445,9 +4498,10 @@ export class DriftClient {
 
 		/* Settle PnL after fill if requested */
 		let settlePnlTx: Transaction;
-		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
-			const userAccountPublicKey =
-				await this.getUserAccountPublicKey(subAccountId);
+		if (settleAfter && isVariant(orderParams.marketType, 'perp')) {
+			const userAccountPublicKey = await this.getUserAccountPublicKey(
+				subAccountId
+			);
 
 			const settlePnlIx = await this.settlePNLIx(
 				userAccountPublicKey,
@@ -4463,7 +4517,11 @@ export class DriftClient {
 			);
 		}
 
-		const ixs = [];
+		const ixs = await getInitialIxsForRiskIncreasingAction({
+			enableSettleFirstMode: this.enableSettleFirstMode,
+			user: this.getUser(subAccountId),
+			opts: preSettleOpts,
+		});
 
 		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
 			orderParams,
@@ -5920,6 +5978,7 @@ export class DriftClient {
 		collateralAccountPublicKey,
 		initializeStakeAccount,
 		fromSubaccount,
+		preSettleOpts,
 	}: {
 		/**
 		 * Spot market index
@@ -5938,8 +5997,13 @@ export class DriftClient {
 		 * Optional -- withdraw from current subaccount to fund stake amount, instead of wallet balance
 		 */
 		fromSubaccount?: boolean;
+		preSettleOpts?: PreSettleOpts;
 	}): Promise<TransactionSignature> {
-		const addIfStakeIxs = [];
+		const addIfStakeIxs = await getInitialIxsForRiskIncreasingAction({
+			enableSettleFirstMode: this.enableSettleFirstMode,
+			user: fromSubaccount ? this.getUser() : undefined,
+			opts: preSettleOpts,
+		});
 
 		const additionalSigners: Array<Signer> = [];
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -5972,8 +6036,9 @@ export class DriftClient {
 		}
 
 		if (initializeStakeAccount) {
-			const initializeIx =
-				await this.getInitializeInsuranceFundStakeIx(marketIndex);
+			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
+				marketIndex
+			);
 			addIfStakeIxs.push(initializeIx);
 		}
 
