@@ -388,12 +388,16 @@ export class User {
 
 	/**
 	 * calculates the open bids and asks for an lp
+	 * optionally pass in lpShares to see what bid/asks a user *would* take on
 	 * @returns : lp open bids
 	 * @returns : lp open asks
 	 */
-	public getLPBidAsks(marketIndex: number): [BN, BN] {
+	public getLPBidAsks(marketIndex: number, lpShares?: BN): [BN, BN] {
 		const position = this.getPerpPosition(marketIndex);
-		if (position === undefined || position.lpShares.eq(ZERO)) {
+
+		const lpSharesToCalc = lpShares ?? position?.lpShares;
+
+		if (!lpSharesToCalc || lpSharesToCalc.eq(ZERO)) {
 			return [ZERO, ZERO];
 		}
 
@@ -405,12 +409,8 @@ export class User {
 			market.amm.orderStepSize
 		);
 
-		const lpOpenBids = marketOpenBids
-			.mul(position.lpShares)
-			.div(market.amm.sqrtK);
-		const lpOpenAsks = marketOpenAsks
-			.mul(position.lpShares)
-			.div(market.amm.sqrtK);
+		const lpOpenBids = marketOpenBids.mul(lpSharesToCalc).div(market.amm.sqrtK);
+		const lpOpenAsks = marketOpenAsks.mul(lpSharesToCalc).div(market.amm.sqrtK);
 
 		return [lpOpenBids, lpOpenAsks];
 	}

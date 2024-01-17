@@ -904,7 +904,8 @@ export class DriftClient {
 	}
 
 	public async updateUserCustomMarginRatio(
-		updates: { marginRatio: number; subAccountId: number }[]
+		updates: { marginRatio: number; subAccountId: number }[],
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await Promise.all(
 			updates.map(async ({ marginRatio, subAccountId }) => {
@@ -916,7 +917,7 @@ export class DriftClient {
 			})
 		);
 
-		const tx = await this.buildTransaction(ixs, this.txParams);
+		const tx = await this.buildTransaction(ixs, txParams ?? this.txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -1877,7 +1878,8 @@ export class DriftClient {
 		fromSubAccountId?: number,
 		referrerInfo?: ReferrerInfo,
 		donateAmount?: BN,
-		txParams?: TxParams
+		txParams?: TxParams,
+		customMaxMarginRatio?: number
 	): Promise<[TransactionSignature, PublicKey]> {
 		const ixs = [];
 
@@ -1969,6 +1971,15 @@ export class DriftClient {
 			);
 
 			ixs.push(donateIx);
+		}
+
+		// Set the max margin ratio to initialize account with if passed
+		if (customMaxMarginRatio) {
+			const customMarginRatioIx = await this.getUpdateUserCustomMarginRatioIx(
+				customMaxMarginRatio,
+				subAccountId
+			);
+			ixs.push(customMarginRatioIx);
 		}
 
 		// Close the wrapped sol account at the end of the transaction
