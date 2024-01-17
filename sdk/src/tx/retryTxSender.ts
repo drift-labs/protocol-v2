@@ -95,9 +95,16 @@ export class RetryTxSender extends BaseTxSender {
 			}
 		})();
 
-		const result = await this.confirmTransaction(txid, opts.commitment);
-		const slot = result.context.slot;
-		stopWaiting();
+		let slot: number;
+		try {
+			const result = await this.confirmTransaction(txid, opts.commitment);
+			slot = result.context.slot;
+			// eslint-disable-next-line no-useless-catch
+		} catch (e) {
+			throw e;
+		} finally {
+			stopWaiting();
+		}
 
 		return { txSig: txid, slot };
 	}
