@@ -28,7 +28,6 @@ export class FastSingleTxSender extends BaseTxSender {
 	timoutCount = 0;
 	recentBlockhash: string;
 	skipConfirmation: boolean;
-	blockhashCommitment: Commitment;
 
 	public constructor({
 		connection,
@@ -38,7 +37,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		blockhashRefreshInterval = DEFAULT_BLOCKHASH_REFRESH,
 		additionalConnections = new Array<Connection>(),
 		skipConfirmation = false,
-		blockhashCommitment = 'finalized',
+		blockhashCommitment = 'confirmed',
 		confirmationStrategy = ConfirmationStrategy.Combo,
 	}: {
 		connection: Connection;
@@ -58,6 +57,7 @@ export class FastSingleTxSender extends BaseTxSender {
 			timeout,
 			additionalConnections,
 			confirmationStrategy,
+			blockhashCommitment,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -66,7 +66,6 @@ export class FastSingleTxSender extends BaseTxSender {
 		this.blockhashRefreshInterval = blockhashRefreshInterval;
 		this.additionalConnections = additionalConnections;
 		this.skipConfirmation = skipConfirmation;
-		this.blockhashCommitment = blockhashCommitment;
 		this.startBlockhashRefreshLoop();
 	}
 

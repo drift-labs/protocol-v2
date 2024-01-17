@@ -1,5 +1,5 @@
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
-import { ConfirmOptions, Connection } from '@solana/web3.js';
+import { Commitment, ConfirmOptions, Connection } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
@@ -28,6 +28,7 @@ export class RetryTxSender extends BaseTxSender {
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		blockhashCommitment = 'confirmed',
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -36,6 +37,7 @@ export class RetryTxSender extends BaseTxSender {
 		retrySleep?: number;
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
+		blockhashCommitment?: Commitment;
 	}) {
 		super({
 			connection,
@@ -44,6 +46,7 @@ export class RetryTxSender extends BaseTxSender {
 			timeout,
 			additionalConnections,
 			confirmationStrategy,
+			blockhashCommitment,
 		});
 		this.connection = connection;
 		this.wallet = wallet;

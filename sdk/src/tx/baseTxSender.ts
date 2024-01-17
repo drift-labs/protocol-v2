@@ -34,6 +34,7 @@ export abstract class BaseTxSender implements TxSender {
 	additionalConnections: Connection[];
 	timeoutCount = 0;
 	confirmationStrategy: ConfirmationStrategy;
+	blockhashCommitment: Commitment;
 
 	public constructor({
 		connection,
@@ -42,6 +43,7 @@ export abstract class BaseTxSender implements TxSender {
 		timeout = DEFAULT_TIMEOUT,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		blockhashCommitment = 'confirmed',
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -49,6 +51,7 @@ export abstract class BaseTxSender implements TxSender {
 		timeout?: number;
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
+		blockhashCommitment?: Commitment;
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -56,6 +59,7 @@ export abstract class BaseTxSender implements TxSender {
 		this.timeout = timeout;
 		this.additionalConnections = additionalConnections;
 		this.confirmationStrategy = confirmationStrategy;
+		this.blockhashCommitment = blockhashCommitment;
 	}
 
 	async send(
@@ -86,11 +90,11 @@ export abstract class BaseTxSender implements TxSender {
 	async prepareTx(
 		tx: Transaction,
 		additionalSigners: Array<Signer>,
-		opts: ConfirmOptions
+		_opts: ConfirmOptions
 	): Promise<Transaction> {
 		tx.feePayer = this.wallet.publicKey;
 		tx.recentBlockhash = (
-			await this.connection.getLatestBlockhash(opts.preflightCommitment)
+			await this.connection.getLatestBlockhash(this.blockhashCommitment)
 		).blockhash;
 
 		additionalSigners
@@ -120,7 +124,7 @@ export abstract class BaseTxSender implements TxSender {
 		const message = new TransactionMessage({
 			payerKey: this.wallet.publicKey,
 			recentBlockhash: (
-				await this.connection.getLatestBlockhash(opts.preflightCommitment)
+				await this.connection.getLatestBlockhash(this.blockhashCommitment)
 			).blockhash,
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
