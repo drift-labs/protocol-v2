@@ -1,6 +1,6 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
-use std::ops::DerefMut;
+use std::ops::{DerefMut, Div};
 use std::u64;
 
 use anchor_lang::prelude::*;
@@ -2890,10 +2890,14 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     };
 
     let order_step_size = market.amm.order_step_size;
+
+    let lp_shares_to_burn =
+        standardize_base_asset_amount(lp_shares.div(3), order_step_size)?.max(lp_shares);
+
     let (position_delta, pnl) = burn_lp_shares(
         &mut user.perp_positions[position_index],
         &mut market,
-        lp_shares.safe_div(3)?.max(order_step_size),
+        lp_shares_to_burn,
         oracle_price,
     )?;
 
@@ -2902,7 +2906,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         ts: clock.unix_timestamp,
         action: LPAction::RemoveLiquidity,
         user: user_key,
-        n_shares: lp_shares,
+        n_shares: lp_shares_to_burn,
         market_index,
         delta_base_asset_amount: position_delta.base_asset_amount,
         delta_quote_asset_amount: position_delta.quote_asset_amount,
