@@ -34,6 +34,7 @@ export abstract class BaseTxSender implements TxSender {
 	additionalConnections: Connection[];
 	timeoutCount = 0;
 	confirmationStrategy: ConfirmationStrategy;
+	additionRawTxEndpoints: string[];
 
 	public constructor({
 		connection,
@@ -42,6 +43,7 @@ export abstract class BaseTxSender implements TxSender {
 		timeout = DEFAULT_TIMEOUT,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		additionRawTxEndpoints,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -49,6 +51,7 @@ export abstract class BaseTxSender implements TxSender {
 		timeout?: number;
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
+		additionRawTxEndpoints?: string[];
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -56,6 +59,7 @@ export abstract class BaseTxSender implements TxSender {
 		this.timeout = timeout;
 		this.additionalConnections = additionalConnections;
 		this.confirmationStrategy = confirmationStrategy;
+		this.additionRawTxEndpoints = additionRawTxEndpoints;
 	}
 
 	async send(
@@ -331,6 +335,19 @@ export abstract class BaseTxSender implements TxSender {
 					`error sending tx to additional connection ${connection._rpcEndpoint}`
 				);
 				console.error(e);
+			});
+		});
+		this.additionRawTxEndpoints?.map((endpoint) => {
+			fetch(endpoint, {
+				method: 'POST',
+				body: JSON.stringify({
+					jsonrpc: '2.0',
+					id: 1,
+					method: 'sendTransaction',
+					params: [bs58.encode(rawTx)],
+				}),
+			}).then((res) => {
+				console.log(`🌈 JITO ENDPOINT RESPONSE`, res);
 			});
 		});
 	}

@@ -28,6 +28,7 @@ export class RetryTxSender extends BaseTxSender {
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		additionRawTxEndpoints
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -36,6 +37,7 @@ export class RetryTxSender extends BaseTxSender {
 		retrySleep?: number;
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
+		additionRawTxEndpoints?: string[];
 	}) {
 		super({
 			connection,
@@ -44,6 +46,7 @@ export class RetryTxSender extends BaseTxSender {
 			timeout,
 			additionalConnections,
 			confirmationStrategy,
+			additionRawTxEndpoints
 		});
 		this.connection = connection;
 		this.wallet = wallet;
