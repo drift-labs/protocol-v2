@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.55.0] - 2023-01-18
+
+## [Unreleased]
+
+### Features
+
+### Fixes
+
 - program: standardize lp shares in attempt_burn_user_lp_shares_for_risk_reduction ([#826](https://github.com/drift-labs/protocol-v2/pull/826))
 
 ### Breaking
