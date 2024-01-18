@@ -1,6 +1,6 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
-use std::ops::DerefMut;
+use std::ops::{DerefMut, Div};
 use std::u64;
 
 use anchor_lang::prelude::*;
@@ -2892,7 +2892,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     let order_step_size = market.amm.order_step_size;
 
     let lp_shares_to_burn =
-        standardize_base_asset_amount(lp_shares, order_step_size)?.max(lp_shares);
+        standardize_base_asset_amount(lp_shares.div(3), order_step_size)?.max(lp_shares);
 
     let (position_delta, pnl) = burn_lp_shares(
         &mut user.perp_positions[position_index],
