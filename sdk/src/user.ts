@@ -3293,6 +3293,10 @@ export class User {
 		};
 
 		for (const perpPosition of this.getActivePerpPositions()) {
+			const settledLpPosition = this.getPerpPositionWithLPSettle(
+				perpPosition.marketIndex,
+				perpPosition
+			)[0];
 			const perpMarket = this.driftClient.getPerpMarketAccount(
 				perpPosition.marketIndex
 			);
@@ -3301,7 +3305,7 @@ export class User {
 			).data;
 			const oraclePrice = oraclePriceData.price;
 			const worstCaseBaseAmount =
-				calculateWorstCaseBaseAssetAmount(perpPosition);
+				calculateWorstCaseBaseAssetAmount(settledLpPosition);
 
 			const marginRatio = new BN(
 				calculateMarketMarginRatio(
