@@ -34,6 +34,7 @@ export abstract class BaseTxSender implements TxSender {
 	additionalConnections: Connection[];
 	timeoutCount = 0;
 	confirmationStrategy: ConfirmationStrategy;
+	additionalTxSenderCallbacks: ((base58EncodedTx: string)=>void)[];
 
 	public constructor({
 		connection,
@@ -42,6 +43,7 @@ export abstract class BaseTxSender implements TxSender {
 		timeout = DEFAULT_TIMEOUT,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		additionalTxSenderCallbacks,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -49,6 +51,7 @@ export abstract class BaseTxSender implements TxSender {
 		timeout?: number;
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
+		additionalTxSenderCallbacks?: ((base58EncodedTx: string)=>void)[];
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -56,6 +59,7 @@ export abstract class BaseTxSender implements TxSender {
 		this.timeout = timeout;
 		this.additionalConnections = additionalConnections;
 		this.confirmationStrategy = confirmationStrategy;
+		this.additionalTxSenderCallbacks = additionalTxSenderCallbacks;
 	}
 
 	async send(
@@ -332,6 +336,9 @@ export abstract class BaseTxSender implements TxSender {
 				);
 				console.error(e);
 			});
+		});
+		this.additionalTxSenderCallbacks?.map(callback => {
+			callback(bs58.encode(rawTx));
 		});
 	}
 
