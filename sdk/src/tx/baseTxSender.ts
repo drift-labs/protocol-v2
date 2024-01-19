@@ -34,7 +34,7 @@ export abstract class BaseTxSender implements TxSender {
 	additionalConnections: Connection[];
 	timeoutCount = 0;
 	confirmationStrategy: ConfirmationStrategy;
-	additionRawTxEndpoints: string[];
+	additionalTxSenderCallbacks: ((base58EncodedTx: string)=>void)[];
 
 	public constructor({
 		connection,
@@ -43,7 +43,7 @@ export abstract class BaseTxSender implements TxSender {
 		timeout = DEFAULT_TIMEOUT,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
-		additionRawTxEndpoints,
+		additionalTxSenderCallbacks,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -51,7 +51,7 @@ export abstract class BaseTxSender implements TxSender {
 		timeout?: number;
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
-		additionRawTxEndpoints?: string[];
+		additionalTxSenderCallbacks?: ((base58EncodedTx: string)=>void)[];
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -59,7 +59,7 @@ export abstract class BaseTxSender implements TxSender {
 		this.timeout = timeout;
 		this.additionalConnections = additionalConnections;
 		this.confirmationStrategy = confirmationStrategy;
-		this.additionRawTxEndpoints = additionRawTxEndpoints;
+		this.additionalTxSenderCallbacks = additionalTxSenderCallbacks;
 	}
 
 	async send(
@@ -337,18 +337,8 @@ export abstract class BaseTxSender implements TxSender {
 				console.error(e);
 			});
 		});
-		this.additionRawTxEndpoints?.map((endpoint) => {
-			fetch(endpoint, {
-				method: 'POST',
-				body: JSON.stringify({
-					jsonrpc: '2.0',
-					id: 1,
-					method: 'sendTransaction',
-					params: [bs58.encode(rawTx)],
-				}),
-			}).then((res) => {
-				console.log(`🌈 JITO ENDPOINT RESPONSE`, res);
-			});
+		this.additionalTxSenderCallbacks?.map(callback => {
+			callback(bs58.encode(rawTx));
 		});
 	}
 
