@@ -12,6 +12,7 @@ pub use drift_program::{
     },
 };
 use futures_util::sink::Sink;
+pub use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::{
     instruction::{AccountMeta, InstructionError},
     pubkey::Pubkey,

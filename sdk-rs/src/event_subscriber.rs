@@ -1,6 +1,6 @@
 use std::{
     str::FromStr,
-    sync::Arc,
+    sync::{Arc, OnceLock},
     task::{Context, Poll},
     time::Duration,
 };
@@ -17,6 +17,7 @@ use futures_util::{
     future::BoxFuture, stream::FuturesOrdered, Future, FutureExt, Stream, StreamExt,
 };
 use log::{debug, error, warn};
+use regex::Regex;
 use serde::Serializer;
 pub use solana_client::nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient};
 use solana_client::{
@@ -164,7 +165,7 @@ impl LogEventStream {
                 }
                 for log in response.value.logs {
                     // a drift sub-account should not interact with any other program by definition
-                    if let Some(event) = try_parse_log(log.as_str()) {
+                    if let Some(event) = try_parse_log(log.as_str(), &response.value.signature) {
                         // unrelated events from same tx should not be emitted e.g. a filler tx which produces other fill events
                         if event.pertains_to(sub_account) {
                             // TODO: handle RevertFill semantics
@@ -254,8 +255,9 @@ pub fn polled_stream(provider: impl EventRpcProvider, sub_account: Pubkey) -> Dr
                 }
 
                 if let OptionSerializer::Some(logs) = response.meta.unwrap().log_messages {
+                    let signature = format!("{sig:?}");
                     for log in logs {
-                        if let Some(event) = try_parse_log(log.as_str()) {
+                        if let Some(event) = try_parse_log(log.as_str(), signature.as_str()) {
                             if event.pertains_to(sub_account) {
                                 event_tx.try_send(event).expect("sent");
                             }
@@ -310,7 +312,7 @@ const PROGRAM_DATA: &str = "Program data: ";
 
 /// Try deserialize a drift event type from raw log string
 /// https://github.com/coral-xyz/anchor/blob/9d947cb26b693e85e1fd26072bb046ff8f95bdcf/client/src/lib.rs#L552
-fn try_parse_log(raw: &str) -> Option<DriftEvent> {
+fn try_parse_log(raw: &str, signature: &str) -> Option<DriftEvent> {
     // Log emitted from the current program.
     if let Some(log) = raw
         .strip_prefix(PROGRAM_LOG)
@@ -320,12 +322,42 @@ fn try_parse_log(raw: &str) -> Option<DriftEvent> {
             let (disc, mut data) = borsh_bytes.split_at(8);
             let disc: [u8; 8] = disc.try_into().unwrap();
 
-            return DriftEvent::from_discriminant(disc, &mut data);
+            return DriftEvent::from_discriminant(disc, &mut data, signature);
+        }
+
+        let order_cancel_missing_re = ORDER_CANCEL_MISSING_RE
+            .get_or_init(|| Regex::new(r"could not find( user){0,1} order id (\d+)").unwrap());
+        if let Some(captures) = order_cancel_missing_re.captures(log) {
+            let order_id = captures
+                .get(2)
+                .unwrap()
+                .as_str()
+                .parse::<u32>()
+                .expect("<u32");
+            let event = if captures.get(1).is_some() {
+                // cancel by user order Id
+                DriftEvent::OrderCancelMissing {
+                    user_order_id: order_id as u8,
+                    order_id: 0,
+                    signature: signature.to_string(),
+                }
+            } else {
+                // cancel by order id
+                DriftEvent::OrderCancelMissing {
+                    user_order_id: 0,
+                    order_id,
+                    signature: signature.to_string(),
+                }
+            };
+
+            return Some(event);
         }
     }
 
     None
 }
+
+static ORDER_CANCEL_MISSING_RE: OnceLock<Regex> = OnceLock::new();
 
 /// Enum of all drift program events
 #[derive(Debug, PartialEq, serde::Serialize)]
@@ -348,6 +380,7 @@ pub enum DriftEvent {
         market_index: u16,
         market_type: MarketType,
         oracle_price: i64,
+        signature: String,
         ts: u64,
     },
     #[serde(rename_all = "camelCase")]
@@ -358,13 +391,30 @@ pub enum DriftEvent {
         maker: Option<Pubkey>,
         taker_order_id: u32,
         maker_order_id: u32,
+        signature: String,
         ts: u64,
     },
+    /// An order cancel for a missing order Id / user order id
     #[serde(rename_all = "camelCase")]
-    OrderCreate { order: Order, ts: u64 },
+    OrderCancelMissing {
+        user_order_id: u8,
+        order_id: u32,
+        signature: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    OrderCreate {
+        order: Order,
+        ts: u64,
+        signature: String,
+    },
     // sub-case of cancel?
     #[serde(rename_all = "camelCase")]
-    OrderExpire { order_id: u32, fee: u64, ts: u64 },
+    OrderExpire {
+        order_id: u32,
+        fee: u64,
+        ts: u64,
+        signature: String,
+    },
 }
 
 impl DriftEvent {
@@ -375,32 +425,37 @@ impl DriftEvent {
             Self::OrderCancel { taker, maker, .. } => maker == subject || taker == subject,
             Self::OrderFill { maker, taker, .. } => maker == subject || taker == subject,
             // these order types are contextual
-            Self::OrderCreate { .. } | Self::OrderExpire { .. } => true,
+            Self::OrderCreate { .. }
+            | Self::OrderExpire { .. }
+            | Self::OrderCancelMissing { .. } => true,
         }
     }
     /// Deserialize drift event by discriminant
-    fn from_discriminant(disc: [u8; 8], data: &mut &[u8]) -> Option<Self> {
+    fn from_discriminant(disc: [u8; 8], data: &mut &[u8], signature: &str) -> Option<Self> {
         match disc {
             // deser should only fail on a breaking protocol changes
-            OrderActionRecord::DISCRIMINATOR => {
-                Self::from_oar(OrderActionRecord::deserialize(data).expect("deserializes"))
-            }
-            OrderRecord::DISCRIMINATOR => {
-                Self::from_order_record(OrderRecord::deserialize(data).expect("deserializes"))
-            }
+            OrderActionRecord::DISCRIMINATOR => Self::from_oar(
+                OrderActionRecord::deserialize(data).expect("deserializes"),
+                signature,
+            ),
+            OrderRecord::DISCRIMINATOR => Self::from_order_record(
+                OrderRecord::deserialize(data).expect("deserializes"),
+                signature,
+            ),
             _ => {
                 debug!(target: LOG_TARGET, "unhandled event: {disc:?}");
                 None
             }
         }
     }
-    fn from_order_record(value: OrderRecord) -> Option<Self> {
+    fn from_order_record(value: OrderRecord, signature: &str) -> Option<Self> {
         Some(DriftEvent::OrderCreate {
             order: value.order,
             ts: value.ts.unsigned_abs(),
+            signature: signature.to_string(),
         })
     }
-    fn from_oar(value: OrderActionRecord) -> Option<Self> {
+    fn from_oar(value: OrderActionRecord, signature: &str) -> Option<Self> {
         match value.action {
             OrderAction::Cancel => {
                 if let OrderActionExplanation::OrderExpired = value.action_explanation {
@@ -412,6 +467,7 @@ impl DriftEvent {
                             .or(value.taker_order_id)
                             .expect("order id set"),
                         ts: value.ts.unsigned_abs(),
+                        signature: signature.to_string(),
                     })
                 } else {
                     Some(DriftEvent::OrderCancel {
@@ -420,6 +476,7 @@ impl DriftEvent {
                         maker_order_id: value.maker_order_id.unwrap_or_default(),
                         taker_order_id: value.taker_order_id.unwrap_or_default(),
                         ts: value.ts.unsigned_abs(),
+                        signature: signature.to_string(),
                     })
                 }
             }
@@ -438,6 +495,7 @@ impl DriftEvent {
                 market_index: value.market_index,
                 market_type: value.market_type,
                 ts: value.ts.unsigned_abs(),
+                signature: signature.to_string(),
             }),
             // Place - parsed from `OrderRecord` event, ignored here due to lack of useful info
             // Expire - never emitted

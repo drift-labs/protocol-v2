@@ -24,6 +24,7 @@ substreams-solana-macro = "0.11.1"
 thiserror = "1.0.38"
 tokio = { version = "1.34.0", features = ["full"] }
 tokio-tungstenite = { version = "0.21.0", features = [ "native-tls" ]}
+regex = "1.10.2"
 
 [dev-dependencies]
 anchor-client = "0.27.0"

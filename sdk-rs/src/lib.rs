@@ -569,6 +569,24 @@ impl<T: AccountProvider> DriftClientBackend<T> {
             .map_err(|err| err.into())
     }
 
+    /// Sign and send a tx to the network with custom send config
+    /// allows setting commitment level, retries, etc.
+    ///
+    /// Returns the signature on success
+    pub async fn sign_and_send_with_config(
+        &self,
+        wallet: &Wallet,
+        tx: VersionedMessage,
+        config: RpcSendTransactionConfig,
+    ) -> SdkResult<Signature> {
+        let recent_block_hash = self.rpc_client.get_latest_blockhash().await?;
+        let tx = wallet.sign_tx(tx, recent_block_hash)?;
+        self.rpc_client
+            .send_transaction_with_config(&tx, config)
+            .await
+            .map_err(|err| err.into())
+    }
+
     /// Fetch the live oracle price for `market`
     pub async fn oracle_price(&self, market: MarketId) -> SdkResult<i64> {
         let (oracle, oracle_source) = match market.kind {
@@ -812,6 +830,34 @@ impl<'a> TransactionBuilder<'a> {
             }),
         };
         self.ixs.push(ix);
+
+        self
+    }
+
+    /// Cancel orders by given _user_ ids
+    pub fn cancel_orders_by_user_id(mut self, user_order_ids: Vec<u8>) -> Self {
+        let accounts = build_accounts(
+            self.program_data,
+            drift_program::accounts::CancelOrder {
+                state: *state_account(),
+                authority: self.account_data.authority,
+                user: self.sub_account,
+            },
+            self.account_data.as_ref(),
+            &[],
+            &[],
+        );
+
+        for user_order_id in user_order_ids {
+            let ix = Instruction {
+                program_id: constants::PROGRAM_ID,
+                accounts: accounts.clone(),
+                data: InstructionData::data(&drift_program::instruction::CancelOrderByUserId {
+                    user_order_id,
+                }),
+            };
+            self.ixs.push(ix);
+        }
 
         self
     }
