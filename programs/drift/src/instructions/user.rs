@@ -70,8 +70,8 @@ use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-pub fn handle_initialize_user(
-    ctx: Context<InitializeUser>,
+pub fn handle_initialize_user<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, InitializeUser<'info>>,
     sub_account_id: u16,
     name: [u8; 32],
 ) -> Result<()> {
@@ -184,7 +184,9 @@ pub fn handle_initialize_user(
     Ok(())
 }
 
-pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result<()> {
+pub fn handle_initialize_user_stats<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, InitializeUserStats>,
+) -> Result<()> {
     let clock = Clock::get()?;
 
     let mut user_stats = ctx
@@ -247,8 +249,8 @@ pub fn handle_initialize_referrer_name(
 #[access_control(
     deposit_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_deposit(
-    ctx: Context<Deposit>,
+pub fn handle_deposit<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, Deposit<'info>>,
     market_index: u16,
     amount: u64,
     reduce_only: bool,
@@ -414,8 +416,8 @@ pub fn handle_deposit(
 #[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_withdraw(
-    ctx: Context<Withdraw>,
+pub fn handle_withdraw<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, Withdraw<'info>>,
     market_index: u16,
     amount: u64,
     reduce_only: bool,
@@ -584,8 +586,8 @@ pub fn handle_withdraw(
     deposit_not_paused(&ctx.accounts.state)
     withdraw_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_transfer_deposit(
-    ctx: Context<TransferDeposit>,
+pub fn handle_transfer_deposit<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, TransferDeposit<'info>>,
     market_index: u16,
     amount: u64,
 ) -> anchor_lang::Result<()> {
@@ -788,7 +790,10 @@ pub fn handle_transfer_deposit(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
+pub fn handle_place_perp_order<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, PlaceOrder>,
+    params: OrderParams,
+) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -830,7 +835,10 @@ pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_cancel_order(ctx: Context<CancelOrder>, order_id: Option<u32>) -> Result<()> {
+pub fn handle_cancel_order<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, CancelOrder>,
+    order_id: Option<u32>,
+) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -866,7 +874,10 @@ pub fn handle_cancel_order(ctx: Context<CancelOrder>, order_id: Option<u32>) -> 
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> Result<()> {
+pub fn handle_cancel_order_by_user_id<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, CancelOrder>,
+    user_order_id: u8,
+) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -897,7 +908,10 @@ pub fn handle_cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: 
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_cancel_orders_by_ids(ctx: Context<CancelOrder>, order_ids: Vec<u32>) -> Result<()> {
+pub fn handle_cancel_orders_by_ids<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, CancelOrder>,
+    order_ids: Vec<u32>,
+) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -930,8 +944,8 @@ pub fn handle_cancel_orders_by_ids(ctx: Context<CancelOrder>, order_ids: Vec<u32
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_cancel_orders(
-    ctx: Context<CancelOrder>,
+pub fn handle_cancel_orders<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, CancelOrder<'info>>,
     market_type: Option<MarketType>,
     market_index: Option<u16>,
     direction: Option<PositionDirection>,
@@ -975,8 +989,8 @@ pub fn handle_cancel_orders(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_modify_order(
-    ctx: Context<CancelOrder>,
+pub fn handle_modify_order<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, CancelOrder<'info>>,
     order_id: Option<u32>,
     modify_order_params: ModifyOrderParams,
 ) -> Result<()> {
@@ -1017,8 +1031,8 @@ pub fn handle_modify_order(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_modify_order_by_user_order_id(
-    ctx: Context<CancelOrder>,
+pub fn handle_modify_order_by_user_order_id<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, CancelOrder<'info>>,
     user_order_id: u8,
     modify_order_params: ModifyOrderParams,
 ) -> Result<()> {
@@ -1054,7 +1068,10 @@ pub fn handle_modify_order_by_user_order_id(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -> Result<()> {
+pub fn handle_place_orders<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, PlaceOrder>,
+    params: Vec<OrderParams>,
+) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -1127,8 +1144,8 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_and_take_perp_order<'info>(
-    ctx: Context<PlaceAndTake>,
+pub fn handle_place_and_take_perp_order<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, PlaceAndTake<'info>>,
     params: OrderParams,
     _maker_order_id: Option<u32>,
 ) -> Result<()> {
@@ -1225,7 +1242,7 @@ pub fn handle_place_and_take_perp_order<'info>(
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
+pub fn handle_place_and_make_perp_order<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, PlaceAndMake<'info>>,
     params: OrderParams,
     taker_order_id: u32,
@@ -1322,7 +1339,10 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
     Ok(())
 }
 
-pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
+pub fn handle_place_spot_order<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, PlaceOrder>,
+    params: OrderParams,
+) -> Result<()> {
     let AccountMaps {
         perp_market_map,
         spot_market_map,
@@ -1361,8 +1381,8 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_and_take_spot_order<'info>(
-    ctx: Context<PlaceAndTake>,
+pub fn handle_place_and_take_spot_order<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, PlaceAndTake<'info>>,
     params: OrderParams,
     fulfillment_type: SpotFulfillmentType,
     maker_order_id: Option<u32>,
@@ -1496,8 +1516,8 @@ pub fn handle_place_and_take_spot_order<'info>(
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_and_make_spot_order<'info>(
-    ctx: Context<PlaceAndMake>,
+pub fn handle_place_and_make_spot_order<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, PlaceAndMake<'info>>,
     params: OrderParams,
     taker_order_id: u32,
     fulfillment_type: SpotFulfillmentType,
@@ -1625,8 +1645,8 @@ pub fn handle_place_and_make_spot_order<'info>(
 #[access_control(
     amm_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_add_perp_lp_shares<'info>(
-    ctx: Context<AddRemoveLiquidity>,
+pub fn handle_add_perp_lp_shares<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, AddRemoveLiquidity<'info>>,
     n_shares: u64,
     market_index: u16,
 ) -> Result<()> {
@@ -1724,8 +1744,8 @@ pub fn handle_add_perp_lp_shares<'info>(
     Ok(())
 }
 
-pub fn handle_remove_perp_lp_shares_in_expiring_market(
-    ctx: Context<RemoveLiquidityInExpiredMarket>,
+pub fn handle_remove_perp_lp_shares_in_expiring_market<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, RemoveLiquidityInExpiredMarket<'info>>,
     shares_to_burn: u64,
     market_index: u16,
 ) -> Result<()> {
@@ -1777,8 +1797,8 @@ pub fn handle_remove_perp_lp_shares_in_expiring_market(
 #[access_control(
     amm_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_remove_perp_lp_shares(
-    ctx: Context<AddRemoveLiquidity>,
+pub fn handle_remove_perp_lp_shares<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, AddRemoveLiquidity<'info>>,
     shares_to_burn: u64,
     market_index: u16,
 ) -> Result<()> {
@@ -1837,8 +1857,8 @@ pub fn handle_update_user_custom_margin_ratio(
     Ok(())
 }
 
-pub fn handle_update_user_margin_trading_enabled(
-    ctx: Context<UpdateUser>,
+pub fn handle_update_user_margin_trading_enabled<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, UpdateUser<'info>>,
     _sub_account_id: u16,
     margin_trading_enabled: bool,
 ) -> Result<()> {
@@ -2361,8 +2381,8 @@ pub struct Swap<'info> {
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_begin_swap(
-    ctx: Context<Swap>,
+pub fn handle_begin_swap<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, Swap<'info>>,
     in_market_index: u16,
     out_market_index: u16,
     amount_in: u64,
@@ -2611,8 +2631,8 @@ pub enum SwapReduceOnly {
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_end_swap(
-    ctx: Context<Swap>,
+pub fn handle_end_swap<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, Swap<'info>>,
     in_market_index: u16,
     out_market_index: u16,
     limit_price: Option<u64>,

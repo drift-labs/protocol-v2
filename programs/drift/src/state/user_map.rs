@@ -273,10 +273,10 @@ impl<'a> UserStatsMap<'a> {
     }
 }
 
-pub fn load_user_maps<'a>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+pub fn load_user_maps<'a: 'b, 'b>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'b>>>,
     must_be_writable: bool,
-) -> DriftResult<(UserMap<'a>, UserStatsMap<'a>)> {
+) -> DriftResult<(UserMap<'b>, UserStatsMap<'b>)> {
     let mut user_map = UserMap::empty();
     let mut user_stats_map = UserStatsMap::empty();
 

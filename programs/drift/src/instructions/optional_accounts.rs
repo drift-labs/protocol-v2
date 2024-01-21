@@ -25,8 +25,8 @@ pub struct AccountMaps<'a> {
     pub oracle_map: OracleMap<'a>,
 }
 
-pub fn load_maps<'a, 'b>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+pub fn load_maps<'a, 'b, 'c: 'a>(
+    account_info_iter: &mut Peekable<Iter<'c, AccountInfo<'a>>>,
     writable_perp_markets: &'b MarketSet,
     writable_spot_markets: &'b MarketSet,
     slot: u64,
@@ -43,8 +43,8 @@ pub fn load_maps<'a, 'b>(
     })
 }
 
-pub fn get_maker_and_maker_stats<'a>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+pub fn get_maker_and_maker_stats<'a, 'b>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
 ) -> DriftResult<(AccountLoader<'a, User>, AccountLoader<'a, UserStats>)> {
     let maker_account_info =
         next_account_info(account_info_iter).or(Err(ErrorCode::MakerNotFound))?;
@@ -73,11 +73,11 @@ pub fn get_maker_and_maker_stats<'a>(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn get_referrer_and_referrer_stats<'a>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+pub fn get_referrer_and_referrer_stats<'a: 'b, 'b>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'b>>>,
 ) -> DriftResult<(
-    Option<AccountLoader<'a, User>>,
-    Option<AccountLoader<'a, UserStats>>,
+    Option<AccountLoader<'b, User>>,
+    Option<AccountLoader<'b, UserStats>>,
 )> {
     let referrer_account_info = account_info_iter.peek();
 
@@ -146,9 +146,9 @@ pub fn get_referrer_and_referrer_stats<'a>(
     Ok((Some(referrer), Some(referrer_stats)))
 }
 
-pub fn get_whitelist_token<'a>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
-) -> DriftResult<Account<'a, TokenAccount>> {
+pub fn get_whitelist_token<'a: 'b, 'b>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'b>>>,
+) -> DriftResult<Account<'b, TokenAccount>> {
     let token_account_info = account_info_iter.peek();
     if token_account_info.is_none() {
         msg!("Could not find whitelist token");

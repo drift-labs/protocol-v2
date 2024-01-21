@@ -87,9 +87,9 @@ impl<'a> PerpMarketMap<'a> {
         }
     }
 
-    pub fn load<'b, 'c>(
+    pub fn load<'b, 'c, 'd: 'a>(
         writable_markets: &'b MarketSet,
-        account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
+        account_info_iter: &'c mut Peekable<Iter<'d, AccountInfo<'a>>>,
     ) -> DriftResult<PerpMarketMap<'a>> {
         let mut perp_market_map: PerpMarketMap = PerpMarketMap(BTreeMap::new());
 
@@ -217,7 +217,7 @@ impl<'a> PerpMarketMap<'a> {
     }
 }
 
-pub type MarketSet = BTreeSet<u16>;
+pub(crate) type MarketSet = BTreeSet<u16>;
 
 pub fn get_writable_perp_market_set(market_index: u16) -> MarketSet {
     let mut writable_markets = MarketSet::new();
@@ -241,18 +241,5 @@ pub fn get_market_set_for_user_positions(user_positions: &PerpPositions) -> Mark
     for position in user_positions.iter() {
         writable_markets.insert(position.market_index);
     }
-    writable_markets
-}
-
-pub fn get_market_set_for_user_positions_and_order(
-    user_positions: &PerpPositions,
-    market_index: u16,
-) -> MarketSet {
-    let mut writable_markets = MarketSet::new();
-    for position in user_positions.iter() {
-        writable_markets.insert(position.market_index);
-    }
-    writable_markets.insert(market_index);
-
     writable_markets
 }

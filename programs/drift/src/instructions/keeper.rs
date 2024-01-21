@@ -38,7 +38,10 @@ use crate::{validate, QUOTE_PRECISION_I128};
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_fill_perp_order<'info>(ctx: Context<FillOrder>, order_id: Option<u32>) -> Result<()> {
+pub fn handle_fill_perp_order<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
+    order_id: Option<u32>,
+) -> Result<()> {
     let (order_id, market_index) = {
         let user = &load!(ctx.accounts.user)?;
         // if there is no order id, use the users last order id
@@ -67,7 +70,11 @@ pub fn handle_fill_perp_order<'info>(ctx: Context<FillOrder>, order_id: Option<u
     Ok(())
 }
 
-fn fill_order(ctx: Context<FillOrder>, order_id: u32, market_index: u16) -> Result<()> {
+fn fill_order<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
+    order_id: u32,
+    market_index: u16,
+) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -149,7 +156,7 @@ impl Default for SpotFulfillmentType {
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
+pub fn handle_fill_spot_order<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
     order_id: Option<u32>,
     fulfillment_type: Option<SpotFulfillmentType>,
@@ -183,8 +190,8 @@ pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
     Ok(())
 }
 
-fn fill_spot_order<'info>(
-    ctx: Context<'_, '_, '_, 'info, FillOrder<'info>>,
+fn fill_spot_order<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
     order_id: u32,
     market_index: u16,
     fulfillment_type: SpotFulfillmentType,
@@ -275,7 +282,10 @@ fn fill_spot_order<'info>(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
+pub fn handle_trigger_order<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, TriggerOrder<'info>>,
+    order_id: u32,
+) -> Result<()> {
     let AccountMaps {
         perp_market_map,
         spot_market_map,
@@ -325,7 +335,9 @@ pub fn handle_trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) ->
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_force_cancel_orders<'info>(ctx: Context<ForceCancelOrder>) -> Result<()> {
+pub fn handle_force_cancel_orders<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, ForceCancelOrder>,
+) -> Result<()> {
     let AccountMaps {
         perp_market_map,
         spot_market_map,
@@ -354,7 +366,9 @@ pub fn handle_force_cancel_orders<'info>(ctx: Context<ForceCancelOrder>) -> Resu
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_update_user_idle<'info>(ctx: Context<UpdateUserIdle>) -> Result<()> {
+pub fn handle_update_user_idle<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, UpdateUserIdle<'info>>,
+) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
     let clock = Clock::get()?;
 
@@ -413,7 +427,10 @@ pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>)
 #[access_control(
     settle_pnl_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
+pub fn handle_settle_pnl<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, SettlePNL>,
+    market_index: u16,
+) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -485,7 +502,9 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
 #[access_control(
     funding_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> {
+pub fn handle_settle_funding_payment<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, SettleFunding>,
+) -> Result<()> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
@@ -510,7 +529,10 @@ pub fn handle_settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> 
 #[access_control(
     amm_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Result<()> {
+pub fn handle_settle_lp<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, SettleLP>,
+    market_index: u16,
+) -> Result<()> {
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
 
@@ -538,7 +560,10 @@ pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Res
 #[access_control(
     settle_pnl_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_settle_expired_market(ctx: Context<UpdateAMM>, market_index: u16) -> Result<()> {
+pub fn handle_settle_expired_market<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, UpdateAMM<'info>>,
+    market_index: u16,
+) -> Result<()> {
     let clock = Clock::get()?;
     let _now = clock.unix_timestamp;
     let state = &ctx.accounts.state;
@@ -578,8 +603,8 @@ pub fn handle_settle_expired_market(ctx: Context<UpdateAMM>, market_index: u16) 
 #[access_control(
     liq_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_liquidate_perp(
-    ctx: Context<LiquidatePerp>,
+pub fn handle_liquidate_perp<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, LiquidatePerp<'info>>,
     market_index: u16,
     liquidator_max_base_asset_amount: u64,
     limit_price: Option<u64>,
@@ -638,8 +663,8 @@ pub fn handle_liquidate_perp(
 #[access_control(
     liq_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_liquidate_spot(
-    ctx: Context<LiquidateSpot>,
+pub fn handle_liquidate_spot<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, LiquidateSpot<'info>>,
     asset_market_index: u16,
     liability_market_index: u16,
     liquidator_max_liability_transfer: u128,
@@ -695,8 +720,8 @@ pub fn handle_liquidate_spot(
 #[access_control(
     liq_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_liquidate_borrow_for_perp_pnl(
-    ctx: Context<LiquidateBorrowForPerpPnl>,
+pub fn handle_liquidate_borrow_for_perp_pnl<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, LiquidateBorrowForPerpPnl<'info>>,
     perp_market_index: u16,
     spot_market_index: u16,
     liquidator_max_liability_transfer: u128,
@@ -754,8 +779,8 @@ pub fn handle_liquidate_borrow_for_perp_pnl(
 #[access_control(
     liq_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_liquidate_perp_pnl_for_deposit(
-    ctx: Context<LiquidatePerpPnlForDeposit>,
+pub fn handle_liquidate_perp_pnl_for_deposit<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, LiquidatePerpPnlForDeposit<'info>>,
     perp_market_index: u16,
     spot_market_index: u16,
     liquidator_max_pnl_transfer: u128,
@@ -813,8 +838,8 @@ pub fn handle_liquidate_perp_pnl_for_deposit(
 #[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_resolve_perp_pnl_deficit(
-    ctx: Context<ResolvePerpPnlDeficit>,
+pub fn handle_resolve_perp_pnl_deficit<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, ResolvePerpPnlDeficit<'info>>,
     spot_market_index: u16,
     perp_market_index: u16,
 ) -> Result<()> {
@@ -936,8 +961,8 @@ pub fn handle_resolve_perp_pnl_deficit(
 #[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_resolve_perp_bankruptcy(
-    ctx: Context<ResolveBankruptcy>,
+pub fn handle_resolve_perp_bankruptcy<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, ResolveBankruptcy<'info>>,
     quote_spot_market_index: u16,
     market_index: u16,
 ) -> Result<()> {
@@ -1048,8 +1073,8 @@ pub fn handle_resolve_perp_bankruptcy(
 #[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_resolve_spot_bankruptcy(
-    ctx: Context<ResolveBankruptcy>,
+pub fn handle_resolve_spot_bankruptcy<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, ResolveBankruptcy<'info>>,
     market_index: u16,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
@@ -1211,7 +1236,9 @@ pub fn handle_update_funding_rate(
     funding_not_paused(&ctx.accounts.state)
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
-pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Result<()> {
+pub fn handle_update_perp_bid_ask_twap<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, UpdatePerpBidAskTwap<'info>>,
+) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -1400,7 +1427,10 @@ pub fn handle_update_spot_market_cumulative_interest(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_update_amms(ctx: Context<UpdateAMM>, market_indexes: [u16; 5]) -> Result<()> {
+pub fn handle_update_amms<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, UpdateAMM<'info>>,
+    market_indexes: [u16; 5],
+) -> Result<()> {
     // up to ~60k compute units (per amm) worst case
 
     let clock = Clock::get()?;

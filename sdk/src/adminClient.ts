@@ -63,13 +63,17 @@ export class AdminClient extends DriftClient {
 			},
 		});
 
-		const { txSig: initializeTxSig } = await super.sendTransaction(
-			initializeTx,
-			[],
-			this.opts
-		);
-
-		return [initializeTxSig];
+		try {
+			const { txSig: initializeTxSig } = await super.sendTransaction(
+				initializeTx,
+				[],
+				this.opts
+			);
+			return [initializeTxSig];
+		} catch (e) {
+			console.log(e);
+			throw e;
+		}
 	}
 
 	public async initializeSpotMarket(

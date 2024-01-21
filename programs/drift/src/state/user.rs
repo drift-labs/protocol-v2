@@ -934,7 +934,7 @@ impl PerpPosition {
     }
 }
 
-pub type PerpPositions = [PerpPosition; 8];
+pub(crate) type PerpPositions = [PerpPosition; 8];
 
 #[zero_copy(unsafe)]
 #[repr(C)]
