@@ -237,12 +237,16 @@ export function calculateEntryPrice(userPosition: PerpPosition): BN {
  * @param userPosition
  * @returns Precision: PRICE_PRECISION (10^10)
  */
-export function calculateCostBasis(userPosition: PerpPosition): BN {
+export function calculateCostBasis(
+	userPosition: PerpPosition,
+	includeSettledPnl = false
+): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
 	}
 
 	return userPosition.quoteAssetAmount
+		.add(includeSettledPnl ? userPosition.settledPnl : ZERO)
 		.mul(PRICE_PRECISION)
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 		.div(userPosition.baseAssetAmount)
