@@ -94,7 +94,7 @@ pub fn spawn_retry_task<F, G>(task_fn: G, mut retry_policy: impl TaskRetryPolicy
 where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
-    G: Fn() -> F + Send + 'static,
+    G: Fn() -> F + Send + Sync + 'static,
 {
     tokio::spawn(async move {
         let mut attempts = 0;
