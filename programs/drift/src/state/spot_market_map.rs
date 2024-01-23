@@ -151,9 +151,9 @@ impl<'a> SpotMarketMap<'a> {
         }
     }
 
-    pub fn load<'b, 'c, 'd: 'a>(
+    pub fn load<'b, 'c>(
         writable_spot_markets: &'b SpotMarketSet,
-        account_info_iter: &'c mut Peekable<Iter<'d, AccountInfo<'a>>>,
+        account_info_iter: &'c mut Peekable<Iter<'a, AccountInfo<'a>>>,
     ) -> DriftResult<SpotMarketMap<'a>> {
         let mut spot_market_map: SpotMarketMap = SpotMarketMap(BTreeMap::new());
 

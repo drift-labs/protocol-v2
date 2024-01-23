@@ -87,9 +87,9 @@ impl<'a> PerpMarketMap<'a> {
         }
     }
 
-    pub fn load<'b, 'c, 'd: 'a>(
+    pub fn load<'b, 'c>(
         writable_markets: &'b MarketSet,
-        account_info_iter: &'c mut Peekable<Iter<'d, AccountInfo<'a>>>,
+        account_info_iter: &'c mut Peekable<Iter<'a, AccountInfo<'a>>>,
     ) -> DriftResult<PerpMarketMap<'a>> {
         let mut perp_market_map: PerpMarketMap = PerpMarketMap(BTreeMap::new());
 
