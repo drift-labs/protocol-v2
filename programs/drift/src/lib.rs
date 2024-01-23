@@ -43,16 +43,16 @@ pub mod drift {
 
     // User Instructions
 
-    pub fn initialize_user<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InitializeUser<'info>>,
+    pub fn initialize_user<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeUser<'info>>,
         sub_account_id: u16,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_user(ctx, sub_account_id, name)
     }
 
-    pub fn initialize_user_stats<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InitializeUserStats>,
+    pub fn initialize_user_stats<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeUserStats>,
     ) -> Result<()> {
         handle_initialize_user_stats(ctx)
     }
@@ -64,8 +64,8 @@ pub mod drift {
         handle_initialize_referrer_name(ctx, name)
     }
 
-    pub fn deposit<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, Deposit<'info>>,
+    pub fn deposit<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, Deposit<'info>>,
         market_index: u16,
         amount: u64,
         reduce_only: bool,
@@ -73,8 +73,8 @@ pub mod drift {
         handle_deposit(ctx, market_index, amount, reduce_only)
     }
 
-    pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, Withdraw<'info>>,
+    pub fn withdraw<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, Withdraw<'info>>,
         market_index: u16,
         amount: u64,
         reduce_only: bool,
@@ -82,37 +82,37 @@ pub mod drift {
         handle_withdraw(ctx, market_index, amount, reduce_only)
     }
 
-    pub fn transfer_deposit<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, TransferDeposit<'info>>,
+    pub fn transfer_deposit<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, TransferDeposit<'info>>,
         market_index: u16,
         amount: u64,
     ) -> anchor_lang::Result<()> {
         handle_transfer_deposit(ctx, market_index, amount)
     }
 
-    pub fn place_perp_order<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, PlaceOrder>,
+    pub fn place_perp_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
         params: OrderParams,
     ) -> Result<()> {
         handle_place_perp_order(ctx, params)
     }
 
-    pub fn cancel_order<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, CancelOrder>,
+    pub fn cancel_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, CancelOrder>,
         order_id: Option<u32>,
     ) -> Result<()> {
         handle_cancel_order(ctx, order_id)
     }
 
-    pub fn cancel_order_by_user_id<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, CancelOrder>,
+    pub fn cancel_order_by_user_id<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, CancelOrder>,
         user_order_id: u8,
     ) -> Result<()> {
         handle_cancel_order_by_user_id(ctx, user_order_id)
     }
 
-    pub fn cancel_orders<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, CancelOrder<'info>>,
+    pub fn cancel_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, CancelOrder<'info>>,
         market_type: Option<MarketType>,
         market_index: Option<u16>,
         direction: Option<PositionDirection>,
@@ -120,54 +120,54 @@ pub mod drift {
         handle_cancel_orders(ctx, market_type, market_index, direction)
     }
 
-    pub fn cancel_orders_by_ids<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, CancelOrder>,
+    pub fn cancel_orders_by_ids<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, CancelOrder>,
         order_ids: Vec<u32>,
     ) -> Result<()> {
         handle_cancel_orders_by_ids(ctx, order_ids)
     }
 
-    pub fn modify_order<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, CancelOrder<'info>>,
+    pub fn modify_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, CancelOrder<'info>>,
         order_id: Option<u32>,
         modify_order_params: ModifyOrderParams,
     ) -> Result<()> {
         handle_modify_order(ctx, order_id, modify_order_params)
     }
 
-    pub fn modify_order_by_user_id<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, CancelOrder<'info>>,
+    pub fn modify_order_by_user_id<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, CancelOrder<'info>>,
         user_order_id: u8,
         modify_order_params: ModifyOrderParams,
     ) -> Result<()> {
         handle_modify_order_by_user_order_id(ctx, user_order_id, modify_order_params)
     }
 
-    pub fn place_and_take_perp_order<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, PlaceAndTake<'info>>,
+    pub fn place_and_take_perp_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
         params: OrderParams,
         maker_order_id: Option<u32>,
     ) -> Result<()> {
         handle_place_and_take_perp_order(ctx, params, maker_order_id)
     }
 
-    pub fn place_and_make_perp_order<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, PlaceAndMake<'info>>,
+    pub fn place_and_make_perp_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndMake<'info>>,
         params: OrderParams,
         taker_order_id: u32,
     ) -> Result<()> {
         handle_place_and_make_perp_order(ctx, params, taker_order_id)
     }
 
-    pub fn place_spot_order<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, PlaceOrder>,
+    pub fn place_spot_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
         params: OrderParams,
     ) -> Result<()> {
         handle_place_spot_order(ctx, params)
     }
 
-    pub fn place_and_take_spot_order<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, PlaceAndTake<'info>>,
+    pub fn place_and_take_spot_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
         params: OrderParams,
         fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u32>,
@@ -180,8 +180,8 @@ pub mod drift {
         )
     }
 
-    pub fn place_and_make_spot_order<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, PlaceAndMake<'info>>,
+    pub fn place_and_make_spot_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndMake<'info>>,
         params: OrderParams,
         taker_order_id: u32,
         fulfillment_type: Option<SpotFulfillmentType>,
@@ -194,15 +194,15 @@ pub mod drift {
         )
     }
 
-    pub fn place_orders<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, PlaceOrder>,
+    pub fn place_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
         params: Vec<OrderParams>,
     ) -> Result<()> {
         handle_place_orders(ctx, params)
     }
 
-    pub fn begin_swap<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, Swap<'info>>,
+    pub fn begin_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, Swap<'info>>,
         in_market_index: u16,
         out_market_index: u16,
         amount_in: u64,
@@ -210,8 +210,8 @@ pub mod drift {
         handle_begin_swap(ctx, in_market_index, out_market_index, amount_in)
     }
 
-    pub fn end_swap<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, Swap<'info>>,
+    pub fn end_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, Swap<'info>>,
         in_market_index: u16,
         out_market_index: u16,
         limit_price: Option<u64>,
@@ -226,24 +226,24 @@ pub mod drift {
         )
     }
 
-    pub fn add_perp_lp_shares<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, AddRemoveLiquidity<'info>>,
+    pub fn add_perp_lp_shares<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AddRemoveLiquidity<'info>>,
         n_shares: u64,
         market_index: u16,
     ) -> Result<()> {
         handle_add_perp_lp_shares(ctx, n_shares, market_index)
     }
 
-    pub fn remove_perp_lp_shares<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, AddRemoveLiquidity<'info>>,
+    pub fn remove_perp_lp_shares<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AddRemoveLiquidity<'info>>,
         shares_to_burn: u64,
         market_index: u16,
     ) -> Result<()> {
         handle_remove_perp_lp_shares(ctx, shares_to_burn, market_index)
     }
 
-    pub fn remove_perp_lp_shares_in_expiring_market<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, RemoveLiquidityInExpiredMarket<'info>>,
+    pub fn remove_perp_lp_shares_in_expiring_market<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, RemoveLiquidityInExpiredMarket<'info>>,
         shares_to_burn: u64,
         market_index: u16,
     ) -> Result<()> {
@@ -266,8 +266,8 @@ pub mod drift {
         handle_update_user_custom_margin_ratio(ctx, _sub_account_id, margin_ratio)
     }
 
-    pub fn update_user_margin_trading_enabled<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, UpdateUser<'info>>,
+    pub fn update_user_margin_trading_enabled<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUser<'info>>,
         _sub_account_id: u16,
         margin_trading_enabled: bool,
     ) -> Result<()> {
@@ -290,8 +290,8 @@ pub mod drift {
         handle_update_user_reduce_only(ctx, _sub_account_id, reduce_only)
     }
 
-    pub fn delete_user<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, DeleteUser>,
+    pub fn delete_user<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DeleteUser>,
     ) -> Result<()> {
         handle_delete_user(ctx)
     }
@@ -302,8 +302,8 @@ pub mod drift {
 
     // Keeper Instructions
 
-    pub fn fill_perp_order<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
+    pub fn fill_perp_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, FillOrder<'info>>,
         order_id: Option<u32>,
         _maker_order_id: Option<u32>,
     ) -> Result<()> {
@@ -314,8 +314,8 @@ pub mod drift {
         handle_revert_fill(ctx)
     }
 
-    pub fn fill_spot_order<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
+    pub fn fill_spot_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, FillOrder<'info>>,
         order_id: Option<u32>,
         fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u32>,
@@ -323,21 +323,21 @@ pub mod drift {
         handle_fill_spot_order(ctx, order_id, fulfillment_type, maker_order_id)
     }
 
-    pub fn trigger_order<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, TriggerOrder<'info>>,
+    pub fn trigger_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, TriggerOrder<'info>>,
         order_id: u32,
     ) -> Result<()> {
         handle_trigger_order(ctx, order_id)
     }
 
-    pub fn force_cancel_orders<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, ForceCancelOrder<'info>>,
+    pub fn force_cancel_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ForceCancelOrder<'info>>,
     ) -> Result<()> {
         handle_force_cancel_orders(ctx)
     }
 
-    pub fn update_user_idle<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, UpdateUserIdle<'info>>,
+    pub fn update_user_idle<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUserIdle<'info>>,
     ) -> Result<()> {
         handle_update_user_idle(ctx)
     }
@@ -353,35 +353,35 @@ pub mod drift {
         handle_admin_disable_update_perp_bid_ask_twap(ctx, disable)
     }
 
-    pub fn settle_pnl<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, SettlePNL>,
+    pub fn settle_pnl<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, SettlePNL>,
         market_index: u16,
     ) -> Result<()> {
         handle_settle_pnl(ctx, market_index)
     }
 
-    pub fn settle_funding_payment<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, SettleFunding>,
+    pub fn settle_funding_payment<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, SettleFunding>,
     ) -> Result<()> {
         handle_settle_funding_payment(ctx)
     }
 
-    pub fn settle_lp<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, SettleLP>,
+    pub fn settle_lp<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, SettleLP>,
         market_index: u16,
     ) -> Result<()> {
         handle_settle_lp(ctx, market_index)
     }
 
-    pub fn settle_expired_market<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, UpdateAMM<'info>>,
+    pub fn settle_expired_market<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
         market_index: u16,
     ) -> Result<()> {
         handle_settle_expired_market(ctx, market_index)
     }
 
-    pub fn liquidate_perp<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LiquidatePerp<'info>>,
+    pub fn liquidate_perp<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LiquidatePerp<'info>>,
         market_index: u16,
         liquidator_max_base_asset_amount: u64,
         limit_price: Option<u64>,
@@ -394,8 +394,8 @@ pub mod drift {
         )
     }
 
-    pub fn liquidate_spot<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LiquidateSpot<'info>>,
+    pub fn liquidate_spot<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LiquidateSpot<'info>>,
         asset_market_index: u16,
         liability_market_index: u16,
         liquidator_max_liability_transfer: u128,
@@ -410,8 +410,8 @@ pub mod drift {
         )
     }
 
-    pub fn liquidate_borrow_for_perp_pnl<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LiquidateBorrowForPerpPnl<'info>>,
+    pub fn liquidate_borrow_for_perp_pnl<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LiquidateBorrowForPerpPnl<'info>>,
         perp_market_index: u16,
         spot_market_index: u16,
         liquidator_max_liability_transfer: u128,
@@ -426,8 +426,8 @@ pub mod drift {
         )
     }
 
-    pub fn liquidate_perp_pnl_for_deposit<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, LiquidatePerpPnlForDeposit<'info>>,
+    pub fn liquidate_perp_pnl_for_deposit<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LiquidatePerpPnlForDeposit<'info>>,
         perp_market_index: u16,
         spot_market_index: u16,
         liquidator_max_pnl_transfer: u128,
@@ -442,31 +442,31 @@ pub mod drift {
         )
     }
 
-    pub fn resolve_perp_pnl_deficit<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, ResolvePerpPnlDeficit<'info>>,
+    pub fn resolve_perp_pnl_deficit<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResolvePerpPnlDeficit<'info>>,
         spot_market_index: u16,
         perp_market_index: u16,
     ) -> Result<()> {
         handle_resolve_perp_pnl_deficit(ctx, spot_market_index, perp_market_index)
     }
 
-    pub fn resolve_perp_bankruptcy<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, ResolveBankruptcy<'info>>,
+    pub fn resolve_perp_bankruptcy<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResolveBankruptcy<'info>>,
         quote_spot_market_index: u16,
         market_index: u16,
     ) -> Result<()> {
         handle_resolve_perp_bankruptcy(ctx, quote_spot_market_index, market_index)
     }
 
-    pub fn resolve_spot_bankruptcy<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, ResolveBankruptcy<'info>>,
+    pub fn resolve_spot_bankruptcy<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResolveBankruptcy<'info>>,
         market_index: u16,
     ) -> Result<()> {
         handle_resolve_spot_bankruptcy(ctx, market_index)
     }
 
-    pub fn settle_revenue_to_insurance_fund<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, SettleRevenueToInsuranceFund<'info>>,
+    pub fn settle_revenue_to_insurance_fund<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, SettleRevenueToInsuranceFund<'info>>,
         spot_market_index: u16,
     ) -> Result<()> {
         handle_settle_revenue_to_insurance_fund(ctx, spot_market_index)
@@ -476,8 +476,8 @@ pub mod drift {
         handle_update_funding_rate(ctx, market_index)
     }
 
-    pub fn update_perp_bid_ask_twap<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, UpdatePerpBidAskTwap<'info>>,
+    pub fn update_perp_bid_ask_twap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdatePerpBidAskTwap<'info>>,
     ) -> Result<()> {
         handle_update_perp_bid_ask_twap(ctx)
     }
@@ -488,8 +488,8 @@ pub mod drift {
         handle_update_spot_market_cumulative_interest(ctx)
     }
 
-    pub fn update_amms<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, UpdateAMM<'info>>,
+    pub fn update_amms<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
         market_indexes: [u16; 5],
     ) -> Result<()> {
         handle_update_amms(ctx, market_indexes)
