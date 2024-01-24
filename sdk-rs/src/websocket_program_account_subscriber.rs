@@ -186,6 +186,7 @@ mod tests {
     const MAINNET_ENDPOINT: &str =
         "https://mainnet.helius-rpc.com/?api-key=3a1ca16d-e181-4755-9fe7-eac27579b48c";
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn test_subscribe() {
         let filters = vec![get_user_filter(), get_non_idle_user_filter()];
