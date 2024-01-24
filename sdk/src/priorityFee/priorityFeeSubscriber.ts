@@ -125,12 +125,22 @@ export class PriorityFeeSubscriber {
 	}
 
 	public async load(): Promise<void> {
-		if (this.priorityFeeMethod === PriorityFeeMethod.SOLANA) {
-			await this.loadForSolana();
-		} else if (this.priorityFeeMethod === PriorityFeeMethod.HELIUS) {
-			await this.loadForHelius();
-		} else {
-			throw new Error(`${this.priorityFeeMethod} load not implemented`);
+		try {
+			if (this.priorityFeeMethod === PriorityFeeMethod.SOLANA) {
+				await this.loadForSolana();
+			} else if (this.priorityFeeMethod === PriorityFeeMethod.HELIUS) {
+				await this.loadForHelius();
+			} else {
+				throw new Error(`${this.priorityFeeMethod} load not implemented`);
+			}
+		} catch (err) {
+			const e = err as Error;
+			console.error(
+				`Error loading priority fee ${this.priorityFeeMethod}: ${e.message}\n${
+					e.stack ? e.stack : ''
+				}`
+			);
+			return;
 		}
 	}
 
