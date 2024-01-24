@@ -26,7 +26,7 @@ pub struct AccountMaps<'a> {
 }
 
 pub fn load_maps<'a, 'b>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
     writable_perp_markets: &'b MarketSet,
     writable_spot_markets: &'b MarketSet,
     slot: u64,
@@ -44,7 +44,7 @@ pub fn load_maps<'a, 'b>(
 }
 
 pub fn get_maker_and_maker_stats<'a>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
 ) -> DriftResult<(AccountLoader<'a, User>, AccountLoader<'a, UserStats>)> {
     let maker_account_info =
         next_account_info(account_info_iter).or(Err(ErrorCode::MakerNotFound))?;
@@ -74,7 +74,7 @@ pub fn get_maker_and_maker_stats<'a>(
 
 #[allow(clippy::type_complexity)]
 pub fn get_referrer_and_referrer_stats<'a>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
 ) -> DriftResult<(
     Option<AccountLoader<'a, User>>,
     Option<AccountLoader<'a, UserStats>>,
@@ -147,7 +147,7 @@ pub fn get_referrer_and_referrer_stats<'a>(
 }
 
 pub fn get_whitelist_token<'a>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
 ) -> DriftResult<Account<'a, TokenAccount>> {
     let token_account_info = account_info_iter.peek();
     if token_account_info.is_none() {

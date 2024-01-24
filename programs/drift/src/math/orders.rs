@@ -1156,17 +1156,15 @@ pub struct Level {
     pub base_asset_amount: u64,
 }
 
-pub type Side = Vec<Level>;
-
 pub fn find_bids_and_asks_from_users(
     perp_market: &PerpMarket,
     oracle_price_date: &OraclePriceData,
     users: &UserMap,
     slot: u64,
     now: i64,
-) -> DriftResult<(Side, Side)> {
-    let mut bids: Side = Vec::with_capacity(32);
-    let mut asks: Side = Vec::with_capacity(32);
+) -> DriftResult<(Vec<Level>, Vec<Level>)> {
+    let mut bids: Vec<Level> = Vec::with_capacity(32);
+    let mut asks: Vec<Level> = Vec::with_capacity(32);
 
     let market_index = perp_market.market_index;
     let tick_size = perp_market.amm.order_tick_size;
@@ -1236,7 +1234,7 @@ pub fn find_bids_and_asks_from_users(
     Ok((bids, asks))
 }
 
-pub fn estimate_price_from_side(side: &Side, depth: u64) -> DriftResult<Option<u64>> {
+pub fn estimate_price_from_side(side: &Vec<Level>, depth: u64) -> DriftResult<Option<u64>> {
     let mut depth_remaining = depth;
     let mut cumulative_base = 0_u64;
     let mut cumulative_quote = 0_u128;
