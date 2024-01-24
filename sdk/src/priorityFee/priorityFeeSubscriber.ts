@@ -16,7 +16,7 @@ import {
 export class PriorityFeeSubscriber {
 	connection: Connection;
 	frequencyMs: number;
-	addresses: PublicKey[];
+	addresses: string[];
 	customStrategy?: PriorityFeeStrategy;
 	averageStrategy = new AverageOverSlotsStrategy();
 	maxStrategy = new MaxOverSlotsStrategy();
@@ -41,7 +41,7 @@ export class PriorityFeeSubscriber {
 	public constructor(config: PriorityFeeSubscriberConfig) {
 		this.connection = config.connection;
 		this.frequencyMs = config.frequencyMs;
-		this.addresses = config.addresses;
+		this.addresses = config.addresses.map((address) => address.toBase58());
 		if (config.customStrategy) {
 			this.customStrategy = config.customStrategy;
 		}

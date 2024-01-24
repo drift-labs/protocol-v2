@@ -8,7 +8,7 @@ export type SolanaPriorityFeeResponse = {
 export async function fetchSolanaPriorityFee(
 	connection: Connection,
 	lookbackDistance: number,
-	addresses: PublicKey[]
+	addresses: string[]
 ): Promise<SolanaPriorityFeeResponse[]> {
 	// @ts-ignore
 	const rpcJSONResponse: any = await connection._rpcRequest(

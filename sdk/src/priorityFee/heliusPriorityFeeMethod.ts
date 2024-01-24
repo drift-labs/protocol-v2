@@ -30,7 +30,7 @@ const heliusUrlBase = 'https://mainnet.helius-rpc.com/?api-key=';
 export async function fetchHeliusPriorityFee(
 	apiKey: string,
 	lookbackDistance: number,
-	addresses: PublicKey[]
+	addresses: string[]
 ): Promise<HeliusPriorityFeeResponse> {
 	const response = await fetch(heliusUrlBase + apiKey, {
 		method: 'POST',
@@ -41,7 +41,7 @@ export async function fetchHeliusPriorityFee(
 			method: 'getPriorityFeeEstimate',
 			params: [
 				{
-					accountKeys: addresses.map((address) => address.toBase58()),
+					accountKeys: addresses,
 					options: {
 						includeAllPriorityFeeLevels: true,
 						lookbackSlots: lookbackDistance,
