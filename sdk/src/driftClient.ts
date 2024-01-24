@@ -2690,7 +2690,7 @@ export class DriftClient {
 				txKeys
 			);
 
-			const {txSig, slot} = await this.sendTransaction(
+			const { txSig, slot } = await this.sendTransaction(
 				signedVersionedMarketOrderTx,
 				[],
 				this.opts,
