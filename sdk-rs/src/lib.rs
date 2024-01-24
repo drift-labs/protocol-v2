@@ -111,7 +111,7 @@ impl WsAccountProvider {
     };
     /// Create a new WsAccountProvider given an endpoint that serves both http(s) and ws(s)
     pub async fn new(url: &str) -> SdkResult<Self> {
-        let ws_url = utils::http_to_ws(url).expect("invalid url");
+        let ws_url = url.replace("http", "ws");
         let ws_client = PubsubClient::new(&ws_url).await?;
 
         Ok(Self {
