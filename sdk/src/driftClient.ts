@@ -2690,9 +2690,11 @@ export class DriftClient {
 				txKeys
 			);
 
-			const { txSig, slot } = await this.txSender.sendRawTransaction(
-				signedVersionedMarketOrderTx.serialize(),
-				this.opts
+			const {txSig, slot} = await this.sendTransaction(
+				signedVersionedMarketOrderTx,
+				[],
+				this.opts,
+				true
 			);
 			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
