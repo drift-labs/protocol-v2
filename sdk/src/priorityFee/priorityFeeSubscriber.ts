@@ -23,7 +23,7 @@ export class PriorityFeeSubscriber {
 	priorityFeeMethod = PriorityFeeMethod.SOLANA;
 	lookbackDistance: number;
 
-	heliusApiKey?: string;
+	heliusRpcUrl?: string;
 	lastHeliusSample?: HeliusPriorityFeeLevels;
 
 	intervalId?: ReturnType<typeof setTimeout>;
@@ -49,15 +49,17 @@ export class PriorityFeeSubscriber {
 		if (config.priorityFeeMethod) {
 			this.priorityFeeMethod = config.priorityFeeMethod;
 
-			if (
-				this.priorityFeeMethod === PriorityFeeMethod.HELIUS &&
-				config.heliusApiKey === undefined
-			) {
-				throw new Error(
-					'Helius API key must be provided to use HELIUS priority fee API'
-				);
+			if (this.priorityFeeMethod === PriorityFeeMethod.HELIUS) {
+				if (config.heliusRpcUrl === undefined) {
+					if (this.connection.rpcEndpoint.includes('helius')) {
+						this.heliusRpcUrl = this.connection.rpcEndpoint;
+					} else {
+						throw new Error(
+							'Connection must be helius, or heliusRpcUrl must be provided to use PriorityFeeMethod.HELIUS'
+						);
+					}
+				}
 			}
-			this.heliusApiKey = config.heliusApiKey;
 		}
 
 		if (this.priorityFeeMethod === PriorityFeeMethod.SOLANA) {
@@ -74,6 +76,7 @@ export class PriorityFeeSubscriber {
 			return;
 		}
 
+		await this.load();
 		this.intervalId = setInterval(this.load.bind(this), this.frequencyMs);
 	}
 
@@ -83,7 +86,6 @@ export class PriorityFeeSubscriber {
 			this.lookbackDistance,
 			this.addresses
 		);
-		console.log(samples);
 		this.latestPriorityFee = samples[0].prioritizationFee;
 		this.lastSlotSeen = samples[0].slot;
 
@@ -96,11 +98,11 @@ export class PriorityFeeSubscriber {
 
 	private async loadForHelius(): Promise<void> {
 		const sample = await fetchHeliusPriorityFee(
-			this.heliusApiKey,
+			this.heliusRpcUrl,
 			this.lookbackDistance,
 			this.addresses
 		);
-		this.lastHeliusSample = sample.result.priorityFeeLevels;
+		this.lastHeliusSample = sample?.result?.priorityFeeLevels ?? undefined;
 	}
 
 	public getHeliusPriorityFeeLevel(

@@ -28,5 +28,6 @@ export type PriorityFeeSubscriberConfig = {
 	priorityFeeMethod?: PriorityFeeMethod;
 	/// lookback window to determine priority fees, in slots.
 	slotsToCheck?: number;
-	heliusApiKey?: string;
+	/// url for helius rpc, required if using priorityFeeMethod.HELIUS
+	heliusRpcUrl?: string;
 };

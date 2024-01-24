@@ -23,16 +23,14 @@ export type HeliusPriorityFeeResponse = {
 	id: string;
 };
 
-const heliusUrlBase = 'https://mainnet.helius-rpc.com/?api-key=';
-
 /// Fetches the priority fee from the Helius API
 /// https://docs.helius.dev/solana-rpc-nodes/alpha-priority-fee-api
 export async function fetchHeliusPriorityFee(
-	apiKey: string,
+	heliusRpcUrl: string,
 	lookbackDistance: number,
 	addresses: string[]
 ): Promise<HeliusPriorityFeeResponse> {
-	const response = await fetch(heliusUrlBase + apiKey, {
+	const response = await fetch(heliusRpcUrl, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
