@@ -1,4 +1,3 @@
-import { PublicKey } from '@solana/web3.js';
 import fetch from 'node-fetch';
 
 export enum HeliusPriorityLevel {

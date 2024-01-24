@@ -1,4 +1,4 @@
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection } from '@solana/web3.js';
 import {
 	PriorityFeeMethod,
 	PriorityFeeStrategy,
@@ -34,16 +34,14 @@ export class PriorityFeeSubscriber {
 	lastMaxStrategyResult = 0;
 	lastSlotSeen = 0;
 
-	/**
-	 * @param props
-	 * customStrategy : strategy to return the priority fee to use based on recent samples. defaults to AVERAGE.
-	 */
 	public constructor(config: PriorityFeeSubscriberConfig) {
 		this.connection = config.connection;
 		this.frequencyMs = config.frequencyMs;
 		this.addresses = config.addresses.map((address) => address.toBase58());
 		if (config.customStrategy) {
 			this.customStrategy = config.customStrategy;
+		} else {
+			this.customStrategy = this.averageStrategy;
 		}
 		this.lookbackDistance = config.slotsToCheck ?? 50;
 		if (config.priorityFeeMethod) {

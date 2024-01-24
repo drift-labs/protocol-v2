@@ -22,7 +22,7 @@ export type PriorityFeeSubscriberConfig = {
 	frequencyMs: number;
 	/// addresses you plan to write lock, used to determine priority fees
 	addresses: PublicKey[];
-	/// custom strategy to calculate priority fees
+	/// custom strategy to calculate priority fees, defaults to AVERAGE
 	customStrategy?: PriorityFeeStrategy;
 	/// method for fetching priority fee samples
 	priorityFeeMethod?: PriorityFeeMethod;
