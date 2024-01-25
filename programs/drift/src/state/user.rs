@@ -936,8 +936,6 @@ impl PerpPosition {
 
 pub type PerpPositions = [PerpPosition; 8];
 
-#[cfg_attr(feature = "sdk", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "sdk", serde(rename_all = "camelCase"))]
 #[zero_copy(unsafe)]
 #[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
@@ -999,7 +997,6 @@ pub struct Order {
     pub trigger_condition: OrderTriggerCondition,
     /// How many slots the auction lasts
     pub auction_duration: u8,
-    #[cfg_attr(feature = "sdk", serde(skip))]
     pub padding: [u8; 3],
 }
 
@@ -1262,8 +1259,6 @@ impl Default for Order {
     }
 }
 
-#[cfg_attr(feature = "sdk", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "sdk", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
 pub enum OrderStatus {
     /// The order is not in use
@@ -1276,8 +1271,6 @@ pub enum OrderStatus {
     Canceled,
 }
 
-#[cfg_attr(feature = "sdk", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "sdk", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderType {
     Market,
@@ -1294,8 +1287,6 @@ impl Default for OrderType {
     }
 }
 
-#[cfg_attr(feature = "sdk", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "sdk", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderTriggerCondition {
     Above,
@@ -1310,8 +1301,6 @@ impl Default for OrderTriggerCondition {
     }
 }
 
-#[cfg_attr(feature = "sdk", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "sdk", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketType {
     Spot,
