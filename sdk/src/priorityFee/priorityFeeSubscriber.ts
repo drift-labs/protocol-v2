@@ -57,35 +57,40 @@ export class PriorityFeeSubscriber {
 	}
 
 	public async load(): Promise<void> {
-		// @ts-ignore
-		const rpcJSONResponse: any = await this.connection._rpcRequest(
-			'getRecentPrioritizationFees',
-			[this.addresses]
-		);
+		try {
+			// @ts-ignore
+			const rpcJSONResponse: any = await this.connection._rpcRequest(
+				'getRecentPrioritizationFees',
+				[this.addresses]
+			);
 
-		const results: { slot: number; prioritizationFee: number }[] =
-			rpcJSONResponse?.result;
+			const results: { slot: number; prioritizationFee: number }[] =
+				rpcJSONResponse?.result;
 
-		if (!results.length) return;
+			if (!results.length) return;
 
-		// # Sort and filter results based on the slot lookback setting
-		const descResults = results.sort((a, b) => b.slot - a.slot);
-		const mostRecentResult = descResults[0];
-		const cutoffSlot = mostRecentResult.slot - this.lookbackDistance;
+			// # Sort and filter results based on the slot lookback setting
+			const descResults = results.sort((a, b) => b.slot - a.slot);
+			const mostRecentResult = descResults[0];
+			const cutoffSlot = mostRecentResult.slot - this.lookbackDistance;
 
-		const resultsToUse = descResults.filter(
-			(result) => result.slot >= cutoffSlot
-		);
+			const resultsToUse = descResults.filter(
+				(result) => result.slot >= cutoffSlot
+			);
 
-		// # Handle results
-		this.latestPriorityFee = mostRecentResult.prioritizationFee;
-		this.lastSlotSeen = mostRecentResult.slot;
+			// # Handle results
+			this.latestPriorityFee = mostRecentResult.prioritizationFee;
+			this.lastSlotSeen = mostRecentResult.slot;
 
-		this.lastAvgStrategyResult = this.averageStrategy.calculate(resultsToUse);
-		this.lastMaxStrategyResult = this.maxStrategy.calculate(resultsToUse);
-		if (this.customStrategy) {
-			this.lastCustomStrategyResult =
-				this.customStrategy.calculate(resultsToUse);
+			this.lastAvgStrategyResult = this.averageStrategy.calculate(resultsToUse);
+			this.lastMaxStrategyResult = this.maxStrategy.calculate(resultsToUse);
+			if (this.customStrategy) {
+				this.lastCustomStrategyResult =
+					this.customStrategy.calculate(resultsToUse);
+			}
+		} catch (err) {
+			// It's possible to get here with "TypeError: failed to fetch"
+			return;
 		}
 	}
 
