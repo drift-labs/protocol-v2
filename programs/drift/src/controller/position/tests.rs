@@ -1,5 +1,5 @@
 use crate::controller::amm::{
-    calculate_base_swap_output_with_spread, recenter_amm, swap_base_asset, move_price
+    calculate_base_swap_output_with_spread, move_price, recenter_perp_market_amm, swap_base_asset,
 };
 use crate::controller::position::{
     update_lp_market_position, update_position_and_market, PositionDelta,
@@ -9,8 +9,8 @@ use crate::controller::lp::{apply_lp_rebase_to_perp_market, settle_lp_position};
 
 use crate::controller::repeg::_update_amm;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64, PRICE_PRECISION_I64,
-    PRICE_PRECISION_U64, QUOTE_PRECISION_I128, BASE_PRECISION
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION, BASE_PRECISION_I64,
+    PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
 };
 use crate::math::position::swap_direction_to_close_position;
 use crate::state::oracle::OraclePriceData;
@@ -1481,7 +1481,7 @@ fn recenter_amm_1() {
     let _current_peg = perp_market.amm.peg_multiplier;
 
     let new_k = (current_k * 900000) / 100;
-    recenter_amm(&mut perp_market.amm, oracle_price_data.price as u128, new_k).unwrap();
+    recenter_perp_market_amm(&mut perp_market.amm, oracle_price_data.price as u128, new_k).unwrap();
 
     assert_eq!(perp_market.amm.sqrt_k, new_k);
     assert_eq!(
@@ -1578,7 +1578,7 @@ fn recenter_amm_2() {
     let current_k = perp_market.amm.sqrt_k;
     let _current_peg = perp_market.amm.peg_multiplier;
     let new_k = current_k * 2;
-    recenter_amm(&mut perp_market.amm, oracle_price_data.price as u128, new_k).unwrap();
+    recenter_perp_market_amm(&mut perp_market.amm, oracle_price_data.price as u128, new_k).unwrap();
 
     assert_eq!(perp_market.amm.sqrt_k, new_k);
     assert_eq!(
@@ -1691,7 +1691,7 @@ fn test_move_amm() {
     let current_bar = perp_market.amm.base_asset_reserve;
     let _current_qar = perp_market.amm.quote_asset_reserve;
     let current_k = perp_market.amm.sqrt_k;
-    let inc_numerator = BASE_PRECISION + BASE_PRECISION/100;
+    let inc_numerator = BASE_PRECISION + BASE_PRECISION / 100;
     let new_k = current_k * inc_numerator / BASE_PRECISION;
 
     // test correction
@@ -1701,9 +1701,9 @@ fn test_move_amm() {
         // current_qar * inc_numerator / BASE_PRECISION,
         65025333363567459347, // pass in exact amount that reconciles
         new_k,
-    ).unwrap();
+    )
+    .unwrap();
     crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
     assert_eq!(perp_market.amm.sqrt_k, new_k);
     assert_eq!(perp_market.amm.peg_multiplier, 5); // still same
-
 }

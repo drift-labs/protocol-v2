@@ -31,7 +31,7 @@ import {
 	ContractTier,
 	isOracleValid,
 	OracleGuardRails,
-	calculateReservePrice,
+	// calculateReservePrice,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 

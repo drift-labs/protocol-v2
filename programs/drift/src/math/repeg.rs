@@ -284,11 +284,27 @@ pub fn adjust_amm(
         let adjustment_cost: i128 = if adjust_k && can_lower_k {
             // TODO can be off by 1?
 
+            // always let protocol-owned sqrt_k be either least .1% of lps or the base amount / min order
+            let new_sqrt_k_lower_bound = market.amm.sqrt_k.min(
+                market
+                    .amm
+                    .user_lp_shares
+                    .safe_add(market.amm.user_lp_shares.safe_div(1000)?)?
+                    .max(market.amm.min_order_size.cast()?)
+                    .max(
+                        market
+                            .amm
+                            .base_asset_amount_with_amm
+                            .unsigned_abs()
+                            .cast()?,
+                    ),
+            );
+
             let new_sqrt_k = market
                 .amm
                 .sqrt_k
                 .safe_sub(market.amm.sqrt_k.safe_div(1000)?)?
-                .max(market.amm.user_lp_shares.safe_add(1)?);
+                .max(new_sqrt_k_lower_bound);
 
             let update_k_result =
                 cp_curve::get_update_k_result(market, bn::U192::from(new_sqrt_k), true)?;

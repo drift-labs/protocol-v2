@@ -870,13 +870,13 @@ pub fn handle_move_amm_price(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
-pub fn handle_recenter_amm(
+pub fn handle_recenter_perp_market_amm(
     ctx: Context<AdminUpdatePerpMarket>,
     peg_multiplier: u128,
     sqrt_k: u128,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    controller::amm::recenter_amm(&mut perp_market.amm, peg_multiplier, sqrt_k)?;
+    controller::amm::recenter_perp_market_amm(&mut perp_market.amm, peg_multiplier, sqrt_k)?;
     validate_perp_market(perp_market)?;
 
     Ok(())

@@ -769,7 +769,7 @@ pub fn move_price(
 }
 
 // recenter peg with balanced terminal reserves
-pub fn recenter_amm(amm: &mut AMM, peg_multiplier: u128, sqrt_k: u128) -> DriftResult {
+pub fn recenter_perp_market_amm(amm: &mut AMM, peg_multiplier: u128, sqrt_k: u128) -> DriftResult {
     // calculate base/quote reserves for balanced terminal reserves
     let swap_direction = if amm.base_asset_amount_with_amm > 0 {
         SwapDirection::Remove

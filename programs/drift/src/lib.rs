@@ -626,6 +626,14 @@ pub mod drift {
         handle_move_amm_price(ctx, base_asset_reserve, quote_asset_reserve, sqrt_k)
     }
 
+    pub fn recenter_perp_market_amm(
+        ctx: Context<AdminUpdatePerpMarket>,
+        peg_multiplier: u128,
+        sqrt_k: u128,
+    ) -> Result<()> {
+        handle_recenter_perp_market_amm(ctx, peg_multiplier, sqrt_k)
+    }
+
     pub fn update_perp_market_expiry(
         ctx: Context<AdminUpdatePerpMarket>,
         expiry_ts: i64,

@@ -2973,6 +2973,36 @@
       ]
     },
     {
+      "name": "recenterPerpMarketAmm",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "pegMultiplier",
+          "type": "u128"
+        },
+        {
+          "name": "sqrtK",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketExpiry",
       "accounts": [
         {
