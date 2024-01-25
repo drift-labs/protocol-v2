@@ -745,7 +745,9 @@ pub fn move_price(
     validate!(
         (quote_asset_reserve.cast::<i128>()? - amm.quote_asset_reserve.cast::<i128>()?).abs() < 100,
         ErrorCode::InvalidAmmDetected,
-        "quote_asset_reserve passed doesnt reconcile enough"
+        "quote_asset_reserve passed doesnt reconcile enough {} vs {}",
+        quote_asset_reserve.cast::<i128>()?,
+        amm.quote_asset_reserve.cast::<i128>()?
     )?;
 
     amm.sqrt_k = sqrt_k;

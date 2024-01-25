@@ -1181,7 +1181,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
     let update_k_result = get_update_k_result(perp_market, new_sqrt_k_u192, true)?;
 
-    let adjustment_cost = math::cp_curve::adjust_k_cost(perp_market, &update_k_result)?;
+    let adjustment_cost: i128 = math::cp_curve::adjust_k_cost(perp_market, &update_k_result)?;
 
     math::cp_curve::update_k(perp_market, &update_k_result)?;
 
