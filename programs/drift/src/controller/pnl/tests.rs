@@ -24,11 +24,16 @@ use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
 use crate::state::user::{PerpPosition, SpotPosition, User};
 use crate::test_utils::*;
 use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
-
+use anchor_lang::prelude::Clock;
 #[test]
 pub fn user_no_position() {
-    let now = 0_i64;
-    let slot = 0_u64;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
@@ -53,7 +58,7 @@ pub fn user_no_position() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -129,7 +134,7 @@ pub fn user_no_position() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     );
 
@@ -138,8 +143,13 @@ pub fn user_no_position() {
 
 #[test]
 pub fn user_does_not_meet_maintenance_requirement() {
-    let now = 0_i64;
-    let slot = 0_u64;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
@@ -164,7 +174,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -247,7 +257,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     );
 
@@ -256,8 +266,13 @@ pub fn user_does_not_meet_maintenance_requirement() {
 
 #[test]
 pub fn user_unsettled_negative_pnl() {
-    let now = 0_i64;
-    let slot = 0_u64;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -280,7 +295,7 @@ pub fn user_unsettled_negative_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -375,7 +390,7 @@ pub fn user_unsettled_negative_pnl() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     )
     .unwrap();
@@ -386,8 +401,13 @@ pub fn user_unsettled_negative_pnl() {
 
 #[test]
 pub fn user_unsettled_positive_pnl_more_than_pool() {
-    let now = 0_i64;
-    let slot = 0_u64;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -410,7 +430,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -503,7 +523,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     )
     .unwrap();
@@ -514,8 +534,13 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
 
 #[test]
 pub fn user_unsettled_positive_pnl_less_than_pool() {
-    let now = 0_i64;
-    let slot = 0_u64;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -538,7 +563,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -633,7 +658,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     )
     .unwrap();
@@ -644,8 +669,14 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
 
 #[test]
 pub fn market_fee_pool_receives_portion() {
-    let now = 0_i64;
-    let slot = 0;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
+    let slot = clock.slot;
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -765,7 +796,7 @@ pub fn market_fee_pool_receives_portion() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     )
     .unwrap();
@@ -776,8 +807,13 @@ pub fn market_fee_pool_receives_portion() {
 
 #[test]
 pub fn market_fee_pool_pays_back_to_pnl_pool() {
-    let now = 0_i64;
-    let slot = 0_u64;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -800,7 +836,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -902,7 +938,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     )
     .unwrap();
@@ -913,8 +949,13 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
 
 #[test]
 pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
-    let now = 0_i64;
-    let slot = 0_u64;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -937,7 +978,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -1033,7 +1074,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     )
     .unwrap();
@@ -1044,8 +1085,13 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
 
 #[test]
 pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached() {
-    let now = 0_i64;
-    let slot = 0_u64;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -1068,7 +1114,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -1164,7 +1210,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     )
     .is_err());
@@ -1172,8 +1218,13 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
 
 #[test]
 pub fn user_long_negative_unrealized_pnl() {
-    let now = 0_i64;
-    let slot = 0_u64;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -1196,7 +1247,7 @@ pub fn user_long_negative_unrealized_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -1292,7 +1343,7 @@ pub fn user_long_negative_unrealized_pnl() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     )
     .unwrap();
@@ -1303,8 +1354,13 @@ pub fn user_long_negative_unrealized_pnl() {
 
 #[test]
 pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
-    let now = 0_i64;
-    let slot = 0_u64;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -1327,7 +1383,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -1423,7 +1479,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     )
     .unwrap();
@@ -1434,8 +1490,13 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
 
 #[test]
 pub fn user_short_negative_unrealized_pnl() {
-    let now = 0_i64;
-    let slot = 0_u64;
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -1458,7 +1519,7 @@ pub fn user_short_negative_unrealized_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -1554,7 +1615,7 @@ pub fn user_short_negative_unrealized_pnl() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        now,
+        &clock,
         &state,
     )
     .unwrap();

@@ -27,10 +27,12 @@ export class PollingSubscription {
 			return;
 		}
 
-		this.intervalId = setInterval(
-			this.userMap.sync.bind(this.userMap),
-			this.frequency
-		);
+		if (this.frequency > 0) {
+			this.intervalId = setInterval(
+				this.userMap.sync.bind(this.userMap),
+				this.frequency
+			);
+		}
 
 		if (!this.skipInitialLoad) {
 			await this.userMap.sync();

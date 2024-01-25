@@ -274,6 +274,10 @@ pub mod drift {
         handle_delete_user(ctx)
     }
 
+    pub fn reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
+        handle_reclaim_rent(ctx)
+    }
+
     // Keeper Instructions
 
     pub fn fill_perp_order(
@@ -959,6 +963,13 @@ pub mod drift {
         max_number_of_sub_accounts: u16,
     ) -> Result<()> {
         handle_update_state_max_number_of_sub_accounts(ctx, max_number_of_sub_accounts)
+    }
+
+    pub fn update_state_max_initialize_user_fee(
+        ctx: Context<AdminUpdateState>,
+        max_initialize_user_fee: u16,
+    ) -> Result<()> {
+        handle_update_state_max_initialize_user_fee(ctx, max_initialize_user_fee)
     }
 
     pub fn update_perp_market_oracle(

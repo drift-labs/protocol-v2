@@ -1672,7 +1672,7 @@ mod qualifies_for_withdraw_fee {
         let user = User::default();
         let user_stats = UserStats::default();
 
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
 
         assert!(!qualifies);
 
@@ -1681,7 +1681,7 @@ mod qualifies_for_withdraw_fee {
             ..User::default()
         };
 
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
 
         assert!(!qualifies);
 
@@ -1698,12 +1698,13 @@ mod qualifies_for_withdraw_fee {
             ..UserStats::default()
         };
 
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
 
         assert!(!qualifies);
 
         let user = User {
             total_withdraws: 10_000_000 * QUOTE_PRECISION_U64,
+
             ..User::default()
         };
 
@@ -1715,9 +1716,32 @@ mod qualifies_for_withdraw_fee {
             ..UserStats::default()
         };
 
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats);
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
 
         assert!(qualifies);
+
+        // fee
+        let user = User {
+            total_withdraws: 13_000_000 * QUOTE_PRECISION_U64,
+            last_active_slot: 8900877,
+            ..User::default()
+        };
+
+        let user_stats = UserStats {
+            fees: UserFees {
+                total_fee_paid: QUOTE_PRECISION_U64,
+                ..UserFees::default()
+            },
+            ..UserStats::default()
+        };
+
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, user.last_active_slot + 1);
+
+        assert!(qualifies);
+
+        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, user.last_active_slot + 50);
+
+        assert!(!qualifies);
     }
 }
 
@@ -1884,5 +1908,35 @@ mod resting_limit_order {
         let slot = 12;
 
         assert!(order.is_resting_limit_order(slot).unwrap());
+    }
+}
+
+mod get_user_stats_age_ts {
+    use crate::state::user::UserStats;
+
+    #[test]
+    fn test() {
+        let user_stats = UserStats::default();
+
+        let now = 1;
+
+        let age = user_stats.get_age_ts(now);
+
+        assert_eq!(age, 1);
+
+        let user_stats = UserStats {
+            last_filler_volume_30d_ts: 2,
+            last_maker_volume_30d_ts: 3,
+            last_taker_volume_30d_ts: 4,
+            ..UserStats::default()
+        };
+
+        let now = 5;
+        let age = user_stats.get_age_ts(now);
+        assert_eq!(age, 3);
+
+        let now = 1;
+        let age = user_stats.get_age_ts(now);
+        assert_eq!(age, 0);
     }
 }

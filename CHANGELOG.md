@@ -9,6 +9,112 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+- program: enable jit maker to fill same slot as taker placed ([#835](https://github.com/drift-labs/protocol-v2/pull/835))
+
+### Breaking
+
+## [2.56.0] - 2023-01-24
+
+### Features
+
+### Fixes
+
+- program: enable jit maker to fill same slot as taker placed ([#835](https://github.com/drift-labs/protocol-v2/pull/835))
+
+### Breaking
+
+## [2.55.0] - 2023-01-18
+
+### Features
+
+### Fixes
+
+- program: standardize lp shares in attempt_burn_user_lp_shares_for_risk_reduction ([#826](https://github.com/drift-labs/protocol-v2/pull/826))
+
+### Breaking
+
+## [2.54.0] - 2023-01-15
+
+### Features
+- sdk: move bracket orders into single instruction
+- sdk: add ability to do placeAndTake order with bracket orders attached
+- sdk: add option to cancel existing orders in market for place and take order
+- sdk: add option to get signed settlePnl tx back from a market order
+- program: auto derisk lp positions in settle pnl ([#766](https://github.com/drift-labs/protocol-v2/pull/766))
+- program: increase full perp liquidation threshold ([#807](https://github.com/drift-labs/protocol-v2/pull/807))
+- program: remove spot fee pool transfer ([#800](https://github.com/drift-labs/protocol-v2/pull/800))
+- program: increase insurance tier max ([#784](https://github.com/drift-labs/protocol-v2/pull/784))
+- sdk: can specify max custom margin ratio to initialize a new account with
+
+### Fixes
+
+- ts-sdk: contract tier funding rate clamp ([#785](https://github.com/drift-labs/protocol-v2/pull/785))
+- ts-sdk: fix oracle is valid ([#806](https://github.com/drift-labs/protocol-v2/pull/806))
+
+### Breaking
+
+
+## [2.53.0] - 2023-12-31
+
+### Features
+
+### Fixes
+
+- program: standardize limit auction prices ([#790](https://github.com/drift-labs/protocol-v2/pull/790))
+- program: improve get_fallback_price([#797](https://github.com/drift-labs/protocol-v2/pull/797))
+- program: derive auction for crossing limit with no duration ([#802](https://github.com/drift-labs/protocol-v2/pull/802))
+- sdk: use tx params passed into deposit and withdraw functions
+
+### Breaking
+
+## [2.52.0] - 2023-12-22
+
+### Features
+
+- program: add ability to reclaim rent without deleting account ([#763](https://github.com/drift-labs/protocol-v2/pull/763)) 
+- program: add borrow explanation to DepositRecords ([#772](https://github.com/drift-labs/protocol-v2/pull/772))
+- sdk: OrderSubscriber has resync option ([#780](https://github.com/drift-labs/protocol-v2/pull/780))
+- program: only consider recent last_active_slot in qualifies_for_withdraw_feen ([#756](https://github.com/drift-labs/protocol-v2/pull/756))
+- program: amm can use reference price offset from oracle price based on clamped inventory and persist market premiums ([#681](https://github.com/drift-labs/protocol-v2/pull/681))
+
+### Fixes
+
+- program: handle underflow in calculate_liability_transfer_to_cover_margin_shortage ([#774](https://github.com/drift-labs/protocol-v2/pull/774))
+- program:  flip auction flag when trigger order adds auction ([#775](https://github.com/drift-labs/protocol-v2/pull/775))
+- program: don't perform funding rate updates when slots_since_amm_update is stale ([#757](https://github.com/drift-labs/protocol-v2/pull/757))
+- program: add update last slot for filler in pay_keeper_flat_reward_for_spot
+
+### Breaking
+
+## [2.51.0] - 2023-12-09
+
+### Features
+
+### Fixes
+
+- program: consistent user of fee budget in calculate_optimal_peg_and_budget ([#754](https://github.com/drift-labs/protocol-v2/pull/754))
+
+### Breaking
+
+## [2.50.0] - 2023-12-09
+
+### Features
+
+### Fixes
+
+- program: better account for liquidation fees in calculate_optimal_peg_and_budget ([#754](https://github.com/drift-labs/protocol-v2/pull/754))
+
+### Breaking
+
+## [2.49.0] - 2023-12-08
+
+## [Unreleased]
+
+### Features
+
+- program: add init user fee ([#752](https://github.com/drift-labs/protocol-v2/pull/752))
 - program: vamm gives maker rebate ([#653](https://github.com/drift-labs/protocol-v2/pull/653))
 
 ### Fixes
@@ -24,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: account for step size when canceling reduce only orders
 
 ### Breaking
+
 - sdk: UserStatsMap use bulkAccountLoader (`UserStatsMap.subscribe` and `UserStatsMap.sync` now requires list of authorities) ([#716](https://github.com/drift-labs/protocol-v2/pull/716))
 
 ## [2.47.0] - 2023-11-26
@@ -103,6 +210,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: add positive perp funding rate offset ([#576](https://github.com/drift-labs/protocol-v2/pull/576/files))
 
 ### Fixes
+
 - program: add validation check in update max imbalances ([#667](https://github.com/drift-labs/protocol-v2/pull/667))
 
 ### Breaking

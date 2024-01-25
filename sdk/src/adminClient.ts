@@ -846,6 +846,20 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateStateMaxInitializeUserFee(
+		maxInitializeUserFee: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateStateMaxInitializeUserFee(
+			maxInitializeUserFee,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateWithdrawGuardThreshold(
 		spotMarketIndex: number,
 		withdrawGuardThreshold: BN
@@ -1163,6 +1177,19 @@ export class AdminClient extends DriftClient {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 				serumFulfillmentConfig,
+			},
+		});
+	}
+
+	public async updatePhoenixFulfillmentConfigStatus(
+		phoenixFulfillmentConfig: PublicKey,
+		status: SpotFulfillmentConfigStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.phoenixFulfillmentConfigStatus(status, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				phoenixFulfillmentConfig,
 			},
 		});
 	}

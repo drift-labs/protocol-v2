@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use anchor_spl::token::{Token, TokenAccount};
+use solana_program::program::invoke;
+use solana_program::system_instruction::transfer;
 
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
@@ -19,7 +21,6 @@ use crate::instructions::optional_accounts::{
     AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
-use crate::load;
 use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
@@ -64,6 +65,7 @@ use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
 use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
+use crate::{load, THIRTEEN_DAY};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -137,8 +139,11 @@ pub fn handle_initialize_user(
     let state = &mut ctx.accounts.state;
     safe_increment!(state.number_of_sub_accounts, 1);
 
+    let max_number_of_sub_accounts = state.max_number_of_sub_accounts();
+
     validate!(
-        state.number_of_sub_accounts <= state.max_number_of_sub_accounts(),
+        max_number_of_sub_accounts == 0
+            || state.number_of_sub_accounts <= max_number_of_sub_accounts,
         ErrorCode::MaxNumberOfUsers
     )?;
 
@@ -150,6 +155,31 @@ pub fn handle_initialize_user(
         name,
         referrer: user_stats.referrer
     });
+
+    drop(user);
+
+    let init_fee = state.get_init_user_fee()?;
+
+    if init_fee > 0 {
+        let payer_lamports = ctx.accounts.payer.to_account_info().try_lamports()?;
+        if payer_lamports < init_fee {
+            msg!("payer lamports {} init fee {}", payer_lamports, init_fee);
+            return Err(ErrorCode::CantPayUserInitFee.into());
+        }
+
+        invoke(
+            &transfer(
+                &ctx.accounts.payer.key(),
+                &ctx.accounts.user.key(),
+                init_fee,
+            ),
+            &[
+                ctx.accounts.payer.to_account_info().clone(),
+                ctx.accounts.user.to_account_info().clone(),
+                ctx.accounts.system_program.to_account_info().clone(),
+            ],
+        )?;
+    }
 
     Ok(())
 }
@@ -174,6 +204,14 @@ pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result
 
     let state = &mut ctx.accounts.state;
     safe_increment!(state.number_of_authorities, 1);
+
+    let max_number_of_sub_accounts = state.max_number_of_sub_accounts();
+
+    validate!(
+        max_number_of_sub_accounts == 0
+            || state.number_of_authorities <= max_number_of_sub_accounts,
+        ErrorCode::MaxNumberOfUsers
+    )?;
 
     Ok(())
 }
@@ -451,7 +489,7 @@ pub fn handle_withdraw(
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
 
-        if user.qualifies_for_withdraw_fee(&user_stats) {
+        if user.qualifies_for_withdraw_fee(&user_stats, slot) {
             let fee =
                 charge_withdraw_fee(spot_market, oracle_price_data.price, user, &mut user_stats)?;
             amount = amount.safe_sub(fee.cast()?)?;
@@ -493,6 +531,15 @@ pub fn handle_withdraw(
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
 
+    let is_borrow = user
+        .get_spot_position(market_index)
+        .map_or(false, |pos| pos.is_borrow());
+    let deposit_explanation = if is_borrow {
+        DepositExplanation::Borrow
+    } else {
+        DepositExplanation::None
+    };
+
     let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let deposit_record = DepositRecord {
         ts: now,
@@ -509,7 +556,7 @@ pub fn handle_withdraw(
         market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
         total_deposits_after: user.total_deposits,
         total_withdraws_after: user.total_withdraws,
-        explanation: DepositExplanation::None,
+        explanation: deposit_explanation,
         transfer_user: None,
     };
     emit!(deposit_record);
@@ -762,9 +809,13 @@ pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_perp_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1025,6 +1076,9 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         "max 32 order params"
     )?;
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     let num_orders = params.len();
     for (i, params) in params.iter().enumerate() {
         validate!(
@@ -1043,7 +1097,8 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         if params.market_type == MarketType::Perp {
             controller::orders::place_perp_order(
                 &ctx.accounts.state,
-                &ctx.accounts.user,
+                &mut user,
+                user_key,
                 &perp_market_map,
                 &spot_market_map,
                 &mut oracle_map,
@@ -1054,7 +1109,8 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         } else {
             controller::orders::place_spot_order(
                 &ctx.accounts.state,
-                &ctx.accounts.user,
+                &mut user,
+                user_key,
                 &perp_market_map,
                 &spot_market_map,
                 &mut oracle_map,
@@ -1110,9 +1166,13 @@ pub fn handle_place_and_take_perp_order<'info>(
         &Clock::get()?,
     )?;
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_perp_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1120,6 +1180,8 @@ pub fn handle_place_and_take_perp_order<'info>(
         params,
         PlaceOrderOptions::default(),
     )?;
+
+    drop(user);
 
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
@@ -1200,9 +1262,13 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         clock,
     )?;
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_perp_order(
         state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1211,11 +1277,9 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         PlaceOrderOptions::default(),
     )?;
 
-    let (order_id, authority) = {
-        let user = load!(ctx.accounts.user)?;
-        let order_id = user.get_last_order_id();
-        (order_id, user.authority)
-    };
+    let (order_id, authority) = (user.get_last_order_id(), user.authority);
+
+    drop(user);
 
     let (mut makers_and_referrer, mut makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter, true)?;
@@ -1276,9 +1340,13 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_spot_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1365,9 +1433,13 @@ pub fn handle_place_and_take_spot_order<'info>(
         }
     };
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_spot_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1375,6 +1447,8 @@ pub fn handle_place_and_take_spot_order<'info>(
         params,
         PlaceOrderOptions::default(),
     )?;
+
+    drop(user);
 
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
@@ -1489,9 +1563,13 @@ pub fn handle_place_and_make_spot_order<'info>(
         }
     };
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_spot_order(
         state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1499,6 +1577,8 @@ pub fn handle_place_and_make_spot_order<'info>(
         params,
         PlaceOrderOptions::default(),
     )?;
+
+    drop(user);
 
     let order_id = load!(ctx.accounts.user)?.get_last_order_id();
 
@@ -1811,12 +1891,57 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     let user = &load!(ctx.accounts.user)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
-    validate_user_deletion(user, user_stats)?;
+    validate_user_deletion(
+        user,
+        user_stats,
+        &ctx.accounts.state,
+        Clock::get()?.unix_timestamp,
+    )?;
 
     safe_decrement!(user_stats.number_of_sub_accounts, 1);
 
     let state = &mut ctx.accounts.state;
     safe_decrement!(state.number_of_sub_accounts, 1);
+
+    Ok(())
+}
+
+pub fn handle_reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
+    let user_size = ctx.accounts.user.to_account_info().data_len();
+    let minimum_lamports = ctx.accounts.rent.minimum_balance(user_size);
+    let current_lamports = ctx.accounts.user.to_account_info().try_lamports()?;
+    let reclaim_amount = current_lamports.saturating_sub(minimum_lamports);
+
+    validate!(
+        reclaim_amount > 0,
+        ErrorCode::CantReclaimRent,
+        "user account has no excess lamports to reclaim"
+    )?;
+
+    **ctx
+        .accounts
+        .user
+        .to_account_info()
+        .try_borrow_mut_lamports()? = minimum_lamports;
+
+    **ctx
+        .accounts
+        .authority
+        .to_account_info()
+        .try_borrow_mut_lamports()? += reclaim_amount;
+
+    let user_stats = &mut load!(ctx.accounts.user_stats)?;
+
+    // Skip age check if is no max sub accounts
+    let max_sub_accounts = ctx.accounts.state.max_number_of_sub_accounts();
+    let estimated_user_stats_age = user_stats.get_age_ts(Clock::get()?.unix_timestamp);
+    validate!(
+        max_sub_accounts == 0 || estimated_user_stats_age >= THIRTEEN_DAY,
+        ErrorCode::CantReclaimRent,
+        "user stats too young to reclaim rent. age ={} minimum = {}",
+        estimated_user_stats_age,
+        THIRTEEN_DAY
+    )?;
 
     Ok(())
 }
@@ -2166,6 +2291,23 @@ pub struct DeleteUser<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ReclaimRent<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
 #[instruction(in_market_index: u16, out_market_index: u16, )]
 pub struct Swap<'info> {
     pub state: Box<Account<'info, State>>,
@@ -2436,7 +2578,7 @@ pub fn handle_begin_swap(
             validate!(
                 whitelisted_programs.contains(&ix.program_id),
                 ErrorCode::InvalidSwap,
-                "only allowed to pass in ixs to token, marinade, openbook, Jupiter v3 or v4 programs"
+                "only allowed to pass in ixs to token, openbook, and Jupiter v3/v4/v6 programs"
             )?;
 
             for meta in ix.accounts.iter() {
@@ -2639,13 +2781,15 @@ pub fn handle_end_swap(
     user.update_cumulative_spot_fees(-fee_value.cast()?)?;
     user_stats.increment_total_fees(fee_value.cast()?)?;
 
-    // update taker volume
-    let amount_out_value = get_token_value(
-        amount_out.cast()?,
-        out_spot_market.decimals,
-        out_oracle_price,
-    )?;
-    user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+    if fee != 0 {
+        // update taker volume
+        let amount_out_value = get_token_value(
+            amount_out.cast()?,
+            out_spot_market.decimals,
+            out_oracle_price,
+        )?;
+        user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+    }
 
     validate!(
         amount_out != 0,

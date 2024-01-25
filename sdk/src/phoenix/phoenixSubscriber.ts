@@ -167,6 +167,7 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 			10,
 			this.market.data.header.baseParams.decimals
 		);
+
 		const pricePrecision = PRICE_PRECISION.toNumber();
 
 		const ladder = getMarketUiLadder(
@@ -178,17 +179,21 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 
 		for (let i = 0; i < ladder[side].length; i++) {
 			const { price, quantity } = ladder[side][i];
-			const size = new BN(Math.floor(quantity * basePrecision));
-			yield {
-				price: new BN(Math.floor(price * pricePrecision)),
-				size,
-				sources: {
-					phoenix: size,
-				},
-			};
+			try {
+				const size = new BN(quantity * basePrecision);
+				const updatedPrice = new BN(price * pricePrecision);
+				yield {
+					price: updatedPrice,
+					size,
+					sources: {
+						phoenix: size,
+					},
+				};
+			} catch {
+				continue;
+			}
 		}
 	}
-
 	public async unsubscribe(): Promise<void> {
 		if (!this.subscribed) {
 			return;

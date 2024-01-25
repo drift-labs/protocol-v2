@@ -10,6 +10,7 @@ export class WebsocketSubscription {
 	private skipInitialLoad: boolean;
 	private resubTimeoutMs?: number;
 	private includeIdle?: boolean;
+	private decodeFn: (name: string, data: Buffer) => UserAccount;
 
 	private subscriber: WebSocketProgramAccountSubscriber<UserAccount>;
 
@@ -19,18 +20,21 @@ export class WebsocketSubscription {
 		skipInitialLoad = false,
 		resubTimeoutMs,
 		includeIdle = false,
+		decodeFn,
 	}: {
 		userMap: UserMap;
 		commitment: Commitment;
 		skipInitialLoad?: boolean;
 		resubTimeoutMs?: number;
 		includeIdle?: boolean;
+		decodeFn: (name: string, data: Buffer) => UserAccount;
 	}) {
 		this.userMap = userMap;
 		this.commitment = commitment;
 		this.skipInitialLoad = skipInitialLoad;
 		this.resubTimeoutMs = resubTimeoutMs;
 		this.includeIdle = includeIdle || false;
+		this.decodeFn = decodeFn;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -43,9 +47,7 @@ export class WebsocketSubscription {
 				'UserMap',
 				'User',
 				this.userMap.driftClient.program,
-				this.userMap.driftClient.program.account.user.coder.accounts.decodeUnchecked.bind(
-					this.userMap.driftClient.program.account.user.coder.accounts
-				),
+				this.decodeFn,
 				{
 					filters,
 					commitment: this.commitment,

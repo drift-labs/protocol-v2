@@ -84,7 +84,8 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         liquidation_duration: 0,
         initial_pct_to_liquidate: 0,
         max_number_of_sub_accounts: 0,
-        padding: [0; 12],
+        max_initialize_user_fee: 0,
+        padding: [0; 10],
     };
 
     Ok(())
@@ -726,7 +727,10 @@ pub fn handle_initialize_perp_market(
             padding1: 0,
             padding2: 0,
             total_fee_earned_per_lp: 0,
-            padding: [0; 32],
+            net_unsettled_funding_pnl: 0,
+            quote_asset_amount_with_unsettled_lp: 0,
+            reference_price_offset: 0,
+            padding: [0; 12],
         },
     };
 
@@ -1841,8 +1845,10 @@ pub fn handle_update_perp_market_curve_update_intensity(
     ctx: Context<AdminUpdatePerpMarket>,
     curve_update_intensity: u8,
 ) -> Result<()> {
+    // (0, 100] is for repeg / formulaic k intensity
+    // (100, 200] is for reference price offset intensity
     validate!(
-        curve_update_intensity <= 100,
+        curve_update_intensity <= 200,
         ErrorCode::DefaultError,
         "invalid curve_update_intensity",
     )?;
@@ -1967,6 +1973,14 @@ pub fn handle_update_state_max_number_of_sub_accounts(
     max_number_of_sub_accounts: u16,
 ) -> Result<()> {
     ctx.accounts.state.max_number_of_sub_accounts = max_number_of_sub_accounts;
+    Ok(())
+}
+
+pub fn handle_update_state_max_initialize_user_fee(
+    ctx: Context<AdminUpdateState>,
+    max_initialize_user_fee: u16,
+) -> Result<()> {
+    ctx.accounts.state.max_initialize_user_fee = max_initialize_user_fee;
     Ok(())
 }
 

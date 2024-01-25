@@ -693,26 +693,6 @@ pub fn calculate_fill_price(
         .cast::<u64>()
 }
 
-pub fn get_fallback_price(
-    direction: &PositionDirection,
-    bid_price: u64,
-    ask_price: u64,
-    amm_available_liquidity: u64,
-    oracle_price: i64,
-) -> DriftResult<u64> {
-    let oracle_price = oracle_price.unsigned_abs();
-    match direction {
-        PositionDirection::Long if amm_available_liquidity > 0 => {
-            ask_price.safe_add(ask_price / 200)
-        }
-        PositionDirection::Long => oracle_price.safe_add(oracle_price / 20),
-        PositionDirection::Short if amm_available_liquidity > 0 => {
-            bid_price.safe_sub(bid_price / 200)
-        }
-        PositionDirection::Short => oracle_price.safe_sub(oracle_price / 20),
-    }
-}
-
 pub fn get_max_fill_amounts(
     user: &User,
     user_order_index: usize,

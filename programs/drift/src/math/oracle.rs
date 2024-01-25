@@ -105,6 +105,7 @@ pub fn block_operation(
     oracle_price_data: &OraclePriceData,
     guard_rails: &OracleGuardRails,
     precomputed_reserve_price: Option<u64>,
+    slot: u64,
 ) -> DriftResult<bool> {
     let OracleStatus {
         oracle_validity,
@@ -120,9 +121,14 @@ pub fn block_operation(
     let is_oracle_valid =
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
 
+    let slots_since_amm_update = slot.saturating_sub(market.amm.last_update_slot);
+
     let funding_paused_on_market = market.status == MarketStatus::FundingPaused;
 
-    let block = !is_oracle_valid || is_oracle_mark_too_divergent || funding_paused_on_market;
+    let block = slots_since_amm_update > 10
+        || !is_oracle_valid
+        || is_oracle_mark_too_divergent
+        || funding_paused_on_market;
     Ok(block)
 }
 

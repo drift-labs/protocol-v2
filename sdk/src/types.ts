@@ -182,6 +182,7 @@ export class SpotFulfillmentStatus {
 export class DepositExplanation {
 	static readonly NONE = { none: {} };
 	static readonly TRANSFER = { transfer: {} };
+	static readonly BORROW = { borrow: {} };
 }
 
 export class SettlePnlExplanation {
@@ -552,6 +553,7 @@ export type StateAccount = {
 	lpCooldownTime: BN;
 	initialPctToLiquidate: number;
 	liquidationDuration: number;
+	maxInitializeUserFee: number;
 };
 
 export type PerpMarketAccount = {
@@ -709,7 +711,7 @@ export type AMM = {
 	pegMultiplier: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
-	last24hAvgFundingRate: BN;
+	last24HAvgFundingRate: BN;
 	lastFundingRateShort: BN;
 	lastFundingRateLong: BN;
 
@@ -869,8 +871,8 @@ export type Order = {
 	marketIndex: number;
 	price: BN;
 	baseAssetAmount: BN;
-	baseAssetAmountFilled: BN;
 	quoteAssetAmount: BN;
+	baseAssetAmountFilled: BN;
 	quoteAssetAmountFilled: BN;
 	direction: PositionDirection;
 	reduceOnly: boolean;

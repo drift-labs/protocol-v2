@@ -27,6 +27,7 @@ import {
 	OPEN_ORDER_MARGIN_REQUIREMENT,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
+	QUOTE_PRECISION_EXP,
 	QUOTE_SPOT_MARKET_INDEX,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	TEN,
@@ -40,6 +41,7 @@ import {
 	UserAccountSubscriber,
 } from './accounts/types';
 import {
+	BigNum,
 	BN,
 	calculateBaseAssetValue,
 	calculateMarketMarginRatio,
@@ -386,12 +388,16 @@ export class User {
 
 	/**
 	 * calculates the open bids and asks for an lp
+	 * optionally pass in lpShares to see what bid/asks a user *would* take on
 	 * @returns : lp open bids
 	 * @returns : lp open asks
 	 */
-	public getLPBidAsks(marketIndex: number): [BN, BN] {
+	public getLPBidAsks(marketIndex: number, lpShares?: BN): [BN, BN] {
 		const position = this.getPerpPosition(marketIndex);
-		if (position === undefined || position.lpShares.eq(ZERO)) {
+
+		const lpSharesToCalc = lpShares ?? position?.lpShares;
+
+		if (!lpSharesToCalc || lpSharesToCalc.eq(ZERO)) {
 			return [ZERO, ZERO];
 		}
 
@@ -403,12 +409,8 @@ export class User {
 			market.amm.orderStepSize
 		);
 
-		const lpOpenBids = marketOpenBids
-			.mul(position.lpShares)
-			.div(market.amm.sqrtK);
-		const lpOpenAsks = marketOpenAsks
-			.mul(position.lpShares)
-			.div(market.amm.sqrtK);
+		const lpOpenBids = marketOpenBids.mul(lpSharesToCalc).div(market.amm.sqrtK);
+		const lpOpenAsks = marketOpenAsks.mul(lpSharesToCalc).div(market.amm.sqrtK);
 
 		return [lpOpenBids, lpOpenAsks];
 	}
@@ -422,7 +424,8 @@ export class User {
 	public getPerpPositionWithLPSettle(
 		marketIndex: number,
 		originalPosition?: PerpPosition,
-		burnLpShares = false
+		burnLpShares = false,
+		includeRemainderInBaseAmount = false
 	): [PerpPosition, BN, BN] {
 		originalPosition =
 			originalPosition ??
@@ -600,7 +603,16 @@ export class User {
 			position.lastCumulativeFundingRate = ZERO;
 		}
 
-		return [position, remainderBaa, pnl];
+		const remainderBeforeRemoval = new BN(position.remainderBaseAssetAmount);
+
+		if (includeRemainderInBaseAmount) {
+			position.baseAssetAmount = position.baseAssetAmount.add(
+				remainderBeforeRemoval
+			);
+			position.remainderBaseAssetAmount = 0;
+		}
+
+		return [position, remainderBeforeRemoval, pnl];
 	}
 
 	/**
@@ -754,7 +766,9 @@ export class User {
 		strict = false
 	): BN {
 		return this.getActivePerpPositions()
-			.filter((pos) => (marketIndex ? pos.marketIndex === marketIndex : true))
+			.filter((pos) =>
+				marketIndex !== undefined ? pos.marketIndex === marketIndex : true
+			)
 			.reduce((unrealizedPnl, perpPosition) => {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
@@ -1389,8 +1403,12 @@ export class User {
 		includeOpenOrders = false
 	): BN {
 		const userPosition =
-			this.getPerpPositionWithLPSettle(marketIndex)[0] ||
-			this.getEmptyPosition(marketIndex);
+			this.getPerpPositionWithLPSettle(
+				marketIndex,
+				undefined,
+				false,
+				true
+			)[0] || this.getEmptyPosition(marketIndex);
 		const market = this.driftClient.getPerpMarketAccount(
 			userPosition.marketIndex
 		);
@@ -1559,16 +1577,19 @@ export class User {
 		);
 	}
 
+	getNetUsdValue(): BN {
+		const netSpotValue = this.getNetSpotMarketValue();
+		const unrealizedPnl = this.getUnrealizedPNL(true, undefined, undefined);
+		return netSpotValue.add(unrealizedPnl);
+	}
+
 	/**
 	 * Calculates the all time P&L of the user.
 	 *
 	 * Net withdraws + Net spot market value + Net unrealized P&L -
 	 */
 	getTotalAllTimePnl(): BN {
-		const netBankValue = this.getNetSpotMarketValue();
-		const unrealizedPnl = this.getUnrealizedPNL(true, undefined, undefined);
-
-		const netUsdValue = netBankValue.add(unrealizedPnl);
+		const netUsdValue = this.getNetUsdValue();
 		const totalDeposits = this.getUserAccount().totalDeposits;
 		const totalWithdraws = this.getUserAccount().totalWithdraws;
 
@@ -3000,7 +3021,7 @@ export class User {
 		let makerFee =
 			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
 
-		if (marketIndex && isVariant(marketType, 'perp')) {
+		if (marketIndex !== undefined && isVariant(marketType, 'perp')) {
 			const marketAccount = this.driftClient.getPerpMarketAccount(marketIndex);
 			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
 			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
@@ -3017,11 +3038,22 @@ export class User {
 	 * @param quoteAmount
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
-	public calculateFeeForQuoteAmount(quoteAmount: BN): BN {
-		const feeTier = this.getUserFeeTier(MarketType.PERP);
-		return quoteAmount
-			.mul(new BN(feeTier.feeNumerator))
-			.div(new BN(feeTier.feeDenominator));
+	public calculateFeeForQuoteAmount(quoteAmount: BN, marketIndex?: number): BN {
+		if (marketIndex !== undefined) {
+			const takerFeeMultiplier = this.getMarketFees(
+				MarketType.PERP,
+				marketIndex
+			).takerFee;
+			const feeAmountNum =
+				BigNum.from(quoteAmount, QUOTE_PRECISION_EXP).toNum() *
+				takerFeeMultiplier;
+			return BigNum.fromPrint(feeAmountNum.toString(), QUOTE_PRECISION_EXP).val;
+		} else {
+			const feeTier = this.getUserFeeTier(MarketType.PERP);
+			return quoteAmount
+				.mul(new BN(feeTier.feeNumerator))
+				.div(new BN(feeTier.feeDenominator));
+		}
 	}
 
 	/**
@@ -3261,6 +3293,10 @@ export class User {
 		};
 
 		for (const perpPosition of this.getActivePerpPositions()) {
+			const settledLpPosition = this.getPerpPositionWithLPSettle(
+				perpPosition.marketIndex,
+				perpPosition
+			)[0];
 			const perpMarket = this.driftClient.getPerpMarketAccount(
 				perpPosition.marketIndex
 			);
@@ -3269,7 +3305,7 @@ export class User {
 			).data;
 			const oraclePrice = oraclePriceData.price;
 			const worstCaseBaseAmount =
-				calculateWorstCaseBaseAssetAmount(perpPosition);
+				calculateWorstCaseBaseAssetAmount(settledLpPosition);
 
 			const marginRatio = new BN(
 				calculateMarketMarginRatio(

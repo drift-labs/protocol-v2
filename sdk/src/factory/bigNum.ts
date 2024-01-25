@@ -497,7 +497,11 @@ export class BigNum {
 		return `${prefix}${val.replace('-', '')}`;
 	}
 
-	public toMillified(precision = 3, rounded = false): string {
+	public toMillified(
+		precision = 3,
+		rounded = false,
+		type: 'financial' | 'scientific' = 'financial'
+	): string {
 		if (rounded) {
 			return this.toRounded(precision).toMillified(precision);
 		}
@@ -520,7 +524,12 @@ export class BigNum {
 			return this.shift(new BN(precision)).toPrecision(precision, true);
 		}
 
-		const unitTicks = ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
+		const unitTicks =
+			type === 'financial'
+				? ['', 'K', 'M', 'B', 'T', 'Q']
+				: ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
+		// TODO -- handle nubers which are larger than the max unit tick
+
 		const unitNumber = Math.floor((leftSide.length - 1) / 3);
 		const unit = unitTicks[unitNumber];
 

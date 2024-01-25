@@ -1,5 +1,11 @@
 import { LogProvider, logProviderCallback } from './types';
-import { Commitment, Connection, PublicKey } from '@solana/web3.js';
+import {
+	Commitment,
+	Connection,
+	Context,
+	Logs,
+	PublicKey,
+} from '@solana/web3.js';
 import { EventEmitter } from 'events';
 
 export class WebSocketLogProvider implements LogProvider {
@@ -23,7 +29,7 @@ export class WebSocketLogProvider implements LogProvider {
 	}
 
 	public async subscribe(callback: logProviderCallback): Promise<boolean> {
-		if (this.subscriptionId) {
+		if (this.subscriptionId != null) {
 			return true;
 		}
 
@@ -45,7 +51,7 @@ export class WebSocketLogProvider implements LogProvider {
 	public setSubscription(callback: logProviderCallback): void {
 		this.subscriptionId = this.connection.onLogs(
 			this.address,
-			(logs, ctx) => {
+			(logs: Logs, ctx: Context) => {
 				if (this.resubTimeoutMs && !this.isUnsubscribing) {
 					this.receivingData = true;
 					clearTimeout(this.timeoutId);
@@ -55,6 +61,9 @@ export class WebSocketLogProvider implements LogProvider {
 					}
 					this.reconnectAttempts = 0;
 				}
+				if (logs.err !== null) {
+					return;
+				}
 				callback(logs.signature, ctx.slot, logs.logs, undefined);
 			},
 			this.commitment
@@ -62,7 +71,7 @@ export class WebSocketLogProvider implements LogProvider {
 	}
 
 	public isSubscribed(): boolean {
-		return this.subscriptionId !== undefined;
+		return this.subscriptionId != null;
 	}
 
 	public async unsubscribe(external = false): Promise<boolean> {
@@ -71,7 +80,7 @@ export class WebSocketLogProvider implements LogProvider {
 		clearTimeout(this.timeoutId);
 		this.timeoutId = undefined;
 
-		if (this.subscriptionId !== undefined) {
+		if (this.subscriptionId != null) {
 			try {
 				await this.connection.removeOnLogsListener(this.subscriptionId);
 				this.subscriptionId = undefined;

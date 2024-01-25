@@ -23,6 +23,7 @@ import {
 	convertToNumber,
 	QUOTE_PRECISION,
 	isVariant,
+	uncrossL2,
 } from '../../src';
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
@@ -60,8 +61,8 @@ function insertOrderToDLOB(
 			price,
 			baseAssetAmount,
 			baseAssetAmountFilled: new BN(0),
-			quoteAssetAmount: new BN(0),
 			quoteAssetAmountFilled: new BN(0),
+			quoteAssetAmount: new BN(0),
 			direction,
 			reduceOnly: false,
 			triggerPrice: new BN(0),
@@ -75,7 +76,7 @@ function insertOrderToDLOB(
 			auctionEndPrice,
 			maxTs,
 		},
-		userAccount,
+		userAccount.toString(),
 		slot.toNumber()
 	);
 }
@@ -111,8 +112,8 @@ function insertTriggerOrderToDLOB(
 			price,
 			baseAssetAmount,
 			baseAssetAmountFilled: new BN(0),
-			quoteAssetAmount: new BN(0),
 			quoteAssetAmountFilled: new BN(0),
+			quoteAssetAmount: new BN(0),
 			direction,
 			reduceOnly: false,
 			triggerPrice,
@@ -126,7 +127,7 @@ function insertTriggerOrderToDLOB(
 			auctionEndPrice,
 			maxTs,
 		},
-		userAccount,
+		userAccount.toString(),
 		slot.toNumber()
 	);
 }
@@ -206,8 +207,8 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 		for (const makerNode of n.makerNodes) {
 			console.log(
 				`makerNode: (mkt: ${isMarketOrder(
-					makerNode.order
-				)}, lim: ${isLimitOrder(makerNode.order)})`
+					makerNode.order!
+				)}, lim: ${isLimitOrder(makerNode.order!)})`
 			);
 		}
 	}
@@ -2742,8 +2743,13 @@ describe('DLOB Perp Tests', () => {
 		);
 		expect(takingBids.length).to.equal(1);
 		const triggerLimitBid = takingBids[0];
-		expect(isAuctionComplete(triggerLimitBid.order, slot)).to.equal(true);
-		expect(isRestingLimitOrder(triggerLimitBid.order, slot)).to.equal(false);
+		expect(triggerLimitBid !== undefined);
+		expect(isAuctionComplete(triggerLimitBid.order as Order, slot)).to.equal(
+			true
+		);
+		expect(isRestingLimitOrder(triggerLimitBid.order as Order, slot)).to.equal(
+			false
+		);
 	});
 
 	it('Test will return expired market orders to fill', () => {
@@ -6063,5 +6069,582 @@ describe('DLOB Spot Tests', () => {
 
 		// 1 * 20.69 + 2 * 20.68 + 1 * 20.67 = 82.72
 		expect(quoteAmtOut === 82.72).to.be.true;
+	});
+});
+
+describe('Uncross L2', () => {
+	it('Bid crosses ask above oracle (no premium)', () => {
+		const bids = [
+			{
+				price: new BN(104).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(103).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(102).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { dlob: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(100).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const asks = [
+			{
+				price: new BN(101).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(102).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
+
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice5Min,
+			markPrice5Min,
+			groupingSize,
+			new Set<string>(),
+			new Set<string>()
+		);
+
+		expect(newBids[0].price.toString()).to.equal(
+			new BN(101).mul(QUOTE_PRECISION).sub(groupingSize).toString()
+		);
+		expect(newBids[0].size.toString()).to.equal(
+			new BN(3).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[0].sources['vamm'].toString()).to.equal(
+			new BN(2).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[0].sources['dlob'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newBids[1].price.toString()).to.equal(
+			new BN(100).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newBids[1].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[1].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[0].price.toString()).to.equal(
+			new BN(101).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newAsks[0].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[0].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[1].price.toString()).to.equal(
+			new BN(102).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newAsks[1].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[1].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+	});
+
+	it('Ask crosses ask below oracle, (new premium)', () => {
+		const bids = [
+			{
+				price: new BN(99).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(98).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const asks = [
+			{
+				price: new BN(96).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(97).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(98).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { dlob: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(100).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
+
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice5Min,
+			markPrice5Min,
+			groupingSize,
+			new Set<string>(),
+			new Set<string>()
+		);
+
+		expect(newBids[0].price.toString()).to.equal(
+			new BN(99).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newBids[0].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[0].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newBids[1].price.toString()).to.equal(
+			new BN(98).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newBids[1].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[1].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[0].price.toString()).to.equal(
+			new BN(99).mul(QUOTE_PRECISION).add(groupingSize).toString()
+		);
+		expect(newAsks[0].size.toString()).to.equal(
+			new BN(3).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[0].sources['vamm'].toString()).to.equal(
+			new BN(2).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[0].sources['dlob'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[1].price.toString()).to.equal(
+			new BN(100).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newAsks[1].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[1].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+	});
+
+	it('No cross (no premium)', () => {
+		const bids = [
+			{
+				price: new BN(99).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(98).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(97).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const asks = [
+			{
+				price: new BN(101).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(102).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
+
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice5Min,
+			markPrice5Min,
+			groupingSize,
+			new Set<string>(),
+			new Set<string>()
+		);
+
+		expect(newBids[0].price.toString()).to.equal(
+			new BN(99).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newBids[0].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[0].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newBids[1].price.toString()).to.equal(
+			new BN(98).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newBids[1].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[1].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newBids[2].price.toString()).to.equal(
+			new BN(97).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newBids[2].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[2].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[0].price.toString()).to.equal(
+			new BN(101).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newAsks[0].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[0].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[1].price.toString()).to.equal(
+			new BN(102).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newAsks[1].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[1].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+	});
+
+	it('Crossed on opposite sides of reference price', () => {
+		const bids = [
+			{
+				price: new BN(32).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { dlob: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const asks = [
+			{
+				price: new BN(29).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const oraclePrice = new BN('29250100');
+		const oraclePrice5Min = new BN('29696597');
+		const markPrice5Min = new BN('31747865');
+
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice5Min,
+			markPrice5Min,
+			groupingSize,
+			new Set<string>(),
+			new Set<string>()
+		);
+
+		const referencePrice = oraclePrice.add(markPrice5Min.sub(oraclePrice5Min));
+
+		expect(newBids[0].price.toString()).to.equal(
+			referencePrice.sub(groupingSize).toString()
+		);
+		expect(newBids[0].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[0].sources['dlob'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[0].price.toString()).to.equal(
+			referencePrice.add(groupingSize).toString()
+		);
+		expect(newAsks[0].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[0].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+	});
+
+	it('Skip user with bid', () => {
+		const bids = [
+			{
+				price: new BN(104).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { dlob: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(103).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(102).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { dlob: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(100).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const asks = [
+			{
+				price: new BN(101).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(102).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
+
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
+		const userBids = new Set<string>([
+			new BN(104).mul(QUOTE_PRECISION).toString(),
+		]);
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice5Min,
+			markPrice5Min,
+			groupingSize,
+			userBids,
+			new Set<string>()
+		);
+
+		expect(newBids[0].price.toString()).to.equal(
+			new BN(104).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newBids[0].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[0].sources['dlob'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newBids[1].price.toString()).to.equal(
+			new BN(101).mul(QUOTE_PRECISION).sub(groupingSize).toString()
+		);
+		expect(newBids[1].size.toString()).to.equal(
+			new BN(2).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[1].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[1].sources['dlob'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newBids[2].price.toString()).to.equal(
+			new BN(100).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newBids[2].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[2].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[0].price.toString()).to.equal(
+			new BN(101).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newAsks[0].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[0].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[1].price.toString()).to.equal(
+			new BN(102).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newAsks[1].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[1].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+	});
+
+	it('Skip user with ask', () => {
+		const bids = [
+			{
+				price: new BN(99).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(98).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const asks = [
+			{
+				price: new BN(96).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { dlob: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(97).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(98).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { dlob: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(100).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
+
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
+		const userAsks = new Set<string>([
+			new BN(96).mul(QUOTE_PRECISION).toString(),
+		]);
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice5Min,
+			markPrice5Min,
+			groupingSize,
+			new Set<string>(),
+			userAsks
+		);
+
+		expect(newBids[0].price.toString()).to.equal(
+			new BN(99).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newBids[0].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[0].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newBids[1].price.toString()).to.equal(
+			new BN(98).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newBids[1].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newBids[1].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[0].price.toString()).to.equal(
+			new BN(96).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newAsks[0].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[0].sources['dlob'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[1].price.toString()).to.equal(
+			new BN(99).mul(QUOTE_PRECISION).add(groupingSize).toString()
+		);
+		expect(newAsks[1].size.toString()).to.equal(
+			new BN(2).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[1].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[1].sources['dlob'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+
+		expect(newAsks[2].price.toString()).to.equal(
+			new BN(100).mul(QUOTE_PRECISION).toString()
+		);
+		expect(newAsks[2].size.toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
+		expect(newAsks[2].sources['vamm'].toString()).to.equal(
+			new BN(1).mul(BASE_PRECISION).toString()
+		);
 	});
 });

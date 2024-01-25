@@ -14,15 +14,29 @@ export type OrderSubscriberConfig = {
 				type: 'websocket';
 				skipInitialLoad?: boolean;
 				resubTimeoutMs?: number;
+				resyncIntervalMs?: number;
 				commitment?: Commitment;
 		  };
+	fastDecode?: boolean;
 };
 
 export interface OrderSubscriberEvents {
-	onUpdate: (
+	orderCreated: (
 		account: UserAccount,
 		updatedOrders: Order[],
 		pubkey: PublicKey,
-		slot: number
+		slot: number,
+		dataType: 'raw' | 'decoded'
+	) => void;
+	userUpdated: (
+		account: UserAccount,
+		pubkey: PublicKey,
+		slot: number,
+		dataType: 'raw' | 'decoded'
+	) => void;
+	updateReceived: (
+		pubkey: PublicKey,
+		slot: number,
+		dataType: 'raw' | 'decoded'
 	) => void;
 }

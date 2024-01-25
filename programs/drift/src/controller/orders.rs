@@ -1,6 +1,6 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
-use std::ops::DerefMut;
+use std::ops::{DerefMut, Div};
 use std::u64;
 
 use anchor_lang::prelude::*;
@@ -8,6 +8,7 @@ use solana_program::msg;
 
 use crate::controller;
 use crate::controller::funding::settle_funding_payment;
+use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
@@ -15,8 +16,7 @@ use crate::controller::position::{
     PositionDirection,
 };
 use crate::controller::spot_balance::{
-    transfer_spot_balance_to_revenue_pool, update_spot_balances,
-    update_spot_market_cumulative_interest,
+    update_spot_balances, update_spot_market_cumulative_interest,
 };
 use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
@@ -31,8 +31,7 @@ use crate::math::amm_jit::calculate_amm_jit_liquidity;
 use crate::math::auction::{calculate_auction_params_for_trigger_order, calculate_auction_prices};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_U64, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS,
-    QUOTE_SPOT_MARKET_INDEX,
+    BASE_PRECISION_U64, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
 };
 use crate::math::fees::{determine_user_fee_tier, ExternalFillFees, FillFees};
 use crate::math::fulfillment::{
@@ -57,11 +56,13 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_swap::select_margin_type_for_swap;
 use crate::print_error;
-use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
+use crate::state::events::{
+    emit_stack, get_order_action_record, LPAction, LPRecord, OrderActionRecord, OrderRecord,
+};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::margin_calculation::MarginContext;
+use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
@@ -93,18 +94,17 @@ mod amm_lp_jit_tests;
 
 pub fn place_perp_order(
     state: &State,
-    user: &AccountLoader<User>,
+    user: &mut User,
+    user_key: Pubkey,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-    params: OrderParams,
+    mut params: OrderParams,
     mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
-    let user_key = user.key();
-    let user = &mut load_mut!(user)?;
 
     validate_user_not_being_liquidated(
         user,
@@ -220,6 +220,10 @@ pub fn place_perp_order(
     };
 
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+    // updates auction params for crossing limit orders w/out auction duration
+    params.update_perp_auction_params(market, oracle_price_data.price)?;
+
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
         &params,
         oracle_price_data,
@@ -407,7 +411,16 @@ fn get_auction_params(
                     // if auction is non-zero, force it to be at least min_auction_duration
                     auction_duration.max(min_auction_duration)
                 };
-                Ok((auction_start_price, auction_end_price, auction_duration))
+
+                Ok((
+                    standardize_price_i64(
+                        auction_start_price,
+                        tick_size.cast()?,
+                        params.direction,
+                    )?,
+                    standardize_price_i64(auction_end_price, tick_size.cast()?, params.direction)?,
+                    auction_duration,
+                ))
             }
             _ => Ok((0_i64, 0_i64, 0_u8)),
         };
@@ -737,15 +750,14 @@ pub fn modify_order(
 
     user.update_last_active_slot(clock.slot);
 
-    drop(user);
-
     let order_params =
         merge_modify_order_params_with_existing_order(&existing_order, &modify_order_params)?;
 
     if order_params.market_type == MarketType::Perp {
         place_perp_order(
             state,
-            user_loader,
+            &mut user,
+            user_key,
             perp_market_map,
             spot_market_map,
             oracle_map,
@@ -756,7 +768,8 @@ pub fn modify_order(
     } else {
         place_spot_order(
             state,
-            user_loader,
+            &mut user,
+            user_key,
             perp_market_map,
             spot_market_map,
             oracle_map,
@@ -813,15 +826,19 @@ fn merge_modify_order_params_with_existing_order(
     let oracle_price_offset = modify_order_params
         .oracle_price_offset
         .or(Some(existing_order.oracle_price_offset));
-    let auction_duration = modify_order_params
-        .auction_duration
-        .or(Some(existing_order.auction_duration));
-    let auction_start_price = modify_order_params
-        .auction_start_price
-        .or(Some(existing_order.auction_start_price));
-    let auction_end_price = modify_order_params
-        .auction_end_price
-        .or(Some(existing_order.auction_end_price));
+    let (auction_duration, auction_start_price, auction_end_price) =
+        if modify_order_params.auction_duration.is_some()
+            && modify_order_params.auction_start_price.is_some()
+            && modify_order_params.auction_end_price.is_some()
+        {
+            (
+                modify_order_params.auction_duration,
+                modify_order_params.auction_start_price,
+                modify_order_params.auction_end_price,
+            )
+        } else {
+            (None, None, None)
+        };
 
     Ok(OrderParams {
         order_type,
@@ -1193,6 +1210,7 @@ pub fn fill_perp_order(
             market,
             oracle_map,
             now,
+            slot,
             &state.oracle_guard_rails,
             funding_paused,
             Some(reserve_price_before),
@@ -1828,7 +1846,8 @@ pub fn fulfill_perp_order_with_amm(
         // if is an actual swap (and not amm jit order) then msg!
         if override_base_asset_amount.is_none() {
             msg!(
-                "Amm cant fulfill order. base asset amount {} market.amm.min_order_size {}",
+                "Amm cant fulfill order. market index {} base asset amount {} market.amm.min_order_size {}",
+                market.market_index,
                 base_asset_amount,
                 market.amm.min_order_size
             );
@@ -2088,22 +2107,19 @@ pub fn fulfill_perp_order_with_match(
         return Ok((0_u64, 0_u64, 0_u64));
     }
 
-    let (bid_price, ask_price) = market.amm.bid_ask_price(market.amm.reserve_price()?)?;
-
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-    let taker_direction = taker.orders[taker_order_index].direction;
+    let taker_direction: PositionDirection = taker.orders[taker_order_index].direction;
 
     let taker_price = if let Some(taker_limit_price) = taker_limit_price {
         taker_limit_price
     } else {
         let amm_available_liquidity =
             calculate_amm_available_liquidity(&market.amm, &taker_direction)?;
-        get_fallback_price(
+        market.amm.get_fallback_price(
             &taker_direction,
-            bid_price,
-            ask_price,
             amm_available_liquidity,
             oracle_price,
+            taker.orders[taker_order_index].seconds_til_expiry(now),
         )?
     };
 
@@ -2578,6 +2594,10 @@ pub fn trigger_order(
             state.min_perp_auction_duration,
         )?;
 
+        if user.orders[order_index].has_auction() {
+            user.increment_open_auctions();
+        }
+
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
 
@@ -2688,7 +2708,7 @@ fn update_trigger_order_params(
 
 pub fn force_cancel_orders(
     state: &State,
-    user: &AccountLoader<User>,
+    user_account_loader: &AccountLoader<User>,
     spot_market_map: &SpotMarketMap,
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
@@ -2699,8 +2719,8 @@ pub fn force_cancel_orders(
     let slot = clock.slot;
 
     let filler_key = filler.key();
-    let user_key = user.key();
-    let user = &mut load_mut!(user)?;
+    let user_key = user_account_loader.key();
+    let user = &mut load_mut!(user_account_loader)?;
     let filler = &mut load_mut!(filler)?;
 
     validate!(
@@ -2710,8 +2730,15 @@ pub fn force_cancel_orders(
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
-    let meets_initial_margin_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::standard(MarginRequirementType::Initial),
+    )?;
+
+    let meets_initial_margin_requirement = margin_calc.meets_margin_requirement();
 
     validate!(
         !meets_initial_margin_requirement,
@@ -2785,6 +2812,7 @@ pub fn force_cancel_orders(
         Some(filler),
         spot_market_map.get_quote_spot_market_mut()?.deref_mut(),
         total_fee,
+        slot,
     )?;
 
     user.update_last_active_slot(slot);
@@ -2797,6 +2825,119 @@ pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index:
         Some(user) => user.force_get_perp_position_mut(market_index).is_ok(),
         None => false,
     }
+}
+
+pub fn attempt_burn_user_lp_shares_for_risk_reduction(
+    state: &State,
+    user: &mut User,
+    margin_calc: MarginCalculation,
+    user_key: Pubkey,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    clock: &Clock,
+    market_index: u16,
+) -> DriftResult {
+    let now = clock.unix_timestamp;
+    // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
+    if !margin_calc.positions_meets_margin_requirement()? {
+        let time_since_last_liquidity_change: i64 =
+            now.safe_sub(user.last_add_perp_lp_shares_ts)?;
+        // avoid spamming update if orders have already been set
+        if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
+            burn_user_lp_shares_for_risk_reduction(
+                state,
+                user,
+                user_key,
+                market_index,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                clock,
+            )?;
+            user.last_add_perp_lp_shares_ts = now;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn burn_user_lp_shares_for_risk_reduction(
+    state: &State,
+    user: &mut User,
+    user_key: Pubkey,
+    market_index: u16,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    clock: &Clock,
+) -> DriftResult {
+    let position_index = get_position_index(&user.perp_positions, market_index)?;
+    let is_lp = user.perp_positions[position_index].is_lp();
+    if !is_lp {
+        return Ok(());
+    }
+
+    let lp_shares = user.perp_positions[position_index].lp_shares;
+
+    let mut market = perp_market_map.get_ref_mut(&market_index)?;
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+    let oracle_price = if market.status == MarketStatus::Settlement {
+        market.expiry_price
+    } else {
+        oracle_price_data.price
+    };
+
+    let order_step_size = market.amm.order_step_size;
+
+    let lp_shares_to_burn =
+        standardize_base_asset_amount(lp_shares.div(3), order_step_size)?.max(lp_shares);
+
+    let (position_delta, pnl) = burn_lp_shares(
+        &mut user.perp_positions[position_index],
+        &mut market,
+        lp_shares_to_burn,
+        oracle_price,
+    )?;
+
+    // emit LP record for shares removed
+    emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
+        ts: clock.unix_timestamp,
+        action: LPAction::RemoveLiquidity,
+        user: user_key,
+        n_shares: lp_shares_to_burn,
+        market_index,
+        delta_base_asset_amount: position_delta.base_asset_amount,
+        delta_quote_asset_amount: position_delta.quote_asset_amount,
+        pnl,
+    })?;
+
+    let direction_to_close = user.perp_positions[position_index].get_direction_to_close();
+
+    let params = OrderParams::get_close_perp_params(
+        &market,
+        direction_to_close,
+        user.perp_positions[position_index]
+            .base_asset_amount
+            .unsigned_abs(),
+    )?;
+
+    drop(market);
+
+    controller::orders::place_perp_order(
+        state,
+        user,
+        user_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        clock,
+        params,
+        PlaceOrderOptions::default(),
+    )?;
+
+    Ok(())
 }
 
 pub fn pay_keeper_flat_reward_for_perps(
@@ -2839,6 +2980,7 @@ pub fn pay_keeper_flat_reward_for_spot(
     filler: Option<&mut User>,
     quote_market: &mut SpotMarket,
     filler_reward: u64,
+    slot: u64,
 ) -> DriftResult<u64> {
     let filler_reward = if let Some(filler) = filler {
         update_spot_balances(
@@ -2848,6 +2990,8 @@ pub fn pay_keeper_flat_reward_for_spot(
             filler.get_quote_spot_position_mut(),
             false,
         )?;
+
+        filler.update_last_active_slot(slot);
 
         filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
 
@@ -2871,7 +3015,8 @@ pub fn pay_keeper_flat_reward_for_spot(
 
 pub fn place_spot_order(
     state: &State,
-    user: &AccountLoader<User>,
+    user: &mut User,
+    user_key: Pubkey,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -2881,8 +3026,6 @@ pub fn place_spot_order(
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
-    let user_key = user.key();
-    let user = &mut load_mut!(user)?;
 
     validate_user_not_being_liquidated(
         user,
@@ -3312,6 +3455,7 @@ pub fn fill_spot_order(
                 filler.as_deref_mut(),
                 &mut quote_market,
                 state.spot_fee_structure.flat_filler_fee,
+                slot,
             )?
         };
 
@@ -3419,6 +3563,7 @@ pub fn fill_spot_order(
                 filler.as_deref_mut(),
                 &mut quote_market,
                 state.spot_fee_structure.flat_filler_fee,
+                slot,
             )?
         };
 
@@ -3572,6 +3717,7 @@ fn get_spot_maker_order<'a>(
                 filler.as_deref_mut(),
                 &mut quote_market,
                 filler_reward,
+                slot,
             )?
         };
 
@@ -4095,20 +4241,6 @@ pub fn fulfill_spot_order_with_match(
         false,
     )?;
 
-    let fee_pool_amount = get_token_amount(
-        base_market.spot_fee_pool.scaled_balance,
-        quote_market,
-        &SpotBalanceType::Deposit,
-    )?;
-
-    if fee_pool_amount > FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
-        transfer_spot_balance_to_revenue_pool(
-            fee_pool_amount - FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
-            quote_market,
-            &mut base_market.spot_fee_pool,
-        )?;
-    }
-
     let fill_record_id = get_then_update_id!(base_market, next_fill_record_id);
     let order_action_explanation = if maker.orders[maker_order_index].is_jit_maker() {
         OrderActionExplanation::OrderFilledWithMatchJit
@@ -4299,14 +4431,6 @@ pub fn fulfill_spot_order_with_external_market(
         quote_market,
         &SpotBalanceType::Deposit,
     )?;
-
-    if fee_pool_amount > FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
-        transfer_spot_balance_to_revenue_pool(
-            fee_pool_amount - FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
-            quote_market,
-            &mut base_market.spot_fee_pool,
-        )?;
-    }
 
     let ExternalFillFees {
         user_fee: taker_fee,
@@ -4562,6 +4686,10 @@ pub fn trigger_spot_order(
             state.default_spot_auction_duration,
         )?;
 
+        if user.orders[order_index].has_auction() {
+            user.increment_open_auctions();
+        }
+
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
 
@@ -4582,6 +4710,7 @@ pub fn trigger_spot_order(
         filler.as_deref_mut(),
         &mut quote_market,
         state.spot_fee_structure.flat_filler_fee,
+        slot,
     )?;
 
     let order_action_record = get_order_action_record(

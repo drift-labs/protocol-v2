@@ -1044,7 +1044,7 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.48.0"
+version = "2.56.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -1053,6 +1053,7 @@ dependencies = [
  "borsh",
  "bytemuck",
  "bytes",
+ "drift-macros",
  "enumflags2",
  "num-derive",
  "num-integer",
@@ -1064,45 +1065,19 @@ dependencies = [
  "serum_dex",
  "solana-program",
  "solana-security-txt",
+ "static_assertions",
  "thiserror",
  "uint",
 ]
 
 [[package]]
-name = "drift-sdk"
+name = "drift-macros"
 version = "0.1.0"
+source = "git+https://github.com/drift-labs/drift-macros.git?rev=c57d87#c57d87e073d13d43f4d1fb09fe6822915a4ccc11"
 dependencies = [
- "anchor-client",
- "anchor-lang",
- "base64 0.13.1",
- "bytemuck",
- "drift",
- "env_logger 0.10.2",
- "events_emitter",
- "fnv",
- "futures-util",
- "hex",
- "hex-literal",
- "log",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "solana-account-decoder",
- "solana-client",
- "solana-sdk",
- "solana-transaction-status",
- "substreams-solana-macro",
- "thiserror",
- "tokio",
- "tokio-tungstenite 0.21.0",
+ "quote",
+ "syn 1.0.92",
 ]
-
-[[package]]
-name = "eager"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abe71d579d1812060163dff96056261deb5bf6729b100fa2e36a68b9649ba3d3"
 
 [[package]]
 name = "ed25519"

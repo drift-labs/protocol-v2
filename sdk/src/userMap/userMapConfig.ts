@@ -28,4 +28,11 @@ export type UserMapConfig = {
 
 	// True to include idle users when loading. Defaults to false to decrease # of accounts subscribed to.
 	includeIdle?: boolean;
+
+	// Whether to skip loading available perp/spot positions and open orders
+	fastDecode?: boolean;
+
+	// If true, will not do a full sync whenever StateAccount.numberOfSubAccounts changes.
+	// default behavior is to do a full sync on changes.
+	disableSyncOnTotalAccountsChange?: boolean;
 };

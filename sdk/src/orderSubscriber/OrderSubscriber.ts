@@ -10,6 +10,7 @@ import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { BN } from '../index';
+import { decodeUser } from '../decode/user';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
@@ -22,6 +23,7 @@ export class OrderSubscriber {
 	fetchPromiseResolver: () => void;
 
 	mostRecentSlot: number;
+	decodeFn: (name: string, data: Buffer) => UserAccount;
 
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
@@ -37,7 +39,16 @@ export class OrderSubscriber {
 				commitment: this.commitment,
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
 				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
+				resyncIntervalMs: config.subscriptionConfig.resyncIntervalMs,
 			});
+		}
+		if (config.fastDecode ?? true) {
+			this.decodeFn = (name, data) => decodeUser(data);
+		} else {
+			this.decodeFn =
+				this.driftClient.program.account.user.coder.accounts.decodeUnchecked.bind(
+					this.driftClient.program.account.user.coder.accounts
+				);
 		}
 		this.eventEmitter = new EventEmitter();
 	}
@@ -123,6 +134,13 @@ export class OrderSubscriber {
 			this.mostRecentSlot = slot;
 		}
 
+		this.eventEmitter.emit(
+			'updateReceived',
+			new PublicKey(key),
+			slot,
+			dataType
+		);
+
 		const slotAndUserAccount = this.usersAccounts.get(key);
 		if (!slotAndUserAccount || slotAndUserAccount.slot <= slot) {
 			let userAccount: UserAccount;
@@ -143,14 +161,18 @@ export class OrderSubscriber {
 					return;
 				}
 
-				userAccount =
-					this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
-						'User',
-						buffer
-					) as UserAccount;
+				userAccount = this.decodeFn('User', buffer) as UserAccount;
 			} else {
 				userAccount = data as UserAccount;
 			}
+
+			this.eventEmitter.emit(
+				'userUpdated',
+				userAccount,
+				new PublicKey(key),
+				slot,
+				dataType
+			);
 
 			const newOrders = userAccount.orders.filter(
 				(order) =>
@@ -159,11 +181,12 @@ export class OrderSubscriber {
 			);
 			if (newOrders.length > 0) {
 				this.eventEmitter.emit(
-					'onUpdate',
+					'orderCreated',
 					userAccount,
 					newOrders,
 					new PublicKey(key),
-					slot
+					slot,
+					dataType
 				);
 			}
 			if (userAccount.hasOpenOrder) {
@@ -177,9 +200,8 @@ export class OrderSubscriber {
 	public async getDLOB(slot: number): Promise<DLOB> {
 		const dlob = new DLOB();
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
-			const userAccountPubkey = new PublicKey(key);
 			for (const order of userAccount.orders) {
-				dlob.insertOrder(order, userAccountPubkey, slot);
+				dlob.insertOrder(order, key, slot);
 			}
 		}
 		return dlob;

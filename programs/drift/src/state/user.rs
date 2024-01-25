@@ -355,9 +355,13 @@ impl User {
         self.open_orders = self.open_orders.saturating_add(1);
         self.has_open_order = self.open_orders > 0;
         if is_auction {
-            self.open_auctions = self.open_auctions.saturating_add(1);
-            self.has_open_auction = self.open_auctions > 0;
+            self.increment_open_auctions();
         }
+    }
+
+    pub fn increment_open_auctions(&mut self) {
+        self.open_auctions = self.open_auctions.saturating_add(1);
+        self.has_open_auction = self.open_auctions > 0;
     }
 
     pub fn decrement_open_orders(&mut self, is_auction: bool) {
@@ -369,7 +373,12 @@ impl User {
         }
     }
 
-    pub fn qualifies_for_withdraw_fee(&self, user_stats: &UserStats) -> bool {
+    pub fn qualifies_for_withdraw_fee(&self, user_stats: &UserStats, slot: u64) -> bool {
+        // only qualifies for user with recent last_active_slot (~25 seconds)
+        if slot.saturating_sub(self.last_active_slot) >= 50 {
+            return false;
+        }
+
         let min_total_withdraws = 10_000_000 * QUOTE_PRECISION_U64; // $10M
 
         // if total withdraws are greater than $10M and user has paid more than %.01 of it in fees
@@ -665,6 +674,10 @@ impl SpotPosition {
 
         Ok([bid_simulation, ask_simulation])
     }
+
+    pub fn is_borrow(&self) -> bool {
+        self.scaled_balance > 0 && self.balance_type == SpotBalanceType::Borrow
+    }
 }
 
 #[zero_copy(unsafe)]
@@ -906,6 +919,14 @@ impl PerpPosition {
                 .map(|delta| delta.max(0))?
                 .safe_add(pnl_pool_excess.max(0))?;
 
+            if max_positive_pnl < unrealized_pnl {
+                msg!(
+                    "Claimable pnl below position upnl: {} < {}",
+                    max_positive_pnl,
+                    unrealized_pnl
+                );
+            }
+
             Ok(unrealized_pnl.min(max_positive_pnl))
         } else {
             Ok(unrealized_pnl)
@@ -989,6 +1010,10 @@ pub enum AssetType {
 }
 
 impl Order {
+    pub fn seconds_til_expiry(self, now: i64) -> i64 {
+        (self.max_ts - now).max(0)
+    }
+
     pub fn has_oracle_price_offset(self) -> bool {
         self.oracle_price_offset != 0
     }
@@ -1460,6 +1485,15 @@ impl UserStats {
 
     pub fn get_total_30d_volume(&self) -> DriftResult<u64> {
         self.taker_volume_30d.safe_add(self.maker_volume_30d)
+    }
+
+    pub fn get_age_ts(&self, now: i64) -> i64 {
+        // upper bound of age of the user stats account
+        let min_action_ts: i64 = self
+            .last_filler_volume_30d_ts
+            .min(self.last_maker_volume_30d_ts)
+            .min(self.last_taker_volume_30d_ts);
+        now.saturating_sub(min_action_ts).max(0)
     }
 }
 
