@@ -799,8 +799,7 @@ pub fn recenter_amm(amm: &mut AMM, peg_multiplier: u128, sqrt_k: u128) -> DriftR
     )?;
 
     amm.sqrt_k = sqrt_k;
-
-    // todo: the sqrt_k may incur cost/need adjust for centering
+    // todo: could calcualte terminal state cost for altering sqrt_k
 
     amm.peg_multiplier = peg_multiplier;
 
