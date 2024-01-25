@@ -862,8 +862,8 @@ impl<'a> TransactionBuilder<'a> {
         self
     }
 
-    /// Modify existing order(s)
-    pub fn modify_orders(mut self, orders: Vec<(u32, ModifyOrderParams)>) -> Self {
+    /// Modify existing order(s) by order id
+    pub fn modify_orders(mut self, orders: &[(u32, ModifyOrderParams)]) -> Self {
         for (order_id, params) in orders {
             let accounts = build_accounts(
                 self.program_data,
@@ -881,8 +881,37 @@ impl<'a> TransactionBuilder<'a> {
                 program_id: constants::PROGRAM_ID,
                 accounts,
                 data: InstructionData::data(&drift_program::instruction::ModifyOrder {
-                    order_id: Some(order_id),
-                    modify_order_params: params,
+                    order_id: Some(*order_id),
+                    modify_order_params: params.clone(),
+                }),
+            };
+            self.ixs.push(ix);
+        }
+
+        self
+    }
+
+    /// Modify existing order(s) by user order id
+    pub fn modify_orders_by_user_id(mut self, orders: &[(u8, ModifyOrderParams)]) -> Self {
+        for (user_order_id, params) in orders {
+            let accounts = build_accounts(
+                self.program_data,
+                drift_program::accounts::PlaceOrder {
+                    state: *state_account(),
+                    authority: self.account_data.authority,
+                    user: self.sub_account,
+                },
+                self.account_data.as_ref(),
+                &[],
+                &[],
+            );
+
+            let ix = Instruction {
+                program_id: constants::PROGRAM_ID,
+                accounts,
+                data: InstructionData::data(&drift_program::instruction::ModifyOrderByUserId {
+                    user_order_id: *user_order_id,
+                    modify_order_params: params.clone(),
                 }),
             };
             self.ixs.push(ix);
