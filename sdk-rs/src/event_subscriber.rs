@@ -18,7 +18,6 @@ use futures_util::{
 };
 use log::{debug, error, warn};
 use regex::Regex;
-use serde::Serializer;
 pub use solana_client::nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient};
 use solana_client::{
     rpc_client::GetConfirmedSignaturesForAddress2Config, rpc_config::RpcTransactionLogsConfig,
@@ -360,17 +359,13 @@ fn try_parse_log(raw: &str, signature: &str) -> Option<DriftEvent> {
 static ORDER_CANCEL_MISSING_RE: OnceLock<Regex> = OnceLock::new();
 
 /// Enum of all drift program events
-#[derive(Debug, PartialEq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq)]
 pub enum DriftEvent {
-    #[serde(rename_all = "camelCase")]
     OrderFill {
-        #[serde(serialize_with = "serialize_pubkey")]
         maker: Option<Pubkey>,
         maker_fee: i64,
         maker_order_id: u32,
         maker_side: Option<PositionDirection>,
-        #[serde(serialize_with = "serialize_pubkey")]
         taker: Option<Pubkey>,
         taker_fee: u64,
         taker_order_id: u32,
@@ -383,11 +378,8 @@ pub enum DriftEvent {
         signature: String,
         ts: u64,
     },
-    #[serde(rename_all = "camelCase")]
     OrderCancel {
-        #[serde(serialize_with = "serialize_pubkey")]
         taker: Option<Pubkey>,
-        #[serde(serialize_with = "serialize_pubkey")]
         maker: Option<Pubkey>,
         taker_order_id: u32,
         maker_order_id: u32,
@@ -395,20 +387,17 @@ pub enum DriftEvent {
         ts: u64,
     },
     /// An order cancel for a missing order Id / user order id
-    #[serde(rename_all = "camelCase")]
     OrderCancelMissing {
         user_order_id: u8,
         order_id: u32,
         signature: String,
     },
-    #[serde(rename_all = "camelCase")]
     OrderCreate {
         order: Order,
         ts: u64,
         signature: String,
     },
     // sub-case of cancel?
-    #[serde(rename_all = "camelCase")]
     OrderExpire {
         order_id: u32,
         fee: u64,
@@ -502,17 +491,6 @@ impl DriftEvent {
             // Trigger - unimplemented
             OrderAction::Place | OrderAction::Expire | OrderAction::Trigger => None,
         }
-    }
-}
-
-fn serialize_pubkey<S>(x: &Option<Pubkey>, s: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    if let Some(x) = x {
-        s.serialize_str(x.to_string().as_str())
-    } else {
-        s.serialize_none()
     }
 }
 

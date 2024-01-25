@@ -10,7 +10,7 @@ rpc_tests = []
 anchor-lang = "0.27.0"
 bytemuck = "1.13.0"
 base64 = "0.13"
-drift-program = { package = "drift", path = "../programs/drift", features = ["sdk"] }
+drift-program = { package = "drift", path = "../programs/drift" }
 env_logger = "0.10.1"
 events_emitter = "0.1.3"
 fnv = "1.0.7"
