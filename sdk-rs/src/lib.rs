@@ -1052,6 +1052,14 @@ impl Wallet {
         let authority = utils::load_keypair_multi_format(path_or_key)?;
         Ok(Self::new(authority))
     }
+    /// Construct a read-only wallet
+    pub fn read_only(authority: Pubkey) -> Self {
+        Self {
+            signer: Arc::new(Keypair::from_bytes(&[0_u8; 64]).expect("empty signer")),
+            authority,
+            stats: Wallet::derive_stats_account(&authority, &constants::PROGRAM_ID),
+        }
+    }
     /// Init wallet from base58 encoded seed, uses default sub-account
     ///
     /// # panics
@@ -1245,5 +1253,16 @@ mod tests {
         let (spot, perp) = client.all_positions(&user).await.unwrap();
         assert_eq!(spot.len(), 1);
         assert_eq!(perp.len(), 1);
+    }
+
+    #[test]
+    fn wallet_read_only() {
+        let keypair = Keypair::new();
+        let ro = Wallet::read_only(keypair.pubkey());
+
+        let rw = Wallet::new(keypair);
+        assert_eq!(rw.authority, ro.authority);
+        assert_eq!(rw.stats, ro.stats);
+        assert_eq!(rw.default_sub_account(), ro.default_sub_account());
     }
 }
