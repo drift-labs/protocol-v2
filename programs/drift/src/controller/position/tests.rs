@@ -1578,6 +1578,12 @@ fn recenter_amm_2() {
     let current_k = perp_market.amm.sqrt_k;
     let _current_peg = perp_market.amm.peg_multiplier;
     let new_k = current_k * 2;
+
+    // refusal to decrease further
+    assert_eq!(current_k, current_k);
+    assert_eq!(perp_market.amm.user_lp_shares, current_k - 1);
+    assert_eq!(perp_market.amm.get_lower_bound_sqrt_k().unwrap(), current_k);
+
     recenter_perp_market_amm(&mut perp_market.amm, oracle_price_data.price as u128, new_k).unwrap();
 
     assert_eq!(perp_market.amm.sqrt_k, new_k);
@@ -1611,8 +1617,15 @@ fn recenter_amm_2() {
     assert_eq!(adjustment_cost, 0);
 
     update_k(&mut perp_market, &update_k_result).unwrap();
-    assert_eq!(perp_market.amm.sqrt_k, new_sqrt_k);
 
+    // higher lower bound now
+    assert_eq!(perp_market.amm.sqrt_k, new_sqrt_k);
+    assert_eq!(perp_market.amm.user_lp_shares, current_k - 1);
+    assert!(perp_market.amm.get_lower_bound_sqrt_k().unwrap() > current_k);
+    assert_eq!(
+        perp_market.amm.get_lower_bound_sqrt_k().unwrap(),
+        140766081456000000
+    );
     // assert_eq!(perp_market.amm.peg_multiplier, current_peg);
 }
 

@@ -285,20 +285,7 @@ pub fn adjust_amm(
             // TODO can be off by 1?
 
             // always let protocol-owned sqrt_k be either least .1% of lps or the base amount / min order
-            let new_sqrt_k_lower_bound = market.amm.sqrt_k.min(
-                market
-                    .amm
-                    .user_lp_shares
-                    .safe_add(market.amm.user_lp_shares.safe_div(1000)?)?
-                    .max(market.amm.min_order_size.cast()?)
-                    .max(
-                        market
-                            .amm
-                            .base_asset_amount_with_amm
-                            .unsigned_abs()
-                            .cast()?,
-                    ),
-            );
+            let new_sqrt_k_lower_bound = market.amm.get_lower_bound_sqrt_k()?;
 
             let new_sqrt_k = market
                 .amm
