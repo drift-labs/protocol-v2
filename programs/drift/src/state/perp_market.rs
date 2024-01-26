@@ -826,6 +826,15 @@ impl AMM {
         }
     }
 
+    pub fn get_lower_bound_sqrt_k(self) -> DriftResult<u128> {
+        Ok(self.sqrt_k.min(
+            self.user_lp_shares
+                .safe_add(self.user_lp_shares.safe_div(1000)?)?
+                .max(self.min_order_size.cast()?)
+                .max(self.base_asset_amount_with_amm.unsigned_abs().cast()?),
+        ))
+    }
+
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
         self.base_asset_amount_with_amm
             .safe_add(self.base_asset_amount_with_unsettled_lp)?
