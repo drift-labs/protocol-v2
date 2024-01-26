@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-### Fixes
+- program: add recenter amm ix ([#836](https://github.com/drift-labs/protocol-v2/pull/836))
 
-- program: enable jit maker to fill same slot as taker placed ([#835](https://github.com/drift-labs/protocol-v2/pull/835))
+### Fixes
 
 ### Breaking
 
