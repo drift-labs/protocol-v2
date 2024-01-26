@@ -358,6 +358,32 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async recenterPerpMarketAmm(
+		perpMarketIndex: number,
+		pegMultiplier: BN,
+		sqrtK: BN
+	): Promise<TransactionSignature> {
+		const marketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		const tx = await this.program.transaction.recenterPerpMarketAmm(
+			pegMultiplier,
+			sqrtK,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					perpMarket: marketPublicKey,
+				},
+			}
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async updatePerpMarketConcentrationScale(
 		perpMarketIndex: number,
 		concentrationScale: BN

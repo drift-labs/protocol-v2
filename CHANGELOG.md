@@ -11,7 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
-- program: enable jit maker to fill same slot as taker placed ([#835](https://github.com/drift-labs/protocol-v2/pull/835))
+### Breaking
+
+## [2.57.0] - 2023-01-25
+
+### Features
+
+- program: add recenter amm ix ([#836](https://github.com/drift-labs/protocol-v2/pull/836))
+
+### Fixes
 
 ### Breaking
 
