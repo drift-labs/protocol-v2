@@ -244,16 +244,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1704209558000,
 		oracleSource: OracleSource.PYTH,
 	},
-	{
-		fullName: 'WIF',
-		category: ['Meme', 'Dog'],
-		symbol: 'WIF-PERP',
-		baseAssetSymbol: 'WIF',
-		marketIndex: 23,
-		oracle: new PublicKey('5i1sz2QQjCQt9PnhuPvqbiYUAYCgjdRnza1JbiH2qRCo'),
-		launchTs: 1706219971000,
-		oracleSource: OracleSource.PYTH,
-	},
+	// {
+	// 	fullName: 'WIF',
+	// 	category: ['Meme', 'Dog'],
+	// 	symbol: 'WIF-PERP',
+	// 	baseAssetSymbol: 'WIF',
+	// 	marketIndex: 23,
+	// 	oracle: new PublicKey('5i1sz2QQjCQt9PnhuPvqbiYUAYCgjdRnza1JbiH2qRCo'),
+	// 	launchTs: 1706219971000,
+	// 	oracleSource: OracleSource.PYTH,
+	// },
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
