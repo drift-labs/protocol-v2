@@ -870,6 +870,21 @@ pub fn handle_move_amm_price(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
+pub fn handle_recenter_perp_market_amm(
+    ctx: Context<AdminUpdatePerpMarket>,
+    peg_multiplier: u128,
+    sqrt_k: u128,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    controller::amm::recenter_perp_market_amm(&mut perp_market.amm, peg_multiplier, sqrt_k)?;
+    validate_perp_market(perp_market)?;
+
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
 pub fn handle_settle_expired_market_pools_to_revenue_pool(
     ctx: Context<SettleExpiredMarketPoolsToRevenuePool>,
 ) -> Result<()> {
@@ -1166,7 +1181,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
     let update_k_result = get_update_k_result(perp_market, new_sqrt_k_u192, true)?;
 
-    let adjustment_cost = math::cp_curve::adjust_k_cost(perp_market, &update_k_result)?;
+    let adjustment_cost: i128 = math::cp_curve::adjust_k_cost(perp_market, &update_k_result)?;
 
     math::cp_curve::update_k(perp_market, &update_k_result)?;
 

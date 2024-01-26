@@ -1,5 +1,5 @@
 {
-  "version": "2.55.0",
+  "version": "2.57.0",
   "name": "drift",
   "instructions": [
     {
@@ -2964,6 +2964,36 @@
         },
         {
           "name": "quoteAssetReserve",
+          "type": "u128"
+        },
+        {
+          "name": "sqrtK",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "recenterPerpMarketAmm",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "pegMultiplier",
           "type": "u128"
         },
         {
