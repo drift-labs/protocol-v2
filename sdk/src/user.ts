@@ -673,19 +673,20 @@ export class User {
 	public getMarginRequirement(
 		marginCategory: MarginCategory,
 		liquidationBuffer?: BN,
-		strict = false
+		strict = false,
+		includeOpenOrders = true,
 	): BN {
 		return this.getTotalPerpPositionValue(
 			marginCategory,
 			liquidationBuffer,
-			true,
+			includeOpenOrders,
 			strict
 		).add(
 			this.getSpotMarketLiabilityValue(
 				undefined,
 				marginCategory,
 				liquidationBuffer,
-				true,
+				includeOpenOrders,
 				strict
 			)
 		);
