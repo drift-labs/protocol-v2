@@ -1,16 +1,30 @@
-import { Connection, PublicKey } from '@solana/web3.js';
-import { PriorityFeeStrategy } from './types';
+import { Connection } from '@solana/web3.js';
+import {
+	PriorityFeeMethod,
+	PriorityFeeStrategy,
+	PriorityFeeSubscriberConfig,
+} from './types';
 import { AverageOverSlotsStrategy } from './averageOverSlotsStrategy';
 import { MaxOverSlotsStrategy } from './maxOverSlotsStrategy';
+import { fetchSolanaPriorityFee } from './solanaPriorityFeeMethod';
+import {
+	HeliusPriorityFeeLevels,
+	HeliusPriorityLevel,
+	fetchHeliusPriorityFee,
+} from './heliusPriorityFeeMethod';
 
 export class PriorityFeeSubscriber {
 	connection: Connection;
 	frequencyMs: number;
-	addresses: PublicKey[];
+	addresses: string[];
 	customStrategy?: PriorityFeeStrategy;
 	averageStrategy = new AverageOverSlotsStrategy();
 	maxStrategy = new MaxOverSlotsStrategy();
+	priorityFeeMethod = PriorityFeeMethod.SOLANA;
 	lookbackDistance: number;
+
+	heliusRpcUrl?: string;
+	lastHeliusSample?: HeliusPriorityFeeLevels;
 
 	intervalId?: ReturnType<typeof setTimeout>;
 
@@ -20,32 +34,39 @@ export class PriorityFeeSubscriber {
 	lastMaxStrategyResult = 0;
 	lastSlotSeen = 0;
 
-	/**
-	 * @param props
-	 * customStrategy : strategy to return the priority fee to use based on recent samples. defaults to AVERAGE.
-	 */
-	public constructor({
-		connection,
-		frequencyMs,
-		addresses,
-		customStrategy,
-		slotsToCheck = 10,
-	}: {
-		connection: Connection;
-		frequencyMs: number;
-		addresses: PublicKey[];
-		customStrategy?: PriorityFeeStrategy;
-		slotsToCheck?: number;
-	}) {
-		this.connection = connection;
-		this.frequencyMs = frequencyMs;
-		this.addresses = addresses;
-		if (!customStrategy) {
-			this.customStrategy = new AverageOverSlotsStrategy();
+	public constructor(config: PriorityFeeSubscriberConfig) {
+		this.connection = config.connection;
+		this.frequencyMs = config.frequencyMs;
+		this.addresses = config.addresses.map((address) => address.toBase58());
+		if (config.customStrategy) {
+			this.customStrategy = config.customStrategy;
 		} else {
-			this.customStrategy = customStrategy;
+			this.customStrategy = this.averageStrategy;
 		}
-		this.lookbackDistance = slotsToCheck;
+		this.lookbackDistance = config.slotsToCheck ?? 50;
+		if (config.priorityFeeMethod) {
+			this.priorityFeeMethod = config.priorityFeeMethod;
+
+			if (this.priorityFeeMethod === PriorityFeeMethod.HELIUS) {
+				if (config.heliusRpcUrl === undefined) {
+					if (this.connection.rpcEndpoint.includes('helius')) {
+						this.heliusRpcUrl = this.connection.rpcEndpoint;
+					} else {
+						throw new Error(
+							'Connection must be helius, or heliusRpcUrl must be provided to use PriorityFeeMethod.HELIUS'
+						);
+					}
+				}
+			}
+		}
+
+		if (this.priorityFeeMethod === PriorityFeeMethod.SOLANA) {
+			if (this.connection === undefined) {
+				throw new Error(
+					'connection must be provided to use SOLANA priority fee API'
+				);
+			}
+		}
 	}
 
 	public async subscribe(): Promise<void> {
@@ -53,43 +74,72 @@ export class PriorityFeeSubscriber {
 			return;
 		}
 
+		await this.load();
 		this.intervalId = setInterval(this.load.bind(this), this.frequencyMs);
+	}
+
+	private async loadForSolana(): Promise<void> {
+		const samples = await fetchSolanaPriorityFee(
+			this.connection!,
+			this.lookbackDistance,
+			this.addresses
+		);
+		this.latestPriorityFee = samples[0].prioritizationFee;
+		this.lastSlotSeen = samples[0].slot;
+
+		this.lastAvgStrategyResult = this.averageStrategy.calculate(samples);
+		this.lastMaxStrategyResult = this.maxStrategy.calculate(samples);
+		if (this.customStrategy) {
+			this.lastCustomStrategyResult = this.customStrategy.calculate(samples);
+		}
+	}
+
+	private async loadForHelius(): Promise<void> {
+		const sample = await fetchHeliusPriorityFee(
+			this.heliusRpcUrl,
+			this.lookbackDistance,
+			this.addresses
+		);
+		this.lastHeliusSample = sample?.result?.priorityFeeLevels ?? undefined;
+	}
+
+	public getHeliusPriorityFeeLevel(
+		level: HeliusPriorityLevel = HeliusPriorityLevel.MEDIUM
+	): number {
+		if (this.lastHeliusSample === undefined) {
+			return 0;
+		}
+		return this.lastHeliusSample[level];
+	}
+
+	public getCustomStrategyResult(): number {
+		return this.lastCustomStrategyResult;
+	}
+
+	public getAvgStrategyResult(): number {
+		return this.lastAvgStrategyResult;
+	}
+
+	public getMaxStrategyResult(): number {
+		return this.lastMaxStrategyResult;
 	}
 
 	public async load(): Promise<void> {
 		try {
-			// @ts-ignore
-			const rpcJSONResponse: any = await this.connection._rpcRequest(
-				'getRecentPrioritizationFees',
-				[this.addresses]
-			);
-
-			const results: { slot: number; prioritizationFee: number }[] =
-				rpcJSONResponse?.result;
-
-			if (!results.length) return;
-
-			// # Sort and filter results based on the slot lookback setting
-			const descResults = results.sort((a, b) => b.slot - a.slot);
-			const mostRecentResult = descResults[0];
-			const cutoffSlot = mostRecentResult.slot - this.lookbackDistance;
-
-			const resultsToUse = descResults.filter(
-				(result) => result.slot >= cutoffSlot
-			);
-
-			// # Handle results
-			this.latestPriorityFee = mostRecentResult.prioritizationFee;
-			this.lastSlotSeen = mostRecentResult.slot;
-
-			this.lastAvgStrategyResult = this.averageStrategy.calculate(resultsToUse);
-			this.lastMaxStrategyResult = this.maxStrategy.calculate(resultsToUse);
-			if (this.customStrategy) {
-				this.lastCustomStrategyResult =
-					this.customStrategy.calculate(resultsToUse);
+			if (this.priorityFeeMethod === PriorityFeeMethod.SOLANA) {
+				await this.loadForSolana();
+			} else if (this.priorityFeeMethod === PriorityFeeMethod.HELIUS) {
+				await this.loadForHelius();
+			} else {
+				throw new Error(`${this.priorityFeeMethod} load not implemented`);
 			}
 		} catch (err) {
-			// It's possible to get here with "TypeError: failed to fetch"
+			const e = err as Error;
+			console.error(
+				`Error loading priority fee ${this.priorityFeeMethod}: ${e.message}\n${
+					e.stack ? e.stack : ''
+				}`
+			);
 			return;
 		}
 	}
