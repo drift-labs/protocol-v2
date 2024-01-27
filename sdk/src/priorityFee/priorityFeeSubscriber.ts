@@ -1,4 +1,4 @@
-import { Connection } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
 import {
 	PriorityFeeMethod,
 	PriorityFeeStrategy,
@@ -149,5 +149,9 @@ export class PriorityFeeSubscriber {
 			clearInterval(this.intervalId);
 			this.intervalId = undefined;
 		}
+	}
+
+	public updateAddresses(addresses: PublicKey[]) {
+		this.addresses = addresses.map((k) => k.toBase58());
 	}
 }
