@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.58.0] - 2023-01-27
+
+### Features
+
+### Fixes
+
 - program: AmmPaused doesnt block all fills
 
 ### Breaking
