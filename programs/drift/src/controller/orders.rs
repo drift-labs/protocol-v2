@@ -913,6 +913,7 @@ pub fn fill_perp_order(
         matches!(
             market.status,
             MarketStatus::Active
+                | MarketStatus::AmmPaused
                 | MarketStatus::FundingPaused
                 | MarketStatus::ReduceOnly
                 | MarketStatus::WithdrawPaused
