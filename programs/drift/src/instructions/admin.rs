@@ -266,7 +266,8 @@ pub fn handle_initialize_spot_market(
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
         orders_enabled: spot_market_index != 0,
-        padding1: [0; 6],
+        paused_operations: 0,
+        padding1: [0; 5],
         flash_loan_amount: 0,
         flash_loan_initial_token_amount: 0,
         total_swap_fee: 0,
@@ -632,7 +633,7 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        padding1: 0,
+        paused_operations: 0,
         quote_spot_market_index: 0,
         fee_adjustment: 0,
         padding: [0; 46],

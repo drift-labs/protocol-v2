@@ -65,6 +65,7 @@ use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
+use crate::state::paused_operations::PausedOperations;
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -178,7 +179,7 @@ pub fn place_perp_order(
     )?;
 
     validate!(
-        market.is_active(now)?,
+        !market.is_in_settlement(now),
         ErrorCode::MarketPlaceOrderPaused,
         "Market is in settlement mode",
     )?;
@@ -912,14 +913,16 @@ pub fn fill_perp_order(
     validate!(
         matches!(
             market.status,
-            MarketStatus::Active
-                | MarketStatus::AmmPaused
-                | MarketStatus::FundingPaused
-                | MarketStatus::ReduceOnly
-                | MarketStatus::WithdrawPaused
+            MarketStatus::Active | MarketStatus::ReduceOnly
         ),
         ErrorCode::MarketFillOrderPaused,
-        "Market unavailable for fills"
+        "Market not active",
+    )?;
+
+    validate!(
+        !market.is_operation_paused(PausedOperations::Fill),
+        ErrorCode::MarketFillOrderPaused,
+        "Market fills paused",
     )?;
 
     drop(market);
@@ -963,10 +966,10 @@ pub fn fill_perp_order(
     let mut amm_is_available = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-        amm_is_available &= market.status != MarketStatus::AmmPaused;
+        amm_is_available &= !market.is_operation_paused(PausedOperations::AmmFills);
         validation::perp_market::validate_perp_market(market)?;
         validate!(
-            market.is_active(now)?,
+            !market.is_in_settlement(now),
             ErrorCode::MarketFillOrderPaused,
             "Market is in settlement mode",
         )?;
@@ -1204,7 +1207,7 @@ pub fn fill_perp_order(
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         let funding_paused =
-            state.funding_paused()? || matches!(market.status, MarketStatus::FundingPaused);
+            state.funding_paused()? || market.is_operation_paused(PausedOperations::Funding);
 
         controller::funding::update_funding_rate(
             market_index,

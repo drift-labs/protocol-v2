@@ -127,15 +127,10 @@ pub fn update_spot_balances_and_cumulative_deposits_with_limits(
     validate!(
         matches!(
             spot_market.status,
-            MarketStatus::Active
-                | MarketStatus::AmmPaused
-                | MarketStatus::FundingPaused
-                | MarketStatus::FillPaused
-                | MarketStatus::ReduceOnly
-                | MarketStatus::Settlement
+            MarketStatus::Active | MarketStatus::ReduceOnly | MarketStatus::Settlement
         ),
         ErrorCode::MarketWithdrawPaused,
-        "Spot Market {} withdraws are currently paused",
+        "Spot Market {} withdraws are currently paused, market not active or in settlement",
         spot_market.market_index
     )?;
 

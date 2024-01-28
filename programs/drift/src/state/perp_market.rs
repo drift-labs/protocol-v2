@@ -31,6 +31,7 @@ use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::state::paused_operations::PausedOperations;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
@@ -202,7 +203,7 @@ pub struct PerpMarket {
     /// The contract tier determines how much insurance a market can receive, with more speculative markets receiving less insurance
     /// It also influences the order perp markets can be liquidated, with less speculative markets being liquidated first
     pub contract_tier: ContractTier,
-    pub padding1: u8,
+    pub paused_operations: u8,
     /// The spot market that pnl is settled in
     pub quote_spot_market_index: u16,
     /// Between -100 and 100, represents what % to increase/decrease the fee by
@@ -240,7 +241,7 @@ impl Default for PerpMarket {
             status: MarketStatus::default(),
             contract_type: ContractType::default(),
             contract_tier: ContractTier::default(),
-            padding1: 0,
+            paused_operations: 0,
             quote_spot_market_index: 0,
             fee_adjustment: 0,
             padding: [0; 46],
@@ -257,17 +258,21 @@ impl MarketIndexOffset for PerpMarket {
 }
 
 impl PerpMarket {
-    pub fn is_active(&self, now: i64) -> DriftResult<bool> {
-        let status_ok = !matches!(
+    pub fn is_in_settlement(&self, now: i64) -> bool {
+        let in_settlement = matches!(
             self.status,
             MarketStatus::Settlement | MarketStatus::Delisted
         );
-        let not_expired = self.expiry_ts == 0 || now < self.expiry_ts;
-        Ok(status_ok && not_expired)
+        let expired = self.expiry_ts != 0 && now >= self.expiry_ts;
+        in_settlement || expired
     }
 
     pub fn is_reduce_only(&self) -> DriftResult<bool> {
         Ok(self.status == MarketStatus::ReduceOnly)
+    }
+
+    pub fn is_operation_paused(&self, operation: PausedOperations) -> bool {
+        PausedOperations::is_operation_paused(self.paused_operations, operation)
     }
 
     pub fn get_sanitize_clamp_denominator(self) -> DriftResult<Option<i64>> {
