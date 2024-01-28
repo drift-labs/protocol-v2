@@ -56,6 +56,8 @@ export class PriorityFeeSubscriber {
 							'Connection must be helius, or heliusRpcUrl must be provided to use PriorityFeeMethod.HELIUS'
 						);
 					}
+				} else {
+					this.heliusRpcUrl = config.heliusRpcUrl;
 				}
 			}
 		}
