@@ -118,6 +118,10 @@ export class PriorityFeeSubscriber {
 		}
 	}
 
+	public getMaxPriorityFee(): number | undefined {
+		return this.maxFeeMicroLamports;
+	}
+
 	public getHeliusPriorityFeeLevel(
 		level: HeliusPriorityLevel = HeliusPriorityLevel.MEDIUM
 	): number {
@@ -125,28 +129,28 @@ export class PriorityFeeSubscriber {
 			return 0;
 		}
 		if (this.maxFeeMicroLamports !== undefined) {
-			return Math.max(this.maxFeeMicroLamports, this.lastHeliusSample[level]);
+			return Math.min(this.maxFeeMicroLamports, this.lastHeliusSample[level]);
 		}
 		return this.lastHeliusSample[level];
 	}
 
 	public getCustomStrategyResult(): number {
 		if (this.maxFeeMicroLamports !== undefined) {
-			return Math.max(this.maxFeeMicroLamports, this.lastCustomStrategyResult);
+			return Math.min(this.maxFeeMicroLamports, this.lastCustomStrategyResult);
 		}
 		return this.lastCustomStrategyResult;
 	}
 
 	public getAvgStrategyResult(): number {
 		if (this.maxFeeMicroLamports !== undefined) {
-			return Math.max(this.maxFeeMicroLamports, this.lastAvgStrategyResult);
+			return Math.min(this.maxFeeMicroLamports, this.lastAvgStrategyResult);
 		}
 		return this.lastAvgStrategyResult;
 	}
 
 	public getMaxStrategyResult(): number {
 		if (this.maxFeeMicroLamports !== undefined) {
-			return Math.max(this.maxFeeMicroLamports, this.lastMaxStrategyResult);
+			return Math.min(this.maxFeeMicroLamports, this.lastMaxStrategyResult);
 		}
 		return this.lastMaxStrategyResult;
 	}
