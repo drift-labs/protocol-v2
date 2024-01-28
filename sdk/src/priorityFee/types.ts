@@ -30,4 +30,6 @@ export type PriorityFeeSubscriberConfig = {
 	slotsToCheck?: number;
 	/// url for helius rpc, required if using priorityFeeMethod.HELIUS
 	heliusRpcUrl?: string;
+	/// clamp any returned priority fee value to this value.
+	maxFeeMicroLamports?: number;
 };

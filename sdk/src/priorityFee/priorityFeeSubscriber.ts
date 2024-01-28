@@ -22,6 +22,7 @@ export class PriorityFeeSubscriber {
 	maxStrategy = new MaxOverSlotsStrategy();
 	priorityFeeMethod = PriorityFeeMethod.SOLANA;
 	lookbackDistance: number;
+	maxFeeMicroLamports?: number;
 
 	heliusRpcUrl?: string;
 	lastHeliusSample?: HeliusPriorityFeeLevels;
@@ -69,6 +70,8 @@ export class PriorityFeeSubscriber {
 				);
 			}
 		}
+
+		this.maxFeeMicroLamports = config.maxFeeMicroLamports;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -103,6 +106,16 @@ export class PriorityFeeSubscriber {
 			this.addresses
 		);
 		this.lastHeliusSample = sample?.result?.priorityFeeLevels ?? undefined;
+
+		if (this.lastHeliusSample) {
+			this.lastAvgStrategyResult =
+				this.heliusRpcUrl[HeliusPriorityLevel.MEDIUM];
+			this.lastMaxStrategyResult =
+				this.heliusRpcUrl[HeliusPriorityLevel.UNSAFE_MAX];
+			if (this.customStrategy) {
+				this.lastCustomStrategyResult = this.customStrategy.calculate(sample!);
+			}
+		}
 	}
 
 	public getHeliusPriorityFeeLevel(
@@ -111,18 +124,30 @@ export class PriorityFeeSubscriber {
 		if (this.lastHeliusSample === undefined) {
 			return 0;
 		}
+		if (this.maxFeeMicroLamports !== undefined) {
+			return Math.max(this.maxFeeMicroLamports, this.lastHeliusSample[level]);
+		}
 		return this.lastHeliusSample[level];
 	}
 
 	public getCustomStrategyResult(): number {
+		if (this.maxFeeMicroLamports !== undefined) {
+			return Math.max(this.maxFeeMicroLamports, this.lastCustomStrategyResult);
+		}
 		return this.lastCustomStrategyResult;
 	}
 
 	public getAvgStrategyResult(): number {
+		if (this.maxFeeMicroLamports !== undefined) {
+			return Math.max(this.maxFeeMicroLamports, this.lastAvgStrategyResult);
+		}
 		return this.lastAvgStrategyResult;
 	}
 
 	public getMaxStrategyResult(): number {
+		if (this.maxFeeMicroLamports !== undefined) {
+			return Math.max(this.maxFeeMicroLamports, this.lastMaxStrategyResult);
+		}
 		return this.lastMaxStrategyResult;
 	}
 
