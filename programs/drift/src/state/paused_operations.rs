@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub enum PausedOperations {
     /// perps: funding | spot: interest
