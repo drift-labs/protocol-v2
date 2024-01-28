@@ -1,12 +1,12 @@
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub enum PausedOperations {
-    /// funding rate updates are paused
+    /// perps: funding | spot: interest
     Funding = 0b00000001,
     /// amm fills are prevented/blocked
     AmmFills = 0b00000010,
     /// fills are blocked
     Fill = 0b00000100,
-    /// perp: pause settling negative pnl | spot: pause depositing asset
+    /// perp: pause settling pnl | spot: withdraw asset
     Withdraw = 0b00001000,
 }
 

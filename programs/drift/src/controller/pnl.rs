@@ -26,6 +26,7 @@ use crate::state::margin_calculation::MarginContext;
 
 use crate::state::events::{OrderActionExplanation, SettlePnlExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
+use crate::state::paused_operations::PausedOperations;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
@@ -136,6 +137,12 @@ pub fn settle_pnl(
 
     validate!(
         perp_market.status == MarketStatus::Active,
+        ErrorCode::InvalidMarketStatusToSettlePnl,
+        "Cannot settle pnl under current market status"
+    )?;
+
+    validate!(
+        perp_market.is_operation_paused(PausedOperations::Withdraw),
         ErrorCode::InvalidMarketStatusToSettlePnl,
         "Cannot settle pnl under current market status"
     )?;

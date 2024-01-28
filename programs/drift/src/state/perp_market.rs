@@ -44,13 +44,13 @@ pub enum MarketStatus {
     Initialized,
     /// all operations allowed
     Active,
-    /// funding rate updates are paused
+    /// Deprecated in favor of PausedOperations
     FundingPaused,
-    /// amm fills are prevented/blocked
+    /// Deprecated in favor of PausedOperations
     AmmPaused,
-    /// fills are blocked
+    /// Deprecated in favor of PausedOperations
     FillPaused,
-    /// perp: pause settling negative pnl | spot: pause depositing asset
+    /// Deprecated in favor of PausedOperations
     WithdrawPaused,
     /// fills only able to reduce liability
     ReduceOnly,

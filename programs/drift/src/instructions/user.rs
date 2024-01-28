@@ -641,23 +641,6 @@ pub fn handle_transfer_deposit(
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
-        validate!(
-            matches!(
-                spot_market.status,
-                MarketStatus::Active | MarketStatus::ReduceOnly | MarketStatus::Settlement
-            ),
-            ErrorCode::MarketWithdrawPaused,
-            "Spot Market {} withdraws are currently paused",
-            spot_market.market_index
-        )?;
-
-        validate!(
-            spot_market.is_operation_paused(PausedOperations::Withdraw),
-            ErrorCode::MarketWithdrawPaused,
-            "Spot Market {} withdraws are currently paused",
-            spot_market.market_index
-        )?;
-
         from_user.increment_total_withdraws(
             amount,
             oracle_price,
