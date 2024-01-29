@@ -25,7 +25,7 @@ use crate::validate;
 
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::safe_math::SafeMath;
-use crate::state::paused_operations::PausedOperations;
+use crate::state::paused_operations::SpotOperations;
 
 #[cfg(test)]
 mod tests;
@@ -124,7 +124,7 @@ pub fn update_spot_market_cumulative_interest(
     oracle_price_data: Option<&OraclePriceData>,
     now: i64,
 ) -> DriftResult {
-    if spot_market.is_operation_paused(PausedOperations::Funding) {
+    if spot_market.is_operation_paused(SpotOperations::UpdateCumulativeInterest) {
         update_spot_market_twap_stats(spot_market, oracle_price_data, now)?;
         return Ok(());
     }

@@ -9,7 +9,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::check_withdraw_limits;
 use crate::safe_decrement;
 use crate::safe_increment;
-use crate::state::paused_operations::PausedOperations;
+use crate::state::paused_operations::SpotOperations;
 use crate::state::perp_market::MarketStatus;
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::{SpotPosition, User, UserStats};
@@ -136,7 +136,7 @@ pub fn update_spot_balances_and_cumulative_deposits_with_limits(
     )?;
 
     validate!(
-        spot_market.is_operation_paused(PausedOperations::Withdraw),
+        !spot_market.is_operation_paused(SpotOperations::Withdraw),
         ErrorCode::MarketWithdrawPaused,
         "Spot Market {} withdraws are currently paused",
         spot_market.market_index
