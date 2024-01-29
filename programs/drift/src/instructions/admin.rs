@@ -1641,6 +1641,18 @@ pub fn handle_update_spot_market_status(
 }
 
 #[access_control(
+spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_update_spot_market_paused_operations(
+    ctx: Context<AdminUpdateSpotMarket>,
+    paused_operations: u8,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    spot_market.paused_operations = paused_operations;
+    Ok(())
+}
+
+#[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
 pub fn handle_update_spot_market_asset_tier(
@@ -1762,6 +1774,18 @@ pub fn handle_update_perp_market_status(
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.status = status;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_paused_operations(
+    ctx: Context<AdminUpdatePerpMarket>,
+    paused_operations: u8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    perp_market.paused_operations = paused_operations;
     Ok(())
 }
 
