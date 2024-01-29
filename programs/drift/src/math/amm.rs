@@ -8,7 +8,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
+    BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
     DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR, ONE_MINUTE,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
     PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION_I64,
@@ -428,10 +428,11 @@ pub fn update_oracle_price_twap(
 
         amm.last_oracle_normalised_price = capped_oracle_update_price;
         amm.historical_oracle_data.last_oracle_price = oracle_price_data.price;
-        amm.last_oracle_conf_pct = oracle_price_data
-            .confidence
-            .safe_mul(BID_ASK_SPREAD_PRECISION)?
-            .safe_div(reserve_price)? as u64;
+
+        // use decayed last_oracle_conf_pct as lower bound
+        amm.last_oracle_conf_pct =
+            amm.get_new_oracle_conf_pct(oracle_price_data.confidence, reserve_price, now)?;
+
         amm.historical_oracle_data.last_oracle_delay = oracle_price_data.delay;
         amm.last_oracle_reserve_price_spread_pct =
             calculate_oracle_reserve_price_spread_pct(amm, oracle_price_data, Some(reserve_price))?;
