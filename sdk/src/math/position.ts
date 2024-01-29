@@ -1,4 +1,4 @@
-import { BN, SpotMarketAccount } from '../';
+import { BN, SpotMarketAccount, isVariant } from '../';
 import {
 	AMM_RESERVE_PRECISION,
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
@@ -132,6 +132,8 @@ export function calculateClaimablePnl(
 	perpPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
+	if (isVariant(market.status, 'ammPaused')) return ZERO;
+
 	const unrealizedPnl = calculatePositionPNL(
 		market,
 		perpPosition,
