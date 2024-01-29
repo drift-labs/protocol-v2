@@ -16,7 +16,7 @@ use drift_program::{
     },
 };
 use fnv::FnvHashMap;
-use futures_util::{future::BoxFuture, Future, FutureExt, StreamExt};
+use futures_util::{future::BoxFuture, FutureExt, StreamExt};
 use log::{debug, warn};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
@@ -119,52 +119,50 @@ impl AccountSubscription {
         }),
         min_context_slot: None,
     };
-    fn stream_fn(self) -> impl Future<Output = ()> {
-        async move {
-            let result = self
-                .ws_client
-                .account_subscribe(&self.account, Some(Self::RPC_CONFIG))
-                .await;
+    async fn stream_fn(self) {
+        let result = self
+            .ws_client
+            .account_subscribe(&self.account, Some(Self::RPC_CONFIG))
+            .await;
 
-            if let Err(err) = result {
-                warn!(target: "account", "subscribe account {:?} failed: {err:?}", self.account);
-                return;
-            }
-            debug!(target: "account", "start account stream {:?}", self.account);
-            let (mut account_stream, _unsub) = result.unwrap();
+        if let Err(err) = result {
+            warn!(target: "account", "subscribe account {:?} failed: {err:?}", self.account);
+            return;
+        }
+        debug!(target: "account", "start account stream {:?}", self.account);
+        let (mut account_stream, _unsub) = result.unwrap();
 
-            let mut poll_interval = tokio::time::interval(Duration::from_secs(10));
-            let _ = poll_interval.tick().await; // ignore, immediate first tick
-            loop {
-                select! {
-                    biased;
-                    response = account_stream.next() => {
-                        if let Some(account_update) = response {
-                            let account_data = account_update
-                                .value
-                                .decode::<AccountSharedData>()
-                                .expect("account");
-                            self.tx.send((account_data.into(), Instant::now())).expect("sent");
-                        } else {
-                            // websocket subscription/stream closed, try reconnect..
-                            warn!(target: "account", "account stream closed: {:?}", self.account);
-                            break;
-                        }
+        let mut poll_interval = tokio::time::interval(Duration::from_secs(10));
+        let _ = poll_interval.tick().await; // ignore, immediate first tick
+        loop {
+            select! {
+                biased;
+                response = account_stream.next() => {
+                    if let Some(account_update) = response {
+                        let account_data = account_update
+                            .value
+                            .decode::<AccountSharedData>()
+                            .expect("account");
+                        self.tx.send((account_data.into(), Instant::now())).expect("sent");
+                    } else {
+                        // websocket subscription/stream closed, try reconnect..
+                        warn!(target: "account", "account stream closed: {:?}", self.account);
+                        break;
                     }
-                    _ = poll_interval.tick() => {
-                        if let Ok(account_data) = self.rpc_client.get_account(&self.account).await {
-                            self.tx.send_if_modified(|current| {
-                                // only update with polled value if its newer
-                                if Instant::now().duration_since(current.1) >= poll_interval.period() {
-                                    *current = (account_data, Instant::now());
-                                    true
-                                } else {
-                                    false
-                                }
-                            });
-                        } else {
-                            // consecutive errors would indicate an issue, there's not much that can be done besides log/panic...
-                        }
+                }
+                _ = poll_interval.tick() => {
+                    if let Ok(account_data) = self.rpc_client.get_account(&self.account).await {
+                        self.tx.send_if_modified(|current| {
+                            // only update with polled value if its newer
+                            if Instant::now().duration_since(current.1) >= poll_interval.period() {
+                                *current = (account_data, Instant::now());
+                                true
+                            } else {
+                                false
+                            }
+                        });
+                    } else {
+                        // consecutive errors would indicate an issue, there's not much that can be done besides log/panic...
                     }
                 }
             }
