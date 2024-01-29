@@ -1634,6 +1634,7 @@ pub fn handle_update_spot_market_status(
     ctx: Context<AdminUpdateSpotMarket>,
     status: MarketStatus,
 ) -> Result<()> {
+    status.validate_not_deprecated()?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     spot_market.status = status;
     Ok(())
@@ -1756,6 +1757,8 @@ pub fn handle_update_perp_market_status(
         ErrorCode::DefaultError,
         "must set settlement/delist through another instruction",
     )?;
+
+    status.validate_not_deprecated()?;
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.status = status;

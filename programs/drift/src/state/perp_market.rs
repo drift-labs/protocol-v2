@@ -66,6 +66,23 @@ impl Default for MarketStatus {
     }
 }
 
+impl MarketStatus {
+    pub fn validate_not_deprecated(&self) -> DriftResult {
+        if matches!(
+            self,
+            MarketStatus::FundingPaused
+                | MarketStatus::AmmPaused
+                | MarketStatus::FillPaused
+                | MarketStatus::WithdrawPaused
+        ) {
+            msg!("MarketStatus is deprecated");
+            Err(ErrorCode::DefaultError)
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum ContractType {
     Perpetual,
