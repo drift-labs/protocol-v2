@@ -151,7 +151,7 @@ pub fn settle_pnl(
         validate!(
             !perp_market.is_operation_paused(PerpOperations::SettlePnlWithPosition),
             ErrorCode::InvalidMarketStatusToSettlePnl,
-            "Cannot settle pnl under current market status"
+            "Cannot settle pnl with position under current market status"
         )?;
     }
 

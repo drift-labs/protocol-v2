@@ -1646,7 +1646,7 @@ pub fn handle_add_perp_lp_shares<'info>(
         )?;
 
         validate!(
-            market.is_operation_paused(PerpOperations::AmmFill),
+            !market.is_operation_paused(PerpOperations::AmmFill),
             ErrorCode::MarketStatusInvalidForNewLP,
             "Market amm fills paused"
         )?;
