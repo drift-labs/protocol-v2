@@ -55,7 +55,7 @@ impl MarketExt for PerpMarket {
     fn market_type(&self) -> &'static str {
         "perp"
     }
-    fn symbol<'a>(&'a self) -> &'a str {
+    fn symbol(&self) -> &str {
         unsafe { core::str::from_utf8_unchecked(&self.name) }.trim_end()
     }
 }
@@ -64,7 +64,7 @@ impl MarketExt for SpotMarket {
     fn market_type(&self) -> &'static str {
         "spot"
     }
-    fn symbol<'a>(&'a self) -> &'a str {
+    fn symbol(&self) -> &str {
         unsafe { core::str::from_utf8_unchecked(&self.name) }.trim_end()
     }
 }

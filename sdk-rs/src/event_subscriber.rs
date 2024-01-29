@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     str::FromStr,
     sync::{Arc, OnceLock},
     task::{Context, Poll},
@@ -13,10 +14,11 @@ use drift_program::{
         user::{MarketType, Order},
     },
 };
+use fnv::FnvHashSet;
 use futures_util::{
     future::BoxFuture, stream::FuturesOrdered, Future, FutureExt, Stream, StreamExt,
 };
-use log::{debug, error, warn};
+use log::{debug, warn};
 use regex::Regex;
 pub use solana_client::nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient};
 use solana_client::{
@@ -28,7 +30,10 @@ use solana_transaction_status::{
     option_serializer::OptionSerializer, EncodedTransactionWithStatusMeta, UiTransactionEncoding,
 };
 use tokio::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        RwLock,
+    },
     task::JoinHandle,
 };
 
@@ -66,7 +71,7 @@ impl EventRpcProvider for RpcClient {
         account: Pubkey,
         after: Option<Signature>,
         limit: Option<usize>,
-    ) -> BoxFuture<SdkResult<Vec<Signature>>> {
+    ) -> BoxFuture<SdkResult<Vec<String>>> {
         async move {
             let results = self
                 .get_signatures_for_address_with_config(
@@ -79,10 +84,7 @@ impl EventRpcProvider for RpcClient {
                 )
                 .await?;
 
-            Ok(results
-                .iter()
-                .map(|r| Signature::from_str(r.signature.as_str()).expect("ok"))
-                .collect())
+            Ok(results.iter().map(|r| r.signature.clone()).collect())
         }
         .boxed()
     }
@@ -98,7 +100,7 @@ pub trait EventRpcProvider: Send + Sync + 'static {
         account: Pubkey,
         after: Option<Signature>,
         limit: Option<usize>,
-    ) -> BoxFuture<SdkResult<Vec<Signature>>>;
+    ) -> BoxFuture<SdkResult<Vec<String>>>;
     /// Fetch tx with `signature`
     fn get_tx(
         &self,
@@ -115,10 +117,11 @@ impl EventSubscriber {
     /// The underlying stream will reconnect according to the given `retry_policy`
     pub fn subscribe(
         provider: PubsubClient,
+        rpc_provider: impl EventRpcProvider,
         sub_account: Pubkey,
         retry_policy: impl TaskRetryPolicy,
     ) -> DriftEventStream {
-        log_stream(provider, sub_account, retry_policy)
+        log_stream(provider, rpc_provider, sub_account, retry_policy)
     }
     /// Subscribe to drift events of `sub_account`, backed by RPC polling APIs
     pub fn subscribe_polled(provider: impl EventRpcProvider, account: Pubkey) -> DriftEventStream {
@@ -127,25 +130,26 @@ impl EventSubscriber {
 }
 
 struct LogEventStream {
+    cache: Arc<RwLock<TxSignatureCache>>,
     provider: Arc<PubsubClient>,
     sub_account: Pubkey,
     event_tx: Sender<DriftEvent>,
+    commitment: CommitmentConfig,
 }
 
 impl LogEventStream {
     /// Returns a future for running the configured log event stream
-    fn stream_fn(&self) -> impl Future<Output = ()> {
+    fn stream_fn(self) -> impl Future<Output = ()> {
         let sub_account = self.sub_account;
-        let provider_ref = Arc::clone(&self.provider);
-        let event_tx = self.event_tx.clone();
         async move {
-            let subscribe_result = provider_ref
+            let subscribe_result = self
+                .provider
                 .logs_subscribe(
                     solana_client::rpc_config::RpcTransactionLogsFilter::Mentions(vec![
                         sub_account.to_string(),
                     ]),
                     RpcTransactionLogsConfig {
-                        commitment: Some(CommitmentConfig::processed()),
+                        commitment: Some(self.commitment),
                     },
                 )
                 .await;
@@ -157,42 +161,91 @@ impl LogEventStream {
             let (mut log_stream, _) = subscribe_result.unwrap();
             debug!(target: LOG_TARGET, "start log subscription: {sub_account:?}");
 
+            let mut cache = self.cache.write().await;
             while let Some(response) = log_stream.next().await {
                 // don't emit events for failed txs
                 if response.value.err.is_some() {
+                    debug!(target: LOG_TARGET, "skipping event for failed tx: {}", response.value.signature);
                     continue;
                 }
+                let signature = response.value.signature;
+                if cache.contains(&signature) {
+                    continue;
+                }
+                cache.insert(signature.clone());
+
                 for log in response.value.logs {
                     // a drift sub-account should not interact with any other program by definition
-                    if let Some(event) = try_parse_log(log.as_str(), &response.value.signature) {
+                    if let Some(event) = try_parse_log(log.as_str(), &signature) {
                         // unrelated events from same tx should not be emitted e.g. a filler tx which produces other fill events
                         if event.pertains_to(sub_account) {
-                            // TODO: handle RevertFill semantics
-                            event_tx.try_send(event).expect("sent");
+                            // TODO: if we can't send then the event is lost...
+                            // outer retry is not appropriate, must bail
+                            self.event_tx.try_send(event).expect("sent");
                         }
                     }
                 }
             }
         }
+    }
+}
+
+/// Creates a poll-ed stream using JSON-RPC interfaces
+fn polled_stream(provider: impl EventRpcProvider, sub_account: Pubkey) -> DriftEventStream {
+    let (event_tx, event_rx) = channel(64);
+    let cache = Arc::new(RwLock::new(TxSignatureCache::new(128)));
+    let join_handle = tokio::spawn(
+        PolledEventStream {
+            cache: Arc::clone(&cache),
+            provider,
+            sub_account,
+            event_tx,
+        }
+        .stream_fn(),
+    );
+
+    DriftEventStream {
+        rx: event_rx,
+        task: join_handle,
     }
 }
 
 /// Creates a Ws-backed event stream using `logsSubscribe` interface
 fn log_stream(
     provider: PubsubClient,
+    rpc_provider: impl EventRpcProvider,
     sub_account: Pubkey,
     retry_policy: impl TaskRetryPolicy,
 ) -> DriftEventStream {
     debug!(target: LOG_TARGET, "stream events for {sub_account:?}");
-    let (event_tx, event_rx) = channel(32);
-    let log_stream = LogEventStream {
-        provider: Arc::new(provider),
-        sub_account,
-        event_tx,
-    };
+    let (event_tx, event_rx) = channel(64);
+    let provider = Arc::new(provider);
+    let cache = Arc::new(RwLock::new(TxSignatureCache::new(128)));
+
+    let _handle = tokio::spawn(
+        PolledEventStream {
+            cache: Arc::clone(&cache),
+            provider: rpc_provider,
+            sub_account,
+            event_tx: event_tx.clone(),
+        }
+        .stream_fn(),
+    );
 
     // spawn the event subscription task
-    let join_handle = spawn_retry_task(move || log_stream.stream_fn(), retry_policy);
+    let join_handle = spawn_retry_task(
+        move || {
+            let log_stream = LogEventStream {
+                cache: Arc::clone(&cache),
+                provider: Arc::clone(&provider),
+                sub_account,
+                event_tx: event_tx.clone(),
+                commitment: CommitmentConfig::processed(),
+            };
+            log_stream.stream_fn()
+        },
+        retry_policy,
+    );
 
     DriftEventStream {
         rx: event_rx,
@@ -200,78 +253,123 @@ fn log_stream(
     }
 }
 
-/// Creates a polled event stream from RPC only interfaces `getTxSignatures` and `getTx`
-pub fn polled_stream(provider: impl EventRpcProvider, sub_account: Pubkey) -> DriftEventStream {
-    debug!(target: LOG_TARGET, "stream events for {sub_account:?}");
-    let (event_tx, event_rx) = channel(32);
+pub struct PolledEventStream<T: EventRpcProvider> {
+    cache: Arc<RwLock<TxSignatureCache>>,
+    event_tx: Sender<DriftEvent>,
+    provider: T,
+    sub_account: Pubkey,
+}
 
-    // spawn the event subscription task
-    let join_handle = tokio::spawn(async move {
-        // poll for events in any tx after this tx
-        // initially fetch the most recent tx from account
-        debug!(target: LOG_TARGET, "fetch initial txs");
-        let res = provider.get_tx_signatures(sub_account, None, Some(1)).await;
-        debug!(target: LOG_TARGET, "fetched initial txs");
+impl<T: EventRpcProvider> PolledEventStream<T> {
+    fn stream_fn(self) -> impl Future<Output = ()> {
+        debug!(target: LOG_TARGET, "poll events for {:?}", self.sub_account);
 
-        let mut last_seen_tx = res.expect("fetched tx").first().cloned();
-        let provider_ref = &provider;
-        loop {
-            debug!(target: LOG_TARGET, "searching txs for events");
-            let signatures = provider_ref
-                .get_tx_signatures(sub_account, last_seen_tx, Some(16))
-                .await
-                .expect("fetched txs");
+        // spawn the event subscription task
+        async move {
+            // poll for events in any tx after this tx
+            // initially fetch the most recent tx from account
+            debug!(target: LOG_TARGET, "fetch initial txs");
+            let res = self
+                .provider
+                .get_tx_signatures(self.sub_account, None, Some(1))
+                .await;
+            debug!(target: LOG_TARGET, "fetched initial txs");
 
-            // txs from RPC are ordered newest to oldest
-            // process in reverse order, so subscribers receive events in chronological order
-            let mut futs = FuturesOrdered::from_iter(
-                signatures
-                    .into_iter()
-                    .map(|s| async move { (s, provider_ref.get_tx(s).await) })
-                    .rev(),
-            );
+            let mut last_seen_tx = res.expect("fetched tx").first().cloned();
+            let provider_ref = &self.provider;
+            'outer: loop {
+                // don't needlessly spam the RPC or hog the executor
+                tokio::time::sleep(Duration::from_millis(400)).await;
 
-            while let Some((sig, response)) = futs.next().await {
-                // TODO: on RPC error should attempt to re-query the tx
-                last_seen_tx = Some(sig);
-                if let Err(err) = response {
-                    error!(target: LOG_TARGET, "processing tx: {err:?}");
+                debug!(target: LOG_TARGET, "poll txs for events");
+                let signatures = provider_ref
+                    .get_tx_signatures(
+                        self.sub_account,
+                        last_seen_tx
+                            .clone()
+                            .map(|s| Signature::from_str(&s).unwrap()),
+                        None,
+                    )
+                    .await;
+
+                if let Err(err) = signatures {
+                    warn!(target: LOG_TARGET, "poll tx signatures: {err:?}");
                     continue;
                 }
-                let response = response.unwrap();
-                if response.meta.is_none() {
+
+                let signatures = signatures.unwrap();
+                // txs from RPC are ordered newest to oldest
+                // process in reverse order, so subscribers receive events in chronological order
+                let mut futs = {
+                    let cache = self.cache.read().await;
+                    FuturesOrdered::from_iter(
+                        signatures
+                            .into_iter()
+                            .filter(|s| !cache.contains(s))
+                            .map(|s| async move {
+                                (
+                                    s.clone(),
+                                    provider_ref
+                                        .get_tx(
+                                            Signature::from_str(s.as_str())
+                                                .expect("valid signature"),
+                                        )
+                                        .await,
+                                )
+                            })
+                            .rev(),
+                    )
+                };
+                if futs.is_empty() {
                     continue;
                 }
-                if let Some(VersionedTransaction { message, .. }) = response.transaction.decode() {
-                    // only txs interacting with drift program
-                    if !message
-                        .static_account_keys()
-                        .iter()
-                        .any(|k| k == &constants::PROGRAM_ID)
-                    {
+                let mut cache = self.cache.write().await;
+
+                while let Some((signature, response)) = futs.next().await {
+                    if let Err(err) = response {
+                        warn!(target: LOG_TARGET, "poll processing tx: {err:?}");
+                        // retry querying the batch
+                        continue 'outer;
+                    }
+
+                    last_seen_tx = Some(signature.clone());
+                    cache.insert(signature.clone());
+
+                    let EncodedTransactionWithStatusMeta {
+                        meta, transaction, ..
+                    } = response.unwrap();
+                    if meta.is_none() {
                         continue;
                     }
-                }
+                    let meta = meta.unwrap();
 
-                if let OptionSerializer::Some(logs) = response.meta.unwrap().log_messages {
-                    let signature = format!("{sig:?}");
-                    for log in logs {
-                        if let Some(event) = try_parse_log(log.as_str(), signature.as_str()) {
-                            if event.pertains_to(sub_account) {
-                                event_tx.try_send(event).expect("sent");
+                    if let Some(VersionedTransaction { message, .. }) = transaction.decode() {
+                        // only txs interacting with drift program
+                        if !message
+                            .static_account_keys()
+                            .iter()
+                            .any(|k| k == &constants::PROGRAM_ID)
+                        {
+                            continue;
+                        }
+                    }
+                    // ignore failed txs
+                    if meta.err.is_some() {
+                        continue;
+                    }
+
+                    if let OptionSerializer::Some(logs) = meta.log_messages {
+                        for log in logs {
+                            if let Some(event) = try_parse_log(log.as_str(), signature.as_str()) {
+                                if event.pertains_to(self.sub_account) {
+                                    self.event_tx.try_send(event).expect("sent");
+                                }
                             }
                         }
                     }
                 }
             }
-            // don't spam the RPC nor spin lock the tokio thread
-            tokio::time::sleep(Duration::from_millis(400)).await;
         }
-    });
-
-    DriftEventStream {
-        rx: event_rx,
-        task: join_handle,
     }
 }
 
@@ -494,6 +592,36 @@ impl DriftEvent {
     }
 }
 
+/// fixed capacity cache of tx signatures
+struct TxSignatureCache {
+    capacity: usize,
+    entries: FnvHashSet<String>,
+    age: VecDeque<String>,
+}
+
+impl TxSignatureCache {
+    fn new(capacity: usize) -> Self {
+        Self {
+            capacity,
+            entries: FnvHashSet::<String>::with_capacity_and_hasher(capacity, Default::default()),
+            age: VecDeque::with_capacity(capacity),
+        }
+    }
+    fn contains(&self, x: &str) -> bool {
+        self.entries.contains(x)
+    }
+    fn insert(&mut self, x: String) {
+        self.entries.insert(x.clone());
+        self.age.push_back(x);
+
+        if self.age.len() >= self.capacity {
+            if let Some(ref oldest) = self.age.pop_front() {
+                self.entries.remove(oldest);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -506,6 +634,7 @@ mod test {
             PubsubClient::new("wss://api.devnet.solana.com")
                 .await
                 .expect("connects"),
+            RpcClient::new("https://api.devnet.solana.com".to_string()),
             Pubkey::from_str("9JtczxrJjPM4J1xooxr2rFXmRivarb4BwjNiBgXDwe2p").unwrap(),
             retry_policy::never(),
         )
@@ -514,5 +643,11 @@ mod test {
         while let Some(event) = event_stream.next().await {
             dbg!(event);
         }
+    }
+
+    #[test]
+    fn test_log() {
+        let result = try_parse_log("Program log: 4DRDR8LtbQH+x7JlAAAAAAIIAAABAbpHl8YM/aWjrjfQ48x0R2DclPigyXtYx+5d/vSVjUIZAQoCAAAAAAAAAaJhIgAAAAAAAQDC6wsAAAAAAZjQCQEAAAAAAWsUAAAAAAAAAWTy////////AAAAAaNzGgMga9TnxjVkycO4bmqSGjK6kP92OrKdZMYqFV+aAS4eKQ4BAQEAHkHaNAAAAAEAwusLAAAAAAGY0AkBAAAAAAFneQwBwHPUIY9ykEdbxsTV7Lh6K+vISfq8nLCTm/rWoAHwCQAAAQABAMLrCwAAAAABAMLrCwAAAAABmNAJAQAAAAA9Zy8FAAAAAA==", "sig");
+        dbg!(result);
     }
 }

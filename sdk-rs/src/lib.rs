@@ -163,6 +163,7 @@ impl WsAccountProvider {
                             }
                         }
                         _ = poll_interval.tick() => {
+                            // TODO: this could overwrite newer data...
                             if let Ok(account_data) = rpc_client_handle.get_account(&account).await {
                                 tx.send_if_modified(|current| {
                                     if current.1.duration_since(Instant::now()) > poll_interval.period() {
@@ -424,6 +425,16 @@ impl<T: AccountProvider> DriftClient<T> {
             Cow::Owned(account_data),
         ))
     }
+
+    pub async fn get_recent_priority_fees(
+        &self,
+        writable_markets: &[MarketId],
+        window: Option<usize>,
+    ) -> SdkResult<Vec<u64>> {
+        self.backend
+            .get_recent_priority_fees(writable_markets, window)
+            .await
+    }
 }
 
 /// Provides the heavy-lifting and network facing features of the SDK
@@ -478,7 +489,7 @@ impl<T: AccountProvider> DriftClientBackend<T> {
         &self,
         writable_markets: &[MarketId],
         window: Option<usize>,
-    ) -> SdkResult<u64> {
+    ) -> SdkResult<Vec<u64>> {
         let addresses: Vec<Pubkey> = writable_markets
             .iter()
             .filter_map(|x| match x.kind {
@@ -498,14 +509,13 @@ impl<T: AccountProvider> DriftClientBackend<T> {
             .get_recent_prioritization_fees(addresses.as_slice())
             .await?;
         let window = window.unwrap_or(5).max(1);
-        let fee = response
+        let fees = response
             .iter()
             .take(window)
             .map(|x| x.prioritization_fee)
-            .sum::<u64>()
-            / window as u64;
+            .collect();
 
-        Ok(fee)
+        Ok(fees)
     }
 
     /// Get all drift program accounts by Anchor type
@@ -612,7 +622,7 @@ impl<T: AccountProvider> DriftClientBackend<T> {
         );
         let price_data = get_oracle_price(
             &oracle_source,
-            &mut (oracle, oracle_account?).into_account_info(),
+            &(oracle, oracle_account?).into_account_info(),
             current_slot?,
         )
         .unwrap();

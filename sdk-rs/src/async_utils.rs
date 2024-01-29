@@ -101,7 +101,7 @@ where
         loop {
             task_fn().await;
             if !retry_policy.check(attempts).await {
-                break;
+                panic!("task reached retry limit");
             }
             attempts += 1;
         }

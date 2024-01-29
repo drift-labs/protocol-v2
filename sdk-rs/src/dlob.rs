@@ -165,7 +165,7 @@ impl DLOBClient {
                                 // So it's best to panic.
                                 let orderbook_data =
                                     value.get("data").and_then(Value::as_str).unwrap();
-                                match serde_json::from_str::<L2Orderbook>(&orderbook_data) {
+                                match serde_json::from_str::<L2Orderbook>(orderbook_data) {
                                     Ok(orderbook) => {
                                         if tx.send(Ok(orderbook)).await.is_err() {
                                             break; // Break if the receiver is dropped
