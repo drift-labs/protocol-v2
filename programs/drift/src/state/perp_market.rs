@@ -11,9 +11,9 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
 };
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128, LP_FEE_SLICE_DENOMINATOR,
-    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION, SPOT_WEIGHT_PRECISION,
-    TWENTY_FOUR_HOUR,
+    AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_U128,
+    LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
+    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -1142,6 +1142,35 @@ impl AMM {
         self.last_trade_ts = now;
 
         Ok(())
+    }
+
+    pub fn update_last_oracle_conf_pct(
+        &mut self,
+        confidence: u64,    // price precision
+        reserve_price: u64, // price precision
+        now: i64,
+    ) -> DriftResult<u64> {
+        // use previous value decayed as lower bound to avoid shrinking too quickly
+        let upper_bound_divisor = 21_u64;
+        let lower_bound_divisor = 5_u64;
+        let since_last = now
+            .safe_sub(self.historical_oracle_data.last_oracle_price_twap_ts)?
+            .max(0);
+
+        let confidence_lower_bound = if since_last > 0 {
+            let confidence_divisor = upper_bound_divisor
+                .saturating_sub(since_last.cast::<u64>()?)
+                .clamp(lower_bound_divisor, upper_bound_divisor);
+            self.last_oracle_conf_pct
+                .safe_sub(self.last_oracle_conf_pct / confidence_divisor)?
+        } else {
+            self.last_oracle_conf_pct
+        };
+
+        Ok(confidence
+            .safe_mul(BID_ASK_SPREAD_PRECISION)?
+            .safe_div(reserve_price)?
+            .max(confidence_lower_bound))
     }
 }
 
