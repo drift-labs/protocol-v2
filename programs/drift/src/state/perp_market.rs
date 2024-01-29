@@ -1144,8 +1144,8 @@ impl AMM {
         Ok(())
     }
 
-    pub fn update_last_oracle_conf_pct(
-        &mut self,
+    pub fn get_new_oracle_conf_pct(
+        &self,
         confidence: u64,    // price precision
         reserve_price: u64, // price precision
         now: i64,
@@ -1160,7 +1160,7 @@ impl AMM {
         let confidence_lower_bound = if since_last > 0 {
             let confidence_divisor = upper_bound_divisor
                 .saturating_sub(since_last.cast::<u64>()?)
-                .clamp(lower_bound_divisor, upper_bound_divisor);
+                .max(lower_bound_divisor);
             self.last_oracle_conf_pct
                 .safe_sub(self.last_oracle_conf_pct / confidence_divisor)?
         } else {

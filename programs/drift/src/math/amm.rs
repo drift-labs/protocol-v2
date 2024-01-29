@@ -431,7 +431,7 @@ pub fn update_oracle_price_twap(
 
         // use decayed last_oracle_conf_pct as lower bound
         amm.last_oracle_conf_pct =
-            amm.update_last_oracle_conf_pct(oracle_price_data.confidence, reserve_price, now)?;
+            amm.get_new_oracle_conf_pct(oracle_price_data.confidence, reserve_price, now)?;
 
         amm.historical_oracle_data.last_oracle_delay = oracle_price_data.delay;
         amm.last_oracle_reserve_price_spread_pct =
