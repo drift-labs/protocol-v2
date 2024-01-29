@@ -2,7 +2,7 @@
 mod tests;
 
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
-pub enum PerpOperations {
+pub enum PerpOperation {
     UpdateFunding = 0b00000001,
     AmmFill = 0b00000010,
     Fill = 0b00000100,
@@ -10,21 +10,21 @@ pub enum PerpOperations {
     SettlePnlWithPosition = 0b00010000,
 }
 
-impl PerpOperations {
-    pub fn is_operation_paused(current: u8, operation: PerpOperations) -> bool {
+impl PerpOperation {
+    pub fn is_operation_paused(current: u8, operation: PerpOperation) -> bool {
         current & operation as u8 != 0
     }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
-pub enum SpotOperations {
+pub enum SpotOperation {
     UpdateCumulativeInterest = 0b00000001,
     Fill = 0b00000010,
     Withdraw = 0b00000100,
 }
 
-impl SpotOperations {
-    pub fn is_operation_paused(current: u8, operation: SpotOperations) -> bool {
+impl SpotOperation {
+    pub fn is_operation_paused(current: u8, operation: SpotOperation) -> bool {
         current & operation as u8 != 0
     }
 }

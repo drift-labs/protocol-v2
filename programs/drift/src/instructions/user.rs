@@ -48,7 +48,7 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
-use crate::state::paused_operations::PerpOperations;
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
@@ -1646,7 +1646,7 @@ pub fn handle_add_perp_lp_shares<'info>(
         )?;
 
         validate!(
-            !market.is_operation_paused(PerpOperations::AmmFill),
+            !market.is_operation_paused(PerpOperation::AmmFill),
             ErrorCode::MarketStatusInvalidForNewLP,
             "Market amm fills paused"
         )?;

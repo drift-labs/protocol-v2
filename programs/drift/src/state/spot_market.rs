@@ -17,7 +17,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{calculate_utilization, get_token_amount, get_token_value};
 
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
-use crate::state::paused_operations::SpotOperations;
+use crate::state::paused_operations::SpotOperation;
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
 use crate::validate;
@@ -259,13 +259,13 @@ impl SpotMarket {
         self.status == MarketStatus::ReduceOnly
     }
 
-    pub fn is_operation_paused(&self, operation: SpotOperations) -> bool {
-        SpotOperations::is_operation_paused(self.paused_operations, operation)
+    pub fn is_operation_paused(&self, operation: SpotOperation) -> bool {
+        SpotOperation::is_operation_paused(self.paused_operations, operation)
     }
 
     pub fn fills_enabled(&self) -> bool {
         matches!(self.status, MarketStatus::Active | MarketStatus::ReduceOnly)
-            && !self.is_operation_paused(SpotOperations::Fill)
+            && !self.is_operation_paused(SpotOperation::Fill)
     }
 
     pub fn get_sanitize_clamp_denominator(&self) -> DriftResult<Option<i64>> {

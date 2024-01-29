@@ -1,79 +1,79 @@
 mod test {
-    use crate::state::paused_operations::PerpOperations;
+    use crate::state::paused_operations::PerpOperation;
 
     #[test]
     fn test_is_operation_paused() {
         // Test each variant individually
-        assert!(PerpOperations::is_operation_paused(
+        assert!(PerpOperation::is_operation_paused(
             0b00000001,
-            PerpOperations::UpdateFunding
+            PerpOperation::UpdateFunding
         ));
-        assert!(PerpOperations::is_operation_paused(
+        assert!(PerpOperation::is_operation_paused(
             0b00000010,
-            PerpOperations::AmmFill
+            PerpOperation::AmmFill
         ));
-        assert!(PerpOperations::is_operation_paused(
+        assert!(PerpOperation::is_operation_paused(
             0b00000100,
-            PerpOperations::Fill
+            PerpOperation::Fill
         ));
-        assert!(PerpOperations::is_operation_paused(
+        assert!(PerpOperation::is_operation_paused(
             0b00001000,
-            PerpOperations::SettlePnl
+            PerpOperation::SettlePnl
         ));
 
         // Test combinations
-        let all_operations = PerpOperations::UpdateFunding as u8
-            | PerpOperations::AmmFill as u8
-            | PerpOperations::Fill as u8
-            | PerpOperations::SettlePnl as u8;
-        assert!(PerpOperations::is_operation_paused(
+        let all_operations = PerpOperation::UpdateFunding as u8
+            | PerpOperation::AmmFill as u8
+            | PerpOperation::Fill as u8
+            | PerpOperation::SettlePnl as u8;
+        assert!(PerpOperation::is_operation_paused(
             all_operations,
-            PerpOperations::UpdateFunding
+            PerpOperation::UpdateFunding
         ));
-        assert!(PerpOperations::is_operation_paused(
+        assert!(PerpOperation::is_operation_paused(
             all_operations,
-            PerpOperations::AmmFill
+            PerpOperation::AmmFill
         ));
-        assert!(PerpOperations::is_operation_paused(
+        assert!(PerpOperation::is_operation_paused(
             all_operations,
-            PerpOperations::Fill
+            PerpOperation::Fill
         ));
-        assert!(PerpOperations::is_operation_paused(
+        assert!(PerpOperation::is_operation_paused(
             all_operations,
-            PerpOperations::SettlePnl
+            PerpOperation::SettlePnl
         ));
 
         let no_operations = 0;
-        assert!(!PerpOperations::is_operation_paused(
+        assert!(!PerpOperation::is_operation_paused(
             no_operations,
-            PerpOperations::UpdateFunding
+            PerpOperation::UpdateFunding
         ));
-        assert!(!PerpOperations::is_operation_paused(
+        assert!(!PerpOperation::is_operation_paused(
             no_operations,
-            PerpOperations::AmmFill
+            PerpOperation::AmmFill
         ));
-        assert!(!PerpOperations::is_operation_paused(
+        assert!(!PerpOperation::is_operation_paused(
             no_operations,
-            PerpOperations::Fill
+            PerpOperation::Fill
         ));
-        assert!(!PerpOperations::is_operation_paused(
+        assert!(!PerpOperation::is_operation_paused(
             no_operations,
-            PerpOperations::SettlePnl
+            PerpOperation::SettlePnl
         ));
 
         // Test with multiple operations
-        let multiple_operations = PerpOperations::AmmFill as u8 | PerpOperations::SettlePnl as u8;
-        assert!(PerpOperations::is_operation_paused(
+        let multiple_operations = PerpOperation::AmmFill as u8 | PerpOperation::SettlePnl as u8;
+        assert!(PerpOperation::is_operation_paused(
             multiple_operations as u8,
-            PerpOperations::AmmFill
+            PerpOperation::AmmFill
         ));
-        assert!(PerpOperations::is_operation_paused(
+        assert!(PerpOperation::is_operation_paused(
             multiple_operations as u8,
-            PerpOperations::SettlePnl
+            PerpOperation::SettlePnl
         ));
-        assert!(!PerpOperations::is_operation_paused(
+        assert!(!PerpOperation::is_operation_paused(
             multiple_operations as u8,
-            PerpOperations::Fill
+            PerpOperation::Fill
         ));
     }
 }

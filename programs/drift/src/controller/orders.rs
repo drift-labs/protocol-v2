@@ -65,7 +65,7 @@ use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
-use crate::state::paused_operations::PerpOperations;
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -920,7 +920,7 @@ pub fn fill_perp_order(
     )?;
 
     validate!(
-        !market.is_operation_paused(PerpOperations::Fill),
+        !market.is_operation_paused(PerpOperation::Fill),
         ErrorCode::MarketFillOrderPaused,
         "Market fills paused",
     )?;
@@ -966,7 +966,7 @@ pub fn fill_perp_order(
     let mut amm_is_available = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-        amm_is_available &= !market.is_operation_paused(PerpOperations::AmmFill);
+        amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         validation::perp_market::validate_perp_market(market)?;
         validate!(
             !market.is_in_settlement(now),
@@ -1207,7 +1207,7 @@ pub fn fill_perp_order(
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         let funding_paused =
-            state.funding_paused()? || market.is_operation_paused(PerpOperations::UpdateFunding);
+            state.funding_paused()? || market.is_operation_paused(PerpOperation::UpdateFunding);
 
         controller::funding::update_funding_rate(
             market_index,

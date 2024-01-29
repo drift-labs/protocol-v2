@@ -31,7 +31,7 @@ use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::state::paused_operations::PerpOperations;
+use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
@@ -271,8 +271,8 @@ impl PerpMarket {
         Ok(self.status == MarketStatus::ReduceOnly)
     }
 
-    pub fn is_operation_paused(&self, operation: PerpOperations) -> bool {
-        PerpOperations::is_operation_paused(self.paused_operations, operation)
+    pub fn is_operation_paused(&self, operation: PerpOperation) -> bool {
+        PerpOperation::is_operation_paused(self.paused_operations, operation)
     }
 
     pub fn get_sanitize_clamp_denominator(self) -> DriftResult<Option<i64>> {

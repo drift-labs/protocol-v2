@@ -26,7 +26,7 @@ use crate::state::margin_calculation::MarginContext;
 
 use crate::state::events::{OrderActionExplanation, SettlePnlExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
-use crate::state::paused_operations::PerpOperations;
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
@@ -142,14 +142,14 @@ pub fn settle_pnl(
     )?;
 
     validate!(
-        !perp_market.is_operation_paused(PerpOperations::SettlePnl),
+        !perp_market.is_operation_paused(PerpOperation::SettlePnl),
         ErrorCode::InvalidMarketStatusToSettlePnl,
         "Cannot settle pnl under current market status"
     )?;
 
     if user.perp_positions[position_index].base_asset_amount != 0 {
         validate!(
-            !perp_market.is_operation_paused(PerpOperations::SettlePnlWithPosition),
+            !perp_market.is_operation_paused(PerpOperation::SettlePnlWithPosition),
             ErrorCode::InvalidMarketStatusToSettlePnl,
             "Cannot settle pnl with position under current market status"
         )?;
