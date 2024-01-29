@@ -3,6 +3,7 @@
 use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
+use async_utils::{retry_policy, spawn_retry_task};
 use drift_program::{
     controller::position::PositionDirection,
     math::constants::QUOTE_SPOT_MARKET_INDEX,
@@ -15,7 +16,8 @@ use drift_program::{
     },
 };
 use fnv::FnvHashMap;
-use futures_util::{future::BoxFuture, FutureExt, StreamExt};
+use futures_util::{future::BoxFuture, Future, FutureExt, StreamExt};
+use log::{debug, warn};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient},
@@ -100,7 +102,15 @@ pub struct WsAccountProvider {
     account_cache: RwLock<FnvHashMap<Pubkey, Receiver<(Account, Instant)>>>,
 }
 
-impl WsAccountProvider {
+struct AccountSubscription {
+    account: Pubkey,
+    ws_client: Arc<PubsubClient>,
+    rpc_client: Arc<RpcClient>,
+    /// sink for account updates
+    tx: Arc<watch::Sender<(Account, Instant)>>,
+}
+
+impl AccountSubscription {
     const RPC_CONFIG: RpcAccountInfoConfig = RpcAccountInfoConfig {
         encoding: Some(UiAccountEncoding::Base64Zstd),
         data_slice: None,
@@ -109,6 +119,60 @@ impl WsAccountProvider {
         }),
         min_context_slot: None,
     };
+    fn stream_fn(self) -> impl Future<Output = ()> {
+        async move {
+            let result = self
+                .ws_client
+                .account_subscribe(&self.account, Some(Self::RPC_CONFIG))
+                .await;
+
+            if let Err(err) = result {
+                warn!(target: "account", "subscribe account {:?} failed: {err:?}", self.account);
+                return;
+            }
+            debug!(target: "account", "start account stream {:?}", self.account);
+            let (mut account_stream, _unsub) = result.unwrap();
+
+            let mut poll_interval = tokio::time::interval(Duration::from_secs(10));
+            let _ = poll_interval.tick().await; // ignore, immediate first tick
+            loop {
+                select! {
+                    biased;
+                    response = account_stream.next() => {
+                        if let Some(account_update) = response {
+                            let account_data = account_update
+                                .value
+                                .decode::<AccountSharedData>()
+                                .expect("account");
+                            self.tx.send((account_data.into(), Instant::now())).expect("sent");
+                        } else {
+                            // websocket subscription/stream closed, try reconnect..
+                            warn!(target: "account", "account stream closed: {:?}", self.account);
+                            break;
+                        }
+                    }
+                    _ = poll_interval.tick() => {
+                        if let Ok(account_data) = self.rpc_client.get_account(&self.account).await {
+                            self.tx.send_if_modified(|current| {
+                                // only update with polled value if its newer
+                                if Instant::now().duration_since(current.1) >= poll_interval.period() {
+                                    *current = (account_data, Instant::now());
+                                    true
+                                } else {
+                                    false
+                                }
+                            });
+                        } else {
+                            // consecutive errors would indicate an issue, there's not much that can be done besides log/panic...
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl WsAccountProvider {
     /// Create a new WsAccountProvider given an endpoint that serves both http(s) and ws(s)
     pub async fn new(url: &str) -> SdkResult<Self> {
         let ws_url = url.replace("http", "ws");
@@ -122,65 +186,21 @@ impl WsAccountProvider {
     }
     /// Subscribe to account updates via web-socket and polling
     fn subscribe_account(&self, account: Pubkey, tx: watch::Sender<(Account, Instant)>) {
-        let ws_client_handle = Arc::clone(&self.ws_client);
-        let rpc_client_handle = Arc::clone(&self.rpc_client);
-
-        tokio::spawn(async move {
-            let mut n_retries = 0;
-            let mut backoff_s = 16;
-            while n_retries < 3 {
-                let result = ws_client_handle
-                    .account_subscribe(&account, Some(Self::RPC_CONFIG))
-                    .await;
-
-                if result.is_err() {
-                    tokio::time::sleep(Duration::from_secs(backoff_s)).await;
-                    n_retries += 1;
-                    backoff_s *= 2;
-                    continue;
-                } else {
-                    backoff_s = 16;
-                    n_retries = 0;
-                }
-
-                let (mut account_stream, _unsub) = result.unwrap();
-
-                let mut poll_interval = tokio::time::interval(Duration::from_secs(15));
-                let _ = poll_interval.tick().await; // ignore, immediate first tick
-                loop {
-                    select! {
-                        biased;
-                        response = account_stream.next() => {
-                            if let Some(account_update) = response {
-                                let account_data = account_update
-                                    .value
-                                    .decode::<AccountSharedData>()
-                                    .expect("account");
-                                tx.send((account_data.into(), Instant::now())).expect("sent");
-                            } else {
-                                // websocket subscription/stream closed, try reconnect..
-                                break;
-                            }
-                        }
-                        _ = poll_interval.tick() => {
-                            // TODO: this could overwrite newer data...
-                            if let Ok(account_data) = rpc_client_handle.get_account(&account).await {
-                                tx.send_if_modified(|current| {
-                                    if current.1.duration_since(Instant::now()) > poll_interval.period() {
-                                        *current = (account_data, Instant::now());
-                                          true
-                                    } else {
-                                        false
-                                    }
-                                });
-                            } else {
-                                // consecutive errors would indicate an issue, there's not much that can be done besides log/panic...
-                            }
-                        }
-                    }
-                }
-            }
-        });
+        let ws_client = Arc::clone(&self.ws_client);
+        let rpc_client = Arc::clone(&self.rpc_client);
+        let tx = Arc::new(tx);
+        spawn_retry_task(
+            move || {
+                let account_sub = AccountSubscription {
+                    account,
+                    ws_client: Arc::clone(&ws_client),
+                    rpc_client: Arc::clone(&rpc_client),
+                    tx: Arc::clone(&tx),
+                };
+                account_sub.stream_fn()
+            },
+            retry_policy::exponential_backoff(3),
+        );
     }
     /// Fetch an account and initiate subscription for future updates
     async fn get_account_impl(&self, account: Pubkey) -> SdkResult<Account> {
