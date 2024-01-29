@@ -37,6 +37,7 @@ use crate::state::oracle::{
     get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
     OracleSource,
 };
+use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
@@ -1649,6 +1650,9 @@ pub fn handle_update_spot_market_paused_operations(
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     spot_market.paused_operations = paused_operations;
+
+    SpotOperation::log_all_operations_paused(spot_market.paused_operations);
+
     Ok(())
 }
 
@@ -1786,6 +1790,9 @@ pub fn handle_update_perp_market_paused_operations(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.paused_operations = paused_operations;
+
+    PerpOperation::log_all_operations_paused(perp_market.paused_operations);
+
     Ok(())
 }
 
