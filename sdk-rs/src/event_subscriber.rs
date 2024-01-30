@@ -176,8 +176,6 @@ impl LogEventStream {
                 if let Some(event) = try_parse_log(log.as_str(), &signature) {
                     // unrelated events from same tx should not be emitted e.g. a filler tx which produces other fill events
                     if event.pertains_to(sub_account) {
-                        // TODO: if we can't send then the event is lost...
-                        // outer retry is not appropriate, must bail
                         self.event_tx.try_send(event).expect("sent");
                     }
                 }
@@ -413,6 +411,7 @@ fn try_parse_log(raw: &str, signature: &str) -> Option<DriftEvent> {
             return DriftEvent::from_discriminant(disc, &mut data, signature);
         }
 
+        // experimental
         let order_cancel_missing_re = ORDER_CANCEL_MISSING_RE
             .get_or_init(|| Regex::new(r"could not find( user){0,1} order id (\d+)").unwrap());
         if let Some(captures) = order_cancel_missing_re.captures(log) {
@@ -483,12 +482,14 @@ pub enum DriftEvent {
     },
     OrderCreate {
         order: Order,
+        user: Pubkey,
         ts: u64,
         signature: String,
     },
     // sub-case of cancel?
     OrderExpire {
         order_id: u32,
+        user: Option<Pubkey>,
         fee: u64,
         ts: u64,
         signature: String,
@@ -500,12 +501,12 @@ impl DriftEvent {
     fn pertains_to(&self, sub_account: Pubkey) -> bool {
         let subject = &Some(sub_account);
         match self {
-            Self::OrderCancel { taker, maker, .. } => maker == subject || taker == subject,
-            Self::OrderFill { maker, taker, .. } => maker == subject || taker == subject,
-            // these order types are contextual
-            Self::OrderCreate { .. }
-            | Self::OrderExpire { .. }
-            | Self::OrderCancelMissing { .. } => true,
+            Self::OrderCancel { maker, taker, .. } | Self::OrderFill { maker, taker, .. } => {
+                maker == subject || taker == subject
+            }
+            Self::OrderCreate { user, .. } => *user == sub_account,
+            Self::OrderExpire { user, .. } => user == subject,
+            Self::OrderCancelMissing { .. } => true,
         }
     }
     /// Deserialize drift event by discriminant
@@ -529,6 +530,7 @@ impl DriftEvent {
     fn from_order_record(value: OrderRecord, signature: &str) -> Option<Self> {
         Some(DriftEvent::OrderCreate {
             order: value.order,
+            user: value.user,
             ts: value.ts.unsigned_abs(),
             signature: signature.to_string(),
         })
@@ -546,6 +548,7 @@ impl DriftEvent {
                             .expect("order id set"),
                         ts: value.ts.unsigned_abs(),
                         signature: signature.to_string(),
+                        user: value.maker.or(value.taker),
                     })
                 } else {
                     Some(DriftEvent::OrderCancel {

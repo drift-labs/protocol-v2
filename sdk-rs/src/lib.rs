@@ -69,6 +69,8 @@ pub trait AccountProvider: 'static + Sized + Send + Sync {
     // TODO: async fn when it stabilizes
     /// Return the Account information of `account`
     fn get_account(&self, account: Pubkey) -> BoxFuture<SdkResult<Account>>;
+    /// the HTTP endpoint URL
+    fn endpoint(&self) -> String;
 }
 
 /// Account provider that always fetches from RPC
@@ -91,6 +93,9 @@ impl RpcAccountProvider {
 impl AccountProvider for RpcAccountProvider {
     fn get_account(&self, account: Pubkey) -> BoxFuture<SdkResult<Account>> {
         self.get_account_impl(account).boxed()
+    }
+    fn endpoint(&self) -> String {
+        self.client.url()
     }
 }
 
@@ -227,6 +232,9 @@ impl AccountProvider for WsAccountProvider {
     fn get_account(&self, account: Pubkey) -> BoxFuture<SdkResult<Account>> {
         self.get_account_impl(account).boxed()
     }
+    fn endpoint(&self) -> String {
+        self.rpc_client.url()
+    }
 }
 
 /// Drift Client API
@@ -241,10 +249,10 @@ pub struct DriftClient<T: AccountProvider> {
 }
 
 impl<T: AccountProvider> DriftClient<T> {
-    pub async fn new(context: Context, endpoint: &str, account_provider: T) -> SdkResult<Self> {
+    pub async fn new(context: Context, account_provider: T) -> SdkResult<Self> {
         Ok(Self {
             backend: Box::leak(Box::new(
-                DriftClientBackend::new(context, endpoint, account_provider).await?,
+                DriftClientBackend::new(context, account_provider).await?,
             )),
         })
     }
@@ -465,12 +473,8 @@ pub struct DriftClientBackend<T: AccountProvider> {
 
 impl<T: AccountProvider> DriftClientBackend<T> {
     /// Initialize a new `DriftClientBackend`
-    async fn new(
-        context: Context,
-        endpoint: &str,
-        account_provider: T,
-    ) -> SdkResult<DriftClientBackend<T>> {
-        let rpc_client = RpcClient::new(endpoint.to_string());
+    async fn new(context: Context, account_provider: T) -> SdkResult<DriftClientBackend<T>> {
+        let rpc_client = RpcClient::new(account_provider.endpoint());
 
         let mut this = Self {
             rpc_client,
@@ -1207,13 +1211,9 @@ mod tests {
 
     #[tokio::test]
     async fn get_market_accounts() {
-        let client = DriftClient::new(
-            Context::DevNet,
-            DEVNET_ENDPOINT,
-            RpcAccountProvider::new(DEVNET_ENDPOINT),
-        )
-        .await
-        .unwrap();
+        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT))
+            .await
+            .unwrap();
         let accounts: Vec<SpotMarket> = client
             .backend
             .get_program_accounts()

@@ -10,7 +10,6 @@ use drift_sdk::{
 async fn get_oracle_prices() {
     let client = DriftClient::new(
         Context::DevNet,
-        "https://api.devnet.solana.com",
         RpcAccountProvider::new("https://api.devnet.solana.com"),
     )
     .await
@@ -27,7 +26,6 @@ async fn get_oracle_prices() {
 async fn place_and_cancel_orders() {
     let client = DriftClient::new(
         Context::DevNet,
-        "https://api.devnet.solana.com",
         RpcAccountProvider::new("https://api.devnet.solana.com"),
     )
     .await
