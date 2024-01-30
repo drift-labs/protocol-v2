@@ -806,3 +806,64 @@ fn calc_oracle_twap_clamp_update_tests() {
     );
     assert_eq!(amm.last_oracle_normalised_price, 129_900_873);
 }
+
+#[test]
+fn test_last_oracle_conf_update() {
+    let prev = 1667387000;
+    let now = prev + 1;
+
+    let mut amm = AMM {
+        quote_asset_reserve: 200 * AMM_RESERVE_PRECISION,
+        base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
+        peg_multiplier: 13 * PEG_PRECISION,
+        base_spread: 0,
+        long_spread: 0,
+        short_spread: 0,
+        last_mark_price_twap: (13 * PRICE_PRECISION_U64),
+        last_bid_price_twap: (13 * PRICE_PRECISION_U64),
+        last_ask_price_twap: (13 * PRICE_PRECISION_U64),
+        last_mark_price_twap_ts: prev,
+        funding_period: 3600,
+        historical_oracle_data: HistoricalOracleData {
+            last_oracle_price: (13 * PRICE_PRECISION) as i64,
+            last_oracle_price_twap: (13 * PRICE_PRECISION) as i64,
+            last_oracle_price_twap_5min: (13 * PRICE_PRECISION) as i64,
+            last_oracle_price_twap_ts: prev,
+            ..HistoricalOracleData::default()
+        },
+        ..AMM::default()
+    };
+
+    // price jumps 10x
+    let oracle_price_data = OraclePriceData {
+        price: 130 * PRICE_PRECISION_I64 + 873,
+        confidence: PRICE_PRECISION_U64 / 10,
+        delay: 1,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+
+    assert_eq!(amm.last_oracle_conf_pct, 7692);
+
+    // price jumps 10x
+    let oracle_price_data = OraclePriceData {
+        price: 130 * PRICE_PRECISION_I64 + 873,
+        confidence: 1,
+        delay: 5,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    // unchanged if now hasnt changed
+    update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+    assert_eq!(amm.last_oracle_conf_pct, 7692);
+
+    update_oracle_price_twap(&mut amm, now + 1, &oracle_price_data, None, None).unwrap();
+
+    assert_eq!(amm.last_oracle_conf_pct, 7692 - 7692 / 20); // 7287
+
+    // longer time between update means delay is faster
+    update_oracle_price_twap(&mut amm, now + 60, &oracle_price_data, None, None).unwrap();
+
+    assert_eq!(amm.last_oracle_conf_pct, 7307 - 7307 / 5 + 1); //5847
+}
