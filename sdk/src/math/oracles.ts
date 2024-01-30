@@ -166,7 +166,10 @@ export function getNewOracleConfPct(
 	);
 	let lowerBoundConfPct = amm.lastOracleConfPct;
 	if (sinceLastUpdate.gt(ZERO)) {
-		const lowerBoundConfDivisor = BN.max(new BN(21).sub(sinceLastUpdate), new BN(5));
+		const lowerBoundConfDivisor = BN.max(
+			new BN(21).sub(sinceLastUpdate),
+			new BN(5)
+		);
 		lowerBoundConfPct = amm.lastOracleConfPct.sub(
 			amm.lastOracleConfPct.div(lowerBoundConfDivisor)
 		);
