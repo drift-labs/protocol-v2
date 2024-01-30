@@ -32,7 +32,7 @@ import {
 	calculateBudgetedPeg,
 } from './repeg';
 
-import { calculateLiveOracleStd } from './oracles';
+import { calculateLiveOracleStd, getNewOracleConfPct } from './oracles';
 
 export function calculatePegFromTargetPrice(
 	targetPrice: BN,
@@ -792,18 +792,19 @@ export function calculateSpread(
 	}
 
 	const targetPrice = oraclePriceData?.price || reservePrice;
-	const confInterval = oraclePriceData.confidence || ZERO;
 	const targetMarkSpreadPct = reservePrice
 		.sub(targetPrice)
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(reservePrice);
 
-	const confIntervalPct = confInterval
-		.mul(BID_ASK_SPREAD_PRECISION)
-		.div(reservePrice);
-
 	now = now || new BN(new Date().getTime() / 1000); //todo
 	const liveOracleStd = calculateLiveOracleStd(amm, oraclePriceData, now);
+	const confIntervalPct = getNewOracleConfPct(
+		amm,
+		oraclePriceData,
+		reservePrice,
+		now
+	);
 
 	const spreads = calculateSpreadBN(
 		amm.baseSpread,

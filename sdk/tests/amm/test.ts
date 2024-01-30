@@ -31,6 +31,7 @@ import {
 	ContractTier,
 	isOracleValid,
 	OracleGuardRails,
+	getNewOracleConfPct,
 	// calculateReservePrice,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
@@ -662,7 +663,7 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.totalFeeMinusDistributions),
 			new BN(suiExample.amm.netRevenueSinceLastFunding),
 			new BN(suiExample.amm.sqrtK),
-			new BN(suiExample.amm.sqrtK.sub()),
+			new BN(suiExample.amm.sqrtK),
 			new BN(suiExample.amm.maxBaseAssetReserve),
 			new BN(suiExample.amm.markStd),
 			new BN(suiExample.amm.oracleStd),
@@ -723,7 +724,7 @@ describe('AMM Tests', () => {
 		);
 
 		console.log('starting rr:');
-		let reservePrice = undefined;
+		let reservePrice: BN | undefined = undefined;
 		if (!reservePrice) {
 			reservePrice = calculatePrice(
 				mockAmm.baseAssetReserve,
@@ -748,7 +749,6 @@ describe('AMM Tests', () => {
 		console.log('reservePrice:', reservePrice.toString());
 		console.log('targetMarkSpreadPct:', targetMarkSpreadPct.toString());
 		console.log('confIntervalPct:', confIntervalPct.toString());
-
 		console.log('liveOracleStd:', liveOracleStd.toString());
 
 		const tt = calculateSpread(mockAmm, oraclePriceData, now);
@@ -1137,6 +1137,17 @@ describe('AMM Tests', () => {
 		const liveOracleStd = calculateLiveOracleStd(mockAmm, oraclePriceData, now);
 		console.log('liveOracleStd:', liveOracleStd.toNumber());
 		assert(liveOracleStd.eq(new BN(192962)));
+
+		mockAmm.lastOracleConfPct = new BN(150000);
+		const reservePrice = new BN(13.553 * PRICE_PRECISION.toNumber());
+		const newConfPct = getNewOracleConfPct(mockAmm, oraclePriceData, reservePrice, now);
+		console.log('newConfPct:', newConfPct.toString());
+
+		assert(
+			now.sub(mockAmm.historicalOracleData.lastOraclePriceTwapTs).gt(ZERO)
+		);
+
+		assert(newConfPct.eq(new BN(135000)));
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
