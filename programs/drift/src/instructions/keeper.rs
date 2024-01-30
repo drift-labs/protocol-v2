@@ -17,6 +17,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
@@ -887,7 +888,7 @@ pub fn handle_resolve_perp_pnl_deficit(
         }
 
         validate!(
-            perp_market.is_active(now)?,
+            !perp_market.is_in_settlement(now),
             ErrorCode::MarketActionPaused,
             "Market is in settlement mode",
         )?;
@@ -1167,7 +1168,10 @@ pub fn handle_update_funding_rate(
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
 
     validate!(
-        matches!(perp_market.status, MarketStatus::Active),
+        matches!(
+            perp_market.status,
+            MarketStatus::Active | MarketStatus::ReduceOnly
+        ),
         ErrorCode::MarketActionPaused,
         "Market funding is paused",
     )?;
@@ -1179,6 +1183,9 @@ pub fn handle_update_funding_rate(
         "AMM must be updated in a prior instruction within same slot"
     )?;
 
+    let funding_paused =
+        state.funding_paused()? || perp_market.is_operation_paused(PerpOperation::UpdateFunding);
+
     let is_updated = controller::funding::update_funding_rate(
         perp_market_index,
         perp_market,
@@ -1186,7 +1193,7 @@ pub fn handle_update_funding_rate(
         now,
         clock_slot,
         &state.oracle_guard_rails,
-        state.funding_paused()?,
+        funding_paused,
         None,
     )?;
 

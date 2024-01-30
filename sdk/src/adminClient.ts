@@ -1361,12 +1361,56 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async updateSpotMarketPausedOperations(
+		spotMarketIndex: number,
+		pausedOperations: number
+	): Promise<TransactionSignature> {
+		const tx = await this.program.transaction.updateSpotMarketPausedOperations(
+			pausedOperations,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async updatePerpMarketStatus(
 		perpMarketIndex: number,
 		marketStatus: MarketStatus
 	): Promise<TransactionSignature> {
 		const tx = await this.program.transaction.updatePerpMarketStatus(
 			marketStatus,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async updatePerpMarketPausedOperations(
+		perpMarketIndex: number,
+		pausedOperations: number
+	): Promise<TransactionSignature> {
+		const tx = await this.program.transaction.updatePerpMarketPausedOperations(
+			pausedOperations,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

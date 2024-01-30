@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+
+- program: separate out paused operations from market status ([#839](https://github.com/drift-labs/protocol-v2/pull/839))
 - program: use decayed last_oracle_conf_pct as lower bound for update ([#840](https://github.com/drift-labs/protocol-v2/pull/840))
 
 ### Fixes

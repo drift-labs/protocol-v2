@@ -48,6 +48,7 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
@@ -342,16 +343,9 @@ pub fn handle_deposit(
 
     if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.scaled_balance > 0 {
         validate!(
-            matches!(
-                spot_market.status,
-                MarketStatus::Active
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::AmmPaused
-                    | MarketStatus::FillPaused
-                    | MarketStatus::WithdrawPaused
-            ),
+            matches!(spot_market.status, MarketStatus::Active),
             ErrorCode::MarketActionPaused,
-            "spot_market in reduce only mode",
+            "spot_market not active",
         )?;
     }
 
@@ -646,21 +640,6 @@ pub fn handle_transfer_deposit(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-
-        validate!(
-            matches!(
-                spot_market.status,
-                MarketStatus::Active
-                    | MarketStatus::AmmPaused
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::FillPaused
-                    | MarketStatus::ReduceOnly
-                    | MarketStatus::Settlement
-            ),
-            ErrorCode::MarketWithdrawPaused,
-            "Spot Market {} withdraws are currently paused",
-            spot_market.market_index
-        )?;
 
         from_user.increment_total_withdraws(
             amount,
@@ -1661,15 +1640,15 @@ pub fn handle_add_perp_lp_shares<'info>(
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         validate!(
-            matches!(
-                market.status,
-                MarketStatus::Active
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::FillPaused
-                    | MarketStatus::WithdrawPaused
-            ),
+            matches!(market.status, MarketStatus::Active),
             ErrorCode::MarketStatusInvalidForNewLP,
             "Market Status doesn't allow for new LP liquidity"
+        )?;
+
+        validate!(
+            !market.is_operation_paused(PerpOperation::AmmFill),
+            ErrorCode::MarketStatusInvalidForNewLP,
+            "Market amm fills paused"
         )?;
 
         validate!(
@@ -1960,7 +1939,7 @@ pub fn handle_deposit_into_spot_market_revenue_pool(
     let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
 
     validate!(
-        spot_market.is_active(Clock::get()?.unix_timestamp)?,
+        !spot_market.is_in_settlement(Clock::get()?.unix_timestamp),
         ErrorCode::DefaultError,
         "spot market {} not active",
         spot_market.market_index
