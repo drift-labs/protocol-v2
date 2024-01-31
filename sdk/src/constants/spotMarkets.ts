@@ -180,6 +180,16 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: SIX,
 		serumMarket: new PublicKey('2BtDHBTCTUxvdur498ZEcMgimasaFrY5GzLv8wS8XgCb'),
 	},
+	{
+		symbol: 'JUP',
+		marketIndex: 11,
+		oracle: new PublicKey('g6eRCbboSwK4tSWngn773RCMexr1APQr4uA9bGZBYfo'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		serumMarket: new PublicKey('FbwncFP5bZjdx8J6yfDDTrCmmMkwieuape1enCvwLG33'),
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
