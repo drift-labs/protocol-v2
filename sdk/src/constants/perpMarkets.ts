@@ -497,6 +497,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1706219971000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'JUP',
+		category: ['Exchange', 'Infra'],
+		symbol: 'JUP-PERP',
+		baseAssetSymbol: 'JUP',
+		marketIndex: 24,
+		oracle: new PublicKey('g6eRCbboSwK4tSWngn773RCMexr1APQr4uA9bGZBYfo'),
+		launchTs: 1706713201000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
