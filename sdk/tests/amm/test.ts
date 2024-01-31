@@ -1140,7 +1140,12 @@ describe('AMM Tests', () => {
 
 		mockAmm.lastOracleConfPct = new BN(150000);
 		const reservePrice = new BN(13.553 * PRICE_PRECISION.toNumber());
-		const newConfPct = getNewOracleConfPct(mockAmm, oraclePriceData, reservePrice, now);
+		const newConfPct = getNewOracleConfPct(
+			mockAmm,
+			oraclePriceData,
+			reservePrice,
+			now
+		);
 		console.log('newConfPct:', newConfPct.toString());
 
 		assert(
