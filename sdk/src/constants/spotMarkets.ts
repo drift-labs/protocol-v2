@@ -188,7 +188,9 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		mint: new PublicKey('JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
-		serumMarket: new PublicKey('FbwncFP5bZjdx8J6yfDDTrCmmMkwieuape1enCvwLG33'),
+		phoenixMarket: new PublicKey(
+			'2pspvjWWaf3dNgt3jsgSzFCNvMGPb7t8FrEYvLGjvcCe'
+		),
 	},
 ];
 
