@@ -1,12 +1,11 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
-use std::ops::{DerefMut, Div};
+use std::ops::DerefMut;
 use std::u64;
 
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
-use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
@@ -50,6 +49,9 @@ use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
+};
+use crate::{
+    controller, MARGIN_PRECISION_U128, PRICE_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
 };
 
 use crate::math::amm::calculate_amm_available_liquidity;
@@ -2841,29 +2843,26 @@ pub fn attempt_burn_user_lp_shares_for_risk_reduction(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     market_index: u16,
-) -> DriftResult {
+) -> DriftResult<bool> {
+    let mut covers_marign_shortage = false;
     let now = clock.unix_timestamp;
-    // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
-    if !margin_calc.positions_meets_margin_requirement()? {
-        let time_since_last_liquidity_change: i64 =
-            now.safe_sub(user.last_add_perp_lp_shares_ts)?;
-        // avoid spamming update if orders have already been set
-        if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
-            burn_user_lp_shares_for_risk_reduction(
-                state,
-                user,
-                user_key,
-                market_index,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                clock,
-            )?;
-            user.last_add_perp_lp_shares_ts = now;
-        }
+    let time_since_last_liquidity_change: i64 = now.safe_sub(user.last_add_perp_lp_shares_ts)?;
+    // avoid spamming update if orders have already been set
+    if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
+        covers_marign_shortage = burn_user_lp_shares_for_risk_reduction(
+            state,
+            user,
+            user_key,
+            market_index,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+        )?;
+        user.last_add_perp_lp_shares_ts = now;
     }
 
-    Ok(())
+    Ok(covers_marign_shortage)
 }
 
 pub fn burn_user_lp_shares_for_risk_reduction(
@@ -2875,16 +2874,22 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-) -> DriftResult {
+) -> DriftResult<bool> {
     let position_index = get_position_index(&user.perp_positions, market_index)?;
     let is_lp = user.perp_positions[position_index].is_lp();
     if !is_lp {
-        return Ok(());
+        return Ok(false);
     }
 
     let lp_shares = user.perp_positions[position_index].lp_shares;
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
+
+    let quote_oracle = spot_market_map
+        .get_ref(&market.quote_spot_market_index)?
+        .oracle;
+    let quote_oracle_price = oracle_map.get_price_data(&quote_oracle)?.price;
+
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
     let oracle_price = if market.status == MarketStatus::Settlement {
@@ -2895,8 +2900,22 @@ pub fn burn_user_lp_shares_for_risk_reduction(
 
     let order_step_size = market.amm.order_step_size;
 
+    let lp_shares_to_burn_to_cover_margin_shortage =
+        calculate_lp_shares_to_burn_for_risk_reduction(
+            user,
+            position_index,
+            &market,
+            oracle_price,
+            quote_oracle_price,
+            0,
+        )?;
+
+    let covers_margin_shortage =
+        lp_shares_to_burn_to_cover_margin_shortage < user.perp_positions[position_index].lp_shares;
+
     let lp_shares_to_burn =
-        standardize_base_asset_amount(lp_shares.div(3), order_step_size)?.max(lp_shares);
+        standardize_base_asset_amount(lp_shares_to_burn_to_cover_margin_shortage, order_step_size)?
+            .max(lp_shares);
 
     let (position_delta, pnl) = burn_lp_shares(
         &mut user.perp_positions[position_index],
@@ -2941,7 +2960,64 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         PlaceOrderOptions::default(),
     )?;
 
-    Ok(())
+    Ok(covers_margin_shortage)
+}
+
+pub fn calculate_lp_shares_to_burn_for_risk_reduction(
+    user: &User,
+    position_index: usize,
+    market: &PerpMarket,
+    oracle_price: i64,
+    quote_oracle_price: i64,
+    margin_shortage: u128,
+) -> DriftResult<u64> {
+    let perp_position = &user.perp_positions[position_index];
+    let settled_lp_position = perp_position.simulate_settled_lp_position(market, oracle_price)?;
+
+    let worse_case_base_asset_amount = settled_lp_position.worst_case_base_asset_amount()?;
+
+    let open_orders_from_lp_shares = if worse_case_base_asset_amount >= 0 {
+        worse_case_base_asset_amount.safe_sub(
+            perp_position
+                .base_asset_amount
+                .safe_add(perp_position.open_bids)?
+                .cast()?,
+        )?
+    } else {
+        worse_case_base_asset_amount.safe_sub(
+            perp_position
+                .base_asset_amount
+                .safe_add(perp_position.open_asks)?
+                .cast()?,
+        )?
+    };
+
+    let margin_ratio = market.get_margin_ratio(
+        worse_case_base_asset_amount.unsigned_abs(),
+        MarginRequirementType::Initial,
+    )?;
+
+    let base_asset_amount_to_cover = margin_shortage
+        .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)?
+        .safe_div(
+            oracle_price
+                .cast::<u128>()?
+                .safe_mul(quote_oracle_price.cast()?)?
+                .safe_div(PRICE_PRECISION)?
+                .safe_mul(margin_ratio.cast()?)?
+                .safe_div(MARGIN_PRECISION_U128)?,
+        )?;
+
+    let percent_to_burn = base_asset_amount_to_cover
+        .safe_mul(100)?
+        .safe_div_ceil(open_orders_from_lp_shares.cast()?)?;
+
+    let lp_shares_to_burn = perp_position
+        .lp_shares
+        .safe_mul(percent_to_burn.cast()?)?
+        .safe_div_ceil(100)?;
+
+    Ok(lp_shares_to_burn)
 }
 
 pub fn pay_keeper_flat_reward_for_perps(

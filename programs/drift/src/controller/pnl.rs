@@ -82,11 +82,11 @@ pub fn settle_pnl(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial).track_open_orders_fraction()?,
+            MarginContext::standard(MarginRequirementType::Initial),
         )?;
 
         if !margin_calc.meets_margin_requirement() {
-            attempt_burn_user_lp_shares_for_risk_reduction(
+            let covers_margin_shortage = attempt_burn_user_lp_shares_for_risk_reduction(
                 state,
                 user,
                 margin_calc,
@@ -99,7 +99,7 @@ pub fn settle_pnl(
             )?;
 
             // if the unrealized pnl is negative, return early after trying to burn shares
-            if unrealized_pnl < 0 {
+            if unrealized_pnl < 0 && !covers_margin_shortage {
                 return Ok(());
             }
         }
