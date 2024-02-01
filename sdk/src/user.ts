@@ -388,12 +388,16 @@ export class User {
 
 	/**
 	 * calculates the open bids and asks for an lp
+	 * optionally pass in lpShares to see what bid/asks a user *would* take on
 	 * @returns : lp open bids
 	 * @returns : lp open asks
 	 */
-	public getLPBidAsks(marketIndex: number): [BN, BN] {
+	public getLPBidAsks(marketIndex: number, lpShares?: BN): [BN, BN] {
 		const position = this.getPerpPosition(marketIndex);
-		if (position === undefined || position.lpShares.eq(ZERO)) {
+
+		const lpSharesToCalc = lpShares ?? position?.lpShares;
+
+		if (!lpSharesToCalc || lpSharesToCalc.eq(ZERO)) {
 			return [ZERO, ZERO];
 		}
 
@@ -405,12 +409,8 @@ export class User {
 			market.amm.orderStepSize
 		);
 
-		const lpOpenBids = marketOpenBids
-			.mul(position.lpShares)
-			.div(market.amm.sqrtK);
-		const lpOpenAsks = marketOpenAsks
-			.mul(position.lpShares)
-			.div(market.amm.sqrtK);
+		const lpOpenBids = marketOpenBids.mul(lpSharesToCalc).div(market.amm.sqrtK);
+		const lpOpenAsks = marketOpenAsks.mul(lpSharesToCalc).div(market.amm.sqrtK);
 
 		return [lpOpenBids, lpOpenAsks];
 	}
@@ -766,7 +766,9 @@ export class User {
 		strict = false
 	): BN {
 		return this.getActivePerpPositions()
-			.filter((pos) => (marketIndex ? pos.marketIndex === marketIndex : true))
+			.filter((pos) =>
+				marketIndex !== undefined ? pos.marketIndex === marketIndex : true
+			)
 			.reduce((unrealizedPnl, perpPosition) => {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
@@ -1971,14 +1973,36 @@ export class User {
 	 */
 	public liquidationPrice(
 		marketIndex: number,
-		positionBaseSizeChange: BN = ZERO
+		positionBaseSizeChange: BN = ZERO,
+		estimatedEntryPrice: BN = ZERO
 	): BN {
 		const totalCollateral = this.getTotalCollateral('Maintenance');
 		const maintenanceMarginRequirement = this.getMaintenanceMarginRequirement();
-		const freeCollateral = BN.max(
+		let freeCollateral = BN.max(
 			ZERO,
 			totalCollateral.sub(maintenanceMarginRequirement)
 		);
+
+		const oracle =
+			this.driftClient.getPerpMarketAccount(marketIndex).amm.oracle;
+
+		const oraclePrice =
+			this.driftClient.getOracleDataForPerpMarket(marketIndex).price;
+
+		// update free collateral to accoutn from pnl based on entry price
+		if (!estimatedEntryPrice.eq(ZERO) && !positionBaseSizeChange.eq(ZERO)) {
+			const costBasis = oraclePrice
+				.mul(positionBaseSizeChange.abs())
+				.div(BASE_PRECISION);
+			const newPositionValue = estimatedEntryPrice
+				.mul(positionBaseSizeChange.abs())
+				.div(BASE_PRECISION);
+			if (positionBaseSizeChange.gt(ZERO)) {
+				freeCollateral = freeCollateral.add(costBasis.sub(newPositionValue));
+			} else {
+				freeCollateral = freeCollateral.add(newPositionValue.sub(costBasis));
+			}
+		}
 
 		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 		const currentPerpPosition =
@@ -1995,8 +2019,6 @@ export class User {
 			return new BN(-1);
 		}
 
-		const oracle =
-			this.driftClient.getPerpMarketAccount(marketIndex).amm.oracle;
 		const spotMarketWithSameOracle = this.driftClient
 			.getSpotMarketAccounts()
 			.find((market) => market.oracle.equals(oracle));
@@ -2029,8 +2051,6 @@ export class User {
 			return new BN(-1);
 		}
 
-		const oraclePrice =
-			this.driftClient.getOracleDataForPerpMarket(marketIndex).price;
 		const liqPriceDelta = freeCollateral
 			.mul(QUOTE_PRECISION)
 			.div(freeCollateralDelta);
@@ -3291,6 +3311,10 @@ export class User {
 		};
 
 		for (const perpPosition of this.getActivePerpPositions()) {
+			const settledLpPosition = this.getPerpPositionWithLPSettle(
+				perpPosition.marketIndex,
+				perpPosition
+			)[0];
 			const perpMarket = this.driftClient.getPerpMarketAccount(
 				perpPosition.marketIndex
 			);
@@ -3299,7 +3323,7 @@ export class User {
 			).data;
 			const oraclePrice = oraclePriceData.price;
 			const worstCaseBaseAmount =
-				calculateWorstCaseBaseAssetAmount(perpPosition);
+				calculateWorstCaseBaseAssetAmount(settledLpPosition);
 
 			const marginRatio = new BN(
 				calculateMarketMarginRatio(

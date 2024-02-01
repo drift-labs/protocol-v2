@@ -28,6 +28,7 @@ export class RetryTxSender extends BaseTxSender {
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		additionalTxSenderCallbacks = [],
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -36,6 +37,7 @@ export class RetryTxSender extends BaseTxSender {
 		retrySleep?: number;
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
+		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 	}) {
 		super({
 			connection,
@@ -44,6 +46,7 @@ export class RetryTxSender extends BaseTxSender {
 			timeout,
 			additionalConnections,
 			confirmationStrategy,
+			additionalTxSenderCallbacks,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -95,8 +98,16 @@ export class RetryTxSender extends BaseTxSender {
 			}
 		})();
 
-		const result = await this.confirmTransaction(txid, opts.commitment);
-		const slot = result.context.slot;
+		let slot: number;
+		try {
+			const result = await this.confirmTransaction(txid, opts.commitment);
+			slot = result.context.slot;
+			// eslint-disable-next-line no-useless-catch
+		} catch (e) {
+			throw e;
+		} finally {
+			stopWaiting();
+		}
 
 		return { txSig: txid, slot };
 	}

@@ -2,7 +2,9 @@ import {
 	ExchangeStatus,
 	isOneOfVariant,
 	PerpMarketAccount,
+	PerpOperation,
 	SpotMarketAccount,
+	SpotOperation,
 	StateAccount,
 } from '../types';
 
@@ -30,4 +32,11 @@ export function ammPaused(
 			ExchangeStatus.AMM_PAUSED ||
 		isOneOfVariant(market.status, ['paused', 'ammPaused'])
 	);
+}
+
+export function isOperationPaused(
+	pausedOperations: number,
+	operation: PerpOperation | SpotOperation
+): boolean {
+	return (pausedOperations & operation) > 0;
 }

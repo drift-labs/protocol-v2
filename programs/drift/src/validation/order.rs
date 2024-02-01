@@ -220,6 +220,11 @@ fn validate_post_only_order(
     valid_oracle_price: Option<i64>,
     slot: u64,
 ) -> DriftResult {
+    // jit maker can fill against amm
+    if order.is_jit_maker() {
+        return Ok(());
+    }
+
     let limit_price =
         order.force_get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?;
 

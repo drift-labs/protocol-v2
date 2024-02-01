@@ -86,8 +86,9 @@ import {
 	DriftClientAccountSubscriber,
 	DriftClientAccountEvents,
 	DataAndSlot,
+	DriftClientMetricsEvents,
 } from './accounts/types';
-import { TxSender, TxSigAndSlot } from './tx/types';
+import { ExtraConfirmationOptions, TxSender, TxSigAndSlot } from './tx/types';
 import { getSignedTransactionMap, wrapInTx } from './tx/utils';
 import {
 	BASE_PRECISION,
@@ -150,6 +151,10 @@ export class DriftClient {
 	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
+	metricsEventEmitter: StrictEventEmitter<
+		EventEmitter,
+		DriftClientMetricsEvents
+	>;
 	_isSubscribed = false;
 	txSender: TxSender;
 	perpMarketLastSlotCache = new Map<number, number>();
@@ -164,6 +169,7 @@ export class DriftClient {
 	skipLoadUsers?: boolean;
 	txVersion: TransactionVersion;
 	txParams: TxParams;
+	enableMetricsEvents?: boolean;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -288,6 +294,12 @@ export class DriftClient {
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
+
+		if (config.enableMetricsEvents) {
+			this.enableMetricsEvents = true;
+			this.metricsEventEmitter = new EventEmitter();
+		}
+
 		this.txSender =
 			config.txSender ??
 			new RetryTxSender({
@@ -892,7 +904,8 @@ export class DriftClient {
 	}
 
 	public async updateUserCustomMarginRatio(
-		updates: { marginRatio: number; subAccountId: number }[]
+		updates: { marginRatio: number; subAccountId: number }[],
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await Promise.all(
 			updates.map(async ({ marginRatio, subAccountId }) => {
@@ -904,7 +917,7 @@ export class DriftClient {
 			})
 		);
 
-		const tx = await this.buildTransaction(ixs, this.txParams);
+		const tx = await this.buildTransaction(ixs, txParams ?? this.txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -1865,7 +1878,8 @@ export class DriftClient {
 		fromSubAccountId?: number,
 		referrerInfo?: ReferrerInfo,
 		donateAmount?: BN,
-		txParams?: TxParams
+		txParams?: TxParams,
+		customMaxMarginRatio?: number
 	): Promise<[TransactionSignature, PublicKey]> {
 		const ixs = [];
 
@@ -1957,6 +1971,15 @@ export class DriftClient {
 			);
 
 			ixs.push(donateIx);
+		}
+
+		// Set the max margin ratio to initialize account with if passed
+		if (customMaxMarginRatio) {
+			const customMarginRatioIx = await this.getUpdateUserCustomMarginRatioIx(
+				customMaxMarginRatio,
+				subAccountId
+			);
+			ixs.push(customMarginRatioIx);
 		}
 
 		// Close the wrapped sol account at the end of the transaction
@@ -2667,9 +2690,11 @@ export class DriftClient {
 				txKeys
 			);
 
-			const { txSig, slot } = await this.txSender.sendRawTransaction(
-				signedVersionedMarketOrderTx.serialize(),
-				this.opts
+			const { txSig, slot } = await this.sendTransaction(
+				signedVersionedMarketOrderTx,
+				[],
+				this.opts,
+				true
 			);
 			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
@@ -6322,25 +6347,38 @@ export class DriftClient {
 		return undefined;
 	}
 
+	private handleSignedTransaction() {
+		this.metricsEventEmitter.emit('txSigned');
+	}
+
 	sendTransaction(
 		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
+		const extraConfirmationOptions: ExtraConfirmationOptions = this
+			.enableMetricsEvents
+			? {
+					onSignedCb: this.handleSignedTransaction.bind(this),
+			  }
+			: undefined;
+
 		if (tx instanceof VersionedTransaction) {
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
 				additionalSigners,
 				opts,
-				preSigned
+				preSigned,
+				extraConfirmationOptions
 			);
 		} else {
 			return this.txSender.send(
 				tx as Transaction,
 				additionalSigners,
 				opts,
-				preSigned
+				preSigned,
+				extraConfirmationOptions
 			);
 		}
 	}

@@ -27,6 +27,20 @@ export class MarketStatus {
 	static readonly DELISTED = { delisted: {} };
 }
 
+export enum PerpOperation {
+	UPDATE_FUNDING = 1,
+	AMM_FILL = 2,
+	FILL = 4,
+	SETTLE_PNL = 8,
+	SETTLE_PNL_WITH_POSITION = 16,
+}
+
+export enum SpotOperation {
+	UPDATE_CUMULATIVE_INTEREST = 1,
+	FILL = 2,
+	WITHDRAW = 4,
+}
+
 export enum UserStatus {
 	BEING_LIQUIDATED = 1,
 	BANKRUPT = 2,

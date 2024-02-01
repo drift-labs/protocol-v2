@@ -48,6 +48,7 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
@@ -342,16 +343,9 @@ pub fn handle_deposit(
 
     if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.scaled_balance > 0 {
         validate!(
-            matches!(
-                spot_market.status,
-                MarketStatus::Active
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::AmmPaused
-                    | MarketStatus::FillPaused
-                    | MarketStatus::WithdrawPaused
-            ),
+            matches!(spot_market.status, MarketStatus::Active),
             ErrorCode::MarketActionPaused,
-            "spot_market in reduce only mode",
+            "spot_market not active",
         )?;
     }
 
@@ -647,21 +641,6 @@ pub fn handle_transfer_deposit(
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
-        validate!(
-            matches!(
-                spot_market.status,
-                MarketStatus::Active
-                    | MarketStatus::AmmPaused
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::FillPaused
-                    | MarketStatus::ReduceOnly
-                    | MarketStatus::Settlement
-            ),
-            ErrorCode::MarketWithdrawPaused,
-            "Spot Market {} withdraws are currently paused",
-            spot_market.market_index
-        )?;
-
         from_user.increment_total_withdraws(
             amount,
             oracle_price,
@@ -809,9 +788,13 @@ pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_perp_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1072,6 +1055,9 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         "max 32 order params"
     )?;
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     let num_orders = params.len();
     for (i, params) in params.iter().enumerate() {
         validate!(
@@ -1090,7 +1076,8 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         if params.market_type == MarketType::Perp {
             controller::orders::place_perp_order(
                 &ctx.accounts.state,
-                &ctx.accounts.user,
+                &mut user,
+                user_key,
                 &perp_market_map,
                 &spot_market_map,
                 &mut oracle_map,
@@ -1101,7 +1088,8 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
         } else {
             controller::orders::place_spot_order(
                 &ctx.accounts.state,
-                &ctx.accounts.user,
+                &mut user,
+                user_key,
                 &perp_market_map,
                 &spot_market_map,
                 &mut oracle_map,
@@ -1157,9 +1145,13 @@ pub fn handle_place_and_take_perp_order<'info>(
         &Clock::get()?,
     )?;
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_perp_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1167,6 +1159,8 @@ pub fn handle_place_and_take_perp_order<'info>(
         params,
         PlaceOrderOptions::default(),
     )?;
+
+    drop(user);
 
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
@@ -1247,9 +1241,13 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         clock,
     )?;
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_perp_order(
         state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1258,11 +1256,9 @@ pub fn handle_place_and_make_perp_order<'a, 'b, 'c, 'info>(
         PlaceOrderOptions::default(),
     )?;
 
-    let (order_id, authority) = {
-        let user = load!(ctx.accounts.user)?;
-        let order_id = user.get_last_order_id();
-        (order_id, user.authority)
-    };
+    let (order_id, authority) = (user.get_last_order_id(), user.authority);
+
+    drop(user);
 
     let (mut makers_and_referrer, mut makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter, true)?;
@@ -1323,9 +1319,13 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
         return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_spot_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1412,9 +1412,13 @@ pub fn handle_place_and_take_spot_order<'info>(
         }
     };
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_spot_order(
         &ctx.accounts.state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1422,6 +1426,8 @@ pub fn handle_place_and_take_spot_order<'info>(
         params,
         PlaceOrderOptions::default(),
     )?;
+
+    drop(user);
 
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
@@ -1536,9 +1542,13 @@ pub fn handle_place_and_make_spot_order<'info>(
         }
     };
 
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
     controller::orders::place_spot_order(
         state,
-        &ctx.accounts.user,
+        &mut user,
+        user_key,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1546,6 +1556,8 @@ pub fn handle_place_and_make_spot_order<'info>(
         params,
         PlaceOrderOptions::default(),
     )?;
+
+    drop(user);
 
     let order_id = load!(ctx.accounts.user)?.get_last_order_id();
 
@@ -1628,15 +1640,15 @@ pub fn handle_add_perp_lp_shares<'info>(
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         validate!(
-            matches!(
-                market.status,
-                MarketStatus::Active
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::FillPaused
-                    | MarketStatus::WithdrawPaused
-            ),
+            matches!(market.status, MarketStatus::Active),
             ErrorCode::MarketStatusInvalidForNewLP,
             "Market Status doesn't allow for new LP liquidity"
+        )?;
+
+        validate!(
+            !market.is_operation_paused(PerpOperation::AmmFill),
+            ErrorCode::MarketStatusInvalidForNewLP,
+            "Market amm fills paused"
         )?;
 
         validate!(
@@ -1927,7 +1939,7 @@ pub fn handle_deposit_into_spot_market_revenue_pool(
     let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
 
     validate!(
-        spot_market.is_active(Clock::get()?.unix_timestamp)?,
+        !spot_market.is_in_settlement(Clock::get()?.unix_timestamp),
         ErrorCode::DefaultError,
         "spot market {} not active",
         spot_market.market_index
