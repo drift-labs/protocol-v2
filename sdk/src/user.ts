@@ -1973,14 +1973,36 @@ export class User {
 	 */
 	public liquidationPrice(
 		marketIndex: number,
-		positionBaseSizeChange: BN = ZERO
+		positionBaseSizeChange: BN = ZERO,
+		estimatedEntryPrice: BN = ZERO
 	): BN {
 		const totalCollateral = this.getTotalCollateral('Maintenance');
 		const maintenanceMarginRequirement = this.getMaintenanceMarginRequirement();
-		const freeCollateral = BN.max(
+		let freeCollateral = BN.max(
 			ZERO,
 			totalCollateral.sub(maintenanceMarginRequirement)
 		);
+
+		const oracle =
+			this.driftClient.getPerpMarketAccount(marketIndex).amm.oracle;
+
+		const oraclePrice =
+			this.driftClient.getOracleDataForPerpMarket(marketIndex).price;
+
+		// update free collateral to accoutn from pnl based on entry price
+		if (!estimatedEntryPrice.eq(ZERO) && !positionBaseSizeChange.eq(ZERO)) {
+			const costBasis = oraclePrice
+				.mul(positionBaseSizeChange.abs())
+				.div(BASE_PRECISION);
+			const newPositionValue = estimatedEntryPrice
+				.mul(positionBaseSizeChange.abs())
+				.div(BASE_PRECISION);
+			if (positionBaseSizeChange.gt(ZERO)) {
+				freeCollateral = freeCollateral.add(costBasis.sub(newPositionValue));
+			} else {
+				freeCollateral = freeCollateral.add(newPositionValue.sub(costBasis));
+			}
+		}
 
 		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 		const currentPerpPosition =
@@ -1997,8 +2019,6 @@ export class User {
 			return new BN(-1);
 		}
 
-		const oracle =
-			this.driftClient.getPerpMarketAccount(marketIndex).amm.oracle;
 		const spotMarketWithSameOracle = this.driftClient
 			.getSpotMarketAccounts()
 			.find((market) => market.oracle.equals(oracle));
@@ -2031,8 +2051,6 @@ export class User {
 			return new BN(-1);
 		}
 
-		const oraclePrice =
-			this.driftClient.getOracleDataForPerpMarket(marketIndex).price;
 		const liqPriceDelta = freeCollateral
 			.mul(QUOTE_PRECISION)
 			.div(freeCollateralDelta);
