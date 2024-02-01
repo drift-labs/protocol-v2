@@ -932,7 +932,7 @@ pub mod liquidate_perp {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            0
+            MARGIN_PRECISION / 50
         )
         .unwrap());
 
