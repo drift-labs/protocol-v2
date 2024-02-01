@@ -2881,8 +2881,6 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         return Ok(false);
     }
 
-    let lp_shares = user.perp_positions[position_index].lp_shares;
-
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
     let quote_oracle = spot_market_map
@@ -2898,9 +2896,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         oracle_price_data.price
     };
 
-    let order_step_size = market.amm.order_step_size;
-
-    let lp_shares_to_burn_to_cover_margin_shortage =
+    let (lp_shares_to_burn, base_asset_amount_to_close, covers_margin_shortage) =
         calculate_lp_shares_to_burn_for_risk_reduction(
             user,
             position_index,
@@ -2909,13 +2905,6 @@ pub fn burn_user_lp_shares_for_risk_reduction(
             quote_oracle_price,
             0,
         )?;
-
-    let covers_margin_shortage =
-        lp_shares_to_burn_to_cover_margin_shortage < user.perp_positions[position_index].lp_shares;
-
-    let lp_shares_to_burn =
-        standardize_base_asset_amount(lp_shares_to_burn_to_cover_margin_shortage, order_step_size)?
-            .max(lp_shares);
 
     let (position_delta, pnl) = burn_lp_shares(
         &mut user.perp_positions[position_index],
@@ -2941,9 +2930,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     let params = OrderParams::get_close_perp_params(
         &market,
         direction_to_close,
-        user.perp_positions[position_index]
-            .base_asset_amount
-            .unsigned_abs(),
+        base_asset_amount_to_close,
     )?;
 
     drop(market);
@@ -2970,7 +2957,7 @@ pub fn calculate_lp_shares_to_burn_for_risk_reduction(
     oracle_price: i64,
     quote_oracle_price: i64,
     margin_shortage: u128,
-) -> DriftResult<u64> {
+) -> DriftResult<(u64, u64, bool)> {
     let perp_position = &user.perp_positions[position_index];
     let settled_lp_position = perp_position.simulate_settled_lp_position(market, oracle_price)?;
 
@@ -3006,7 +2993,27 @@ pub fn calculate_lp_shares_to_burn_for_risk_reduction(
                 .safe_div(PRICE_PRECISION)?
                 .safe_mul(margin_ratio.cast()?)?
                 .safe_div(MARGIN_PRECISION_U128)?,
+        )?
+        .cast::<u64>()?;
+
+    let current_base_asset_amount = perp_position.base_asset_amount.unsigned_abs();
+
+    // if closing position is enough to cover margin shortage, then only a small % of lp shares need to be burned
+    if base_asset_amount_to_cover < current_base_asset_amount {
+        let base_asset_amount_to_close = standardize_base_asset_amount_ceil(
+            base_asset_amount_to_cover,
+            market.amm.order_step_size,
         )?;
+        let lp_shares_to_burn = standardize_base_asset_amount(
+            perp_position.lp_shares / 10,
+            market.amm.order_step_size,
+        )?
+        .max(market.amm.order_step_size);
+        return Ok((lp_shares_to_burn, base_asset_amount_to_close, true));
+    }
+
+    let base_asset_amount_to_cover =
+        base_asset_amount_to_cover.safe_sub(current_base_asset_amount)?;
 
     let percent_to_burn = base_asset_amount_to_cover
         .safe_mul(100)?
@@ -3017,7 +3024,17 @@ pub fn calculate_lp_shares_to_burn_for_risk_reduction(
         .safe_mul(percent_to_burn.cast()?)?
         .safe_div_ceil(100)?;
 
-    Ok(lp_shares_to_burn)
+    let covers_margin_shortage = lp_shares_to_burn < perp_position.lp_shares;
+
+    let standardized_lp_shares_to_burn =
+        standardize_base_asset_amount_ceil(lp_shares_to_burn, market.amm.order_step_size)?
+            .clamp(market.amm.order_step_size, perp_position.lp_shares);
+
+    Ok((
+        standardized_lp_shares_to_burn,
+        current_base_asset_amount,
+        covers_margin_shortage,
+    ))
 }
 
 pub fn pay_keeper_flat_reward_for_perps(
