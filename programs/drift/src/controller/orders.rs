@@ -41,12 +41,12 @@ use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
 };
-use crate::math::oracle;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
+use crate::math::{lp, oracle};
 use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
@@ -55,6 +55,7 @@ use crate::{
 };
 
 use crate::math::amm::calculate_amm_available_liquidity;
+use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_swap::select_margin_type_for_swap;
 use crate::print_error;
@@ -2836,8 +2837,8 @@ pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index:
 pub fn attempt_burn_user_lp_shares_for_risk_reduction(
     state: &State,
     user: &mut User,
-    margin_calc: MarginCalculation,
     user_key: Pubkey,
+    margin_calc: MarginCalculation,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -2854,6 +2855,7 @@ pub fn attempt_burn_user_lp_shares_for_risk_reduction(
             user,
             user_key,
             market_index,
+            margin_calc,
             perp_market_map,
             spot_market_map,
             oracle_map,
@@ -2870,6 +2872,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     user: &mut User,
     user_key: Pubkey,
     market_index: u16,
+    margin_calc: MarginCalculation,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -2898,12 +2901,11 @@ pub fn burn_user_lp_shares_for_risk_reduction(
 
     let (lp_shares_to_burn, base_asset_amount_to_close, covers_margin_shortage) =
         calculate_lp_shares_to_burn_for_risk_reduction(
-            user,
-            position_index,
+            &user.perp_positions[position_index],
             &market,
             oracle_price,
             quote_oracle_price,
-            0,
+            margin_calc.margin_shortage()?,
         )?;
 
     let (position_delta, pnl) = burn_lp_shares(
@@ -2948,93 +2950,6 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     )?;
 
     Ok(covers_margin_shortage)
-}
-
-pub fn calculate_lp_shares_to_burn_for_risk_reduction(
-    user: &User,
-    position_index: usize,
-    market: &PerpMarket,
-    oracle_price: i64,
-    quote_oracle_price: i64,
-    margin_shortage: u128,
-) -> DriftResult<(u64, u64, bool)> {
-    let perp_position = &user.perp_positions[position_index];
-    let settled_lp_position = perp_position.simulate_settled_lp_position(market, oracle_price)?;
-
-    let worse_case_base_asset_amount = settled_lp_position.worst_case_base_asset_amount()?;
-
-    let open_orders_from_lp_shares = if worse_case_base_asset_amount >= 0 {
-        worse_case_base_asset_amount.safe_sub(
-            perp_position
-                .base_asset_amount
-                .safe_add(perp_position.open_bids)?
-                .cast()?,
-        )?
-    } else {
-        worse_case_base_asset_amount.safe_sub(
-            perp_position
-                .base_asset_amount
-                .safe_add(perp_position.open_asks)?
-                .cast()?,
-        )?
-    };
-
-    let margin_ratio = market.get_margin_ratio(
-        worse_case_base_asset_amount.unsigned_abs(),
-        MarginRequirementType::Initial,
-    )?;
-
-    let base_asset_amount_to_cover = margin_shortage
-        .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)?
-        .safe_div(
-            oracle_price
-                .cast::<u128>()?
-                .safe_mul(quote_oracle_price.cast()?)?
-                .safe_div(PRICE_PRECISION)?
-                .safe_mul(margin_ratio.cast()?)?
-                .safe_div(MARGIN_PRECISION_U128)?,
-        )?
-        .cast::<u64>()?;
-
-    let current_base_asset_amount = perp_position.base_asset_amount.unsigned_abs();
-
-    // if closing position is enough to cover margin shortage, then only a small % of lp shares need to be burned
-    if base_asset_amount_to_cover < current_base_asset_amount {
-        let base_asset_amount_to_close = standardize_base_asset_amount_ceil(
-            base_asset_amount_to_cover,
-            market.amm.order_step_size,
-        )?;
-        let lp_shares_to_burn = standardize_base_asset_amount(
-            perp_position.lp_shares / 10,
-            market.amm.order_step_size,
-        )?
-        .max(market.amm.order_step_size);
-        return Ok((lp_shares_to_burn, base_asset_amount_to_close, true));
-    }
-
-    let base_asset_amount_to_cover =
-        base_asset_amount_to_cover.safe_sub(current_base_asset_amount)?;
-
-    let percent_to_burn = base_asset_amount_to_cover
-        .safe_mul(100)?
-        .safe_div_ceil(open_orders_from_lp_shares.cast()?)?;
-
-    let lp_shares_to_burn = perp_position
-        .lp_shares
-        .safe_mul(percent_to_burn.cast()?)?
-        .safe_div_ceil(100)?;
-
-    let covers_margin_shortage = lp_shares_to_burn < perp_position.lp_shares;
-
-    let standardized_lp_shares_to_burn =
-        standardize_base_asset_amount_ceil(lp_shares_to_burn, market.amm.order_step_size)?
-            .clamp(market.amm.order_step_size, perp_position.lp_shares);
-
-    Ok((
-        standardized_lp_shares_to_burn,
-        current_base_asset_amount,
-        covers_margin_shortage,
-    ))
 }
 
 pub fn pay_keeper_flat_reward_for_perps(

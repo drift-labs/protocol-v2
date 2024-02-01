@@ -82,15 +82,16 @@ pub fn settle_pnl(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial),
+            MarginContext::standard(MarginRequirementType::Initial)
+                .margin_buffer(state.liquidation_margin_buffer_ratio),
         )?;
 
         if !margin_calc.meets_margin_requirement() {
             let covers_margin_shortage = attempt_burn_user_lp_shares_for_risk_reduction(
                 state,
                 user,
-                margin_calc,
                 *user_key,
+                margin_calc,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
