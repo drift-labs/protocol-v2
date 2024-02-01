@@ -2845,12 +2845,12 @@ pub fn attempt_burn_user_lp_shares_for_risk_reduction(
     clock: &Clock,
     market_index: u16,
 ) -> DriftResult<bool> {
-    let mut covers_marign_shortage = false;
+    let mut covers_margin_shortage = false;
     let now = clock.unix_timestamp;
     let time_since_last_liquidity_change: i64 = now.safe_sub(user.last_add_perp_lp_shares_ts)?;
     // avoid spamming update if orders have already been set
     if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
-        covers_marign_shortage = burn_user_lp_shares_for_risk_reduction(
+        covers_margin_shortage = burn_user_lp_shares_for_risk_reduction(
             state,
             user,
             user_key,
@@ -2864,7 +2864,7 @@ pub fn attempt_burn_user_lp_shares_for_risk_reduction(
         user.last_add_perp_lp_shares_ts = now;
     }
 
-    Ok(covers_marign_shortage)
+    Ok(covers_margin_shortage)
 }
 
 pub fn burn_user_lp_shares_for_risk_reduction(
