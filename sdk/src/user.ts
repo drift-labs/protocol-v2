@@ -2156,11 +2156,13 @@ export class User {
 	 * Calculates the estimated liquidation price for a position after closing a quote amount of the position.
 	 * @param positionMarketIndex
 	 * @param closeQuoteAmount
+	 * @param estimatedEntryPrice
 	 * @returns : Precision PRICE_PRECISION
 	 */
 	public liquidationPriceAfterClose(
 		positionMarketIndex: number,
-		closeQuoteAmount: BN
+		closeBaseAmount: BN,
+		estimatedEntryPrice?: BN
 	): BN {
 		const currentPosition =
 			this.getPerpPositionWithLPSettle(
@@ -2169,17 +2171,15 @@ export class User {
 				true
 			)[0] || this.getEmptyPosition(positionMarketIndex);
 
-		const closeBaseAmount = currentPosition.baseAssetAmount
-			.mul(closeQuoteAmount)
-			.div(currentPosition.quoteAssetAmount.abs())
-			.add(
-				currentPosition.baseAssetAmount
-					.mul(closeQuoteAmount)
-					.mod(currentPosition.quoteAssetAmount.abs())
-			)
-			.neg();
+		// if closing out the full perp position, will be no liq price
+		if (currentPosition.baseAssetAmount.abs().eq(closeBaseAmount))
+			return new BN(-1);
 
-		return this.liquidationPrice(positionMarketIndex, closeBaseAmount);
+		return this.liquidationPrice(
+			positionMarketIndex,
+			closeBaseAmount,
+			estimatedEntryPrice
+		);
 	}
 
 	/**
