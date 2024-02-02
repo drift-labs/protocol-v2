@@ -151,3 +151,34 @@ export function calculateLiveOracleStd(
 
 	return oracleStd;
 }
+
+export function getNewOracleConfPct(
+	amm: AMM,
+	oraclePriceData: OraclePriceData,
+	reservePrice: BN,
+	now: BN
+): BN {
+	const confInterval = oraclePriceData.confidence || ZERO;
+
+	const sinceLastUpdate = BN.max(
+		ZERO,
+		now.sub(amm.historicalOracleData.lastOraclePriceTwapTs)
+	);
+	let lowerBoundConfPct = amm.lastOracleConfPct;
+	if (sinceLastUpdate.gt(ZERO)) {
+		const lowerBoundConfDivisor = BN.max(
+			new BN(21).sub(sinceLastUpdate),
+			new BN(5)
+		);
+		lowerBoundConfPct = amm.lastOracleConfPct.sub(
+			amm.lastOracleConfPct.div(lowerBoundConfDivisor)
+		);
+	}
+	const confIntervalPct = confInterval
+		.mul(BID_ASK_SPREAD_PRECISION)
+		.div(reservePrice);
+
+	const confIntervalPctResult = BN.max(confIntervalPct, lowerBoundConfPct);
+
+	return confIntervalPctResult;
+}

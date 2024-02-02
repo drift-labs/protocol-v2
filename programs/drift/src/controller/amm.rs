@@ -745,10 +745,63 @@ pub fn move_price(
     validate!(
         (quote_asset_reserve.cast::<i128>()? - amm.quote_asset_reserve.cast::<i128>()?).abs() < 100,
         ErrorCode::InvalidAmmDetected,
+        "quote_asset_reserve passed doesnt reconcile enough {} vs {}",
+        quote_asset_reserve.cast::<i128>()?,
+        amm.quote_asset_reserve.cast::<i128>()?
+    )?;
+
+    amm.sqrt_k = sqrt_k;
+
+    let (_, terminal_quote_reserves, terminal_base_reserves) =
+        amm::calculate_terminal_price_and_reserves(amm)?;
+    amm.terminal_quote_asset_reserve = terminal_quote_reserves;
+
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        amm::calculate_bid_ask_bounds(amm.concentration_coef, terminal_base_reserves)?;
+
+    amm.max_base_asset_reserve = max_base_asset_reserve;
+    amm.min_base_asset_reserve = min_base_asset_reserve;
+
+    let reserve_price_after = amm.reserve_price()?;
+    update_spreads(amm, reserve_price_after)?;
+
+    Ok(())
+}
+
+// recenter peg with balanced terminal reserves
+pub fn recenter_perp_market_amm(amm: &mut AMM, peg_multiplier: u128, sqrt_k: u128) -> DriftResult {
+    // calculate base/quote reserves for balanced terminal reserves
+    let swap_direction = if amm.base_asset_amount_with_amm > 0 {
+        SwapDirection::Remove
+    } else {
+        SwapDirection::Add
+    };
+    let (new_quote_asset_amount, new_base_asset_amount) = amm::calculate_swap_output(
+        amm.base_asset_amount_with_amm.unsigned_abs(),
+        sqrt_k,
+        swap_direction,
+        sqrt_k,
+    )?;
+
+    amm.base_asset_reserve = new_base_asset_amount;
+
+    let k = bn::U256::from(sqrt_k).safe_mul(bn::U256::from(sqrt_k))?;
+
+    amm.quote_asset_reserve = k
+        .safe_div(bn::U256::from(new_base_asset_amount))?
+        .try_to_u128()?;
+
+    validate!(
+        (new_quote_asset_amount.cast::<i128>()? - amm.quote_asset_reserve.cast::<i128>()?).abs()
+            < 100,
+        ErrorCode::InvalidAmmDetected,
         "quote_asset_reserve passed doesnt reconcile enough"
     )?;
 
     amm.sqrt_k = sqrt_k;
+    // todo: could calcualte terminal state cost for altering sqrt_k
+
+    amm.peg_multiplier = peg_multiplier;
 
     let (_, terminal_quote_reserves, terminal_base_reserves) =
         amm::calculate_terminal_price_and_reserves(amm)?;

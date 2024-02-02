@@ -97,5 +97,6 @@ export * from './orderSubscriber/types';
 export * from './auctionSubscriber';
 export * from './auctionSubscriber/types';
 export * from './memcmp';
+export * from './decode/user';
 
 export { BN, PublicKey, pyth };

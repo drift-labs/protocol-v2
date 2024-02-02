@@ -1,9 +1,5 @@
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
-import {
-	ConfirmOptions,
-	TransactionSignature,
-	Connection,
-} from '@solana/web3.js';
+import { ConfirmOptions, Connection } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
@@ -32,6 +28,7 @@ export class RetryTxSender extends BaseTxSender {
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		additionalTxSenderCallbacks = [],
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -40,6 +37,7 @@ export class RetryTxSender extends BaseTxSender {
 		retrySleep?: number;
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
+		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 	}) {
 		super({
 			connection,
@@ -48,6 +46,7 @@ export class RetryTxSender extends BaseTxSender {
 			timeout,
 			additionalConnections,
 			confirmationStrategy,
+			additionalTxSenderCallbacks,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -70,14 +69,8 @@ export class RetryTxSender extends BaseTxSender {
 	): Promise<TxSigAndSlot> {
 		const startTime = this.getTimestamp();
 
-		let txid: TransactionSignature;
-		try {
-			txid = await this.connection.sendRawTransaction(rawTransaction, opts);
-			this.sendToAdditionalConnections(rawTransaction, opts);
-		} catch (e) {
-			console.error(e);
-			throw e;
-		}
+		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);
+		this.sendToAdditionalConnections(rawTransaction, opts);
 
 		let done = false;
 		const resolveReference: ResolveReference = {
@@ -109,8 +102,8 @@ export class RetryTxSender extends BaseTxSender {
 		try {
 			const result = await this.confirmTransaction(txid, opts.commitment);
 			slot = result.context.slot;
+			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
-			console.error(e);
 			throw e;
 		} finally {
 			stopWaiting();

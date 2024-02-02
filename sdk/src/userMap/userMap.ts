@@ -337,6 +337,9 @@ export class UserMap implements UserMapInterface {
 					const userAccount = this.decode('User', buffer);
 					await this.addPubkey(new PublicKey(key), userAccount);
 					this.userMap.get(key).accountSubscriber.updateData(userAccount, slot);
+				} else {
+					const userAccount = this.decode('User', buffer);
+					this.userMap.get(key).accountSubscriber.updateData(userAccount, slot);
 				}
 				// give event loop a chance to breathe
 				await new Promise((resolve) => setTimeout(resolve, 0));
