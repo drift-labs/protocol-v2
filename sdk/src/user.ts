@@ -674,7 +674,7 @@ export class User {
 		marginCategory: MarginCategory,
 		liquidationBuffer?: BN,
 		strict = false,
-		includeOpenOrders = true,
+		includeOpenOrders = true
 	): BN {
 		return this.getTotalPerpPositionValue(
 			marginCategory,
@@ -1970,19 +1970,24 @@ export class User {
 	 * Calculate the liquidation price of a perp position, with optional parameter to calculate the liquidation price after a trade
 	 * @param marketIndex
 	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for : Precision 10^13
+	 * @param marginCategory // allow Initial to be passed in if we are trying to calculate price for DLP de-risking
 	 * @returns Precision : PRICE_PRECISION
 	 */
 	public liquidationPrice(
 		marketIndex: number,
 		positionBaseSizeChange: BN = ZERO,
-		estimatedEntryPrice: BN = ZERO
+		estimatedEntryPrice: BN = ZERO,
+		marginCategory: MarginCategory = 'Maintenance',
+		includeOpenOrders = true
 	): BN {
-		const totalCollateral = this.getTotalCollateral('Maintenance');
-		const maintenanceMarginRequirement = this.getMaintenanceMarginRequirement();
-		let freeCollateral = BN.max(
-			ZERO,
-			totalCollateral.sub(maintenanceMarginRequirement)
+		const totalCollateral = this.getTotalCollateral(marginCategory);
+		const marginRequirement = this.getMarginRequirement(
+			marginCategory,
+			undefined,
+			false,
+			includeOpenOrders
 		);
+		let freeCollateral = BN.max(ZERO, totalCollateral.sub(marginRequirement));
 
 		const oracle =
 			this.driftClient.getPerpMarketAccount(marketIndex).amm.oracle;
@@ -2013,7 +2018,8 @@ export class User {
 		let freeCollateralDelta = this.calculateFreeCollateralDeltaForPerp(
 			market,
 			currentPerpPosition,
-			positionBaseSizeChange
+			positionBaseSizeChange,
+			marginCategory
 		);
 
 		if (!freeCollateralDelta) {
@@ -2040,7 +2046,8 @@ export class User {
 				const spotFreeCollateralDelta =
 					this.calculateFreeCollateralDeltaForSpot(
 						spotMarketWithSameOracle,
-						signedTokenAmount
+						signedTokenAmount,
+						marginCategory
 					);
 				freeCollateralDelta = freeCollateralDelta.add(
 					spotFreeCollateralDelta || ZERO
@@ -2068,7 +2075,8 @@ export class User {
 	calculateFreeCollateralDeltaForPerp(
 		market: PerpMarketAccount,
 		perpPosition: PerpPosition,
-		positionBaseSizeChange: BN
+		positionBaseSizeChange: BN,
+		marginCategory: MarginCategory = 'Maintenance'
 	): BN | undefined {
 		const currentBaseAssetAmount = perpPosition.baseAssetAmount;
 
@@ -2087,7 +2095,8 @@ export class User {
 		const marginRatio = calculateMarketMarginRatio(
 			market,
 			proposedWorstCaseBaseAssetAmount.abs(),
-			'Maintenance'
+			marginCategory,
+			this.getUserAccount().maxMarginRatio
 		);
 		const marginRatioQuotePrecision = new BN(marginRatio)
 			.mul(QUOTE_PRECISION)
@@ -2122,7 +2131,8 @@ export class User {
 
 	calculateFreeCollateralDeltaForSpot(
 		market: SpotMarketAccount,
-		signedTokenAmount: BN
+		signedTokenAmount: BN,
+		marginCategory: MarginCategory = 'Maintenance'
 	): BN {
 		const tokenPrecision = new BN(Math.pow(10, market.decimals));
 
@@ -2131,7 +2141,7 @@ export class User {
 				signedTokenAmount,
 				this.driftClient.getOraclePriceDataAndSlot(market.oracle).data.price,
 				market,
-				'Maintenance'
+				marginCategory
 			);
 
 			return QUOTE_PRECISION.mul(assetWeight)
@@ -2142,7 +2152,7 @@ export class User {
 			const liabilityWeight = calculateLiabilityWeight(
 				signedTokenAmount.abs(),
 				market,
-				'Maintenance'
+				marginCategory
 			);
 
 			return QUOTE_PRECISION.neg()
