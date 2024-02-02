@@ -1989,25 +1989,21 @@ export class User {
 		const oraclePrice =
 			this.driftClient.getOracleDataForPerpMarket(marketIndex).price;
 
-		// update free collateral to accoutn from pnl based on entry price
-		if (!estimatedEntryPrice.eq(ZERO) && !positionBaseSizeChange.eq(ZERO)) {
-			const costBasis = oraclePrice
-				.mul(positionBaseSizeChange.abs())
-				.div(BASE_PRECISION);
-			const newPositionValue = estimatedEntryPrice
-				.mul(positionBaseSizeChange.abs())
-				.div(BASE_PRECISION);
-			if (positionBaseSizeChange.gt(ZERO)) {
-				freeCollateral = freeCollateral.add(costBasis.sub(newPositionValue));
-			} else {
-				freeCollateral = freeCollateral.add(newPositionValue.sub(costBasis));
-			}
-		}
-
 		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 		const currentPerpPosition =
 			this.getPerpPositionWithLPSettle(marketIndex, undefined, true)[0] ||
 			this.getEmptyPosition(marketIndex);
+
+		const freeCollateralChangeFromNewPosition =
+			this.calculateEntriesEffectOnFreeCollateral(
+				market,
+				oraclePrice,
+				currentPerpPosition,
+				positionBaseSizeChange,
+				estimatedEntryPrice
+			);
+
+		freeCollateral = freeCollateral.add(freeCollateralChangeFromNewPosition);
 
 		let freeCollateralDelta = this.calculateFreeCollateralDeltaForPerp(
 			market,
@@ -2062,6 +2058,70 @@ export class User {
 		}
 
 		return liqPrice;
+	}
+
+	calculateEntriesEffectOnFreeCollateral(
+		market: PerpMarketAccount,
+		oraclePrice: BN,
+		perpPosition: PerpPosition,
+		positionBaseSizeChange: BN,
+		estimatedEntryPrice: BN
+	): BN {
+		let freeCollateralChange = ZERO;
+
+		// update free collateral to account for change in pnl from new position
+		if (!estimatedEntryPrice.eq(ZERO) && !positionBaseSizeChange.eq(ZERO)) {
+			const costBasis = oraclePrice
+				.mul(positionBaseSizeChange.abs())
+				.div(BASE_PRECISION);
+			const newPositionValue = estimatedEntryPrice
+				.mul(positionBaseSizeChange.abs())
+				.div(BASE_PRECISION);
+			if (positionBaseSizeChange.gt(ZERO)) {
+				freeCollateralChange = costBasis.sub(newPositionValue);
+			} else {
+				freeCollateralChange = newPositionValue.sub(costBasis);
+			}
+		}
+
+		const worstCaseBaseAssetAmount =
+			calculateWorstCaseBaseAssetAmount(perpPosition);
+
+		const marginRatioBefore = calculateMarketMarginRatio(
+			market,
+			worstCaseBaseAssetAmount.abs(),
+			'Maintenance'
+		);
+
+		const newWorstCaseBaseAssetAmount = worstCaseBaseAssetAmount.add(
+			positionBaseSizeChange
+		);
+
+		const newMarginRatio = calculateMarketMarginRatio(
+			market,
+			newWorstCaseBaseAssetAmount.abs(),
+			'Maintenance'
+		);
+
+		// update free collateral to account for change in margin ratio from position change
+		freeCollateralChange = freeCollateralChange.sub(
+			worstCaseBaseAssetAmount
+				.mul(oraclePrice)
+				.div(BASE_PRECISION)
+				.mul(new BN(newMarginRatio - marginRatioBefore))
+				.div(MARGIN_PRECISION)
+		);
+
+		// update free collateral to account for new margin requirement from position change
+		freeCollateralChange = freeCollateralChange.sub(
+			positionBaseSizeChange
+				.mul(oraclePrice)
+				.div(BASE_PRECISION)
+				.mul(new BN(newMarginRatio))
+				.div(MARGIN_PRECISION)
+		);
+
+		return freeCollateralChange;
 	}
 
 	calculateFreeCollateralDeltaForPerp(
