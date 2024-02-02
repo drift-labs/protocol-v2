@@ -1,7 +1,6 @@
 use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::lp::*;
 use crate::state::user::PerpPosition;
-use crate::BASE_PRECISION_U64;
 
 mod calculate_get_proportion_u128 {
     use crate::math::helpers::get_proportion_u128;
@@ -252,15 +251,11 @@ mod calculate_settle_lp_metrics {
 
 mod calculate_lp_shares_to_burn_for_risk_reduction {
     use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
-    use crate::state::perp_market::{PerpMarket, AMM};
-    use crate::state::user::{PerpPosition, User};
+    use crate::state::perp_market::PerpMarket;
+    use crate::state::user::User;
     use crate::test_utils::create_account_info;
-    use crate::{
-        BASE_PRECISION_I64, BASE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I64,
-        QUOTE_PRECISION,
-    };
+    use crate::{PRICE_PRECISION_I64, QUOTE_PRECISION};
     use anchor_lang::prelude::AccountLoader;
-    use solana_program::msg;
     use solana_program::pubkey::Pubkey;
     use std::str::FromStr;
 
@@ -291,16 +286,16 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
 
         let perp_market_loader: AccountLoader<PerpMarket> =
             AccountLoader::try_from(&perp_market_account_info).unwrap();
-        let mut perp_market = perp_market_loader.load_mut().unwrap();
+        let perp_market = perp_market_loader.load_mut().unwrap();
 
         let oracle_price = 10 * PRICE_PRECISION_I64;
         let quote_oracle_price = PRICE_PRECISION_I64;
 
         let margin_shortage = 40 * QUOTE_PRECISION;
 
-        let (lp_shares_to_burn, base_asset_amount, covers_margin) =
+        let (lp_shares_to_burn, base_asset_amount) =
             calculate_lp_shares_to_burn_for_risk_reduction(
-                &position,
+                position,
                 &perp_market,
                 oracle_price,
                 quote_oracle_price,
@@ -310,13 +305,12 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
 
         assert_eq!(lp_shares_to_burn, 168900000000);
         assert_eq!(base_asset_amount, 12400000000);
-        assert_eq!(covers_margin, false);
 
         let margin_shortage = 20 * QUOTE_PRECISION;
 
-        let (lp_shares_to_burn, base_asset_amount, covers_margin) =
+        let (lp_shares_to_burn, base_asset_amount) =
             calculate_lp_shares_to_burn_for_risk_reduction(
-                &position,
+                position,
                 &perp_market,
                 oracle_price,
                 quote_oracle_price,
@@ -326,13 +320,12 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
 
         assert_eq!(lp_shares_to_burn, 16800000000);
         assert_eq!(base_asset_amount, 8000000000);
-        assert_eq!(covers_margin, true);
 
         let margin_shortage = 5 * QUOTE_PRECISION;
 
-        let (lp_shares_to_burn, base_asset_amount, covers_margin) =
+        let (lp_shares_to_burn, base_asset_amount) =
             calculate_lp_shares_to_burn_for_risk_reduction(
-                &position,
+                position,
                 &perp_market,
                 oracle_price,
                 quote_oracle_price,
@@ -342,16 +335,15 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
 
         assert_eq!(lp_shares_to_burn, 16800000000);
         assert_eq!(base_asset_amount, 2000000000);
-        assert_eq!(covers_margin, true);
 
         // flip existing position the other direction
         position.base_asset_amount = -position.base_asset_amount;
 
         let margin_shortage = 40 * QUOTE_PRECISION;
 
-        let (lp_shares_to_burn, base_asset_amount, covers_margin) =
+        let (lp_shares_to_burn, base_asset_amount) =
             calculate_lp_shares_to_burn_for_risk_reduction(
-                &position,
+                position,
                 &perp_market,
                 oracle_price,
                 quote_oracle_price,
@@ -361,13 +353,12 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
 
         assert_eq!(lp_shares_to_burn, 168900000000);
         assert_eq!(base_asset_amount, 12400000000);
-        assert_eq!(covers_margin, false);
 
         let margin_shortage = 20 * QUOTE_PRECISION;
 
-        let (lp_shares_to_burn, base_asset_amount, covers_margin) =
+        let (lp_shares_to_burn, base_asset_amount) =
             calculate_lp_shares_to_burn_for_risk_reduction(
-                &position,
+                position,
                 &perp_market,
                 oracle_price,
                 quote_oracle_price,
@@ -377,13 +368,12 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
 
         assert_eq!(lp_shares_to_burn, 16800000000);
         assert_eq!(base_asset_amount, 8000000000);
-        assert_eq!(covers_margin, true);
 
         let margin_shortage = 5 * QUOTE_PRECISION;
 
-        let (lp_shares_to_burn, base_asset_amount, covers_margin) =
+        let (lp_shares_to_burn, base_asset_amount) =
             calculate_lp_shares_to_burn_for_risk_reduction(
-                &position,
+                position,
                 &perp_market,
                 oracle_price,
                 quote_oracle_price,
@@ -393,6 +383,5 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
 
         assert_eq!(lp_shares_to_burn, 16800000000);
         assert_eq!(base_asset_amount, 2000000000);
-        assert_eq!(covers_margin, true);
     }
 }

@@ -6,6 +6,7 @@ use std::u64;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
+use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
@@ -41,17 +42,14 @@ use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
 };
+use crate::math::oracle;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
-use crate::math::{lp, oracle};
 use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
-};
-use crate::{
-    controller, MARGIN_PRECISION_U128, PRICE_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
 };
 
 use crate::math::amm::calculate_amm_available_liquidity;
@@ -2844,13 +2842,12 @@ pub fn attempt_burn_user_lp_shares_for_risk_reduction(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     market_index: u16,
-) -> DriftResult<bool> {
-    let mut covers_margin_shortage = false;
+) -> DriftResult {
     let now = clock.unix_timestamp;
     let time_since_last_liquidity_change: i64 = now.safe_sub(user.last_add_perp_lp_shares_ts)?;
     // avoid spamming update if orders have already been set
     if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
-        covers_margin_shortage = burn_user_lp_shares_for_risk_reduction(
+        burn_user_lp_shares_for_risk_reduction(
             state,
             user,
             user_key,
@@ -2864,7 +2861,7 @@ pub fn attempt_burn_user_lp_shares_for_risk_reduction(
         user.last_add_perp_lp_shares_ts = now;
     }
 
-    Ok(covers_margin_shortage)
+    Ok(())
 }
 
 pub fn burn_user_lp_shares_for_risk_reduction(
@@ -2877,11 +2874,11 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-) -> DriftResult<bool> {
+) -> DriftResult {
     let position_index = get_position_index(&user.perp_positions, market_index)?;
     let is_lp = user.perp_positions[position_index].is_lp();
     if !is_lp {
-        return Ok(false);
+        return Ok(());
     }
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -2899,7 +2896,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         oracle_price_data.price
     };
 
-    let (lp_shares_to_burn, base_asset_amount_to_close, covers_margin_shortage) =
+    let (lp_shares_to_burn, base_asset_amount_to_close) =
         calculate_lp_shares_to_burn_for_risk_reduction(
             &user.perp_positions[position_index],
             &market,
@@ -2949,7 +2946,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         PlaceOrderOptions::default(),
     )?;
 
-    Ok(covers_margin_shortage)
+    Ok(())
 }
 
 pub fn pay_keeper_flat_reward_for_perps(

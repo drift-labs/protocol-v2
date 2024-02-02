@@ -2,7 +2,6 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::{
     validate, MARGIN_PRECISION_U128, PRICE_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
 };
-use bytemuck::cast;
 use solana_program::msg;
 use std::u64;
 
@@ -18,7 +17,7 @@ use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market::AMM;
-use crate::state::user::{PerpPosition, User};
+use crate::state::user::PerpPosition;
 
 #[cfg(test)]
 mod tests;
@@ -108,7 +107,7 @@ pub fn calculate_lp_shares_to_burn_for_risk_reduction(
     oracle_price: i64,
     quote_oracle_price: i64,
     margin_shortage: u128,
-) -> DriftResult<(u64, u64, bool)> {
+) -> DriftResult<(u64, u64)> {
     let settled_lp_position = perp_position.simulate_settled_lp_position(market, oracle_price)?;
 
     let worse_case_base_asset_amount = settled_lp_position.worst_case_base_asset_amount()?;
@@ -160,7 +159,7 @@ pub fn calculate_lp_shares_to_burn_for_risk_reduction(
             market.amm.order_step_size,
         )?
         .max(market.amm.order_step_size);
-        return Ok((lp_shares_to_burn, base_asset_amount_to_close, true));
+        return Ok((lp_shares_to_burn, base_asset_amount_to_close));
     }
 
     let base_asset_amount_to_cover =
@@ -178,15 +177,9 @@ pub fn calculate_lp_shares_to_burn_for_risk_reduction(
         .safe_div_ceil(100)?
         .cast::<u64>()?;
 
-    let covers_margin_shortage = lp_shares_to_burn < perp_position.lp_shares;
-
     let standardized_lp_shares_to_burn =
         standardize_base_asset_amount_ceil(lp_shares_to_burn, market.amm.order_step_size)?
             .clamp(market.amm.order_step_size, perp_position.lp_shares);
 
-    Ok((
-        standardized_lp_shares_to_burn,
-        current_base_asset_amount,
-        covers_margin_shortage,
-    ))
+    Ok((standardized_lp_shares_to_burn, current_base_asset_amount))
 }
