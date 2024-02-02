@@ -221,6 +221,11 @@ pub fn settle_lp_position(
         .base_asset_amount_with_unsettled_lp
         .safe_add(lp_metrics.base_asset_amount)?;
 
+    market.amm.quote_asset_amount_with_unsettled_lp = market
+        .amm
+        .quote_asset_amount_with_unsettled_lp
+        .safe_add(lp_metrics.quote_asset_amount.cast()?)?;
+
     position.last_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
     position.last_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
 

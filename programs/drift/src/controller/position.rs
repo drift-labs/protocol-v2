@@ -396,6 +396,10 @@ pub fn update_lp_market_position(
         .amm
         .calculate_lp_base_delta(per_lp_delta_base, base_unit)?;
 
+    let lp_delta_quote = market
+        .amm
+        .calculate_lp_base_delta(per_lp_delta_quote, base_unit)?;
+
     market.amm.base_asset_amount_per_lp = market
         .amm
         .base_asset_amount_per_lp
@@ -425,6 +429,11 @@ pub fn update_lp_market_position(
         .amm
         .base_asset_amount_with_unsettled_lp
         .safe_add(lp_delta_base)?;
+
+    market.amm.quote_asset_amount_with_unsettled_lp = market
+        .amm
+        .quote_asset_amount_with_unsettled_lp
+        .safe_add(lp_delta_quote.cast()?)?;
 
     Ok(lp_delta_base)
 }
