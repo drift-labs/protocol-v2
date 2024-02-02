@@ -2982,7 +2982,30 @@ export class User {
 		return newLeverage;
 	}
 
-	public getUserFeeTier(marketType: MarketType) {
+	public getUser30dVolume(userStatsAccount: UserStatsAccount, now?: BN) {
+		now = now || new BN(new Date().getTime() / 1000);
+		const sinceLastTaker = BN.max(
+			now.sub(userStatsAccount.lastTakerVolume30DTs),
+			ZERO
+		);
+		const sinceLastMaker = BN.max(
+			now.sub(userStatsAccount.lastMakerVolume30DTs),
+			ZERO
+		);
+		const thirtyDaysInSeconds = new BN(60 * 60 * 24 * 30);
+		const last30dVolume = userStatsAccount.takerVolume30D
+			.mul(thirtyDaysInSeconds.sub(sinceLastTaker))
+			.div(thirtyDaysInSeconds)
+			.add(
+				userStatsAccount.makerVolume30D
+					.mul(thirtyDaysInSeconds.sub(sinceLastMaker))
+					.div(thirtyDaysInSeconds)
+			);
+
+		return last30dVolume;
+	}
+
+	public getUserFeeTier(marketType: MarketType, now?: BN) {
 		const state = this.driftClient.getStateAccount();
 
 		let feeTierIndex = 0;
@@ -2991,9 +3014,7 @@ export class User {
 				.getUserStats()
 				.getAccount();
 
-			const total30dVolume = userStatsAccount.takerVolume30D.add(
-				userStatsAccount.makerVolume30D
-			); // todo: update using now and lastTs?
+			const total30dVolume = this.getUser30dVolume(userStatsAccount, now);
 
 			const stakedQuoteAssetAmount = userStatsAccount.ifStakedQuoteAssetAmount;
 			const volumeTiers = [
