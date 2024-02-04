@@ -285,40 +285,41 @@ export type JITO_SOL_METRICS_ENDPOINT_RESPONSE = {
 
 /**
  * Removes hours, minutes, seconds from a date, and returns the ISO string value (with milliseconds trimmed from the output (required by Jito API))
- * @param inDate 
- * @returns 
+ * @param inDate
+ * @returns
  */
 const getNormalizedDateString = (inDate: Date) => {
 	const date = new Date(inDate.getTime());
 	date.setUTCHours(0, 0, 0, 0);
-	return date.toISOString().slice(0, 19)+'Z';
+	return date.toISOString().slice(0, 19) + 'Z';
 };
 
 const get30DAgo = () => {
-	const date = new Date(
-		Date.now() - 30 * 24 * 60 * 60 * 1000
-	);
+	const date = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 	return date;
 };
 
 export async function fetchJitoSolMetrics() {
-	const res = await fetch('https://kobe.mainnet.jito.network/api/v1/stake_pool_stats', {
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({
-			bucket_type: 'Daily',
-			range_filter: {
-				start: getNormalizedDateString(get30DAgo()),
-				end: getNormalizedDateString(new Date()),
+	const res = await fetch(
+		'https://kobe.mainnet.jito.network/api/v1/stake_pool_stats',
+		{
+			headers: {
+				'Content-Type': 'application/json',
 			},
-			sort_by: {
-				order: 'Asc',
-				field: 'BlockTime',
-			}
-		}),
-		method: 'POST',
-	});
+			body: JSON.stringify({
+				bucket_type: 'Daily',
+				range_filter: {
+					start: getNormalizedDateString(get30DAgo()),
+					end: getNormalizedDateString(new Date()),
+				},
+				sort_by: {
+					order: 'Asc',
+					field: 'BlockTime',
+				},
+			}),
+			method: 'POST',
+		}
+	);
 
 	const data: JITO_SOL_METRICS_ENDPOINT_RESPONSE = await res.json();
 
@@ -389,10 +390,7 @@ const getJitoSolHistoricalPriceMap = async (timestamps: number[]) => {
 		const jitoSolHistoricalPriceInSol = [];
 
 		for (let i = 0; i < data.supply.length; i++) {
-			const priceInSol =
-				data.tvl[i].data /
-				10 ** 9 /
-				data.supply[i].data;
+			const priceInSol = data.tvl[i].data / 10 ** 9 / data.supply[i].data;
 			jitoSolHistoricalPriceInSol.push({
 				price: priceInSol,
 				ts: data.tvl[i].date,
