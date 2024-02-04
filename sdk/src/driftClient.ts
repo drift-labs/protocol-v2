@@ -124,6 +124,7 @@ import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 import { getOrderParams } from './orderParams';
+import { numberToSafeBN } from './math/utils';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -1339,8 +1340,11 @@ export class DriftClient {
 	 * @param amount
 	 */
 	public convertToPerpPrecision(amount: BN | number): BN {
-		amount = typeof amount === 'number' ? new BN(amount) : amount;
-		return amount.mul(BASE_PRECISION);
+		if (typeof amount === 'number') {
+			return numberToSafeBN(amount, BASE_PRECISION);
+		} else {
+			return amount.mul(BASE_PRECISION);
+		}
 	}
 
 	/**
@@ -1348,8 +1352,11 @@ export class DriftClient {
 	 * @param amount
 	 */
 	public convertToPricePrecision(amount: BN | number): BN {
-		amount = typeof amount === 'number' ? new BN(amount) : amount;
-		return amount.mul(PRICE_PRECISION);
+		if (typeof amount === 'number') {
+			return numberToSafeBN(amount, PRICE_PRECISION);
+		} else {
+			return amount.mul(BASE_PRECISION);
+		}
 	}
 
 	/**
