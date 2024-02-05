@@ -59,7 +59,8 @@ import {
 	PositionDirection,
 	sigNum,
 	SpotBalanceType,
-	SpotMarketAccount, standardizeBaseAssetAmount,
+	SpotMarketAccount,
+	standardizeBaseAssetAmount,
 } from '.';
 import {
 	calculateAssetWeight,
@@ -1994,7 +1995,10 @@ export class User {
 			this.getPerpPositionWithLPSettle(marketIndex, undefined, true)[0] ||
 			this.getEmptyPosition(marketIndex);
 
-		positionBaseSizeChange = standardizeBaseAssetAmount(positionBaseSizeChange, market.amm.orderStepSize);
+		positionBaseSizeChange = standardizeBaseAssetAmount(
+			positionBaseSizeChange,
+			market.amm.orderStepSize
+		);
 
 		const freeCollateralChangeFromNewPosition =
 			this.calculateEntriesEffectOnFreeCollateral(
@@ -2086,8 +2090,11 @@ export class User {
 			}
 
 			// assume worst fee tier
-			const takerFeeTier = this.driftClient.getStateAccount().perpFeeStructure.feeTiers[0];
-			const takerFee = newPositionValue.muln(takerFeeTier.feeNumerator).divn(takerFeeTier.feeDenominator);
+			const takerFeeTier =
+				this.driftClient.getStateAccount().perpFeeStructure.feeTiers[0];
+			const takerFee = newPositionValue
+				.muln(takerFeeTier.feeNumerator)
+				.divn(takerFeeTier.feeDenominator);
 			freeCollateralChange = freeCollateralChange.sub(takerFee);
 		}
 
