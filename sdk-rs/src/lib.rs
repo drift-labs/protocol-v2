@@ -81,7 +81,10 @@ pub struct RpcAccountProvider {
 impl RpcAccountProvider {
     pub fn new(endpoint: &str) -> Self {
         Self {
-            client: RpcClient::new(endpoint.to_string()),
+            client: RpcClient::new_with_commitment(
+                endpoint.to_string(),
+                CommitmentConfig::confirmed(),
+            ),
         }
     }
     async fn get_account_impl(&self, account: Pubkey) -> SdkResult<Account> {
@@ -182,7 +185,10 @@ impl WsAccountProvider {
         let ws_client = PubsubClient::new(&ws_url).await?;
 
         Ok(Self {
-            rpc_client: Arc::new(RpcClient::new(url.to_string())),
+            rpc_client: Arc::new(RpcClient::new_with_commitment(
+                url.to_string(),
+                CommitmentConfig::confirmed(),
+            )),
             ws_client: Arc::new(ws_client),
             account_cache: Default::default(),
         })
@@ -489,7 +495,10 @@ pub struct DriftClientBackend<T: AccountProvider> {
 impl<T: AccountProvider> DriftClientBackend<T> {
     /// Initialize a new `DriftClientBackend`
     async fn new(context: Context, account_provider: T) -> SdkResult<DriftClientBackend<T>> {
-        let rpc_client = RpcClient::new(account_provider.endpoint());
+        let rpc_client = RpcClient::new_with_commitment(
+            account_provider.endpoint(),
+            CommitmentConfig::confirmed(),
+        );
 
         let mut this = Self {
             rpc_client,
