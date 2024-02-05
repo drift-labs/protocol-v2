@@ -1071,6 +1071,7 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
             enforce_margin_check: i == num_orders - 1,
             try_expire_orders: i == 0,
             risk_increasing: false,
+            explanation: OrderActionExplanation::None,
         };
 
         if params.market_type == MarketType::Perp {

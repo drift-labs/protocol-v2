@@ -2915,7 +2915,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     // emit LP record for shares removed
     emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
         ts: clock.unix_timestamp,
-        action: LPAction::RemoveLiquidity,
+        action: LPAction::RemoveLiquidityDerisk,
         user: user_key,
         n_shares: lp_shares_to_burn,
         market_index,
@@ -2943,7 +2943,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         oracle_map,
         clock,
         params,
-        PlaceOrderOptions::default(),
+        PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
     )?;
 
     Ok(())

@@ -8463,6 +8463,9 @@
           },
           {
             "name": "OrderFilledWithLPJit"
+          },
+          {
+            "name": "DeriskLp"
           }
         ]
       }
@@ -8480,6 +8483,9 @@
           },
           {
             "name": "SettleLiquidity"
+          },
+          {
+            "name": "RemoveLiquidityDerisk"
           }
         ]
       }
@@ -8621,10 +8627,6 @@
           {
             "name": "Liquidation",
             "fields": [
-              {
-                "name": "margin_buffer",
-                "type": "u128"
-              },
               {
                 "name": "market_to_track_margin_requirement",
                 "type": {
