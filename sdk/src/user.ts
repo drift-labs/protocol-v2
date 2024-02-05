@@ -2234,7 +2234,8 @@ export class User {
 	 */
 	public liquidationPriceAfterClose(
 		positionMarketIndex: number,
-		closeQuoteAmount: BN
+		closeQuoteAmount: BN,
+		estimatedEntryPrice: BN = ZERO
 	): BN {
 		const currentPosition =
 			this.getPerpPositionWithLPSettle(
@@ -2253,7 +2254,11 @@ export class User {
 			)
 			.neg();
 
-		return this.liquidationPrice(positionMarketIndex, closeBaseAmount);
+		return this.liquidationPrice(
+			positionMarketIndex,
+			closeBaseAmount,
+			estimatedEntryPrice
+		);
 	}
 
 	/**
