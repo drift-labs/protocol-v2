@@ -20,6 +20,7 @@ export type SpotMarketConfig = {
 	precisionExp: BN;
 	serumMarket?: PublicKey;
 	phoenixMarket?: PublicKey;
+	launchTs?: number;
 };
 
 export const WRAPPED_SOL_MINT = new PublicKey(
@@ -191,6 +192,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		phoenixMarket: new PublicKey(
 			'2pspvjWWaf3dNgt3jsgSzFCNvMGPb7t8FrEYvLGjvcCe'
 		),
+		launchTs: 1706731200000,
 	},
 ];
 
