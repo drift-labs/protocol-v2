@@ -170,6 +170,9 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
 		serumMarket: new PublicKey('H87FfmHABiZLRGrDsXRZtqq25YpARzaokCzL1vMYGiep'),
+		phoenixMarket: new PublicKey(
+			'BRLLmdtPGuuFn3BU6orYw4KHaohAEptBToi3dwRUnHQZ'
+		),
 	},
 	{
 		symbol: 'WIF',
@@ -180,6 +183,9 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
 		serumMarket: new PublicKey('2BtDHBTCTUxvdur498ZEcMgimasaFrY5GzLv8wS8XgCb'),
+		phoenixMarket: new PublicKey(
+			'6ojSigXF7nDPyhFRgmn3V9ywhYseKF9J32ZrranMGVSX'
+		),
 	},
 	{
 		symbol: 'JUP',
