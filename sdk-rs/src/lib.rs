@@ -395,6 +395,21 @@ impl<T: AccountProvider> DriftClient<T> {
             .map_err(|err| err.to_out_of_sol_error().unwrap_or(err))
     }
 
+    /// Sign and send a tx to the network
+    ///
+    /// Returns the signature on success
+    pub async fn sign_and_send_with_config(
+        &self,
+        wallet: &Wallet,
+        tx: VersionedMessage,
+        config: RpcSendTransactionConfig,
+    ) -> SdkResult<Signature> {
+        self.backend
+            .sign_and_send_with_config(wallet, tx, config)
+            .await
+            .map_err(|err| err.to_out_of_sol_error().unwrap_or(err))
+    }
+
     /// Get live info of a spot market
     pub async fn get_spot_market_info(&self, market_index: u16) -> SdkResult<SpotMarket> {
         let market = derive_spot_market_account(market_index);
