@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: derisk lp more granularly ([#849](https://github.com/drift-labs/protocol-v2/pull/849))
+
 ### Fixes
 
 ### Breaking
