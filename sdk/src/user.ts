@@ -1977,15 +1977,13 @@ export class User {
 		marketIndex: number,
 		positionBaseSizeChange: BN = ZERO,
 		estimatedEntryPrice: BN = ZERO,
-		marginCategory: MarginCategory = 'Maintenance',
-		includeOpenOrders = true
+		marginCategory: MarginCategory = 'Maintenance'
 	): BN {
 		const totalCollateral = this.getTotalCollateral(marginCategory);
 		const marginRequirement = this.getMarginRequirement(
 			marginCategory,
 			undefined,
-			false,
-			includeOpenOrders
+			false
 		);
 		let freeCollateral = BN.max(ZERO, totalCollateral.sub(marginRequirement));
 
