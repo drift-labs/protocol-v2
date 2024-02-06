@@ -3,6 +3,7 @@ use crate::error::DriftResult;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
 use crate::PERCENTAGE_PRECISION_U64;
@@ -421,6 +422,7 @@ pub struct PlaceOrderOptions {
     pub try_expire_orders: bool,
     pub enforce_margin_check: bool,
     pub risk_increasing: bool,
+    pub explanation: OrderActionExplanation,
 }
 
 impl Default for PlaceOrderOptions {
@@ -429,6 +431,7 @@ impl Default for PlaceOrderOptions {
             try_expire_orders: true,
             enforce_margin_check: true,
             risk_increasing: false,
+            explanation: OrderActionExplanation::None,
         }
     }
 }
@@ -436,5 +439,10 @@ impl Default for PlaceOrderOptions {
 impl PlaceOrderOptions {
     pub fn update_risk_increasing(&mut self, risk_increasing: bool) {
         self.risk_increasing = self.risk_increasing || risk_increasing;
+    }
+
+    pub fn explanation(mut self, explanation: OrderActionExplanation) -> Self {
+        self.explanation = explanation;
+        self
     }
 }
