@@ -2092,6 +2092,8 @@ export class User {
 			if (positionBaseSizeChange.gt(ZERO)) {
 				freeCollateralChange = costBasis.sub(newPositionValue);
 			} else {
+				console.log('newPositionValue', newPositionValue.toString());
+				console.log('costBasis', costBasis.toString());
 				freeCollateralChange = newPositionValue.sub(costBasis);
 			}
 
@@ -2107,12 +2109,6 @@ export class User {
 		const worstCaseBaseAssetAmount =
 			calculateWorstCaseBaseAssetAmount(perpPosition);
 
-		const marginRatioBefore = calculateMarketMarginRatio(
-			market,
-			worstCaseBaseAssetAmount.abs(),
-			'Maintenance'
-		);
-
 		const newWorstCaseBaseAssetAmount = worstCaseBaseAssetAmount.add(
 			positionBaseSizeChange
 		);
@@ -2123,18 +2119,11 @@ export class User {
 			'Maintenance'
 		);
 
-		// update free collateral to account for change in margin ratio from position change
-		freeCollateralChange = freeCollateralChange.sub(
-			worstCaseBaseAssetAmount
-				.mul(oraclePrice)
-				.div(BASE_PRECISION)
-				.mul(new BN(newMarginRatio - marginRatioBefore))
-				.div(MARGIN_PRECISION)
-		);
-
 		// update free collateral to account for new margin requirement from position change
 		freeCollateralChange = freeCollateralChange.sub(
-			positionBaseSizeChange
+			newWorstCaseBaseAssetAmount
+				.abs()
+				.sub(worstCaseBaseAssetAmount.abs())
 				.mul(oraclePrice)
 				.div(BASE_PRECISION)
 				.mul(new BN(newMarginRatio))
