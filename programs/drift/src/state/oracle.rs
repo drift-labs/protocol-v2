@@ -168,6 +168,7 @@ pub fn get_pyth_price(
 
     let oracle_price = price_data.agg.price;
     let oracle_conf = price_data.agg.conf;
+    let publisher_count = price_data.num_qt;
 
     let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
 
@@ -207,7 +208,7 @@ pub fn get_pyth_price(
         price: oracle_price_scaled,
         confidence: oracle_conf_scaled,
         delay: oracle_delay,
-        has_sufficient_number_of_data_points: true,
+        has_sufficient_number_of_data_points: publisher_count > 3,
     })
 }
 
