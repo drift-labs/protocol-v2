@@ -32,7 +32,7 @@ mod get_auction_duration {
         let price = 100 * PRICE_PRECISION_U64;
 
         let duration = get_auction_duration(price_diff, price).unwrap();
-        assert_eq!(duration, 60);
+        assert_eq!(duration, 120);
     }
 }
 
@@ -210,7 +210,7 @@ mod update_perp_auction_params {
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
-        assert_eq!(order_params_after.auction_duration, Some(60));
+        assert_eq!(order_params_after.auction_duration, Some(61));
         assert_eq!(
             order_params_after.auction_start_price,
             Some(99 * PRICE_PRECISION_I64)
