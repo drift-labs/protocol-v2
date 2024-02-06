@@ -71,6 +71,8 @@ pub trait AccountProvider: 'static + Sized + Send + Sync {
     fn get_account(&self, account: Pubkey) -> BoxFuture<SdkResult<Account>>;
     /// the HTTP endpoint URL
     fn endpoint(&self) -> String;
+    /// return configured commitment level of the provider
+    fn commitment_config(&self) -> CommitmentConfig;
 }
 
 /// Account provider that always fetches from RPC
@@ -80,11 +82,12 @@ pub struct RpcAccountProvider {
 
 impl RpcAccountProvider {
     pub fn new(endpoint: &str) -> Self {
+        Self::with_commitment(endpoint, CommitmentConfig::confirmed())
+    }
+    /// Create a new RPC account provider with provided commitment level
+    pub fn with_commitment(endpoint: &str, commitment: CommitmentConfig) -> Self {
         Self {
-            client: RpcClient::new_with_commitment(
-                endpoint.to_string(),
-                CommitmentConfig::confirmed(),
-            ),
+            client: RpcClient::new_with_commitment(endpoint.to_string(), commitment),
         }
     }
     async fn get_account_impl(&self, account: Pubkey) -> SdkResult<Account> {
@@ -99,6 +102,9 @@ impl AccountProvider for RpcAccountProvider {
     }
     fn endpoint(&self) -> String {
         self.client.url()
+    }
+    fn commitment_config(&self) -> CommitmentConfig {
+        self.client.commitment()
     }
 }
 
@@ -181,14 +187,15 @@ impl AccountSubscription {
 impl WsAccountProvider {
     /// Create a new WsAccountProvider given an endpoint that serves both http(s) and ws(s)
     pub async fn new(url: &str) -> SdkResult<Self> {
+        Self::new_with_commitment(url, CommitmentConfig::confirmed()).await
+    }
+    /// Create a new WsAccountProvider with provided commitment level
+    pub async fn new_with_commitment(url: &str, commitment: CommitmentConfig) -> SdkResult<Self> {
         let ws_url = url.replace("http", "ws");
         let ws_client = PubsubClient::new(&ws_url).await?;
 
         Ok(Self {
-            rpc_client: Arc::new(RpcClient::new_with_commitment(
-                url.to_string(),
-                CommitmentConfig::confirmed(),
-            )),
+            rpc_client: Arc::new(RpcClient::new_with_commitment(url.to_string(), commitment)),
             ws_client: Arc::new(ws_client),
             account_cache: Default::default(),
         })
@@ -240,6 +247,9 @@ impl AccountProvider for WsAccountProvider {
     }
     fn endpoint(&self) -> String {
         self.rpc_client.url()
+    }
+    fn commitment_config(&self) -> CommitmentConfig {
+        self.rpc_client.commitment()
     }
 }
 
@@ -497,7 +507,7 @@ impl<T: AccountProvider> DriftClientBackend<T> {
     async fn new(context: Context, account_provider: T) -> SdkResult<DriftClientBackend<T>> {
         let rpc_client = RpcClient::new_with_commitment(
             account_provider.endpoint(),
-            CommitmentConfig::confirmed(),
+            account_provider.commitment_config(),
         );
 
         let mut this = Self {
