@@ -82,15 +82,16 @@ pub fn settle_pnl(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial).track_open_orders_fraction()?,
+            MarginContext::standard(MarginRequirementType::Initial)
+                .margin_buffer(state.liquidation_margin_buffer_ratio),
         )?;
 
         if !margin_calc.meets_margin_requirement() {
             attempt_burn_user_lp_shares_for_risk_reduction(
                 state,
                 user,
-                margin_calc,
                 *user_key,
+                margin_calc,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
@@ -99,7 +100,15 @@ pub fn settle_pnl(
             )?;
 
             // if the unrealized pnl is negative, return early after trying to burn shares
-            if unrealized_pnl < 0 {
+            if unrealized_pnl < 0
+                && !(meets_maintenance_margin_requirement(
+                    user,
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                )?)
+            {
+                msg!("Unable to settle negative pnl as user is in liquidation territory");
                 return Ok(());
             }
         }

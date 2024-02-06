@@ -1,6 +1,6 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
-use std::ops::{DerefMut, Div};
+use std::ops::DerefMut;
 use std::u64;
 
 use anchor_lang::prelude::*;
@@ -53,6 +53,7 @@ use crate::state::order_params::{
 };
 
 use crate::math::amm::calculate_amm_available_liquidity;
+use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_swap::select_margin_type_for_swap;
 use crate::print_error;
@@ -2834,8 +2835,8 @@ pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index:
 pub fn attempt_burn_user_lp_shares_for_risk_reduction(
     state: &State,
     user: &mut User,
-    margin_calc: MarginCalculation,
     user_key: Pubkey,
+    margin_calc: MarginCalculation,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -2843,24 +2844,21 @@ pub fn attempt_burn_user_lp_shares_for_risk_reduction(
     market_index: u16,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
-    // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
-    if !margin_calc.positions_meets_margin_requirement()? {
-        let time_since_last_liquidity_change: i64 =
-            now.safe_sub(user.last_add_perp_lp_shares_ts)?;
-        // avoid spamming update if orders have already been set
-        if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
-            burn_user_lp_shares_for_risk_reduction(
-                state,
-                user,
-                user_key,
-                market_index,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                clock,
-            )?;
-            user.last_add_perp_lp_shares_ts = now;
-        }
+    let time_since_last_liquidity_change: i64 = now.safe_sub(user.last_add_perp_lp_shares_ts)?;
+    // avoid spamming update if orders have already been set
+    if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
+        burn_user_lp_shares_for_risk_reduction(
+            state,
+            user,
+            user_key,
+            market_index,
+            margin_calc,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+        )?;
+        user.last_add_perp_lp_shares_ts = now;
     }
 
     Ok(())
@@ -2871,6 +2869,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     user: &mut User,
     user_key: Pubkey,
     market_index: u16,
+    margin_calc: MarginCalculation,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -2882,9 +2881,13 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         return Ok(());
     }
 
-    let lp_shares = user.perp_positions[position_index].lp_shares;
-
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
+
+    let quote_oracle = spot_market_map
+        .get_ref(&market.quote_spot_market_index)?
+        .oracle;
+    let quote_oracle_price = oracle_map.get_price_data(&quote_oracle)?.price;
+
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
     let oracle_price = if market.status == MarketStatus::Settlement {
@@ -2893,10 +2896,14 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         oracle_price_data.price
     };
 
-    let order_step_size = market.amm.order_step_size;
-
-    let lp_shares_to_burn =
-        standardize_base_asset_amount(lp_shares.div(3), order_step_size)?.max(lp_shares);
+    let (lp_shares_to_burn, base_asset_amount_to_close) =
+        calculate_lp_shares_to_burn_for_risk_reduction(
+            &user.perp_positions[position_index],
+            &market,
+            oracle_price,
+            quote_oracle_price,
+            margin_calc.margin_shortage()?,
+        )?;
 
     let (position_delta, pnl) = burn_lp_shares(
         &mut user.perp_positions[position_index],
@@ -2908,7 +2915,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     // emit LP record for shares removed
     emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
         ts: clock.unix_timestamp,
-        action: LPAction::RemoveLiquidity,
+        action: LPAction::RemoveLiquidityDerisk,
         user: user_key,
         n_shares: lp_shares_to_burn,
         market_index,
@@ -2922,9 +2929,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     let params = OrderParams::get_close_perp_params(
         &market,
         direction_to_close,
-        user.perp_positions[position_index]
-            .base_asset_amount
-            .unsigned_abs(),
+        base_asset_amount_to_close,
     )?;
 
     drop(market);
@@ -2938,7 +2943,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         oracle_map,
         clock,
         params,
-        PlaceOrderOptions::default(),
+        PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
     )?;
 
     Ok(())
