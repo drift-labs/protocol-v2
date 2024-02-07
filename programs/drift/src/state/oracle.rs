@@ -208,7 +208,7 @@ pub fn get_pyth_price(
         price: oracle_price_scaled,
         confidence: oracle_conf_scaled,
         delay: oracle_delay,
-        has_sufficient_number_of_data_points: publisher_count > 3,
+        has_sufficient_number_of_data_points: publisher_count >= 3,
     })
 }
 
