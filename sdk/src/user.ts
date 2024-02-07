@@ -55,6 +55,7 @@ import {
 	getSignedTokenAmount,
 	getStrictTokenValue,
 	getTokenValue,
+	getUser30dRollingVolumeEstimate,
 	MarketType,
 	PositionDirection,
 	sigNum,
@@ -3059,7 +3060,7 @@ export class User {
 		return newLeverage;
 	}
 
-	public getUserFeeTier(marketType: MarketType) {
+	public getUserFeeTier(marketType: MarketType, now?: BN) {
 		const state = this.driftClient.getStateAccount();
 
 		let feeTierIndex = 0;
@@ -3068,9 +3069,10 @@ export class User {
 				.getUserStats()
 				.getAccount();
 
-			const total30dVolume = userStatsAccount.takerVolume30D.add(
-				userStatsAccount.makerVolume30D
-			); // todo: update using now and lastTs?
+			const total30dVolume = getUser30dRollingVolumeEstimate(
+				userStatsAccount,
+				now
+			);
 
 			const stakedQuoteAssetAmount = userStatsAccount.ifStakedQuoteAssetAmount;
 			const volumeTiers = [

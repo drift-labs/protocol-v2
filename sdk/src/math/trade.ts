@@ -3,6 +3,7 @@ import {
 	PerpMarketAccount,
 	PositionDirection,
 	SpotMarketAccount,
+	UserStatsAccount,
 } from '../types';
 import { BN } from '@coral-xyz/anchor';
 import { assert } from '../assert/assert';
@@ -963,4 +964,30 @@ export function calculateEstimatedEntryPriceWithL2(
 		baseFilled: cumulativeBaseFilled,
 		quoteFilled: cumulativeQuoteFilled,
 	};
+}
+
+export function getUser30dRollingVolumeEstimate(
+	userStatsAccount: UserStatsAccount,
+	now?: BN
+) {
+	now = now || new BN(new Date().getTime() / 1000);
+	const sinceLastTaker = BN.max(
+		now.sub(userStatsAccount.lastTakerVolume30DTs),
+		ZERO
+	);
+	const sinceLastMaker = BN.max(
+		now.sub(userStatsAccount.lastMakerVolume30DTs),
+		ZERO
+	);
+	const thirtyDaysInSeconds = new BN(60 * 60 * 24 * 30);
+	const last30dVolume = userStatsAccount.takerVolume30D
+		.mul(BN.max(thirtyDaysInSeconds.sub(sinceLastTaker), ZERO))
+		.div(thirtyDaysInSeconds)
+		.add(
+			userStatsAccount.makerVolume30D
+				.mul(BN.max(thirtyDaysInSeconds.sub(sinceLastMaker), ZERO))
+				.div(thirtyDaysInSeconds)
+		);
+
+	return last30dVolume;
 }
