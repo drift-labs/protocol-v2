@@ -210,6 +210,7 @@ pub fn settle_lp_position(
     let position_delta = PositionDelta {
         base_asset_amount: lp_metrics.base_asset_amount.cast()?,
         quote_asset_amount: lp_metrics.quote_asset_amount.cast()?,
+        remainder_base_asset_amount: Some(position.remainder_base_asset_amount),
     };
 
     let pnl = update_position_and_market(position, market, &position_delta)?;

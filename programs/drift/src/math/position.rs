@@ -144,16 +144,27 @@ pub enum PositionUpdateType {
 pub fn get_position_update_type(
     position: &PerpPosition,
     delta: &PositionDelta,
-) -> PositionUpdateType {
+) -> DriftResult<PositionUpdateType> {
     if position.base_asset_amount == 0 {
-        PositionUpdateType::Open
-    } else if position.base_asset_amount.signum() == delta.base_asset_amount.signum() {
-        PositionUpdateType::Increase
-    } else if position.base_asset_amount.abs() > delta.base_asset_amount.abs() {
-        PositionUpdateType::Reduce
-    } else if position.base_asset_amount.abs() == delta.base_asset_amount.abs() {
-        PositionUpdateType::Close
+        return Ok(PositionUpdateType::Open);
+    }
+
+    let delta_base_with_remainder =
+        if let Some(remainder_base_asset_amount) = delta.remainder_base_asset_amount {
+            delta
+                .base_asset_amount
+                .safe_add(remainder_base_asset_amount.cast()?)?
+        } else {
+            delta.base_asset_amount
+        };
+
+    if position.base_asset_amount.signum() == delta_base_with_remainder.signum() {
+        return Ok(PositionUpdateType::Increase);
+    } else if position.base_asset_amount.abs() > delta_base_with_remainder.abs() {
+        return Ok(PositionUpdateType::Reduce);
+    } else if position.base_asset_amount.abs() == delta_base_with_remainder.abs() {
+        return Ok(PositionUpdateType::Close);
     } else {
-        PositionUpdateType::Flip
+        return Ok(PositionUpdateType::Flip);
     }
 }
