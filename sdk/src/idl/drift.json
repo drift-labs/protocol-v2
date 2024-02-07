@@ -8364,6 +8364,9 @@
           },
           {
             "name": "Borrow"
+          },
+          {
+            "name": "RepayBorrow"
           }
         ]
       }
