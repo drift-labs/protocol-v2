@@ -53,53 +53,45 @@ impl OrderParams {
         perp_market: &PerpMarket,
         oracle_price: i64,
     ) -> DriftResult {
-        if self.order_type != OrderType::Limit {
-            return Ok(());
-        }
-
         if self.post_only != PostOnlyParam::None {
             return Ok(());
         }
+
         if self.immediate_or_cancel {
             return Ok(());
         }
+
         if self.oracle_price_offset.is_some() || self.price == 0 {
             return Ok(());
         }
 
-        if self.post_only == PostOnlyParam::None && !self.immediate_or_cancel {
-            if self.oracle_price_offset.is_some() || self.price == 0 {
-                return Ok(());
-            }
-
-            match self.direction {
-                PositionDirection::Long => {
-                    let ask_premium = perp_market.amm.last_ask_premium()?;
-                    let est_ask = oracle_price.safe_add(ask_premium)?.cast()?;
-                    if self.price > est_ask {
-                        let auction_duration =
-                            get_auction_duration(self.price.safe_sub(est_ask)?, est_ask)?;
-                        let auction_start_price = est_ask as i64;
-                        let auction_end_price = self.price as i64;
-                        msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
-                        self.auction_duration = Some(auction_duration);
-                        self.auction_start_price = Some(auction_start_price);
-                        self.auction_end_price = Some(auction_end_price);
-                    }
+        match self.direction {
+            PositionDirection::Long => {
+                let ask_premium = perp_market.amm.last_ask_premium()?;
+                let est_ask = oracle_price.safe_add(ask_premium)?.cast()?;
+                if self.price > est_ask {
+                    let auction_duration =
+                        get_auction_duration(self.price.safe_sub(est_ask)?, est_ask)?;
+                    let auction_start_price = est_ask as i64;
+                    let auction_end_price = self.price as i64;
+                    msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
+                    self.auction_duration = Some(auction_duration);
+                    self.auction_start_price = Some(auction_start_price);
+                    self.auction_end_price = Some(auction_end_price);
                 }
-                PositionDirection::Short => {
-                    let bid_discount = perp_market.amm.last_bid_discount()?;
-                    let est_bid = oracle_price.safe_sub(bid_discount)?.cast()?;
-                    if self.price < est_bid {
-                        let auction_duration =
-                            get_auction_duration(est_bid.safe_sub(self.price)?, est_bid)?;
-                        let auction_start_price = est_bid as i64;
-                        let auction_end_price = self.price as i64;
-                        msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
-                        self.auction_duration = Some(auction_duration);
-                        self.auction_start_price = Some(auction_start_price);
-                        self.auction_end_price = Some(auction_end_price);
-                    }
+            }
+            PositionDirection::Short => {
+                let bid_discount = perp_market.amm.last_bid_discount()?;
+                let est_bid = oracle_price.safe_sub(bid_discount)?.cast()?;
+                if self.price < est_bid {
+                    let auction_duration =
+                        get_auction_duration(est_bid.safe_sub(self.price)?, est_bid)?;
+                    let auction_start_price = est_bid as i64;
+                    let auction_end_price = self.price as i64;
+                    msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
+                    self.auction_duration = Some(auction_duration);
+                    self.auction_start_price = Some(auction_start_price);
+                    self.auction_end_price = Some(auction_end_price);
                 }
             }
         }
