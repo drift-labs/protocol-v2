@@ -2896,6 +2896,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         oracle_price_data.price
     };
 
+    let user_custom_margin_ratio = user.max_margin_ratio;
     let (lp_shares_to_burn, base_asset_amount_to_close) =
         calculate_lp_shares_to_burn_for_risk_reduction(
             &user.perp_positions[position_index],
@@ -2903,6 +2904,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
             oracle_price,
             quote_oracle_price,
             margin_calc.margin_shortage()?,
+            user_custom_margin_ratio,
         )?;
 
     let (position_delta, pnl) = burn_lp_shares(
