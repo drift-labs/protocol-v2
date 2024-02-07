@@ -87,7 +87,7 @@ pub fn settle_pnl(
         )?;
 
         if !margin_calc.meets_margin_requirement() {
-            msg!("lp doesnt not meet initial margin requirement, attempting to burn shares for risk reduction");
+            msg!("lp does not meet initial margin requirement, attempting to burn shares for risk reduction");
             attempt_burn_user_lp_shares_for_risk_reduction(
                 state,
                 user,
