@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.60.0] - 2023-02-07
+
+### Features
+
 - program: sanitize perp auction params ([#859](https://github.com/drift-labs/protocol-v2/pull/859))
 - program: add repay borrow explanation ([#862](https://github.com/drift-labs/protocol-v2/pull/862)) 
 - program: derisk lp more granularly ([#849](https://github.com/drift-labs/protocol-v2/pull/849))
@@ -16,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 ### Breaking
-
 
 ## [2.59.0] - 2023-01-30
 
