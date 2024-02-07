@@ -2994,11 +2994,11 @@ export class User {
 		);
 		const thirtyDaysInSeconds = new BN(60 * 60 * 24 * 30);
 		const last30dVolume = userStatsAccount.takerVolume30D
-			.mul(thirtyDaysInSeconds.sub(sinceLastTaker))
+			.mul(BN.max(thirtyDaysInSeconds.sub(sinceLastTaker), ZERO))
 			.div(thirtyDaysInSeconds)
 			.add(
 				userStatsAccount.makerVolume30D
-					.mul(thirtyDaysInSeconds.sub(sinceLastMaker))
+					.mul((BN.max(thirtyDaysInSeconds.sub(sinceLastMaker), ZERO)))
 					.div(thirtyDaysInSeconds)
 			);
 
