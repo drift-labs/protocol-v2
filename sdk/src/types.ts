@@ -174,6 +174,9 @@ export class OrderActionExplanation {
 	static readonly REDUCE_ONLY_ORDER_INCREASED_POSITION = {
 		reduceOnlyOrderIncreasedPosition: {},
 	};
+	static readonly DERISK_LP = {
+		deriskLp: {},
+	};
 }
 
 export class OrderTriggerCondition {
@@ -357,6 +360,7 @@ export class LPAction {
 	static readonly ADD_LIQUIDITY = { addLiquidity: {} };
 	static readonly REMOVE_LIQUIDITY = { removeLiquidity: {} };
 	static readonly SETTLE_LIQUIDITY = { settleLiquidity: {} };
+	static readonly REMOVE_LIQUIDITY_DERISK = { removeLiquidityDerisk: {} };
 }
 
 export type FundingRateRecord = {
