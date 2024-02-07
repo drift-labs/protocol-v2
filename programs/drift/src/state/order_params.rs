@@ -78,7 +78,6 @@ impl OrderParams {
                     }
                 }
                 PositionDirection::Short => {
-                    self.auction_start_price = Some(auction_start_price);
                     let a = self.get_auction_start_price_offset(oracle_price)?;
                     if a < auction_start_price {
                         self.auction_start_price = Some(auction_start_price);
