@@ -6,7 +6,7 @@ use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
-use crate::PERCENTAGE_PRECISION_U64;
+use crate::{PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use std::ops::Div;
@@ -66,7 +66,7 @@ impl OrderParams {
         }
 
         let auction_start_price_offset =
-            OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
+            OrderParams::get_perp_baseline_start_price_offset(perp_market, self.direction)?;
         let new_auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
 
         if self.auction_duration.is_none() {
@@ -179,7 +179,7 @@ impl OrderParams {
         }
 
         let new_start_price_offset =
-            OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
+            OrderParams::get_perp_baseline_start_price_offset(perp_market, self.direction)?;
         match self.direction {
             PositionDirection::Long => {
                 let current_start_price_offset =
@@ -257,21 +257,62 @@ impl OrderParams {
         Ok(())
     }
 
-    pub fn get_perp_baseline_start_price_offset(perp_market: &PerpMarket) -> DriftResult<i64> {
+    pub fn get_perp_baseline_start_price_offset(
+        perp_market: &PerpMarket,
+        direction: PositionDirection,
+    ) -> DriftResult<i64> {
         // price offsets baselines for perp market auctions
-
-        let mark_twap = perp_market
+        let mark_twap_slow = perp_market
             .amm
             .last_ask_price_twap
             .safe_add(perp_market.amm.last_bid_price_twap)?
-            .safe_div(2)?;
+            .safe_div(2)?
+            .cast::<i64>()?;
 
-        let baseline_start_price_offset = mark_twap.cast::<i64>()?.safe_sub(
+        let baseline_start_price_offset_slow = mark_twap_slow.safe_sub(
             perp_market
                 .amm
                 .historical_oracle_data
                 .last_oracle_price_twap,
         )?;
+
+        let baseline_start_price_offset_fast = perp_market
+            .amm
+            .last_mark_price_twap_5min
+            .cast::<i64>()?
+            .safe_sub(
+                perp_market
+                    .amm
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min,
+            )?;
+
+        let baseline_start_price_offset = match direction {
+            PositionDirection::Long => {
+                let frac_of_spread_in_price: i64 = perp_market
+                    .amm
+                    .long_spread
+                    .cast::<i64>()?
+                    .safe_mul(mark_twap_slow)?
+                    .safe_div(PRICE_PRECISION_I64 * 10)?;
+
+                baseline_start_price_offset_slow
+                    .max(baseline_start_price_offset_fast)
+                    .safe_add(frac_of_spread_in_price)?
+            }
+            PositionDirection::Short => {
+                let frac_of_spread_in_price: i64 = perp_market
+                    .amm
+                    .short_spread
+                    .cast::<i64>()?
+                    .safe_mul(mark_twap_slow)?
+                    .safe_div(PRICE_PRECISION_I64 * 10)?;
+
+                baseline_start_price_offset_slow
+                    .min(baseline_start_price_offset_fast)
+                    .safe_sub(frac_of_spread_in_price)?
+            }
+        };
 
         Ok(baseline_start_price_offset)
     }
@@ -286,7 +327,7 @@ impl OrderParams {
             .last_oracle_price_twap
             .unsigned_abs();
         let baseline_start_price_offset =
-            OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
+            OrderParams::get_perp_baseline_start_price_offset(perp_market, direction)?;
         let (min_divisor, max_divisor) = perp_market.get_auction_end_min_max_divisors()?;
 
         let amm_spread_side_pct = if direction == PositionDirection::Short {
