@@ -754,3 +754,43 @@ fn test_lp_margin_calc() {
     assert_eq!(weighted_unrealized_pnl, -9916900000); // $-9900000000 upnl (+ -16900000 from old funding)
     assert_eq!(worse_case_base_asset_value, 10100000000); //$10100
 }
+
+#[test]
+fn test_lp_has_correct_entry_be_price() {
+    let mut position = PerpPosition {
+        ..PerpPosition::default()
+    };
+
+    let amm = AMM {
+        order_step_size: BASE_PRECISION_U64/10,
+        ..AMM::default_test()
+    };
+    let mut market = PerpMarket {
+        amm,
+        ..PerpMarket::default_test()
+    };
+
+    mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
+
+    market.amm.base_asset_amount_per_lp = BASE_PRECISION_I128;
+    market.amm.quote_asset_amount_per_lp = -99_999_821;
+    market.amm.base_asset_amount_with_unsettled_lp = BASE_PRECISION_I128;
+    market.amm.base_asset_amount_long = BASE_PRECISION_I128;
+
+    settle_lp_position(&mut position, &mut market).unwrap();
+
+    assert_eq!(position.quote_entry_amount, -99999821);
+    assert_eq!(position.quote_break_even_amount, -99999821);
+    assert_eq!(position.quote_asset_amount, -99999821);
+
+    market.amm.base_asset_amount_per_lp -= BASE_PRECISION_I128/2;
+    market.amm.quote_asset_amount_per_lp += 97_999_821;
+    market.amm.base_asset_amount_with_unsettled_lp = BASE_PRECISION_I128/2;
+    market.amm.base_asset_amount_long = BASE_PRECISION_I128/2;
+
+    settle_lp_position(&mut position, &mut market).unwrap();
+
+    assert_eq!(position.quote_entry_amount, -49999911);
+    assert_eq!(position.quote_break_even_amount, -49999911);
+    assert_eq!(position.quote_asset_amount, -2000000);
+}
