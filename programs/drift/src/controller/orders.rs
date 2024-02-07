@@ -138,21 +138,6 @@ pub fn place_perp_order(
         )?;
     }
 
-    let max_ts = match params.max_ts {
-        Some(max_ts) => max_ts,
-        None => match params.order_type {
-            OrderType::Market | OrderType::Oracle => {
-                now.safe_add(30_i64.max(params.auction_duration.unwrap_or(0) as i64))?
-            }
-            _ => 0_i64,
-        },
-    };
-
-    if max_ts != 0 && max_ts < now {
-        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
-        return Ok(());
-    }
-
     let new_order_index = user
         .orders
         .iter()
@@ -234,6 +219,21 @@ pub fn place_perp_order(
         market.amm.order_tick_size,
         state.min_perp_auction_duration,
     )?;
+
+    let max_ts = match params.max_ts {
+        Some(max_ts) => max_ts,
+        None => match params.order_type {
+            OrderType::Market | OrderType::Oracle => {
+                now.safe_add(30_i64.max((auction_duration / 2) as i64))?
+            }
+            _ => 0_i64,
+        },
+    };
+
+    if max_ts != 0 && max_ts < now {
+        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
+        return Ok(());
+    }
 
     validate!(
         params.market_type == MarketType::Perp,
