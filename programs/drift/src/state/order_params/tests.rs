@@ -298,12 +298,17 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_before.auction_start_price, order_params_after.auction_start_price);
-        assert_eq!(order_params_before.auction_end_price, order_params_after.auction_end_price);
+        assert_eq!(
+            order_params_before.auction_start_price,
+            order_params_after.auction_start_price
+        );
+        assert_eq!(
+            order_params_before.auction_end_price,
+            order_params_after.auction_end_price
+        );
         assert_eq!(order_params_before.direction, order_params_after.direction);
 
         assert_eq!(order_params_after.auction_duration, Some(61));
-
     }
 
     #[test]
@@ -362,11 +367,20 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_before.auction_start_price, order_params_after.auction_start_price);
-        assert_eq!(order_params_before.auction_end_price, order_params_after.auction_end_price);
+        assert_eq!(
+            order_params_before.auction_start_price,
+            order_params_after.auction_start_price
+        );
+        assert_eq!(
+            order_params_before.auction_end_price,
+            order_params_after.auction_end_price
+        );
         assert_eq!(order_params_before.direction, order_params_after.direction);
 
-        assert_ne!(order_params_before.auction_duration, order_params_after.auction_duration);
+        assert_ne!(
+            order_params_before.auction_duration,
+            order_params_after.auction_duration
+        );
     }
 }
 
