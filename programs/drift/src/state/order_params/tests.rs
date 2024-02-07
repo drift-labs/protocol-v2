@@ -252,6 +252,7 @@ mod update_perp_auction_params {
 
         let order_params_before = OrderParams {
             order_type: OrderType::Market,
+            direction: PositionDirection::Long,
             auction_start_price: Some(103 * PRICE_PRECISION_I64),
             auction_end_price: Some(104 * PRICE_PRECISION_I64),
             price: 104 * PRICE_PRECISION_U64,
@@ -265,6 +266,107 @@ mod update_perp_auction_params {
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
         assert_eq!(order_params_after.auction_start_price.unwrap(), 99117618);
+
+        let order_params_before = OrderParams {
+            order_type: OrderType::Market,
+            direction: PositionDirection::Short,
+            auction_start_price: Some(98 * PRICE_PRECISION_I64),
+            auction_end_price: Some(95 * PRICE_PRECISION_I64),
+            price: 94 * PRICE_PRECISION_U64,
+            auction_duration: Some(11),
+
+            ..OrderParams::default()
+        };
+        let mut order_params_after = order_params_before;
+        order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+        assert_ne!(order_params_before, order_params_after);
+        assert_eq!(order_params_after.auction_start_price.unwrap(), 99117618);
+
+        let order_params_before = OrderParams {
+            order_type: OrderType::Market,
+            direction: PositionDirection::Short,
+            auction_start_price: Some(103 * PRICE_PRECISION_I64),
+            auction_end_price: Some(104 * PRICE_PRECISION_I64),
+            price: 104 * PRICE_PRECISION_U64,
+            auction_duration: Some(1),
+
+            ..OrderParams::default()
+        };
+        let mut order_params_after = order_params_before;
+        order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+        assert_eq!(order_params_before.auction_start_price, order_params_after.auction_start_price);
+        assert_eq!(order_params_before.auction_end_price, order_params_after.auction_end_price);
+        assert_eq!(order_params_before.direction, order_params_after.direction);
+
+        assert_eq!(order_params_after.auction_duration, Some(61));
+
+    }
+
+    #[test]
+    fn test_oracle_market_sanitize() {
+        let oracle_price = 99 * PRICE_PRECISION_I64;
+        let mut amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
+            long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
+            sqrt_k: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            ..AMM::default()
+        };
+        amm.historical_oracle_data.last_oracle_price = oracle_price;
+        amm.historical_oracle_data.last_oracle_price_twap = oracle_price - 97238;
+        amm.last_ask_price_twap =
+            (amm.historical_oracle_data.last_oracle_price_twap as u64) + 217999;
+        amm.last_bid_price_twap =
+            (amm.historical_oracle_data.last_oracle_price_twap as u64) + 17238;
+
+        let perp_market = PerpMarket {
+            amm,
+            contract_tier: ContractTier::B,
+            ..PerpMarket::default()
+        };
+
+        let order_params_before = OrderParams {
+            order_type: OrderType::Oracle,
+            direction: PositionDirection::Long,
+            auction_start_price: Some(4 * PRICE_PRECISION_I64),
+            auction_end_price: Some(5 * PRICE_PRECISION_I64),
+            price: 5 * PRICE_PRECISION_U64,
+            auction_duration: Some(8),
+
+            ..OrderParams::default()
+        };
+        let mut order_params_after = order_params_before;
+        order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+        assert_ne!(order_params_before, order_params_after);
+        assert_eq!(order_params_after.auction_start_price.unwrap(), 117618);
+
+        let order_params_before = OrderParams {
+            order_type: OrderType::Oracle,
+            direction: PositionDirection::Short,
+            auction_start_price: Some(4 * PRICE_PRECISION_I64),
+            auction_end_price: Some(5 * PRICE_PRECISION_I64),
+            price: 5 * PRICE_PRECISION_U64,
+            auction_duration: Some(8),
+
+            ..OrderParams::default()
+        };
+        let mut order_params_after = order_params_before;
+        order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+        assert_eq!(order_params_before.auction_start_price, order_params_after.auction_start_price);
+        assert_eq!(order_params_before.auction_end_price, order_params_after.auction_end_price);
+        assert_eq!(order_params_before.direction, order_params_after.direction);
+
+        assert_ne!(order_params_before.auction_duration, order_params_after.auction_duration);
     }
 }
 
