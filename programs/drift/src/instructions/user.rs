@@ -297,6 +297,8 @@ pub fn handle_deposit(
 
     let position_index = user.force_get_spot_position_index(spot_market.market_index)?;
 
+    let is_borrow_before = user.spot_positions[position_index].is_borrow();
+
     let force_reduce_only = spot_market.is_reduce_only();
 
     // if reduce only, have to compare ix amount to current borrow amount
@@ -380,6 +382,11 @@ pub fn handle_deposit(
 
     let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let oracle_price = oracle_price_data.price;
+    let explanation = if is_borrow_before {
+        DepositExplanation::RepayBorrow
+    } else {
+        DepositExplanation::None
+    };
     let deposit_record = DepositRecord {
         ts: now,
         deposit_record_id,
@@ -395,7 +402,7 @@ pub fn handle_deposit(
         total_deposits_after,
         total_withdraws_after,
         market_index,
-        explanation: DepositExplanation::None,
+        explanation,
         transfer_user: None,
     };
     emit!(deposit_record);
