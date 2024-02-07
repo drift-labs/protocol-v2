@@ -469,8 +469,8 @@ mod get_close_perp_params {
         let auction_end_price = params.auction_end_price.unwrap();
         let oracle_price_offset = params.oracle_price_offset.unwrap();
         assert_eq!(auction_start_price, 87705234);
-        assert_eq!(auction_end_price, -430888573);
-        assert_eq!(oracle_price_offset, -430888573);
+        assert_eq!(auction_end_price, -251200914);
+        assert_eq!(oracle_price_offset, -251200914);
 
         let order = get_order(&params, slot);
 
@@ -507,8 +507,8 @@ mod get_close_perp_params {
         let auction_end_price = params.auction_end_price.unwrap();
         let oracle_price_offset = params.oracle_price_offset.unwrap();
         assert_eq!(auction_start_price, 183);
-        assert_eq!(auction_end_price, -1119);
-        assert_eq!(oracle_price_offset, -1119);
+        assert_eq!(auction_end_price, -1021);
+        assert_eq!(oracle_price_offset, -1021);
 
         let order = get_order(&params, slot);
 
