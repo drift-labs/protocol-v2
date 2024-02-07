@@ -68,9 +68,11 @@ impl OrderParams {
                 let ask_premium = perp_market.amm.last_ask_premium()?;
                 let est_ask = oracle_price.safe_add(ask_premium)?.cast()?;
                 if self.price > est_ask {
+                    let auction_start_price =
+                        OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
                     let auction_duration =
                         get_auction_duration(self.price.safe_sub(est_ask)?, est_ask)?;
-                    let auction_start_price = est_ask as i64;
+                    let auction_start_price = oracle_price.safe_add(auction_start_price)?;
                     let auction_end_price = self.price as i64;
                     msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
                     self.auction_duration = Some(auction_duration);
@@ -82,9 +84,11 @@ impl OrderParams {
                 let bid_discount = perp_market.amm.last_bid_discount()?;
                 let est_bid = oracle_price.safe_sub(bid_discount)?.cast()?;
                 if self.price < est_bid {
+                    let auction_start_price =
+                        OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
                     let auction_duration =
                         get_auction_duration(est_bid.safe_sub(self.price)?, est_bid)?;
-                    let auction_start_price = est_bid as i64;
+                    let auction_start_price = oracle_price.safe_add(auction_start_price)?;
                     let auction_end_price = self.price as i64;
                     msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
                     self.auction_duration = Some(auction_duration);
@@ -101,7 +105,7 @@ impl OrderParams {
         perp_market: &PerpMarket,
         oracle_price: i64,
     ) -> DriftResult {
-        if self.auction_duration.is_some() {
+        if self.auction_duration.is_none() {
             return Ok(());
         }
         if self.auction_start_price.is_none() {
@@ -117,8 +121,7 @@ impl OrderParams {
             return Ok(());
         }
 
-        let (auction_start_price, _auction_end_price) =
-            OrderParams::get_perp_baseline_start_end_price_offset(perp_market, self.direction)?;
+        let auction_start_price = OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
         match self.direction {
             PositionDirection::Long => {
                 let a = self.get_auction_start_price_offset(oracle_price)?;
@@ -174,10 +177,7 @@ impl OrderParams {
         Ok(())
     }
 
-    pub fn get_perp_baseline_start_end_price_offset(
-        perp_market: &PerpMarket,
-        direction: PositionDirection,
-    ) -> DriftResult<(i64, i64)> {
+    pub fn get_perp_baseline_start_price_offset(perp_market: &PerpMarket) -> DriftResult<i64> {
         // price offsets baselines for perp market auctions
 
         let mark_twap = perp_market
@@ -185,11 +185,6 @@ impl OrderParams {
             .last_ask_price_twap
             .safe_add(perp_market.amm.last_bid_price_twap)?
             .safe_div(2)?;
-        let oracle_twap = perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap
-            .unsigned_abs();
 
         let baseline_start_price_offset = mark_twap.cast::<i64>()?.safe_sub(
             perp_market
@@ -198,6 +193,20 @@ impl OrderParams {
                 .last_oracle_price_twap,
         )?;
 
+        Ok(baseline_start_price_offset)
+    }
+
+    pub fn get_perp_baseline_start_end_price_offset(
+        perp_market: &PerpMarket,
+        direction: PositionDirection,
+    ) -> DriftResult<(i64, i64)> {
+        let oracle_twap = perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap
+            .unsigned_abs();
+        let baseline_start_price_offset =
+            OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
         let (min_divisor, max_divisor) = perp_market.get_auction_end_min_max_divisors()?;
 
         let amm_spread_side_pct = if direction == PositionDirection::Short {

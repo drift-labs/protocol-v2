@@ -57,6 +57,10 @@ mod update_perp_auction_params {
             peg_multiplier: 100 * PEG_PRECISION,
             ..AMM::default()
         };
+        amm.last_bid_price_twap = (oracle_price * 99 / 100) as u64;
+        amm.last_ask_price_twap = (oracle_price * 101 / 100) as u64;
+        amm.historical_oracle_data.last_oracle_price_twap = oracle_price as i64;
+
         amm.historical_oracle_data.last_oracle_price = oracle_price;
         let perp_market = PerpMarket {
             amm,
@@ -172,7 +176,7 @@ mod update_perp_auction_params {
         assert_eq!(order_params_after.auction_duration, Some(60));
         assert_eq!(
             order_params_after.auction_start_price,
-            Some(101 * PRICE_PRECISION_I64)
+            Some(100 * PRICE_PRECISION_I64)
         );
         assert_eq!(
             order_params_after.auction_end_price,
@@ -213,7 +217,7 @@ mod update_perp_auction_params {
         assert_eq!(order_params_after.auction_duration, Some(61));
         assert_eq!(
             order_params_after.auction_start_price,
-            Some(99 * PRICE_PRECISION_I64)
+            Some(100 * PRICE_PRECISION_I64)
         );
         assert_eq!(
             order_params_after.auction_end_price,
@@ -248,13 +252,19 @@ mod update_perp_auction_params {
 
         let order_params_before = OrderParams {
             order_type: OrderType::Market,
+            auction_start_price: Some(103 * PRICE_PRECISION_I64),
+            auction_end_price: Some(104 * PRICE_PRECISION_I64),
+            price: 104 * PRICE_PRECISION_U64,
+            auction_duration: Some(1),
+
             ..OrderParams::default()
         };
         let mut order_params_after = order_params_before;
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_before, order_params_after);
+        assert_ne!(order_params_before, order_params_after);
+        assert_eq!(order_params_after.auction_start_price.unwrap(), 99117618);
     }
 }
 
