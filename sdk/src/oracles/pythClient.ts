@@ -61,7 +61,7 @@ export class PythClient implements OracleClient {
 				priceData.exponent,
 				this.multiple
 			),
-			hasSufficientNumberOfDataPoints: true,
+			hasSufficientNumberOfDataPoints: priceData.numQuoters >= 3,
 		};
 	}
 }
