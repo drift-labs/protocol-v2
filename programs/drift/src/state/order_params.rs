@@ -2,6 +2,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
+use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
 use crate::PERCENTAGE_PRECISION_U64;
@@ -63,40 +64,97 @@ impl OrderParams {
             return Ok(());
         }
 
-        match self.direction {
-            PositionDirection::Long => {
-                let ask_premium = perp_market.amm.last_ask_premium()?;
-                let est_ask = oracle_price.safe_add(ask_premium)?.cast()?;
-                if self.price > est_ask {
-                    let auction_start_price =
-                        OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
-                    let auction_duration =
-                        get_auction_duration(self.price.safe_sub(est_ask)?, est_ask)?;
-                    let auction_start_price = oracle_price.safe_add(auction_start_price)?;
-                    let auction_end_price = self.price as i64;
-                    msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
-                    self.auction_duration = Some(auction_duration);
-                    self.auction_start_price = Some(auction_start_price);
-                    self.auction_end_price = Some(auction_end_price);
+        let auction_start_price_offset =
+            OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
+        let new_auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
+
+        if self.auction_duration.is_none() {
+            match self.direction {
+                PositionDirection::Long => {
+                    let ask_premium = perp_market.amm.last_ask_premium()?;
+                    let est_ask = oracle_price.safe_add(ask_premium)?.cast()?;
+                    if self.price <= est_ask {
+                        // if auction duration is empty and limit doesnt cross vamm premium, return early
+                        return Ok(());
+                    } else {
+                        let new_auction_start_price = new_auction_start_price.min(est_ask as i64);
+                        msg!(
+                            "Updating auction start price to {}",
+                            new_auction_start_price
+                        );
+                        self.auction_start_price = Some(new_auction_start_price);
+                        msg!("Updating auction end price to {}", self.price);
+                        self.auction_end_price = Some(self.price as i64);
+                    }
+                }
+                PositionDirection::Short => {
+                    let bid_discount = perp_market.amm.last_bid_discount()?;
+                    let est_bid = oracle_price.safe_sub(bid_discount)?.cast()?;
+                    if self.price >= est_bid {
+                        // if auction duration is empty and limit doesnt cross vamm discount, return early
+                        return Ok(());
+                    } else {
+                        let new_auction_start_price = new_auction_start_price.max(est_bid as i64);
+                        msg!(
+                            "Updating auction start price to {}",
+                            new_auction_start_price
+                        );
+                        self.auction_start_price = Some(new_auction_start_price);
+                        msg!("Updating auction end price to {}", self.price);
+                        self.auction_end_price = Some(self.price as i64);
+                    }
                 }
             }
-            PositionDirection::Short => {
-                let bid_discount = perp_market.amm.last_bid_discount()?;
-                let est_bid = oracle_price.safe_sub(bid_discount)?.cast()?;
-                if self.price < est_bid {
-                    let auction_start_price =
-                        OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
-                    let auction_duration =
-                        get_auction_duration(est_bid.safe_sub(self.price)?, est_bid)?;
-                    let auction_start_price = oracle_price.safe_add(auction_start_price)?;
-                    let auction_end_price = self.price as i64;
-                    msg!("derived auction params for limit order. duration = {} start_price = {} end_price = {}", auction_duration, auction_start_price, auction_end_price);
-                    self.auction_duration = Some(auction_duration);
-                    self.auction_start_price = Some(auction_start_price);
-                    self.auction_end_price = Some(auction_end_price);
+        } else {
+            match self.auction_start_price {
+                Some(auction_start_price) => {
+                    let improves_long = self.direction == PositionDirection::Long
+                        && new_auction_start_price < auction_start_price;
+
+                    let improves_short = self.direction == PositionDirection::Short
+                        && new_auction_start_price > auction_start_price;
+
+                    if improves_long || improves_short {
+                        msg!(
+                            "Updating auction start price to {}",
+                            new_auction_start_price
+                        );
+                        self.auction_start_price = Some(new_auction_start_price);
+                    }
                 }
+                None => {
+                    msg!("Updating auction end price to {}", new_auction_start_price);
+                    self.auction_start_price = Some(new_auction_start_price);
+                }
+            }
+
+            if self.auction_end_price.is_none() {
+                msg!("Updating auction end price to {}", new_auction_start_price);
+                self.auction_end_price = Some(self.price as i64);
             }
         }
+
+        let auction_duration_before = self.auction_duration;
+        let new_auction_duration = get_auction_duration(
+            self.auction_end_price
+                .safe_unwrap()?
+                .safe_sub(self.auction_start_price.safe_unwrap()?)?
+                .unsigned_abs(),
+            oracle_price.unsigned_abs(),
+        )?;
+        self.auction_duration = Some(
+            auction_duration_before
+                .unwrap_or(0)
+                .max(new_auction_duration),
+        );
+
+        if auction_duration_before != self.auction_duration {
+            msg!(
+                "Updating auction duration to {}",
+                self.auction_duration.safe_unwrap()?
+            );
+        }
+
         Ok(())
     }
 
@@ -105,15 +163,13 @@ impl OrderParams {
         perp_market: &PerpMarket,
         oracle_price: i64,
     ) -> DriftResult {
-        if self.auction_duration.is_none() {
+        if self.auction_duration.is_none()
+            || self.auction_start_price.is_none()
+            || self.auction_end_price.is_none()
+        {
             return Ok(());
         }
-        if self.auction_start_price.is_none() {
-            return Ok(());
-        }
-        if self.auction_end_price.is_none() {
-            return Ok(());
-        }
+
         if !perp_market
             .contract_tier
             .is_as_safe_as_contract(&ContractTier::B)
@@ -121,37 +177,60 @@ impl OrderParams {
             return Ok(());
         }
 
-        let auction_start_price = OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
+        let new_start_price_offset =
+            OrderParams::get_perp_baseline_start_price_offset(perp_market)?;
         match self.direction {
             PositionDirection::Long => {
-                let a = self.get_auction_start_price_offset(oracle_price)?;
-                if a > auction_start_price {
+                let current_start_price_offset =
+                    self.get_auction_start_price_offset(oracle_price)?;
+                if current_start_price_offset > new_start_price_offset {
                     self.auction_start_price = if self.order_type == OrderType::Oracle {
-                        Some(auction_start_price)
+                        Some(new_start_price_offset)
                     } else {
-                        Some(auction_start_price.safe_add(oracle_price)?)
+                        Some(new_start_price_offset.safe_add(oracle_price)?)
                     };
+                    msg!(
+                        "Updating auction start price to {}",
+                        self.auction_start_price.safe_unwrap()?
+                    );
                 }
             }
             PositionDirection::Short => {
-                let a = self.get_auction_start_price_offset(oracle_price)?;
-                if a < auction_start_price {
+                let current_start_price_offset =
+                    self.get_auction_start_price_offset(oracle_price)?;
+                if current_start_price_offset < new_start_price_offset {
                     self.auction_start_price = if self.order_type == OrderType::Oracle {
-                        Some(auction_start_price)
+                        Some(new_start_price_offset)
                     } else {
-                        Some(auction_start_price.safe_add(oracle_price)?)
+                        Some(new_start_price_offset.safe_add(oracle_price)?)
                     };
+                    msg!(
+                        "Updating auction start price to {}",
+                        self.auction_start_price.safe_unwrap()?
+                    );
                 }
             }
         }
 
-        if let (Some(start_price), Some(end_price)) =
-            (self.auction_start_price, self.auction_end_price)
-        {
-            self.auction_duration = Some(get_auction_duration(
-                end_price.safe_sub(start_price)?.unsigned_abs(),
-                oracle_price.unsigned_abs(),
-            )?);
+        let auction_duration_before = self.auction_duration;
+        let new_auction_duration = get_auction_duration(
+            self.auction_end_price
+                .safe_unwrap()?
+                .safe_sub(self.auction_start_price.safe_unwrap()?)?
+                .unsigned_abs(),
+            oracle_price.unsigned_abs(),
+        )?;
+        self.auction_duration = Some(
+            auction_duration_before
+                .unwrap_or(0)
+                .max(new_auction_duration),
+        );
+
+        if auction_duration_before != self.auction_duration {
+            msg!(
+                "Updating auction duration to {}",
+                self.auction_duration.safe_unwrap()?
+            );
         }
 
         Ok(())
