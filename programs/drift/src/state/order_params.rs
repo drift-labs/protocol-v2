@@ -2,9 +2,9 @@ use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
-use crate::PERCENTAGE_PRECISION_U64;
+use crate::{PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use std::ops::Div;
@@ -34,11 +34,60 @@ pub struct OrderParams {
 }
 
 impl OrderParams {
+    pub fn get_auction_start_price_offset(self, oracle_price: i64) -> DriftResult<i64> {
+        //todo
+        let start_offset = if self.price == 0 && self.oracle_price_offset.is_some() {
+            self.auction_start_price.unwrap_or(0)
+        } else {
+            self.auction_start_price
+                .unwrap_or(0)
+                .safe_sub(oracle_price)?
+        };
+
+        Ok(start_offset)
+    }
+
     pub fn update_perp_auction_params(
         &mut self,
         perp_market: &PerpMarket,
         oracle_price: i64,
     ) -> DriftResult {
+        if self.order_type == OrderType::Market
+            && perp_market
+                .contract_tier
+                .is_as_safe_as_contract(&ContractTier::B)
+        {
+            let (auction_start_price, auction_end_price) =
+                OrderParams::get_perp_baseline_start_end_price_offset(perp_market, self.direction)?;
+            let current_auction_start = match self.direction {
+                PositionDirection::Long => {
+                    let a = self.get_auction_start_price_offset(oracle_price)?;
+                    if a > auction_start_price {
+                        self.auction_start_price = Some(auction_start_price);
+                        // self.auction_duration = get_auction_duration(
+                        //     self.auction_end_price
+                        //         .safe_sub(self.auction_start_price)?
+                        //         .abs(),
+                        //     oracle_price,
+                        // )
+                    }
+                }
+                PositionDirection::Short => {
+                    self.auction_start_price = Some(auction_start_price);
+                    let a = self.get_auction_start_price_offset(oracle_price)?;
+                    if a < auction_start_price {
+                        self.auction_start_price = Some(auction_start_price);
+                        // self.auction_duration = get_auction_duration(
+                        //     self.auction_end_price
+                        //         .safe_sub(self.auction_start_price)?
+                        //         .abs(),
+                        //     oracle_price,
+                        // )
+                    }
+                }
+            };
+        }
+
         if self.order_type != OrderType::Limit {
             return Ok(());
         }
@@ -93,6 +142,8 @@ impl OrderParams {
         perp_market: &PerpMarket,
         direction: PositionDirection,
     ) -> DriftResult<(i64, i64)> {
+        // price offsets baselines for perp market auctions
+
         let mark_twap = perp_market
             .amm
             .last_ask_price_twap
@@ -111,11 +162,25 @@ impl OrderParams {
                 .last_oracle_price_twap,
         )?;
 
+        let (min_divisor, max_divisor) = perp_market.get_auction_end_min_max_divisors()?;
+
+        let amm_spread_side_pct = if direction == PositionDirection::Short {
+            perp_market.amm.short_spread
+        } else {
+            perp_market.amm.long_spread
+        };
+
         let baseline_end_price_buffer = perp_market
             .amm
             .mark_std
             .max(perp_market.amm.oracle_std)
-            .clamp(oracle_twap / 100, oracle_twap / 20);
+            .max(
+                amm_spread_side_pct
+                    .cast::<u64>()?
+                    .safe_mul(oracle_twap)?
+                    .safe_div(PERCENTAGE_PRECISION_U64)?,
+            )
+            .clamp(oracle_twap / min_divisor, oracle_twap / max_divisor);
 
         let baseline_end_price_offset = if direction == PositionDirection::Short {
             let auction_end_price = perp_market
