@@ -1145,7 +1145,7 @@ use solana_security_txt::security_txt;
 security_txt! {
     name: "Drift v2",
     project_url: "https://drift.trade",
-    contacts: "link:https://docs.drift.trade/bug-bounty",
+    contacts: "link:https://docs.drift.trade/security/bug-bounty",
     policy: "https://github.com/drift-labs/protocol-v2/blob/main/SECURITY.md",
     preferred_languages: "en",
     source_code: "https://github.com/drift-labs/protocol-v2"
