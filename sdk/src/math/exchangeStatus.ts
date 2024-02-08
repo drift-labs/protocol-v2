@@ -1,6 +1,5 @@
 import {
 	ExchangeStatus,
-	isOneOfVariant,
 	PerpMarketAccount,
 	PerpOperation,
 	SpotMarketAccount,
