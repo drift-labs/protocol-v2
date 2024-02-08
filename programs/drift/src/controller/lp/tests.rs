@@ -762,7 +762,7 @@ fn test_lp_has_correct_entry_be_price() {
     };
 
     let amm = AMM {
-        order_step_size: BASE_PRECISION_U64/10,
+        order_step_size: BASE_PRECISION_U64 / 10,
         ..AMM::default_test()
     };
     let mut market = PerpMarket {
@@ -783,14 +783,37 @@ fn test_lp_has_correct_entry_be_price() {
     assert_eq!(position.quote_break_even_amount, -99999821);
     assert_eq!(position.quote_asset_amount, -99999821);
 
-    market.amm.base_asset_amount_per_lp -= BASE_PRECISION_I128/2;
+    market.amm.base_asset_amount_per_lp -= BASE_PRECISION_I128 / 2;
     market.amm.quote_asset_amount_per_lp += 97_999_821;
-    market.amm.base_asset_amount_with_unsettled_lp = BASE_PRECISION_I128/2;
-    market.amm.base_asset_amount_long = BASE_PRECISION_I128/2;
+    market.amm.base_asset_amount_with_unsettled_lp = BASE_PRECISION_I128 / 2;
+    market.amm.base_asset_amount_long = BASE_PRECISION_I128 / 2;
 
     settle_lp_position(&mut position, &mut market).unwrap();
 
     assert_eq!(position.quote_entry_amount, -49999911);
     assert_eq!(position.quote_break_even_amount, -49999911);
     assert_eq!(position.quote_asset_amount, -2000000);
+
+    // Loop to simulate multiple changes in market
+    for _i in 0..10 {
+        market.amm.base_asset_amount_per_lp -= BASE_PRECISION_I128 / 2;
+        market.amm.quote_asset_amount_per_lp += 96_999_821 / 2;
+        market.amm.base_asset_amount_with_unsettled_lp += BASE_PRECISION_I128 / 2;
+        market.amm.base_asset_amount_long += BASE_PRECISION_I128 / 2;
+
+        settle_lp_position(&mut position, &mut market).unwrap();
+
+        market.amm.base_asset_amount_per_lp += BASE_PRECISION_I128 / 4;
+        market.amm.quote_asset_amount_per_lp += 98_999_821 / 4;
+        market.amm.base_asset_amount_with_unsettled_lp -= -BASE_PRECISION_I128 / 4;
+        market.amm.base_asset_amount_long -= -BASE_PRECISION_I128 / 4;
+
+        settle_lp_position(&mut position, &mut market).unwrap();
+    }
+
+    assert_eq!(position.remainder_base_asset_amount, 0);
+    assert_eq!(position.base_asset_amount, -2000000000);
+    assert_eq!(position.quote_entry_amount, 183811787);
+    assert_eq!(position.quote_break_even_amount, 183811787);
+    assert_eq!(position.quote_asset_amount, 730498650);
 }
