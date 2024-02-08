@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: include derisk lp order action explanation
+
 ### Breaking
 
 ## [2.60.0] - 2023-02-07

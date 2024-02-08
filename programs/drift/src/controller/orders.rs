@@ -357,7 +357,7 @@ pub fn place_perp_order(
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Place,
-        OrderActionExplanation::None,
+        options.explanation,
         market_index,
         None,
         None,
