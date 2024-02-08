@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: calculate whether oracle's num quoters sufficient ([#860](https://github.com/drift-labs/protocol-v2/pull/860))
+
 ### Fixes
 
 ### Breaking
@@ -18,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: sanitize perp auction params ([#859](https://github.com/drift-labs/protocol-v2/pull/859))
-- program: add repay borrow explanation ([#862](https://github.com/drift-labs/protocol-v2/pull/862)) 
+- program: add repay borrow explanation ([#862](https://github.com/drift-labs/protocol-v2/pull/862))
 - program: derisk lp more granularly ([#849](https://github.com/drift-labs/protocol-v2/pull/849))
 
 ### Fixes
@@ -79,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.54.0] - 2023-01-15
 
 ### Features
+
 - sdk: move bracket orders into single instruction
 - sdk: add ability to do placeAndTake order with bracket orders attached
 - sdk: add option to cancel existing orders in market for place and take order
@@ -95,7 +98,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ts-sdk: fix oracle is valid ([#806](https://github.com/drift-labs/protocol-v2/pull/806))
 
 ### Breaking
-
 
 ## [2.53.0] - 2023-12-31
 
@@ -114,7 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: add ability to reclaim rent without deleting account ([#763](https://github.com/drift-labs/protocol-v2/pull/763)) 
+- program: add ability to reclaim rent without deleting account ([#763](https://github.com/drift-labs/protocol-v2/pull/763))
 - program: add borrow explanation to DepositRecords ([#772](https://github.com/drift-labs/protocol-v2/pull/772))
 - sdk: OrderSubscriber has resync option ([#780](https://github.com/drift-labs/protocol-v2/pull/780))
 - program: only consider recent last_active_slot in qualifies_for_withdraw_feen ([#756](https://github.com/drift-labs/protocol-v2/pull/756))
@@ -123,7 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 - program: handle underflow in calculate_liability_transfer_to_cover_margin_shortage ([#774](https://github.com/drift-labs/protocol-v2/pull/774))
-- program:  flip auction flag when trigger order adds auction ([#775](https://github.com/drift-labs/protocol-v2/pull/775))
+- program: flip auction flag when trigger order adds auction ([#775](https://github.com/drift-labs/protocol-v2/pull/775))
 - program: don't perform funding rate updates when slots_since_amm_update is stale ([#757](https://github.com/drift-labs/protocol-v2/pull/757))
 - program: add update last slot for filler in pay_keeper_flat_reward_for_spot
 
