@@ -45,6 +45,7 @@ pub enum DepositExplanation {
     None,
     Transfer,
     Borrow,
+    RepayBorrow,
 }
 
 impl Default for DepositExplanation {

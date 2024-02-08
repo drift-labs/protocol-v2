@@ -33,7 +33,7 @@ export class AuctionSubscriber {
 				),
 				{
 					filters: [getUserFilter(), getUserWithAuctionFilter()],
-					commitment: this.driftClient.opts.commitment,
+					commitment: this.opts.commitment,
 				},
 				this.resubTimeoutMs
 			);

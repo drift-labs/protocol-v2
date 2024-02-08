@@ -138,19 +138,6 @@ pub fn place_perp_order(
         )?;
     }
 
-    let max_ts = match params.max_ts {
-        Some(max_ts) => max_ts,
-        None => match params.order_type {
-            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
-            _ => 0_i64,
-        },
-    };
-
-    if max_ts != 0 && max_ts < now {
-        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
-        return Ok(());
-    }
-
     let new_order_index = user
         .orders
         .iter()
@@ -232,6 +219,21 @@ pub fn place_perp_order(
         market.amm.order_tick_size,
         state.min_perp_auction_duration,
     )?;
+
+    let max_ts = match params.max_ts {
+        Some(max_ts) => max_ts,
+        None => match params.order_type {
+            OrderType::Market | OrderType::Oracle => {
+                now.safe_add(30_i64.max((auction_duration / 2) as i64))?
+            }
+            _ => 0_i64,
+        },
+    };
+
+    if max_ts != 0 && max_ts < now {
+        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
+        return Ok(());
+    }
 
     validate!(
         params.market_type == MarketType::Perp,
@@ -2896,6 +2898,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         oracle_price_data.price
     };
 
+    let user_custom_margin_ratio = user.max_margin_ratio;
     let (lp_shares_to_burn, base_asset_amount_to_close) =
         calculate_lp_shares_to_burn_for_risk_reduction(
             &user.perp_positions[position_index],
@@ -2903,6 +2906,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
             oracle_price,
             quote_oracle_price,
             margin_calc.margin_shortage()?,
+            user_custom_margin_ratio,
         )?;
 
     let (position_delta, pnl) = burn_lp_shares(
