@@ -331,22 +331,6 @@ export function isRestingLimitOrder(order: Order, slot: number): boolean {
 		return false;
 	}
 
-	if (isVariant(order.orderType, 'triggerLimit')) {
-		if (
-			isVariant(order.direction, 'long') &&
-			order.triggerPrice.lt(order.price)
-		) {
-			return false;
-		} else if (
-			isVariant(order.direction, 'short') &&
-			order.triggerPrice.gt(order.price)
-		) {
-			return false;
-		}
-
-		return isAuctionComplete(order, slot);
-	}
-
 	return order.postOnly || isAuctionComplete(order, slot);
 }
 

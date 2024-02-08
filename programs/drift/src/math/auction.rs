@@ -222,18 +222,6 @@ pub fn calculate_auction_params_for_trigger_order(
     min_auction_duration: u8,
     perp_market: Option<&PerpMarket>,
 ) -> DriftResult<(u8, i64, i64)> {
-    // if trigger limit doesn't cross oracle, no auction
-    if order.order_type == OrderType::TriggerLimit {
-        let limit_doesnt_cross_trigger = match order.direction {
-            PositionDirection::Long => order.price < order.trigger_price,
-            PositionDirection::Short => order.price > order.trigger_price,
-        };
-
-        if limit_doesnt_cross_trigger {
-            return Ok((0, 0, 0));
-        }
-    }
-
     let auction_duration = min_auction_duration;
 
     if let Some(perp_market) = perp_market {
