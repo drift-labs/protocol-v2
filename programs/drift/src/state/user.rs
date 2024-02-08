@@ -888,6 +888,38 @@ impl PerpPosition {
         }
     }
 
+    pub fn get_be_price(&self) -> DriftResult<i128> {
+        if self.base_asset_amount == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_break_even_amount.cast::<i128>()?)
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(
+                self.base_asset_amount
+                    .cast::<i128>()?
+                    .safe_add(
+                        self.remainder_base_asset_amount.cast::<i128>()?
+                    )?,
+            )
+    }
+
+    pub fn get_entry_price(&self) -> DriftResult<i128> {
+        if self.base_asset_amount == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_entry_amount.cast::<i128>()?)
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(
+                self.base_asset_amount
+                    .cast::<i128>()?
+                    .safe_add(self.remainder_base_asset_amount.cast::<i128>()?)?,
+            )
+    }
+
     pub fn get_cost_basis(&self) -> DriftResult<i128> {
         if self.base_asset_amount == 0 {
             return Ok(0);

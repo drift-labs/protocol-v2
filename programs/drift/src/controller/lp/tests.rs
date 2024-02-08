@@ -2,6 +2,7 @@ use crate::controller::lp::*;
 use crate::controller::pnl::settle_pnl;
 use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
+use crate::PRICE_PRECISION;
 use std::str::FromStr;
 
 use anchor_lang::Owner;
@@ -770,7 +771,13 @@ fn test_lp_has_correct_entry_be_price() {
         ..PerpMarket::default_test()
     };
 
+    assert_eq!(market.amm.user_lp_shares, 0);
+    assert_eq!(market.amm.sqrt_k, 100000000000);
+
     mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
+    assert_eq!(market.amm.user_lp_shares, 1000000000);
+    assert_eq!(market.amm.sqrt_k, 101000000000);
+    assert_eq!(position.get_entry_price().unwrap(), 0);
 
     market.amm.base_asset_amount_per_lp = BASE_PRECISION_I128;
     market.amm.quote_asset_amount_per_lp = -99_999_821;
@@ -778,6 +785,7 @@ fn test_lp_has_correct_entry_be_price() {
     market.amm.base_asset_amount_long = BASE_PRECISION_I128;
 
     settle_lp_position(&mut position, &mut market).unwrap();
+    assert_eq!(position.get_entry_price().unwrap(), 99999821);
 
     assert_eq!(position.quote_entry_amount, -99999821);
     assert_eq!(position.quote_break_even_amount, -99999821);
@@ -789,31 +797,85 @@ fn test_lp_has_correct_entry_be_price() {
     market.amm.base_asset_amount_long = BASE_PRECISION_I128 / 2;
 
     settle_lp_position(&mut position, &mut market).unwrap();
+    assert_eq!(position.get_entry_price().unwrap(), 99999822);
 
+    assert_eq!(position.remainder_base_asset_amount, 0);
     assert_eq!(position.quote_entry_amount, -49999911);
     assert_eq!(position.quote_break_even_amount, -49999911);
     assert_eq!(position.quote_asset_amount, -2000000);
+    assert_eq!(position.base_asset_amount, 500_000_000);
 
-    // Loop to simulate multiple changes in market
-    for _i in 0..10 {
-        market.amm.base_asset_amount_per_lp -= BASE_PRECISION_I128 / 2;
-        market.amm.quote_asset_amount_per_lp += 96_999_821 / 2;
-        market.amm.base_asset_amount_with_unsettled_lp += BASE_PRECISION_I128 / 2;
-        market.amm.base_asset_amount_long += BASE_PRECISION_I128 / 2;
+    let amt2 = -BASE_PRECISION_I128 / 4;
+    market.amm.base_asset_amount_per_lp += amt2;
+    market.amm.quote_asset_amount_per_lp += 98_999_821 / 4;
+    market.amm.base_asset_amount_with_unsettled_lp -= amt2;
+    market.amm.base_asset_amount_long -= amt2;
 
+    settle_lp_position(&mut position, &mut market).unwrap();
+    assert_eq!(position.get_entry_price().unwrap(), 99999824);
+    assert_eq!(position.get_cost_basis().unwrap(), -75833183);
+
+    assert_eq!(position.base_asset_amount, 300000000);
+    assert_eq!(position.remainder_base_asset_amount, -50000000);
+    assert_eq!(position.quote_entry_amount, -24999956);
+    assert_eq!(position.quote_break_even_amount, -24999956);
+    assert_eq!(position.quote_asset_amount, 22749955);
+}
+
+
+
+#[test]
+fn test_lp_has_correct_entry_be_price_sim() {
+    let mut position = PerpPosition {
+        ..PerpPosition::default()
+    };
+
+    let amm = AMM {
+        order_step_size: BASE_PRECISION_U64 / 10,
+        ..AMM::default_test()
+    };
+    let mut market = PerpMarket {
+        amm,
+        ..PerpMarket::default_test()
+    };
+
+    assert_eq!(market.amm.user_lp_shares, 0);
+    assert_eq!(market.amm.sqrt_k, 100000000000);
+
+    mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
+    assert_eq!(market.amm.user_lp_shares, 1000000000);
+    assert_eq!(market.amm.sqrt_k, 101000000000);
+    assert_eq!(position.get_entry_price().unwrap(), 0);
+
+    for i in 0..100 {
+        if i % 3 == 0 {
+            let px = 100_000_000 - i;
+            let amt2 = -BASE_PRECISION_I128 / 4;
+            market.amm.base_asset_amount_per_lp += amt2;
+            market.amm.quote_asset_amount_per_lp += px / 4;
+            market.amm.base_asset_amount_with_unsettled_lp -= amt2;
+            market.amm.base_asset_amount_long -= amt2;
+        } else {
+            // buy
+            let px = 99_199_821 + i;
+            market.amm.base_asset_amount_per_lp += BASE_PRECISION_I128 / 3;
+            market.amm.quote_asset_amount_per_lp -= px / 3;
+            market.amm.base_asset_amount_with_unsettled_lp += BASE_PRECISION_I128 / 3;
+            market.amm.base_asset_amount_long += BASE_PRECISION_I128 / 3;
+        }
         settle_lp_position(&mut position, &mut market).unwrap();
 
-        market.amm.base_asset_amount_per_lp += BASE_PRECISION_I128 / 4;
-        market.amm.quote_asset_amount_per_lp += 98_999_821 / 4;
-        market.amm.base_asset_amount_with_unsettled_lp -= -BASE_PRECISION_I128 / 4;
-        market.amm.base_asset_amount_long -= -BASE_PRECISION_I128 / 4;
+        let entry = position.get_entry_price().unwrap();
+        let be = position.get_be_price().unwrap();
 
-        settle_lp_position(&mut position, &mut market).unwrap();
+        let iii = position.base_asset_amount.safe_add(position.remainder_base_asset_amount as i64).unwrap();
+
+        msg!("{}: entry: {}, be: {} ({})", i, entry, be, iii);
+
+        assert!(entry <= 100 * PRICE_PRECISION as i128);
+        assert!(entry >= 99 * PRICE_PRECISION as i128);
     }
+    
 
-    assert_eq!(position.remainder_base_asset_amount, 0);
-    assert_eq!(position.base_asset_amount, -2000000000);
-    assert_eq!(position.quote_entry_amount, 183811787);
-    assert_eq!(position.quote_break_even_amount, 183811787);
-    assert_eq!(position.quote_asset_amount, 730498650);
+
 }
