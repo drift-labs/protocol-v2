@@ -609,6 +609,7 @@ export type PerpMarketAccount = {
 	};
 	quoteSpotMarketIndex: number;
 	feeAdjustment: number;
+	pausedOperations: number;
 };
 
 export type HistoricalOracleData = {
@@ -700,6 +701,8 @@ export type SpotMarketAccount = {
 	flashLoanInitialTokenAmount: BN;
 
 	ordersEnabled: boolean;
+
+	pausedOperations: number;
 };
 
 export type PoolBalance = {
