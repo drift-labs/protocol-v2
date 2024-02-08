@@ -2598,7 +2598,8 @@ pub fn trigger_order(
             &mut user.orders[order_index],
             oracle_price_data,
             slot,
-            state.min_perp_auction_duration,
+            30,
+            Some(&perp_market),
         )?;
 
         if user.orders[order_index].has_auction() {
@@ -2692,6 +2693,7 @@ fn update_trigger_order_params(
     oracle_price_data: &OraclePriceData,
     slot: u64,
     min_auction_duration: u8,
+    perp_market: Option<&PerpMarket>,
 ) -> DriftResult {
     order.trigger_condition = match order.trigger_condition {
         OrderTriggerCondition::Above => OrderTriggerCondition::TriggeredAbove,
@@ -2704,7 +2706,12 @@ fn update_trigger_order_params(
     order.slot = slot;
 
     let (auction_duration, auction_start_price, auction_end_price) =
-        calculate_auction_params_for_trigger_order(order, oracle_price_data, min_auction_duration)?;
+        calculate_auction_params_for_trigger_order(
+            order,
+            oracle_price_data,
+            min_auction_duration,
+            perp_market,
+        )?;
 
     order.auction_duration = auction_duration;
     order.auction_start_price = auction_start_price;
@@ -4696,7 +4703,8 @@ pub fn trigger_spot_order(
             &mut user.orders[order_index],
             oracle_price_data,
             slot,
-            state.default_spot_auction_duration,
+            30,
+            None,
         )?;
 
         if user.orders[order_index].has_auction() {
