@@ -2713,6 +2713,13 @@ fn update_trigger_order_params(
             perp_market,
         )?;
 
+    msg!(
+        "new auction duration {} start price {} end price {}",
+        auction_duration,
+        auction_start_price,
+        auction_end_price
+    );
+
     order.auction_duration = auction_duration;
     order.auction_start_price = auction_start_price;
     order.auction_end_price = auction_end_price;
