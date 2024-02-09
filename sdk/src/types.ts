@@ -45,6 +45,7 @@ export enum UserStatus {
 	BEING_LIQUIDATED = 1,
 	BANKRUPT = 2,
 	REDUCE_ONLY = 4,
+	ADVANCED_LP = 8,
 }
 
 export class ContractType {
