@@ -1025,22 +1025,40 @@ export class DriftClient {
 	}
 
 	public async updateUserAdvancedLp(
-		advancedLp: boolean,
-		subAccountId = 0
+		updates: { advancedLp: boolean; subAccountId: number }[]
 	): Promise<TransactionSignature> {
-		const tx = await this.program.transaction.updateUserAdvancedLp(
+		const ixs = await Promise.all(
+			updates.map(async ({ advancedLp, subAccountId }) => {
+				return await this.getUpdateAdvancedDlpIx(advancedLp, subAccountId);
+			})
+		);
+
+		const tx = await this.buildTransaction(ixs, this.txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateAdvancedDlpIx(
+		advancedLp: boolean,
+		subAccountId: number
+	) {
+		const ix = await this.program.instruction.updateUserAdvancedLp(
 			subAccountId,
 			advancedLp,
 			{
 				accounts: {
-					user: await this.getUserAccountPublicKey(),
+					user: getUserAccountPublicKeySync(
+						this.program.programId,
+						this.wallet.publicKey,
+						subAccountId
+					),
 					authority: this.wallet.publicKey,
 				},
 			}
 		);
 
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
+		return ix;
 	}
 
 	public async fetchAllUserAccounts(
