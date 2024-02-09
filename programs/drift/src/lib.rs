@@ -270,6 +270,14 @@ pub mod drift {
         handle_update_user_reduce_only(ctx, _sub_account_id, reduce_only)
     }
 
+    pub fn update_user_advanced_lp(
+        ctx: Context<UpdateUser>,
+        _sub_account_id: u16,
+        advanced_lp: bool,
+    ) -> Result<()> {
+        handle_update_user_advanced_lp(ctx, _sub_account_id, advanced_lp)
+    }
+
     pub fn delete_user(ctx: Context<DeleteUser>) -> Result<()> {
         handle_delete_user(ctx)
     }

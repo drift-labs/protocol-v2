@@ -1874,6 +1874,19 @@ pub fn handle_update_user_reduce_only(
     Ok(())
 }
 
+pub fn handle_update_user_advanced_lp(
+    ctx: Context<UpdateUser>,
+    _sub_account_id: u16,
+    advanced_lp: bool,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+
+    user.update_advanced_lp_status(advanced_lp)?;
+    Ok(())
+}
+
 pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     let user = &load!(ctx.accounts.user)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
