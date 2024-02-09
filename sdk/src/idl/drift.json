@@ -1148,6 +1148,31 @@
       ]
     },
     {
+      "name": "updateUserAdvancedLp",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "advancedLp",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "deleteUser",
       "accounts": [
         {
@@ -8925,6 +8950,9 @@
           },
           {
             "name": "ReduceOnly"
+          },
+          {
+            "name": "AdvancedLp"
           }
         ]
       }

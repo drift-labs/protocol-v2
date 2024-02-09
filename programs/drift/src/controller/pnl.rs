@@ -76,7 +76,7 @@ pub fn settle_pnl(
     let unrealized_pnl = user.perp_positions[position_index].get_unrealized_pnl(oracle_price)?;
 
     // cannot settle negative pnl this way on a user who is in liquidation territory
-    if user.perp_positions[position_index].is_lp() {
+    if user.perp_positions[position_index].is_lp() && !user.is_advanced_lp() {
         let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
             perp_market_map,
