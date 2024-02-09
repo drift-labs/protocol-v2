@@ -899,9 +899,7 @@ impl PerpPosition {
             .safe_div(
                 self.base_asset_amount
                     .cast::<i128>()?
-                    .safe_add(
-                        self.remainder_base_asset_amount.cast::<i128>()?
-                    )?,
+                    .safe_add(self.remainder_base_asset_amount.cast::<i128>()?)?,
             )
     }
 
@@ -936,6 +934,18 @@ impl PerpPosition {
             calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
 
         Ok(unrealized_pnl)
+    }
+
+    pub fn get_current_base_with_remainder_abs(&self) -> DriftResult<i128> {
+        let current_base_i128 = if self.remainder_base_asset_amount != 0 {
+            self.base_asset_amount
+                .safe_add(self.remainder_base_asset_amount.cast()?)?
+                .abs()
+                .cast::<i128>()?
+        } else {
+            self.base_asset_amount.abs().cast::<i128>()?
+        };
+        Ok(current_base_i128)
     }
 
     pub fn get_claimable_pnl(&self, oracle_price: i64, pnl_pool_excess: i128) -> DriftResult<i128> {

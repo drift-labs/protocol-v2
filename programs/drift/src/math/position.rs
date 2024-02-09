@@ -145,7 +145,8 @@ pub fn get_position_update_type(
     position: &PerpPosition,
     delta: &PositionDelta,
 ) -> DriftResult<PositionUpdateType> {
-    if position.base_asset_amount == 0 {
+    if position.base_asset_amount == 0 && position.remainder_base_asset_amount == 0 {
+        crate::msg!("open");
         return Ok(PositionUpdateType::Open);
     }
 
@@ -159,12 +160,20 @@ pub fn get_position_update_type(
         };
 
     if position.base_asset_amount.signum() == delta_base_with_remainder.signum() {
+        crate::msg!("inc");
+
         return Ok(PositionUpdateType::Increase);
     } else if position.base_asset_amount.abs() > delta_base_with_remainder.abs() {
+        crate::msg!("red");
+
         return Ok(PositionUpdateType::Reduce);
     } else if position.base_asset_amount.abs() == delta_base_with_remainder.abs() {
+        crate::msg!("close");
+
         return Ok(PositionUpdateType::Close);
     } else {
+        crate::msg!("flip");
+
         return Ok(PositionUpdateType::Flip);
     }
 }

@@ -82,26 +82,78 @@ pub struct PositionDelta {
     pub remainder_base_asset_amount: Option<i32>,
 }
 
+impl PositionDelta {
+    pub fn get_delta_base_with_remainder_abs(&self) -> DriftResult<i128> {
+        let delta_base_i128 =
+            if let Some(remainder_base_asset_amount) = self.remainder_base_asset_amount {
+                self.base_asset_amount
+                    .safe_add(remainder_base_asset_amount.cast()?)?
+                    .abs()
+                    .cast::<i128>()?
+            } else {
+                self.base_asset_amount.abs().cast::<i128>()?
+            };
+        Ok(delta_base_i128)
+    }
+}
+
 pub fn update_position_and_market(
     position: &mut PerpPosition,
     market: &mut PerpMarket,
     delta: &PositionDelta,
 ) -> DriftResult<i64> {
-    if delta.base_asset_amount == 0 {
+    if delta.base_asset_amount == 0
+        && position.remainder_base_asset_amount == 0
+        && delta.remainder_base_asset_amount.unwrap_or(0) == 0
+    {
         update_quote_asset_amount(position, market, delta.quote_asset_amount)?;
+        msg!("ret early");
         return Ok(delta.quote_asset_amount);
     }
 
-    let update_type = get_position_update_type(position, delta)?;
+    let update_type = get_position_update_type(position, &delta)?;
 
     // Update User
     let new_quote_asset_amount = position
         .quote_asset_amount
         .safe_add(delta.quote_asset_amount)?;
 
-    let new_base_asset_amount = position
+    let mut new_base_asset_amount = position
         .base_asset_amount
         .safe_add(delta.base_asset_amount)?;
+
+    let mut new_remainder_base_asset_amount = position
+        .remainder_base_asset_amount
+        .cast::<i64>()?
+        .safe_add(
+        delta
+            .remainder_base_asset_amount
+            .unwrap_or(0)
+            .cast::<i64>()?,
+    )?;
+
+    if delta.remainder_base_asset_amount.is_some() {
+        if new_remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size {
+            let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
+                crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+                    new_remainder_base_asset_amount.cast()?,
+                    market.amm.order_step_size.cast()?,
+                )?;
+
+            new_base_asset_amount =
+                new_base_asset_amount.safe_add(standardized_remainder_base_asset_amount.cast()?)?;
+
+            new_remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
+        } else {
+            new_remainder_base_asset_amount = new_remainder_base_asset_amount.cast()?;
+        }
+
+        validate!(new_remainder_base_asset_amount.abs() <= i32::MAX as i64,
+            ErrorCode::InvalidPositionDelta,
+            "new_remainder_base_asset_amount={} > i32 max",
+            new_remainder_base_asset_amount
+        )?;
+    }
 
     let (new_quote_entry_amount, new_quote_break_even_amount, pnl) = match update_type {
         PositionUpdateType::Open | PositionUpdateType::Increase => {
@@ -116,32 +168,23 @@ pub fn update_position_and_market(
             (new_quote_entry_amount, new_quote_break_even_amount, 0_i64)
         }
         PositionUpdateType::Reduce | PositionUpdateType::Close => {
-            let delta_base_i128 =
-                if let Some(remainder_base_asset_amount) = delta.remainder_base_asset_amount {
-                    delta
-                        .base_asset_amount
-                        .safe_add(remainder_base_asset_amount.cast()?)?
-                        .abs()
-                        .cast::<i128>()?
-                } else {
-                    delta.base_asset_amount.abs().cast::<i128>()?
-                };
+            let current_base_i128 = position.get_current_base_with_remainder_abs()?;
+            let delta_base_i128 = delta.get_delta_base_with_remainder_abs()?;
+            let ddd = position
+                .quote_entry_amount
+                .cast::<i128>()?
+                .safe_mul(delta_base_i128)?
+                .safe_div(current_base_i128)?
+                .cast()?;
 
-            let new_quote_entry_amount = position.quote_entry_amount.safe_sub(
-                position
-                    .quote_entry_amount
-                    .cast::<i128>()?
-                    .safe_mul(delta_base_i128)?
-                    .safe_div(position.base_asset_amount.abs().cast()?)?
-                    .cast()?,
-            )?;
+            let new_quote_entry_amount = position.quote_entry_amount.safe_sub(ddd)?;
 
             let new_quote_break_even_amount = position.quote_break_even_amount.safe_sub(
                 position
                     .quote_break_even_amount
                     .cast::<i128>()?
                     .safe_mul(delta_base_i128)?
-                    .safe_div(position.base_asset_amount.abs().cast()?)?
+                    .safe_div(current_base_i128)?
                     .cast()?,
             )?;
 
@@ -153,22 +196,15 @@ pub fn update_position_and_market(
             (new_quote_entry_amount, new_quote_break_even_amount, pnl)
         }
         PositionUpdateType::Flip => {
-            let delta_base_i128 =
-                if let Some(remainder_base_asset_amount) = delta.remainder_base_asset_amount {
-                    delta
-                        .base_asset_amount
-                        .safe_add(remainder_base_asset_amount.cast()?)?
-                        .abs()
-                        .cast::<i128>()?
-                } else {
-                    delta.base_asset_amount.abs().cast::<i128>()?
-                };
+            let current_base_i128 = position.get_current_base_with_remainder_abs()?;
+            let delta_base_i128 = delta.get_delta_base_with_remainder_abs()?;
+
             // same calculation for new_quote_entry_amount
             let new_quote_break_even_amount = delta.quote_asset_amount.safe_sub(
                 delta
                     .quote_asset_amount
                     .cast::<i128>()?
-                    .safe_mul(position.base_asset_amount.abs().cast()?)?
+                    .safe_mul(current_base_i128)?
                     .safe_div(delta_base_i128)?
                     .cast()?,
             )?;
@@ -389,10 +425,12 @@ pub fn update_position_and_market(
         new_base_asset_amount
     )?;
 
+    position.remainder_base_asset_amount = new_remainder_base_asset_amount.cast::<i32>()?;
+    position.base_asset_amount = new_base_asset_amount;
+
     position.quote_asset_amount = new_quote_asset_amount;
     position.quote_entry_amount = new_quote_entry_amount;
     position.quote_break_even_amount = new_quote_break_even_amount;
-    position.base_asset_amount = new_base_asset_amount;
 
     Ok(pnl)
 }

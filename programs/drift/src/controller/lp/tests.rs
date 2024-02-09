@@ -822,8 +822,6 @@ fn test_lp_has_correct_entry_be_price() {
     assert_eq!(position.quote_asset_amount, 22749955);
 }
 
-
-
 #[test]
 fn test_lp_has_correct_entry_be_price_sim() {
     let mut position = PerpPosition {
@@ -846,8 +844,12 @@ fn test_lp_has_correct_entry_be_price_sim() {
     assert_eq!(market.amm.user_lp_shares, 1000000000);
     assert_eq!(market.amm.sqrt_k, 101000000000);
     assert_eq!(position.get_entry_price().unwrap(), 0);
+    assert_eq!(position.get_cost_basis().unwrap(), 0);
+    assert_eq!(position.get_be_price().unwrap(), 0);
+    assert_eq!(position.remainder_base_asset_amount, 0);
+    assert_eq!(position.base_asset_amount, 0);
 
-    for i in 0..100 {
+    for i in 0..3000 {
         if i % 3 == 0 {
             let px = 100_000_000 - i;
             let amt2 = -BASE_PRECISION_I128 / 4;
@@ -858,24 +860,43 @@ fn test_lp_has_correct_entry_be_price_sim() {
         } else {
             // buy
             let px = 99_199_821 + i;
-            market.amm.base_asset_amount_per_lp += BASE_PRECISION_I128 / 3;
-            market.amm.quote_asset_amount_per_lp -= px / 3;
-            market.amm.base_asset_amount_with_unsettled_lp += BASE_PRECISION_I128 / 3;
-            market.amm.base_asset_amount_long += BASE_PRECISION_I128 / 3;
+            let divisor = 20;
+            let base_delta = BASE_PRECISION_I128 / divisor;
+            market.amm.base_asset_amount_per_lp += base_delta;
+            market.amm.quote_asset_amount_per_lp -= px / divisor;
+            market.amm.base_asset_amount_with_unsettled_lp += base_delta;
+            market.amm.base_asset_amount_long += base_delta;
         }
+
         settle_lp_position(&mut position, &mut market).unwrap();
 
         let entry = position.get_entry_price().unwrap();
         let be = position.get_be_price().unwrap();
+        let cb = position.get_cost_basis().unwrap();
 
-        let iii = position.base_asset_amount.safe_add(position.remainder_base_asset_amount as i64).unwrap();
+        let iii = position
+            .base_asset_amount
+            .safe_add(position.remainder_base_asset_amount as i64)
+            .unwrap();
 
-        msg!("{}: entry: {}, be: {} ({})", i, entry, be, iii);
+        msg!(
+            "{}: entry: {}, be: {} cb:{} ({}/{})",
+            i,
+            entry,
+            be,
+            cb,
+            iii,
+            position.base_asset_amount
+        );
+
+        crate::dlog!(position.base_asset_amount);
+        crate::dlog!(position.remainder_base_asset_amount);
+        crate::dlog!(position.quote_asset_amount);
+        crate::dlog!(position.quote_entry_amount);
+        crate::dlog!(position.quote_break_even_amount);
 
         assert!(entry <= 100 * PRICE_PRECISION as i128);
         assert!(entry >= 99 * PRICE_PRECISION as i128);
     }
-    
-
-
+    // assert!(1 == 99 * PRICE_PRECISION as i128);
 }

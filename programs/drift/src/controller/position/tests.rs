@@ -486,6 +486,65 @@ fn half_half_amm_lp_split() {
 }
 
 #[test]
+fn test_position_entry_sim() {
+    let mut existing_position = PerpPosition::default();
+    let position_delta = PositionDelta {
+        base_asset_amount: BASE_PRECISION_I64 / 2,
+        quote_asset_amount: -99_345_000 / 2,
+        remainder_base_asset_amount: None,
+    };
+    let mut market = PerpMarket {
+        amm: AMM {
+            cumulative_funding_rate_long: 1,
+            sqrt_k: 1,
+            order_step_size: (BASE_PRECISION_I64 / 10) as u64,
+            ..AMM::default()
+        },
+        number_of_users_with_base: 0,
+        ..PerpMarket::default_test()
+    };
+
+    let pnl =
+        update_position_and_market(&mut existing_position, &mut market, &position_delta).unwrap();
+
+    assert_eq!(pnl, 0);
+    assert_eq!(existing_position.get_entry_price().unwrap(), 99345000);
+
+    let position_delta_to_reduce = PositionDelta {
+        base_asset_amount: -BASE_PRECISION_I64 / 5,
+        quote_asset_amount: 99_245_000 / 5,
+        remainder_base_asset_amount: None,
+    };
+
+    let pnl = update_position_and_market(
+        &mut existing_position,
+        &mut market,
+        &position_delta_to_reduce,
+    )
+    .unwrap();
+
+    assert_eq!(pnl, -20000);
+    assert_eq!(existing_position.base_asset_amount, 300000000);
+    assert_eq!(existing_position.get_entry_price().unwrap(), 99345000);
+    assert_eq!(existing_position.get_be_price().unwrap(), 99345000);
+
+    let position_delta_to_flip = PositionDelta {
+        base_asset_amount: -BASE_PRECISION_I64,
+        quote_asset_amount: 99_345_000,
+        remainder_base_asset_amount: None,
+    };
+
+    let pnl =
+        update_position_and_market(&mut existing_position, &mut market, &position_delta_to_flip)
+            .unwrap();
+
+    assert_eq!(pnl, 0);
+    assert_eq!(existing_position.base_asset_amount, -700000000);
+    assert_eq!(existing_position.get_entry_price().unwrap(), 99345000);
+    assert_eq!(existing_position.get_be_price().unwrap(), 99345000);
+}
+
+#[test]
 fn increase_long_from_no_position() {
     let mut existing_position = PerpPosition::default();
     let position_delta = PositionDelta {

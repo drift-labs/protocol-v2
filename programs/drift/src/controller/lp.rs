@@ -183,34 +183,17 @@ pub fn settle_lp_position(
 
     apply_lp_rebase_to_perp_position(market, position)?;
 
-    let mut lp_metrics: crate::math::lp::LPMetrics =
+    let lp_metrics: crate::math::lp::LPMetrics =
         calculate_settle_lp_metrics(&market.amm, position)?;
 
-    let new_remainder_base_asset_amount = position
-        .remainder_base_asset_amount
-        .cast::<i64>()?
-        .safe_add(lp_metrics.remainder_base_asset_amount.cast()?)?;
-
-    if new_remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size {
-        let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
-            crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
-                new_remainder_base_asset_amount.cast()?,
-                market.amm.order_step_size.cast()?,
-            )?;
-
-        lp_metrics.base_asset_amount = lp_metrics
-            .base_asset_amount
-            .safe_add(standardized_remainder_base_asset_amount)?;
-
-        position.remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
-    } else {
-        position.remainder_base_asset_amount = new_remainder_base_asset_amount.cast()?;
-    }
+    // crate::dlog!(lp_metrics.base_asset_amount);
+    // crate::dlog!(lp_metrics.remainder_base_asset_amount);
+    // crate::dlog!(lp_metrics.quote_asset_amount);
 
     let position_delta = PositionDelta {
         base_asset_amount: lp_metrics.base_asset_amount.cast()?,
         quote_asset_amount: lp_metrics.quote_asset_amount.cast()?,
-        remainder_base_asset_amount: Some(position.remainder_base_asset_amount),
+        remainder_base_asset_amount: Some(lp_metrics.remainder_base_asset_amount.cast::<i32>()?),
     };
 
     let pnl = update_position_and_market(position, market, &position_delta)?;
