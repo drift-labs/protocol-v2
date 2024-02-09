@@ -1029,10 +1029,7 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const ixs = await Promise.all(
 			updates.map(async ({ advancedLp, subAccountId }) => {
-				return await this.getUpdateAdvancedDlpIx(
-					advancedLp,
-					subAccountId
-				);
+				return await this.getUpdateAdvancedDlpIx(advancedLp, subAccountId);
 			})
 		);
 
@@ -1042,16 +1039,24 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getUpdateAdvancedDlpIx(advancedLp: boolean, subAccountId: number) {
+	public async getUpdateAdvancedDlpIx(
+		advancedLp: boolean,
+		subAccountId: number
+	) {
 		const ix = await this.program.instruction.updateUserAdvancedLp(
 			subAccountId,
 			advancedLp,
 			{
-			accounts: {
-				user: await this.getUserAccountPublicKey(subAccountId, this.wallet.publicKey),
-				authority: this.wallet.publicKey,
-			},
-		});
+				accounts: {
+					user: getUserAccountPublicKeySync(
+						this.program.programId,
+						this.wallet.publicKey,
+						subAccountId
+					),
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
 
 		return ix;
 	}
