@@ -157,7 +157,7 @@ impl AccountSubscription {
                             .value
                             .decode::<AccountSharedData>()
                             .expect("account");
-                        self.tx.send((account_data.into(), Instant::now())).expect("sent");
+                        let _ = self.tx.send_replace((account_data.into(), Instant::now()));
                     } else {
                         // websocket subscription/stream closed, try reconnect..
                         warn!(target: "account", "account stream closed: {:?}", self.account);

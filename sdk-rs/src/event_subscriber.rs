@@ -166,7 +166,9 @@ impl LogEventStream {
                 continue;
             }
             let signature = response.value.signature;
+            debug!(target: LOG_TARGET, "log extracting events, tx: {signature:?}");
             if cache.contains(&signature) {
+                debug!(target: LOG_TARGET, "log skip cached, tx: {signature:?}");
                 continue;
             }
             cache.insert(signature.clone());
@@ -316,6 +318,7 @@ impl<T: EventRpcProvider> PolledEventStream<T> {
             let mut cache = self.cache.write().await;
 
             while let Some((signature, response)) = futs.next().await {
+                debug!(target: LOG_TARGET, "poll extracting events, tx: {signature:?}");
                 if let Err(err) = response {
                     warn!(target: LOG_TARGET, "poll processing tx: {err:?}");
                     // retry querying the batch
