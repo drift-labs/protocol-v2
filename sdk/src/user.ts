@@ -1850,6 +1850,10 @@ export class User {
 		);
 	}
 
+	public hasStatus(status: UserStatus): boolean {
+		return (this.getUserAccount().status & status) > 0;
+	}
+
 	public isBankrupt(): boolean {
 		return (this.getUserAccount().status & UserStatus.BANKRUPT) > 0;
 	}
