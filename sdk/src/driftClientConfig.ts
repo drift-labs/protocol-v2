@@ -32,6 +32,7 @@ export type DriftClientConfig = {
 	skipLoadUsers?: boolean; // if passed to constructor, no user accounts will be loaded. they will load if updateWallet is called afterwards.
 	txVersion?: TransactionVersion; // which tx version to use
 	txParams?: TxParams; // default tx params to use
+	enableMetricsEvents?: boolean;
 };
 
 export type DriftClientSubscriptionConfig =

@@ -11,9 +11,9 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
 };
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128, LP_FEE_SLICE_DENOMINATOR,
-    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION, SPOT_WEIGHT_PRECISION,
-    TWENTY_FOUR_HOUR,
+    AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_U128,
+    LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
+    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -31,6 +31,7 @@ use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
@@ -43,13 +44,13 @@ pub enum MarketStatus {
     Initialized,
     /// all operations allowed
     Active,
-    /// funding rate updates are paused
+    /// Deprecated in favor of PausedOperations
     FundingPaused,
-    /// amm fills are prevented/blocked
+    /// Deprecated in favor of PausedOperations
     AmmPaused,
-    /// fills are blocked
+    /// Deprecated in favor of PausedOperations
     FillPaused,
-    /// perp: pause settling negative pnl | spot: pause depositing asset
+    /// Deprecated in favor of PausedOperations
     WithdrawPaused,
     /// fills only able to reduce liability
     ReduceOnly,
@@ -62,6 +63,23 @@ pub enum MarketStatus {
 impl Default for MarketStatus {
     fn default() -> Self {
         MarketStatus::Initialized
+    }
+}
+
+impl MarketStatus {
+    pub fn validate_not_deprecated(&self) -> DriftResult {
+        if matches!(
+            self,
+            MarketStatus::FundingPaused
+                | MarketStatus::AmmPaused
+                | MarketStatus::FillPaused
+                | MarketStatus::WithdrawPaused
+        ) {
+            msg!("MarketStatus is deprecated");
+            Err(ErrorCode::DefaultError)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -202,7 +220,7 @@ pub struct PerpMarket {
     /// The contract tier determines how much insurance a market can receive, with more speculative markets receiving less insurance
     /// It also influences the order perp markets can be liquidated, with less speculative markets being liquidated first
     pub contract_tier: ContractTier,
-    pub padding1: u8,
+    pub paused_operations: u8,
     /// The spot market that pnl is settled in
     pub quote_spot_market_index: u16,
     /// Between -100 and 100, represents what % to increase/decrease the fee by
@@ -240,7 +258,7 @@ impl Default for PerpMarket {
             status: MarketStatus::default(),
             contract_type: ContractType::default(),
             contract_tier: ContractTier::default(),
-            padding1: 0,
+            paused_operations: 0,
             quote_spot_market_index: 0,
             fee_adjustment: 0,
             padding: [0; 46],
@@ -257,17 +275,21 @@ impl MarketIndexOffset for PerpMarket {
 }
 
 impl PerpMarket {
-    pub fn is_active(&self, now: i64) -> DriftResult<bool> {
-        let status_ok = !matches!(
+    pub fn is_in_settlement(&self, now: i64) -> bool {
+        let in_settlement = matches!(
             self.status,
             MarketStatus::Settlement | MarketStatus::Delisted
         );
-        let not_expired = self.expiry_ts == 0 || now < self.expiry_ts;
-        Ok(status_ok && not_expired)
+        let expired = self.expiry_ts != 0 && now >= self.expiry_ts;
+        in_settlement || expired
     }
 
     pub fn is_reduce_only(&self) -> DriftResult<bool> {
         Ok(self.status == MarketStatus::ReduceOnly)
+    }
+
+    pub fn is_operation_paused(&self, operation: PerpOperation) -> bool {
+        PerpOperation::is_operation_paused(self.paused_operations, operation)
     }
 
     pub fn get_sanitize_clamp_denominator(self) -> DriftResult<Option<i64>> {
@@ -277,6 +299,16 @@ impl PerpMarket {
             ContractTier::C => Some(2_i64),    // 50%
             ContractTier::Speculative => None, // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
             ContractTier::Isolated => None,    // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
+        })
+    }
+
+    pub fn get_auction_end_min_max_divisors(self) -> DriftResult<(u64, u64)> {
+        Ok(match self.contract_tier {
+            ContractTier::A => (1000, 50),          // 10 bps, 2%
+            ContractTier::B => (1000, 20),          // 10 bps, 5%
+            ContractTier::C => (500, 20),           // 50 bps, 5%
+            ContractTier::Speculative => (100, 10), // 1%, 10%
+            ContractTier::Isolated => (50, 5),      // 2%, 20%
         })
     }
 
@@ -826,6 +858,15 @@ impl AMM {
         }
     }
 
+    pub fn get_lower_bound_sqrt_k(self) -> DriftResult<u128> {
+        Ok(self.sqrt_k.min(
+            self.user_lp_shares
+                .safe_add(self.user_lp_shares.safe_div(1000)?)?
+                .max(self.min_order_size.cast()?)
+                .max(self.base_asset_amount_with_amm.unsigned_abs().cast()?),
+        ))
+    }
+
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
         self.base_asset_amount_with_amm
             .safe_add(self.base_asset_amount_with_unsettled_lp)?
@@ -1147,6 +1188,35 @@ impl AMM {
         self.last_trade_ts = now;
 
         Ok(())
+    }
+
+    pub fn get_new_oracle_conf_pct(
+        &self,
+        confidence: u64,    // price precision
+        reserve_price: u64, // price precision
+        now: i64,
+    ) -> DriftResult<u64> {
+        // use previous value decayed as lower bound to avoid shrinking too quickly
+        let upper_bound_divisor = 21_u64;
+        let lower_bound_divisor = 5_u64;
+        let since_last = now
+            .safe_sub(self.historical_oracle_data.last_oracle_price_twap_ts)?
+            .max(0);
+
+        let confidence_lower_bound = if since_last > 0 {
+            let confidence_divisor = upper_bound_divisor
+                .saturating_sub(since_last.cast::<u64>()?)
+                .max(lower_bound_divisor);
+            self.last_oracle_conf_pct
+                .safe_sub(self.last_oracle_conf_pct / confidence_divisor)?
+        } else {
+            self.last_oracle_conf_pct
+        };
+
+        Ok(confidence
+            .safe_mul(BID_ASK_SPREAD_PRECISION)?
+            .safe_div(reserve_price)?
+            .max(confidence_lower_bound))
     }
 }
 

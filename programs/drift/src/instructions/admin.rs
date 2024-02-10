@@ -37,6 +37,7 @@ use crate::state::oracle::{
     get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
     OracleSource,
 };
+use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
@@ -266,7 +267,8 @@ pub fn handle_initialize_spot_market(
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
         orders_enabled: spot_market_index != 0,
-        padding1: [0; 6],
+        paused_operations: 0,
+        padding1: [0; 5],
         flash_loan_amount: 0,
         flash_loan_initial_token_amount: 0,
         total_swap_fee: 0,
@@ -632,7 +634,7 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        padding1: 0,
+        paused_operations: 0,
         quote_spot_market_index: 0,
         fee_adjustment: 0,
         padding: [0; 46],
@@ -862,6 +864,21 @@ pub fn handle_move_amm_price(
         quote_asset_reserve,
         sqrt_k,
     )?;
+    validate_perp_market(perp_market)?;
+
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_recenter_perp_market_amm(
+    ctx: Context<AdminUpdatePerpMarket>,
+    peg_multiplier: u128,
+    sqrt_k: u128,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    controller::amm::recenter_perp_market_amm(&mut perp_market.amm, peg_multiplier, sqrt_k)?;
     validate_perp_market(perp_market)?;
 
     Ok(())
@@ -1166,7 +1183,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
     let update_k_result = get_update_k_result(perp_market, new_sqrt_k_u192, true)?;
 
-    let adjustment_cost = math::cp_curve::adjust_k_cost(perp_market, &update_k_result)?;
+    let adjustment_cost: i128 = math::cp_curve::adjust_k_cost(perp_market, &update_k_result)?;
 
     math::cp_curve::update_k(perp_market, &update_k_result)?;
 
@@ -1618,8 +1635,24 @@ pub fn handle_update_spot_market_status(
     ctx: Context<AdminUpdateSpotMarket>,
     status: MarketStatus,
 ) -> Result<()> {
+    status.validate_not_deprecated()?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     spot_market.status = status;
+    Ok(())
+}
+
+#[access_control(
+spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_update_spot_market_paused_operations(
+    ctx: Context<AdminUpdateSpotMarket>,
+    paused_operations: u8,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    spot_market.paused_operations = paused_operations;
+
+    SpotOperation::log_all_operations_paused(spot_market.paused_operations);
+
     Ok(())
 }
 
@@ -1741,8 +1774,25 @@ pub fn handle_update_perp_market_status(
         "must set settlement/delist through another instruction",
     )?;
 
+    status.validate_not_deprecated()?;
+
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.status = status;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_paused_operations(
+    ctx: Context<AdminUpdatePerpMarket>,
+    paused_operations: u8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    perp_market.paused_operations = paused_operations;
+
+    PerpOperation::log_all_operations_paused(perp_market.paused_operations);
+
     Ok(())
 }
 

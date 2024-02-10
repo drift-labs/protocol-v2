@@ -284,14 +284,8 @@ pub fn adjust_amm(
         let adjustment_cost: i128 = if adjust_k && can_lower_k {
             // TODO can be off by 1?
 
-            // also let protocol-owned sqrt_k be either least .1% of lps or the min order
-            let new_sqrt_k_lower_bound = market.amm.sqrt_k.min(
-                market
-                    .amm
-                    .user_lp_shares
-                    .safe_add(market.amm.user_lp_shares.safe_div(1000)?)?
-                    .max(market.amm.min_order_size.cast()?),
-            );
+            // always let protocol-owned sqrt_k be either least .1% of lps or the base amount / min order
+            let new_sqrt_k_lower_bound = market.amm.get_lower_bound_sqrt_k()?;
 
             let new_sqrt_k = market
                 .amm

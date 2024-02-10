@@ -45,6 +45,7 @@ pub enum DepositExplanation {
     None,
     Transfer,
     Borrow,
+    RepayBorrow,
 }
 
 impl Default for DepositExplanation {
@@ -285,6 +286,7 @@ pub enum OrderActionExplanation {
     OrderFillWithPhoenix,
     OrderFilledWithAMMJitLPSplit,
     OrderFilledWithLPJit,
+    DeriskLp,
 }
 
 impl Default for OrderAction {
@@ -312,6 +314,7 @@ pub enum LPAction {
     AddLiquidity,
     RemoveLiquidity,
     SettleLiquidity,
+    RemoveLiquidityDerisk,
 }
 
 impl Size for LPRecord {
