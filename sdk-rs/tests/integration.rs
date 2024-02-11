@@ -47,12 +47,12 @@ async fn place_and_cancel_orders() {
             NewOrder::limit(sol_perp)
                 .amount(-1 * BASE_PRECISION_I64)
                 .price(200 * PRICE_PRECISION_U64)
-                .post_only(true)
+                .post_only(drift_sdk::types::PostOnlyParam::MustPostOnly)
                 .build(),
             NewOrder::limit(sol_spot)
                 .amount(1 * LAMPORTS_PER_SOL_I64)
                 .price(44 * PRICE_PRECISION_U64)
-                .post_only(true)
+                .post_only(drift_sdk::types::PostOnlyParam::MustPostOnly)
                 .build(),
         ])
         .cancel_all_orders()

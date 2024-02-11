@@ -232,23 +232,23 @@ pub struct L3Orderbook {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct L2Level {
     #[serde(deserialize_with = "parse_int_str")]
-    pub price: u64,
+    pub price: i64,
     #[serde(deserialize_with = "parse_int_str")]
-    pub size: u64,
+    pub size: i64,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct L3Level {
     #[serde(deserialize_with = "parse_int_str")]
-    pub price: u64,
+    pub price: i64,
     #[serde(deserialize_with = "parse_int_str")]
-    pub size: u64,
+    pub size: i64,
     pub maker: String,
     #[serde(rename = "orderId")]
     pub order_id: u64,
 }
 
-fn parse_int_str<'de, D>(deserializer: D) -> Result<u64, D::Error>
+fn parse_int_str<'de, D>(deserializer: D) -> Result<i64, D::Error>
 where
     D: de::Deserializer<'de>,
 {

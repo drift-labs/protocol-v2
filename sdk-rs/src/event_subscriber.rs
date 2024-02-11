@@ -158,7 +158,6 @@ impl LogEventStream {
         let (mut log_stream, _) = subscribe_result.unwrap();
         debug!(target: LOG_TARGET, "start log subscription: {sub_account:?}");
 
-        let mut cache = self.cache.write().await;
         while let Some(response) = log_stream.next().await {
             // don't emit events for failed txs
             if response.value.err.is_some() {
@@ -167,11 +166,18 @@ impl LogEventStream {
             }
             let signature = response.value.signature;
             debug!(target: LOG_TARGET, "log extracting events, tx: {signature:?}");
-            if cache.contains(&signature) {
-                debug!(target: LOG_TARGET, "log skip cached, tx: {signature:?}");
-                continue;
+            {
+                let cache = self.cache.read().await;
+                if cache.contains(&signature) {
+                    debug!(target: LOG_TARGET, "log skip cached, tx: {signature:?}");
+                    continue;
+                }
             }
-            cache.insert(signature.clone());
+
+            {
+                let mut cache = self.cache.write().await;
+                cache.insert(signature.clone());
+            }
 
             for log in response.value.logs {
                 // a drift sub-account should not interact with any other program by definition
@@ -294,11 +300,9 @@ impl<T: EventRpcProvider> PolledEventStream<T> {
             // txs from RPC are ordered newest to oldest
             // process in reverse order, so subscribers receive events in chronological order
             let mut futs = {
-                let cache = self.cache.read().await;
                 FuturesOrdered::from_iter(
                     signatures
                         .into_iter()
-                        .filter(|s| !cache.contains(s))
                         .map(|s| async move {
                             (
                                 s.clone(),
@@ -315,7 +319,6 @@ impl<T: EventRpcProvider> PolledEventStream<T> {
             if futs.is_empty() {
                 continue;
             }
-            let mut cache = self.cache.write().await;
 
             while let Some((signature, response)) = futs.next().await {
                 debug!(target: LOG_TARGET, "poll extracting events, tx: {signature:?}");
@@ -326,7 +329,17 @@ impl<T: EventRpcProvider> PolledEventStream<T> {
                 }
 
                 last_seen_tx = Some(signature.clone());
-                cache.insert(signature.clone());
+                {
+                    let cache = self.cache.read().await;
+                    if cache.contains(&signature) {
+                        debug!(target: LOG_TARGET, "poll skipping cached tx: {signature:?}");
+                        continue;
+                    }
+                }
+                {
+                    let mut cache = self.cache.write().await;
+                    cache.insert(signature.clone());
+                }
 
                 let EncodedTransactionWithStatusMeta {
                     meta, transaction, ..
@@ -621,8 +634,22 @@ impl TxSignatureCache {
 
 #[cfg(test)]
 mod test {
+    use std::io::Write;
+
+    use anchor_lang::{prelude::*, Event};
+    use drift_program::state::{events::get_order_action_record, traits::Size};
+    use fnv::FnvHashMap;
+    use futures_util::future::ready;
+    use solana_sdk::{
+        hash::Hash,
+        instruction::{AccountMeta, Instruction},
+        message::{v0, AccountKeys, VersionedMessage},
+    };
+    use solana_transaction_status::{TransactionStatusMeta, VersionedTransactionWithStatusMeta};
+    use tokio::sync::Mutex;
+
     use super::*;
-    use crate::async_utils::retry_policy::{self};
+    use crate::{async_utils::retry_policy, SdkError};
 
     #[ignore]
     #[tokio::test]
@@ -646,5 +673,234 @@ mod test {
     fn test_log() {
         let result = try_parse_log("Program log: 4DRDR8LtbQH+x7JlAAAAAAIIAAABAbpHl8YM/aWjrjfQ48x0R2DclPigyXtYx+5d/vSVjUIZAQoCAAAAAAAAAaJhIgAAAAAAAQDC6wsAAAAAAZjQCQEAAAAAAWsUAAAAAAAAAWTy////////AAAAAaNzGgMga9TnxjVkycO4bmqSGjK6kP92OrKdZMYqFV+aAS4eKQ4BAQEAHkHaNAAAAAEAwusLAAAAAAGY0AkBAAAAAAFneQwBwHPUIY9ykEdbxsTV7Lh6K+vISfq8nLCTm/rWoAHwCQAAAQABAMLrCwAAAAABAMLrCwAAAAABmNAJAQAAAAA9Zy8FAAAAAA==", "sig");
         dbg!(result);
+    }
+
+    #[tokio::test]
+    async fn polled_event_stream_caching() {
+        env_logger::try_init();
+        struct MockRpcProvider {
+            tx_responses: FnvHashMap<String, EncodedTransactionWithStatusMeta>,
+            signatures: tokio::sync::Mutex<Vec<String>>,
+        }
+
+        impl MockRpcProvider {
+            async fn add_signatures(&self, signatures: Vec<String>) {
+                let mut all_signatures = self.signatures.lock().await;
+                all_signatures.extend(signatures.into_iter());
+            }
+        }
+
+        impl EventRpcProvider for Arc<MockRpcProvider> {
+            fn get_tx(
+                &self,
+                signature: Signature,
+            ) -> BoxFuture<SdkResult<EncodedTransactionWithStatusMeta>> {
+                ready(
+                    self.tx_responses
+                        .get(signature.to_string().as_str())
+                        .ok_or(SdkError::Deserializing)
+                        .cloned(),
+                )
+                .boxed()
+            }
+            fn get_tx_signatures(
+                &self,
+                _account: Pubkey,
+                after: Option<Signature>,
+                _limit: Option<usize>,
+            ) -> BoxFuture<SdkResult<Vec<String>>> {
+                async move {
+                    let after = after.map(|s| s.to_string());
+                    let mut self_signatures = self.signatures.lock().await;
+                    if after.is_none() {
+                        return Ok(self_signatures.clone());
+                    }
+
+                    if let Some(idx) = self_signatures
+                        .iter()
+                        .position(|s| Some(s) == after.as_ref())
+                    {
+                        if idx > 0 {
+                            // newest -> oldest
+                            *self_signatures = self_signatures[..idx].to_vec();
+                        } else {
+                            self_signatures.clear();
+                        }
+                    }
+
+                    Ok(self_signatures.clone())
+                }
+                .boxed()
+            }
+        }
+
+        let (event_tx, mut event_rx) = channel(16);
+        let sub_account = Pubkey::new_unique();
+        let cache = Arc::new(RwLock::new(TxSignatureCache::new(16)));
+
+        let mut order_events: Vec<(OrderActionRecord, OrderRecord)> = (0..5)
+            .map(|id| {
+                (
+                    get_order_action_record(
+                        id as i64,
+                        OrderAction::Place,
+                        OrderActionExplanation::None,
+                        0,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some(sub_account.clone()),
+                        Some(Order {
+                            order_id: id,
+                            ..Default::default()
+                        }),
+                        0,
+                    )
+                    .unwrap(),
+                    OrderRecord {
+                        ts: id as i64,
+                        user: sub_account,
+                        order: Order {
+                            order_id: id,
+                            ..Default::default()
+                        },
+                    },
+                )
+            })
+            .collect();
+        let signatures: Vec<String> = (0..order_events.len())
+            .map(|_| Signature::new_unique().to_string())
+            .collect();
+        let mut tx_responses = FnvHashMap::<String, EncodedTransactionWithStatusMeta>::default();
+        for s in signatures.iter() {
+            let (oar, or) = order_events.pop().unwrap();
+            tx_responses.insert(
+                s.clone(),
+                make_transaction(
+                    sub_account,
+                    Signature::from_str(s).unwrap(),
+                    Some(vec![
+                        format!(
+                            "{PROGRAM_LOG}{}",
+                            serialize_event::<_, { OrderActionRecord::SIZE }>(oar)
+                        ),
+                        format!(
+                            "{PROGRAM_LOG}{}",
+                            serialize_event::<_, { OrderRecord::SIZE }>(or),
+                        ),
+                    ]),
+                ),
+            );
+        }
+
+        let mock_rpc_provider = Arc::new(MockRpcProvider {
+            tx_responses,
+            signatures: Mutex::new(vec![signatures.first().unwrap().clone()]),
+        });
+
+        tokio::spawn(
+            PolledEventStream {
+                cache: Arc::clone(&cache),
+                provider: Arc::clone(&mock_rpc_provider),
+                sub_account,
+                event_tx,
+            }
+            .stream_fn(),
+        );
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        // add 4 new tx signtaures
+        // 1) cached
+        // 2,3) emit events
+        // 4) cached
+        {
+            let mut cache_ = cache.write().await;
+            cache_.insert(signatures[1].clone());
+            cache_.insert(signatures[4].clone());
+        }
+        mock_rpc_provider
+            .add_signatures(signatures[1..].to_vec())
+            .await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        assert!(event_rx.recv().await.is_some_and(|f| {
+            if let DriftEvent::OrderCreate { order, .. } = f {
+                println!("{}", order.order_id);
+                order.order_id == 1
+            } else {
+                false
+            }
+        }));
+        assert!(event_rx.recv().await.is_some_and(|f| {
+            if let DriftEvent::OrderCreate { order, .. } = f {
+                println!("{}", order.order_id);
+                order.order_id == 2
+            } else {
+                false
+            }
+        }));
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        assert!(event_rx.try_recv().is_err());
+    }
+
+    /// Make transaction with dummy instruction for drift program
+    fn make_transaction(
+        account: Pubkey,
+        signature: Signature,
+        logs: Option<Vec<String>>,
+    ) -> EncodedTransactionWithStatusMeta {
+        let mut meta = TransactionStatusMeta::default();
+        meta.log_messages = logs;
+        VersionedTransactionWithStatusMeta {
+            transaction: VersionedTransaction {
+                signatures: vec![signature],
+                message: VersionedMessage::V0(
+                    v0::Message::try_compile(
+                        &account,
+                        &[Instruction {
+                            program_id: constants::PROGRAM_ID,
+                            accounts: vec![AccountMeta::new_readonly(constants::PROGRAM_ID, true)],
+                            data: Default::default(),
+                        }],
+                        &[],
+                        Hash::new_unique(),
+                    )
+                    .expect("v0 message"),
+                ),
+            },
+            meta,
+        }
+        .encode(UiTransactionEncoding::Base64, Some(0), false)
+        .unwrap()
+    }
+
+    /// serialize event to string like Drift program log
+    pub fn serialize_event<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> String {
+        let data_buf = [0u8; N];
+        let mut out_buf = [0u8; N];
+        let mut data_writer = std::io::Cursor::new(data_buf);
+        data_writer
+            .write_all(&<T as Discriminator>::discriminator())
+            .unwrap();
+        borsh::to_writer(&mut data_writer, &event).unwrap();
+        let data_len = data_writer.position() as usize;
+
+        let out_len = base64::encode_config_slice(
+            &data_writer.into_inner()[0..data_len],
+            base64::STANDARD,
+            out_buf.as_mut_slice(),
+        );
+
+        let msg_bytes = &out_buf[0..out_len];
+        unsafe { std::str::from_utf8_unchecked(msg_bytes) }.to_string()
     }
 }

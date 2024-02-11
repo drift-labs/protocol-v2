@@ -1085,6 +1085,7 @@ dependencies = [
  "anchor-client",
  "anchor-lang",
  "base64 0.13.1",
+ "borsh",
  "bytemuck",
  "drift",
  "env_logger 0.10.2",
