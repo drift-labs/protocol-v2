@@ -50,6 +50,7 @@ export class SlotSubscriber {
 		});
 
 		if (this.resubTimeoutMs) {
+			this.receivingData = true;
 			this.setTimeout();
 		}
 	}
