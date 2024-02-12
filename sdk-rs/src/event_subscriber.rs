@@ -165,7 +165,8 @@ impl LogEventStream {
                 continue;
             }
             let signature = response.value.signature;
-            debug!(target: LOG_TARGET, "log extracting events, tx: {signature:?}");
+            // seems to block
+            // debug!(target: LOG_TARGET, "log extracting events, tx: {signature:?}");
             if cache.contains(&signature) {
                 debug!(target: LOG_TARGET, "log skip cached, tx: {signature:?}");
                 continue;
