@@ -144,7 +144,7 @@ impl AccountSubscription {
             return;
         }
         debug!(target: "account", "start account stream {:?}", self.account);
-        let (mut account_stream, _unsub) = result.unwrap();
+        let (mut account_stream, unsub_fn) = result.unwrap();
 
         let mut poll_interval = tokio::time::interval(Duration::from_secs(10));
         let _ = poll_interval.tick().await; // ignore, immediate first tick
@@ -181,6 +181,7 @@ impl AccountSubscription {
                 }
             }
         }
+        unsub_fn().await;
         warn!(target: "account", "stream ended: {:?}", self.account);
     }
 }
@@ -216,7 +217,7 @@ impl WsAccountProvider {
                 };
                 account_sub.stream_fn()
             },
-            retry_policy::exponential_backoff(3),
+            retry_policy::forever(5),
         );
     }
     /// Fetch an account and initiate subscription for future updates

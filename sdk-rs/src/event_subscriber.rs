@@ -154,7 +154,7 @@ impl LogEventStream {
             return;
         }
 
-        let (mut log_stream, _) = subscribe_result.unwrap();
+        let (mut log_stream, unsub_fn) = subscribe_result.unwrap();
         debug!(target: LOG_TARGET, "start log subscription: {sub_account:?}");
 
         let mut cache = self.cache.write().await;
@@ -184,6 +184,7 @@ impl LogEventStream {
             }
         }
         warn!(target: LOG_TARGET, "log stream ended: {sub_account:?}");
+        unsub_fn().await;
     }
 }
 
@@ -724,7 +725,7 @@ mod test {
 
         let (event_tx, mut event_rx) = channel(16);
         let sub_account = Pubkey::new_unique();
-        let cache = Arc::new(RwLock::new(TxSignatureCache::new(16)));
+        let cache = RwLock::new(TxSignatureCache::new(16));
 
         let mut order_events: Vec<(OrderActionRecord, OrderRecord)> = (0..5)
             .map(|id| {
