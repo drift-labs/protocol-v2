@@ -115,11 +115,10 @@ impl EventSubscriber {
     /// The underlying stream will reconnect according to the given `retry_policy`
     pub fn subscribe(
         provider: PubsubClient,
-        rpc_provider: impl EventRpcProvider,
         sub_account: Pubkey,
         retry_policy: impl TaskRetryPolicy,
     ) -> DriftEventStream {
-        log_stream(provider, rpc_provider, sub_account, retry_policy)
+        log_stream(provider, sub_account, retry_policy)
     }
     /// Subscribe to drift events of `sub_account`, backed by RPC polling APIs
     pub fn subscribe_polled(provider: impl EventRpcProvider, account: Pubkey) -> DriftEventStream {
@@ -158,6 +157,7 @@ impl LogEventStream {
         let (mut log_stream, _) = subscribe_result.unwrap();
         debug!(target: LOG_TARGET, "start log subscription: {sub_account:?}");
 
+        let mut cache = self.cache.write().await;
         while let Some(response) = log_stream.next().await {
             // don't emit events for failed txs
             if response.value.err.is_some() {
@@ -166,18 +166,11 @@ impl LogEventStream {
             }
             let signature = response.value.signature;
             debug!(target: LOG_TARGET, "log extracting events, tx: {signature:?}");
-            {
-                let cache = self.cache.read().await;
-                if cache.contains(&signature) {
-                    debug!(target: LOG_TARGET, "log skip cached, tx: {signature:?}");
-                    continue;
-                }
+            if cache.contains(&signature) {
+                debug!(target: LOG_TARGET, "log skip cached, tx: {signature:?}");
+                continue;
             }
-
-            {
-                let mut cache = self.cache.write().await;
-                cache.insert(signature.clone());
-            }
+            cache.insert(signature.clone());
 
             for log in response.value.logs {
                 // a drift sub-account should not interact with any other program by definition
@@ -189,16 +182,17 @@ impl LogEventStream {
                 }
             }
         }
+        warn!(target: LOG_TARGET, "log stream ended: {sub_account:?}");
     }
 }
 
 /// Creates a poll-ed stream using JSON-RPC interfaces
 fn polled_stream(provider: impl EventRpcProvider, sub_account: Pubkey) -> DriftEventStream {
     let (event_tx, event_rx) = channel(64);
-    let cache = Arc::new(RwLock::new(TxSignatureCache::new(128)));
+    let cache = RwLock::new(TxSignatureCache::new(128));
     let join_handle = tokio::spawn(
         PolledEventStream {
-            cache: Arc::clone(&cache),
+            cache,
             provider,
             sub_account,
             event_tx,
@@ -215,7 +209,6 @@ fn polled_stream(provider: impl EventRpcProvider, sub_account: Pubkey) -> DriftE
 /// Creates a Ws-backed event stream using `logsSubscribe` interface
 fn log_stream(
     provider: PubsubClient,
-    rpc_provider: impl EventRpcProvider,
     sub_account: Pubkey,
     retry_policy: impl TaskRetryPolicy,
 ) -> DriftEventStream {
@@ -224,15 +217,15 @@ fn log_stream(
     let provider = Arc::new(provider);
     let cache = Arc::new(RwLock::new(TxSignatureCache::new(128)));
 
-    let _handle = tokio::spawn(
-        PolledEventStream {
-            cache: Arc::clone(&cache),
-            provider: rpc_provider,
-            sub_account,
-            event_tx: event_tx.clone(),
-        }
-        .stream_fn(),
-    );
+    // let _handle = tokio::spawn(
+    //     PolledEventStream {
+    //         cache,
+    //         provider: rpc_provider,
+    //         sub_account,
+    //         event_tx: event_tx.clone(),
+    //     }
+    //     .stream_fn(),
+    // );
 
     // spawn the event subscription task
     let join_handle = spawn_retry_task(
@@ -256,7 +249,7 @@ fn log_stream(
 }
 
 pub struct PolledEventStream<T: EventRpcProvider> {
-    cache: Arc<RwLock<TxSignatureCache>>,
+    cache: RwLock<TxSignatureCache>,
     event_tx: Sender<DriftEvent>,
     provider: T,
     sub_account: Pubkey,
@@ -320,6 +313,7 @@ impl<T: EventRpcProvider> PolledEventStream<T> {
                 continue;
             }
 
+            let mut cache = self.cache.write().await;
             while let Some((signature, response)) = futs.next().await {
                 debug!(target: LOG_TARGET, "poll extracting events, tx: {signature:?}");
                 if let Err(err) = response {
@@ -329,17 +323,11 @@ impl<T: EventRpcProvider> PolledEventStream<T> {
                 }
 
                 last_seen_tx = Some(signature.clone());
-                {
-                    let cache = self.cache.read().await;
-                    if cache.contains(&signature) {
-                        debug!(target: LOG_TARGET, "poll skipping cached tx: {signature:?}");
-                        continue;
-                    }
+                if cache.contains(&signature) {
+                    debug!(target: LOG_TARGET, "poll skipping cached tx: {signature:?}");
+                    continue;
                 }
-                {
-                    let mut cache = self.cache.write().await;
-                    cache.insert(signature.clone());
-                }
+                cache.insert(signature.clone());
 
                 let EncodedTransactionWithStatusMeta {
                     meta, transaction, ..
@@ -636,14 +624,14 @@ impl TxSignatureCache {
 mod test {
     use std::io::Write;
 
-    use anchor_lang::{prelude::*, Event};
+    use anchor_lang::prelude::*;
     use drift_program::state::{events::get_order_action_record, traits::Size};
     use fnv::FnvHashMap;
     use futures_util::future::ready;
     use solana_sdk::{
         hash::Hash,
         instruction::{AccountMeta, Instruction},
-        message::{v0, AccountKeys, VersionedMessage},
+        message::{v0, VersionedMessage},
     };
     use solana_transaction_status::{TransactionStatusMeta, VersionedTransactionWithStatusMeta};
     use tokio::sync::Mutex;
@@ -658,7 +646,6 @@ mod test {
             PubsubClient::new("wss://api.devnet.solana.com")
                 .await
                 .expect("connects"),
-            RpcClient::new("https://api.devnet.solana.com".to_string()),
             Pubkey::from_str("9JtczxrJjPM4J1xooxr2rFXmRivarb4BwjNiBgXDwe2p").unwrap(),
             retry_policy::never(),
         )
@@ -809,7 +796,7 @@ mod test {
 
         tokio::spawn(
             PolledEventStream {
-                cache: Arc::clone(&cache),
+                cache,
                 provider: Arc::clone(&mock_rpc_provider),
                 sub_account,
                 event_tx,

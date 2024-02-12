@@ -25,7 +25,7 @@ use solana_client::{
     rpc_filter::{Memcmp, RpcFilterType},
 };
 use solana_sdk::{
-    account::{Account, AccountSharedData},
+    account::Account,
     account_info::IntoAccountInfo,
     commitment_config::{CommitmentConfig, CommitmentLevel},
     compute_budget::ComputeBudgetInstruction,
@@ -155,9 +155,9 @@ impl AccountSubscription {
                     if let Some(account_update) = response {
                         let account_data = account_update
                             .value
-                            .decode::<AccountSharedData>()
+                            .decode::<Account>()
                             .expect("account");
-                        let _ = self.tx.send_replace((account_data.into(), Instant::now()));
+                        let _ = self.tx.send_replace((account_data, Instant::now()));
                     } else {
                         // websocket subscription/stream closed, try reconnect..
                         warn!(target: "account", "account stream closed: {:?}", self.account);
@@ -181,6 +181,7 @@ impl AccountSubscription {
                 }
             }
         }
+        warn!(target: "account", "stream ended: {:?}", self.account);
     }
 }
 
