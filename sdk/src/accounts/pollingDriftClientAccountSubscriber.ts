@@ -49,7 +49,9 @@ export class PollingDriftClientAccountSubscriber
 
 	state?: DataAndSlot<StateAccount>;
 	perpMarket = new Map<number, DataAndSlot<PerpMarketAccount>>();
+	perpOracleMap = new Map<number, PublicKey>();
 	spotMarket = new Map<number, DataAndSlot<SpotMarketAccount>>();
+	spotOracleMap = new Map<number, PublicKey>();
 	oracles = new Map<string, DataAndSlot<OraclePriceData>>();
 	user?: DataAndSlot<UserAccount>;
 
@@ -113,6 +115,9 @@ export class PollingDriftClientAccountSubscriber
 		if (subscriptionSucceeded) {
 			this.eventEmitter.emit('update');
 		}
+
+		this.setPerpOracleMap();
+		this.setSpotOracleMap();
 
 		this.isSubscribing = false;
 		this.isSubscribed = subscriptionSucceeded;
@@ -367,6 +372,7 @@ export class PollingDriftClientAccountSubscriber
 		const accountToPoll = this.accountsToPoll.get(marketPublicKey.toString());
 
 		await this.addAccountToAccountLoader(accountToPoll);
+		this.setSpotOracleMap();
 		return true;
 	}
 
@@ -383,6 +389,7 @@ export class PollingDriftClientAccountSubscriber
 		await this.addPerpMarketAccountToPoll(marketIndex);
 		const accountToPoll = this.accountsToPoll.get(marketPublicKey.toString());
 		await this.addAccountToAccountLoader(accountToPoll);
+		this.setPerpOracleMap();
 		return true;
 	}
 
@@ -400,6 +407,26 @@ export class PollingDriftClientAccountSubscriber
 		);
 		await this.addOracleToAccountLoader(oracleToPoll);
 		return true;
+	}
+
+	private setPerpOracleMap() {
+		const perpMarkets = this.getMarketAccountsAndSlots();
+		for (const perpMarket of perpMarkets) {
+			const perpMarketAccount = perpMarket.data;
+			const perpMarketIndex = perpMarketAccount.marketIndex;
+			const oracle = perpMarketAccount.amm.oracle;
+			this.perpOracleMap.set(perpMarketIndex, oracle);
+		}
+	}
+
+	private setSpotOracleMap() {
+		const spotMarkets = this.getSpotMarketAccountsAndSlots();
+		for (const spotMarket of spotMarkets) {
+			const spotMarketAccount = spotMarket.data;
+			const spotMarketIndex = spotMarketAccount.marketIndex;
+			const oracle = spotMarketAccount.oracle;
+			this.spotOracleMap.set(spotMarketIndex, oracle);
+		}
 	}
 
 	assertIsSubscribed(): void {
@@ -447,6 +474,50 @@ export class PollingDriftClientAccountSubscriber
 		}
 
 		return this.oracles.get(oraclePublicKey.toString());
+	}
+
+	public getOraclePriceDataAndSlotForPerpMarket(
+		marketIndex: number
+	): DataAndSlot<OraclePriceData> | undefined {
+		const perpMarketAccount = this.getMarketAccountAndSlot(marketIndex);
+		const oracle = this.perpOracleMap.get(marketIndex);
+		if (!perpMarketAccount || !oracle) {
+			return undefined;
+		}
+
+		if (!perpMarketAccount.data.amm.oracle.equals(oracle)) {
+			// If the oracle has changed, we need to update the oracle map in background
+			this.addOracle({
+				source: perpMarketAccount.data.amm.oracleSource,
+				publicKey: oracle,
+			}).then(() => {
+				this.setPerpOracleMap();
+			});
+		}
+
+		return this.getOraclePriceDataAndSlot(oracle);
+	}
+
+	public getOraclePriceDataAndSlotForSpotMarket(
+		marketIndex: number
+	): DataAndSlot<OraclePriceData> | undefined {
+		const spotMarketAccount = this.getSpotMarketAccountAndSlot(marketIndex);
+		const oracle = this.spotOracleMap.get(marketIndex);
+		if (!spotMarketAccount || !oracle) {
+			return undefined;
+		}
+
+		if (!spotMarketAccount.data.oracle.equals(oracle)) {
+			// If the oracle has changed, we need to update the oracle map in background
+			this.addOracle({
+				source: spotMarketAccount.data.oracleSource,
+				publicKey: oracle,
+			}).then(() => {
+				this.setSpotOracleMap();
+			});
+		}
+
+		return this.getOraclePriceDataAndSlot(oracle);
 	}
 
 	public updateAccountLoaderPollingFrequency(pollingFrequency: number): void {
