@@ -191,10 +191,10 @@ impl LogEventStream {
 /// Creates a poll-ed stream using JSON-RPC interfaces
 fn polled_stream(provider: impl EventRpcProvider, sub_account: Pubkey) -> DriftEventStream {
     let (event_tx, event_rx) = channel(64);
-    let cache = RwLock::new(TxSignatureCache::new(128));
+    let cache = Arc::new(RwLock::new(TxSignatureCache::new(128)));
     let join_handle = tokio::spawn(
         PolledEventStream {
-            cache,
+            cache: Arc::clone(&cache),
             provider,
             sub_account,
             event_tx,
@@ -251,7 +251,7 @@ fn log_stream(
 }
 
 pub struct PolledEventStream<T: EventRpcProvider> {
-    cache: RwLock<TxSignatureCache>,
+    cache: Arc<RwLock<TxSignatureCache>>,
     event_tx: Sender<DriftEvent>,
     provider: T,
     sub_account: Pubkey,
@@ -725,7 +725,7 @@ mod test {
 
         let (event_tx, mut event_rx) = channel(16);
         let sub_account = Pubkey::new_unique();
-        let cache = RwLock::new(TxSignatureCache::new(16));
+        let cache = Arc::new(RwLock::new(TxSignatureCache::new(16)));
 
         let mut order_events: Vec<(OrderActionRecord, OrderRecord)> = (0..5)
             .map(|id| {
@@ -798,7 +798,7 @@ mod test {
 
         tokio::spawn(
             PolledEventStream {
-                cache,
+                cache: Arc::clone(&cache),
                 provider: Arc::clone(&mock_rpc_provider),
                 sub_account,
                 event_tx,
