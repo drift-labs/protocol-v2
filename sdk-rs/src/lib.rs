@@ -470,18 +470,23 @@ impl<T: AccountProvider> DriftClient<T> {
     ///
     /// ```ignore
     /// let tx = client
-    ///     .init_tx(&wallet.sub_account(3))
+    ///     .init_tx(&wallet.sub_account(3), false)
     ///     .cancel_all_orders()
     ///     .place_orders(...)
     ///     .build();
     /// ```
     /// Returns a `TransactionBuilder` for composing the tx
-    pub async fn init_tx(&self, account: &Pubkey) -> SdkResult<TransactionBuilder> {
+    pub async fn init_tx(
+        &self,
+        account: &Pubkey,
+        delegated: bool,
+    ) -> SdkResult<TransactionBuilder> {
         let account_data = self.get_user_account(account).await?;
         Ok(TransactionBuilder::new(
             self.program_data(),
             *account,
             Cow::Owned(account_data),
+            delegated,
         ))
     }
 
@@ -718,8 +723,8 @@ pub struct TransactionBuilder<'a> {
     account_data: Cow<'a, User>,
     /// the drift sub-account address
     sub_account: Pubkey,
-    /// the account to pay for the tx
-    payer: Option<Pubkey>,
+    /// either account authority or account delegate
+    authority: Pubkey,
     /// ordered list of instructions
     ixs: Vec<Instruction>,
     /// use legacy transaction mode
@@ -729,23 +734,30 @@ pub struct TransactionBuilder<'a> {
 }
 
 impl<'a> TransactionBuilder<'a> {
-    /// Initialize a new `TransactionBuilder`
+    /// Initialize a new `TransactionBuilder` for default signer
     ///
+    /// `program_data` program data from chain
     /// `sub_account` drift sub-account address
     /// `account_data` drift sub-account data
+    /// `delegated` set true to build tx for delegated signing
     pub fn new<'b>(
         program_data: &'b ProgramData,
         sub_account: Pubkey,
         account_data: Cow<'b, User>,
+        delegated: bool,
     ) -> Self
     where
         'b: 'a,
     {
         Self {
+            authority: if delegated {
+                account_data.delegate
+            } else {
+                account_data.authority
+            },
             program_data,
             account_data,
             sub_account,
-            payer: None,
             ixs: Default::default(),
             lookup_tables: vec![program_data.lookup_table.clone()],
             legacy: false,
@@ -762,13 +774,6 @@ impl<'a> TransactionBuilder<'a> {
         self.lookup_tables
             .push(self.program_data.lookup_table.clone());
 
-        self
-    }
-    /// Set the tx fee payer
-    ///
-    /// defaults to the account authority
-    pub fn payer(mut self, payer: Pubkey) -> Self {
-        self.payer = Some(payer);
         self
     }
     /// Set the priority fee of the tx
@@ -790,7 +795,7 @@ impl<'a> TransactionBuilder<'a> {
             self.program_data,
             drift_program::accounts::PlaceOrder {
                 state: *state_account(),
-                authority: self.account_data.authority,
+                authority: self.authority,
                 user: self.sub_account,
             },
             self.account_data.as_ref(),
@@ -817,7 +822,7 @@ impl<'a> TransactionBuilder<'a> {
             self.program_data,
             drift_program::accounts::CancelOrder {
                 state: *state_account(),
-                authority: self.account_data.authority,
+                authority: self.authority,
                 user: self.sub_account,
             },
             self.account_data.as_ref(),
@@ -854,7 +859,7 @@ impl<'a> TransactionBuilder<'a> {
             self.program_data,
             drift_program::accounts::CancelOrder {
                 state: *state_account(),
-                authority: self.account_data.authority,
+                authority: self.authority,
                 user: self.sub_account,
             },
             self.account_data.as_ref(),
@@ -882,7 +887,7 @@ impl<'a> TransactionBuilder<'a> {
             self.program_data,
             drift_program::accounts::CancelOrder {
                 state: *state_account(),
-                authority: self.account_data.authority,
+                authority: self.authority,
                 user: self.sub_account,
             },
             self.account_data.as_ref(),
@@ -908,7 +913,7 @@ impl<'a> TransactionBuilder<'a> {
             self.program_data,
             drift_program::accounts::CancelOrder {
                 state: *state_account(),
-                authority: self.account_data.authority,
+                authority: self.authority,
                 user: self.sub_account,
             },
             self.account_data.as_ref(),
@@ -937,7 +942,7 @@ impl<'a> TransactionBuilder<'a> {
                 self.program_data,
                 drift_program::accounts::PlaceOrder {
                     state: *state_account(),
-                    authority: self.account_data.authority,
+                    authority: self.authority,
                     user: self.sub_account,
                 },
                 self.account_data.as_ref(),
@@ -966,7 +971,7 @@ impl<'a> TransactionBuilder<'a> {
                 self.program_data,
                 drift_program::accounts::PlaceOrder {
                     state: *state_account(),
-                    authority: self.account_data.authority,
+                    authority: self.authority,
                     user: self.sub_account,
                 },
                 self.account_data.as_ref(),
@@ -991,14 +996,11 @@ impl<'a> TransactionBuilder<'a> {
     /// Build the transaction message ready for signing and sending
     pub fn build(self) -> VersionedMessage {
         if self.legacy {
-            let message = Message::new(
-                self.ixs.as_ref(),
-                self.payer.as_ref().or(Some(&self.account_data.authority)),
-            );
+            let message = Message::new(self.ixs.as_ref(), Some(&self.authority));
             VersionedMessage::Legacy(message)
         } else {
             let message = v0::Message::try_compile(
-                self.payer.as_ref().unwrap_or(&self.account_data.authority),
+                &self.authority,
                 self.ixs.as_slice(),
                 self.lookup_tables.as_slice(),
                 Default::default(),
@@ -1115,6 +1117,10 @@ pub struct Wallet {
 }
 
 impl Wallet {
+    /// Returns true if the wallet is configured for delegated signing
+    pub fn is_delegated(&self) -> bool {
+        self.authority != self.signer.pubkey() && self.signer.pubkey().is_on_curve()
+    }
     /// Init wallet from a string that could be either a file path or the encoded key, uses default sub-account
     pub fn try_from_str(path_or_key: &str) -> SdkResult<Self> {
         let authority = utils::load_keypair_multi_format(path_or_key)?;

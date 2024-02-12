@@ -3,7 +3,7 @@ use drift_program::math::constants::{
 };
 use drift_sdk::{
     types::{Context, MarketId, NewOrder},
-    DriftClient, RpcAccountProvider, Wallet,
+    DriftClient, Pubkey, RpcAccountProvider, TransactionBuilder, Wallet,
 };
 
 #[tokio::test]
@@ -57,6 +57,37 @@ async fn place_and_cancel_orders() {
         ])
         .cancel_all_orders()
         .build();
+
+    let result = client.sign_and_send(&wallet, tx).await;
+    dbg!(&result);
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn cancel_delegated() {
+    let client = DriftClient::new(
+        Context::DevNet,
+        RpcAccountProvider::new("https://api.devnet.solana.com"),
+    )
+    .await
+    .expect("connects");
+
+    let mut wallet = Wallet::from_seed_bs58(
+        "4ZT38mSeFhzzDRCMTMbwDp7VYWDqNfkvDR42Wv4Hu9cKzbZPJoVapQSrjLbs9aMPrpAMmN1cQinztnP2PzKVjzwX",
+    );
+    wallet.to_delegated(Pubkey::from_str("GiMXQkJXLVjScmQDkoLJShBJpTh9SDPvT2AZQq8NyEBf").unwrap());
+
+    let account_data = client
+        .get_user_account(&wallet.default_sub_account())
+        .await
+        .expect("ok");
+    let tx = TransactionBuilder::delegated(
+        client.program_data(),
+        wallet.default_sub_account(),
+        std::borrow::Cow::Borrowed(&account_data),
+    )
+    .cancel_all_orders()
+    .build();
 
     let result = client.sign_and_send(&wallet, tx).await;
     dbg!(&result);

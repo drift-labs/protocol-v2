@@ -219,16 +219,6 @@ fn log_stream(
     let provider = Arc::new(provider);
     let cache = Arc::new(RwLock::new(TxSignatureCache::new(128)));
 
-    // let _handle = tokio::spawn(
-    //     PolledEventStream {
-    //         cache,
-    //         provider: rpc_provider,
-    //         sub_account,
-    //         event_tx: event_tx.clone(),
-    //     }
-    //     .stream_fn(),
-    // );
-
     // spawn the event subscription task
     let join_handle = spawn_retry_task(
         move || {
@@ -315,7 +305,6 @@ impl<T: EventRpcProvider> PolledEventStream<T> {
                 continue;
             }
 
-            let mut cache = self.cache.write().await;
             while let Some((signature, response)) = futs.next().await {
                 debug!(target: LOG_TARGET, "poll extracting events, tx: {signature:?}");
                 if let Err(err) = response {
@@ -325,11 +314,14 @@ impl<T: EventRpcProvider> PolledEventStream<T> {
                 }
 
                 last_seen_tx = Some(signature.clone());
-                if cache.contains(&signature) {
-                    debug!(target: LOG_TARGET, "poll skipping cached tx: {signature:?}");
-                    continue;
+                {
+                    let mut cache = self.cache.write().await;
+                    if cache.contains(&signature) {
+                        debug!(target: LOG_TARGET, "poll skipping cached tx: {signature:?}");
+                        continue;
+                    }
+                    cache.insert(signature.clone());
                 }
-                cache.insert(signature.clone());
 
                 let EncodedTransactionWithStatusMeta {
                     meta, transaction, ..
