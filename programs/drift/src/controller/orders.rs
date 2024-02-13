@@ -66,7 +66,7 @@ use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
-use crate::state::paused_operations::PerpOperation;
+use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -3805,14 +3805,20 @@ fn fulfill_spot_order(
     let base_market_index = user.orders[user_order_index].market_index;
     let order_direction = user.orders[user_order_index].direction;
 
+    let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
+    let mut base_market = spot_market_map.get_ref_mut(&base_market_index)?;
+
+    let withdraws_allowed = match order_direction {
+        PositionDirection::Long => quote_market.is_operation_paused(SpotOperation::Withdraw),
+        PositionDirection::Short => base_market.is_operation_paused(SpotOperation::Withdraw),
+    };
+
     let fulfillment_methods = determine_spot_fulfillment_methods(
         &user.orders[user_order_index],
         maker.is_some(),
         fulfillment_params.is_external(),
+        withdraws_allowed,
     )?;
-
-    let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
-    let mut base_market = spot_market_map.get_ref_mut(&base_market_index)?;
 
     let quote_token_amount_before = user
         .get_quote_spot_position()
