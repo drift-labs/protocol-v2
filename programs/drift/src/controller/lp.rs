@@ -185,7 +185,7 @@ pub fn settle_lp_position(
 
     apply_lp_rebase_to_perp_position(market, position)?;
 
-    let lp_metrics: crate::math::lp::LPMetrics =
+    let mut lp_metrics: crate::math::lp::LPMetrics =
         calculate_settle_lp_metrics(&market.amm, position)?;
 
     crate::dlog!(lp_metrics.base_asset_amount);
@@ -198,7 +198,6 @@ pub fn settle_lp_position(
         remainder_base_asset_amount: Some(lp_metrics.remainder_base_asset_amount.cast::<i64>()?),
     };
 
-    let pnl = update_position_and_market(position, market, &position_delta)?;
     // let (new_base_asset_amount, new_quote_asset_amount, new_remainder_base_asset_amount) =
     //     get_new_position_amounts(position, &position_delta, market)?;
     // crate::dlog!(
@@ -206,10 +205,37 @@ pub fn settle_lp_position(
     //     lp_metrics.base_asset_amount,
     //     market.amm.base_asset_amount_with_unsettled_lp
     // );
+    let new_remainder_base_asset_amount = position
+        .remainder_base_asset_amount
+        .cast::<i64>()?
+        .safe_add(lp_metrics.remainder_base_asset_amount.cast()?)?;
+
+    let pnl = update_position_and_market(position, market, &position_delta)?;
+
+
+    if new_remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size {
+        let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
+            crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+                new_remainder_base_asset_amount.cast()?,
+                market.amm.order_step_size.cast()?,
+            )?;
+
+        lp_metrics.base_asset_amount = lp_metrics
+            .base_asset_amount
+            .safe_add(standardized_remainder_base_asset_amount)?;
+
+        // position.remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
+    } 
+    // else {
+    //     position.remainder_base_asset_amount = new_remainder_base_asset_amount.cast()?;
+    // }
 
     // todo: name for this is confusing, but adding is correct as is
     // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
-
+    market.amm.base_asset_amount_with_unsettled_lp = market
+        .amm
+        .base_asset_amount_with_unsettled_lp
+        .safe_add(lp_metrics.base_asset_amount.cast()?)?;
 
     position.last_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
     position.last_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;

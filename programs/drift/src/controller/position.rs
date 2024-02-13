@@ -118,12 +118,6 @@ pub fn update_position_and_market(
     // Update User
     let (new_base_asset_amount, new_settled_base_asset_amount, new_quote_asset_amount, new_remainder_base_asset_amount) =
         get_new_position_amounts(position, &delta, market)?;
-    // todo: name for this is confusing, but adding is correct as is
-    // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
-    market.amm.base_asset_amount_with_unsettled_lp = market
-        .amm
-        .base_asset_amount_with_unsettled_lp
-        .safe_add(new_settled_base_asset_amount.cast()?)?;
 
     let (new_quote_entry_amount, new_quote_break_even_amount, pnl) = match update_type {
         PositionUpdateType::Open | PositionUpdateType::Increase => {
