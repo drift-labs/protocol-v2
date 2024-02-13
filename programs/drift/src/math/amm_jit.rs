@@ -24,40 +24,44 @@ pub fn calculate_jit_base_asset_amount(
     if let Some(oracle_price) = valid_oracle_price {
         let baseline_price = oracle_price;
         let baseline_price_u64 = oracle_price.cast::<u64>()?;
+        let five_bps_of_baseline = baseline_price_u64 / 2000;
 
         // maker taking a short below oracle = likely to be a wash
         // so we want to take under 50% of typical
+
         if taker_direction == PositionDirection::Long
-            && auction_price < baseline_price_u64.safe_sub(baseline_price_u64 / 2000)?
+            && auction_price < baseline_price_u64.safe_sub(five_bps_of_baseline)?
             || taker_direction == PositionDirection::Short
-                && auction_price > baseline_price_u64.saturating_add(baseline_price_u64 / 2000)
+                && auction_price > baseline_price_u64.saturating_add(five_bps_of_baseline)
         {
-            let percentage_from_baseline = auction_price
+            // shrink by at least 50% based on distance from oracle
+            let opposite_spread_price = if taker_direction == PositionDirection::Long {
+                market
+                    .amm
+                    .short_spread
+                    .cast::<u64>()?
+                    .safe_mul(baseline_price_u64)?
+                    .safe_div(PERCENTAGE_PRECISION_U64)?
+            } else {
+                market
+                    .amm
+                    .long_spread
+                    .cast::<u64>()?
+                    .safe_mul(baseline_price_u64)?
+                    .safe_div(PERCENTAGE_PRECISION_U64)?
+            };
+
+            let price_difference_from_baseline = auction_price
                 .cast::<i64>()?
                 .safe_sub(baseline_price)?
-                .abs()
-                .safe_mul(PERCENTAGE_PRECISION_U64.cast::<i64>()?)?
-                .safe_div(baseline_price)?
-                .cast::<u64>()?;
+                .unsigned_abs();
 
-            // shrink by at least 50% based on distance from oracle
-
-            let direction_spread = if taker_direction == PositionDirection::Long {
-                market.amm.long_spread
-            } else {
-                market.amm.short_spread
-            }
-            .cast::<u64>()?;
-
-            let max_jit_amount_shrink = (PERCENTAGE_PRECISION_U64 / 2).saturating_sub(
-                percentage_from_baseline
-                    .saturating_sub(direction_spread)
-                    .safe_mul(20)?,
-            );
+            let max_jit_amount_scale_numerator =
+                opposite_spread_price.saturating_sub(price_difference_from_baseline);
 
             max_jit_amount = max_jit_amount
-                .safe_mul(max_jit_amount_shrink)?
-                .safe_div(PERCENTAGE_PRECISION_U64)?;
+                .safe_mul(max_jit_amount_scale_numerator)?
+                .safe_div(opposite_spread_price)?;
         }
     } else {
         max_jit_amount = 0;

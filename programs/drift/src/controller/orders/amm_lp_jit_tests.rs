@@ -125,13 +125,38 @@ pub mod amm_lp_jit {
         let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
             &market,
             BASE_PRECISION_U64,
+            99_920_000,
+            Some(100 * PRICE_PRECISION_I64),
+            PositionDirection::Long,
+            AMMLiquiditySplit::Shared,
+        )
+        .unwrap();
+        assert_eq!(jit_base_asset_amount, 300000000);
+
+        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+            &market,
+            BASE_PRECISION_U64,
             99 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Long,
             AMMLiquiditySplit::Shared,
         )
         .unwrap();
-        assert_eq!(jit_base_asset_amount, 170000000);
+        assert_eq!(jit_base_asset_amount, 0);
+
+        market.amm.long_spread = 11000;
+        market.amm.short_spread = 11000;
+
+        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+            &market,
+            BASE_PRECISION_U64,
+            99 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
+            PositionDirection::Long,
+            AMMLiquiditySplit::Shared,
+        )
+        .unwrap();
+        assert_eq!(jit_base_asset_amount, 45454000);
 
         let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
             &market,
@@ -142,7 +167,7 @@ pub mod amm_lp_jit {
             AMMLiquiditySplit::Shared,
         )
         .unwrap();
-        assert_eq!(jit_base_asset_amount, 170000000);
+        assert_eq!(jit_base_asset_amount, 45454000);
 
         let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
             &market,
@@ -153,7 +178,7 @@ pub mod amm_lp_jit {
             AMMLiquiditySplit::Shared,
         )
         .unwrap();
-        assert_eq!(jit_base_asset_amount, 70000000);
+        assert_eq!(jit_base_asset_amount, 0);
 
         let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
             &market,
@@ -177,7 +202,7 @@ pub mod amm_lp_jit {
             AMMLiquiditySplit::Shared,
         )
         .unwrap();
-        assert_eq!(jit_base_asset_amount, 50000000);
+        assert_eq!(jit_base_asset_amount, 0);
 
         let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
             &market,
@@ -185,6 +210,29 @@ pub mod amm_lp_jit {
             105 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Short,
+            AMMLiquiditySplit::Shared,
+        )
+        .unwrap();
+        assert_eq!(jit_base_asset_amount, 0);
+
+        market.amm.long_spread = 51000;
+        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+            &market,
+            BASE_PRECISION_U64,
+            105 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
+            PositionDirection::Short,
+            AMMLiquiditySplit::Shared,
+        )
+        .unwrap();
+        assert_eq!(jit_base_asset_amount, 9803000);
+
+        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+            &market,
+            BASE_PRECISION_U64,
+            95 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
+            PositionDirection::Long,
             AMMLiquiditySplit::Shared,
         )
         .unwrap();
