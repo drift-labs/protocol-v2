@@ -166,7 +166,6 @@ pub fn calculate_amm_jit_liquidity(
         .amm
         .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
     let split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_jit_make;
-    crate::dlog!(split_with_lps, amm_wants_to_jit_make, amm_will_fill_next_round);
 
     if amm_wants_to_jit_make {
         liquidity_split = if split_with_lps {
