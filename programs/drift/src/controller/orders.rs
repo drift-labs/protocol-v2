@@ -3809,8 +3809,8 @@ fn fulfill_spot_order(
     let mut base_market = spot_market_map.get_ref_mut(&base_market_index)?;
 
     let withdraws_allowed = match order_direction {
-        PositionDirection::Long => quote_market.is_operation_paused(SpotOperation::Withdraw),
-        PositionDirection::Short => base_market.is_operation_paused(SpotOperation::Withdraw),
+        PositionDirection::Long => !quote_market.is_operation_paused(SpotOperation::Withdraw),
+        PositionDirection::Short => !base_market.is_operation_paused(SpotOperation::Withdraw),
     };
 
     let fulfillment_methods = determine_spot_fulfillment_methods(
