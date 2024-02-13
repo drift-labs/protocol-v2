@@ -153,7 +153,7 @@ export function calculateWorstCaseBaseAssetAmount(
 			)
 			.reduce((prev, order) => order.baseAssetAmount.add(prev), ZERO);
 
-		asksToAdd = BN.min(asksToAdd.sub(reduceOnlyTotalAsks), ZERO);
+		asksToAdd = BN.min(asksToAdd.add(reduceOnlyTotalAsks), ZERO);
 	}
 
 	const allBids = perpPosition.baseAssetAmount.add(bidsToAdd);
