@@ -2719,10 +2719,12 @@ fn update_trigger_order_params(
         auction_start_price,
         auction_end_price
     );
-
-    order.auction_duration = auction_duration;
-    order.auction_start_price = auction_start_price;
-    order.auction_end_price = auction_end_price;
+    
+    if auction_duration > 0 {
+        order.auction_duration = auction_duration;
+        order.auction_start_price = auction_start_price;
+        order.auction_end_price = auction_end_price;
+    }
 
     Ok(())
 }

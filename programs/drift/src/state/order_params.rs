@@ -519,6 +519,10 @@ impl OrderParams {
 }
 
 fn get_auction_duration(price_diff: u64, price: u64) -> DriftResult<u8> {
+    if price_diff == 0 {
+        return Ok(0);
+    }
+    
     let percent_diff = price_diff.safe_mul(PERCENTAGE_PRECISION_U64)?.div(price);
 
     Ok(percent_diff
