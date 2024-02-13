@@ -4,7 +4,8 @@ use crate::math::casting::Cast;
 use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::safe_math::SafeMath;
-use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket};
+use crate::state::perp_market::{AMMLiquiditySplit, ContractTier, PerpMarket};
+use crate::PERCENTAGE_PRECISION_U64;
 #[cfg(test)]
 mod tests;
 
@@ -20,18 +21,32 @@ pub fn calculate_jit_base_asset_amount(
 ) -> DriftResult<u64> {
     // AMM can only take up to 50% of size the maker is offering
     let mut max_jit_amount = maker_base_asset_amount.safe_div(2)?;
-
     // check for wash trade
     if let Some(oracle_price) = valid_oracle_price {
-        let oracle_price = oracle_price.cast::<u64>()?;
+        let baseline_price = oracle_price.cast::<u64>()?;
 
         // maker taking a short below oracle = likely to be a wash
-        // so we want to take less than 50%
-        let wash_reduction_const = 2;
-        if taker_direction == PositionDirection::Long && auction_price < oracle_price
-            || taker_direction == PositionDirection::Short && auction_price > oracle_price
+        // so we want to take under 50% of typical
+        let wash_reduction_const_min = 2;
+        if taker_direction == PositionDirection::Long && auction_price < baseline_price
+            || taker_direction == PositionDirection::Short && auction_price > baseline_price
         {
-            max_jit_amount = max_jit_amount.safe_div(wash_reduction_const)?
+            let wash_reduction_const_max = if market
+                .contract_tier
+                .is_as_safe_as_contract(&ContractTier::B)
+            {
+                1000
+            } else {
+                100
+            };
+
+            let wash_divisor = auction_price
+                .safe_sub(baseline_price)?
+                .safe_mul(PERCENTAGE_PRECISION_U64 / 100)?
+                .safe_div(baseline_price)?
+                .clamp(wash_reduction_const_min, wash_reduction_const_max);
+
+            max_jit_amount = max_jit_amount.safe_div(wash_divisor)?
         }
     } else {
         max_jit_amount = 0;
@@ -151,6 +166,7 @@ pub fn calculate_amm_jit_liquidity(
         .amm
         .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
     let split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_jit_make;
+    crate::dlog!(split_with_lps, amm_wants_to_jit_make, amm_will_fill_next_round);
 
     if amm_wants_to_jit_make {
         liquidity_split = if split_with_lps {
