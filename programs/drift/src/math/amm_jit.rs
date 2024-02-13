@@ -1,7 +1,7 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
-use crate::math::constants::{AMM_RESERVE_PRECISION, PERCENTAGE_PRECISION};
+use crate::math::constants::{AMM_RESERVE_PRECISION, PERCENTAGE_PRECISION_U64};
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::safe_math::SafeMath;
 use crate::state::perp_market::{AMMLiquiditySplit, ContractTier, PerpMarket};
@@ -27,28 +27,33 @@ pub fn calculate_jit_base_asset_amount(
 
         // maker taking a short below oracle = likely to be a wash
         // so we want to take under 50% of typical
-        let wash_reduction_const_min = 2;
-        if taker_direction == PositionDirection::Long && auction_price < baseline_price_u64
-            || taker_direction == PositionDirection::Short && auction_price > baseline_price_u64
+        if taker_direction == PositionDirection::Long
+            && auction_price < baseline_price_u64.safe_sub(baseline_price_u64 / 2000)?
+            || taker_direction == PositionDirection::Short
+                && auction_price > baseline_price_u64.saturating_add(baseline_price_u64 / 2000)
         {
-            let wash_reduction_const_max = if market
+            let percentage_from_baseline = auction_price
+                .cast::<i64>()?
+                .safe_sub(baseline_price)?
+                .abs()
+                .safe_mul(PERCENTAGE_PRECISION_U64.cast::<i64>()?)?
+                .safe_div(baseline_price)?
+                .cast::<u64>()?;
+
+            // shrink by at least 50% based on distance from oracle
+            let wash_shrink = if market
                 .contract_tier
                 .is_as_safe_as_contract(&ContractTier::B)
             {
-                1000
+                (PERCENTAGE_PRECISION_U64 / 2)
+                    .saturating_sub(percentage_from_baseline.safe_mul(20)?)
             } else {
-                100
+                (PERCENTAGE_PRECISION_U64 / 2).saturating_sub(percentage_from_baseline.safe_mul(5)?)
             };
 
-            let wash_divisor = auction_price.cast::<i64>()?
-                .safe_sub(baseline_price)?
-                .abs()
-                .safe_mul(PERCENTAGE_PRECISION.cast::<i64>()? / 100)?
-                .safe_div(baseline_price)?
-                .clamp(wash_reduction_const_min, wash_reduction_const_max)
-                .cast::<u64>()?;
-
-            max_jit_amount = max_jit_amount.safe_div(wash_divisor)?
+            max_jit_amount = max_jit_amount
+                .safe_mul(wash_shrink)?
+                .safe_div(PERCENTAGE_PRECISION_U64)?;
         }
     } else {
         max_jit_amount = 0;
