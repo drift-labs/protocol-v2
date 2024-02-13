@@ -332,7 +332,7 @@ fn test_remainder_overflows_too_large_order_step_size() {
     market.amm.base_asset_amount_short = -(5 * BASE_PRECISION_I128 + 1);
 
     settle_lp_position(&mut position, &mut market).unwrap();
-
+    assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 0);
     assert_eq!(position.last_base_asset_amount_per_lp, 5000000001);
     assert_eq!(position.last_quote_asset_amount_per_lp, -116900000000);
     assert_eq!(position.quote_asset_amount, -116900000000);

@@ -79,7 +79,7 @@ pub fn get_position_index(user_positions: &PerpPositions, market_index: u16) -> 
 pub struct PositionDelta {
     pub quote_asset_amount: i64,
     pub base_asset_amount: i64,
-    pub remainder_base_asset_amount: Option<i32>,
+    pub remainder_base_asset_amount: Option<i64>,
 }
 
 impl PositionDelta {

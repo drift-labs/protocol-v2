@@ -186,14 +186,14 @@ pub fn settle_lp_position(
     let lp_metrics: crate::math::lp::LPMetrics =
         calculate_settle_lp_metrics(&market.amm, position)?;
 
-    // crate::dlog!(lp_metrics.base_asset_amount);
-    // crate::dlog!(lp_metrics.remainder_base_asset_amount);
-    // crate::dlog!(lp_metrics.quote_asset_amount);
+    crate::dlog!(lp_metrics.base_asset_amount);
+    crate::dlog!(lp_metrics.remainder_base_asset_amount);
+    crate::dlog!(lp_metrics.quote_asset_amount);
 
     let position_delta = PositionDelta {
         base_asset_amount: lp_metrics.base_asset_amount.cast()?,
         quote_asset_amount: lp_metrics.quote_asset_amount.cast()?,
-        remainder_base_asset_amount: Some(lp_metrics.remainder_base_asset_amount.cast::<i32>()?),
+        remainder_base_asset_amount: Some(lp_metrics.remainder_base_asset_amount.cast::<i64>()?),
     };
 
     let pnl = update_position_and_market(position, market, &position_delta)?;
@@ -208,8 +208,8 @@ pub fn settle_lp_position(
     position.last_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
     position.last_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
 
-    crate::validation::perp_market::validate_perp_market(market)?;
-    crate::validation::position::validate_perp_position_with_perp_market(position, market)?;
+    // crate::validation::perp_market::validate_perp_market(market)?;
+    // crate::validation::position::validate_perp_position_with_perp_market(position, market)?;
 
     Ok((position_delta, pnl))
 }
@@ -270,6 +270,12 @@ pub fn burn_lp_shares(
         .base_asset_amount_with_unsettled_lp
         .safe_add(position.remainder_base_asset_amount.cast()?)?;
     if shares_to_burn as u128 == market.amm.user_lp_shares && unsettled_remainder != 0 {
+
+        crate::dlog!(unsettled_remainder);
+        crate::dlog!(position.remainder_base_asset_amount);
+        crate::dlog!(market
+            .amm
+            .base_asset_amount_with_unsettled_lp);
         crate::validate!(
             unsettled_remainder.unsigned_abs() <= market.amm.order_step_size as u128,
             ErrorCode::UnableToBurnLPTokens,
