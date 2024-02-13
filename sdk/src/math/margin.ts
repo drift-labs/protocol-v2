@@ -8,7 +8,7 @@ import {
 } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
-import { PerpMarketAccount, PerpPosition } from '..';
+import { Order, PerpMarketAccount, PerpPosition } from '..';
 import { isVariant } from '../types';
 import { assert } from '../assert/assert';
 
@@ -103,7 +103,8 @@ export function calculateBaseAssetValueWithOracle(
 	market: PerpMarketAccount,
 	perpPosition: PerpPosition,
 	oraclePriceData: OraclePriceData,
-	includeOpenOrders = false
+	includeOpenOrders = false,
+	openOrders?: Order[]
 ): BN {
 	let price = oraclePriceData.price;
 	if (isVariant(market.status, 'settlement')) {
@@ -111,17 +112,73 @@ export function calculateBaseAssetValueWithOracle(
 	}
 
 	const baseAssetAmount = includeOpenOrders
-		? calculateWorstCaseBaseAssetAmount(perpPosition)
+		? calculateWorstCaseBaseAssetAmount(perpPosition, openOrders)
 		: perpPosition.baseAssetAmount;
 
 	return baseAssetAmount.abs().mul(price).div(AMM_RESERVE_PRECISION);
 }
 
 export function calculateWorstCaseBaseAssetAmount(
-	perpPosition: PerpPosition
+	perpPosition: PerpPosition,
+	openOrders?: Order[]
 ): BN {
-	const allBids = perpPosition.baseAssetAmount.add(perpPosition.openBids);
-	const allAsks = perpPosition.baseAssetAmount.add(perpPosition.openAsks);
+	let bidsToAdd = perpPosition.openBids;
+	let asksToAdd = perpPosition.openAsks;
+
+	if (openOrders) {
+		const longPositionBase = BN.max(ZERO, perpPosition.baseAssetAmount);
+
+		const riskIncreasingTotalBids = openOrders
+			.filter(
+				(order) =>
+					order.marketIndex === perpPosition.marketIndex &&
+					isVariant(order.direction, 'long') &&
+					!order.reduceOnly
+			)
+			.reduce((prev, order) => order.baseAssetAmount.add(prev), ZERO);
+
+		const reduceOnlyTotalBids = BN.min(
+			openOrders
+				.filter(
+					(order) =>
+						order.marketIndex === perpPosition.marketIndex &&
+						isVariant(order.direction, 'long') &&
+						order.reduceOnly
+				)
+				.reduce((prev, order) => order.baseAssetAmount.add(prev), ZERO),
+			longPositionBase
+		);
+
+		bidsToAdd = riskIncreasingTotalBids.add(reduceOnlyTotalBids);
+
+		const shortPositionBase = BN.min(ZERO, perpPosition.baseAssetAmount);
+
+		const riskIncreasingTotalAsks = openOrders
+			.filter(
+				(order) =>
+					order.marketIndex === perpPosition.marketIndex &&
+					isVariant(order.direction, 'short') &&
+					!order.reduceOnly
+			)
+			.reduce((prev, order) => order.baseAssetAmount.add(prev), ZERO);
+
+		const reduceOnlyTotalAsks = BN.max(
+			openOrders
+				.filter(
+					(order) =>
+						order.marketIndex === perpPosition.marketIndex &&
+						isVariant(order.direction, 'short') &&
+						order.reduceOnly
+				)
+				.reduce((prev, order) => order.baseAssetAmount.add(prev), ZERO),
+			shortPositionBase
+		);
+
+		asksToAdd = riskIncreasingTotalAsks.add(reduceOnlyTotalAsks);
+	}
+
+	const allBids = perpPosition.baseAssetAmount.add(bidsToAdd);
+	const allAsks = perpPosition.baseAssetAmount.add(asksToAdd);
 
 	if (allBids.abs().gt(allAsks.abs())) {
 		return allBids;
