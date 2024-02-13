@@ -12,7 +12,9 @@ use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
     is_multiple_of_step_size,
 };
-use crate::math::position::{get_position_update_type, PositionUpdateType};
+use crate::math::position::{
+    get_new_position_amounts, get_position_update_type, PositionUpdateType,
+};
 use crate::math::safe_math::SafeMath;
 use crate::math_error;
 use crate::safe_increment;
@@ -114,46 +116,14 @@ pub fn update_position_and_market(
     let update_type = get_position_update_type(position, &delta)?;
 
     // Update User
-    let new_quote_asset_amount = position
-        .quote_asset_amount
-        .safe_add(delta.quote_asset_amount)?;
-
-    let mut new_base_asset_amount = position
-        .base_asset_amount
-        .safe_add(delta.base_asset_amount)?;
-
-    let mut new_remainder_base_asset_amount = position
-        .remainder_base_asset_amount
-        .cast::<i64>()?
-        .safe_add(
-        delta
-            .remainder_base_asset_amount
-            .unwrap_or(0)
-            .cast::<i64>()?,
-    )?;
-
-    if delta.remainder_base_asset_amount.is_some() {
-        if new_remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size {
-            let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
-                crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
-                    new_remainder_base_asset_amount.cast()?,
-                    market.amm.order_step_size.cast()?,
-                )?;
-
-            new_base_asset_amount =
-                new_base_asset_amount.safe_add(standardized_remainder_base_asset_amount.cast()?)?;
-
-            new_remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
-        } else {
-            new_remainder_base_asset_amount = new_remainder_base_asset_amount.cast()?;
-        }
-
-        validate!(new_remainder_base_asset_amount.abs() <= i32::MAX as i64,
-            ErrorCode::InvalidPositionDelta,
-            "new_remainder_base_asset_amount={} > i32 max",
-            new_remainder_base_asset_amount
-        )?;
-    }
+    let (new_base_asset_amount, new_settled_base_asset_amount, new_quote_asset_amount, new_remainder_base_asset_amount) =
+        get_new_position_amounts(position, &delta, market)?;
+    // todo: name for this is confusing, but adding is correct as is
+    // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
+    market.amm.base_asset_amount_with_unsettled_lp = market
+        .amm
+        .base_asset_amount_with_unsettled_lp
+        .safe_add(new_settled_base_asset_amount.cast()?)?;
 
     let (new_quote_entry_amount, new_quote_break_even_amount, pnl) = match update_type {
         PositionUpdateType::Open | PositionUpdateType::Increase => {

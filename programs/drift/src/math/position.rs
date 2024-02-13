@@ -1,6 +1,8 @@
+use solana_program::msg;
+
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDelta;
-use crate::error::DriftResult;
+use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
 use crate::math::casting::Cast;
@@ -12,8 +14,9 @@ use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
 use crate::math::safe_math::SafeMath;
 
-use crate::state::perp_market::AMM;
+use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::user::PerpPosition;
+use crate::validate;
 
 pub fn calculate_base_asset_value_and_pnl(
     base_asset_amount: i128,
@@ -176,4 +179,62 @@ pub fn get_position_update_type(
 
         return Ok(PositionUpdateType::Flip);
     }
+}
+
+pub fn get_new_position_amounts(
+    position: &PerpPosition,
+    delta: &PositionDelta,
+    market: &PerpMarket,
+) -> DriftResult<(i64, i64, i64, i64)> {
+    let new_quote_asset_amount = position
+        .quote_asset_amount
+        .safe_add(delta.quote_asset_amount)?;
+
+    let mut new_base_asset_amount = position
+        .base_asset_amount
+        .safe_add(delta.base_asset_amount)?;
+
+    let mut new_remainder_base_asset_amount = position
+        .remainder_base_asset_amount
+        .cast::<i64>()?
+        .safe_add(
+        delta
+            .remainder_base_asset_amount
+            .unwrap_or(0)
+            .cast::<i64>()?,
+    )?;
+    let mut new_settled_base_asset_amount = delta.base_asset_amount;
+
+    if delta.remainder_base_asset_amount.is_some() {
+        if new_remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size {
+            let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
+                crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+                    new_remainder_base_asset_amount.cast()?,
+                    market.amm.order_step_size.cast()?,
+                )?;
+
+            new_base_asset_amount =
+                new_base_asset_amount.safe_add(standardized_remainder_base_asset_amount.cast()?)?;
+            
+            new_settled_base_asset_amount = new_settled_base_asset_amount.safe_add(standardized_remainder_base_asset_amount.cast()?)?;
+
+            new_remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
+        } else {
+            new_remainder_base_asset_amount = new_remainder_base_asset_amount.cast()?;
+        }
+
+        validate!(
+            new_remainder_base_asset_amount.abs() <= i32::MAX as i64,
+            ErrorCode::InvalidPositionDelta,
+            "new_remainder_base_asset_amount={} > i32 max",
+            new_remainder_base_asset_amount
+        )?;
+    }
+
+    Ok((
+        new_base_asset_amount,
+        new_settled_base_asset_amount,
+        new_quote_asset_amount,
+        new_remainder_base_asset_amount,
+    ))
 }
