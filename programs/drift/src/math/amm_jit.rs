@@ -1,11 +1,10 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
-use crate::math::constants::AMM_RESERVE_PRECISION;
+use crate::math::constants::{AMM_RESERVE_PRECISION, PERCENTAGE_PRECISION};
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::safe_math::SafeMath;
 use crate::state::perp_market::{AMMLiquiditySplit, ContractTier, PerpMarket};
-use crate::PERCENTAGE_PRECISION_U64;
 #[cfg(test)]
 mod tests;
 
@@ -23,13 +22,14 @@ pub fn calculate_jit_base_asset_amount(
     let mut max_jit_amount = maker_base_asset_amount.safe_div(2)?;
     // check for wash trade
     if let Some(oracle_price) = valid_oracle_price {
-        let baseline_price = oracle_price.cast::<u64>()?;
+        let baseline_price = oracle_price;
+        let baseline_price_u64 = oracle_price.cast::<u64>()?;
 
         // maker taking a short below oracle = likely to be a wash
         // so we want to take under 50% of typical
         let wash_reduction_const_min = 2;
-        if taker_direction == PositionDirection::Long && auction_price < baseline_price
-            || taker_direction == PositionDirection::Short && auction_price > baseline_price
+        if taker_direction == PositionDirection::Long && auction_price < baseline_price_u64
+            || taker_direction == PositionDirection::Short && auction_price > baseline_price_u64
         {
             let wash_reduction_const_max = if market
                 .contract_tier
@@ -40,11 +40,13 @@ pub fn calculate_jit_base_asset_amount(
                 100
             };
 
-            let wash_divisor = auction_price
+            let wash_divisor = auction_price.cast::<i64>()?
                 .safe_sub(baseline_price)?
-                .safe_mul(PERCENTAGE_PRECISION_U64 / 100)?
+                .abs()
+                .safe_mul(PERCENTAGE_PRECISION.cast::<i64>()? / 100)?
                 .safe_div(baseline_price)?
-                .clamp(wash_reduction_const_min, wash_reduction_const_max);
+                .clamp(wash_reduction_const_min, wash_reduction_const_max)
+                .cast::<u64>()?;
 
             max_jit_amount = max_jit_amount.safe_div(wash_divisor)?
         }
