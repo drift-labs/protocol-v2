@@ -34,8 +34,8 @@ use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
-    get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
-    OracleSource,
+    get_oracle_price, get_pyth_price, get_switchboard_price, HistoricalIndexData,
+    HistoricalOracleData, OraclePriceData, OracleSource,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
@@ -568,8 +568,13 @@ pub fn handle_initialize_perp_market(
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
         }
         OracleSource::Switchboard => {
-            msg!("Switchboard oracle cant be used for perp market");
-            return Err(ErrorCode::InvalidOracle.into());
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_switchboard_price(&ctx.accounts.oracle, clock_slot)?;
+
+            (oracle_price, oracle_delay, oracle_price)
         }
         OracleSource::QuoteAsset => {
             msg!("Quote asset oracle cant be used for perp market");
@@ -1101,7 +1106,7 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let price_oracle = &ctx.accounts.oracle;
-    let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle)?;
+    let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle, clock.slot)?;
 
     if let Some(oracle_twap) = oracle_twap {
         let oracle_mark_gap_before = perp_market
